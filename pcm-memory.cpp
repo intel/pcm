@@ -239,7 +239,8 @@ void printSocketBWFooter(uint32 no_columns, uint32 skt, const memdata_t *md)
         cout << endl;
     }
     for (uint32 i=skt; i<(skt+no_columns); ++i) {
-        cout << "|-- NODE"<<setw(2)<<i<<" Memory (MB/s): "<<setw(11)<<std::right<<md->iMC_Rd_socket[i]+md->iMC_Wr_socket[i]<<" --|";
+        cout << "|-- NODE"<<setw(2)<<i<<" Memory (MB/s): "<<setw(11)<<std::right<<(md->iMC_Rd_socket[i]+md->iMC_Wr_socket[i]+
+              md->iMC_DDRT_Rd_socket[i]+md->iMC_DDRT_Wr_socket[i])<<" --|";
     }
     cout << endl;
     for (uint32 i=skt; i<(no_columns+skt); ++i) {
@@ -267,6 +268,8 @@ void display_bandwidth(PCM *m, memdata_t *md, uint32 no_columns)
             for (uint32 i=skt; i<(skt+no_columns); i++) {
                 sysRead += md->iMC_Rd_socket[i];
                 sysWrite += md->iMC_Wr_socket[i];
+                sysRead += md->iMC_DDRT_Rd_socket[i];
+                sysWrite += md->iMC_DDRT_Wr_socket[i];
             }
             skt += no_columns;
         }
@@ -360,20 +363,29 @@ void display_bandwidth(PCM *m, memdata_t *md, uint32 no_columns)
                     }
                 }
                 cout << "\
-                    \r|-- NODE"<<skt<<" Mem Read (MB/s):  "<<setw(8)<<md->iMC_Rd_socket[skt]<<"  --|\n\
+                    \r|-- NODE"<<skt<<" Mem Read (MB/s)  :"<<setw(8)<<md->iMC_Rd_socket[skt]<<"  --|\n\
                     \r|-- NODE"<<skt<<" Mem Write (MB/s) :"<<setw(8)<<md->iMC_Wr_socket[skt]<<"  --|\n";
-                if(!md->DDRT)
+                if(md->DDRT)
+                {
+                    cout << "\
+                        \r|-- NODE"<<skt<<" DDR-T Read (MB/s):"<<setw(8)<<md->iMC_DDRT_Rd_socket[skt]<<"  --|\n\
+                        \r|-- NODE"<<skt<<" DDR-T Write(MB/s):"<<setw(8)<<md->iMC_DDRT_Wr_socket[skt]<<"  --|\n";
+                }
+                else
                 {
                     cout <<
                        "\r|-- NODE"<<skt<<" P. Write (T/s) :"<<setw(10)<<dec<<md->partial_write[skt]<<"  --|\n";
                 }
                 cout <<
-                   "\r|-- NODE"<<skt<<" Memory (MB/s): "<<setw(8)<<md->iMC_Rd_socket[skt]+md->iMC_Wr_socket[skt]<<"     --|\n\
+                   "\r|-- NODE"<<skt<<" Memory (MB/s): "<<setw(8)<<md->iMC_Rd_socket[skt]+md->iMC_Wr_socket[skt]+
+                    md->iMC_DDRT_Rd_socket[skt]+md->iMC_DDRT_Wr_socket[skt]<<"     --|\n\
                     \r|---------------------------------------|\n\
                     \r";
 
                 sysRead += md->iMC_Rd_socket[skt];
                 sysWrite += md->iMC_Wr_socket[skt];
+                sysRead += md->iMC_DDRT_Rd_socket[skt];
+                sysWrite += md->iMC_DDRT_Wr_socket[skt];
                 skt += 1;
             }
         }
@@ -511,6 +523,8 @@ void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 elapsedTime)
 
 	 sysRead += md->iMC_Rd_socket[skt];
          sysWrite += md->iMC_Wr_socket[skt];
+         sysRead += md->iMC_DDRT_Rd_socket[skt];
+         sysWrite += md->iMC_DDRT_Wr_socket[skt];
 
 	 if (m->MCDRAMmemoryTrafficMetricsAvailable()) {
              for(uint64 channel = 0; channel < max_edc_channels; ++channel)
@@ -574,9 +588,12 @@ void calculate_bandwidth(PCM *m, const ServerUncorePowerState uncState1[], const
             {
                 if(getMCCounter(channel,READ,uncState1[skt],uncState2[skt]) == 0.0 && getMCCounter(channel,WRITE,uncState1[skt],uncState2[skt]) == 0.0) //In case of JKT-EN, there are only three channels. Skip one and continue.
                 {
-                    md.iMC_Rd_socket_chan[skt][channel] = -1.0;
-                    md.iMC_Wr_socket_chan[skt][channel] = -1.0;
-                    continue;
+                    if (!DDRT || (getMCCounter(channel,DDRT_READ,uncState1[skt],uncState2[skt]) == 0.0 && getMCCounter(channel,DDRT_WRITE,uncState1[skt],uncState2[skt]) == 0.0))
+                    {
+                        md.iMC_Rd_socket_chan[skt][channel] = -1.0;
+                        md.iMC_Wr_socket_chan[skt][channel] = -1.0;
+                        continue;
+                    }
                 }
 
                 md.iMC_Rd_socket_chan[skt][channel] = (float) (getMCCounter(channel,READ,uncState1[skt],uncState2[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0));
