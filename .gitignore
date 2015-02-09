@@ -16,3 +16,9 @@
 *.vxd
 *.exe
 *.tgz
+*.sdf
+*.suo
+Debug
+Release
+Debug64
+Release64
