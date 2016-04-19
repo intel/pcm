@@ -254,9 +254,9 @@ int main(int argc, char * argv[])
         exit(EXIT_FAILURE);
     }
   
-    if(m->getNumCores() !=  m->getNumOnlineCores())
+    if(m->isSomeCoreOfflined())
     {
-        cerr << "Core offlining is not supported yet. Program aborted" << endl;
+        cerr << "Core offlining is not supported. Program aborted" << endl;
         exit(EXIT_FAILURE);
     }
 

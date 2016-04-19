@@ -3362,6 +3362,15 @@ uint32 PCM::getL3ScalingFactor()
 
 }
 
+bool PCM::isSomeCoreOfflined()
+{
+    PCM_CPUID_INFO cpuid_args;
+    pcm_cpuid(0xB,1,cpuid_args);
+    uint32 max_num_lcores_per_socket = cpuid_args.reg.ebx & 0xFFFF;
+    uint32 max_num_lcores = max_num_lcores_per_socket * getNumSockets();
+    return !(getNumOnlineCores() == max_num_lcores);
+}
+
 ServerUncorePowerState PCM::getServerUncorePowerState(uint32 socket)
 {
   ServerUncorePowerState result;

@@ -688,6 +688,13 @@ public:
      */
     uint32 getL3ScalingFactor();
 
+    /*! \brief runs CPUID.0xB.0x01 to get maximum logical cores (including SMT) per socket.
+     *  max_lcores_per_socket is returned in EBX[15:0]. Compare this value with number of cores per socket
+     *  detected in the system to see if some cores are offlined
+     * \return true iff max_lcores_per_socket == number of cores per socket detected
+     */
+    bool isSomeCoreOfflined();
+
     //! \brief Identifiers of supported CPU models
     enum SupportedCPUModels
     {
