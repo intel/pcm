@@ -50,6 +50,8 @@
 
 using namespace std;
 
+void build_event(const char * argv, EventSelectRegister *reg, int idx);
+
 struct CoreEvent
 {
 	char name[256];
@@ -57,6 +59,70 @@ struct CoreEvent
 	uint64 msr_value;
 	char * description;
 } events[4];
+
+extern "C" {
+	SystemCounterState SysBeforeState, SysAfterState;
+	std::vector<CoreCounterState> BeforeState, AfterState;
+	std::vector<SocketCounterState> DummySocketStates;
+	EventSelectRegister regs[4];
+	PCM::ExtendedCustomCoreEventDescription conf;
+
+	int pcm_c_build_core_event(const char * argv)
+	{
+		static int idx = 0;
+		if(idx > 3)
+			return -1;
+
+		cout << "building core event" << *argv << " " << idx << endl;
+		build_event(argv, &regs[idx], idx);
+		return idx++;
+	}
+
+	int pcm_c_init()
+	{
+		PCM * m = PCM::getInstance();
+		conf.fixedCfg = NULL; // default
+		conf.nGPCounters = 4;
+		conf.gpCounterCfg = regs;
+		conf.OffcoreResponseMsrValue[0] = events[0].msr_value;
+		conf.OffcoreResponseMsrValue[1] = events[1].msr_value;
+
+		cerr << "\n Resetting PMU configuration" << endl;
+		m->resetPMU();
+		PCM::ErrorCode status = m->program(PCM::EXT_CUSTOM_CORE_EVENTS, &conf);
+		if(status == PCM::Success)
+			return 0;
+		else
+			return -1;
+	}
+
+	void pcm_c_start()
+	{
+		PCM * m = PCM::getInstance();
+		m->getAllCounterStates(SysBeforeState, DummySocketStates, BeforeState);
+	}
+
+	void pcm_c_stop()
+	{
+		PCM * m = PCM::getInstance();
+		m->getAllCounterStates(SysAfterState, DummySocketStates, AfterState);
+	}
+
+	uint64_t pcm_c_get_cycles(uint32_t core_id)
+	{
+		return getCycles(BeforeState[core_id], AfterState[core_id]);
+	}
+
+	uint64_t pcm_c_get_instr(uint32_t core_id)
+	{
+		return getInstructionsRetired(BeforeState[core_id], AfterState[core_id]);
+	}
+
+	uint64_t pcm_c_get_core_event(uint32_t core_id, uint32_t event_id)
+	{
+		return getNumberOfCustomEvents(event_id, BeforeState[core_id], AfterState[core_id]);
+	}
+}
 
 void print_usage(const string progname)
 {
