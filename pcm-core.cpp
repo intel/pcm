@@ -67,15 +67,14 @@ extern "C" {
 	EventSelectRegister regs[4];
 	PCM::ExtendedCustomCoreEventDescription conf;
 
-	int pcm_c_build_core_event(const char * argv)
+	int pcm_c_build_core_event(uint8_t idx, const char * argv)
 	{
-		static int idx = 0;
 		if(idx > 3)
 			return -1;
 
-		cout << "building core event" << *argv << " " << idx << endl;
+		cout << "building core event " << argv << " " << idx << endl;
 		build_event(argv, &regs[idx], idx);
-		return idx++;
+		return 0;
 	}
 
 	int pcm_c_init()
