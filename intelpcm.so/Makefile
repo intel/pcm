@@ -10,7 +10,7 @@ libintelpcm.so: msr.o cpucounters.o pci.o client_bw.o utils.o pcm-core.o
 	$(CXX) $(CXXFLAGS) -shared $^ -lpthread -o $@
 
 c_example.x: c_example.o
-	$(CC) $^ -ldl -o $@
+	gcc $^ -ldl -L./ -lintelpcm -Wl,-rpath=$(shell pwd) -o $@
 
 clean:
 	rm -rf *.x *.o *~ *.so
