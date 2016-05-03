@@ -3334,8 +3334,8 @@ void PCM::getUncoreCounterStates(SystemCounterState & systemState, std::vector<S
     readQPICounters(systemState);
 
     for (int32 s = 0; s < num_sockets; ++s)
-    {   // aggregate core counters from sockets into system state and
-        // aggregate socket uncore iMC, energy and package C state counters into system
+    {
+        // aggregate socket uncore iMC, energy counters into system
         systemState.accumulateSocketState(socketStates[s]);
     }
 }
