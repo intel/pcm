@@ -619,6 +619,14 @@ public:
     */
     void getAllCounterStates(SystemCounterState & systemState, std::vector<SocketCounterState> & socketStates, std::vector<CoreCounterState> & coreStates);
 
+    /*! \brief Reads uncore counter states (including system and sockets) but no core counters
+
+    \param systemState system counter state (return parameter)
+    \param socketStates socket counter states (return parameter)
+
+    */
+    void getUncoreCounterStates(SystemCounterState & systemState, std::vector<SocketCounterState> & socketStates);
+
     /*! \brief Return true if the core in online
     
         \param i OS core id

@@ -3316,6 +3316,30 @@ void PCM::getAllCounterStates(SystemCounterState & systemState, std::vector<Sock
     }
 }
 
+
+void PCM::getUncoreCounterStates(SystemCounterState & systemState, std::vector<SocketCounterState> & socketStates)
+{
+    // clear and zero-initialize all inputs
+    systemState = SystemCounterState();
+    socketStates.clear();
+    socketStates.resize(num_sockets);
+
+    for (uint32 s = 0; s < (uint32)num_sockets; ++s)
+    {
+        readAndAggregateUncoreMCCounters(s, socketStates[s]);
+        readAndAggregateEnergyCounters(s, socketStates[s]);
+        readPackageThermalHeadroom(s, socketStates[s]);
+    }
+
+    readQPICounters(systemState);
+
+    for (int32 s = 0; s < num_sockets; ++s)
+    {   // aggregate core counters from sockets into system state and
+        // aggregate socket uncore iMC, energy and package C state counters into system
+        systemState.accumulateSocketState(socketStates[s]);
+    }
+}
+
 CoreCounterState PCM::getCoreCounterState(uint32 core)
 {
     CoreCounterState result;
