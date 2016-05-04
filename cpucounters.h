@@ -1151,6 +1151,7 @@ protected:
     int32 ThermalHeadroom;
     uint64 L3Occupancy;
     void readAndAggregate(std::shared_ptr<SafeMsrHandle>);
+    void readAndAggregateTSC(std::shared_ptr<SafeMsrHandle>);
     uint64 MemoryBWLocal;
     uint64 MemoryBWTotal;
 public:

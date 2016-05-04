@@ -2671,6 +2671,25 @@ void PCM::readPerfData(uint32 core, std::vector<uint64> & outData)
 }
 #endif
 
+void BasicCounterState::readAndAggregateTSC(std::shared_ptr<SafeMsrHandle> msr)
+{
+    uint64 cInvariantTSC = 0;
+    PCM * m = PCM::getInstance();
+    uint32 cpu_model = m->getCPUModel();
+    if(cpu_model != PCM::ATOM ||  m->getOriginalCPUModel() == PCM::ATOM_AVOTON) msr->read(IA32_TIME_STAMP_COUNTER, &cInvariantTSC);
+    else
+    {
+#ifdef _MSC_VER
+        cInvariantTSC = ((static_cast<uint64>(GetTickCount()/1000ULL)))*m->getNominalFrequency();
+#else
+        struct timeval tp;
+        gettimeofday(&tp, NULL);
+        cInvariantTSC = (double(tp.tv_sec) + tp.tv_usec / 1000000.)*m->getNominalFrequency();
+#endif
+    }
+    InvariantTSC += cInvariantTSC;
+}
+
 void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
 {
     uint64 cInstRetiredAny = 0, cCpuClkUnhaltedThread = 0, cCpuClkUnhaltedRef = 0;
@@ -2678,7 +2697,6 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
     uint64 cL3UnsharedHit = 0;
     uint64 cL2HitM = 0;
     uint64 cL2Hit = 0;
-    uint64 cInvariantTSC = 0;
     uint64 cL3Occupancy = 0;
     uint64 cCStateResidency[PCM::MAX_C_STATE + 1];
     memset(cCStateResidency, 0, sizeof(cCStateResidency));
@@ -2751,17 +2769,7 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
 
     m->readAndAggregateMemoryBWCounters(static_cast<uint32>(core_id), *this);
 
-    if(cpu_model != PCM::ATOM ||  m->getOriginalCPUModel() == PCM::ATOM_AVOTON) msr->read(IA32_TIME_STAMP_COUNTER, &cInvariantTSC);
-    else
-    {
-#ifdef _MSC_VER
-        cInvariantTSC = ((static_cast<uint64>(GetTickCount()/1000ULL)))*m->getNominalFrequency();
-#else
-        struct timeval tp;
-        gettimeofday(&tp, NULL);
-        cInvariantTSC = (double(tp.tv_sec) + tp.tv_usec / 1000000.)*m->getNominalFrequency();
-#endif
-    }
+    readAndAggregateTSC(msr);
 
     // reading core C state counters
     for(int i=0; i <= (int)(PCM::MAX_C_STATE) ;++i)
@@ -2781,7 +2789,6 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
     L3Occupancy = (cL3Occupancy==PCM_INVALID_QOS_MONITORING_DATA)? PCM_INVALID_QOS_MONITORING_DATA : (uint64)((double)(cL3Occupancy * m->L3ScalingFactor) / 1024.0);
     L2HitM += m->extractCoreGenCounterValue(cL2HitM);
     L2Hit += m->extractCoreGenCounterValue(cL2Hit);
-    InvariantTSC += cInvariantTSC;
     for(int i=0; i <= int(PCM::MAX_C_STATE);++i)
         CStateResidency[i] += cCStateResidency[i];
     ThermalHeadroom = extractThermalHeadroom(thermStatus);
@@ -3323,9 +3330,15 @@ void PCM::getUncoreCounterStates(SystemCounterState & systemState, std::vector<S
     systemState = SystemCounterState();
     socketStates.clear();
     socketStates.resize(num_sockets);
+    std::vector<CoreCounterState> refCoreStates(num_sockets);
 
     for (uint32 s = 0; s < (uint32)num_sockets; ++s)
     {
+        const int32 refCore = socketRefCore[s];
+        if(isCoreOnline(refCore))
+        {
+            refCoreStates[s].readAndAggregateTSC(MSR[refCore]);
+        }
         readAndAggregateUncoreMCCounters(s, socketStates[s]);
         readAndAggregateEnergyCounters(s, socketStates[s]);
         readPackageThermalHeadroom(s, socketStates[s]);
@@ -3335,6 +3348,15 @@ void PCM::getUncoreCounterStates(SystemCounterState & systemState, std::vector<S
 
     for (int32 s = 0; s < num_sockets; ++s)
     {
+        const int32 refCore = socketRefCore[s];
+        if(isCoreOnline(refCore))
+        {
+            for(uint32 core=0; core < getNumCores(); ++core)
+            {
+                if(topology[core].socket == s && isCoreOnline(core))
+                    socketStates[s].accumulateCoreState(refCoreStates[s]);
+            }
+        }
         // aggregate socket uncore iMC, energy counters into system
         systemState.accumulateSocketState(socketStates[s]);
     }
