@@ -46,6 +46,8 @@ void sigSTOP_handler(int signum);
 void sigCONT_handler(int signum);
 #endif
 
+void set_post_cleanup_callback(void(*cb)(void));
+
 #ifdef _MSC_VER
 inline void win_usleep(int delay_us)
 {

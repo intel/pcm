@@ -1264,6 +1264,46 @@ public:
     int32 getThermalHeadroom() const { return ThermalHeadroom; }
 };
 
+inline uint64 RDTSC()
+{
+        uint64 result = 0;
+#ifdef _MSC_VER
+        // Windows
+        #if _MSC_VER>= 1600
+        result = static_cast<uint64>(__rdtsc());
+        #endif
+#else
+        // Linux
+        uint32 high = 0, low = 0;
+        asm volatile("rdtsc" : "=a" (low), "=d" (high));
+        result = low + (uint64(high)<<32ULL);
+#endif
+        return result;
+
+}
+
+inline uint64 RDTSCP()
+{
+	uint64 result = 0;
+#ifdef _MSC_VER
+        // Windows
+        #if _MSC_VER>= 1600
+        unsigned int Aux;
+        result = __rdtscp(&Aux);
+        #endif
+#else
+	// Linux and OS X
+        uint32 high = 0, low = 0;
+        asm volatile (
+           "rdtscp\n\t"
+           "mov %%edx, %0\n\t"
+           "mov %%eax, %1\n\t":
+           "=r" (high), "=r" (low) :: "%rax", "%rcx", "%rdx");
+        result = low + (uint64(high)<<32ULL);
+#endif
+	return result;
+}
+
 /*! \brief Returns QPI LL clock ticks
     \param port QPI port number
     \param before CPU counter state before the experiment
