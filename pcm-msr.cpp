@@ -31,21 +31,21 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 uint64 read_number(char * str)
 {
-        std::istringstream stream(str);        
-	if(strstr(str,"x")) stream >> std::hex ;
-        uint64 result = 0;
-        stream >> result;
-        return result;
+    std::istringstream stream(str);
+    if (strstr(str, "x")) stream >> std::hex;
+    uint64 result = 0;
+    stream >> result;
+    return result;
 }
 
 void print_usage(const char * progname)
 {
-	  std::cout << "Usage "<<progname<<" [-w value] [-c core] [-d] msr\n\n";
-	  std::cout << "  Reads specified msr (model specific register) \n";
-	  std::cout << "   -w value : write the value before reading \n";
-	  std::cout << "   -c core  : perform msr read/write on specified core (default is 0)\n";
-          std::cout << "   -d       : output all numbers in dec (default is hex)\n";
-          std::cout << "\n";
+    std::cout << "Usage " << progname << " [-w value] [-c core] [-d] msr\n\n";
+    std::cout << "  Reads specified msr (model specific register) \n";
+    std::cout << "   -w value : write the value before reading \n";
+    std::cout << "   -c core  : perform msr read/write on specified core (default is 0)\n";
+    std::cout << "   -d       : output all numbers in dec (default is hex)\n";
+    std::cout << "\n";
 }
 
 int main(int argc, char * argv[])
@@ -53,41 +53,41 @@ int main(int argc, char * argv[])
     std::cout << "\n Intel(r) Performance Counter Monitor " << INTEL_PCM_VERSION << std::endl;
     std::cout << INTEL_PCM_COPYRIGHT << std::endl;
     std::cout << "\n MSR read/write utility\n\n";
-    
+
     uint64 value = 0;
     bool write = false;
     int core = 0;
     int msr = -1;
     bool dec = false;
 
-	int my_opt = -1;
-	while ((my_opt = getopt(argc, argv, "w:c:d")) != -1)
-	{
-		switch(my_opt)
-		{
-			case 'w':
-                                write = true;
-				value = read_number(optarg);
-				break;
-			case 'c':
-				core = (int) read_number(optarg);
-				break;
-                        case 'd':
-                                dec = true;
-                                break;
-			default:
-				print_usage(argv[0]);
-				return -1;
-		}
-	}
+    int my_opt = -1;
+    while ((my_opt = getopt(argc, argv, "w:c:d")) != -1)
+    {
+        switch (my_opt)
+        {
+        case 'w':
+            write = true;
+            value = read_number(optarg);
+            break;
+        case 'c':
+            core = (int)read_number(optarg);
+            break;
+        case 'd':
+            dec = true;
+            break;
+        default:
+            print_usage(argv[0]);
+            return -1;
+        }
+    }
 
-	 if (optind >= argc)
-	 {
-		 print_usage(argv[0]);
-		 return -1;
-	 }
+    if (optind >= argc)
+    {
+        print_usage(argv[0]);
+        return -1;
+    }
 
-    msr = (int) read_number(argv[optind]);
+    msr = (int)read_number(argv[optind]);
 
     #ifdef _MSC_VER
     // Increase the priority a bit to improve context switching delays on Windows
@@ -102,8 +102,8 @@ int main(int argc, char * argv[])
     // drv.stop();     // restart driver (usually not needed)
     if (!drv.start(driverPath))
     {
-		std::cerr << "Can not load MSR driver." << std::endl;
-		std::cerr << "You must have signed msr.sys driver in your current directory and have administrator rights to run this program" << std::endl;
+        std::cerr << "Can not load MSR driver." << std::endl;
+        std::cerr << "You must have signed msr.sys driver in your current directory and have administrator rights to run this program" << std::endl;
         return -1;
     }
     #endif

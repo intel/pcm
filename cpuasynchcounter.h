@@ -54,8 +54,8 @@ public:
     {
         m = PCM::getInstance();
         PCM::ErrorCode status = m->program();
-	if(status != PCM::Success)
-	{
+        if (status != PCM::Success)
+        {
             cout << "\nCan not access CPU counters. Try to run pcm.x 1 to check the PMU access status.\n" << endl;
             exit(-1);
         }
@@ -82,7 +82,7 @@ public:
     {
         pthread_cancel(UpdateThread);
         pthread_mutex_destroy(&CounterMutex);
-	m->cleanup();
+        m->cleanup();
         delete[] cstates1;
         delete[] cstates2;
         delete[] skstates1;
@@ -108,10 +108,10 @@ public:
     template <typename T, T func(CoreCounterState const &)>
     T get(uint32 core)
     {
-	pthread_mutex_lock(&CounterMutex);
-	T value = func(cstates2[core]);
-	pthread_mutex_unlock(&CounterMutex);
-	return value;
+        pthread_mutex_lock(&CounterMutex);
+        T value = func(cstates2[core]);
+        pthread_mutex_unlock(&CounterMutex);
+        return value;
     }
     template <typename T, T func(CoreCounterState const &, CoreCounterState const &)>
     T get(uint32 core)
@@ -184,7 +184,6 @@ public:
         pthread_mutex_unlock(&CounterMutex);
         return value;
     }
-
 };
 
 void * UpdateCounters(void * state)

@@ -18,7 +18,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <unistd.h>
 #include "msr.h"
 
-#define NUM_CORES 16 
+#define NUM_CORES 16
 
 
 int main()
@@ -61,7 +61,7 @@ int main()
     }
     uint64 counters_before[NUM_CORES][3];
     uint64 counters_after[NUM_CORES][3];
-   
+
     for (i = 0; i < NUM_CORES; ++i)
     {
         res = cpu_msr[i]->read(INST_RETIRED_ANY_ADDR, &counters_before[i][0]);
@@ -86,8 +86,7 @@ int main()
         delete cpu_msr[i];
     for (i = 0; i < NUM_CORES; ++i)
         std::cout << "Core " << i <<
-        "\t Instructions: " << (counters_after[i][0] - counters_before[i][0]) <<
-        "\t Cycles: " << (counters_after[i][1] - counters_before[i][1]) <<
-        "\t IPC: " << double(counters_after[i][0] - counters_before[i][0]) / double(counters_after[i][1] - counters_before[i][1]) << std::endl;
-
+            "\t Instructions: " << (counters_after[i][0] - counters_before[i][0]) <<
+            "\t Cycles: " << (counters_after[i][1] - counters_before[i][1]) <<
+            "\t IPC: " << double(counters_after[i][0] - counters_before[i][0]) / double(counters_after[i][1] - counters_before[i][1]) << std::endl;
 }

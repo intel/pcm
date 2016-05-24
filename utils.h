@@ -51,20 +51,20 @@ inline void win_usleep(int delay_us)
 {
     uint64 t1 = 0, t2 = 0, freq = 0;
     uint64 wait_tick;
-    QueryPerformanceFrequency((LARGE_INTEGER *) &freq);
+    QueryPerformanceFrequency((LARGE_INTEGER *)&freq);
     wait_tick = freq * delay_us / 1000000ULL;
-    QueryPerformanceCounter((LARGE_INTEGER *) &t1);
+    QueryPerformanceCounter((LARGE_INTEGER *)&t1);
     do {
-        QueryPerformanceCounter((LARGE_INTEGER *) &t2);
+        QueryPerformanceCounter((LARGE_INTEGER *)&t2);
         _mm_pause();
-    } while ((t2-t1) < wait_tick);
+    } while ((t2 - t1) < wait_tick);
 }
 #endif
 
 inline void MySleep(int delay)
 {
 #ifdef _MSC_VER
-    if(delay) Sleep(delay*1000);
+    if (delay) Sleep(delay * 1000);
 #else
     ::sleep(delay);
 #endif
@@ -73,11 +73,11 @@ inline void MySleep(int delay)
 inline void MySleepMs(int delay_ms)
 {
 #ifdef _MSC_VER
-    if(delay_ms) Sleep((DWORD)delay_ms);
+    if (delay_ms) Sleep((DWORD)delay_ms);
 #else
     struct timespec sleep_intrval;
     double complete_seconds;
-    sleep_intrval.tv_nsec = static_cast<long>(1000000000.0*(::modf(delay_ms/1000.0,&complete_seconds)));
+    sleep_intrval.tv_nsec = static_cast<long>(1000000000.0 * (::modf(delay_ms / 1000.0, &complete_seconds)));
     sleep_intrval.tv_sec = static_cast<time_t>(complete_seconds);
     ::nanosleep(&sleep_intrval, NULL);
 #endif
@@ -86,7 +86,7 @@ inline void MySleepMs(int delay_ms)
 inline void MySleepUs(int delay_us)
 {
 #ifdef _MSC_VER
-    if(delay_us) win_usleep(delay_us);
+    if (delay_us) win_usleep(delay_us);
 #else
     ::usleep(delay_us);
 
@@ -140,23 +140,23 @@ inline std::string unit_format(IntType n)
 #define PCM_UNUSED(x) (void)(x)
 
 #define PCM_COMPILE_ASSERT(condition) \
-   typedef char pcm_compile_assert_failed [ (condition) ? 1 : -1 ]; \
-   pcm_compile_assert_failed pcm_compile_assert_failed_; \
-   PCM_UNUSED(pcm_compile_assert_failed_);
+    typedef char pcm_compile_assert_failed[(condition) ? 1 : -1]; \
+    pcm_compile_assert_failed pcm_compile_assert_failed_; \
+    PCM_UNUSED(pcm_compile_assert_failed_);
 
 #ifdef _MSC_VER
 class ThreadGroupTempAffinity
 {
-	GROUP_AFFINITY PreviousGroupAffinity;
+    GROUP_AFFINITY PreviousGroupAffinity;
 
-	ThreadGroupTempAffinity(); // forbidden
-	ThreadGroupTempAffinity(const ThreadGroupTempAffinity &); // forbidden
-    ThreadGroupTempAffinity& operator = (const ThreadGroupTempAffinity &); // forbidden
+    ThreadGroupTempAffinity();                                              // forbidden
+    ThreadGroupTempAffinity(const ThreadGroupTempAffinity &);               // forbidden
+    ThreadGroupTempAffinity & operator = (const ThreadGroupTempAffinity &); // forbidden
+
 public:
-	ThreadGroupTempAffinity(uint32 core_id);
-	~ThreadGroupTempAffinity();
+    ThreadGroupTempAffinity(uint32 core_id);
+    ~ThreadGroupTempAffinity();
 };
 #endif
 
 #endif
-

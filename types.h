@@ -480,7 +480,7 @@ struct BecktonUncorePMUCNTCTLRegister
 
 #define DATA_BYTES_PER_QPI_FLIT (8)
 #define QPI_CYCLES_PER_QPI_FLIT (4)
-#define DATA_BYTES_PER_QPI_CYCLE (DATA_BYTES_PER_QPI_FLIT/QPI_CYCLES_PER_QPI_FLIT)
+#define DATA_BYTES_PER_QPI_CYCLE (DATA_BYTES_PER_QPI_FLIT / QPI_CYCLES_PER_QPI_FLIT)
 
 // server PCICFG uncore counters
 
@@ -594,58 +594,58 @@ struct BecktonUncorePMUCNTCTLRegister
 
 #define HSX_PCU_MSR_PMON_BOX_CTL_ADDR (0x0710)
 
-#define MC_CH_PCI_PMON_BOX_CTL_RST_CONTROL 	(1<<0)
-#define MC_CH_PCI_PMON_BOX_CTL_RST_COUNTERS 	(1<<1)
-#define MC_CH_PCI_PMON_BOX_CTL_FRZ 	(1<<8)
-#define MC_CH_PCI_PMON_BOX_CTL_FRZ_EN 	(1<<16)
+#define MC_CH_PCI_PMON_BOX_CTL_RST_CONTROL  (1 << 0)
+#define MC_CH_PCI_PMON_BOX_CTL_RST_COUNTERS     (1 << 1)
+#define MC_CH_PCI_PMON_BOX_CTL_FRZ  (1 << 8)
+#define MC_CH_PCI_PMON_BOX_CTL_FRZ_EN   (1 << 16)
 
-#define UNCORE_PMON_BOX_CTL_VALID_BITS_MASK  ((1<<17)-1)
+#define UNCORE_PMON_BOX_CTL_VALID_BITS_MASK  ((1 << 17) - 1)
 
-#define MC_CH_PCI_PMON_FIXED_CTL_RST (1<<19) 
-#define MC_CH_PCI_PMON_FIXED_CTL_EN (1<<22) 
+#define MC_CH_PCI_PMON_FIXED_CTL_RST (1 << 19)
+#define MC_CH_PCI_PMON_FIXED_CTL_EN (1 << 22)
 
-#define MC_CH_PCI_PMON_CTL_EVENT(x) (x<<0)
-#define MC_CH_PCI_PMON_CTL_UMASK(x) (x<<8)
-#define MC_CH_PCI_PMON_CTL_RST (1<<17)
-#define MC_CH_PCI_PMON_CTL_EDGE_DET (1<<18)
-#define MC_CH_PCI_PMON_CTL_EN (1<<22)
-#define MC_CH_PCI_PMON_CTL_INVERT (1<<23)
-#define MC_CH_PCI_PMON_CTL_THRESH(x) (x<<24UL)
+#define MC_CH_PCI_PMON_CTL_EVENT(x) (x << 0)
+#define MC_CH_PCI_PMON_CTL_UMASK(x) (x << 8)
+#define MC_CH_PCI_PMON_CTL_RST (1 << 17)
+#define MC_CH_PCI_PMON_CTL_EDGE_DET (1 << 18)
+#define MC_CH_PCI_PMON_CTL_EN (1 << 22)
+#define MC_CH_PCI_PMON_CTL_INVERT (1 << 23)
+#define MC_CH_PCI_PMON_CTL_THRESH(x) (x << 24UL)
 
-#define Q_P_PCI_PMON_BOX_CTL_RST_CONTROL  	(1<<0)
-#define Q_P_PCI_PMON_BOX_CTL_RST_COUNTERS 	(1<<1)
-#define Q_P_PCI_PMON_BOX_CTL_RST_FRZ 	(1<<8)
-#define Q_P_PCI_PMON_BOX_CTL_RST_FRZ_EN 	(1<<16)
+#define Q_P_PCI_PMON_BOX_CTL_RST_CONTROL    (1 << 0)
+#define Q_P_PCI_PMON_BOX_CTL_RST_COUNTERS   (1 << 1)
+#define Q_P_PCI_PMON_BOX_CTL_RST_FRZ    (1 << 8)
+#define Q_P_PCI_PMON_BOX_CTL_RST_FRZ_EN     (1 << 16)
 
-#define Q_P_PCI_PMON_CTL_EVENT(x) 	(x<<0)
-#define Q_P_PCI_PMON_CTL_UMASK(x) 	(x<<8)
-#define Q_P_PCI_PMON_CTL_RST 		(1<<17)
-#define Q_P_PCI_PMON_CTL_EDGE_DET 	(1<<18)
-#define Q_P_PCI_PMON_CTL_EVENT_EXT 	(1<<21)
-#define Q_P_PCI_PMON_CTL_EN 		(1<<22)
-#define Q_P_PCI_PMON_CTL_INVERT 	(1<<23)
-#define Q_P_PCI_PMON_CTL_THRESH(x) 	(x<<24UL)
+#define Q_P_PCI_PMON_CTL_EVENT(x)   (x << 0)
+#define Q_P_PCI_PMON_CTL_UMASK(x)   (x << 8)
+#define Q_P_PCI_PMON_CTL_RST        (1 << 17)
+#define Q_P_PCI_PMON_CTL_EDGE_DET   (1 << 18)
+#define Q_P_PCI_PMON_CTL_EVENT_EXT  (1 << 21)
+#define Q_P_PCI_PMON_CTL_EN         (1 << 22)
+#define Q_P_PCI_PMON_CTL_INVERT     (1 << 23)
+#define Q_P_PCI_PMON_CTL_THRESH(x)  (x << 24UL)
 
-#define PCU_MSR_PMON_BOX_FILTER_BAND_0(x) (x<<0)
-#define PCU_MSR_PMON_BOX_FILTER_BAND_1(x) (x<<8)
-#define PCU_MSR_PMON_BOX_FILTER_BAND_2(x) (x<<16)
-#define PCU_MSR_PMON_BOX_FILTER_BAND_3(x) (x<<24)
+#define PCU_MSR_PMON_BOX_FILTER_BAND_0(x) (x << 0)
+#define PCU_MSR_PMON_BOX_FILTER_BAND_1(x) (x << 8)
+#define PCU_MSR_PMON_BOX_FILTER_BAND_2(x) (x << 16)
+#define PCU_MSR_PMON_BOX_FILTER_BAND_3(x) (x << 24)
 
-#define PCU_MSR_PMON_BOX_CTL_RST_CONTROL (1<<0)
-#define PCU_MSR_PMON_BOX_CTL_RST_COUNTERS (1<<1)
-#define PCU_MSR_PMON_BOX_CTL_FRZ (1<<8)
-#define PCU_MSR_PMON_BOX_CTL_FRZ_EN (1<<16)
+#define PCU_MSR_PMON_BOX_CTL_RST_CONTROL (1 << 0)
+#define PCU_MSR_PMON_BOX_CTL_RST_COUNTERS (1 << 1)
+#define PCU_MSR_PMON_BOX_CTL_FRZ (1 << 8)
+#define PCU_MSR_PMON_BOX_CTL_FRZ_EN (1 << 16)
 
-#define PCU_MSR_PMON_CTL_EVENT(x) (x<<0)
-#define PCU_MSR_PMON_CTL_OCC_SEL(x) (x<<14)
-#define PCU_MSR_PMON_CTL_RST	(1<<17)
-#define PCU_MSR_PMON_CTL_EDGE_DET (1<<18)
-#define PCU_MSR_PMON_CTL_EXTRA_SEL (1<<21)
-#define PCU_MSR_PMON_CTL_EN	(1<<22)
-#define PCU_MSR_PMON_CTL_INVERT (1<<23)
-#define PCU_MSR_PMON_CTL_THRESH(x) (x<<24UL)
-#define PCU_MSR_PMON_CTL_OCC_INVERT (1UL<<30UL)
-#define PCU_MSR_PMON_CTL_OCC_EDGE_DET (1UL<<31UL)
+#define PCU_MSR_PMON_CTL_EVENT(x) (x << 0)
+#define PCU_MSR_PMON_CTL_OCC_SEL(x) (x << 14)
+#define PCU_MSR_PMON_CTL_RST    (1 << 17)
+#define PCU_MSR_PMON_CTL_EDGE_DET (1 << 18)
+#define PCU_MSR_PMON_CTL_EXTRA_SEL (1 << 21)
+#define PCU_MSR_PMON_CTL_EN (1 << 22)
+#define PCU_MSR_PMON_CTL_INVERT (1 << 23)
+#define PCU_MSR_PMON_CTL_THRESH(x) (x << 24UL)
+#define PCU_MSR_PMON_CTL_OCC_INVERT (1UL << 30UL)
+#define PCU_MSR_PMON_CTL_OCC_EDGE_DET (1UL << 31UL)
 
 
 #define JKT_C0_MSR_PMON_CTR3        0x0D19 // CBo 0 PMON Counter 3
@@ -663,40 +663,40 @@ struct BecktonUncorePMUCNTCTLRegister
 
 #define IVT_C0_MSR_PMON_BOX_FILTER1 0x0D1A // CBo 0 PMON Filter 1
 
-#define HSX_C0_MSR_PMON_CTR3 0x0E0B // CBo 0 PMON Counter 3
-#define HSX_C0_MSR_PMON_CTR2 0x0E0A // CBo 0 PMON Counter 2
-#define HSX_C0_MSR_PMON_CTR1 0x0E09 // CBo 0 PMON Counter 1
-#define HSX_C0_MSR_PMON_CTR0 0x0E08 // CBo 0 PMON Counter 0
+#define HSX_C0_MSR_PMON_CTR3 0x0E0B        // CBo 0 PMON Counter 3
+#define HSX_C0_MSR_PMON_CTR2 0x0E0A        // CBo 0 PMON Counter 2
+#define HSX_C0_MSR_PMON_CTR1 0x0E09        // CBo 0 PMON Counter 1
+#define HSX_C0_MSR_PMON_CTR0 0x0E08        // CBo 0 PMON Counter 0
 
 #define HSX_C0_MSR_PMON_BOX_FILTER1 0x0E06 // CBo 0 PMON Filter1
-#define HSX_C0_MSR_PMON_BOX_FILTER 0x0E05 // CBo 0 PMON Filter0
+#define HSX_C0_MSR_PMON_BOX_FILTER 0x0E05  // CBo 0 PMON Filter0
 
-#define HSX_C0_MSR_PMON_CTL3 0x0E04 // CBo 0 PMON Control for Counter 3
-#define HSX_C0_MSR_PMON_CTL2 0x0E03 // CBo 0 PMON Control for Counter 2
-#define HSX_C0_MSR_PMON_CTL1 0x0E02 // CBo 0 PMON Control for Counter 1
-#define HSX_C0_MSR_PMON_CTL0 0x0E01 // CBo 0 PMON Control for Counter 0
+#define HSX_C0_MSR_PMON_CTL3 0x0E04        // CBo 0 PMON Control for Counter 3
+#define HSX_C0_MSR_PMON_CTL2 0x0E03        // CBo 0 PMON Control for Counter 2
+#define HSX_C0_MSR_PMON_CTL1 0x0E02        // CBo 0 PMON Control for Counter 1
+#define HSX_C0_MSR_PMON_CTL0 0x0E01        // CBo 0 PMON Control for Counter 0
 
-#define HSX_C0_MSR_PMON_BOX_STATUS 0x0E07 // CBo 0 PMON Box-Wide Status
-#define HSX_C0_MSR_PMON_BOX_CTL 0x0E00 // CBo 0 PMON Box-Wide Control
+#define HSX_C0_MSR_PMON_BOX_STATUS 0x0E07  // CBo 0 PMON Box-Wide Status
+#define HSX_C0_MSR_PMON_BOX_CTL 0x0E00     // CBo 0 PMON Box-Wide Control
 
-#define HSX_CBO_MSR_STEP         0x0010 // CBo MSR Step
+#define HSX_CBO_MSR_STEP         0x0010    // CBo MSR Step
 
-#define CBO_MSR_PMON_BOX_CTL_RST_CONTROL (1<<0)
-#define CBO_MSR_PMON_BOX_CTL_RST_COUNTERS (1<<1)
-#define CBO_MSR_PMON_BOX_CTL_FRZ (1<<8)
-#define CBO_MSR_PMON_BOX_CTL_FRZ_EN (1<<16)
+#define CBO_MSR_PMON_BOX_CTL_RST_CONTROL (1 << 0)
+#define CBO_MSR_PMON_BOX_CTL_RST_COUNTERS (1 << 1)
+#define CBO_MSR_PMON_BOX_CTL_FRZ (1 << 8)
+#define CBO_MSR_PMON_BOX_CTL_FRZ_EN (1 << 16)
 
-#define CBO_MSR_PMON_CTL_EVENT(x) (x<<0)
-#define CBO_MSR_PMON_CTL_UMASK(x) (x<<8)
-#define CBO_MSR_PMON_CTL_RST	(1<<17)
-#define CBO_MSR_PMON_CTL_EDGE_DET (1<<18)
-#define CBO_MSR_PMON_CTL_TID_EN (1<<19)
-#define CBO_MSR_PMON_CTL_EN	(1<<22)
-#define CBO_MSR_PMON_CTL_INVERT (1<<23)
-#define CBO_MSR_PMON_CTL_THRESH(x) (x<<24UL)
+#define CBO_MSR_PMON_CTL_EVENT(x) (x << 0)
+#define CBO_MSR_PMON_CTL_UMASK(x) (x << 8)
+#define CBO_MSR_PMON_CTL_RST    (1 << 17)
+#define CBO_MSR_PMON_CTL_EDGE_DET (1 << 18)
+#define CBO_MSR_PMON_CTL_TID_EN (1 << 19)
+#define CBO_MSR_PMON_CTL_EN (1 << 22)
+#define CBO_MSR_PMON_CTL_INVERT (1 << 23)
+#define CBO_MSR_PMON_CTL_THRESH(x) (x << 24UL)
 
-#define JKT_CBO_MSR_PMON_BOX_FILTER_OPC(x) (x<<23UL)
-#define IVTHSX_CBO_MSR_PMON_BOX_FILTER1_OPC(x) (x<<20UL)
+#define JKT_CBO_MSR_PMON_BOX_FILTER_OPC(x) (x << 23UL)
+#define IVTHSX_CBO_MSR_PMON_BOX_FILTER1_OPC(x) (x << 20UL)
 
 #define MSR_PACKAGE_THERM_STATUS (0x01B1)
 #define MSR_IA32_THERM_STATUS    (0x019C)
@@ -717,12 +717,12 @@ struct BecktonUncorePMUCNTCTLRegister
 // data structure for converting two uint32s <-> uin64
 union cvt_ds
 {
-	UINT64 ui64;
-	struct
-	{
-		DWORD low;
-		DWORD high;
-	} ui32;
+    UINT64 ui64;
+    struct
+    {
+        DWORD low;
+        DWORD high;
+    } ui32;
 };
 
 #endif
@@ -736,8 +736,8 @@ struct MCFGRecord
     char reserved[4];
     void print()
     {
-        std::cout <<"BaseAddress="<< (std::hex) << "0x"<<baseAddress<< " PCISegmentGroupNumber=0x"<< PCISegmentGroupNumber <<
-                    " startBusNumber=0x"<<(unsigned)startBusNumber<<" endBusNumber=0x" <<(unsigned)endBusNumber<< std::endl;
+        std::cout << "BaseAddress=" << (std::hex) << "0x" << baseAddress << " PCISegmentGroupNumber=0x" << PCISegmentGroupNumber <<
+            " startBusNumber=0x" << (unsigned)startBusNumber << " endBusNumber=0x" << (unsigned)endBusNumber << std::endl;
     }
 };
 
@@ -756,12 +756,12 @@ struct MCFGHeader
 
     unsigned nrecords() const
     {
-        return (length - sizeof(MCFGHeader))/sizeof(MCFGRecord);
+        return (length - sizeof(MCFGHeader)) / sizeof(MCFGRecord);
     }
 
     void print()
     {
-        std::cout << "Header: length="<<length<< " nrecords="<< nrecords() << std::endl;
+        std::cout << "Header: length=" << length << " nrecords=" << nrecords() << std::endl;
     }
 };
 

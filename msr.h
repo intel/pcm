@@ -38,14 +38,14 @@ class MsrHandle
 #ifdef _MSC_VER
     HANDLE hDriver;
 #elif __APPLE__
-    static MSRAccessor* driver;
+    static MSRAccessor * driver;
     static int num_handles;
 #else
     int32 fd;
 #endif
     uint32 cpu_id;
-    MsrHandle();            // forbidden
-    MsrHandle(const MsrHandle &); // forbidden
+    MsrHandle();                                // forbidden
+    MsrHandle(const MsrHandle &);               // forbidden
     MsrHandle & operator = (const MsrHandle &); // forbidden
 
 public:
@@ -54,7 +54,7 @@ public:
     int32 write(uint64 msr_number, uint64 value);
     int32 getCoreId() { return (int32)cpu_id; }
 #ifdef __APPLE__
-    int32 buildTopology(uint32 num_cores, void*);
+    int32 buildTopology(uint32 num_cores, void *);
     uint32 getNumInstances();
     uint32 incrementNumInstances();
     uint32 decrementNumInstances();
@@ -66,88 +66,88 @@ class SafeMsrHandle
 {
     std::shared_ptr<MsrHandle> pHandle;
     PCM_Util::Mutex mutex;
-    
-    SafeMsrHandle(const SafeMsrHandle &); // forbidden
-    SafeMsrHandle& operator = (const SafeMsrHandle &); // forbidden
-    
-  public:
-    SafeMsrHandle() {}
-    
+
+    SafeMsrHandle(const SafeMsrHandle &);               // forbidden
+    SafeMsrHandle & operator = (const SafeMsrHandle &); // forbidden
+
+public:
+    SafeMsrHandle() { }
+
     SafeMsrHandle(uint32 core_id) : pHandle(new MsrHandle(core_id))
-    {
-    }
-    
+    { }
+
     int32 read(uint64 msr_number, uint64 * value)
     {
-      if(pHandle)
-        return pHandle->read(msr_number, value);
-      
-      *value = 0;
+        if (pHandle)
+            return pHandle->read(msr_number, value);
 
-      return (int32)sizeof(uint64);
+        *value = 0;
+
+        return (int32)sizeof(uint64);
     }
-    
+
     int32 write(uint64 msr_number, uint64 value)
     {
-      if(pHandle)
-        return pHandle->write(msr_number, value);
-      
-      return (int32)sizeof(uint64);
+        if (pHandle)
+            return pHandle->write(msr_number, value);
+
+        return (int32)sizeof(uint64);
     }
     int32 getCoreId()
     {
-      if(pHandle)
-        return pHandle->getCoreId();
-      
-      throw std::exception();
-      return -1;
+        if (pHandle)
+            return pHandle->getCoreId();
+
+        throw std::exception();
+        return -1;
     }
 
-    void lock() {
+    void lock()
+    {
         mutex.lock();
     }
 
-    void unlock() {
+    void unlock()
+    {
         mutex.unlock();
     }
 
 #ifdef __APPLE__
-    int32 buildTopology(uint32 num_cores, void* p)
+    int32 buildTopology(uint32 num_cores, void * p)
     {
-      if(pHandle)
-        return pHandle->buildTopology(num_cores,p);
+        if (pHandle)
+            return pHandle->buildTopology(num_cores, p);
 
-      throw std::exception();
-      return 0;
+        throw std::exception();
+        return 0;
     }
     uint32 getNumInstances()
     {
-      if(pHandle)
-        return pHandle->getNumInstances();
+        if (pHandle)
+            return pHandle->getNumInstances();
 
-      throw std::exception();
-      return 0;
+        throw std::exception();
+        return 0;
     }
     uint32 incrementNumInstances()
     {
-      if(pHandle)
-        return pHandle->incrementNumInstances();
+        if (pHandle)
+            return pHandle->incrementNumInstances();
 
-      throw std::exception();
-      return 0;
+        throw std::exception();
+        return 0;
     }
     uint32 decrementNumInstances()
     {
-      if(pHandle)
-        return pHandle->decrementNumInstances();
+        if (pHandle)
+            return pHandle->decrementNumInstances();
 
-      throw std::exception();
-      return 0;
+        throw std::exception();
+        return 0;
     }
 #endif
     virtual ~SafeMsrHandle()
-    {
-    }
+    { }
 };
 
 #endif

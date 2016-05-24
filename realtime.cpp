@@ -113,12 +113,12 @@ void measure(DS & ds, size_t repeat, size_t nelements)
 
     cout << "Number of L2 cache misses per 1000 elements: "
          << (1000. * getL2CacheMisses(before_sstate, after_sstate) / repeat) / nelements <<
-    " \nL2 Cache hit ratio : " << getL2CacheHitRatio(before_sstate, after_sstate) * 100. << " %" << std::endl;
+        " \nL2 Cache hit ratio : " << getL2CacheHitRatio(before_sstate, after_sstate) * 100. << " %" << std::endl;
 
 
     cout << "Number of L3 cache misses per 1000 elements: "
          << (1000. * getL3CacheMisses(before_sstate, after_sstate) / repeat) / nelements <<
-    " \nL3 Cache hit ratio : " << getL3CacheHitRatio(before_sstate, after_sstate) * 100. << " %" << std::endl;
+        " \nL3 Cache hit ratio : " << getL3CacheHitRatio(before_sstate, after_sstate) * 100. << " %" << std::endl;
 
     cout << "Bytes written to memory controller per element: " <<
     (double(getBytesWrittenToMC(before_sstate, after_sstate)) / repeat) / nelements << std::endl;
@@ -170,11 +170,11 @@ int main(int argc, char * argv[])
         return -1;
     }
 
-    if(m->program() != PCM::Success){ 
-	cout << "Program was not successful..." << endl;
-	delete m;
-	return -1;
-    }	  
+    if (m->program() != PCM::Success) {
+        cout << "Program was not successful..." << endl;
+        delete m;
+        return -1;
+    }
 
     int nelements = atoi(argv[1]);
 

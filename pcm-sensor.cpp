@@ -34,7 +34,7 @@ int main()
 {
     AsynchronCounterState counters;
 
-    cout << "CPU counter sensor "<< INTEL_PCM_VERSION << endl;
+    cout << "CPU counter sensor " << INTEL_PCM_VERSION << endl;
     cout << "(C) 2010-2014 Intel Corp." << endl;
     cout << "ksysguardd 1.2.0" << endl;
     cout << "ksysguardd> ";
@@ -55,14 +55,14 @@ int main()
                         cout << "Socket" << a << "/CPU" << i << "/L3CacheHitRatio\tfloat" << endl;
                         cout << "Socket" << a << "/CPU" << i << "/L2CacheMisses\tinteger" << endl;
                         cout << "Socket" << a << "/CPU" << i << "/L3CacheMisses\tinteger" << endl;
-			cout << "Socket" << a << "/CPU" << i << "/L3Occupancy\tfloat" <<endl;
-                        cout << "Socket" << a << "/CPU" << i << "/LocalMemoryBandwidth\tfloat" <<endl;
-                        cout << "Socket" << a << "/CPU" << i << "/RemoteMemoryBandwidth\tfloat" <<endl;
-			cout << "Socket" << a << "/CPU" << i << "/CoreC0StateResidency\tfloat" << endl;
-			cout << "Socket" << a << "/CPU" << i << "/CoreC3StateResidency\tfloat" << endl;
-			cout << "Socket" << a << "/CPU" << i << "/CoreC6StateResidency\tfloat" << endl;
-			cout << "Socket" << a << "/CPU" << i << "/CoreC7StateResidency\tfloat" << endl;
-			cout << "Socket" << a << "/CPU" << i << "/ThermalHeadroom\tinteger" << endl;
+                        cout << "Socket" << a << "/CPU" << i << "/L3Occupancy\tfloat" << endl;
+                        cout << "Socket" << a << "/CPU" << i << "/LocalMemoryBandwidth\tfloat" << endl;
+                        cout << "Socket" << a << "/CPU" << i << "/RemoteMemoryBandwidth\tfloat" << endl;
+                        cout << "Socket" << a << "/CPU" << i << "/CoreC0StateResidency\tfloat" << endl;
+                        cout << "Socket" << a << "/CPU" << i << "/CoreC3StateResidency\tfloat" << endl;
+                        cout << "Socket" << a << "/CPU" << i << "/CoreC6StateResidency\tfloat" << endl;
+                        cout << "Socket" << a << "/CPU" << i << "/CoreC7StateResidency\tfloat" << endl;
+                        cout << "Socket" << a << "/CPU" << i << "/ThermalHeadroom\tinteger" << endl;
                     }
             }
             for (uint32 a = 0; a < counters.getNumSockets(); ++a) {
@@ -74,20 +74,20 @@ int main()
                 cout << "Socket" << a << "/L3CacheHitRatio\tfloat" << endl;
                 cout << "Socket" << a << "/L2CacheMisses\tinteger" << endl;
                 cout << "Socket" << a << "/L3CacheMisses\tinteger" << endl;
-		cout << "Socket" << a << "/L3Occupancy\tfloat" << endl;
-		cout << "Socket" << a << "/LocalMemoryBandwidth\tfloat" << endl;
-		cout << "Socket" << a << "/RemoteMemoryBandwidth\tfloat" << endl;
-		cout << "Socket" << a << "/CoreC0StateResidency\tfloat" << endl;
-		cout << "Socket" << a << "/CoreC3StateResidency\tfloat" << endl;
-		cout << "Socket" << a << "/CoreC6StateResidency\tfloat" << endl;
-		cout << "Socket" << a << "/CoreC7StateResidency\tfloat" << endl;
-		cout << "Socket" << a << "/PackageC2StateResidency\tfloat" << endl;		
-		cout << "Socket" << a << "/PackageC3StateResidency\tfloat" << endl;		
-		cout << "Socket" << a << "/PackageC6StateResidency\tfloat" << endl;		
-		cout << "Socket" << a << "/PackageC7StateResidency\tfloat" << endl;		
-		cout << "Socket" << a << "/ThermalHeadroom\tinteger" << endl;
-		cout << "Socket" << a << "/CPUEnergy\tfloat" << endl;
-		cout << "Socket" << a << "/DRAMEnergy\tfloat" << endl;
+                cout << "Socket" << a << "/L3Occupancy\tfloat" << endl;
+                cout << "Socket" << a << "/LocalMemoryBandwidth\tfloat" << endl;
+                cout << "Socket" << a << "/RemoteMemoryBandwidth\tfloat" << endl;
+                cout << "Socket" << a << "/CoreC0StateResidency\tfloat" << endl;
+                cout << "Socket" << a << "/CoreC3StateResidency\tfloat" << endl;
+                cout << "Socket" << a << "/CoreC6StateResidency\tfloat" << endl;
+                cout << "Socket" << a << "/CoreC7StateResidency\tfloat" << endl;
+                cout << "Socket" << a << "/PackageC2StateResidency\tfloat" << endl;
+                cout << "Socket" << a << "/PackageC3StateResidency\tfloat" << endl;
+                cout << "Socket" << a << "/PackageC6StateResidency\tfloat" << endl;
+                cout << "Socket" << a << "/PackageC7StateResidency\tfloat" << endl;
+                cout << "Socket" << a << "/ThermalHeadroom\tinteger" << endl;
+                cout << "Socket" << a << "/CPUEnergy\tfloat" << endl;
+                cout << "Socket" << a << "/DRAMEnergy\tfloat" << endl;
             }
             for (uint32 a = 0; a < counters.getNumSockets(); ++a) {
                 for (uint32 l = 0; l < counters.getQPILinksPerSocket(); ++l)
@@ -101,15 +101,15 @@ int main()
             cout << "L3CacheHitRatio\tfloat" << endl;
             cout << "L2CacheMisses\tinteger" << endl;
             cout << "L3CacheMisses\tinteger" << endl;
-	    cout << "CoreC0StateResidency\tfloat" << endl;
+            cout << "CoreC0StateResidency\tfloat" << endl;
             cout << "CoreC3StateResidency\tfloat" << endl;
             cout << "CoreC6StateResidency\tfloat" << endl;
             cout << "CoreC7StateResidency\tfloat" << endl;
-            cout << "PackageC2StateResidency\tfloat" << endl;	    
-            cout << "PackageC3StateResidency\tfloat" << endl;	    
-            cout << "PackageC6StateResidency\tfloat" << endl;	    
-            cout << "PackageC7StateResidency\tfloat" << endl;	    
-	    cout << "CPUEnergy\tfloat" << endl;
+            cout << "PackageC2StateResidency\tfloat" << endl;
+            cout << "PackageC3StateResidency\tfloat" << endl;
+            cout << "PackageC6StateResidency\tfloat" << endl;
+            cout << "PackageC7StateResidency\tfloat" << endl;
+            cout << "CPUEnergy\tfloat" << endl;
             cout << "DRAMEnergy\tfloat" << endl;
         }
 
@@ -118,48 +118,48 @@ int main()
         for (uint32 i = 0; i < counters.getNumCores(); ++i) {
             for (uint32 a = 0; a < counters.getNumSockets(); ++a)
                 if (a == counters.getSocketId(i)) {
-		  {
-                    stringstream c;
-                    c << "Socket" << a << "/CPU" << i << "/Frequency?";
-                    if (s == c.str()) {
-                        cout << "FREQ. CPU" << i << "\t\t\tMHz" << endl;
+                    {
+                        stringstream c;
+                        c << "Socket" << a << "/CPU" << i << "/Frequency?";
+                        if (s == c.str()) {
+                            cout << "FREQ. CPU" << i << "\t\t\tMHz" << endl;
+                        }
                     }
-		  }
-		  {
-                    stringstream c;
-                    c << "Socket" << a << "/CPU" << i << "/ThermalHeadroom?";
-                    if (s == c.str()) {
-                        cout << "Temperature reading in 1 degree Celsius relative to the TjMax temperature (thermal headroom) for CPU" << i << "\t\t\t°C" << endl;
+                    {
+                        stringstream c;
+                        c << "Socket" << a << "/CPU" << i << "/ThermalHeadroom?";
+                        if (s == c.str()) {
+                            cout << "Temperature reading in 1 degree Celsius relative to the TjMax temperature (thermal headroom) for CPU" << i << "\t\t\t°C" << endl;
+                        }
                     }
-		  }
-		  {
-                    stringstream c;
-                    c << "Socket" << a << "/CPU" << i << "/CoreC0StateResidency?";
-                    if (s == c.str()) {
-                        cout << "core C0-state residency for CPU" << i << "\t\t\t%" << endl;
+                    {
+                        stringstream c;
+                        c << "Socket" << a << "/CPU" << i << "/CoreC0StateResidency?";
+                        if (s == c.str()) {
+                            cout << "core C0-state residency for CPU" << i << "\t\t\t%" << endl;
+                        }
                     }
-		  }		  
-		  {
-                    stringstream c;
-                    c << "Socket" << a << "/CPU" << i << "/CoreC3StateResidency?";
-                    if (s == c.str()) {
-                        cout << "core C3-state residency for CPU" << i << "\t\t\t%" << endl;
+                    {
+                        stringstream c;
+                        c << "Socket" << a << "/CPU" << i << "/CoreC3StateResidency?";
+                        if (s == c.str()) {
+                            cout << "core C3-state residency for CPU" << i << "\t\t\t%" << endl;
+                        }
                     }
-		  }
-		  {
-                    stringstream c;
-                    c << "Socket" << a << "/CPU" << i << "/CoreC6StateResidency?";
-                    if (s == c.str()) {
-                        cout << "core C6-state residency for CPU" << i << "\t\t\t%" << endl;
+                    {
+                        stringstream c;
+                        c << "Socket" << a << "/CPU" << i << "/CoreC6StateResidency?";
+                        if (s == c.str()) {
+                            cout << "core C6-state residency for CPU" << i << "\t\t\t%" << endl;
+                        }
                     }
-		  }
-		  {
-                    stringstream c;
-                    c << "Socket" << a << "/CPU" << i << "/CoreC7StateResidency?";
-                    if (s == c.str()) {
-                        cout << "core C7-state residency for CPU" << i << "\t\t\t%" << endl;
+                    {
+                        stringstream c;
+                        c << "Socket" << a << "/CPU" << i << "/CoreC7StateResidency?";
+                        if (s == c.str()) {
+                            cout << "core C7-state residency for CPU" << i << "\t\t\t%" << endl;
+                        }
                     }
-		  }		  
                 }
         }
         for (uint32 i = 0; i < counters.getNumCores(); ++i) {
@@ -216,39 +216,39 @@ int main()
                     }
                 }
         }
-	for (uint32 i = 0; i < counters.getNumCores(); ++i) {
-	    for (uint32 a = 0; a < counters.getNumSockets(); ++a)
-		if (a == counters.getSocketId(i)) {
-		    stringstream c;
-		    c << "Socket" << a << "/CPU" << i << "/L3Occupancy?";
-		    if (s == c.str()) {
-			cout << "L3 Cache Occupancy CPU " << i << "\t0\t\t " << endl;
-			//cout << "CPU" << i << "\tL3 Cache Occupancy\t0\t1\t " << endl;
-		    }
-		}
-	}
         for (uint32 i = 0; i < counters.getNumCores(); ++i) {
-	    for (uint32 a = 0; a < counters.getNumSockets(); ++a)
-		 if (a == counters.getSocketId(i)) {
-		    stringstream c;
-		    c << "Socket" << a << "/CPU" << i << "/LocalMemoryBandwidth?";
-		    if (s == c.str()) {
-			cout << "Local Memory Bandwidth CPU " << i << "\t0\t\t " << endl;
-			//cout << "CPU" << i << "\tLocal Memory Bandwidth\t0\t1\t " << endl;
-		    }
-		 }
+            for (uint32 a = 0; a < counters.getNumSockets(); ++a)
+                if (a == counters.getSocketId(i)) {
+                    stringstream c;
+                    c << "Socket" << a << "/CPU" << i << "/L3Occupancy?";
+                    if (s == c.str()) {
+                        cout << "L3 Cache Occupancy CPU " << i << "\t0\t\t " << endl;
+                        //cout << "CPU" << i << "\tL3 Cache Occupancy\t0\t1\t " << endl;
+                    }
+                }
         }
         for (uint32 i = 0; i < counters.getNumCores(); ++i) {
-	    for (uint32 a = 0; a < counters.getNumSockets(); ++a)
-		if (a == counters.getSocketId(i)) {
-		    stringstream c;
-		    c << "Socket" << a << "/CPU" << i << "/RemoteMemoryBandwidth?";
-		    if (s == c.str()) {
-			    cout << "Remote Memory Bandwidth CPU " << i << "\t0\t\t " << endl;
-			    //cout << "CPU" << i << "\tRemote Memory Bandwidth\t0\t1\t " << endl;
-		    }
-		}
-	}
+            for (uint32 a = 0; a < counters.getNumSockets(); ++a)
+                if (a == counters.getSocketId(i)) {
+                    stringstream c;
+                    c << "Socket" << a << "/CPU" << i << "/LocalMemoryBandwidth?";
+                    if (s == c.str()) {
+                        cout << "Local Memory Bandwidth CPU " << i << "\t0\t\t " << endl;
+                        //cout << "CPU" << i << "\tLocal Memory Bandwidth\t0\t1\t " << endl;
+                    }
+                }
+        }
+        for (uint32 i = 0; i < counters.getNumCores(); ++i) {
+            for (uint32 a = 0; a < counters.getNumSockets(); ++a)
+                if (a == counters.getSocketId(i)) {
+                    stringstream c;
+                    c << "Socket" << a << "/CPU" << i << "/RemoteMemoryBandwidth?";
+                    if (s == c.str()) {
+                        cout << "Remote Memory Bandwidth CPU " << i << "\t0\t\t " << endl;
+                        //cout << "CPU" << i << "\tRemote Memory Bandwidth\t0\t1\t " << endl;
+                    }
+                }
+        }
         for (uint32 i = 0; i < counters.getNumSockets(); ++i) {
             stringstream c;
             c << "Socket" << i << "/BytesReadFromMC?";
@@ -262,7 +262,7 @@ int main()
             if (s == c.str()) {
                 cout << "Energy consumed by DRAM on socket " << i << "\t0\t\tJoule" << endl;
             }
-        }        
+        }
         for (uint32 i = 0; i < counters.getNumSockets(); ++i) {
             stringstream c;
             c << "Socket" << i << "/CPUEnergy?";
@@ -297,7 +297,7 @@ int main()
             if (s == c.str()) {
                 cout << "core C6-state residency for CPU package " << i << "\t0\t\t%" << endl;
             }
-        }        
+        }
         for (uint32 i = 0; i < counters.getNumSockets(); ++i) {
             stringstream c;
             c << "Socket" << i << "/CoreC7StateResidency?";
@@ -318,21 +318,21 @@ int main()
             if (s == c.str()) {
                 cout << "package C3-state residency for CPU package " << i << "\t0\t\t%" << endl;
             }
-        }        
+        }
         for (uint32 i = 0; i < counters.getNumSockets(); ++i) {
             stringstream c;
             c << "Socket" << i << "/PackageC6StateResidency?";
             if (s == c.str()) {
                 cout << "package C6-state residency for CPU package " << i << "\t0\t\t%" << endl;
             }
-        }        
+        }
         for (uint32 i = 0; i < counters.getNumSockets(); ++i) {
             stringstream c;
             c << "Socket" << i << "/PackageC7StateResidency?";
             if (s == c.str()) {
                 cout << "package C7-state residency for CPU package " << i << "\t0\t\t%" << endl;
             }
-        }        
+        }
         for (uint32 i = 0; i < counters.getNumSockets(); ++i) {
             stringstream c;
             c << "Socket" << i << "/BytesWrittenToMC?";
@@ -408,7 +408,7 @@ int main()
                 cout << "Socket" << i << " L3 Cache Misses\t0\t\t" << endl;
             }
         }
-        
+
         for (uint32 i = 0; i < counters.getNumSockets(); ++i) {
             stringstream c;
             c << "Socket" << i << "/L3Occupancy";
@@ -417,7 +417,7 @@ int main()
             }
         }
 
-	for (uint32 i = 0; i < counters.getNumSockets(); ++i) {
+        for (uint32 i = 0; i < counters.getNumSockets(); ++i) {
             stringstream c;
             c << "Socket" << i << "/LocalMemoryBandwidth";
             if (s == c.str()) {
@@ -425,7 +425,7 @@ int main()
             }
         }
 
-	for (uint32 i = 0; i < counters.getNumSockets(); ++i) {
+        for (uint32 i = 0; i < counters.getNumSockets(); ++i) {
             stringstream c;
             c << "Socket" << i << "/RemoteMemoryBandwidth";
             if (s == c.str()) {
@@ -488,14 +488,14 @@ int main()
                 cout << "System wide L3 Cache Misses\t0\t\t" << endl;
             }
         }
-        
+
         {
             stringstream c;
             c << "DRAMEnergy?";
             if (s == c.str()) {
                 cout << "System wide energy consumed by DRAM \t0\t\tJoule" << endl;
             }
-        }        
+        }
         {
             stringstream c;
             c << "CPUEnergy?";
@@ -523,7 +523,7 @@ int main()
             if (s == c.str()) {
                 cout << "System wide core C6-state residency \t0\t\t%" << endl;
             }
-        }        
+        }
         {
             stringstream c;
             c << "CoreC7StateResidency?";
@@ -533,93 +533,93 @@ int main()
         }
         {
             stringstream c;
-            c  << "PackageC2StateResidency?";
+            c << "PackageC2StateResidency?";
             if (s == c.str()) {
                 cout << "System wide package C2-state residency \t0\t\t%" << endl;
             }
         }
         {
             stringstream c;
-            c  << "PackageC3StateResidency?";
+            c << "PackageC3StateResidency?";
             if (s == c.str()) {
                 cout << "System wide package C3-state residency \t0\t\t%" << endl;
             }
         }
         {
             stringstream c;
-            c  << "PackageC6StateResidency?";
+            c << "PackageC6StateResidency?";
             if (s == c.str()) {
                 cout << "System wide package C6-state residency \t0\t\t%" << endl;
             }
         }
         {
             stringstream c;
-            c  << "PackageC7StateResidency?";
+            c << "PackageC7StateResidency?";
             if (s == c.str()) {
                 cout << "System wide package C7-state residency \t0\t\t%" << endl;
             }
-        }        
+        }
 
         // sensors
 
-#define OUTPUT_CORE_METRIC(name,function) \
-        for (uint32 i = 0; i < counters.getNumCores(); ++i) { \
-            for (uint32 a = 0; a < counters.getNumSockets(); ++a) \
-                if (a == counters.getSocketId(i)) { \
-                    stringstream c; \
-                    c << "Socket" << a << "/CPU" << i << name; \
-                    if (s == c.str()) { \
-                        cout << function << endl; \
-                    } \
-                } \
-        }
-        
-        OUTPUT_CORE_METRIC("/Frequency", (counters.get<double, ::getAverageFrequency>(i) / 1000000 ) )
-	OUTPUT_CORE_METRIC("/IPC", (counters.get<double, ::getIPC>(i) ) )
-	OUTPUT_CORE_METRIC("/L2CacheHitRatio", (counters.get<double, ::getL2CacheHitRatio>(i) ) )
-	OUTPUT_CORE_METRIC("/L3CacheHitRatio", (counters.get<double, ::getL3CacheHitRatio>(i) ) )
-        OUTPUT_CORE_METRIC("/L2CacheMisses", (counters.get<uint64, ::getL2CacheMisses>(i) / 1000000) )
-        OUTPUT_CORE_METRIC("/L3CacheMisses", (counters.get<uint64, ::getL3CacheMisses>(i) / 1000000) )
-	OUTPUT_CORE_METRIC("/L3Occupancy", (counters.get<uint64, ::getL3CacheOccupancy>(i) ) )
-        OUTPUT_CORE_METRIC("/LocalMemoryBandwidth", (counters.get<uint64, ::getLocalMemoryBW>(i) ) )
-        OUTPUT_CORE_METRIC("/RemoteMemoryBandwidth", (counters.get<uint64, ::getRemoteMemoryBW>(i) ) )
-        OUTPUT_CORE_METRIC("/CoreC0StateResidency", (counters.get<double, ::getCoreCStateResidency>(0,i)*100.) )
-        OUTPUT_CORE_METRIC("/CoreC3StateResidency", (counters.get<double, ::getCoreCStateResidency>(3,i)*100.) )
-        OUTPUT_CORE_METRIC("/CoreC6StateResidency", (counters.get<double, ::getCoreCStateResidency>(6,i)*100.) )
-        OUTPUT_CORE_METRIC("/CoreC7StateResidency", (counters.get<double, ::getCoreCStateResidency>(7,i)*100.) )
-        OUTPUT_CORE_METRIC("/ThermalHeadroom", (counters.get<int32, ::getThermalHeadroom>(i)) )
+#define OUTPUT_CORE_METRIC(name, function) \
+    for (uint32 i = 0; i<counters.getNumCores(); ++i) { \
+                             for (uint32 a = 0; a<counters.getNumSockets(); ++a) \
+                                                  if (a == counters.getSocketId(i)) { \
+                                                      stringstream c; \
+                                                      c << "Socket" << a << "/CPU" << i << name; \
+                                                      if (s == c.str()) { \
+                                                          cout << function << endl; \
+                                                      } \
+                                                  } \
+                                                  }
+
+        OUTPUT_CORE_METRIC("/Frequency", (counters.get<double, ::getAverageFrequency>(i) / 1000000))
+        OUTPUT_CORE_METRIC("/IPC", (counters.get<double, ::getIPC>(i)))
+        OUTPUT_CORE_METRIC("/L2CacheHitRatio", (counters.get<double, ::getL2CacheHitRatio>(i)))
+        OUTPUT_CORE_METRIC("/L3CacheHitRatio", (counters.get<double, ::getL3CacheHitRatio>(i)))
+        OUTPUT_CORE_METRIC("/L2CacheMisses", (counters.get<uint64, ::getL2CacheMisses>(i) / 1000000))
+        OUTPUT_CORE_METRIC("/L3CacheMisses", (counters.get<uint64, ::getL3CacheMisses>(i) / 1000000))
+        OUTPUT_CORE_METRIC("/L3Occupancy", (counters.get<uint64, ::getL3CacheOccupancy>(i)))
+        OUTPUT_CORE_METRIC("/LocalMemoryBandwidth", (counters.get<uint64, ::getLocalMemoryBW>(i)))
+        OUTPUT_CORE_METRIC("/RemoteMemoryBandwidth", (counters.get<uint64, ::getRemoteMemoryBW>(i)))
+        OUTPUT_CORE_METRIC("/CoreC0StateResidency", (counters.get<double, ::getCoreCStateResidency>(0, i) * 100.))
+        OUTPUT_CORE_METRIC("/CoreC3StateResidency", (counters.get<double, ::getCoreCStateResidency>(3, i) * 100.))
+        OUTPUT_CORE_METRIC("/CoreC6StateResidency", (counters.get<double, ::getCoreCStateResidency>(6, i) * 100.))
+        OUTPUT_CORE_METRIC("/CoreC7StateResidency", (counters.get<double, ::getCoreCStateResidency>(7, i) * 100.))
+        OUTPUT_CORE_METRIC("/ThermalHeadroom", (counters.get<int32, ::getThermalHeadroom>(i)))
 
         #define OUTPUT_SOCKET_METRIC(name, function) \
-        for (uint32 i = 0; i < counters.getNumSockets(); ++i) { \
-            stringstream c; \
-            c << "Socket" << i << name; \
-            if (s == c.str()) { \
-                cout << function << endl; \
-            } \
-        }
-        
-        OUTPUT_SOCKET_METRIC("/DRAMEnergy", (counters.getSocket<double, ::getDRAMConsumedJoules>(i)) )
-        OUTPUT_SOCKET_METRIC("/CPUEnergy", (counters.getSocket<double, ::getConsumedJoules>(i)) )
-        OUTPUT_SOCKET_METRIC("/CoreC0StateResidency", (counters.getSocket<double, ::getCoreCStateResidency>(0,i)*100.) )
-        OUTPUT_SOCKET_METRIC("/CoreC3StateResidency", (counters.getSocket<double, ::getCoreCStateResidency>(3,i)*100.) )
-        OUTPUT_SOCKET_METRIC("/CoreC6StateResidency", (counters.getSocket<double, ::getCoreCStateResidency>(6,i)*100.) )
-        OUTPUT_SOCKET_METRIC("/CoreC7StateResidency", (counters.getSocket<double, ::getCoreCStateResidency>(7,i)*100.) )
-        OUTPUT_SOCKET_METRIC("/PackageC2StateResidency", (counters.getSocket<double, ::getPackageCStateResidency>(2,i)*100.) )        
-        OUTPUT_SOCKET_METRIC("/PackageC3StateResidency", (counters.getSocket<double, ::getPackageCStateResidency>(3,i)*100.) )        
-        OUTPUT_SOCKET_METRIC("/PackageC6StateResidency", (counters.getSocket<double, ::getPackageCStateResidency>(6,i)*100.) )        
-        OUTPUT_SOCKET_METRIC("/PackageC7StateResidency", (counters.getSocket<double, ::getPackageCStateResidency>(7,i)*100.) )        
-        OUTPUT_SOCKET_METRIC("/ThermalHeadroom", (counters.getSocket<int32, ::getThermalHeadroom>(i)) )
-        OUTPUT_SOCKET_METRIC("/BytesReadFromMC", (double(counters.getSocket<uint64, ::getBytesReadFromMC>(i)) / 1024 / 1024 / 1024) )
-        OUTPUT_SOCKET_METRIC("/BytesWrittenToMC", (double(counters.getSocket<uint64, ::getBytesWrittenToMC>(i)) / 1024 / 1024 / 1024 ) )
-        OUTPUT_SOCKET_METRIC("/Frequency", (counters.getSocket<double, ::getAverageFrequency>(i) / 1000000 ) )
-        OUTPUT_SOCKET_METRIC("/IPC", (counters.getSocket<double, ::getIPC>(i) ) )
-        OUTPUT_SOCKET_METRIC("/L2CacheHitRatio", (counters.getSocket<double, ::getL2CacheHitRatio>(i) ) )
-        OUTPUT_SOCKET_METRIC("/L3CacheHitRatio", (counters.getSocket<double, ::getL3CacheHitRatio>(i) ) )
-        OUTPUT_SOCKET_METRIC("/L2CacheMisses", (counters.getSocket<uint64, ::getL2CacheMisses>(i) ) )
-        OUTPUT_SOCKET_METRIC("/L3CacheMisses", (counters.getSocket<uint64, ::getL3CacheMisses>(i) ) )
-	OUTPUT_SOCKET_METRIC("/L3Occupancy", (counters.getSocket<uint64, ::getL3CacheOccupancy>(i) ) )
-	OUTPUT_SOCKET_METRIC("/LocalMemoryBandwidth", (counters.getSocket<uint64, ::getLocalMemoryBW>(i) ) )
-	OUTPUT_SOCKET_METRIC("/RemoteMemoryBandwidth", (counters.getSocket<uint64, ::getRemoteMemoryBW>(i) ) )
+    for (uint32 i = 0; i<counters.getNumSockets(); ++i) { \
+                             stringstream c; \
+                             c << "Socket" << i << name; \
+                             if (s == c.str()) { \
+                                 cout << function << endl; \
+                             } \
+                         }
+
+        OUTPUT_SOCKET_METRIC("/DRAMEnergy", (counters.getSocket<double, ::getDRAMConsumedJoules>(i)))
+        OUTPUT_SOCKET_METRIC("/CPUEnergy", (counters.getSocket<double, ::getConsumedJoules>(i)))
+        OUTPUT_SOCKET_METRIC("/CoreC0StateResidency", (counters.getSocket<double, ::getCoreCStateResidency>(0, i) * 100.))
+        OUTPUT_SOCKET_METRIC("/CoreC3StateResidency", (counters.getSocket<double, ::getCoreCStateResidency>(3, i) * 100.))
+        OUTPUT_SOCKET_METRIC("/CoreC6StateResidency", (counters.getSocket<double, ::getCoreCStateResidency>(6, i) * 100.))
+        OUTPUT_SOCKET_METRIC("/CoreC7StateResidency", (counters.getSocket<double, ::getCoreCStateResidency>(7, i) * 100.))
+        OUTPUT_SOCKET_METRIC("/PackageC2StateResidency", (counters.getSocket<double, ::getPackageCStateResidency>(2, i) * 100.))
+        OUTPUT_SOCKET_METRIC("/PackageC3StateResidency", (counters.getSocket<double, ::getPackageCStateResidency>(3, i) * 100.))
+        OUTPUT_SOCKET_METRIC("/PackageC6StateResidency", (counters.getSocket<double, ::getPackageCStateResidency>(6, i) * 100.))
+        OUTPUT_SOCKET_METRIC("/PackageC7StateResidency", (counters.getSocket<double, ::getPackageCStateResidency>(7, i) * 100.))
+        OUTPUT_SOCKET_METRIC("/ThermalHeadroom", (counters.getSocket<int32, ::getThermalHeadroom>(i)))
+        OUTPUT_SOCKET_METRIC("/BytesReadFromMC", (double(counters.getSocket<uint64, ::getBytesReadFromMC>(i)) / 1024 / 1024 / 1024))
+        OUTPUT_SOCKET_METRIC("/BytesWrittenToMC", (double(counters.getSocket<uint64, ::getBytesWrittenToMC>(i)) / 1024 / 1024 / 1024))
+        OUTPUT_SOCKET_METRIC("/Frequency", (counters.getSocket<double, ::getAverageFrequency>(i) / 1000000))
+        OUTPUT_SOCKET_METRIC("/IPC", (counters.getSocket<double, ::getIPC>(i)))
+        OUTPUT_SOCKET_METRIC("/L2CacheHitRatio", (counters.getSocket<double, ::getL2CacheHitRatio>(i)))
+        OUTPUT_SOCKET_METRIC("/L3CacheHitRatio", (counters.getSocket<double, ::getL3CacheHitRatio>(i)))
+        OUTPUT_SOCKET_METRIC("/L2CacheMisses", (counters.getSocket<uint64, ::getL2CacheMisses>(i)))
+        OUTPUT_SOCKET_METRIC("/L3CacheMisses", (counters.getSocket<uint64, ::getL3CacheMisses>(i)))
+        OUTPUT_SOCKET_METRIC("/L3Occupancy", (counters.getSocket<uint64, ::getL3CacheOccupancy>(i)))
+        OUTPUT_SOCKET_METRIC("/LocalMemoryBandwidth", (counters.getSocket<uint64, ::getLocalMemoryBW>(i)))
+        OUTPUT_SOCKET_METRIC("/RemoteMemoryBandwidth", (counters.getSocket<uint64, ::getRemoteMemoryBW>(i)))
 
         for (uint32 l = 0; l < counters.getQPILinksPerSocket(); ++l) {
             for (uint32 i = 0; i < counters.getNumSockets(); ++i) {
@@ -631,32 +631,32 @@ int main()
             }
         }
 
-	#define OUTPUT_SYSTEM_METRIC(name, function) \
-	{ \
-            stringstream c; \
-            c << name; \
-            if (s == c.str()) { \
-                cout << function << endl; \
-            } \
-        }
-        
-        OUTPUT_SYSTEM_METRIC("DRAMEnergy", (counters.getSystem<double, ::getDRAMConsumedJoules>()) )
-        OUTPUT_SYSTEM_METRIC("CPUEnergy", (counters.getSystem<double, ::getConsumedJoules>()) )
-        OUTPUT_SYSTEM_METRIC("CoreC0StateResidency", (counters.getSystem<double, ::getCoreCStateResidency>(0)*100.) )
-        OUTPUT_SYSTEM_METRIC("CoreC3StateResidency", (counters.getSystem<double, ::getCoreCStateResidency>(3)*100.) )
-        OUTPUT_SYSTEM_METRIC("CoreC6StateResidency", (counters.getSystem<double, ::getCoreCStateResidency>(6)*100.) )
-        OUTPUT_SYSTEM_METRIC("CoreC7StateResidency", (counters.getSystem<double, ::getCoreCStateResidency>(7)*100.) )
-        OUTPUT_SYSTEM_METRIC("PackageC2StateResidency", (counters.getSystem<double, ::getPackageCStateResidency>(2)*100.) )
-        OUTPUT_SYSTEM_METRIC("PackageC3StateResidency", (counters.getSystem<double, ::getPackageCStateResidency>(3)*100.) )        
-        OUTPUT_SYSTEM_METRIC("PackageC6StateResidency", (counters.getSystem<double, ::getPackageCStateResidency>(6)*100.) )        
-        OUTPUT_SYSTEM_METRIC("PackageC7StateResidency", (counters.getSystem<double, ::getPackageCStateResidency>(7)*100.) )        
-        OUTPUT_SYSTEM_METRIC("Frequency", (double(counters.getSystem<double, ::getAverageFrequency>()) / 1000000) )
-	OUTPUT_SYSTEM_METRIC("IPC", (double(counters.getSystem<double, ::getIPC>())) )
-	OUTPUT_SYSTEM_METRIC("L2CacheHitRatio", (double(counters.getSystem<double, ::getL2CacheHitRatio>())) )
-	OUTPUT_SYSTEM_METRIC("L3CacheHitRatio", (double(counters.getSystem<double, ::getL3CacheHitRatio>())) )
-	OUTPUT_SYSTEM_METRIC("L2CacheMisses", (double(counters.getSystem<uint64, ::getL2CacheMisses>())) )
-	OUTPUT_SYSTEM_METRIC("L3CacheMisses", (double(counters.getSystem<uint64, ::getL3CacheMisses>())) )
-	OUTPUT_SYSTEM_METRIC("QPI_Traffic", (double(counters.getSystem<uint64, ::getAllIncomingQPILinkBytes>()) / 1024 / 1024 / 1024) )
+    #define OUTPUT_SYSTEM_METRIC(name, function) \
+    { \
+        stringstream c; \
+        c << name; \
+        if (s == c.str()) { \
+            cout << function << endl; \
+        } \
+    }
+
+        OUTPUT_SYSTEM_METRIC("DRAMEnergy", (counters.getSystem<double, ::getDRAMConsumedJoules>()))
+        OUTPUT_SYSTEM_METRIC("CPUEnergy", (counters.getSystem<double, ::getConsumedJoules>()))
+        OUTPUT_SYSTEM_METRIC("CoreC0StateResidency", (counters.getSystem<double, ::getCoreCStateResidency>(0) * 100.))
+        OUTPUT_SYSTEM_METRIC("CoreC3StateResidency", (counters.getSystem<double, ::getCoreCStateResidency>(3) * 100.))
+        OUTPUT_SYSTEM_METRIC("CoreC6StateResidency", (counters.getSystem<double, ::getCoreCStateResidency>(6) * 100.))
+        OUTPUT_SYSTEM_METRIC("CoreC7StateResidency", (counters.getSystem<double, ::getCoreCStateResidency>(7) * 100.))
+        OUTPUT_SYSTEM_METRIC("PackageC2StateResidency", (counters.getSystem<double, ::getPackageCStateResidency>(2) * 100.))
+        OUTPUT_SYSTEM_METRIC("PackageC3StateResidency", (counters.getSystem<double, ::getPackageCStateResidency>(3) * 100.))
+        OUTPUT_SYSTEM_METRIC("PackageC6StateResidency", (counters.getSystem<double, ::getPackageCStateResidency>(6) * 100.))
+        OUTPUT_SYSTEM_METRIC("PackageC7StateResidency", (counters.getSystem<double, ::getPackageCStateResidency>(7) * 100.))
+        OUTPUT_SYSTEM_METRIC("Frequency", (double(counters.getSystem<double, ::getAverageFrequency>()) / 1000000))
+        OUTPUT_SYSTEM_METRIC("IPC", (double(counters.getSystem<double, ::getIPC>())))
+        OUTPUT_SYSTEM_METRIC("L2CacheHitRatio", (double(counters.getSystem<double, ::getL2CacheHitRatio>())))
+        OUTPUT_SYSTEM_METRIC("L3CacheHitRatio", (double(counters.getSystem<double, ::getL3CacheHitRatio>())))
+        OUTPUT_SYSTEM_METRIC("L2CacheMisses", (double(counters.getSystem<uint64, ::getL2CacheMisses>())))
+        OUTPUT_SYSTEM_METRIC("L3CacheMisses", (double(counters.getSystem<uint64, ::getL3CacheMisses>())))
+        OUTPUT_SYSTEM_METRIC("QPI_Traffic", (double(counters.getSystem<uint64, ::getAllIncomingQPILinkBytes>()) / 1024 / 1024 / 1024))
 
         // exit
         if (s == "quit" || s == "exit") {

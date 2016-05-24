@@ -46,56 +46,56 @@ MsrHandle::MsrHandle(uint32 cpu) : cpu_id(cpu)
 
 MsrHandle::~MsrHandle()
 {
-	if(hDriver != INVALID_HANDLE_VALUE) CloseHandle(hDriver);
+    if (hDriver != INVALID_HANDLE_VALUE) CloseHandle(hDriver);
 }
 
 int32 MsrHandle::write(uint64 msr_number, uint64 value)
 {
-	if(hDriver != INVALID_HANDLE_VALUE)
-	{
-		MSR_Request req;
-		ULONG64 result;
-		DWORD reslength = 0;
-		req.core_id = cpu_id;
-		req.msr_address = msr_number;
-		req.write_value = value;
-		BOOL status = DeviceIoControl(hDriver, IO_CTL_MSR_WRITE, &req, sizeof(MSR_Request), &result, sizeof(uint64), &reslength, NULL);
-		assert(status && "Error in DeviceIoControl");
-		return reslength;
-	}
+    if (hDriver != INVALID_HANDLE_VALUE)
+    {
+        MSR_Request req;
+        ULONG64 result;
+        DWORD reslength = 0;
+        req.core_id = cpu_id;
+        req.msr_address = msr_number;
+        req.write_value = value;
+        BOOL status = DeviceIoControl(hDriver, IO_CTL_MSR_WRITE, &req, sizeof(MSR_Request), &result, sizeof(uint64), &reslength, NULL);
+        assert(status && "Error in DeviceIoControl");
+        return reslength;
+    }
 
-	cvt_ds cvt;
-	cvt.ui64 = value;
+    cvt_ds cvt;
+    cvt.ui64 = value;
 
-	ThreadGroupTempAffinity affinity(cpu_id);
-	DWORD status = Wrmsr((DWORD)msr_number, cvt.ui32.low, cvt.ui32.high);
+    ThreadGroupTempAffinity affinity(cpu_id);
+    DWORD status = Wrmsr((DWORD)msr_number, cvt.ui32.low, cvt.ui32.high);
 
-	return status?sizeof(uint64):0;
+    return status ? sizeof(uint64) : 0;
 }
 
 int32 MsrHandle::read(uint64 msr_number, uint64 * value)
 {
-	if(hDriver != INVALID_HANDLE_VALUE)
-	{
-		MSR_Request req;
-		// ULONG64 result;
-		DWORD reslength = 0;
-		req.core_id = cpu_id;
-		req.msr_address = msr_number;
-		BOOL status = DeviceIoControl(hDriver, IO_CTL_MSR_READ, &req, sizeof(MSR_Request), value, sizeof(uint64), &reslength, NULL);
-		assert(status && "Error in DeviceIoControl");
-		return (int32)reslength;
-	}
+    if (hDriver != INVALID_HANDLE_VALUE)
+    {
+        MSR_Request req;
+        // ULONG64 result;
+        DWORD reslength = 0;
+        req.core_id = cpu_id;
+        req.msr_address = msr_number;
+        BOOL status = DeviceIoControl(hDriver, IO_CTL_MSR_READ, &req, sizeof(MSR_Request), value, sizeof(uint64), &reslength, NULL);
+        assert(status && "Error in DeviceIoControl");
+        return (int32)reslength;
+    }
 
-	cvt_ds cvt;
-	cvt.ui64 = 0;
+    cvt_ds cvt;
+    cvt.ui64 = 0;
 
-	ThreadGroupTempAffinity affinity(cpu_id);
-	DWORD status = Rdmsr((DWORD)msr_number, &(cvt.ui32.low), &(cvt.ui32.high));
+    ThreadGroupTempAffinity affinity(cpu_id);
+    DWORD status = Rdmsr((DWORD)msr_number, &(cvt.ui32.low), &(cvt.ui32.high));
 
-	if(status) *value = cvt.ui64;
-	
-	return status?sizeof(uint64):0;
+    if (status) *value = cvt.ui64;
+
+    return status ? sizeof(uint64) : 0;
 }
 
 #elif __APPLE__
@@ -106,11 +106,11 @@ int MsrHandle::num_handles = 0;
 
 MsrHandle::MsrHandle(uint32 cpu)
 {
-    cpu_id = cpu; 
-    if(!driver)
-    {    
+    cpu_id = cpu;
+    if (!driver)
+    {
         driver = new MSRAccessor();
-	MsrHandle::num_handles = 1;
+        MsrHandle::num_handles = 1;
     }
     else
     {
@@ -121,7 +121,7 @@ MsrHandle::MsrHandle(uint32 cpu)
 MsrHandle::~MsrHandle()
 {
     MsrHandle::num_handles--;
-    if(MsrHandle::num_handles == 0)
+    if (MsrHandle::num_handles == 0)
     {
         delete driver;
         driver = NULL;
@@ -130,26 +130,31 @@ MsrHandle::~MsrHandle()
 
 int32 MsrHandle::write(uint64 msr_number, uint64 value)
 {
-    return driver->write(cpu_id, msr_number, value);	
+    return driver->write(cpu_id, msr_number, value);
 }
 
-int32 MsrHandle::read(uint64 msr_number, uint64 * value){
+int32 MsrHandle::read(uint64 msr_number, uint64 * value)
+{
     return driver->read(cpu_id, msr_number, value);
 }
 
-int32 MsrHandle::buildTopology(uint32 num_cores, void* ptr){
+int32 MsrHandle::buildTopology(uint32 num_cores, void * ptr)
+{
     return driver->buildTopology(num_cores, ptr);
 }
 
-uint32 MsrHandle::getNumInstances(){
+uint32 MsrHandle::getNumInstances()
+{
     return driver->getNumInstances();
 }
 
-uint32 MsrHandle::incrementNumInstances(){
+uint32 MsrHandle::incrementNumInstances()
+{
     return driver->incrementNumInstances();
 }
 
-uint32 MsrHandle::decrementNumInstances(){
+uint32 MsrHandle::decrementNumInstances()
+{
     return driver->decrementNumInstances();
 }
 
@@ -198,10 +203,10 @@ MsrHandle::MsrHandle(uint32 cpu) : fd(-1), cpu_id(cpu)
     char * path = new char[200];
     sprintf(path, "/dev/cpu/%d/msr", cpu);
     int handle = ::open(path, O_RDWR);
-    if(handle < 0)
-    { // try Android msr device path
-      sprintf(path, "/dev/msr%d", cpu);
-      handle = ::open(path, O_RDWR);
+    if (handle < 0)
+    {   // try Android msr device path
+        sprintf(path, "/dev/msr%d", cpu);
+        handle = ::open(path, O_RDWR);
     }
     delete[] path;
     if (handle < 0) throw std::exception();

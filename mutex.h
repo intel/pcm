@@ -1,5 +1,5 @@
 #ifndef MUTEX_HEADER_
-#define MUTEX_HEADER_ 
+#define MUTEX_HEADER_
 
 #ifdef _MSC_VER
 #include <windows.h>
@@ -9,24 +9,26 @@
 
 #include <stdlib.h>
 
-namespace PCM_Util {
-
+namespace PCM_Util
+{
     class Mutex {
-
 #ifdef _MSC_VER
         HANDLE mutex_;
 #else
         pthread_mutex_t mutex_;
 #endif
+
     public:
-        Mutex() {
+        Mutex()
+        {
 #ifdef _MSC_VER
             mutex_ = CreateMutex(NULL, FALSE, NULL);
 #else
             pthread_mutex_init(&mutex_, NULL);
 #endif
         }
-        virtual ~Mutex() {
+        virtual ~Mutex()
+        {
 #ifdef _MSC_VER
             CloseHandle(mutex_);
 #else
@@ -34,14 +36,16 @@ namespace PCM_Util {
 #endif
         }
 
-        void lock() {
+        void lock()
+        {
 #ifdef _MSC_VER
             WaitForSingleObject(mutex_, INFINITE);
 #else
             pthread_mutex_lock(&mutex_);
 #endif
         }
-        void unlock() {
+        void unlock()
+        {
 #ifdef _MSC_VER
             ReleaseMutex(mutex_);
 #else
@@ -49,8 +53,6 @@ namespace PCM_Util {
 #endif
         }
     };
-
-};
+}
 
 #endif
-

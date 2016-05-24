@@ -32,10 +32,10 @@ void exit_cleanup(void)
 {
     std::cout << std::flush;
 
-	restore_signal_handlers();
+    restore_signal_handlers();
 
-   // this replaces same call in cleanup() from util.h
-   PCM::getInstance()->cleanup(); // this replaces same call in cleanup() from util.h
+    // this replaces same call in cleanup() from util.h
+    PCM::getInstance()->cleanup(); // this replaces same call in cleanup() from util.h
 
 //TODO: delete other shared objects.... if any.
 
@@ -58,17 +58,17 @@ ThreadGroupTempAffinity::ThreadGroupTempAffinity(uint32 core_id)
         ++NewGroupAffinity.Group;
     }
     NewGroupAffinity.Mask = 1ULL << core_id;
-    SetThreadGroupAffinity(GetCurrentThread(),&NewGroupAffinity,&PreviousGroupAffinity);
+    SetThreadGroupAffinity(GetCurrentThread(), &NewGroupAffinity, &PreviousGroupAffinity);
 }
 ThreadGroupTempAffinity::~ThreadGroupTempAffinity()
 {
-    SetThreadGroupAffinity(GetCurrentThread(),&PreviousGroupAffinity,NULL);
+    SetThreadGroupAffinity(GetCurrentThread(), &PreviousGroupAffinity, NULL);
 }
 
 LONG unhandled_exception_handler(LPEXCEPTION_POINTERS p)
 {
-	std::cerr << "DEBUG: Unhandled Exception event" << std::endl;
-	exit(EXIT_FAILURE);
+    std::cerr << "DEBUG: Unhandled Exception event" << std::endl;
+    exit(EXIT_FAILURE);
 }
 
 /**
@@ -76,61 +76,60 @@ LONG unhandled_exception_handler(LPEXCEPTION_POINTERS p)
 */
 BOOL sigINT_handler(DWORD fdwCtrlType)
 {
+    // output for DEBUG only
+    std::cerr << "DEBUG: caught signal to interrupt: ";
+    switch (fdwCtrlType)
+    {
+    // Handle the CTRL-C signal.
+    case CTRL_C_EVENT:
+        std::cerr << "Ctrl-C event" << std::endl;
+        break;
 
-	// output for DEBUG only
-	std::cerr << "DEBUG: caught signal to interrupt: ";
-	switch( fdwCtrlType ) 
-	{ 
-	// Handle the CTRL-C signal. 
-	case CTRL_C_EVENT: 
-		std::cerr << "Ctrl-C event" << std::endl;
-		break;
+    // CTRL-CLOSE: confirm that the user wants to exit.
+    case CTRL_CLOSE_EVENT:
+        std::cerr << "Ctrl-Close event" << std::endl;
+        break;
 
-	// CTRL-CLOSE: confirm that the user wants to exit. 
-	case CTRL_CLOSE_EVENT: 
-		std::cerr << "Ctrl-Close event" << std::endl;
-		break;
- 
-	// Pass other signals to the next handler. 
-	case CTRL_BREAK_EVENT: 
-		std::cerr << "Ctrl-Break event" << std::endl;
-		break;
- 
-	case CTRL_LOGOFF_EVENT: 
-		std::cerr << "Ctrl-Logoff event" << std::endl;
-		break;
- 
-	case CTRL_SHUTDOWN_EVENT: 
-		std::cerr << "Ctrl-Shutdown event" << std::endl;
-		break;
- 
-	default: 
-		std::cerr << "Unknown event" << std::endl;
-		break;
-	} 
-	
+    // Pass other signals to the next handler.
+    case CTRL_BREAK_EVENT:
+        std::cerr << "Ctrl-Break event" << std::endl;
+        break;
+
+    case CTRL_LOGOFF_EVENT:
+        std::cerr << "Ctrl-Logoff event" << std::endl;
+        break;
+
+    case CTRL_SHUTDOWN_EVENT:
+        std::cerr << "Ctrl-Shutdown event" << std::endl;
+        break;
+
+    default:
+        std::cerr << "Unknown event" << std::endl;
+        break;
+    }
+
     // TODO: dump summary, if needed
 
     // in case PCM is blocked just return and summary will be dumped in
     // calling function, if needed
-    if( PCM::getInstance()->isBlocked() ) {
+    if (PCM::getInstance()->isBlocked()) {
         return FALSE;
-	} else {
+    } else {
         exit_cleanup();
-		return FALSE; // to prevent Warning
-	}
+        return FALSE; // to prevent Warning
+    }
 }
 
 /**
 * \brief started in a separate thread and blocks waiting for child applicaiton to exit.
 * After child app exits: -> print Child's termination status and terminates PCM
 */
-void waitForChild(void *proc_id)
+void waitForChild(void * proc_id)
 {
     intptr_t procHandle = (intptr_t)proc_id;
     int termstat;
     _cwait(&termstat, procHandle, _WAIT_CHILD);
-	std::cerr << "Program exited with status " << termstat << std::endl;
+    std::cerr << "Program exited with status " << termstat << std::endl;
     exit(EXIT_SUCCESS);
 }
 #else
@@ -148,7 +147,7 @@ void sigINT_handler(int signum)
 
     // in case PCM is blocked just return and summary will be dumped in
     // calling function, if needed
-    if( PCM::getInstance()->isBlocked() )
+    if (PCM::getInstance()->isBlocked())
         return;
     else
         exit_cleanup();
@@ -187,16 +186,16 @@ void sigUSR_handler(int signum)
  */
 void sigSTOP_handler(int signum)
 {
-    PCM *m = PCM::getInstance();
+    PCM * m = PCM::getInstance();
     int runState = m->getRunState();
-    std::string state = (runState==1 ? "suspend" : "continue");
+    std::string state = (runState == 1 ? "suspend" : "continue");
     std::cerr << "DEBUG: caught signal to " << state << " execution." << std::endl; // debug of signals only
-    if(runState==1) {
-    // stop counters and sleep... almost forever;
+    if (runState == 1) {
+        // stop counters and sleep... almost forever;
         m->setRunState(0);
         sleep(INT_MAX);
     } else {
-    // resume
+        // resume
         m->setRunState(1);
         alarm(1);
     }
@@ -218,28 +217,28 @@ void sigCONT_handler(int signum)
 //! \brief install various handlers for system signals
 void set_signal_handlers(void)
 {
-    if( atexit(exit_cleanup) != 0 )
+    if (atexit(exit_cleanup) != 0)
     {
-       std::cerr << "ERROR: Failed to install exit handler." << std::endl;
-       return;
+        std::cerr << "ERROR: Failed to install exit handler." << std::endl;
+        return;
     }
 
 #ifdef _MSC_VER
     BOOL handlerStatus;
-	// Increase the priority a bit to improve context switching delays on Windows
+    // Increase the priority a bit to improve context switching delays on Windows
     SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
 // to fix Cygwin/BASH setting Ctrl+C handler need first to restore the default one
-	handlerStatus = SetConsoleCtrlHandler(NULL, FALSE); // restores normal processing of CTRL+C input
-	if(handlerStatus == 0) {
+    handlerStatus = SetConsoleCtrlHandler(NULL, FALSE); // restores normal processing of CTRL+C input
+    if (handlerStatus == 0) {
         std::wcerr << "Failed to set Ctrl+C hanlder. Error code: " << GetLastError() << " ";
-        const TCHAR * errorStr = _com_error(GetLastError()).ErrorMessage(); 
+        const TCHAR * errorStr = _com_error(GetLastError()).ErrorMessage();
         if (errorStr) std::wcerr << errorStr;
         std::wcerr << std::endl;
-		_exit(EXIT_FAILURE);
-	}
-	SetConsoleCtrlHandler((PHANDLER_ROUTINE)sigINT_handler, TRUE);
-	SetUnhandledExceptionFilter((LPTOP_LEVEL_EXCEPTION_FILTER)&unhandled_exception_handler);
-	std::cerr << "DEBUG: Setting Ctrl+C done." << std:: endl;
+        _exit(EXIT_FAILURE);
+    }
+    SetConsoleCtrlHandler((PHANDLER_ROUTINE)sigINT_handler, TRUE);
+    SetUnhandledExceptionFilter((LPTOP_LEVEL_EXCEPTION_FILTER)&unhandled_exception_handler);
+    std::cerr << "DEBUG: Setting Ctrl+C done." << std::endl;
 
 #else
     struct sigaction saINT, saHUP, saUSR, saSTOP, saCONT;
@@ -248,7 +247,7 @@ void set_signal_handlers(void)
     saINT.sa_handler = sigINT_handler;
     sigemptyset(&saINT.sa_mask);
     saINT.sa_flags = SA_RESTART;
-    sigaction(SIGINT , &saINT, NULL);
+    sigaction(SIGINT, &saINT, NULL);
     sigaction(SIGQUIT, &saINT, NULL);
     sigaction(SIGABRT, &saINT, NULL);
     sigaction(SIGTERM, &saINT, NULL);
@@ -294,34 +293,34 @@ void set_signal_handlers(void)
 void restore_signal_handlers(void)
 {
 #ifndef _MSC_VER
-     struct sigaction action;
-     action.sa_handler = SIG_DFL;
+    struct sigaction action;
+    action.sa_handler = SIG_DFL;
 
-     sigaction(SIGINT , &action, NULL);
-     sigaction(SIGQUIT, &action, NULL);
-     sigaction(SIGABRT, &action, NULL);
-     sigaction(SIGTERM, &action, NULL);
-     sigaction(SIGSEGV, &action, NULL);
+    sigaction(SIGINT, &action, NULL);
+    sigaction(SIGQUIT, &action, NULL);
+    sigaction(SIGABRT, &action, NULL);
+    sigaction(SIGTERM, &action, NULL);
+    sigaction(SIGSEGV, &action, NULL);
 
-     sigaction(SIGCHLD, &action, NULL); 
+    sigaction(SIGCHLD, &action, NULL);
 
-     // restore SIGHUP handler to restart
-     sigaction(SIGHUP, &action, NULL);
+    // restore SIGHUP handler to restart
+    sigaction(SIGHUP, &action, NULL);
 
-     // restore SIGHUP handler to restart
-     sigaction(SIGUSR1, &action, NULL);
-     sigaction(SIGUSR2, &action, NULL);
+    // restore SIGHUP handler to restart
+    sigaction(SIGUSR1, &action, NULL);
+    sigaction(SIGUSR2, &action, NULL);
 
-     // restore SIGSTOP handler: pause/resume
+    // restore SIGSTOP handler: pause/resume
 //     sigaction(SIGSTOP, &action, NULL); // cannot catch this
 // handle SUSP character: normally C-z)
-     sigaction(SIGTSTP, &action, NULL);
-     sigaction(SIGTTIN, &action, NULL);
-     sigaction(SIGTTOU, &action, NULL);
+    sigaction(SIGTSTP, &action, NULL);
+    sigaction(SIGTTIN, &action, NULL);
+    sigaction(SIGTTOU, &action, NULL);
 
-     // restore SIGCONT & SIGALRM handler
-     sigaction(SIGCONT, &action, NULL);
-     sigaction(SIGALRM, &action, NULL);
+    // restore SIGCONT & SIGALRM handler
+    sigaction(SIGCONT, &action, NULL);
+    sigaction(SIGALRM, &action, NULL);
 #endif
 
     return;
@@ -330,7 +329,7 @@ void restore_signal_handlers(void)
 //!\brief launches external program in a separate process
 void MySystem(char * sysCmd, char ** sysArgv)
 {
-    if( sysCmd == NULL ) {
+    if (sysCmd == NULL) {
         assert("No program provided. NULL pointer");
         exit(EXIT_FAILURE);
     }
@@ -338,30 +337,30 @@ void MySystem(char * sysCmd, char ** sysArgv)
     std::cerr << sysCmd;
     std::cerr << "\" command:" << std::endl;
 #ifdef _MSC_VER
-	intptr_t ret;
-	char cbuf[128];
+    intptr_t ret;
+    char cbuf[128];
 
-	if( PCM::getInstance()->isBlocked() ) { // synchronous start: wait for child process completion
-		// in case PCM should be blocked waiting for the child applicaiton to end
-		// 1. returns and ret = -1 in case of error creating process is encountered
-		// 2. 
+    if (PCM::getInstance()->isBlocked()) {  // synchronous start: wait for child process completion
+        // in case PCM should be blocked waiting for the child applicaiton to end
+        // 1. returns and ret = -1 in case of error creating process is encountered
+        // 2.
         ret = _spawnvp(_P_WAIT, sysCmd, sysArgv);
-        if(ret == -1) { // process creation failed.
+        if (ret == -1) { // process creation failed.
             strerror_s(cbuf, 128, errno);
             std::cerr << "Failed to start program \"" << sysCmd << "\". " << cbuf << std::endl;
             exit(EXIT_FAILURE);
-        } else { // process created, worked, and completed with exist code in ret. ret=0 -> Success
+        } else {         // process created, worked, and completed with exist code in ret. ret=0 -> Success
             std::cerr << "Program exited with status " << ret << std::endl;
         }
-    } else { // async start: PCM works in parallel with the child process, and exits when
+    } else {             // async start: PCM works in parallel with the child process, and exits when
         ret = _spawnvp(_P_NOWAIT, sysCmd, sysArgv);
-        if(ret == -1) {
+        if (ret == -1) {
             strerror_s(cbuf, 128, errno);
             std::cerr << "Failed to start program \"" << sysCmd << "\". " << cbuf << std::endl;
             exit(EXIT_FAILURE);
         } else { // ret here is the new process handle.
             // start new thread which will wait for child completion, and continue PCM's execution
-			if(_beginthread(waitForChild, 0, (void *)ret) == -1L) {
+            if (_beginthread(waitForChild, 0, (void *)ret) == -1L) {
                 strerror_s(cbuf, 128, errno);
                 std::cerr << "WARNING: Failed to set waitForChild. PCM will countinue infinitely: finish it manually! " << cbuf << std::endl;
             }
@@ -370,14 +369,14 @@ void MySystem(char * sysCmd, char ** sysArgv)
 #else
     pid_t child_pid = fork();
 
-    if(child_pid == 0) {
+    if (child_pid == 0) {
         execvp(sysCmd, sysArgv);
         std::cerr << "Failed to start program \"" << sysCmd << "\"" << std::endl;
         exit(EXIT_FAILURE);
     }
     else
     {
-        if( PCM::getInstance()->isBlocked() ) {
+        if (PCM::getInstance()->isBlocked()) {
             int res;
             waitpid(child_pid, &res, 0);
             std::cerr << "Program " << sysCmd << " launched with PID: " << child_pid << std::endl;
@@ -392,4 +391,3 @@ void MySystem(char * sysCmd, char ** sysArgv)
     }
 #endif
 }
-

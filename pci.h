@@ -28,7 +28,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #ifdef _MSC_VER
 #include "windows.h"
 #else
-#include <unistd.h> 
+#include <unistd.h>
 #endif
 
 #ifdef __APPLE__
@@ -54,9 +54,9 @@ class PciHandle
     DWORD pciAddress;
 #endif
 
-    PciHandle();            // forbidden
-    PciHandle(const PciHandle &); // forbidden
-    PciHandle& operator = (const PciHandle &); // forbidden
+    PciHandle();                                // forbidden
+    PciHandle(const PciHandle &);               // forbidden
+    PciHandle & operator = (const PciHandle &); // forbidden
 
 public:
     PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 function_);
@@ -122,7 +122,7 @@ class PciHandleMM
     uint32 device;
     uint32 function;
     uint64 base_addr;
-    
+
 #ifdef __linux__
     static MCFGHeader mcfgHeader;
     static std::vector<MCFGRecord> mcfgRecords;
@@ -143,8 +143,8 @@ public:
     int32 read64(uint64 offset, uint64 * value);
 
     virtual ~PciHandleMM();
-    
-#ifdef __linux__    
+
+#ifdef __linux__
     static const std::vector<MCFGRecord> & getMCFGRecords();
 #endif
 };

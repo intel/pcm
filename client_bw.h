@@ -17,7 +17,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #define CPUCounters_CLIENTBW_H
 
 /*!     \file client_bw.h
-        \brief Interface to access client bandwidth counters 
+        \brief Interface to access client bandwidth counters
 
 */
 
@@ -27,7 +27,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include "windows.h"
 #include "winpmem\winpmem.h"
 #else
-#include <unistd.h> 
+#include <unistd.h>
 #endif
 
 #include "mutex.h"
@@ -50,19 +50,19 @@ class ClientBW
     char * mmapAddr;
 #endif
 #ifdef _MSC_VER
-	std::shared_ptr<WinPmem> pmem;
+    std::shared_ptr<WinPmem> pmem;
     uint64 startAddr;
     PCM_Util::Mutex mutex;
 #endif
 
 public:
-   ClientBW();
+    ClientBW();
 
-   uint64 getImcReads();
-   uint64 getImcWrites();
-   uint64 getIoRequests();
+    uint64 getImcReads();
+    uint64 getImcWrites();
+    uint64 getIoRequests();
 
-   ~ClientBW();
+    ~ClientBW();
 };
 
 
