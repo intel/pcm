@@ -88,8 +88,8 @@ class ServerPCICFGUncore
 {
     int32 bus;
     uint32 groupnr;
-    std::vector<std::shared_ptr<PciHandleM> > imcHandles;
-    std::vector<std::shared_ptr<PciHandleM> > qpiLLHandles;
+    std::vector<std::shared_ptr<PciHandleType> > imcHandles;
+    std::vector<std::shared_ptr<PciHandleType> > qpiLLHandles;
     std::vector<uint64> qpi_speed;
     uint32 num_imc;
     uint32 MCX_CHY_REGISTER_DEV_ADDR[2][4];
@@ -103,7 +103,7 @@ class ServerPCICFGUncore
     ServerPCICFGUncore();                                         // forbidden
     ServerPCICFGUncore(ServerPCICFGUncore &);                     // forbidden
     ServerPCICFGUncore & operator = (const ServerPCICFGUncore &); // forbidden
-    PciHandleM * createIntelPerfMonDevice(uint32 groupnr, int32 bus, uint32 dev, uint32 func, bool checkVendor = false);
+    PciHandleType * createIntelPerfMonDevice(uint32 groupnr, int32 bus, uint32 dev, uint32 func, bool checkVendor = false);
     void programIMC(const uint32 * MCCntConfig);
 
 public:

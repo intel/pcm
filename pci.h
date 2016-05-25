@@ -72,12 +72,12 @@ public:
 };
 
 #ifdef _MSC_VER
-typedef PciHandle PciHandleM;
+typedef PciHandle PciHandleType;
 #elif __APPLE__
 // This may need to change if it can be implemented for OSX
-typedef PciHandle PciHandleM;
+typedef PciHandle PciHandleType;
 #elif __FreeBSD__
-typedef PciHandle PciHandleM;
+typedef PciHandle PciHandleType;
 #else
 
 // read/write PCI config space using physical memory
@@ -150,7 +150,7 @@ public:
 };
 
 #ifdef PCM_USE_PCI_MM_LINUX
-#define PciHandleM PciHandleMM
+#define PciHandleType PciHandleMM
 #endif
 
 #endif //  _MSC_VER

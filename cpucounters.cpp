@@ -3556,7 +3556,7 @@ void ServerPCICFGUncore::initSocket2Bus()
         uint32 value = 0;
         try
         {
-            PciHandleM h(mcfg[s].PCISegmentGroupNumber, bus, MCX_CHY_REGISTER_DEV_ADDR[0][0], MCX_CHY_REGISTER_FUNC_ADDR[0][0]);
+            PciHandleType h(mcfg[s].PCISegmentGroupNumber, bus, MCX_CHY_REGISTER_DEV_ADDR[0][0], MCX_CHY_REGISTER_FUNC_ADDR[0][0]);
             h.read32(0, &value);
 
         } catch(...)
@@ -3590,7 +3590,7 @@ int getBusFromSocket(const uint32 socket)
     while(cur_socket <= socket)
     {
         // std::cout << "reading from bus 0x"<< std::hex << cur_bus << std::dec << " "; 
-        PciHandleM h(0, cur_bus, 5, 0);
+        PciHandleType h(0, cur_bus, 5, 0);
         uint32 cpubusno = 0;
         h.read32(0x108, &cpubusno); // CPUBUSNO register
         cur_bus = (cpubusno >> 8)& 0x0ff;
@@ -3606,11 +3606,11 @@ int getBusFromSocket(const uint32 socket)
     return -1;
 }
 
-PciHandleM * ServerPCICFGUncore::createIntelPerfMonDevice(uint32 groupnr_, int32 bus_, uint32 dev_, uint32 func_, bool checkVendor)
+PciHandleType * ServerPCICFGUncore::createIntelPerfMonDevice(uint32 groupnr_, int32 bus_, uint32 dev_, uint32 func_, bool checkVendor)
 {
-        if (PciHandleM::exists((uint32)bus_, dev_, func_))
+        if (PciHandleType::exists((uint32)bus_, dev_, func_))
         {
-            PciHandleM * handle = new PciHandleM(groupnr_, bus_, dev_, func_);
+            PciHandleType * handle = new PciHandleType(groupnr_, bus_, dev_, func_);
 
             if(!checkVendor) return handle;
             
@@ -3698,9 +3698,9 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, PCM * pcm) :
     {
 #define PCM_PCICFG_SETUP_MC_HANDLE(controller,channel)                                 \
         {                                                                           \
-            PciHandleM * handle = createIntelPerfMonDevice(groupnr, bus,            \
+            PciHandleType * handle = createIntelPerfMonDevice(groupnr, bus,            \
                 MCX_CHY_REGISTER_DEV_ADDR[controller][channel], MCX_CHY_REGISTER_FUNC_ADDR[controller][channel], true); \
-            if (handle) imcHandles.push_back(std::shared_ptr<PciHandleM>(handle));                     \
+            if (handle) imcHandles.push_back(std::shared_ptr<PciHandleType>(handle));                     \
         }
 
         PCM_PCICFG_SETUP_MC_HANDLE(0,0)
@@ -3773,23 +3773,23 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, PCM * pcm) :
     try
     {
         {
-            PciHandleM * handle = createIntelPerfMonDevice(groupnr, bus, QPI_PORTX_REGISTER_DEV_ADDR[0], QPI_PORTX_REGISTER_FUNC_ADDR[0], true);
+            PciHandleType * handle = createIntelPerfMonDevice(groupnr, bus, QPI_PORTX_REGISTER_DEV_ADDR[0], QPI_PORTX_REGISTER_FUNC_ADDR[0], true);
             if (handle)
-                qpiLLHandles.push_back(std::shared_ptr<PciHandleM>(handle));
+                qpiLLHandles.push_back(std::shared_ptr<PciHandleType>(handle));
             else
                 std::cerr << "ERROR: QPI LL monitoring device ("<< groupnr<<":"<<bus<<":"<< QPI_PORTX_REGISTER_DEV_ADDR[0] <<":"<<  QPI_PORTX_REGISTER_FUNC_ADDR[0] << ") is missing. The QPI statistics will be incomplete or missing."<< std::endl;
         }
         {
-            PciHandleM * handle = createIntelPerfMonDevice(groupnr, bus, QPI_PORTX_REGISTER_DEV_ADDR[1], QPI_PORTX_REGISTER_FUNC_ADDR[1], true);
+            PciHandleType * handle = createIntelPerfMonDevice(groupnr, bus, QPI_PORTX_REGISTER_DEV_ADDR[1], QPI_PORTX_REGISTER_FUNC_ADDR[1], true);
             if (handle)
-                qpiLLHandles.push_back(std::shared_ptr<PciHandleM>(handle));
+                qpiLLHandles.push_back(std::shared_ptr<PciHandleType>(handle));
             else
                 std::cerr << "ERROR: QPI LL monitoring device ("<< groupnr<<":"<<bus<<":"<< QPI_PORTX_REGISTER_DEV_ADDR[1] <<":"<<  QPI_PORTX_REGISTER_FUNC_ADDR[1] << ") is missing. The QPI statistics will be incomplete or missing."<< std::endl;
         }
         {
-            PciHandleM * handle = createIntelPerfMonDevice(groupnr, bus, QPI_PORTX_REGISTER_DEV_ADDR[2], QPI_PORTX_REGISTER_FUNC_ADDR[2], true);
+            PciHandleType * handle = createIntelPerfMonDevice(groupnr, bus, QPI_PORTX_REGISTER_DEV_ADDR[2], QPI_PORTX_REGISTER_FUNC_ADDR[2], true);
             if (handle)
-                qpiLLHandles.push_back(std::shared_ptr<PciHandleM>(handle));
+                qpiLLHandles.push_back(std::shared_ptr<PciHandleType>(handle));
             else {
 
                 if (pcm->getCPUBrandString().find("E7") != std::string::npos) { // Xeon E7
@@ -4208,7 +4208,7 @@ uint64 ServerPCICFGUncore::getQPILLCounter(uint32 port, uint32 counter)
 void ServerPCICFGUncore::enableJKTWorkaround(bool enable)
 {
     {
-        PciHandleM reg(groupnr,bus,14,0);
+        PciHandleType reg(groupnr,bus,14,0);
         uint32 value = 0;
         reg.read32(0x84, &value);
         if(enable)
@@ -4218,7 +4218,7 @@ void ServerPCICFGUncore::enableJKTWorkaround(bool enable)
         reg.write32(0x84, value);
     }
     {
-        PciHandleM reg(groupnr,bus,8,0);
+        PciHandleType reg(groupnr,bus,8,0);
         uint32 value = 0;
         reg.read32(0x80, &value);
         if(enable)
@@ -4228,7 +4228,7 @@ void ServerPCICFGUncore::enableJKTWorkaround(bool enable)
         reg.write32(0x80, value);
     }
     {
-        PciHandleM reg(groupnr,bus,9,0);
+        PciHandleType reg(groupnr,bus,9,0);
         uint32 value = 0;
         reg.read32(0x80, &value);
         if(enable)
@@ -4251,7 +4251,7 @@ uint64 ServerPCICFGUncore::computeQPISpeed(const uint32 core_nr, const int cpumo
               qpi_speed[1] = qpi_speed[0]; // link 1 does not have own speed register, it runs with the speed of link 0
               continue;
            }
-           PciHandleM reg(groupnr,bus,QPI_PORTX_REGISTER_DEV_ADDR[i],QPI_PORT0_MISC_REGISTER_FUNC_ADDR);
+           PciHandleType reg(groupnr,bus,QPI_PORTX_REGISTER_DEV_ADDR[i],QPI_PORT0_MISC_REGISTER_FUNC_ADDR);
            uint32 value = 0;
            reg.read32(QPI_RATE_STATUS_ADDR, &value);
            value &= 7; // extract lower 3 bits

@@ -77,7 +77,7 @@ ClientBW::ClientBW() : pmem(new PCMPmem())
     pmem->install_driver(false);
     pmem->set_acquisition_mode(PMEM_MODE_IOSPACE);
 
-    PciHandleM imcHandle(0, 0, 0, 0); // memory controller device coordinates: domain 0, bus 0, device 0, function 0
+    PciHandleType imcHandle(0, 0, 0, 0); // memory controller device coordinates: domain 0, bus 0, device 0, function 0
     uint64 imcbar = 0;
     imcHandle.read64(PCM_CLIENT_IMC_BAR_OFFSET, &imcbar);
     // std::cout << "DEBUG: imcbar="<<std::hex << imcbar <<std::endl;
