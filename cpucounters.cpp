@@ -3549,7 +3549,6 @@ void ServerPCICFGUncore::initSocket2Bus()
     mcfg.push_back(segment);
     #endif
 
-
     for(uint32 s = 0; s < (uint32)mcfg.size(); ++s)
     for (uint32 bus = (uint32)mcfg[s].startBusNumber; bus <= (uint32)mcfg[s].endBusNumber; ++bus)
     {
@@ -3561,8 +3560,8 @@ void ServerPCICFGUncore::initSocket2Bus()
 
         } catch(...)
         {
-            // reached invalid bus
-            return;
+            // invalid bus:devicei:function
+            continue;
         }
         const uint32 vendor_id = value & 0xffff;
         const uint32 device_id = (value >> 16) & 0xffff;
