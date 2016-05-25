@@ -340,7 +340,7 @@ PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 functi
 {
     if (groupnr_ != 0)
     {
-        std::cout << "ERROR: non-zero PCI segment groupnr is not supported in this PciHandle implementation" << std::endl;
+        std::cout << "ERROR: non-zero PCI segment groupnr is not supported in this PciHandle implementation. Please recompile with -DPCM_USE_PCI_MM_LINUX option." << std::endl;
         throw std::exception();
     }
 

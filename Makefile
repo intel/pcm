@@ -20,7 +20,7 @@ UNAME:=$(shell uname)
 
 ifeq ($(UNAME), Linux)
 LIB= -pthread -lrt
-CXXFLAGS += -std=c++0x -DPCM_USE_PCI_MM_LINUX
+CXXFLAGS += -std=c++0x
 endif
 ifeq ($(UNAME), Darwin)
 LIB= -lpthread /usr/lib/libPcmMsr.dylib 
