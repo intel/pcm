@@ -37,8 +37,6 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 #include <vector>
 
-#define PCM_USE_PCI_MM_LINUX
-
 class PciHandle
 {
 #ifdef _MSC_VER
@@ -151,6 +149,8 @@ public:
 
 #ifdef PCM_USE_PCI_MM_LINUX
 #define PciHandleType PciHandleMM
+#else
+#define PciHandleType PciHandle
 #endif
 
 #endif //  _MSC_VER
