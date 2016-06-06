@@ -1189,7 +1189,8 @@ int main(int argc, char * argv[])
         exit(EXIT_FAILURE);
     }
 
-    cerr << "\nDetected " << m->getCPUBrandString() << " \"Intel(r) microarchitecture codename " << m->getUArchCodename() << "\"" << endl;
+    cerr << "\nDetected " << m->getCPUBrandString() << " \"Intel(r) microarchitecture codename " <<
+        m->getUArchCodename() << "\" stepping "<< m->getCPUStepping() << endl;
 
     std::vector<CoreCounterState> cstates1, cstates2;
     std::vector<SocketCounterState> sktstate1, sktstate2;

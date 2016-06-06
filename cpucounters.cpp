@@ -424,6 +424,7 @@ bool PCM::detectModel()
     pcm_cpuid(1, cpuinfo);
     cpu_family = (((cpuinfo.array[0]) >> 8) & 0xf) | ((cpuinfo.array[0] & 0xf00000) >> 16);
     cpu_model = original_cpu_model = (((cpuinfo.array[0]) & 0xf0) >> 4) | ((cpuinfo.array[0] & 0xf0000) >> 12);
+    cpu_stepping = cpuinfo.array[0] & 0x0f;
 
     if (cpuinfo.reg.ecx & (1UL<<31UL)) {
         std::cerr << "Detected a hypervisor/virtualization technology. Some metrics might not be available due to configuration or availability of virtual hardware features." << std::endl;
@@ -1228,6 +1229,7 @@ PCM::PCM() :
     cpu_family(-1),
     cpu_model(-1),
     original_cpu_model(-1),
+    cpu_stepping(-1),
     threads_per_core(0),
     num_cores(0),
     num_sockets(0),

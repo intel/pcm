@@ -230,6 +230,7 @@ class INTELPCM_API PCM
 
     int32 cpu_family;
     int32 cpu_model, original_cpu_model;
+    int32 cpu_stepping;
     int32 threads_per_core;
     int32 num_cores;
     int32 num_sockets;
@@ -743,6 +744,10 @@ public:
     //! \brief Reads original CPU model id
     //! \return CPU model ID
     uint32 getOriginalCPUModel() { return (uint32)original_cpu_model; }
+
+    //! \brief Reads CPU stepping id
+    //! \return CPU stepping ID
+    uint32 getCPUStepping() { return (uint32)cpu_stepping; }
 
     //! \brief Determines socket of given core
     //! \param core_id core identifier
