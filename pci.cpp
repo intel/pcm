@@ -385,7 +385,12 @@ int32 PciHandle::write32(uint64 offset, uint32 value)
 
 int32 PciHandle::read64(uint64 offset, uint64 * value)
 {
-    return ::pread(fd, (void *)value, sizeof(uint64), offset);
+    size_t res = ::pread(fd, (void *)value, sizeof(uint64), offset);
+    if(res != sizeof(uint64))
+    {
+        std::cerr << "ERROR: pread with offset 0x" << std::hex << offset << std::dec << " returned " << res << " bytes " << std::endl;
+    }
+    return res;
 }
 
 PciHandle::~PciHandle()
