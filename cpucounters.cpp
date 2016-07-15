@@ -2291,7 +2291,7 @@ const char * PCM::getUArchCodename(int32 cpu_model_) const
         case BDX_DE:
             return "Broadwell-DE";
         case BDX:
-            return "Broadwell-EP";
+            return "Broadwell-EP/EX";
         case IVY_BRIDGE:
             return "Ivy Bridge";
         case HASWELL:
