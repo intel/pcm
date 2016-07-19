@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2009-2012, Intel Corporation
+Copyright (c) 2009-2016, Intel Corporation
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -27,11 +27,14 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <string>
 #include <sstream>
 #include "cpuasynchcounter.h"
+#include "utils.h"
 
 using namespace std;
 
 int main()
 {
+    set_signal_handlers();
+
     AsynchronCounterState counters;
 
     cout << "CPU counter sensor " << INTEL_PCM_VERSION << endl;
