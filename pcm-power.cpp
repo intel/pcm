@@ -465,7 +465,7 @@ int main(int argc, char * argv[])
                 std::cout << "\n";
                 break;
             case 7:
-                if (PCM::HASWELLX == cpu_model || PCM::BDX_DE == cpu_model) {
+                if (PCM::HASWELLX == cpu_model || PCM::BDX_DE == cpu_model || PCM::BDX == cpu_model) {
                     std::cout << "S" << socket
                               << "; UFS_TRANSITIONS_PERF_P_LIMIT: " << getNormalizedPCUCounter(0, BeforeState[socket], AfterState[socket], m) * 100. << " %"
                               << "; UFS_TRANSITIONS_IO_P_LIMIT: " << getNormalizedPCUCounter(1, BeforeState[socket], AfterState[socket], m) * 100. << " %"
@@ -475,7 +475,7 @@ int main(int argc, char * argv[])
                 }
                 break;
             case 8:
-                if (PCM::HASWELLX == cpu_model || PCM::BDX_DE == cpu_model) {
+                if (PCM::HASWELLX == cpu_model || PCM::BDX_DE == cpu_model || PCM::BDX == cpu_model) {
                     std::cout << "S" << socket
                               << "; UFS_TRANSITIONS_DOWN: " << getNormalizedPCUCounter(0, BeforeState[socket], AfterState[socket], m) * 100. << " %"
                               << "\n";
