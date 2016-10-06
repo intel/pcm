@@ -3416,6 +3416,10 @@ bool PCM::isSomeCoreOfflined()
     pcm_cpuid(0xB,1,cpuid_args);
     uint32 max_num_lcores_per_socket = cpuid_args.reg.ebx & 0xFFFF;
     uint32 max_num_lcores = max_num_lcores_per_socket * getNumSockets();
+    if(threads_per_core == 1 && (getNumOnlineCores() * 2 == max_num_lcores)) // HT is disabled in the BIOS
+    {
+       return false;
+    }
     return !(getNumOnlineCores() == max_num_lcores);
 }
 
