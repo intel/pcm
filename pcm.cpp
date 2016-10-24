@@ -375,12 +375,11 @@ void print_output(PCM * m,
     }
     if (show_socket_output)
     {
-        cout << "\n";
-        cout << "          |";
+        cout << "MEM (GB)->|";
         if (m->memoryTrafficMetricsAvailable())
             cout << "  READ |  WRITE |";
         if (m->memoryIOTrafficMetricAvailable())
-            cout << "    IO  |";
+            cout << "   IO   |";
         if (m->packageEnergyMetricsAvailable())
             cout << " CPU energy |";
         if (m->dramEnergyMetricsAvailable())
