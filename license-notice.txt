@@ -1,0 +1,3 @@
+NOTICE
+
+This software specifically enables pre-production hardware provided by Intel Corporation.  The terms describing your rights and responsibilities to use such hardware are covered by a separate evaluation agreement.  Of specific note in that agreement is the requirement that you do not release or publish information on the hardware without the specific written authorization of Intel Corporation.

@@ -1,0 +1,33 @@
+Building and Installing
+
+Note: xcode is required to build the driver and dynamic library.
+
+Requirements
+____________
+Building and installing requires make, gcc, and xcode.
+It has been tested on the following system configurations:
+	OS X 10.11.2, Xcode 7.2, Apple LLVM compiler 7.0
+
+Automatic Install
+-----------------
+In the MacMSRDriver directory run 'make install', which will build both the driver and dynamic library for accessing the driver.
+It loads the driver, installs the library into /usr/lib and installs the library headers into /usr/include.
+
+Manual Install
+--------------
+The driver and library can be built individually and without being installed using 'make kext' and 'make library' respectively.
+Once built, they are located in MacMSRDriver/Build/Products/Release. Note that the build location can be Xcode preferences dependent.  And Apple has changed the location in the past.  So if you don’t find it at this location, then look to see where Xcode puts the build.  If the location is different that above, you will also need to modified the kextload.sh for the appropriate path as well. They can also be built by opening the PcmMsr project with xcode and building both projects.
+
+Then do the following:
+	1) load the driver by running kextload.sh
+	2) copy libPcmMsr.dylib to a location on your path (auto-install uses /usr/lib)
+	3) copy MSRKernel.h to a location on your path (auto-install uses /usr/include)
+	4) copy MSRAccessorPublic.h as MSRAccessor.h to a location on your path (auto-install uses /usr/include)
+
+PCM Binary Compilation
+----------------------
+
+Once the driver and library have been built go to the root PCM directory (above MacMSRDriver) and execute "make".
+Now you can run ./pcm.x utility.
+See description of other built utilities in LINUX_HOWTO.txt
+

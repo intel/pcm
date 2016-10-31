@@ -1,0 +1,43 @@
+Free Getopt
+
+******************************************************************************
+Please read the file LICENSE for the terms of use and distribution of this
+software.
+******************************************************************************
+
+"getopt" is a library that allows a parsing of arguments passed
+to a program.  This is a useful library used in many software.
+There are many versions of the getopt library available, two
+popular versions being the BSD getopt and the GNU getopt.
+
+BSD getopt is somewhat old, dated, and isn't very user-friendly.
+The GNU getopt is great, except the user license doesn't let you
+statically link the library to a proprietary software.  This
+is usually not a problem on modern operating systems that allow
+dynamic links to libraries, but sometimes you just gotta link
+the library statically for one reason or another.  That's where
+Free Getopt steps in.
+
+Functionally, this getopt library is equivalent to GNU's getopt
+library (the short option version, not the long one) in almost
+every aspect.  The only exception is how the "optind" variable
+increments.  Apparently due to different algorithms used by my
+program and the GNU getopt, the "optind" changes quite differently
+between our two software.  I personally find my algorithm to be
+quite elegant; I couldn't tell you about the GNU version since
+I never looked at its source.
+
+GNU's getopt_long support is in progress.
+
+This library was deliberately left in non-library (not in
+*.lib, *.so, or *.a) form because it's most likely to be
+statically-linked in various platforms, and linking it
+directly from source is probably the most straight-forward
+way to use the software in any platform.
+
+I hope you find this software useful.
+
+Mark K. Kim
+
+$Header: /cvsroot/freegetopt/freegetopt/README,v 1.2 2003/10/26 03:10:19 vindaci Exp $
+

@@ -1,0 +1,8 @@
+
+        TODO
+
+ * Support non-zero invert and cmask fields for custom events
+ * Remember and handle properly the PMU program mode globally on the box/system
+
+
+
