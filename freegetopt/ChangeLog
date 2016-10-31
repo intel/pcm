@@ -1,0 +1,35 @@
+2003-10-25  Mark K. Kim {getopt*cbreak.org}
+
+	* *: freegetopt 0.11 released.
+
+2003-10-25  Mark K. Kim {getopt*cbreak.org}
+
+	* ChangeLog: ChangeLog file added.
+
+	* LICENSE: License file added.  License is now officially BSD.
+
+	* README: Updated to reflect the new license.  CVS tracking data
+	  added.
+
+	* getopt.h, getopt.c: License text added to the beginning of
+	  each file.  CVS tracking data added.
+
+	* test.c: License text added to the beginning of the file.
+	  CVS tracking data added.
+
+2003-10-20  Mark K. Kim {getopt*cbreak.org}
+
+	* *: Sourceforge project approval.  Name changed to freegetopt.
+	  License is now officially BSD.
+
+2003-09-29  Jon Higdon {jhigdon*nni.com}
+
+	* test.c: GCC 3.x gives compound statement warning.  Fixed.
+
+2003.01.12  Mark K. Kim {getopt*cbreak.org}
+
+	* *: Getopt 1.0 released!  Supports only short options, but
+	  I think it's fully compatible with GNU getopt except for the
+	  value of optind while getopt is still running.  The value
+	  of optind is same after getopt finishes running, however.
+

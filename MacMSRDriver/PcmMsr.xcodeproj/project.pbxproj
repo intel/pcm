@@ -1,0 +1,461 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		81ADBF0A156EBD73006D9B47 /* PcmMsrClient.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 81ADBF09156EBD73006D9B47 /* PcmMsrClient.cpp */; };
+		81ADBF1A156EEDB9006D9B47 /* IOKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 81ADBF0B156EDBA1006D9B47 /* IOKit.framework */; };
+		81DEAF6315703531005E8EC6 /* MSRAccessor.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 81ADBF1C156EFF69006D9B47 /* MSRAccessor.cpp */; };
+		81DEAF6615703946005E8EC6 /* DriverInterface.c in Sources */ = {isa = PBXBuildFile; fileRef = 81DEAF6515703946005E8EC6 /* DriverInterface.c */; };
+		81DEAF67157039F6005E8EC6 /* DriverInterface.h in Headers */ = {isa = PBXBuildFile; fileRef = 81ADBF17156EECDA006D9B47 /* DriverInterface.h */; };
+		81DEAF68157039FB005E8EC6 /* MSRAccessor.h in Headers */ = {isa = PBXBuildFile; fileRef = 81ADBF1B156EFF56006D9B47 /* MSRAccessor.h */; };
+		81F91BC6156D9BF8007DD788 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 81F91BC4156D9BF8007DD788 /* InfoPlist.strings */; };
+		81F91BC9156D9BF8007DD788 /* PcmMsr.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 81F91BC8156D9BF8007DD788 /* PcmMsr.cpp */; };
+		895805FC1760E6E5006ED117 /* PCIDriverInterface.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 895805FA1760E6E5006ED117 /* PCIDriverInterface.cpp */; };
+		895805FD1760E6E5006ED117 /* PCIDriverInterface.h in Headers */ = {isa = PBXBuildFile; fileRef = 895805FB1760E6E5006ED117 /* PCIDriverInterface.h */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXBuildRule section */
+		816FC6A5158296D200D9DEB4 /* PBXBuildRule */ = {
+			isa = PBXBuildRule;
+			compilerSpec = com.apple.compilers.proxy.script;
+			fileType = pattern.proxy;
+			isEditable = 1;
+			outputFiles = (
+			);
+		};
+/* End PBXBuildRule section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		816FC6A31582965F00D9DEB4 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/local/lib;
+			dstSubfolderSpec = 0;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		81ADBF08156EBD65006D9B47 /* PcmMsrClient.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PcmMsrClient.h; sourceTree = "<group>"; };
+		81ADBF09156EBD73006D9B47 /* PcmMsrClient.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = PcmMsrClient.cpp; sourceTree = "<group>"; };
+		81ADBF0B156EDBA1006D9B47 /* IOKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = IOKit.framework; path = System/Library/Frameworks/IOKit.framework; sourceTree = SDKROOT; };
+		81ADBF0D156EDD11006D9B47 /* UserKernelShared.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = UserKernelShared.h; path = PcmMsr/UserKernelShared.h; sourceTree = "<group>"; };
+		81ADBF12156EEB93006D9B47 /* libPcmMsr.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = libPcmMsr.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		81ADBF17156EECDA006D9B47 /* DriverInterface.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DriverInterface.h; sourceTree = "<group>"; };
+		81ADBF1B156EFF56006D9B47 /* MSRAccessor.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MSRAccessor.h; sourceTree = "<group>"; };
+		81ADBF1C156EFF69006D9B47 /* MSRAccessor.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = MSRAccessor.cpp; sourceTree = "<group>"; };
+		81DEAF6515703946005E8EC6 /* DriverInterface.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = DriverInterface.c; sourceTree = "<group>"; };
+		81F91BBC156D9BF8007DD788 /* PcmMsrDriver.kext */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PcmMsrDriver.kext; sourceTree = BUILT_PRODUCTS_DIR; };
+		81F91BC3156D9BF8007DD788 /* PcmMsr-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "PcmMsr-Info.plist"; sourceTree = "<group>"; };
+		81F91BC5156D9BF8007DD788 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		81F91BC7156D9BF8007DD788 /* PcmMsr.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PcmMsr.h; sourceTree = "<group>"; };
+		81F91BC8156D9BF8007DD788 /* PcmMsr.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = PcmMsr.cpp; sourceTree = "<group>"; };
+		81F91BCA156D9BF8007DD788 /* PcmMsr-Prefix.pch */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "PcmMsr-Prefix.pch"; sourceTree = "<group>"; };
+		895805FA1760E6E5006ED117 /* PCIDriverInterface.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = PCIDriverInterface.cpp; sourceTree = "<group>"; };
+		895805FB1760E6E5006ED117 /* PCIDriverInterface.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PCIDriverInterface.h; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		81ADBF0F156EEB93006D9B47 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				81ADBF1A156EEDB9006D9B47 /* IOKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		81F91BB7156D9BF8007DD788 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		81ADBF16156EECC6006D9B47 /* PcmMsrLibrary */ = {
+			isa = PBXGroup;
+			children = (
+				81ADBF17156EECDA006D9B47 /* DriverInterface.h */,
+				81DEAF6515703946005E8EC6 /* DriverInterface.c */,
+				81ADBF1B156EFF56006D9B47 /* MSRAccessor.h */,
+				81ADBF1C156EFF69006D9B47 /* MSRAccessor.cpp */,
+				895805FA1760E6E5006ED117 /* PCIDriverInterface.cpp */,
+				895805FB1760E6E5006ED117 /* PCIDriverInterface.h */,
+				81F91BC1156D9BF8007DD788 /* PcmMsr */,
+			);
+			name = PcmMsrLibrary;
+			sourceTree = "<group>";
+		};
+		81F91BAF156D9BF8007DD788 = {
+			isa = PBXGroup;
+			children = (
+				81ADBF0D156EDD11006D9B47 /* UserKernelShared.h */,
+				81ADBF16156EECC6006D9B47 /* PcmMsrLibrary */,
+				81F91BBE156D9BF8007DD788 /* Frameworks */,
+				81F91BBD156D9BF8007DD788 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		81F91BBD156D9BF8007DD788 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				81F91BBC156D9BF8007DD788 /* PcmMsrDriver.kext */,
+				81ADBF12156EEB93006D9B47 /* libPcmMsr.dylib */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		81F91BBE156D9BF8007DD788 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				81ADBF0B156EDBA1006D9B47 /* IOKit.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		81F91BC1156D9BF8007DD788 /* PcmMsr */ = {
+			isa = PBXGroup;
+			children = (
+				81F91BC7156D9BF8007DD788 /* PcmMsr.h */,
+				81F91BC8156D9BF8007DD788 /* PcmMsr.cpp */,
+				81F91BC2156D9BF8007DD788 /* Supporting Files */,
+				81ADBF08156EBD65006D9B47 /* PcmMsrClient.h */,
+				81ADBF09156EBD73006D9B47 /* PcmMsrClient.cpp */,
+			);
+			path = PcmMsr;
+			sourceTree = "<group>";
+		};
+		81F91BC2156D9BF8007DD788 /* Supporting Files */ = {
+			isa = PBXGroup;
+			children = (
+				81F91BC3156D9BF8007DD788 /* PcmMsr-Info.plist */,
+				81F91BC4156D9BF8007DD788 /* InfoPlist.strings */,
+				81F91BCA156D9BF8007DD788 /* PcmMsr-Prefix.pch */,
+			);
+			name = "Supporting Files";
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXHeadersBuildPhase section */
+		81ADBF10156EEB93006D9B47 /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				81DEAF67157039F6005E8EC6 /* DriverInterface.h in Headers */,
+				81DEAF68157039FB005E8EC6 /* MSRAccessor.h in Headers */,
+				895805FD1760E6E5006ED117 /* PCIDriverInterface.h in Headers */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		81F91BB8156D9BF8007DD788 /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXHeadersBuildPhase section */
+
+/* Begin PBXNativeTarget section */
+		81ADBF11156EEB93006D9B47 /* PcmMsrLibrary */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 81ADBF13156EEB93006D9B47 /* Build configuration list for PBXNativeTarget "PcmMsrLibrary" */;
+			buildPhases = (
+				81ADBF0E156EEB93006D9B47 /* Sources */,
+				81ADBF0F156EEB93006D9B47 /* Frameworks */,
+				81ADBF10156EEB93006D9B47 /* Headers */,
+				816FC6A31582965F00D9DEB4 /* CopyFiles */,
+			);
+			buildRules = (
+				816FC6A5158296D200D9DEB4 /* PBXBuildRule */,
+			);
+			dependencies = (
+			);
+			name = PcmMsrLibrary;
+			productName = PcmMsrLibrary;
+			productReference = 81ADBF12156EEB93006D9B47 /* libPcmMsr.dylib */;
+			productType = "com.apple.product-type.library.dynamic";
+		};
+		81F91BBB156D9BF8007DD788 /* PcmMsrDriver */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 81F91BCD156D9BF8007DD788 /* Build configuration list for PBXNativeTarget "PcmMsrDriver" */;
+			buildPhases = (
+				81F91BB6156D9BF8007DD788 /* Sources */,
+				81F91BB7156D9BF8007DD788 /* Frameworks */,
+				81F91BB8156D9BF8007DD788 /* Headers */,
+				81F91BB9156D9BF8007DD788 /* Resources */,
+				81F91BBA156D9BF8007DD788 /* Rez */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = PcmMsrDriver;
+			productName = PcmMsr;
+			productReference = 81F91BBC156D9BF8007DD788 /* PcmMsrDriver.kext */;
+			productType = "com.apple.product-type.kernel-extension";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		81F91BB1156D9BF8007DD788 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 0710;
+			};
+			buildConfigurationList = 81F91BB4156D9BF8007DD788 /* Build configuration list for PBXProject "PcmMsr" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = English;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+			);
+			mainGroup = 81F91BAF156D9BF8007DD788;
+			productRefGroup = 81F91BBD156D9BF8007DD788 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				81F91BBB156D9BF8007DD788 /* PcmMsrDriver */,
+				81ADBF11156EEB93006D9B47 /* PcmMsrLibrary */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		81F91BB9156D9BF8007DD788 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				81F91BC6156D9BF8007DD788 /* InfoPlist.strings in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXRezBuildPhase section */
+		81F91BBA156D9BF8007DD788 /* Rez */ = {
+			isa = PBXRezBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXRezBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		81ADBF0E156EEB93006D9B47 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				81DEAF6315703531005E8EC6 /* MSRAccessor.cpp in Sources */,
+				81DEAF6615703946005E8EC6 /* DriverInterface.c in Sources */,
+				895805FC1760E6E5006ED117 /* PCIDriverInterface.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		81F91BB6156D9BF8007DD788 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				81F91BC9156D9BF8007DD788 /* PcmMsr.cpp in Sources */,
+				81ADBF0A156EBD73006D9B47 /* PcmMsrClient.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXVariantGroup section */
+		81F91BC4156D9BF8007DD788 /* InfoPlist.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				81F91BC5156D9BF8007DD788 /* en */,
+			);
+			name = InfoPlist.strings;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		81ADBF14156EEB93006D9B47 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEPLOYMENT_LOCATION = NO;
+				EXECUTABLE_PREFIX = lib;
+				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
+				INSTALL_PATH = /usr/lib;
+				MACOSX_DEPLOYMENT_TARGET = 10.9;
+				PRODUCT_NAME = PcmMsr;
+			};
+			name = Debug;
+		};
+		81ADBF15156EEB93006D9B47 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEPLOYMENT_LOCATION = NO;
+				EXECUTABLE_PREFIX = lib;
+				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
+				INSTALL_PATH = /usr/lib;
+				MACOSX_DEPLOYMENT_TARGET = 10.9;
+				PRODUCT_NAME = PcmMsr;
+			};
+			name = Release;
+		};
+		81F91BCB156D9BF8007DD788 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = "";
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		81F91BCC156D9BF8007DD788 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = "";
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		81F91BCE156D9BF8007DD788 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1.0.0d1;
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = "PcmMsr/PcmMsr-Prefix.pch";
+				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
+				INFOPLIST_FILE = "PcmMsr/PcmMsr-Info.plist";
+				MACOSX_DEPLOYMENT_TARGET = 10.9;
+				MODULE_NAME = com.intel.driver.PcmMsrDriver;
+				MODULE_VERSION = 1.0.0d1;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.intel.driver.PcmMsr;
+				PRODUCT_NAME = PcmMsrDriver;
+				SDKROOT = macosx;
+				VALID_ARCHS = x86_64;
+				WRAPPER_EXTENSION = kext;
+			};
+			name = Debug;
+		};
+		81F91BCF156D9BF8007DD788 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1.0.0d1;
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = "PcmMsr/PcmMsr-Prefix.pch";
+				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
+				INFOPLIST_FILE = "PcmMsr/PcmMsr-Info.plist";
+				MACOSX_DEPLOYMENT_TARGET = 10.9;
+				MODULE_NAME = com.intel.driver.PcmMsrDriver;
+				MODULE_VERSION = 1.0.0d1;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.intel.driver.PcmMsr;
+				PRODUCT_NAME = PcmMsrDriver;
+				SDKROOT = macosx;
+				VALID_ARCHS = x86_64;
+				WRAPPER_EXTENSION = kext;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		81ADBF13156EEB93006D9B47 /* Build configuration list for PBXNativeTarget "PcmMsrLibrary" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				81ADBF14156EEB93006D9B47 /* Debug */,
+				81ADBF15156EEB93006D9B47 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		81F91BB4156D9BF8007DD788 /* Build configuration list for PBXProject "PcmMsr" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				81F91BCB156D9BF8007DD788 /* Debug */,
+				81F91BCC156D9BF8007DD788 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		81F91BCD156D9BF8007DD788 /* Build configuration list for PBXNativeTarget "PcmMsrDriver" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				81F91BCE156D9BF8007DD788 /* Debug */,
+				81F91BCF156D9BF8007DD788 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 81F91BB1156D9BF8007DD788 /* Project object */;
+}

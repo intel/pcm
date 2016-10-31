@@ -1,0 +1,11 @@
+Please just type make in the main PCM directory and see what binaries have been build: ls *.x
+
+pcm.x - command line PCM utility
+pcm-sensor.x - PCM plugin for use with KSysGuard
+pcm-power.x - command line utility for reading energy and power related metrics on Intel(r) microarchitecture codename Sandy/Ivy-Bridge EP/EN/E/EX
+pcm-memory.x - command line utility for reading memory channel related metrics on Intel(r) microarchitecture codename Sandy/Ivy-Bridge EP/EN/E/EX
+pcm-msr.x - utility to read-write model specific registers
+
+if compiled with Linux perf (-DPCM_USE_PERF option in Makefile) then additionally CAP_SYS_ADMIN privileges needed for users executing the utilities 
+
+
