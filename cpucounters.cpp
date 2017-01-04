@@ -1721,6 +1721,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
                    i /* core id */, leader_counter /* group leader */ ,0 )) <= 0)
         {
           std::cerr <<"Linux Perf: Error on programming INST_RETIRED_ANY: "<<strerror(errno)<< std::endl;
+	  if(errno == 24) std::cerr << "try executing 'ulimit -n 10000' to increase the limit on the number of open files." << std::endl;
           decrementInstanceSemaphore();
           return PCM::UnknownError;
         }
@@ -1731,6 +1732,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
                                                 i /* core id */, leader_counter /* group leader */ ,0 )) <= 0)
         {
           std::cerr <<"Linux Perf: Error on programming CPU_CLK_UNHALTED_THREAD: "<<strerror(errno)<< std::endl;
+	  if(errno == 24) std::cerr << "try executing 'ulimit -n 10000' to increase the limit on the number of open files." << std::endl;
           decrementInstanceSemaphore();
           return PCM::UnknownError;
         }
@@ -1739,6 +1741,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
                          i /* core id */, leader_counter /* group leader */ ,0 )) <= 0)
         {
           std::cerr <<"Linux Perf: Error on programming CPU_CLK_UNHALTED_REF: "<<strerror(errno)<< std::endl;
+	  if(errno == 24) std::cerr << "try executing 'ulimit -n 10000' to increase the limit on the number of open files." << std::endl;
           decrementInstanceSemaphore();
           return PCM::UnknownError;
         }
@@ -1821,6 +1824,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
                                                 i /* core id */, leader_counter /* group leader */ ,0 )) <= 0)
                 {
                         std::cerr <<"Linux Perf: Error on programming generic event #"<< i <<" error: "<<strerror(errno)<< std::endl;
+			if(errno == 24) std::cerr << "try executing 'ulimit -n 10000' to increase the limit on the number of open files." << std::endl;
                         decrementInstanceSemaphore();
                         return PCM::UnknownError;
                 }
