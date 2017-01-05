@@ -716,6 +716,7 @@ public:
         ATOM_BAYTRAIL = 55,
         ATOM_AVOTON = 77,
         ATOM_CHERRYTRAIL = 76,
+	ATOM_APOLLO_LAKE = 92,
         CLARKDALE = 37,
         WESTMERE_EP = 44,
         NEHALEM_EX = 46,
@@ -969,6 +970,7 @@ public:
                  || original_cpu_model == PCM::ATOM_AVOTON
                  || original_cpu_model == PCM::ATOM_CHERRYTRAIL
                  || original_cpu_model == PCM::ATOM_BAYTRAIL
+		 || original_cpu_model == PCM::ATOM_APOLLO_LAKE
                  || cpu_model == PCM::HASWELLX
                  || cpu_model == PCM::BROADWELL
                  || cpu_model == PCM::BDX_DE
