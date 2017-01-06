@@ -1,6 +1,8 @@
 language: cpp
 
-script: make
+script:
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then cd MacMSRDriver; make install; cd ..; fi
+  - make
 
 os:
   - linux
