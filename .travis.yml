@@ -1,0 +1,4 @@
+language: cpp
+
+script: make
+
