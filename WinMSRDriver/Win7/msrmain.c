@@ -142,6 +142,7 @@ NTSTATUS deviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
     ULONG inputSize = 0;
     PCI_SLOT_NUMBER slot;
     unsigned size = 0;
+    PROCESSOR_NUMBER ProcNumber;
 
     PAGED_CODE();
 
@@ -157,7 +158,7 @@ NTSTATUS deviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
             input_msr_req = (struct MSR_Request *)Irp->AssociatedIrp.SystemBuffer;
             input_pcicfg_req = (struct PCICFG_Request *)Irp->AssociatedIrp.SystemBuffer;
             output = (ULONG64 *)Irp->AssociatedIrp.SystemBuffer;
-            PROCESSOR_NUMBER ProcNumber;
+
             memset(&ProcNumber, 0, sizeof(PROCESSOR_NUMBER));
 
             switch (IrpStackLocation->Parameters.DeviceIoControl.IoControlCode)
