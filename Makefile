@@ -23,7 +23,7 @@ LIB= -pthread -lrt
 CXXFLAGS += -std=c++0x
 endif
 ifeq ($(UNAME), Darwin)
-LIB= -lpthread /usr/lib/libPcmMsr.dylib 
+LIB= -lpthread MacMSRDriver/build/Release/libPcmMsr.dylib 
 CXXFLAGS += -I/usr/include -IMacMSRDriver -std=c++0x
 endif
 ifeq ($(UNAME), FreeBSD)
