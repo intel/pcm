@@ -1,7 +1,7 @@
 language: cpp
 
 script:
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then cd MacMSRDriver; make install; cd ..; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then cd MacMSRDriver && make kext library && cd ..; fi
   - make
 
 os:
