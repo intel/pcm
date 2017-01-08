@@ -37,3 +37,11 @@ PCM API documentation
 
 PCM API documentation is embedded in the source code and can be generated into html format from source using Doxygen (www.doxygen.org).
 
+--------------------------------------------------------------------------------
+Building the PCM Tools
+--------------------------------------------------------------------------------
+
+- Linux/FreeBSD: just type 'make'. You will get all the utilities (pcm.x, pcm-memory.x, etc) built in the main PCM directory.
+- Windows: follow the steps in WINDOWS_HOWTO.rtf (will will need to build or download additional drivers). You can also download PCM binaries from appveyor build service (https://ci.appveyor.com/project/opcm/pcm/build/artifacts).
+- Mac OS X: follow instructions in [MAC_HOWTO.txt](https://github.com/opcm/pcm/blob/master/MAC_HOWTO.txt)
+
