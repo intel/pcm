@@ -17,8 +17,8 @@ PCM Tools
 
 PCM provides a number of command-line utilities for real-time monitoring:
 
-- pcm : basic processor monitoring utility (instruction per cycle, core frequency (including Intel(r) Turbo Boost Technology), memory and Intel(r) Quick Path Interconnect bandwidth, local and remote memory bandwidth, cache misses, core and CPU package sleep C-state residency, core and CPU package thermal headroom, cache utilization, CPU and memory energy consumption)
-- pcm-memory : monitor memory bandwidth (per-socket and per-DRAM DIMM rank)
+- pcm : basic processor monitoring utility (instructions per cycle, core frequency (including Intel(r) Turbo Boost Technology), memory and Intel(r) Quick Path Interconnect bandwidth, local and remote memory bandwidth, cache misses, core and CPU package sleep C-state residency, core and CPU package thermal headroom, cache utilization, CPU and memory energy consumption)
+- pcm-memory : monitor memory bandwidth (per-channel and per-DRAM DIMM rank)
 - pcm-pcie : monitor PCIe bandwidth
 - pcm-numa : monitor local and remote memory accesses
 - pcm-power : monitor sleep and energy states of processor, Intel(r) Quick Path Interconnect, DRAM memory, reasons of CPU frequency throttling and other energy-related metrics
