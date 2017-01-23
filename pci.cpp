@@ -354,7 +354,7 @@ PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 functi
     if (handle < 0) throw std::exception();
     fd = handle;
 
-    // std::cout << "Opened "<< path.str().c_str() << " on handle "<< fd << std::endl;
+    // std::cout << "DEBUG: Opened "<< path.str().c_str() << " on handle "<< fd << std::endl;
 }
 
 
@@ -388,7 +388,7 @@ int32 PciHandle::read64(uint64 offset, uint64 * value)
     size_t res = ::pread(fd, (void *)value, sizeof(uint64), offset);
     if(res != sizeof(uint64))
     {
-        std::cerr << "ERROR: pread with offset 0x" << std::hex << offset << std::dec << " returned " << res << " bytes " << std::endl;
+        std::cerr << " ERROR: pread from " << fd << " with offset 0x" << std::hex << offset << std::dec << " returned " << res << " bytes " << std::endl;
     }
     return res;
 }
