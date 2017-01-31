@@ -18,15 +18,15 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 //            Jim Harris (FreeBSD)
 
 /*!     \file cpucounters.cpp
-        \brief The bulk of Intel PCM implementation
+        \brief The bulk of PCM implementation
   */
 
 //#define PCM_TEST_FALLBACK_TO_ATOM
 
 #include <stdio.h>
-#ifdef INTELPCM_EXPORTS
-// Intelpcm.h includes cpucounters.h
-#include "Intelpcm.dll\Intelpcm.h"
+#ifdef PCM_EXPORTS
+// pcm-lib.h includes cpucounters.h
+#include "PCM-Lib_Win\pcm-lib.h"
 #else
 #include "cpucounters.h"
 #endif
@@ -79,11 +79,11 @@ int convertUnknownToInt(size_t size, char* value);
 
 // FreeBSD is much more restrictive about names for semaphores
 #if defined (__FreeBSD__)
-#define PCM_INSTANCE_LOCK_SEMAPHORE_NAME "/Intel_PCM_inst_lock"
-#define PCM_NUM_INSTANCES_SEMAPHORE_NAME "/Intel_num_PCM_inst"
+#define PCM_INSTANCE_LOCK_SEMAPHORE_NAME "/PCM_inst_lock"
+#define PCM_NUM_INSTANCES_SEMAPHORE_NAME "/num_PCM_inst"
 #else
-#define PCM_INSTANCE_LOCK_SEMAPHORE_NAME "Intel(r) PCM inst lock"
-#define PCM_NUM_INSTANCES_SEMAPHORE_NAME "Num Intel(r) PCM insts"
+#define PCM_INSTANCE_LOCK_SEMAPHORE_NAME "PCM inst lock"
+#define PCM_NUM_INSTANCES_SEMAPHORE_NAME "Num PCM insts"
 #endif
 
 #ifdef _MSC_VER
@@ -114,7 +114,7 @@ public:
     InstanceLock(const bool global)
     {
         Mutex = CreateMutex(NULL, FALSE,
-            global?(L"Global\\Intel(r) Performance Counter Monitor instance create/destroy lock"):(L"Local\\Intel(r) Performance Counter Monitor instance create/destroy lock"));
+            global?(L"Global\\Processor Counter Monitor instance create/destroy lock"):(L"Local\\Processor Counter Monitor instance create/destroy lock"));
         // lock
         WaitForSingleObject(Mutex, INFINITE);
     }
@@ -1630,7 +1630,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
         //std::cerr << "Checking for other instances of PCM..." << std::endl;
     #ifdef _MSC_VER
 
-        numInstancesSemaphore = CreateSemaphore(NULL, 0, 1 << 20, L"Global\\Number of running Intel Processor Counter Monitor instances");
+        numInstancesSemaphore = CreateSemaphore(NULL, 0, 1 << 20, L"Global\\Number of running Processor Counter Monitor instances");
         if (!numInstancesSemaphore)
         {
             _com_error error(GetLastError());

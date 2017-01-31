@@ -133,7 +133,7 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>advapi32.lib;..\Debug\Intelpcm.lib</AdditionalDependencies>
+      <AdditionalDependencies>advapi32.lib;..\Debug\pcm.lib</AdditionalDependencies>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AssemblyDebug>true</AssemblyDebug>
       <TargetMachine>MachineX86</TargetMachine>
@@ -153,7 +153,7 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>advapi32.lib;..\x64\Debug\intelpcm.lib</AdditionalDependencies>
+      <AdditionalDependencies>advapi32.lib;..\x64\Debug\pcm.lib</AdditionalDependencies>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AssemblyDebug>true</AssemblyDebug>
       <TargetMachine>MachineX64</TargetMachine>
@@ -169,7 +169,7 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>advapi32.lib;..\Release\Intelpcm.lib</AdditionalDependencies>
+      <AdditionalDependencies>advapi32.lib;..\Release\pcm.lib</AdditionalDependencies>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <TargetMachine>MachineX86</TargetMachine>
     </Link>
@@ -191,7 +191,7 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>advapi32.lib;..\x64\Release\Intelpcm.lib</AdditionalDependencies>
+      <AdditionalDependencies>advapi32.lib;..\x64\Release\pcm.lib</AdditionalDependencies>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <TargetMachine>MachineX64</TargetMachine>
     </Link>
@@ -213,7 +213,7 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>advapi32.lib;..\x64\Release64\Intelpcm.lib</AdditionalDependencies>
+      <AdditionalDependencies>advapi32.lib;..\x64\Release64\pcm.lib</AdditionalDependencies>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AssemblyDebug>true</AssemblyDebug>
       <TargetMachine>MachineX64</TargetMachine>
@@ -258,7 +258,7 @@
 				    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\Intelpcm.dll\Intelpcm.h" />
+    <ClInclude Include="..\PCM-Lib_Win\pcm-lib.h" />
     <ClInclude Include="PCMInstaller.h">
       <FileType>CppClass</FileType>
       <SubType>Component</SubType>

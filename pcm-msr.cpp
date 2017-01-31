@@ -50,8 +50,8 @@ void print_usage(const char * progname)
 
 int main(int argc, char * argv[])
 {
-    std::cout << "\n Intel(r) Performance Counter Monitor " << INTEL_PCM_VERSION << std::endl;
-    std::cout << INTEL_PCM_COPYRIGHT << std::endl;
+    std::cout << "\n Processor Counter Monitor " << PCM_VERSION << std::endl;
+
     std::cout << "\n MSR read/write utility\n\n";
 
     uint64 value = 0;

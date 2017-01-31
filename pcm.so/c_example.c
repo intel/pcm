@@ -18,7 +18,7 @@ int main(int argc, const char *argv[])
 	int i,a[100],b[100],c[100];
 	int lcore_id;
 
-	void * handle = dlopen("libintelpcm.so", RTLD_LAZY);
+	void * handle = dlopen("libpcm.so", RTLD_LAZY);
 	if(!handle)
 		return -1;
 
