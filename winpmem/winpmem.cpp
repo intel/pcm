@@ -37,13 +37,13 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 #include "winpmem.h"
 
-#ifdef INTELPCM_EXPORTS
-#define INTELPCM_API __declspec(dllexport)
+#ifdef PCM_EXPORTS
+#define PCM_API __declspec(dllexport)
 #else
-#define INTELPCM_API 
+#define PCM_API 
 #endif
 
-extern INTELPCM_API void restrictDriverAccess(LPCWSTR path);
+extern PCM_API void restrictDriverAccess(LPCWSTR path);
 
 // Roman Dementiev (Intel): added function to read 32-bit word from physical memory
 unsigned int WinPmem::read32(__int64 start)

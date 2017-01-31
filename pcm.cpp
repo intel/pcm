@@ -1012,9 +1012,9 @@ int main(int argc, char * argv[])
 #endif
 
     cerr << endl;
-    cerr << " Intel(r) Performance Counter Monitor " << INTEL_PCM_VERSION << endl;
+    cerr << " Processor Counter Monitor " << PCM_VERSION << endl;
     cerr << endl;
-    cerr << INTEL_PCM_COPYRIGHT << endl;
+    
     cerr << endl;
 
     // if delay is not specified: use either default (1 second),
@@ -1237,14 +1237,14 @@ int main(int argc, char * argv[])
     case PCM::Success:
         break;
     case PCM::MSRAccessDenied:
-        cerr << "Access to Intel(r) Performance Counter Monitor has denied (no MSR or PCI CFG space access)." << endl;
+        cerr << "Access to Processor Counter Monitor has denied (no MSR or PCI CFG space access)." << endl;
         exit(EXIT_FAILURE);
     case PCM::PMUBusy:
-        cerr << "Access to Intel(r) Performance Counter Monitor has denied (Performance Monitoring Unit is occupied by other application). Try to stop the application that uses PMU." << endl;
-        cerr << "Alternatively you can try running Intel PCM with option -r to reset PMU configuration at your own risk." << endl;
+        cerr << "Access to Processor Counter Monitor has denied (Performance Monitoring Unit is occupied by other application). Try to stop the application that uses PMU." << endl;
+        cerr << "Alternatively you can try running PCM with option -r to reset PMU configuration at your own risk." << endl;
         exit(EXIT_FAILURE);
     default:
-        cerr << "Access to Intel(r) Performance Counter Monitor has denied (Unknown error)." << endl;
+        cerr << "Access to Processor Counter Monitor has denied (Unknown error)." << endl;
         exit(EXIT_FAILURE);
     }
 

@@ -17,7 +17,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #pragma once
 
 #pragma unmanaged
-#include "..\Intelpcm.dll\Intelpcm.h"
+#include "..\PCM-Lib_Win\pcm-lib.h"
 #include "..\PCM_Win\windriver.h"
 #include <stdexcept>
 #pragma managed
@@ -101,7 +101,7 @@ namespace PCMServiceNS {
             counterCollection->Add( counter );
 			counter = gcnew CounterCreationData( "core C7-state residency (%)", "Displays the residency of core or socket in core C7-state in percent.", PerformanceCounterType::NumberOfItems64 );
             counterCollection->Add( counter );
-            PerformanceCounterCategory::Create( "PCM Core Counters", "Intel Performance Counter Monitor", PerformanceCounterCategoryType::MultiInstance, counterCollection );
+            PerformanceCounterCategory::Create( "PCM Core Counters", "Processor Counter Monitor", PerformanceCounterCategoryType::MultiInstance, counterCollection );
 
             counterCollection->Clear();
             counter = gcnew CounterCreationData( "Memory Read Bandwidth", "Displays the memory read bandwidth in bytes/s of this socket.", PerformanceCounterType::NumberOfItems64 );
@@ -120,12 +120,12 @@ namespace PCMServiceNS {
             counterCollection->Add( counter );
 			counter = gcnew CounterCreationData( "package C7-state residency (%)", "Displays the residency of socket in package C7-state in percent.", PerformanceCounterType::NumberOfItems64 );
             counterCollection->Add( counter );
-            PerformanceCounterCategory::Create( "PCM Socket Counters", "Intel Performance Counter Monitor", PerformanceCounterCategoryType::MultiInstance, counterCollection );
+            PerformanceCounterCategory::Create( "PCM Socket Counters", "Processor Counter Monitor", PerformanceCounterCategoryType::MultiInstance, counterCollection );
 
             counterCollection->Clear();
             counter = gcnew CounterCreationData( "QPI Link Bandwidth", "Displays the incoming bandwidth in bytes/s of this QPI link.", PerformanceCounterType::CounterDelta64 );
             counterCollection->Add( counter );
-            PerformanceCounterCategory::Create( "PCM QPI Counters", "Intel Performance Counter Monitor", PerformanceCounterCategoryType::MultiInstance, counterCollection );
+            PerformanceCounterCategory::Create( "PCM QPI Counters", "Processor Counter Monitor", PerformanceCounterCategoryType::MultiInstance, counterCollection );
 
             log_->WriteEntry( "PCMService", "New categories added." );
 

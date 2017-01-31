@@ -145,9 +145,8 @@ int main(int argc, char * argv[])
 {
     set_signal_handlers();
 
-    std::cerr << "\n Intel(r) Performance Counter Monitor " << INTEL_PCM_VERSION << std::endl;
+    std::cerr << "\n Processor Counter Monitor " << PCM_VERSION << std::endl;
     std::cerr << "\n Power Monitoring Utility\n";
-    std::cerr << INTEL_PCM_COPYRIGHT << std::endl;
 
     int imc_profile = 0;
     int pcu_profile = 0;
