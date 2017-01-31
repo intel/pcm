@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
 VisualStudioVersion = 14.0.25123.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "pcm.dll", "PCM-Lib_Win\PCM-Lib.vcxproj", "{A4206CE7-A913-42ED-B3B9-F7CF5076633B}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PCM-Lib", "PCM-Lib_Win\PCM-Lib.vcxproj", "{A4206CE7-A913-42ED-B3B9-F7CF5076633B}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "pcm", "PCM_Win\pcm.vcxproj", "{D919CF99-5D9F-46C9-B6F0-626700E63592}"
 EndProject
@@ -20,6 +20,9 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "pcm-power-win", "PCM-Power_Win\pcm-power-win.vcxproj", "{78F57684-F6F2-4691-B498-C7FC0731F875}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PCM-Service", "PCM-Service_Win\PCMService.vcxproj", "{A0DD26AB-CC35-41E5-B676-1E0FBCEF0DDC}"
+	ProjectSection(ProjectDependencies) = postProject
+		{A4206CE7-A913-42ED-B3B9-F7CF5076633B} = {A4206CE7-A913-42ED-B3B9-F7CF5076633B}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "pcm-tsx-win", "PCM-TSX_Win\pcm-tsx-win.vcxproj", "{2CDE03E0-BF03-448E-8AA6-D764F8BDE7C1}"
 EndProject
