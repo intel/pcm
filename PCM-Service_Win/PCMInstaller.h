@@ -82,7 +82,7 @@ namespace PMUService {
             this->serviceInstaller1->Description = L"This service provides performance counters for perfmon to show hardware events ov" 
                 L"er time such as Clockticks, Instruction Retired,  Cache Misses and Memory Bandwi" 
                 L"dth.";
-            this->serviceInstaller1->DisplayName = L"Intel Performance Counter Monitor Service";
+            this->serviceInstaller1->DisplayName = L"Processor Counter Monitor Service";
             this->serviceInstaller1->ServiceName = L"PCMService";
             this->serviceInstaller1->StartType = System::ServiceProcess::ServiceStartMode::Automatic;
             // 

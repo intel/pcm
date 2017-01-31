@@ -22,12 +22,10 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
         Include this header file if you want to access CPU counters (core and uncore - including memory controller chips and QPI)
 */
 
-#define INTEL_PCM_VERSION "V2.11.1 ($Format:%ci ID=%h$)"
+#define PCM_VERSION " ($Format:%ci ID=%h$)"
 
-#define INTEL_PCM_COPYRIGHT " Copyright (c) 2009-2016 Intel Corporation"
-
-#ifndef INTELPCM_API
-#define INTELPCM_API
+#ifndef PCM_API
+#define PCM_API
 #endif
 
 #include "types.h"
@@ -65,7 +63,7 @@ class ServerUncorePowerState;
 class PCM;
 
 #ifdef _MSC_VER
-void INTELPCM_API restrictDriverAccess(LPCWSTR path);
+void PCM_API restrictDriverAccess(LPCWSTR path);
 #endif
 
 /*
@@ -74,7 +72,7 @@ void INTELPCM_API restrictDriverAccess(LPCWSTR path);
         A set of performance monitoring routines for recent Intel CPUs
 */
 
-struct INTELPCM_API TopologyEntry // decribes a core
+struct PCM_API TopologyEntry // decribes a core
 {
     int32 os_id;
     int32 thread_id;
@@ -230,13 +228,13 @@ public:
 };
 
 #ifndef HACK_TO_REMOVE_DUPLICATE_ERROR
-template class INTELPCM_API std::allocator<TopologyEntry>;
-template class INTELPCM_API std::vector<TopologyEntry>;
-template class INTELPCM_API std::allocator<CounterWidthExtender *>;
-template class INTELPCM_API std::vector<CounterWidthExtender *>;
-template class INTELPCM_API std::allocator<uint32>;
-template class INTELPCM_API std::vector<uint32>;
-template class INTELPCM_API std::allocator<char>;
+template class PCM_API std::allocator<TopologyEntry>;
+template class PCM_API std::vector<TopologyEntry>;
+template class PCM_API std::allocator<CounterWidthExtender *>;
+template class PCM_API std::vector<CounterWidthExtender *>;
+template class PCM_API std::allocator<uint32>;
+template class PCM_API std::vector<uint32>;
+template class PCM_API std::allocator<char>;
 #endif
 /*!
         \brief CPU Performance Monitor
@@ -244,7 +242,7 @@ template class INTELPCM_API std::allocator<char>;
         This singleton object needs to be instantiated for each process
         before accessing counting and measuring routines
 */
-class INTELPCM_API PCM
+class PCM_API PCM
 {
     friend class BasicCounterState;
     friend class UncoreCounterState;
@@ -1662,7 +1660,7 @@ public:
 
         \return State of counters in the entire system
 */
-INTELPCM_API SystemCounterState getSystemCounterState();
+PCM_API SystemCounterState getSystemCounterState();
 
 /*! \brief Reads the counter state of a socket
 
@@ -1671,7 +1669,7 @@ INTELPCM_API SystemCounterState getSystemCounterState();
         \param socket socket id
         \return State of counters in the socket
 */
-INTELPCM_API SocketCounterState getSocketCounterState(uint32 socket);
+PCM_API SocketCounterState getSocketCounterState(uint32 socket);
 
 /*! \brief Reads the counter state of a (logical) core
 
@@ -1680,7 +1678,7 @@ INTELPCM_API SocketCounterState getSocketCounterState(uint32 socket);
     \param core core id
     \return State of counters in the core
 */
-INTELPCM_API CoreCounterState getCoreCounterState(uint32 core);
+PCM_API CoreCounterState getCoreCounterState(uint32 core);
 
 
 /*! \brief Computes average number of retired instructions per core cycle (IPC)
