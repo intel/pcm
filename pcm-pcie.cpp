@@ -144,6 +144,8 @@ int main(int argc, char * argv[])
 	bool print_additional_info = false;
     char * sysCmd = NULL;
     char ** sysArgv = NULL;
+    unsigned int numberOfIterations = 0; // number of iterations
+
     string program = string(argv[0]);
 
     PCM * m = PCM::getInstance();
@@ -170,6 +172,20 @@ int main(int argc, char * argv[])
                 string filename = cmd.substr(found+1);
                 if (!filename.empty()) {
                     m->setOutput(filename);
+                }
+            }
+            continue;
+        }
+	else
+        if (strncmp(*argv, "-i", 2) == 0 ||
+            strncmp(*argv, "/i", 2) == 0)
+        {
+            string cmd = string(*argv);
+            size_t found = cmd.find('=', 2);
+            if (found != string::npos) {
+                string tmp = cmd.substr(found + 1);
+                if (!tmp.empty()) {
+                    numberOfIterations = (unsigned int)atoi(tmp.c_str());
                 }
             }
             continue;
@@ -225,7 +241,7 @@ int main(int argc, char * argv[])
         case PCM::PMUBusy:
             cerr << "Access to Processor Counter Monitor has denied (Performance Monitoring Unit is occupied by other application). Try to stop the application that uses PMU." << endl;
             cerr << "Alternatively you can try to reset PMU configuration at your own risk. Try to reset? (y/n)" << endl;
-            char yn;
+	    char yn;
             std::cin >> yn;
             if ('y' == yn)
             {
@@ -292,9 +308,13 @@ int main(int argc, char * argv[])
 	
 	
 	// additional info case
+
+
 	if ( print_additional_info == true)
 	{
-    while(1)
+
+    unsigned int ic = 1;
+    while ((ic <= numberOfIterations) || (numberOfIterations == 0))
     {
         MySleepMs(delay_ms);
         memset(sample,0,sizeof(sample));
@@ -590,6 +610,7 @@ int main(int argc, char * argv[])
             // in case PCM was blocked after spawning child application: break monitoring loop here
             break;
         }
+	++ic;
     }
 	
 	}
@@ -599,7 +620,8 @@ int main(int argc, char * argv[])
 	else if ( print_additional_info == false)
 	{
 	
-    while(1)
+    unsigned int ic = 1;
+    while ((ic <= numberOfIterations) || (numberOfIterations == 0))
     {
         MySleepMs(delay_ms);
         memset(sample,0,sizeof(sample));
@@ -773,6 +795,7 @@ int main(int argc, char * argv[])
             // in case PCM was blocked after spawning child application: break monitoring loop here
             break;
         }
+	++ic;
     }
 	
 	}
