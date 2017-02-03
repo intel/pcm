@@ -164,7 +164,7 @@ uint32 MsrHandle::decrementNumInstances()
 MsrHandle::MsrHandle(uint32 cpu) : fd(-1), cpu_id(cpu)
 {
     char path[200];
-    sprintf(path, "/dev/cpuctl%d", cpu);
+    snprintf(path, 200, "/dev/cpuctl%d", cpu);
     int handle = ::open(path, O_RDWR);
     if (handle < 0) throw std::exception();
     fd = handle;
@@ -200,11 +200,11 @@ int32 MsrHandle::read(uint64 msr_number, uint64 * value)
 MsrHandle::MsrHandle(uint32 cpu) : fd(-1), cpu_id(cpu)
 {
     char * path = new char[200];
-    sprintf(path, "/dev/cpu/%d/msr", cpu);
+    snprintf(path, 200, "/dev/cpu/%d/msr", cpu);
     int handle = ::open(path, O_RDWR);
     if (handle < 0)
     {   // try Android msr device path
-        sprintf(path, "/dev/msr%d", cpu);
+        snprintf(path, 200, "/dev/msr%d", cpu);
         handle = ::open(path, O_RDWR);
     }
     delete[] path;

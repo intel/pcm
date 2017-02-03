@@ -61,7 +61,7 @@ std::string temp_format(int32 t)
     if (t == PCM_INVALID_THERMAL_HEADROOM)
         return "N/A";
 
-    sprintf(buffer, "%2d", t);
+    snprintf(buffer, 1024, "%2d", t);
     return buffer;
 }
 
@@ -71,7 +71,7 @@ std::string l3cache_occ_format(uint64 o)
     if (o == PCM_INVALID_QOS_MONITORING_DATA)
         return "N/A";
 
-    sprintf(buffer, "%6d", (uint32) o);
+    snprintf(buffer, 1024, "%6d", (uint32) o);
     return buffer;
 }
 
@@ -1079,7 +1079,7 @@ int main(int argc, char * argv[])
                     exit(EXIT_FAILURE);
                 }
 
-                ycores.set(atoi(s.c_str()),true);
+                ycores.set(core_id, true);
             }
             if(m->getNumCores() > MAX_CORES)
             {

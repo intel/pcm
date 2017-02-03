@@ -969,7 +969,7 @@ bool PCM::discoverSystemTopology()
         char cpuctl_name[64];
         int apic_id;
 
-        sprintf(cpuctl_name, "/dev/cpuctl%d", i);
+        snprintf(cpuctl_name, 64, "/dev/cpuctl%d", i);
         fd = ::open(cpuctl_name, O_RDWR);
 
         cpuid_args_freebds.level = 0xb;
