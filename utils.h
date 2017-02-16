@@ -101,13 +101,22 @@ void MySystem(char * sysCmd, char ** argc);
 #pragma warning (disable : 4068 ) // disable unknown pragma warning
 #endif
 
+#ifdef __GCC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Woverloaded-virtual"
+#elif defined __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Woverloaded-virtual"
+#endif
 struct null_stream : public std::streambuf
 {
     void overflow(char) { }
 };
+#ifdef __GCC__
+#pragma GCC diagnostic pop
+#elif defined __clang__
 #pragma clang diagnostic pop
+#endif
 
 template <class IntType>
 inline std::string unit_format(IntType n)
