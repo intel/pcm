@@ -597,9 +597,9 @@ void print_csv_header(PCM * m,
     {
         for (uint32 i = 0; i < m->getNumCores(); ++i)
         {
-	    if (cpu_model == PCM::ATOM || cpu_model == PCM::KNL)
-		cout << "Core" << i << " (Socket" << setw(2) << m->getSocketId(i) << ");;;;;";
-	    else {
+            if (cpu_model == PCM::ATOM || cpu_model == PCM::KNL)
+                cout << "Core" << i << " (Socket" << setw(2) << m->getSocketId(i) << ");;;;;";
+            else {
                 cout << "Core" << i << " (Socket" << setw(2) << m->getSocketId(i) << ");;;;;;;;;;";
                 if (m->L3CacheOccupancyMetricAvailable())
                     cout << ';' ;
@@ -607,11 +607,11 @@ void print_csv_header(PCM * m,
                     cout << ';' ;
                 if (m->CoreRemoteMemoryBWMetricAvailable())
                     cout << ';' ;
-         }
-         for (int s = 0; s <= PCM::MAX_C_STATE; ++s)
-             if (m->isCoreCStateResidencySupported(s))
-                 cout << ";";
-             cout << ";"; // TEMP
+            }
+            for (int s = 0; s <= PCM::MAX_C_STATE; ++s)
+                if (m->isCoreCStateResidencySupported(s))
+                    cout << ";";
+            cout << ";"; // TEMP
         }
     }
 
