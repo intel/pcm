@@ -16,9 +16,11 @@
 *.vxd
 *.exe
 *.tgz
+.metadata/
 *.sdf
 *.suo
 Debug
 Release
 Debug64
 Release64
+.metadata/

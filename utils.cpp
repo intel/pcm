@@ -27,6 +27,8 @@ CT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
 #endif
 #include "utils.h"
 
+void (*post_cleanup_callback)(void) = NULL;
+
 //! \brief handler of exit() call
 void exit_cleanup(void)
 {
@@ -38,6 +40,11 @@ void exit_cleanup(void)
     PCM::getInstance()->cleanup(); // this replaces same call in cleanup() from util.h
 
 //TODO: delete other shared objects.... if any.
+
+    if(post_cleanup_callback != NULL)
+    {
+        post_cleanup_callback();
+    }
 
 // now terminate the program immediately
     _exit(EXIT_SUCCESS);
@@ -324,6 +331,11 @@ void restore_signal_handlers(void)
 #endif
 
     return;
+}
+
+void set_post_cleanup_callback(void(*cb)(void))
+{
+    post_cleanup_callback = cb;
 }
 
 //!\brief launches external program in a separate process

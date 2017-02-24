@@ -2,7 +2,7 @@
 Processor Counter Monitor (PCM)
 --------------------------------------------------------------------------------
 
-Processor Counter Monitor (PCM) is an application programming interface (API) and a set of tools based on the API to monitor performance and energy metrics of Intel(r) Core(tm), Xeon(r), Atom(tm) and Xeon Phi(tm) processors. PCM works on Linux, Windows, Mac OS X and FreeBSD operating systems.
+Processor Counter Monitor (PCM) is an application programming interface (API) and a set of tools based on the API to monitor performance and energy metrics of Intel&reg; Core&trade;, Xeon&reg;, Atom&trade; and Xeon Phi&trade; processors. PCM works on Linux, Windows, Mac OS X and FreeBSD operating systems.
 
 --------------------------------------------------------------------------------
 Current Build Status
@@ -42,6 +42,6 @@ Building the PCM Tools
 --------------------------------------------------------------------------------
 
 - Linux/FreeBSD: just type 'make'. You will get all the utilities (pcm.x, pcm-memory.x, etc) built in the main PCM directory.
-- Windows: follow the steps in WINDOWS_HOWTO.rtf (will will need to build or download additional drivers). You can also download PCM binaries from appveyor build service (https://ci.appveyor.com/project/opcm/pcm/build/artifacts).
+- Windows: follow the steps in [WINDOWS_HOWTO.rtf](https://github.com/opcm/pcm/blob/master/WINDOWS_HOWTO.rtf) (will will need to build or download additional drivers). You can also download PCM binaries from appveyor build service (https://ci.appveyor.com/project/opcm/pcm/build/artifacts).
 - Mac OS X: follow instructions in [MAC_HOWTO.txt](https://github.com/opcm/pcm/blob/master/MAC_HOWTO.txt)
 
