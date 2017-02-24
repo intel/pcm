@@ -492,8 +492,7 @@ void collect_data(PCM *m, vector<struct iio_skx> iio_skx_v, vector<struct counte
 
 int main(int argc, char * argv[])
 {
-    std::cout << "\n Intel(r) Performance Counter Monitor " << INTEL_PCM_VERSION << std::endl;
-    std::cout << INTEL_PCM_COPYRIGHT << std::endl;
+    std::cout << "\n Processor Counter Monitor " << PCM_VERSION << std::endl;
     std::cout << "\n This utility measure Skylake-SP IIO information\n\n";
 #define TEST_VAR 1
 #if TEST_VAR == 1
