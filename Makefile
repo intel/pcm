@@ -3,7 +3,7 @@
 # written by Roman Dementiev and Jim Harris
 #
 
-EXE = pcm-numa.x pcm-power.x pcm.x pcm-sensor.x pcm-msr.x pcm-memory.x pcm-tsx.x pcm-pcie.x pcm-core.x
+EXE = pcm.x pcm-numa.x pcm-power.x pcm-sensor.x pcm-msr.x pcm-memory.x pcm-tsx.x pcm-pcie.x pcm-core.x pcm-iio.x pcm-lspci.x
 
 all: $(EXE)
 
