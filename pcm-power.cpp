@@ -281,7 +281,7 @@ int main(int argc, char * argv[])
     std::cerr << "\nMC counter group: " << imc_profile << std::endl;
     std::cerr << "PCU counter group: " << pcu_profile << std::endl;
     if (pcu_profile == 0) {
-        if (cpu_model == PCM::HASWELLX || cpu_model == PCM::BDX_DE)
+        if (cpu_model == PCM::HASWELLX || cpu_model == PCM::BDX_DE || cpu_model == PCM::SKX)
             std::cerr << "Your processor does not support frequency band statistics" << std::endl;
         else
             std::cerr << "Freq bands [0/1/2]: " << freq_band[0] * 100 << " MHz; " << freq_band[1] * 100 << " MHz; " << freq_band[2] * 100 << " MHz; " << std::endl;
@@ -390,7 +390,7 @@ int main(int argc, char * argv[])
             switch (pcu_profile)
             {
             case 0:
-                if (cpu_model == PCM::HASWELLX || cpu_model == PCM::BDX_DE)
+                if (cpu_model == PCM::HASWELLX || cpu_model == PCM::BDX_DE || cpu_model == PCM::SKX)
                     break;
                 std::cout << "S" << socket
                           << "; PCUClocks: " << getPCUClocks(BeforeState[socket], AfterState[socket])
@@ -403,7 +403,8 @@ int main(int argc, char * argv[])
             case 1:
                 std::cout << "S" << socket
                           << "; PCUClocks: " << getPCUClocks(BeforeState[socket], AfterState[socket])
-                          << "; core C0/C3/C6-state residency: " << getNormalizedPCUCounter(1, BeforeState[socket], AfterState[socket])
+                          << ((cpu_model == PCM::SKX)?"; core C0_1/C3/C6_7-state residency: ":"; core C0/C3/C6-state residency: ") 
+                          << getNormalizedPCUCounter(1, BeforeState[socket], AfterState[socket])
                           << "; " << getNormalizedPCUCounter(2, BeforeState[socket], AfterState[socket])
                           << "; " << getNormalizedPCUCounter(3, BeforeState[socket], AfterState[socket])
                           << "\n";
@@ -422,12 +423,18 @@ int main(int argc, char * argv[])
                 std::cout << "S" << socket
                           << "; PCUClocks: " << getPCUClocks(BeforeState[socket], AfterState[socket])
                           << "; Thermal freq limit cycles: " << getNormalizedPCUCounter(1, BeforeState[socket], AfterState[socket]) * 100. << " %"
-                          << "; Power freq limit cycles:" << getNormalizedPCUCounter(2, BeforeState[socket], AfterState[socket]) * 100. << " %"
-                          << "; Clipped freq limit cycles:" << getNormalizedPCUCounter(3, BeforeState[socket], AfterState[socket]) * 100. << " %"
-                          << "\n";
+                          << "; Power freq limit cycles:" << getNormalizedPCUCounter(2, BeforeState[socket], AfterState[socket]) * 100. << " %";
+                if(cpu_model != PCM::SKX)
+                    std::cout << "; Clipped freq limit cycles:" << getNormalizedPCUCounter(3, BeforeState[socket], AfterState[socket]) * 100. << " %";
+                std::cout << "\n";
                 break;
 
             case 4:
+                if(cpu_model == PCM::SKX)
+                {
+                    std::cout << "This PCU profile is not supported on your processor\n";
+                    break;
+                }
                 std::cout << "S" << socket
                           << "; PCUClocks: " << getPCUClocks(BeforeState[socket], AfterState[socket])
                           << "; OS freq limit cycles: " << getNormalizedPCUCounter(1, BeforeState[socket], AfterState[socket]) * 100. << " %"
@@ -452,7 +459,7 @@ int main(int argc, char * argv[])
                     std::cout << "; PC1e+ residency: " << getNormalizedPCUCounter(0, BeforeState[socket], AfterState[socket], m) * 100. << " %"
                         "; PC1e+ transition count: " << getPCUCounter(1, BeforeState[socket], AfterState[socket]) << " ";
 
-                if (cpu_model == PCM::IVYTOWN || cpu_model == PCM::HASWELLX || PCM::BDX_DE == cpu_model)
+                if (cpu_model == PCM::IVYTOWN || cpu_model == PCM::HASWELLX || PCM::BDX_DE == cpu_model || PCM::SKX == cpu_model)
                 {
                     std::cout << "; PC2 residency: " << getPackageCStateResidency(2, BeforeState[socket], AfterState[socket]) * 100. << " %";
                     std::cout << "; PC2 transitions: " << getPCUCounter(2, BeforeState[socket], AfterState[socket]) << " ";
