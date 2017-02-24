@@ -139,7 +139,7 @@ vector<struct data> prepare_data(const vector<uint64_t> &values, const vector<st
     for (std::vector<string>::const_iterator iunit = std::next(headers.begin()); iunit != headers.end() && idx < values.size(); ++iunit, idx++)
     {
         struct data d;
-        d.width = iunit->size();
+        d.width = (uint32_t)iunit->size();
         d.value = values[idx];
         v.push_back(d);
     }
@@ -238,7 +238,7 @@ vector<string> build_display(vector<struct iio_skx> iio_skx_v, vector<struct cou
                 uint8_t level = 1;
                 for (std::vector<struct pci>::const_iterator iunit = pp.begin(); iunit != pp.end(); ++iunit)
                 {
-                    row = build_pci_header(pciDB, header_width, *iunit, -1, level);
+                    row = build_pci_header(pciDB, (uint32_t)header_width, *iunit, -1, level);
                     buffer.push_back(row);
                     if (iunit->header_type == 1)
                         level += 1;
@@ -354,11 +354,11 @@ vector<struct counter> load_events(const char* fn)
                     ctr.h_event_name = h_name;
                     if (nameMap.find(h_name) == nameMap.end()) {
                         /* It's a new horizontal event name */
-                        uint32_t next_h_id = nameMap.size();
+                        uint32_t next_h_id = (uint32_t)nameMap.size();
                         std::pair<h_id,std::map<string,v_id>> nameMap_value(next_h_id, std::map<string,v_id>());
                         nameMap[h_name] = nameMap_value;
                     }
-                    ctr.h_id = nameMap.size() - 1;
+                    ctr.h_id = (uint32_t)nameMap.size() - 1;
                     break;
                 case PCM::V_EVENT_NAME:
                     {
@@ -368,16 +368,16 @@ vector<struct counter> load_events(const char* fn)
                         //XXX: It's very weird, I forgot to assign nameMap[h_name] = nameMap_value earlier (:298), but this part still works?
                         std::map<string,v_id> &v_nameMap = nameMap[h_name].second;
                         if (v_nameMap.find(v_name) == v_nameMap.end()) {
-                            v_nameMap[v_name] = v_nameMap.size() - 1;
+                            v_nameMap[v_name] = (unsigned int)v_nameMap.size() - 1;
                         } else {
                             cerr << "Detect duplicated v_name:" << v_name << endl;
                             exit(EXIT_FAILURE);
                         }
-                        ctr.v_id = v_nameMap.size() - 1;
+                        ctr.v_id = (uint32_t)v_nameMap.size() - 1;
                         break;
                     }
                 case PCM::COUNTER_INDEX:
-                    ctr.idx = numValue;
+                    ctr.idx = (int)numValue;
                     break;
                 case PCM::OPCODE:
                     ctr.Opcodes.value = numValue;
@@ -417,10 +417,10 @@ vector<struct counter> load_events(const char* fn)
                     break;
                 //TODO: double type for multipler. drop divider variable
                 case PCM::MULTIPLIER:
-                    ctr.multiplier = numValue;
+                    ctr.multiplier = (int)numValue;
                     break;
                 case PCM::DIVIDER:
-                    ctr.divider = numValue;
+                    ctr.divider = (int)numValue;
                     break;
                 case PCM::INVALID:
                     cerr << "Field in -o file not recognized. The key is: " << key << endl;
@@ -456,7 +456,7 @@ result_content get_IIO_Samples(PCM *m, vector<struct iio_skx> iio_skx_v, struct 
     m->programIIOCounters(rawEvents, -1);
     for (vector<struct iio_skx>::const_iterator socket = iio_skx_v.begin(); socket != iio_skx_v.end(); ++socket) {
         for (vector<int32>::const_iterator stack = IIO_units.begin(); stack != IIO_units.end(); ++stack) {
-            uint32_t idx = IIO_units.size()*socket->socket_id + *stack;
+            uint32_t idx = (uint32_t)IIO_units.size()*socket->socket_id + *stack;
             before[idx] = m->getIIOCounterState(socket->socket_id, *stack, ctr.idx);
         }
     }
@@ -465,7 +465,7 @@ result_content get_IIO_Samples(PCM *m, vector<struct iio_skx> iio_skx_v, struct 
         struct iio_skx iio_skx = *socket;
         //iio_skx.stacks[*stack].values.clear();
         for (vector<int32>::const_iterator stack = IIO_units.begin(); stack != IIO_units.end(); ++stack) {
-            uint32_t idx = IIO_units.size()*socket->socket_id + *stack;
+            uint32_t idx = (uint32_t)IIO_units.size()*socket->socket_id + *stack;
             after[idx] = m->getIIOCounterState(socket->socket_id, *stack, ctr.idx);
             uint64_t raw_result = getNumberOfEvents(before[idx], after[idx]);
             uint64_t trans_result = uint64_t (raw_result * ctr.multiplier / (double) ctr.divider * (1000 / (double) delay_ms));
@@ -481,7 +481,7 @@ result_content get_IIO_Samples(PCM *m, vector<struct iio_skx> iio_skx_v, struct 
 void collect_data(PCM *m, vector<struct iio_skx> iio_skx_v, vector<struct counter> &ctrs)
 {
     result_content s;
-    uint32_t delay_ms = PCM_DELAY_DEFAULT / ctrs.size() * 1000;
+    uint32_t delay_ms = (uint32_t)(PCM_DELAY_DEFAULT / ctrs.size() * 1000);
     //cout << "delay_ms:" << delay_ms << endl;
     for (vector<struct counter>::iterator cunit = ctrs.begin(); cunit != ctrs.end(); ++cunit) {
         cunit->data.clear();
