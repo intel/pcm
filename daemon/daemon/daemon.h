@@ -1,0 +1,75 @@
+/*
+   Copyright (c) 2009-2016, Intel Corporation
+   All rights reserved.
+
+   Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+
+ * Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+ * Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+ * Neither the name of Intel Corporation nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
+
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+// written by Steven Briscoe
+
+#ifndef DAEMON_H_
+#define DAEMON_H_
+
+#include <sys/types.h>
+#include <grp.h>
+#include <map>
+#include <string>
+#include <grp.h>
+
+#include "common.h"
+#include "pcm.h"
+
+namespace PCMDaemon {
+
+	enum Mode { DIFFERENCE, ABSOLUTE };
+
+	class Daemon {
+	public:
+		Daemon(int argc, char *argv[]);
+		~Daemon();
+		int run();
+	private:
+		void setupPCM();
+		void checkAccessAndProgramPCM();
+		void readApplicationArguments(int argc, char *argv[]);
+		void printExampleUsageAndExit(char *argv[]);
+		void setupSharedMemory(key_t key = SHARED_MEMORY_KEY);
+		gid_t resolveGroupName(std::string& groupName);
+		void updatePCMState(SystemCounterState* systemStates, std::vector<SocketCounterState>* socketStates, std::vector<CoreCounterState>* coreStates);
+		void swapPCMBeforeAfterState();
+		void getPCMCounters();
+		void getPCMCore();
+		void getPCMMemory();
+		void calculateMemoryBandwidth(ServerUncorePowerState* uncState1, ServerUncorePowerState* uncState2, uint64 elapsedTime);
+		void getPCMQPI();
+		uint64 getTimestamp();
+		static void cleanup();
+
+		bool debugMode_;
+		uint32 pollIntervalMs_;
+		std::string groupName_;
+		Mode mode_;
+
+		static int sharedMemoryId_;
+		static SharedPCMState* sharedPCMState_;
+		PCM* pcmInstance_;
+		std::map<std::string, uint32> subscribers_;
+		std::vector<std::string> allowedSubscribers_;
+
+		//Data for core, socket and system state
+		uint64 collectionTimeBefore_, collectionTimeAfter_;
+		std::vector<CoreCounterState> coreStatesBefore_, coreStatesAfter_;
+		std::vector<SocketCounterState> socketStatesBefore_, socketStatesAfter_;
+		SystemCounterState systemStatesBefore_, systemStatesAfter_;
+		ServerUncorePowerState * serverUncorePowerStatesBefore_;
+		ServerUncorePowerState * serverUncorePowerStatesAfter_;
+	};
+
+}
+
+#endif /* DAEMON_H_ */
