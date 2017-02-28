@@ -482,6 +482,7 @@ bool PCM::L3CacheOccupancyMetricAvailable()
 
 bool PCM::CoreLocalMemoryBWMetricAvailable()
 {
+    if (cpu_model == SKX) return false;
 	PCM_CPUID_INFO cpuinfo;
 	if (!(QOSMetricAvailable() && L3QOSMetricAvailable()))
 			return false;
@@ -491,6 +492,7 @@ bool PCM::CoreLocalMemoryBWMetricAvailable()
 
 bool PCM::CoreRemoteMemoryBWMetricAvailable()
 {
+    if (cpu_model == SKX) return false;
 	PCM_CPUID_INFO cpuinfo;
 	if (!(QOSMetricAvailable() && L3QOSMetricAvailable()))
 		return false;
