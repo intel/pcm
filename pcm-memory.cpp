@@ -16,7 +16,7 @@
 
 
 /*!     \file pcm-memory.cpp
-  \brief Example of using CPU counters: implements a performance counter monitoring utility for memory controller channels and DIMMs (ranks)
+  \brief Example of using CPU counters: implements a performance counter monitoring utility for memory controller channels and DIMMs (ranks) + DDR-T memory traffic
   */
 #define HACK_TO_REMOVE_DUPLICATE_ERROR
 #include <iostream>
@@ -47,6 +47,8 @@
 #define READ_RANK_B 2
 #define WRITE_RANK_B 3
 #define PARTIAL 2
+#define DDRT_READ 2
+#define DDRT_WRITE 3
 #define PCM_DELAY_DEFAULT 1.0 // in seconds
 #define PCM_DELAY_MIN 0.015 // 15 milliseconds is practical on most modern CPUs
 #define PCM_CALIBRATION_INTERVAL 50 // calibrate clock only every 50th iteration
@@ -62,13 +64,18 @@ const uint32 max_edc_channels = 8;
 typedef struct memdata {
     float iMC_Rd_socket_chan[max_sockets][max_imc_channels];
     float iMC_Wr_socket_chan[max_sockets][max_imc_channels];
+    float iMC_DDRT_Rd_socket_chan[max_sockets][max_imc_channels];
+    float iMC_DDRT_Wr_socket_chan[max_sockets][max_imc_channels];
     float iMC_Rd_socket[max_sockets];
     float iMC_Wr_socket[max_sockets];
+    float iMC_DDRT_Rd_socket[max_sockets];
+    float iMC_DDRT_Wr_socket[max_sockets];
     float EDC_Rd_socket_chan[max_sockets][max_edc_channels];
     float EDC_Wr_socket_chan[max_sockets][max_edc_channels];
     float EDC_Rd_socket[max_sockets];
     float EDC_Wr_socket[max_sockets];
     uint64 partial_write[max_sockets];
+    bool DDRT;
 } memdata_t;
 
 void print_help(const string prog_name)
@@ -81,6 +88,7 @@ void print_help(const string prog_name)
     cerr << " Supported <options> are: " << endl;
     cerr << "  -h    | --help  | /h               => print this help and exit" << endl;
     cerr << "  -rank=X | /rank=X                  => monitor DIMM rank X. At most 2 out of 8 total ranks can be monitored simultaneously." << endl;
+    cerr << "  -ddr-t                             => monitor DDR-T memory bandwidth (instead of partial writes)." << endl;
     cerr << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or" << endl
          << "                                        to a file, in case filename is provided" << endl;
     cerr << "  -columns=X | /columns=X            => Number of columns to display the NUMA Nodes, defaults to 2." << endl;
@@ -162,6 +170,17 @@ void printSocketChannelBW(PCM *m, memdata_t *md, uint32 no_columns, uint32 skt)
             cout << "|--            Writes(MB/s): "<<setw(8)<<md->iMC_Wr_socket_chan[i][channel]<<" --|";
         }
         cout << endl;
+        if(md->DDRT)
+        {
+            for (uint32 i=skt; i<(skt+no_columns); ++i) {
+                cout << "|--      DDR-T Reads(MB/s) : "<<setw(8)<<md->iMC_DDRT_Rd_socket_chan[i][channel]<<" --|";
+            }
+            cout << endl;
+            for (uint32 i=skt; i<(skt+no_columns); ++i) {
+                cout << "|--      DDR-R Writes(MB/s): "<<setw(8)<<md->iMC_DDRT_Wr_socket_chan[i][channel]<<" --|";
+            }
+            cout << endl;
+        }
     }
 }
 
@@ -191,22 +210,36 @@ void printSocketChannelBW(uint32 no_columns, uint32 skt, uint32 num_imc_channels
     }
 }
 
-void printSocketBWFooter(uint32 no_columns, uint32 skt, float* iMC_Rd_socket, float* iMC_Wr_socket, uint64* partial_write)
+void printSocketBWFooter(uint32 no_columns, uint32 skt, const memdata_t *md)
 {
     for (uint32 i=skt; i<(skt+no_columns); ++i) {
-        cout << "|-- NODE"<<setw(2)<<i<<" Mem Read (MB/s) : "<<setw(8)<<iMC_Rd_socket[i]<<" --|";
+        cout << "|-- NODE"<<setw(2)<<i<<" Mem Read (MB/s) : "<<setw(8)<<md->iMC_Rd_socket[i]<<" --|";
     }
     cout << endl;
     for (uint32 i=skt; i<(skt+no_columns); ++i) {
-        cout << "|-- NODE"<<setw(2)<<i<<" Mem Write(MB/s) : "<<setw(8)<<iMC_Wr_socket[i]<<" --|";
+        cout << "|-- NODE"<<setw(2)<<i<<" Mem Write(MB/s) : "<<setw(8)<<md->iMC_Wr_socket[i]<<" --|";
     }
     cout << endl;
-    for (uint32 i=skt; i<(skt+no_columns); ++i) {
-        cout << "|-- NODE"<<setw(2)<<i<<" P. Write (T/s): "<<dec<<setw(10)<<partial_write[i]<<" --|";
+    if (md->DDRT)
+    {
+        for (uint32 i=skt; i<(skt+no_columns); ++i) {
+            cout << "|-- NODE"<<setw(2)<<i<<" DDR-T Read (MB/s):"<<setw(8)<<md->iMC_DDRT_Rd_socket[i]<<" --|";
+        }
+        cout << endl;
+        for (uint32 i=skt; i<(skt+no_columns); ++i) {
+            cout << "|-- NODE"<<setw(2)<<i<<" DDR-T Write(MB/s):"<<setw(8)<<md->iMC_DDRT_Wr_socket[i]<<" --|";
+        }
+        cout << endl;
     }
-    cout << endl;
+    else
+    {
+        for (uint32 i=skt; i<(skt+no_columns); ++i) {
+            cout << "|-- NODE"<<setw(2)<<i<<" P. Write (T/s): "<<dec<<setw(10)<<md->partial_write[i]<<" --|";
+        }
+        cout << endl;
+    }
     for (uint32 i=skt; i<(skt+no_columns); ++i) {
-        cout << "|-- NODE"<<setw(2)<<i<<" Memory (MB/s): "<<setw(11)<<std::right<<iMC_Rd_socket[i]+iMC_Wr_socket[i]<<" --|";
+        cout << "|-- NODE"<<setw(2)<<i<<" Memory (MB/s): "<<setw(11)<<std::right<<md->iMC_Rd_socket[i]+md->iMC_Wr_socket[i]<<" --|";
     }
     cout << endl;
     for (uint32 i=skt; i<(no_columns+skt); ++i) {
@@ -230,7 +263,7 @@ void display_bandwidth(PCM *m, memdata_t *md, uint32 no_columns)
         {
             printSocketBWHeader (no_columns, skt);
             printSocketChannelBW(m, md, no_columns, skt);
-            printSocketBWFooter (no_columns, skt, md->iMC_Rd_socket, md->iMC_Wr_socket, md->partial_write);
+            printSocketBWFooter (no_columns, skt, md);
             for (uint32 i=skt; i<(skt+no_columns); i++) {
                 sysRead += md->iMC_Rd_socket[i];
                 sysWrite += md->iMC_Wr_socket[i];
@@ -320,12 +353,22 @@ void display_bandwidth(PCM *m, memdata_t *md, uint32 no_columns)
                     cout << "|--  Mem Ch " << channel <<": Reads (MB/s):" << setw(8)  << md->iMC_Rd_socket_chan[skt][channel]
                         <<"  --|\n|--            Writes(MB/s):" << setw(8) << md->iMC_Wr_socket_chan[skt][channel]
                         <<"  --|\n";
+                    if (md->DDRT)
+                    {
+                        cout << "|--      DDR-T Reads (MB/s):" << setw(8) << md->iMC_DDRT_Rd_socket_chan[skt][channel] << "  --|\n";
+                        cout << "|--      DDR-T Writes(MB/s):" << setw(8) << md->iMC_DDRT_Wr_socket_chan[skt][channel] << "  --|\n";
+                    }
                 }
                 cout << "\
                     \r|-- NODE"<<skt<<" Mem Read (MB/s):  "<<setw(8)<<md->iMC_Rd_socket[skt]<<"  --|\n\
-                    \r|-- NODE"<<skt<<" Mem Write (MB/s) :"<<setw(8)<<md->iMC_Wr_socket[skt]<<"  --|\n\
-                    \r|-- NODE"<<skt<<" P. Write (T/s) :"<<setw(10)<<dec<<md->partial_write[skt]<<"  --|\n\
-                    \r|-- NODE"<<skt<<" Memory (MB/s): "<<setw(8)<<md->iMC_Rd_socket[skt]+md->iMC_Wr_socket[skt]<<"     --|\n\
+                    \r|-- NODE"<<skt<<" Mem Write (MB/s) :"<<setw(8)<<md->iMC_Wr_socket[skt]<<"  --|\n";
+                if(!md->DDRT)
+                {
+                    cout <<
+                       "\r|-- NODE"<<skt<<" P. Write (T/s) :"<<setw(10)<<dec<<md->partial_write[skt]<<"  --|\n";
+                }
+                cout <<
+                   "\r|-- NODE"<<skt<<" Memory (MB/s): "<<setw(8)<<md->iMC_Rd_socket[skt]+md->iMC_Wr_socket[skt]<<"     --|\n\
                     \r|---------------------------------------|\n\
                     \r";
 
@@ -355,6 +398,10 @@ void display_bandwidth_csv_header(PCM *m, memdata_t *md)
 	  if(md->iMC_Rd_socket_chan[skt][channel] < 0.0 && md->iMC_Wr_socket_chan[skt][channel] < 0.0) //If the channel read neg. value, the channel is not working; skip it.
 	    continue;
 	  cout << "SKT" << skt << ";SKT" << skt << ';';
+          if (md->DDRT)
+          {
+              cout << "SKT" << skt << ";SKT" << skt << ';';
+          }
       }
       cout << "SKT"<<skt<<";"
 	   << "SKT"<<skt<<";"
@@ -386,11 +433,21 @@ void display_bandwidth_csv_header(PCM *m, memdata_t *md)
 	    continue;
 	  cout << "Ch" <<channel <<"Read;"
 	       << "Ch" <<channel <<"Write;";
+          if(md->DDRT)
+          {
+              cout << "Ch" <<channel <<"DDR-T_Read;"
+                   << "Ch" <<channel <<"DDR-T_Write;";
+          }
       }
       if (m->getCPUModel() == PCM::KNL)
           cout << "DDR4 Read (MB/s); DDR4 Write (MB/s); DDR4 Memory (MB/s);";
       else
-          cout << "Mem Read (MB/s);Mem Write (MB/s); P. Write (T/s); Memory (MB/s);";
+      {
+          if(md->DDRT)
+              cout << "Mem Read (MB/s);Mem Write (MB/s); Memory (MB/s);";
+          else
+              cout << "Mem Read (MB/s);Mem Write (MB/s); P. Write (T/s); Memory (MB/s);";
+      }
 
       if (m->MCDRAMmemoryTrafficMetricsAvailable()) {
           for(uint64 channel = 0; channel < max_edc_channels; ++channel)
@@ -430,11 +487,26 @@ void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 elapsedTime)
 	      continue;
 	   cout <<setw(8) << md->iMC_Rd_socket_chan[skt][channel] << ';'
 		<<setw(8) << md->iMC_Wr_socket_chan[skt][channel] << ';';
+           if(md->DDRT)
+           {
+               cout <<setw(8) << md->iMC_DDRT_Rd_socket_chan[skt][channel] << ';'
+                    <<setw(8) << md->iMC_DDRT_Wr_socket_chan[skt][channel] << ';';
+           }
 	 }
          cout <<setw(8) << md->iMC_Rd_socket[skt] <<';'
 	      <<setw(8) << md->iMC_Wr_socket[skt] <<';';
+         if(md->DDRT)
+         {
+             cout <<setw(8) << md->iMC_DDRT_Rd_socket[skt] <<';'
+                  <<setw(8) << md->iMC_DDRT_Wr_socket[skt] <<';';
+         }
 	 if (m->getCPUModel() != PCM::KNL)
-             cout <<setw(10) << dec << md->partial_write[skt] <<';';
+         {
+             if (!md->DDRT)
+             {
+                 cout <<setw(10) << dec << md->partial_write[skt] <<';';
+             }
+         }
          cout << setw(8) << md->iMC_Rd_socket[skt]+md->iMC_Wr_socket[skt] <<';';
 
 	 sysRead += md->iMC_Rd_socket[skt];
@@ -463,16 +535,19 @@ void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 elapsedTime)
 	 <<setw(10) <<sysRead+sysWrite << endl;
 }
 
-void calculate_bandwidth(PCM *m, const ServerUncorePowerState uncState1[], const ServerUncorePowerState uncState2[], uint64 elapsedTime, bool csv, bool & csvheader, uint32 no_columns)
+void calculate_bandwidth(PCM *m, const ServerUncorePowerState uncState1[], const ServerUncorePowerState uncState2[], uint64 elapsedTime, bool csv, bool & csvheader, uint32 no_columns, bool DDRT)
 {
     //const uint32 num_imc_channels = m->getMCChannelsPerSocket();
     //const uint32 num_edc_channels = m->getEDCChannelsPerSocket();
     memdata_t md;
+    md.DDRT = DDRT;
 
     for(uint32 skt = 0; skt < m->getNumSockets(); ++skt)
     {
         md.iMC_Rd_socket[skt] = 0.0;
         md.iMC_Wr_socket[skt] = 0.0;
+        md.iMC_DDRT_Rd_socket[skt] = 0.0;
+        md.iMC_DDRT_Wr_socket[skt] = 0.0;
         md.EDC_Rd_socket[skt] = 0.0;
         md.EDC_Wr_socket[skt] = 0.0;
         md.partial_write[skt] = 0;
@@ -510,7 +585,18 @@ void calculate_bandwidth(PCM *m, const ServerUncorePowerState uncState1[], const
                 md.iMC_Rd_socket[skt] += md.iMC_Rd_socket_chan[skt][channel];
                 md.iMC_Wr_socket[skt] += md.iMC_Wr_socket_chan[skt][channel];
 
-                md.partial_write[skt] += (uint64) (getMCCounter(channel,PARTIAL,uncState1[skt],uncState2[skt]) / (elapsedTime/1000.0));
+                if(DDRT)
+                {
+                    md.iMC_DDRT_Rd_socket_chan[skt][channel] = (float) (getMCCounter(channel,DDRT_READ,uncState1[skt],uncState2[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0));
+                    md.iMC_DDRT_Wr_socket_chan[skt][channel] = (float) (getMCCounter(channel,DDRT_WRITE,uncState1[skt],uncState2[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0));
+
+                    md.iMC_DDRT_Rd_socket[skt] += md.iMC_DDRT_Rd_socket_chan[skt][channel];
+                    md.iMC_DDRT_Wr_socket[skt] += md.iMC_DDRT_Wr_socket_chan[skt][channel];
+                }
+                else
+                {
+                    md.partial_write[skt] += (uint64) (getMCCounter(channel,PARTIAL,uncState1[skt],uncState2[skt]) / (elapsedTime/1000.0));
+                }
             }
 	}
     }
@@ -622,6 +708,7 @@ int main(int argc, char * argv[])
     int calibrated = PCM_CALIBRATION_INTERVAL - 2; // keeps track is the clock calibration needed
 #endif
     int rankA = -1, rankB = -1;
+    bool DDRT = false;
     string program = string(argv[0]);
 
     PCM * m = PCM::getInstance();
@@ -692,6 +779,12 @@ int main(int argc, char * argv[])
             }
             continue;
         }
+        if (strncmp(*argv, "-ddr-t", 6) == 0 ||
+            strncmp(*argv, "/ddr-t", 6) == 0)
+        {
+            DDRT = true;
+            continue;
+        }
 #ifdef _MSC_VER
         else
         if (strncmp(*argv, "--uninstallDriver", 17) == 0)
@@ -741,7 +834,17 @@ int main(int argc, char * argv[])
     } while(argc > 1); // end of command line partsing loop
 
     m->disableJKTWorkaround();
-    PCM::ErrorCode status = m->programServerUncoreMemoryMetrics(rankA, rankB);
+    if(DDRT && (m->DDRTTrafficMetricsAvailable() == false))
+    {
+        cerr << "DDR-T traffic metrics are not available on your processor." << endl;
+        exit(EXIT_FAILURE);
+    }
+    if((rankA >= 0 || rankB >= 0) && DDRT)
+    {
+        cerr << "DDR-T traffic metrics are not available on rank level" << endl;
+        exit(EXIT_FAILURE);
+    }
+    PCM::ErrorCode status = m->programServerUncoreMemoryMetrics(rankA, rankB, DDRT);
     switch (status)
     {
         case PCM::Success:
@@ -853,7 +956,7 @@ int main(int argc, char * argv[])
         if(rankA >= 0 || rankB >= 0)
           calculate_bandwidth(m,BeforeState,AfterState,AfterTime-BeforeTime,csv,csvheader, no_columns, rankA, rankB);
         else
-          calculate_bandwidth(m,BeforeState,AfterState,AfterTime-BeforeTime,csv,csvheader, no_columns);
+          calculate_bandwidth(m,BeforeState,AfterState,AfterTime-BeforeTime,csv,csvheader, no_columns, DDRT);
 
         swap(BeforeTime, AfterTime);
         swap(BeforeState, AfterState);
