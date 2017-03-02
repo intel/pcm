@@ -3218,8 +3218,16 @@ void PCM::readAndAggregateUncoreMCCounters(const uint32 socket, CounterStateType
             server_pcicfg_uncore[socket]->freezeCounters();
             result.UncMCNormalReads += server_pcicfg_uncore[socket]->getImcReads();
             result.UncMCFullWrites += server_pcicfg_uncore[socket]->getImcWrites();
-            result.UncEDCNormalReads += server_pcicfg_uncore[socket]->getEdcReads();
-            result.UncEDCFullWrites += server_pcicfg_uncore[socket]->getEdcWrites();
+            if (DDRTTrafficMetricsAvailable())
+            {
+                result.UncDDRTReads += server_pcicfg_uncore[socket]->getDDRTReads();
+                result.UncDDRTWrites += server_pcicfg_uncore[socket]->getDDRTWrites();
+            }
+            if (MCDRAMmemoryTrafficMetricsAvailable())
+            {
+                result.UncEDCNormalReads += server_pcicfg_uncore[socket]->getEdcReads();
+                result.UncEDCFullWrites += server_pcicfg_uncore[socket]->getEdcWrites();
+            }
             server_pcicfg_uncore[socket]->unfreezeCounters();
         }
     }
@@ -4311,6 +4319,26 @@ uint64 ServerPCICFGUncore::getImcWrites()
         result += value;
     }
 
+    return result;
+}
+
+uint64 ServerPCICFGUncore::getDDRTReads()
+{
+    uint64 result = 0;
+    for (uint32 i = 0; i < (uint32)imcHandles.size(); ++i)
+    {
+        result += getMCCounter(i, 2);
+    }
+    return result;
+}
+
+uint64 ServerPCICFGUncore::getDDRTWrites()
+{
+    uint64 result = 0;
+    for (uint32 i = 0; i < (uint32)imcHandles.size(); ++i)
+    {
+        result += getMCCounter(i, 3);
+    }
     return result;
 }
 
