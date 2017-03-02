@@ -177,7 +177,7 @@ void printSocketChannelBW(PCM *m, memdata_t *md, uint32 no_columns, uint32 skt)
             }
             cout << endl;
             for (uint32 i=skt; i<(skt+no_columns); ++i) {
-                cout << "|--      DDR-R Writes(MB/s): "<<setw(8)<<md->iMC_DDRT_Wr_socket_chan[i][channel]<<" --|";
+                cout << "|--      DDR-T Writes(MB/s): "<<setw(8)<<md->iMC_DDRT_Wr_socket_chan[i][channel]<<" --|";
             }
             cout << endl;
         }
