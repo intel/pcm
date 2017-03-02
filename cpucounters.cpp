@@ -4125,23 +4125,26 @@ void ServerPCICFGUncore::programServerUncoreMemoryMetrics(int rankA, int rankB, 
             EDCCntConfig[0] = MC_CH_PCI_PMON_CTL_EVENT(0x01) + MC_CH_PCI_PMON_CTL_UMASK(1);  // monitor reads on counter 0: RPQ
             EDCCntConfig[1] = MC_CH_PCI_PMON_CTL_EVENT(0x02) + MC_CH_PCI_PMON_CTL_UMASK(1);  // monitor reads on counter 1: WPQ
             break;
-        case PCM::SKX:
+        default:
             MCCntConfig[0] = MC_CH_PCI_PMON_CTL_EVENT(0x04) + MC_CH_PCI_PMON_CTL_UMASK(3);  // monitor reads on counter 0: CAS_COUNT.RD
             MCCntConfig[1] = MC_CH_PCI_PMON_CTL_EVENT(0x04) + MC_CH_PCI_PMON_CTL_UMASK(12); // monitor writes on counter 1: CAS_COUNT.WR
             if (DDR_T)
             {
-                MCCntConfig[2] = MC_CH_PCI_PMON_CTL_EVENT(0xe3); // monitor DDRT_RDQ_REQUESTS on counter 2
-                MCCntConfig[3] = MC_CH_PCI_PMON_CTL_EVENT(0xe7); // monitor DDRT_WPQ_REQUESTS on counter 3
+                if (pcm->DDRTTrafficMetricsAvailable())
+                {
+                    MCCntConfig[2] = MC_CH_PCI_PMON_CTL_EVENT(0xe3); // monitor DDRT_RDQ_REQUESTS on counter 2
+                    MCCntConfig[3] = MC_CH_PCI_PMON_CTL_EVENT(0xe7); // monitor DDRT_WPQ_REQUESTS on counter 3
+                }
+                else
+                {
+                    std::cerr << "PCM Error: DDR-T metrics are not available on your platform" << std::endl;
+                    return;
+                }
             }
             else
             {
                 MCCntConfig[2] = MC_CH_PCI_PMON_CTL_EVENT(0x04) + MC_CH_PCI_PMON_CTL_UMASK(2);  // monitor partial writes on counter 2: CAS_COUNT.RD_UNDERFILL,
             }
-            break;
-        default:
-            MCCntConfig[0] = MC_CH_PCI_PMON_CTL_EVENT(0x04) + MC_CH_PCI_PMON_CTL_UMASK(3);  // monitor reads on counter 0: CAS_COUNT.RD
-            MCCntConfig[1] = MC_CH_PCI_PMON_CTL_EVENT(0x04) + MC_CH_PCI_PMON_CTL_UMASK(12); // monitor writes on counter 1: CAS_COUNT.WR
-            MCCntConfig[2] = MC_CH_PCI_PMON_CTL_EVENT(0x04) + MC_CH_PCI_PMON_CTL_UMASK(2);  // monitor partial writes on counter 2: CAS_COUNT.RD_UNDERFILL,
         }
     } else {
         switch(cpu_model)
@@ -4186,14 +4189,19 @@ void ServerPCICFGUncore::program()
     switch(cpu_model)
     {
     case PCM::KNL:
-	MCCntConfig[0] = MC_CH_PCI_PMON_CTL_EVENT(0x03) + MC_CH_PCI_PMON_CTL_UMASK(1);  // monitor reads on counter 0: CAS_COUNT.RD
-	MCCntConfig[1] = MC_CH_PCI_PMON_CTL_EVENT(0x03) + MC_CH_PCI_PMON_CTL_UMASK(2); // monitor writes on counter 1: CAS_COUNT.WR
+	    MCCntConfig[0] = MC_CH_PCI_PMON_CTL_EVENT(0x03) + MC_CH_PCI_PMON_CTL_UMASK(1);  // monitor reads on counter 0: CAS_COUNT.RD
+	    MCCntConfig[1] = MC_CH_PCI_PMON_CTL_EVENT(0x03) + MC_CH_PCI_PMON_CTL_UMASK(2); // monitor writes on counter 1: CAS_COUNT.WR
         EDCCntConfig[0] = MC_CH_PCI_PMON_CTL_EVENT(0x01) + MC_CH_PCI_PMON_CTL_UMASK(1);  // monitor reads on counter 0: RPQ
         EDCCntConfig[1] = MC_CH_PCI_PMON_CTL_EVENT(0x02) + MC_CH_PCI_PMON_CTL_UMASK(1);  // monitor reads on counter 1: WPQ
-	break;
-    default: // check if this should be set for specific processors, like BDX only?
-	MCCntConfig[0] = MC_CH_PCI_PMON_CTL_EVENT(0x04) + MC_CH_PCI_PMON_CTL_UMASK(3);  // monitor reads on counter 0: CAS_COUNT.RD
-	MCCntConfig[1] = MC_CH_PCI_PMON_CTL_EVENT(0x04) + MC_CH_PCI_PMON_CTL_UMASK(12); // monitor writes on counter 1: CAS_COUNT.WR
+	    break;
+    default:
+	    MCCntConfig[0] = MC_CH_PCI_PMON_CTL_EVENT(0x04) + MC_CH_PCI_PMON_CTL_UMASK(3);  // monitor reads on counter 0: CAS_COUNT.RD
+	    MCCntConfig[1] = MC_CH_PCI_PMON_CTL_EVENT(0x04) + MC_CH_PCI_PMON_CTL_UMASK(12); // monitor writes on counter 1: CAS_COUNT.WR
+        if (pcm->DDRTTrafficMetricsAvailable())
+        {
+            MCCntConfig[2] = MC_CH_PCI_PMON_CTL_EVENT(0xe3); // monitor DDRT_RDQ_REQUESTS on counter 2
+            MCCntConfig[3] = MC_CH_PCI_PMON_CTL_EVENT(0xe7); // monitor DDRT_WPQ_REQUESTS on counter 3
+        }
     }
 
     programIMC(MCCntConfig);

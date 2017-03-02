@@ -1225,6 +1225,13 @@ public:
         );
     }
 
+    bool DDRTTrafficMetricsAvailable() const
+    {
+        return (
+            cpu_model == PCM::SKX
+            );
+    }
+
     bool hasBecktonUncore() const
     {
         return (
