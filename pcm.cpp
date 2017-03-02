@@ -140,6 +140,8 @@ void print_output(PCM * m,
         cout << " L2MPI : number of L2 cache misses per instruction\n";
     if (cpu_model != PCM::ATOM) cout << " READ  : bytes read from main memory controller (in GBytes)" << "\n";
     if (cpu_model != PCM::ATOM) cout << " WRITE : bytes written to main memory controller (in GBytes)" << "\n";
+    if (m->DDRTTrafficMetricsAvailable()) cout << " DDR-T RD : bytes read from DDR-T memory (in GBytes)" << "\n";
+    if (m->DDRTTrafficMetricsAvailable()) cout << " DDR-T WR : bytes written to DDR-T memory (in GBytes)" << "\n";
     if (m->MCDRAMmemoryTrafficMetricsAvailable()) cout << " MCDRAM READ  : bytes read from MCDRAM controller (in GBytes)" << "\n";
     if (m->MCDRAMmemoryTrafficMetricsAvailable()) cout << " MCDRAM WRITE : bytes written to MCDRAM controller (in GBytes)" << "\n";
     if (m->memoryIOTrafficMetricAvailable()) cout << " IO    : bytes read/written due to IO requests to memory controller (in GBytes); this may be an over estimate due to same-cache-line partial requests" << "\n";
@@ -368,7 +370,6 @@ void print_output(PCM * m,
         {
             cout << "\n" << "Intel(r) QPI traffic estimation in bytes (data and non-data traffic outgoing from CPU/socket through QPI links):" << "\n" << "\n";
 
-
             const uint32 qpiLinks = (uint32)m->getQPILinksPerSocket();
 
             cout << "              ";
@@ -406,6 +407,8 @@ void print_output(PCM * m,
         cout << "MEM (GB)->|";
         if (m->memoryTrafficMetricsAvailable())
             cout << "  READ |  WRITE |";
+        if (m->DDRTTrafficMetricsAvailable())
+            cout << " DDR-T RD | DDR-T WR |";
         if (m->MCDRAMmemoryTrafficMetricsAvailable())
             cout << " MCDRAM READ | MCDRAM WRITE |";
         if (m->memoryIOTrafficMetricAvailable())
@@ -422,6 +425,9 @@ void print_output(PCM * m,
                 if (m->memoryTrafficMetricsAvailable())
                     cout << "    " << setw(5) << getBytesReadFromMC(sktstate1[i], sktstate2[i]) / double(1e9) <<
                             "    " << setw(5) << getBytesWrittenToMC(sktstate1[i], sktstate2[i]) / double(1e9);
+                if (m->DDRTTrafficMetricsAvailable())
+                    cout << "    " << setw(8) << getBytesReadFromDDRT(sktstate1[i], sktstate2[i]) / double(1e9) <<
+                            "    " << setw(8) << getBytesWrittenToDDRT(sktstate1[i], sktstate2[i]) / double(1e9);
                 if (m->MCDRAMmemoryTrafficMetricsAvailable())
                     cout << "   " << setw(11) << getBytesReadFromEDC(sktstate1[i], sktstate2[i]) / double(1e9) <<
                             "    " << setw(11) << getBytesWrittenToEDC(sktstate1[i], sktstate2[i]) / double(1e9);
@@ -443,6 +449,9 @@ void print_output(PCM * m,
             if (m->memoryTrafficMetricsAvailable())
                 cout << "    " << setw(5) << getBytesReadFromMC(sstate1, sstate2) / double(1e9) <<
                         "    " << setw(5) << getBytesWrittenToMC(sstate1, sstate2) / double(1e9);
+            if (m->DDRTTrafficMetricsAvailable())
+                cout << "    " << setw(8) << getBytesReadFromDDRT(sstate1, sstate2) / double(1e9) <<
+                        "    " << setw(8) << getBytesWrittenToDDRT(sstate1, sstate2) / double(1e9);
             if (m->memoryIOTrafficMetricAvailable())
                 cout << "    " << setw(5) << getIORequestBytesFromMC(sstate1, sstate2) / double(1e9);
             cout << "     ";
@@ -477,6 +486,9 @@ void print_csv_header(PCM * m,
 
 	if (m->memoryTrafficMetricsAvailable())
 		cout << ";;";
+
+    if (m->DDRTTrafficMetricsAvailable())
+        cout << ";;";
 
 	if (m->MCDRAMmemoryTrafficMetricsAvailable())
 		cout << ";;";
@@ -514,23 +526,23 @@ void print_csv_header(PCM * m,
              else if (cpu_model == PCM::KNL)
              {
                  cout << "Socket" << i << ";;;;;;";
-                 if (m->memoryTrafficMetricsAvailable())
-                     cout << ";;";
-                 if (m->MCDRAMmemoryTrafficMetricsAvailable())
-                     cout << ";;";
              }
              else
              {
-                 cout << "Socket" <<  i << ";;;;;;;;;;;";
-                 if (m->L3CacheOccupancyMetricAvailable())
-                     cout << ";";
-                 if (m->CoreLocalMemoryBWMetricAvailable())
-                     cout << ";";
-                 if (m->CoreRemoteMemoryBWMetricAvailable())
-                     cout << ";";
-                 if (m->memoryTrafficMetricsAvailable())
-                     cout << ";;";
+                 cout << "Socket" << i << ";;;;;;;;;;;";
              }
+             if (m->L3CacheOccupancyMetricAvailable())
+                 cout << ";";
+             if (m->CoreLocalMemoryBWMetricAvailable())
+                 cout << ";";
+             if (m->CoreRemoteMemoryBWMetricAvailable())
+                 cout << ";";
+             if (m->memoryTrafficMetricsAvailable())
+                 cout << ";;";
+             if (m->DDRTTrafficMetricsAvailable())
+                 cout << ";;";
+             if (m->MCDRAMmemoryTrafficMetricsAvailable())
+                 cout << ";;";
         }
 
         if (m->getNumSockets() > 1 && (m->incomingQPITrafficMetricsAvailable())) // QPI info only for multi socket systems
@@ -627,6 +639,9 @@ void print_csv_header(PCM * m,
         if (m->memoryTrafficMetricsAvailable())
                 cout << "READ;WRITE;";
 
+        if (m->DDRTTrafficMetricsAvailable())
+            cout << "DDR-T_RD;DDR-T_WR;";
+
         if (m->MCDRAMmemoryTrafficMetricsAvailable())
                 cout << "MCDRAM_READ;MCDRAM_WRITE;";
 
@@ -665,25 +680,24 @@ void print_csv_header(PCM * m,
              else if (cpu_model == PCM::KNL)
              {
                  cout << "EXEC;IPC;FREQ;L2MISS;L2HIT;";
-                 if (m->memoryTrafficMetricsAvailable())
-                     cout << "READ;WRITE;";
-                 if (m->MCDRAMmemoryTrafficMetricsAvailable())
-                     cout << "MCDRAM_READ;MCDRAM_WRITE;";
-                 cout << "TEMP;";
              }
              else
              {
                  cout << "EXEC;IPC;FREQ;AFREQ;L3MISS;L2MISS;L3HIT;L2HIT;L3MPI;L2MPI;";
-                 if (m->L3CacheOccupancyMetricAvailable())
-                     cout << "L3OCC;";
-                 if (m->CoreLocalMemoryBWMetricAvailable())
-                     cout << "LMB;";
-                 if (m->CoreRemoteMemoryBWMetricAvailable())
-                     cout << "RMB;";
-                 if (m->memoryTrafficMetricsAvailable())
-                     cout << "READ;WRITE;";
-                 cout << "TEMP;";
              }
+             if (m->L3CacheOccupancyMetricAvailable())
+                 cout << "L3OCC;";
+             if (m->CoreLocalMemoryBWMetricAvailable())
+                 cout << "LMB;";
+             if (m->CoreRemoteMemoryBWMetricAvailable())
+                 cout << "RMB;";
+             if (m->memoryTrafficMetricsAvailable())
+                 cout << "READ;WRITE;";
+             if (m->DDRTTrafficMetricsAvailable())
+                 cout << "DDR-T_RD;DDR-T_WR;";
+             if (m->MCDRAMmemoryTrafficMetricsAvailable())
+                 cout << "MCDRAM_READ;MCDRAM_WRITE;";
+             cout << "TEMP;";
         }
 
         if (m->getNumSockets() > 1 && (m->incomingQPITrafficMetricsAvailable())) // QPI info only for multi socket systems
@@ -822,6 +836,10 @@ void print_csv(PCM * m,
                 cout << getBytesReadFromMC(sstate1, sstate2) / double(1e9) <<
                 ';' << getBytesWrittenToMC(sstate1, sstate2) / double(1e9) << ';';
 
+        if (m->DDRTTrafficMetricsAvailable())
+            cout << getBytesReadFromDDRT(sstate1, sstate2) / double(1e9) <<
+            ';' << getBytesWrittenToDDRT(sstate1, sstate2) / double(1e9) << ';';
+
         if (m->MCDRAMmemoryTrafficMetricsAvailable())
                 cout << getBytesReadFromEDC(sstate1, sstate2) / double(1e9) <<
                 ';' << getBytesWrittenToEDC(sstate1, sstate2) / double(1e9) << ';';
@@ -875,37 +893,36 @@ void print_csv(PCM * m,
                 ';' << getRelativeFrequency(sktstate1[i], sktstate2[i]) <<
                 ';' << float_format(getL2CacheMisses(sktstate1[i], sktstate2[i])) <<
                 ';' << getL2CacheHitRatio(sktstate1[i], sktstate2[i]);
-                if (m->memoryTrafficMetricsAvailable())
-                    cout << ';' << getBytesReadFromMC(sktstate1[i], sktstate2[i]) / double(1e9) <<
-                    ';' << getBytesWrittenToMC(sktstate1[i], sktstate2[i]) / double(1e9);
-                if (m->MCDRAMmemoryTrafficMetricsAvailable())
-                    cout << ';' << getBytesReadFromEDC(sktstate1[i], sktstate2[i]) / double(1e9) <<
-                    ';' << getBytesWrittenToEDC(sktstate1[i], sktstate2[i]) / double(1e9);
-                cout << ';' << temp_format(sktstate2[i].getThermalHeadroom()) << ';';
             }
             else
             {
                 cout << getExecUsage(sktstate1[i], sktstate2[i]) <<
-                ';' << getIPC(sktstate1[i], sktstate2[i]) <<
-                ';' << getRelativeFrequency(sktstate1[i], sktstate2[i]) <<
-                ';' << getActiveRelativeFrequency(sktstate1[i], sktstate2[i]) <<
-                ';' << float_format(getL3CacheMisses(sktstate1[i], sktstate2[i])) <<
-                ';' << float_format(getL2CacheMisses(sktstate1[i], sktstate2[i])) <<
-                ';' << getL3CacheHitRatio(sktstate1[i], sktstate2[i]) <<
-                ';' << getL2CacheHitRatio(sktstate1[i], sktstate2[i]) <<
-                ';' << double(getL3CacheMisses(sktstate1[i], sktstate2[i])) / getInstructionsRetired(sktstate1[i], sktstate2[i]) <<
-                ';' << double(getL2CacheMisses(sktstate1[i], sktstate2[i])) / getInstructionsRetired(sktstate1[i], sktstate2[i]) ;
-                if (m->L3CacheOccupancyMetricAvailable())
-                    cout << ';' << l3cache_occ_format(getL3CacheOccupancy(sktstate2[i]));
-                if (m->CoreLocalMemoryBWMetricAvailable())
-                    cout << ';' << getLocalMemoryBW(sktstate1[i], sktstate2[i]);
-                if (m->CoreRemoteMemoryBWMetricAvailable())
-                    cout << ';' << getRemoteMemoryBW(sktstate1[i], sktstate2[i]) ;
-                if (m->memoryTrafficMetricsAvailable())
-                    cout << ';' << getBytesReadFromMC(sktstate1[i], sktstate2[i]) / double(1e9) <<
-                    ';' << getBytesWrittenToMC(sktstate1[i], sktstate2[i]) / double(1e9);
-                cout << ';' << temp_format(sktstate2[i].getThermalHeadroom()) << ';';
+                    ';' << getIPC(sktstate1[i], sktstate2[i]) <<
+                    ';' << getRelativeFrequency(sktstate1[i], sktstate2[i]) <<
+                    ';' << getActiveRelativeFrequency(sktstate1[i], sktstate2[i]) <<
+                    ';' << float_format(getL3CacheMisses(sktstate1[i], sktstate2[i])) <<
+                    ';' << float_format(getL2CacheMisses(sktstate1[i], sktstate2[i])) <<
+                    ';' << getL3CacheHitRatio(sktstate1[i], sktstate2[i]) <<
+                    ';' << getL2CacheHitRatio(sktstate1[i], sktstate2[i]) <<
+                    ';' << double(getL3CacheMisses(sktstate1[i], sktstate2[i])) / getInstructionsRetired(sktstate1[i], sktstate2[i]) <<
+                    ';' << double(getL2CacheMisses(sktstate1[i], sktstate2[i])) / getInstructionsRetired(sktstate1[i], sktstate2[i]);
             }
+            if (m->L3CacheOccupancyMetricAvailable())
+                cout << ';' << l3cache_occ_format(getL3CacheOccupancy(sktstate2[i]));
+            if (m->CoreLocalMemoryBWMetricAvailable())
+                cout << ';' << getLocalMemoryBW(sktstate1[i], sktstate2[i]);
+            if (m->CoreRemoteMemoryBWMetricAvailable())
+                cout << ';' << getRemoteMemoryBW(sktstate1[i], sktstate2[i]);
+            if (m->memoryTrafficMetricsAvailable())
+                cout << ';' << getBytesReadFromMC(sktstate1[i], sktstate2[i]) / double(1e9) <<
+                ';' << getBytesWrittenToMC(sktstate1[i], sktstate2[i]) / double(1e9);
+            if (m->DDRTTrafficMetricsAvailable())
+                cout << ';' << getBytesReadFromDDRT(sktstate1[i], sktstate2[i]) / double(1e9) <<
+                ';' << getBytesWrittenToDDRT(sktstate1[i], sktstate2[i]) / double(1e9);
+            if (m->MCDRAMmemoryTrafficMetricsAvailable())
+                cout << ';' << getBytesReadFromEDC(sktstate1[i], sktstate2[i]) / double(1e9) <<
+                ';' << getBytesWrittenToEDC(sktstate1[i], sktstate2[i]) / double(1e9);
+            cout << ';' << temp_format(sktstate2[i].getThermalHeadroom()) << ';';
         }
 
         if (m->getNumSockets() > 1 && (m->incomingQPITrafficMetricsAvailable())) // QPI info only for multi socket systems

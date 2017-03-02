@@ -132,6 +132,11 @@ public:
     //! \brief Get the number of integrated controller writes (in cache lines)
     uint64 getImcWrites();
 
+    //! \brief Get the number of DDR-T memory reads (in cache lines)
+    uint64 getDDRTReads();
+    //! \brief Get the number of DDR-T memory writes (in cache lines)
+    uint64 getDDRTWrites();
+
     //! \brief Get the number of cache lines read by EDC (embedded DRAM controller)
     uint64 getEdcReads();
     //! \brief Get the number of cache lines written by EDC (embedded DRAM controller)
@@ -155,7 +160,8 @@ public:
     //! \brief Program memory counters (disables programming performance counters)
     //! \param rankA count DIMM rank1 statistics (disables memory channel monitoring)
     //! \param rankB count DIMM rank2 statistics (disables memory channel monitoring)
-    void programServerUncoreMemoryMetrics(int rankA = -1, int rankB = -1);
+    //! \param DDR_T monitor DDR-T bandwidth instead of partial writes
+    void programServerUncoreMemoryMetrics(int rankA = -1, int rankB = -1, bool DDR_T = false);
 
     //! \brief Get number of QPI LL clocks on a QPI port
     //! \param port QPI port number
@@ -671,6 +677,7 @@ public:
     /*! \brief Programs uncore memory counters on microarchitectures codename SandyBridge-EP and later Xeon uarch
         \param rankA count DIMM rank1 statistics (disables memory channel monitoring)
         \param rankB count DIMM rank2 statistics (disables memory channel monitoring)
+        \param DDR_T monitor DDR-T bandwidth instead of partial writes
 
         Call this method before you start using the memory counter routines on microarchitecture codename SandyBridge-EP and later Xeon uarch
 
@@ -679,7 +686,7 @@ public:
         program PMUs: Intel(r) VTune(tm), Intel(r) Performance Tuning Utility (PTU). This code may make
         VTune or PTU measurements invalid. VTune or PTU measurement may make measurement with this code invalid. Please enable either usage of these routines or VTune/PTU/etc.
     */
-    ErrorCode programServerUncoreMemoryMetrics(int rankA = -1, int rankB = -1);
+    ErrorCode programServerUncoreMemoryMetrics(int rankA = -1, int rankB = -1, bool DDR_T = false);
 
     //! \brief Freezes uncore event counting (works only on microarchitecture codename SandyBridge-EP and IvyTown)
     void freezeServerUncoreCounters();
@@ -1223,6 +1230,13 @@ public:
         );
     }
 
+    bool DDRTTrafficMetricsAvailable() const
+    {
+        return (
+            cpu_model == PCM::SKX
+            );
+    }
+
     bool hasBecktonUncore() const
     {
         return (
@@ -1701,6 +1715,10 @@ class UncoreCounterState
     template <class CounterStateType>
     friend uint64 getBytesWrittenToMC(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
+    friend uint64 getBytesReadFromDDRT(const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
+    friend uint64 getBytesWrittenToDDRT(const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
     friend uint64 getBytesReadFromEDC(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
     friend uint64 getBytesWrittenToEDC(const CounterStateType & before, const CounterStateType & after);
@@ -1716,6 +1734,8 @@ class UncoreCounterState
 protected:
     uint64 UncMCFullWrites;
     uint64 UncMCNormalReads;
+    uint64 UncDDRTWrites;
+    uint64 UncDDRTReads;
     uint64 UncEDCFullWrites;
     uint64 UncEDCNormalReads;
     uint64 UncMCIORequests;
@@ -1728,6 +1748,8 @@ public:
     UncoreCounterState() :
         UncMCFullWrites(0),
         UncMCNormalReads(0),
+        UncDDRTWrites(0),
+        UncDDRTReads(0),
         UncEDCFullWrites(0),
         UncEDCNormalReads(0),
         UncMCIORequests(0),
@@ -1742,6 +1764,8 @@ public:
     {
         UncMCFullWrites += o.UncMCFullWrites;
         UncMCNormalReads += o.UncMCNormalReads;
+        UncDDRTReads += o.UncDDRTReads;
+        UncDDRTWrites += o.UncDDRTWrites;
         UncEDCFullWrites += o.UncEDCFullWrites;
         UncEDCNormalReads += o.UncEDCNormalReads;
         UncMCIORequests += o.UncMCIORequests;
@@ -2450,6 +2474,30 @@ template <class CounterStateType>
 uint64 getBytesWrittenToMC(const CounterStateType & before, const CounterStateType & after)
 {
     return (after.UncMCFullWrites - before.UncMCFullWrites) * 64;
+}
+
+/*! \brief Computes number of bytes read from DDR-T memory
+
+    \param before CPU counter state before the experiment
+    \param after CPU counter state after the experiment
+    \return Number of bytes
+*/
+template <class CounterStateType>
+uint64 getBytesReadFromDDRT(const CounterStateType & before, const CounterStateType & after)
+{
+    return (after.UncDDRTReads - before.UncDDRTReads) * 64;
+}
+
+/*! \brief Computes number of bytes written to DDR-T memory
+
+    \param before CPU counter state before the experiment
+    \param after CPU counter state after the experiment
+    \return Number of bytes
+*/
+template <class CounterStateType>
+uint64 getBytesWrittenToDDRT(const CounterStateType & before, const CounterStateType & after)
+{
+    return (after.UncDDRTWrites - before.UncDDRTWrites) * 64;
 }
 
 /*! \brief Computes number of bytes read from MCDRAM memory controllers

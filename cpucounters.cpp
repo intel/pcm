@@ -482,6 +482,7 @@ bool PCM::L3CacheOccupancyMetricAvailable()
 
 bool PCM::CoreLocalMemoryBWMetricAvailable()
 {
+    if (cpu_model == SKX) return false;
 	PCM_CPUID_INFO cpuinfo;
 	if (!(QOSMetricAvailable() && L3QOSMetricAvailable()))
 			return false;
@@ -491,6 +492,7 @@ bool PCM::CoreLocalMemoryBWMetricAvailable()
 
 bool PCM::CoreRemoteMemoryBWMetricAvailable()
 {
+    if (cpu_model == SKX) return false;
 	PCM_CPUID_INFO cpuinfo;
 	if (!(QOSMetricAvailable() && L3QOSMetricAvailable()))
 		return false;
@@ -2944,13 +2946,13 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
     ThermalHeadroom = extractThermalHeadroom(thermStatus);
 }
 
-PCM::ErrorCode PCM::programServerUncoreMemoryMetrics(int rankA, int rankB)
+PCM::ErrorCode PCM::programServerUncoreMemoryMetrics(int rankA, int rankB, bool DDR_T)
 {
     if(MSR.empty() || server_pcicfg_uncore.empty())  return PCM::MSRAccessDenied;
 
     for (int i = 0; (i < (int)server_pcicfg_uncore.size()) && MSR.size(); ++i)
     {
-        server_pcicfg_uncore[i]->programServerUncoreMemoryMetrics(rankA, rankB);
+        server_pcicfg_uncore[i]->programServerUncoreMemoryMetrics(rankA, rankB, DDR_T);
     }
 
     return PCM::Success;
@@ -3216,8 +3218,16 @@ void PCM::readAndAggregateUncoreMCCounters(const uint32 socket, CounterStateType
             server_pcicfg_uncore[socket]->freezeCounters();
             result.UncMCNormalReads += server_pcicfg_uncore[socket]->getImcReads();
             result.UncMCFullWrites += server_pcicfg_uncore[socket]->getImcWrites();
-            result.UncEDCNormalReads += server_pcicfg_uncore[socket]->getEdcReads();
-            result.UncEDCFullWrites += server_pcicfg_uncore[socket]->getEdcWrites();
+            if (DDRTTrafficMetricsAvailable())
+            {
+                result.UncDDRTReads += server_pcicfg_uncore[socket]->getDDRTReads();
+                result.UncDDRTWrites += server_pcicfg_uncore[socket]->getDDRTWrites();
+            }
+            if (MCDRAMmemoryTrafficMetricsAvailable())
+            {
+                result.UncEDCNormalReads += server_pcicfg_uncore[socket]->getEdcReads();
+                result.UncEDCFullWrites += server_pcicfg_uncore[socket]->getEdcWrites();
+            }
             server_pcicfg_uncore[socket]->unfreezeCounters();
         }
     }
@@ -4107,7 +4117,7 @@ ServerPCICFGUncore::~ServerPCICFGUncore()
 }
 
 
-void ServerPCICFGUncore::programServerUncoreMemoryMetrics(int rankA, int rankB)
+void ServerPCICFGUncore::programServerUncoreMemoryMetrics(int rankA, int rankB, bool DDR_T)
 {
     PCM * pcm = PCM::getInstance();
     const uint32 cpu_model = pcm->getCPUModel();
@@ -4126,7 +4136,23 @@ void ServerPCICFGUncore::programServerUncoreMemoryMetrics(int rankA, int rankB)
         default:
             MCCntConfig[0] = MC_CH_PCI_PMON_CTL_EVENT(0x04) + MC_CH_PCI_PMON_CTL_UMASK(3);  // monitor reads on counter 0: CAS_COUNT.RD
             MCCntConfig[1] = MC_CH_PCI_PMON_CTL_EVENT(0x04) + MC_CH_PCI_PMON_CTL_UMASK(12); // monitor writes on counter 1: CAS_COUNT.WR
-            MCCntConfig[2] = MC_CH_PCI_PMON_CTL_EVENT(0x04) + MC_CH_PCI_PMON_CTL_UMASK(2);  // monitor partial writes on counter 2: CAS_COUNT.RD_UNDERFILL,
+            if (DDR_T)
+            {
+                if (pcm->DDRTTrafficMetricsAvailable())
+                {
+                    MCCntConfig[2] = MC_CH_PCI_PMON_CTL_EVENT(0xe3); // monitor DDRT_RDQ_REQUESTS on counter 2
+                    MCCntConfig[3] = MC_CH_PCI_PMON_CTL_EVENT(0xe7); // monitor DDRT_WPQ_REQUESTS on counter 3
+                }
+                else
+                {
+                    std::cerr << "PCM Error: DDR-T metrics are not available on your platform" << std::endl;
+                    return;
+                }
+            }
+            else
+            {
+                MCCntConfig[2] = MC_CH_PCI_PMON_CTL_EVENT(0x04) + MC_CH_PCI_PMON_CTL_UMASK(2);  // monitor partial writes on counter 2: CAS_COUNT.RD_UNDERFILL,
+            }
         }
     } else {
         switch(cpu_model)
@@ -4171,14 +4197,19 @@ void ServerPCICFGUncore::program()
     switch(cpu_model)
     {
     case PCM::KNL:
-	MCCntConfig[0] = MC_CH_PCI_PMON_CTL_EVENT(0x03) + MC_CH_PCI_PMON_CTL_UMASK(1);  // monitor reads on counter 0: CAS_COUNT.RD
-	MCCntConfig[1] = MC_CH_PCI_PMON_CTL_EVENT(0x03) + MC_CH_PCI_PMON_CTL_UMASK(2); // monitor writes on counter 1: CAS_COUNT.WR
+	    MCCntConfig[0] = MC_CH_PCI_PMON_CTL_EVENT(0x03) + MC_CH_PCI_PMON_CTL_UMASK(1);  // monitor reads on counter 0: CAS_COUNT.RD
+	    MCCntConfig[1] = MC_CH_PCI_PMON_CTL_EVENT(0x03) + MC_CH_PCI_PMON_CTL_UMASK(2); // monitor writes on counter 1: CAS_COUNT.WR
         EDCCntConfig[0] = MC_CH_PCI_PMON_CTL_EVENT(0x01) + MC_CH_PCI_PMON_CTL_UMASK(1);  // monitor reads on counter 0: RPQ
         EDCCntConfig[1] = MC_CH_PCI_PMON_CTL_EVENT(0x02) + MC_CH_PCI_PMON_CTL_UMASK(1);  // monitor reads on counter 1: WPQ
-	break;
-    default: // check if this should be set for specific processors, like BDX only?
-	MCCntConfig[0] = MC_CH_PCI_PMON_CTL_EVENT(0x04) + MC_CH_PCI_PMON_CTL_UMASK(3);  // monitor reads on counter 0: CAS_COUNT.RD
-	MCCntConfig[1] = MC_CH_PCI_PMON_CTL_EVENT(0x04) + MC_CH_PCI_PMON_CTL_UMASK(12); // monitor writes on counter 1: CAS_COUNT.WR
+	    break;
+    default:
+	    MCCntConfig[0] = MC_CH_PCI_PMON_CTL_EVENT(0x04) + MC_CH_PCI_PMON_CTL_UMASK(3);  // monitor reads on counter 0: CAS_COUNT.RD
+	    MCCntConfig[1] = MC_CH_PCI_PMON_CTL_EVENT(0x04) + MC_CH_PCI_PMON_CTL_UMASK(12); // monitor writes on counter 1: CAS_COUNT.WR
+        if (pcm->DDRTTrafficMetricsAvailable())
+        {
+            MCCntConfig[2] = MC_CH_PCI_PMON_CTL_EVENT(0xe3); // monitor DDRT_RDQ_REQUESTS on counter 2
+            MCCntConfig[3] = MC_CH_PCI_PMON_CTL_EVENT(0xe7); // monitor DDRT_WPQ_REQUESTS on counter 3
+        }
     }
 
     programIMC(MCCntConfig);
@@ -4288,6 +4319,26 @@ uint64 ServerPCICFGUncore::getImcWrites()
         result += value;
     }
 
+    return result;
+}
+
+uint64 ServerPCICFGUncore::getDDRTReads()
+{
+    uint64 result = 0;
+    for (uint32 i = 0; i < (uint32)imcHandles.size(); ++i)
+    {
+        result += getMCCounter(i, 2);
+    }
+    return result;
+}
+
+uint64 ServerPCICFGUncore::getDDRTWrites()
+{
+    uint64 result = 0;
+    for (uint32 i = 0; i < (uint32)imcHandles.size(); ++i)
+    {
+        result += getMCCounter(i, 3);
+    }
     return result;
 }
 
