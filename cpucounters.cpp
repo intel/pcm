@@ -2946,13 +2946,13 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
     ThermalHeadroom = extractThermalHeadroom(thermStatus);
 }
 
-PCM::ErrorCode PCM::programServerUncoreMemoryMetrics(int rankA, int rankB)
+PCM::ErrorCode PCM::programServerUncoreMemoryMetrics(int rankA, int rankB, bool DDR_T)
 {
     if(MSR.empty() || server_pcicfg_uncore.empty())  return PCM::MSRAccessDenied;
 
     for (int i = 0; (i < (int)server_pcicfg_uncore.size()) && MSR.size(); ++i)
     {
-        server_pcicfg_uncore[i]->programServerUncoreMemoryMetrics(rankA, rankB);
+        server_pcicfg_uncore[i]->programServerUncoreMemoryMetrics(rankA, rankB, DDR_T);
     }
 
     return PCM::Success;
@@ -4109,7 +4109,7 @@ ServerPCICFGUncore::~ServerPCICFGUncore()
 }
 
 
-void ServerPCICFGUncore::programServerUncoreMemoryMetrics(int rankA, int rankB)
+void ServerPCICFGUncore::programServerUncoreMemoryMetrics(int rankA, int rankB, bool DDR_T)
 {
     PCM * pcm = PCM::getInstance();
     const uint32 cpu_model = pcm->getCPUModel();
@@ -4124,6 +4124,19 @@ void ServerPCICFGUncore::programServerUncoreMemoryMetrics(int rankA, int rankB)
             MCCntConfig[1] = MC_CH_PCI_PMON_CTL_EVENT(0x03) + MC_CH_PCI_PMON_CTL_UMASK(2);  // monitor reads on counter 1: CAS.WR
             EDCCntConfig[0] = MC_CH_PCI_PMON_CTL_EVENT(0x01) + MC_CH_PCI_PMON_CTL_UMASK(1);  // monitor reads on counter 0: RPQ
             EDCCntConfig[1] = MC_CH_PCI_PMON_CTL_EVENT(0x02) + MC_CH_PCI_PMON_CTL_UMASK(1);  // monitor reads on counter 1: WPQ
+            break;
+        case PCM::SKX:
+            MCCntConfig[0] = MC_CH_PCI_PMON_CTL_EVENT(0x04) + MC_CH_PCI_PMON_CTL_UMASK(3);  // monitor reads on counter 0: CAS_COUNT.RD
+            MCCntConfig[1] = MC_CH_PCI_PMON_CTL_EVENT(0x04) + MC_CH_PCI_PMON_CTL_UMASK(12); // monitor writes on counter 1: CAS_COUNT.WR
+            if (DDR_T)
+            {
+                MCCntConfig[2] = MC_CH_PCI_PMON_CTL_EVENT(0xe3); // monitor DDRT_RDQ_REQUESTS on counter 2
+                MCCntConfig[3] = MC_CH_PCI_PMON_CTL_EVENT(0xe7); // monitor DDRT_WPQ_REQUESTS on counter 3
+            }
+            else
+            {
+                MCCntConfig[2] = MC_CH_PCI_PMON_CTL_EVENT(0x04) + MC_CH_PCI_PMON_CTL_UMASK(2);  // monitor partial writes on counter 2: CAS_COUNT.RD_UNDERFILL,
+            }
             break;
         default:
             MCCntConfig[0] = MC_CH_PCI_PMON_CTL_EVENT(0x04) + MC_CH_PCI_PMON_CTL_UMASK(3);  // monitor reads on counter 0: CAS_COUNT.RD

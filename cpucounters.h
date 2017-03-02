@@ -155,7 +155,8 @@ public:
     //! \brief Program memory counters (disables programming performance counters)
     //! \param rankA count DIMM rank1 statistics (disables memory channel monitoring)
     //! \param rankB count DIMM rank2 statistics (disables memory channel monitoring)
-    void programServerUncoreMemoryMetrics(int rankA = -1, int rankB = -1);
+    //! \param DDR_T monitor DDR-T bandwidth instead of partial writes
+    void programServerUncoreMemoryMetrics(int rankA = -1, int rankB = -1, bool DDR_T = false);
 
     //! \brief Get number of QPI LL clocks on a QPI port
     //! \param port QPI port number
@@ -671,6 +672,7 @@ public:
     /*! \brief Programs uncore memory counters on microarchitectures codename SandyBridge-EP and later Xeon uarch
         \param rankA count DIMM rank1 statistics (disables memory channel monitoring)
         \param rankB count DIMM rank2 statistics (disables memory channel monitoring)
+        \param DDR_T monitor DDR-T bandwidth instead of partial writes
 
         Call this method before you start using the memory counter routines on microarchitecture codename SandyBridge-EP and later Xeon uarch
 
@@ -679,7 +681,7 @@ public:
         program PMUs: Intel(r) VTune(tm), Intel(r) Performance Tuning Utility (PTU). This code may make
         VTune or PTU measurements invalid. VTune or PTU measurement may make measurement with this code invalid. Please enable either usage of these routines or VTune/PTU/etc.
     */
-    ErrorCode programServerUncoreMemoryMetrics(int rankA = -1, int rankB = -1);
+    ErrorCode programServerUncoreMemoryMetrics(int rankA = -1, int rankB = -1, bool DDR_T = false);
 
     //! \brief Freezes uncore event counting (works only on microarchitecture codename SandyBridge-EP and IvyTown)
     void freezeServerUncoreCounters();
