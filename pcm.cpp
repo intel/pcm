@@ -426,8 +426,8 @@ void print_output(PCM * m,
                     cout << "    " << setw(5) << getBytesReadFromMC(sktstate1[i], sktstate2[i]) / double(1e9) <<
                             "    " << setw(5) << getBytesWrittenToMC(sktstate1[i], sktstate2[i]) / double(1e9);
                 if (m->DDRTTrafficMetricsAvailable())
-                    cout << "    " << setw(8) << getBytesReadFromDDRT(sktstate1[i], sktstate2[i]) / double(1e9) <<
-                            "    " << setw(8) << getBytesWrittenToDDRT(sktstate1[i], sktstate2[i]) / double(1e9);
+                    cout << "     " << setw(5) << getBytesReadFromDDRT(sktstate1[i], sktstate2[i]) / double(1e9) <<
+                            "     " << setw(5) << getBytesWrittenToDDRT(sktstate1[i], sktstate2[i]) / double(1e9);
                 if (m->MCDRAMmemoryTrafficMetricsAvailable())
                     cout << "   " << setw(11) << getBytesReadFromEDC(sktstate1[i], sktstate2[i]) / double(1e9) <<
                             "    " << setw(11) << getBytesWrittenToEDC(sktstate1[i], sktstate2[i]) / double(1e9);
@@ -450,8 +450,8 @@ void print_output(PCM * m,
                 cout << "    " << setw(5) << getBytesReadFromMC(sstate1, sstate2) / double(1e9) <<
                         "    " << setw(5) << getBytesWrittenToMC(sstate1, sstate2) / double(1e9);
             if (m->DDRTTrafficMetricsAvailable())
-                cout << "    " << setw(8) << getBytesReadFromDDRT(sstate1, sstate2) / double(1e9) <<
-                        "    " << setw(8) << getBytesWrittenToDDRT(sstate1, sstate2) / double(1e9);
+                cout << "     " << setw(5) << getBytesReadFromDDRT(sstate1, sstate2) / double(1e9) <<
+                        "     " << setw(5) << getBytesWrittenToDDRT(sstate1, sstate2) / double(1e9);
             if (m->memoryIOTrafficMetricAvailable())
                 cout << "    " << setw(5) << getIORequestBytesFromMC(sstate1, sstate2) / double(1e9);
             cout << "     ";
