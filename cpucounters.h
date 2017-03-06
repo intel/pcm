@@ -2776,7 +2776,11 @@ inline uint64 getAllIncomingQPILinkBytes(const SystemCounterState & now)
 inline double getQPItoMCTrafficRatio(const SystemCounterState & before, const SystemCounterState & after)
 {
     const uint64 totalQPI = getAllIncomingQPILinkBytes(before, after);
-    const uint64 memTraffic = getBytesReadFromMC(before, after) + getBytesWrittenToMC(before, after);
+    uint64 memTraffic = getBytesReadFromMC(before, after) + getBytesWrittenToMC(before, after);
+    if (PCM::getInstance()->DDRTTrafficMetricsAvailable())
+    {
+        memTraffic += getBytesReadFromDDRT(before, after) + getBytesWrittenToDDRT(before, after);
+    }
     return double(totalQPI) / double(memTraffic);
 }
 
