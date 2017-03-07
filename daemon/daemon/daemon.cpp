@@ -71,7 +71,7 @@ namespace PCMDaemon {
 				time ( &rawtime );
 				timeinfo = localtime ( &rawtime );
 				
-				sprintf(timeBuffer, "[%02d %02d %04d %02d:%02d:%02d]",timeinfo->tm_mday, timeinfo->tm_mon + 1, timeinfo->tm_year + 1900, timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec);
+				snprintf(timeBuffer, 200, "[%02d %02d %04d %02d:%02d:%02d]",timeinfo->tm_mday, timeinfo->tm_mon + 1, timeinfo->tm_year + 1900, timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec);
 
 				std::cout << timeBuffer << "\tFetching counters..." << std::endl;
 			}

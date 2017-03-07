@@ -19,7 +19,6 @@
 #define HACK_TO_REMOVE_DUPLICATE_ERROR
 #include <iostream>
 #ifdef _MSC_VER
-#pragma warning(disable : 4996) // for sprintf
 #define strtok_r strtok_s
 #include <windows.h>
 #include "../PCM_Win/windriver.h"
