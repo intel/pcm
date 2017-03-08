@@ -409,11 +409,10 @@ void display_bandwidth_csv_header(PCM *m, memdata_t *md)
 void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 elapsedTime)
 {
     uint32 numSockets = m->getNumSockets();
-    time_t t = time(NULL);
-    tm *tt = localtime(&t);
+    tm tt = pcm_localtime();
     cout.precision(3);
-    cout << 1900+tt->tm_year << '-' << 1+tt->tm_mon << '-' << tt->tm_mday << ';'
-         << tt->tm_hour << ':' << tt->tm_min << ':' << tt->tm_sec << ';';
+    cout << 1900+tt.tm_year << '-' << 1+tt.tm_mon << '-' << tt.tm_mday << ';'
+         << tt.tm_hour << ':' << tt.tm_min << ':' << tt.tm_sec << ';';
 
 
     float sysRead = 0.0, sysWrite = 0.0;
