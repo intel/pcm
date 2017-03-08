@@ -20,7 +20,7 @@ UNAME:=$(shell uname)
 
 ifeq ($(UNAME), Linux)
 LIB= -pthread -lrt
-CXXFLAGS += -std=c++0x
+CXXFLAGS += -std=c++11
 endif
 ifeq ($(UNAME), Darwin)
 LIB= -lpthread MacMSRDriver/build/Release/libPcmMsr.dylib 
