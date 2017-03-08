@@ -848,10 +848,10 @@ bool PCM::discoverSystemTopology()
     }
     fclose(f_presentcpus);
     num_cores = -1;
-    sscanf(buffer, "0-%d", &num_cores);
+    pcm_sscanf(buffer) >> s_expect("0-") >> num_cores;
     if(num_cores == -1)
     {
-       sscanf(buffer, "%d", &num_cores);
+       pcm_sscanf(buffer) >> num_cores;
     }
     if(num_cores == -1)
     {
