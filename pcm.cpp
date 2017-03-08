@@ -783,7 +783,9 @@ void print_csv(PCM * m,
     gettimeofday(&timestamp, NULL);
 #endif
     time_t t = time(NULL);
-    tm *tt = localtime(&t);
+    tm buf;
+    tm *tt = &buf;
+    localtime_s(tt, &t);
     char old_fill = cout.fill('0');
     cout.precision(3);
     cout << endl << setw(4) << 1900 + tt->tm_year << '-' << setw(2) << 1 + tt->tm_mon << '-'
