@@ -206,7 +206,11 @@ void build_event(const char * argv, EventSelectRegister *reg, int idx)
 	reg->fields.enable = 1;
 
 	memset(name,0,EVENT_SIZE);
+#ifdef _MSC_VER
+    strncpy_s(name, argv, EVENT_SIZE - 1);
+#else
 	strncpy(name,argv,EVENT_SIZE-1); 
+#endif
 	/*
 	   uint64 apic_int : 1;
 

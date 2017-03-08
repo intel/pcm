@@ -27,6 +27,7 @@ CT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
 #include <cstdio>
 #include <cstring>
 #include <fstream>
+#include <time.h>
 #include "cpucounters.h"
 
 #ifndef _MSC_VER
@@ -210,6 +211,18 @@ inline std::istream & operator >> (std::istream && istr, s_expect && s)
 {
     s.match(istr);
     return istr;
+}
+
+inline tm pcm_localtime()
+{
+    time_t now = time(NULL);
+    tm result;
+#ifdef _MSC_VER
+    localtime_s(&result, &now);
+#else
+    localtime_r(&now, &result);
+#endif
+    return result;
 }
 
 #endif
