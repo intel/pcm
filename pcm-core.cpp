@@ -181,6 +181,19 @@ void print_custom_stats(const StateType & BeforeState, const StateType & AfterSt
 	cout << endl;
 }
 
+// emulates scanf %i for hex 0x prefix otherwise assumes dec (no oct support)
+bool match(const char * subtoken, const char * name, int * result)
+{
+    std::string sname(name);
+    if (pcm_sscanf(subtoken) >> s_expect(sname + "0x") >> std::hex >> *result)
+        return true;
+
+    if (pcm_sscanf(subtoken) >> s_expect(sname) >> std::dec >> *result)
+        return true;
+
+    return false;
+}
+
 #define EVENT_SIZE 256
 void build_event(const char * argv, EventSelectRegister *reg, int idx)
 {
@@ -213,25 +226,25 @@ void build_event(const char * argv, EventSelectRegister *reg, int idx)
 			subtoken = strtok_r(str2, ",", &saveptr2);
 			if (subtoken == NULL)
 				break;
-			if(sscanf(subtoken,"event=%i",&tmp) == 1)
+			if(match(subtoken,"event=",&tmp))
 				reg->fields.event_select = tmp;
-			else if(sscanf(subtoken,"umask=%i",&tmp) == 1)
+			else if(match(subtoken,"umask=",&tmp))
 				reg->fields.umask = tmp;
 			else if(strcmp(subtoken,"edge") == 0)
 				reg->fields.edge = 1;
-			else if(sscanf(subtoken,"any=%i",&tmp) == 1)
+			else if(match(subtoken,"any=",&tmp))
 				reg->fields.any_thread = tmp;
-			else if(sscanf(subtoken,"inv=%i",&tmp) == 1)
+			else if(match(subtoken,"inv=",&tmp))
 				reg->fields.invert = tmp;
-			else if(sscanf(subtoken,"cmask=%i",&tmp) == 1)
+			else if(match(subtoken,"cmask=",&tmp))
 				reg->fields.cmask = tmp;
-			else if(sscanf(subtoken,"in_tx=%i",&tmp) == 1)
+			else if(match(subtoken,"in_tx=",&tmp))
 				reg->fields.in_tx = tmp;
-			else if(sscanf(subtoken,"in_tx_cp=%i",&tmp) == 1)
+			else if(match(subtoken,"in_tx_cp=",&tmp))
 				reg->fields.in_txcp = tmp;
-			else if(sscanf(subtoken,"pc=%i",&tmp) == 1)
+			else if(match(subtoken,"pc=",&tmp))
 				reg->fields.pin_control = tmp;
-			else if(sscanf(subtoken,"offcore_rsp=%llx",&tmp2) == 1) {
+			else if(pcm_sscanf(subtoken) >> s_expect("offcore_rsp=") >> std::hex >> tmp2) {
 				if(idx >= 2)
 				{
 					cerr << "offcore_rsp must specify in first or second event only. idx=" << idx << endl;
@@ -239,7 +252,7 @@ void build_event(const char * argv, EventSelectRegister *reg, int idx)
 				}
 				events[idx].msr_value = tmp2;
 			}
-			else if(sscanf(subtoken,"name=%255s",events[idx].name) == 1) ;
+			else if(pcm_sscanf(subtoken) >> s_expect("name=") >> setw(255) >> events[idx].name) ;
 			else
 			{
 				cerr << "Event '" << subtoken << "' is not supported. See the list of supported events"<< endl;
