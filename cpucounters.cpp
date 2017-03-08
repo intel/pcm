@@ -873,7 +873,7 @@ bool PCM::discoverSystemTopology()
     {
         if (strncmp(buffer, "processor", sizeof("processor") - 1) == 0)
         {
-            sscanf(buffer, "processor\t: %d", &entry.os_id);
+            pcm_sscanf(buffer) >> s_expect("processor\t: ") >> entry.os_id;
             //std::cout << "os_core_id: "<<entry.os_id<< std::endl;
             TemporalThreadAffinity _(entry.os_id);
             pcm_cpuid(0xb, 0x0, cpuid_args);
@@ -1346,7 +1346,7 @@ bool isNMIWatchdogEnabled()
         return true;
     }
     int enabled = 1;
-    sscanf(buffer, "%d", &enabled);
+    pcm_sscanf(buffer) >> enabled;
     fclose(f);
 
     if(enabled == 1)
