@@ -553,7 +553,7 @@ void calculate_bandwidth(PCM *m, const ServerUncorePowerState uncState1[], const
                 \r|--           DIMM Rank Monitoring        --|\n\
                 \r|-------------------------------------------|\n\
                 \r";
-            for(uint64 channel = 0; channel < max_imc_channels; ++channel)
+            for(uint32 channel = 0; channel < max_imc_channels; ++channel)
             {
                 if(rankA >=0)
                   cout << "|-- Mem Ch "
