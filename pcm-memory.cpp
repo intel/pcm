@@ -21,7 +21,6 @@
 #define HACK_TO_REMOVE_DUPLICATE_ERROR
 #include <iostream>
 #ifdef _MSC_VER
-#pragma warning(disable : 4996) // for sprintf
 #include <windows.h>
 #include "../PCM_Win/windriver.h"
 #else
@@ -479,11 +478,10 @@ void display_bandwidth_csv_header(PCM *m, memdata_t *md)
 void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 elapsedTime)
 {
     uint32 numSockets = m->getNumSockets();
-    time_t t = time(NULL);
-    tm *tt = localtime(&t);
+    tm tt = pcm_localtime();
     cout.precision(3);
-    cout << 1900+tt->tm_year << '-' << 1+tt->tm_mon << '-' << tt->tm_mday << ';'
-         << tt->tm_hour << ':' << tt->tm_min << ':' << tt->tm_sec << ';';
+    cout << 1900+tt.tm_year << '-' << 1+tt.tm_mon << '-' << tt.tm_mday << ';'
+         << tt.tm_hour << ':' << tt.tm_min << ':' << tt.tm_sec << ';';
 
 
     float sysRead = 0.0, sysWrite = 0.0;
@@ -658,7 +656,7 @@ void calculate_bandwidth(PCM *m, const ServerUncorePowerState uncState1[], const
                 \r|--           DIMM Rank Monitoring        --|\n\
                 \r|-------------------------------------------|\n\
                 \r";
-            for(uint64 channel = 0; channel < max_imc_channels; ++channel)
+            for(uint32 channel = 0; channel < max_imc_channels; ++channel)
             {
                 if(rankA >=0)
                   cout << "|-- Mem Ch "
