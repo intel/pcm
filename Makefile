@@ -42,7 +42,7 @@ OBJS = $(COMMON_OBJS) $(EXE_OBJS)
 .PRECIOUS: $(OBJS)
 
 -include $(OBJS:.o=.d)
-libPCM.a: $(EXE_OBJS)
+libPCM.a: $(OBJS)
 	ar -rcs $@ $^
 
 %.x: %.o $(COMMON_OBJS)
