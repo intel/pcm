@@ -7,6 +7,8 @@ EXE = pcm-numa.x pcm-power.x pcm.x pcm-sensor.x pcm-msr.x pcm-memory.x pcm-tsx.x
 
 all: $(EXE)
 
+lib: libPCM.a
+
 klocwork: $(EXE)
 
 CXXFLAGS += -Wall -g -O3 -Wno-unknown-pragmas
@@ -40,6 +42,9 @@ OBJS = $(COMMON_OBJS) $(EXE_OBJS)
 .PRECIOUS: $(OBJS)
 
 -include $(OBJS:.o=.d)
+libPCM.a: $(EXE_OBJS)
+	ar -rcs $@ $^
+
 %.x: %.o $(COMMON_OBJS)
 	$(CXX) -o $@ $^ $(LIB)
 
