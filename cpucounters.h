@@ -1177,9 +1177,7 @@ public:
             ||  cpu_model == PCM::IVYTOWN
             ||  cpu_model == PCM::HASWELLX
             ||  cpu_model == PCM::BDX
-#ifdef __linux__
             ||  cpu_model == PCM::SKX
-#endif
             );
     }
 
