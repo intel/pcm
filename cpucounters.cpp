@@ -4851,7 +4851,7 @@ void ServerPCICFGUncore::enableJKTWorkaround(bool enable)
 
 void ServerPCICFGUncore::initMemTest()
 {
-    memBuffer = NULL;
+    memBuffers.clear();
 #ifdef __linux__
     size_t capacity = PCM_MEM_CAPACITY;
     char * buffer = (char *)mmap(NULL, capacity, PROT_READ | PROT_WRITE,
@@ -4874,7 +4874,8 @@ void ServerPCICFGUncore::initMemTest()
         std::cerr << "ERROR: mbind failed" << std::endl;
         return;
     }
-    memBuffer = (uint64*)buffer;
+    memBuffers.push_back((uint64 *)buffer);
+    memBufferBlockSize = capacity;
 #elif defined(_MSC_VER)
     ULONG HighestNodeNumber;
     if (!GetNumaHighestNodeNumber(&HighestNodeNumber))
@@ -4882,88 +4883,62 @@ void ServerPCICFGUncore::initMemTest()
         std::cerr << "ERROR: GetNumaHighestNodeNumber call failed." << std::endl;
         return;
     }
-    SYSTEM_INFO SystemInfo;
-    GetSystemInfo(&SystemInfo);
-    const DWORD PageSize = SystemInfo.dwPageSize;
-    for (int i = 0; i < PCM_MEM_CAPACITY / PageSize; ++i)
+    memBufferBlockSize = 4096;
+    for (int i = 0; i < PCM_MEM_CAPACITY / memBufferBlockSize; ++i)
     {
-        if (i == 0)
+        LPVOID result = VirtualAllocExNuma(
+            GetCurrentProcess(),
+            NULL,
+            memBufferBlockSize,
+            MEM_RESERVE | MEM_COMMIT,
+            PAGE_READWRITE,
+            i % (HighestNodeNumber + 1)
+        );
+
+        if (result == NULL)
         {
-            LPVOID result = VirtualAllocExNuma(
-                GetCurrentProcess(),
-                NULL,
-                PageSize,
-                MEM_RESERVE | MEM_COMMIT,
-                PAGE_READWRITE,
-                i % (HighestNodeNumber + 1)
-            );
-            if (result == NULL)
+            std::cerr << "ERROR: " << i << " VirtualAllocExNuma failed." << std::endl;
+            for (auto b : memBuffers)
             {
-                std::cerr << "ERROR: " << i << " VirtualAllocExNuma failed." << std::endl;
-                return;
+                VirtualFree(b, memBufferBlockSize, MEM_RELEASE);
             }
-            else
-            {
-                memBuffer = (uint64 *)result;
-            }
+            memBuffers.clear();
+            break;
         }
         else
         {
-            LPVOID desired = ((char*)memBuffer) + i*PageSize;
-            LPVOID result = VirtualAllocExNuma(
-                GetCurrentProcess(),
-                desired,
-                PageSize,
-                MEM_RESERVE | MEM_COMMIT,
-                PAGE_READWRITE,
-                i % (HighestNodeNumber + 1)
-            );
-            if (result != desired)
-            {
-                std::cerr << "ERROR: "<< i <<" VirtualAllocExNuma failed." << std::endl;
-                for (int j = 0; j < i; ++j)
-                {
-                    VirtualFree(((char*)memBuffer) + j*PageSize, PageSize, MEM_RELEASE);
-                }
-                memBuffer = NULL;
-                return;
-            }
+            memBuffers.push_back((uint64 *)result);
         }
     }
     #else
     std::cerr << "ERROR: memory test is not implemented. QPI/UPI speed and utilization metrics may not be reliable."<< std::endl;
     #endif
-    if (memBuffer)
-    {
-        std::fill(memBuffer, memBuffer + (PCM_MEM_CAPACITY / sizeof(uint64)), 0ULL);
-    }
+    for (auto b : memBuffers)
+        std::fill(b, b + (memBufferBlockSize / sizeof(uint64)), 0ULL);
 }
 
 void ServerPCICFGUncore::doMemTest()
 {
-    if (memBuffer == NULL) return;
     // read and write each cache line once
-    for(unsigned int i=0; i < PCM_MEM_CAPACITY/sizeof(uint64); i += 64/sizeof(uint64))
-    {
-        (memBuffer[i])++;
-    }
+    for (auto b : memBuffers)
+        for (unsigned int i = 0; i < memBufferBlockSize / sizeof(uint64); i += 64 / sizeof(uint64))
+        {
+            (b[i])++;
+        }
 }
 
 void ServerPCICFGUncore::cleanupMemTest()
 {
-    if (memBuffer == NULL) return;
-    #ifdef __linux__
-    munmap(memBuffer, PCM_MEM_CAPACITY);
-    #elif defined(_MSC_VER)
-    SYSTEM_INFO SystemInfo;
-    GetSystemInfo(&SystemInfo);
-    const DWORD PageSize = SystemInfo.dwPageSize;
-    for (int i = 0; i < PCM_MEM_CAPACITY / PageSize; ++i)
+    for (auto b : memBuffers)
     {
-        VirtualFree(((char*)memBuffer) + i*PageSize, PageSize, MEM_RELEASE);
+#ifdef __linux__
+        munmap(b, memBufferBlockSize);
+#elif defined(_MSC_VER)
+        VirtualFree(b, memBufferBlockSize, MEM_RELEASE);
+#else
+#endif
     }
-    #else
-    #endif
+    memBuffers.clear();
 }
 
 uint64 ServerPCICFGUncore::computeQPISpeed(const uint32 core_nr, const int cpumodel)
