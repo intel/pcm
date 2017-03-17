@@ -4900,59 +4900,120 @@ void ServerPCICFGUncore::enableJKTWorkaround(bool enable)
 
 void ServerPCICFGUncore::initMemTest()
 {
-    #ifdef __linux__
+    memBuffer = NULL;
+#ifdef __linux__
     size_t capacity = PCM_MEM_CAPACITY;
-    char * buffer = (char *) mmap(NULL, capacity, PROT_READ | PROT_WRITE,
-                        MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
+    char * buffer = (char *)mmap(NULL, capacity, PROT_READ | PROT_WRITE,
+        MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
     if (buffer == MAP_FAILED) {
-       std::cerr << "ERROR: mmap failed"<< std::endl;
-       return;
+        std::cerr << "ERROR: mmap failed" << std::endl;
+        return;
     }
     unsigned long maxNode = (unsigned long)(readMaxFromSysFS("/sys/devices/system/node/online") + 1);
-    if(maxNode == 0)
+    if (maxNode == 0)
     {
-       std::cerr << "ERROR: max node is 0 "<< std::endl;
-       return;
+        std::cerr << "ERROR: max node is 0 " << std::endl;
+        return;
     }
-    if(maxNode >= 63) maxNode = 63;
-    const unsigned long nodeMask = (1<<maxNode)-1;
+    if (maxNode >= 63) maxNode = 63;
+    const unsigned long nodeMask = (1 << maxNode) - 1;
     if (0 != syscall(SYS_mbind, buffer, capacity, 3 /* MPOL_INTERLEAVE */,
-                 &nodeMask, maxNode, 0))
+        &nodeMask, maxNode, 0))
     {
-       std::cerr << "ERROR: mbind failed"<< std::endl;
-       return;
+        std::cerr << "ERROR: mbind failed" << std::endl;
+        return;
     }
     std::fill(buffer, buffer + capacity, 0);
     memBuffer = (uint64*)buffer;
+#elif defined(_MSC_VER)
+    ULONG HighestNodeNumber;
+    if (!GetNumaHighestNodeNumber(&HighestNodeNumber))
+    {
+        std::cerr << "ERROR: GetNumaHighestNodeNumber call failed." << std::endl;
+        return;
+    }
+    SYSTEM_INFO SystemInfo;
+    GetSystemInfo(&SystemInfo);
+    const DWORD PageSize = SystemInfo.dwPageSize;
+    for (int i = 0; i < PCM_MEM_CAPACITY / PageSize; ++i)
+    {
+        if (i == 0)
+        {
+            LPVOID result = VirtualAllocExNuma(
+                GetCurrentProcess(),
+                NULL,
+                PageSize,
+                MEM_RESERVE | MEM_COMMIT,
+                PAGE_READWRITE,
+                i % (HighestNodeNumber + 1)
+            );
+            if (result == NULL)
+            {
+                std::cerr << "ERROR: " << i << " VirtualAllocExNuma failed." << std::endl;
+                break;
+            }
+            else
+            {
+                memBuffer = (uint64 *)result;
+            }
+        }
+        else
+        {
+            LPVOID desired = ((char*)memBuffer) + i*PageSize;
+            LPVOID result = VirtualAllocExNuma(
+                GetCurrentProcess(),
+                desired,
+                PageSize,
+                MEM_RESERVE | MEM_COMMIT,
+                PAGE_READWRITE,
+                i % (HighestNodeNumber + 1)
+            );
+            if (result != desired)
+            {
+                std::cerr << "ERROR: "<< i <<" VirtualAllocExNuma failed." << std::endl;
+                for (int j = 0; j < i; ++j)
+                {
+                    VirtualFree(((char*)memBuffer) + j*PageSize, PageSize, MEM_RELEASE);
+                }
+                memBuffer = NULL;
+                break;
+            }
+        }
+    }
     #else
-    std::cerr << "ERROR: memory test is not implemented"<< std::endl;
+    std::cerr << "ERROR: memory test is not implemented. QPI/UPI speed and utilization metrics may not be reliable."<< std::endl;
     #endif
 }
 
 void ServerPCICFGUncore::doMemTest()
 {
-    #ifdef __linux__
+    if (memBuffer == NULL) return;
     // read and write each cache line once
     for(unsigned int i=0; i < PCM_MEM_CAPACITY/sizeof(uint64); i += 64/sizeof(uint64))
     {
         (memBuffer[i])++;
     }
-    #endif
 }
 
 void ServerPCICFGUncore::cleanupMemTest()
 {
+    if (memBuffer == NULL) return;
     #ifdef __linux__
     munmap(memBuffer, PCM_MEM_CAPACITY);
+    #elif defined(_MSC_VER)
+    SYSTEM_INFO SystemInfo;
+    GetSystemInfo(&SystemInfo);
+    const DWORD PageSize = SystemInfo.dwPageSize;
+    for (int i = 0; i < PCM_MEM_CAPACITY / PageSize; ++i)
+    {
+        VirtualFree(((char*)memBuffer) + i*PageSize, PageSize, MEM_RELEASE);
+    }
     #else
     #endif
 }
 
 uint64 ServerPCICFGUncore::computeQPISpeed(const uint32 core_nr, const int cpumodel)
 {
-    #ifndef __linux__
-    if(cpumodel == PCM::SKX) return 0; // not supported on SKX
-    #endif
     if(qpi_speed.empty())
     {
         TemporalThreadAffinity aff(core_nr);
