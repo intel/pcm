@@ -4923,7 +4923,6 @@ void ServerPCICFGUncore::initMemTest()
         std::cerr << "ERROR: mbind failed" << std::endl;
         return;
     }
-    std::fill(buffer, buffer + capacity, 0);
     memBuffer = (uint64*)buffer;
 #elif defined(_MSC_VER)
     ULONG HighestNodeNumber;
@@ -4950,7 +4949,7 @@ void ServerPCICFGUncore::initMemTest()
             if (result == NULL)
             {
                 std::cerr << "ERROR: " << i << " VirtualAllocExNuma failed." << std::endl;
-                break;
+                return;
             }
             else
             {
@@ -4976,13 +4975,17 @@ void ServerPCICFGUncore::initMemTest()
                     VirtualFree(((char*)memBuffer) + j*PageSize, PageSize, MEM_RELEASE);
                 }
                 memBuffer = NULL;
-                break;
+                return;
             }
         }
     }
     #else
     std::cerr << "ERROR: memory test is not implemented. QPI/UPI speed and utilization metrics may not be reliable."<< std::endl;
     #endif
+    if (memBuffer)
+    {
+        std::fill(memBuffer, memBuffer + (PCM_MEM_CAPACITY / sizeof(uint64)), 0ULL);
+    }
 }
 
 void ServerPCICFGUncore::doMemTest()
