@@ -28,6 +28,10 @@ ifeq ($(UNAME), DragonFly)
 LIB= -pthread -lrt
 CXXFLAGS += -std=c++0x
 endif
+ifeq ($(UNAME), DragonFly)
+LIB= -pthread -lrt
+CXXFLAGS += -std=c++0x
+endif
 ifeq ($(UNAME), Darwin)
 LIB= -lpthread MacMSRDriver/build/Release/libPcmMsr.dylib 
 CXXFLAGS += -I/usr/include -IMacMSRDriver -std=c++0x
