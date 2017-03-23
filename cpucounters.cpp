@@ -35,6 +35,17 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include "types.h"
 #include "utils.h"
 
+#if defined (__FreeBSD__) || defined(__DragonFly__)
+#include <sys/param.h>
+#include <sys/module.h>
+#include <sys/types.h>
+#include <sys/sysctl.h>
+#include <sys/sem.h>
+#include <sys/ioccom.h>
+#include <sys/cpuctl.h>
+#include <machine/cpufunc.h>
+#endif
+
 #ifdef _MSC_VER
 #include <intrin.h>
 #include <windows.h>
@@ -44,6 +55,9 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include "PCM_Win/windriver.h"
 #else
 #include <pthread.h>
+#if defined(__FreeBSD__) || (defined(__DragonFly__) && __DragonFly_version >= 400707)
+#include <pthread_np.h>
+#endif
 #include <errno.h>
 #include <sys/time.h>
 #ifdef __linux__
@@ -64,17 +78,6 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 // convertUnknownToInt is used in the safe sysctl call to convert an unkown size to an int
 int convertUnknownToInt(size_t size, char* value);
 
-#endif
-
-#if defined (__FreeBSD__)
-#include <sys/param.h>
-#include <sys/module.h>
-#include <sys/types.h>
-#include <sys/sysctl.h>
-#include <sys/sem.h>
-#include <sys/ioccom.h>
-#include <sys/cpuctl.h>
-#include <machine/cpufunc.h>
 #endif
 
 #undef PCM_UNCORE_PMON_BOX_CHECK_STATUS // debug only
@@ -189,9 +192,9 @@ public:
 #endif // end of _MSC_VER else
 
 
-class TemporalThreadAffinity  // speedup trick for Linux
+class TemporalThreadAffinity  // speedup trick for Linux, FreeBSD, DragonFlyBSD
 {
-#ifdef __linux__
+#if defined(__linux__) || defined(__FreeBSD__) || (defined(__DragonFly__) && __DragonFly_version >= 400707)
     cpu_set_t old_affinity;
     TemporalThreadAffinity(); // forbiden
 
@@ -861,7 +864,7 @@ bool PCM::discoverSystemTopology()
     delete[] base_slpi;
 
 #else
-    // for Linux and Mac OS
+    // for Linux, Mac OS, FreeBSD and DragonFlyBSD
 
     TopologyEntry entry;
 
@@ -965,15 +968,15 @@ bool PCM::discoverSystemTopology()
     }
     std::cerr << std::endl;
 #endif // PCM_DEBUG_TOPOLOGY
-#elif defined(__FreeBSD__) 
+#elif defined(__FreeBSD__) || defined(__DragonFly__)
 
     size_t size = sizeof(num_cores);
-    cpuctl_cpuid_args_t cpuid_args_freebds;
+    cpuctl_cpuid_args_t cpuid_args_freebsd;
     int fd;
 
-    if(0 != sysctlbyname("kern.smp.cpus", &num_cores, &size, NULL, 0))
+    if(0 != sysctlbyname("hw.ncpu", &num_cores, &size, NULL, 0))
     {
-        std::cerr << "Unable to get kern.smp.cpus from sysctl." << std::endl;
+        std::cerr << "Unable to get hw.ncpu from sysctl." << std::endl;
         return false;
     }
 
@@ -991,11 +994,11 @@ bool PCM::discoverSystemTopology()
         snprintf(cpuctl_name, 64, "/dev/cpuctl%d", i);
         fd = ::open(cpuctl_name, O_RDWR);
 
-        cpuid_args_freebds.level = 0xb;
+        cpuid_args_freebsd.level = 0xb;
 
-        ::ioctl(fd, CPUCTL_CPUID, &cpuid_args_freebds);
+        ::ioctl(fd, CPUCTL_CPUID, &cpuid_args_freebsd);
 
-        apic_id = cpuid_args_freebds.data[3];
+        apic_id = cpuid_args_freebsd.data[3];
 
         entry.os_id = i;
         entry.socket = apic_id / apic_ids_per_package;
@@ -1177,7 +1180,7 @@ bool PCM::initMSR()
 #elif defined(__linux__)
         std::cerr << "Try to execute 'modprobe msr' as root user and then" << std::endl;
         std::cerr << "you also must have read and write permissions for /dev/cpu/*/msr devices (/dev/msr* for Android). The 'chown' command can help." << std::endl;
-#elif defined(__FreeBSD__)
+#elif defined(__FreeBSD__) || defined(__DragonFly__)
         std::cerr << "Ensure cpuctl module is loaded and that you have read and write" << std::endl;
         std::cerr << "permissions for /dev/cpuctl* devices (the 'chown' command can help)." << std::endl;
 #endif
@@ -1711,7 +1714,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
             return PCM::Success;
         }
 
-    #else // if linux or apple
+    #else // if linux, apple, freebsd or dragonflybsd
         numInstancesSemaphore = sem_open(PCM_NUM_INSTANCES_SEMAPHORE_NAME, O_CREAT, S_IRWXU | S_IRWXG | S_IRWXO, 0);
         if (SEM_FAILED == numInstancesSemaphore)
         {
@@ -1889,7 +1892,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
 
     programmed_pmu = true;
 
-    // Version for linux/windows
+    // Version for linux/windows/freebsd/dragonflybsd
     for (int i = 0; i < (int)num_cores; ++i)
     {
         // program core counters
