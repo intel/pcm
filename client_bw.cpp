@@ -169,7 +169,7 @@ ClientBW::~ClientBW()
 
 #else
 
-#if defined(__linux__) || defined(__FreeBSD__)
+#if defined(__linux__) || defined(__FreeBSD__) || defined(__DragonFly__)
 // Linux implementation
 
 ClientBW::ClientBW() :
