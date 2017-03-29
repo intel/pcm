@@ -593,7 +593,8 @@ void PCM::initCStateSupportTables()
         case ATOM_AVOTON:
         case ATOM_BAYTRAIL:
         case ATOM_CHERRYTRAIL:
-	case ATOM_APOLLO_LAKE:
+	    case ATOM_APOLLO_LAKE:
+        case ATOM_DENVERTON:
             PCM_CSTATE_ARRAY(pkgCStateMsr, PCM_PARAM_PROTECT({0,    0,  0x3F8,      0,  0x3F9,  0,  0x3FA,  0,      0,  0,  0 }) );
         case NEHALEM_EP:
         case NEHALEM:
@@ -657,7 +658,8 @@ void PCM::initCStateSupportTables()
         case ATOM_BAYTRAIL:
         case ATOM_AVOTON:
         case ATOM_CHERRYTRAIL:
-	case ATOM_APOLLO_LAKE:
+	    case ATOM_APOLLO_LAKE:
+        case ATOM_DENVERTON:
         case SKL_UY:
         case SKL:
             PCM_CSTATE_ARRAY(coreCStateMsr, PCM_PARAM_PROTECT({0,	0,	0,	0x3FC,	0,	0,	0x3FD,	0x3FE,	0,	0,	0}) );
@@ -1207,7 +1209,8 @@ bool PCM::detectNominalFrequency()
                || cpu_model == HASWELL
                || cpu_model == BROADWELL
                || original_cpu_model == ATOM_AVOTON
-	       || original_cpu_model == ATOM_APOLLO_LAKE
+	           || original_cpu_model == ATOM_APOLLO_LAKE
+               || original_cpu_model == ATOM_DENVERTON
                || cpu_model == SKL
                || cpu_model == KNL
                || cpu_model == SKX
@@ -1565,7 +1568,8 @@ bool PCM::checkModel()
         || cpu_model == ATOM_BAYTRAIL
         || cpu_model == ATOM_AVOTON
         || cpu_model == ATOM_CHERRYTRAIL
-	|| cpu_model == ATOM_APOLLO_LAKE
+	    || cpu_model == ATOM_APOLLO_LAKE
+        || cpu_model == ATOM_DENVERTON
         ) {
         cpu_model = ATOM;
     }
