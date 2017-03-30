@@ -3,7 +3,7 @@
 all: libpcm.so
 
 OPT= -g -O3
-CXXFLAGS+= -Wall -fPIC $(OPT) -std=c++0x
+CXXFLAGS+= -Wall -fPIC $(OPT) -std=c++0x -DPCM_SILENT
 vpath %.cpp ..
 
 libpcm.so: msr.o cpucounters.o pci.o client_bw.o utils.o pcm-core.o
