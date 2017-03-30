@@ -1671,6 +1671,7 @@ double getDRAMConsumedJoules(const CounterStateType & before, const CounterState
     if (PCM::HASWELLX == m->getCPUModel()
         || PCM::BDX_DE == m->getCPUModel()
         || PCM::BDX == m->getCPUModel()
+        || PCM::SKX == m->getCPUModel()
         || PCM::KNL == m->getCPUModel()
         ) {
 /* as described in sections 5.3.2 (DRAM_POWER_INFO) and 5.3.3 (DRAM_ENERGY_STATUS) of
