@@ -1202,7 +1202,9 @@ bool PCM::detectNominalFrequency()
 		    return false;
         }
 
+#ifndef PCM_SILENT
         std::cerr << "Nominal core frequency: " << nominal_frequency << " Hz" << std::endl;
+#endif
     }
 
     return true;
@@ -1229,9 +1231,11 @@ void PCM::initEnergyMonitoring()
         pkgMinimumPower = (int32) (double(extract_bits(package_power_info, 16, 30))*wattsPerPowerUnit);
         pkgMaximumPower = (int32) (double(extract_bits(package_power_info, 32, 46))*wattsPerPowerUnit);
 
+#ifndef PCM_SILENT
         std::cerr << "Package thermal spec power: "<< pkgThermalSpecPower << " Watt; ";
         std::cerr << "Package minimum power: "<< pkgMinimumPower << " Watt; ";
         std::cerr << "Package maximum power: "<< pkgMaximumPower << " Watt; " << std::endl;
+#endif
 
         int i = 0;
 
@@ -1434,7 +1438,9 @@ PCM::PCM() :
 
     if(!discoverSystemTopology()) return;
 
+#ifndef PCM_SILENT
     printSystemTopology();
+#endif
 
     if(!initMSR()) return;
 
@@ -2476,7 +2482,9 @@ void PCM::cleanupPMU()
     if(cpu_model == JAKETOWN)
         enableJKTWorkaround(false);
 
+#ifndef PCM_SILENT
     std::cerr << " Zeroed PMU registers" << std::endl;
+#endif
 }
 
 void PCM::resetPMU()
@@ -2509,7 +2517,9 @@ void PCM::resetPMU()
             MSR[i]->write(IA32_CR_FIXED_CTR_CTRL, 0);
     }
 
+#ifndef PCM_SILENT
     std::cerr << " Zeroed PMU registers" << std::endl;
+#endif
 }
 void PCM::freeRMID()
 {

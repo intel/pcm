@@ -85,7 +85,6 @@ extern "C" {
 		conf.OffcoreResponseMsrValue[0] = events[0].msr_value;
 		conf.OffcoreResponseMsrValue[1] = events[1].msr_value;
 
-		cerr << "\n Resetting PMU configuration" << endl;
 		m->resetPMU();
 		PCM::ErrorCode status = m->program(PCM::EXT_CUSTOM_CORE_EVENTS, &conf);
 		if(status == PCM::Success)
