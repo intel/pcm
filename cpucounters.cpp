@@ -96,8 +96,12 @@ HMODULE hOpenLibSys = NULL;
 bool PCM::initWinRing0Lib()
 {
 	const BOOL result = InitOpenLibSys(&hOpenLibSys);
-	
-	if(result == FALSE) hOpenLibSys = NULL;
+
+    if (result == FALSE)
+    {
+        hOpenLibSys = NULL;
+        return false;
+    }
 
     BYTE major, minor, revision, release;
     GetDriverVersion(&major, &minor, &revision, &release);
@@ -105,7 +109,7 @@ bool PCM::initWinRing0Lib()
     swprintf_s(buffer, 128, _T("\\\\.\\WinRing0_%d_%d_%d"),(int)major,(int)minor, (int)revision);
     restrictDriverAccess(buffer);
 
-	return result==TRUE;
+	return true;
 }
 
 class InstanceLock
