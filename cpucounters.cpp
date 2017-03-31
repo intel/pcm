@@ -614,6 +614,7 @@ void PCM::initCStateSupportTables()
         case BROADWELL:
         case SKL:
         case SKL_UY:
+        case KBL:
         case BROADWELL_XEON_E3:
             PCM_CSTATE_ARRAY(pkgCStateMsr, PCM_PARAM_PROTECT({0,    0,  0x60D,  0x3F8,      0,  0,  0x3F9,  0x3FA,  0x630,  0x631,  0x632}) );
 
@@ -655,6 +656,7 @@ void PCM::initCStateSupportTables()
         case ATOM_DENVERTON:
         case SKL_UY:
         case SKL:
+        case KBL:
             PCM_CSTATE_ARRAY(coreCStateMsr, PCM_PARAM_PROTECT({0,	0,	0,	0x3FC,	0,	0,	0x3FD,	0x3FE,	0,	0,	0}) );
         case KNL:
             PCM_CSTATE_ARRAY(coreCStateMsr, PCM_PARAM_PROTECT({0,	0,	0,	0,	0,	0,	0x3FF,	0,	0,	0,	0}) );
@@ -1193,6 +1195,7 @@ bool PCM::detectNominalFrequency()
 	           || original_cpu_model == ATOM_APOLLO_LAKE
                || original_cpu_model == ATOM_DENVERTON
                || cpu_model == SKL
+               || cpu_model == KBL
                || cpu_model == KNL
                ) ? (100000000ULL) : (133333333ULL);
 
@@ -1284,7 +1287,7 @@ void PCM::initUncoreObjects()
             std::cerr << "You must be root to access these Jaketown/Ivytown counters in PCM. " << std::endl;
                 #endif
         }
-    } else if((cpu_model == SANDY_BRIDGE || cpu_model == IVY_BRIDGE || cpu_model == HASWELL || cpu_model == BROADWELL || cpu_model == SKL) && MSR.size())
+    } else if((cpu_model == SANDY_BRIDGE || cpu_model == IVY_BRIDGE || cpu_model == HASWELL || cpu_model == BROADWELL || cpu_model == SKL || cpu_model == KBL) && MSR.size())
     {
        // initialize memory bandwidth counting
        try
@@ -1514,6 +1517,7 @@ bool PCM::isCPUModelSupported(int model_)
             || model_ == BROADWELL
             || model_ == KNL
             || model_ == SKL
+            || model_ == KBL
            );
 }
 
@@ -1533,6 +1537,7 @@ bool PCM::checkModel()
     if (cpu_model == HASWELL_ULT || cpu_model == HASWELL_2) cpu_model = HASWELL;
     if (cpu_model == BROADWELL_XEON_E3) cpu_model = BROADWELL;
     if (cpu_model == SKL_UY) cpu_model = SKL;
+    if (cpu_model == KBL_1) cpu_model = KBL;
 
     if(!isCPUModelSupported((int)cpu_model))
     {
@@ -1773,7 +1778,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
             coreEventDesc[1].umask_value = ARCH_LLC_REFERENCE_UMASK;
             core_gen_counter_num_used = 2;
 
-        } else if ( SKL == cpu_model )
+        } else if ( useSkylakeEvents() )
         {
             coreEventDesc[0].event_number = SKL_MEM_LOAD_RETIRED_L3_MISS_EVTNR;
             coreEventDesc[0].umask_value = SKL_MEM_LOAD_RETIRED_L3_MISS_UMASK;
@@ -2457,6 +2462,8 @@ const char * PCM::getUArchCodename(int32 cpu_model_) const
             return "Broadwell";
         case SKL:
             return "Skylake";
+        case KBL:
+            return "Kabylake";
     }
     return "unknown";
 }
@@ -2866,6 +2873,7 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
     case PCM::HASWELL:
     case PCM::BROADWELL:
     case PCM::SKL:
+    case PCM::KBL:
         msr->read(IA32_PMC0, &cL3Miss);
         msr->read(IA32_PMC1, &cL3UnsharedHit);
         msr->read(IA32_PMC2, &cL2HitM);
