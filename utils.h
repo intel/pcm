@@ -27,6 +27,7 @@ CT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
 #include <cstdio>
 #include <cstring>
 #include <fstream>
+#include <time.h>
 #include "cpucounters.h"
 
 #ifndef _MSC_VER
@@ -169,5 +170,59 @@ public:
     ~ThreadGroupTempAffinity();
 };
 #endif
+
+
+
+// a secure (but partial) alternative for sscanf
+// see example usage in pcm-core.cpp
+typedef std::istringstream pcm_sscanf;
+
+class s_expect : public std::string
+{
+public:
+    explicit s_expect(const char * s) : std::string(s) {}
+    explicit s_expect(const std::string & s) : std::string(s) {}
+    friend std::istream & operator >> (std::istream & istr, s_expect && s);
+    friend std::istream & operator >> (std::istream && istr, s_expect && s);
+private:
+
+    void match(std::istream & istr) const
+    {
+        istr >> std::noskipws;
+        const auto len = length();
+        char * buffer = new char[len + 2];
+        buffer[0] = 0;
+        istr.get(buffer, len+1);
+        if (*this != std::string(buffer))
+        {
+            istr.setstate(std::ios_base::failbit);
+        }
+        delete [] buffer;
+    }
+};
+
+inline std::istream & operator >> (std::istream & istr, s_expect && s)
+{
+    s.match(istr);
+    return istr;
+}
+
+inline std::istream & operator >> (std::istream && istr, s_expect && s)
+{
+    s.match(istr);
+    return istr;
+}
+
+inline tm pcm_localtime()
+{
+    time_t now = time(NULL);
+    tm result;
+#ifdef _MSC_VER
+    localtime_s(&result, &now);
+#else
+    localtime_r(&now, &result);
+#endif
+    return result;
+}
 
 #endif

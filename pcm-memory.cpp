@@ -1,6 +1,6 @@
 /*
 
-   Copyright (c) 2009-2012, Intel Corporation
+   Copyright (c) 2009-2017, Intel Corporation
    All rights reserved.
 
    Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -21,7 +21,6 @@
 #define HACK_TO_REMOVE_DUPLICATE_ERROR
 #include <iostream>
 #ifdef _MSC_VER
-#pragma warning(disable : 4996) // for sprintf
 #include <windows.h>
 #include "../PCM_Win/windriver.h"
 #else
@@ -410,11 +409,10 @@ void display_bandwidth_csv_header(PCM *m, memdata_t *md)
 void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 elapsedTime)
 {
     uint32 numSockets = m->getNumSockets();
-    time_t t = time(NULL);
-    tm *tt = localtime(&t);
+    tm tt = pcm_localtime();
     cout.precision(3);
-    cout << 1900+tt->tm_year << '-' << 1+tt->tm_mon << '-' << tt->tm_mday << ';'
-         << tt->tm_hour << ':' << tt->tm_min << ':' << tt->tm_sec << ';';
+    cout << 1900+tt.tm_year << '-' << 1+tt.tm_mon << '-' << tt.tm_mday << ';'
+         << tt.tm_hour << ':' << tt.tm_min << ':' << tt.tm_sec << ';';
 
 
     float sysRead = 0.0, sysWrite = 0.0;
@@ -555,7 +553,7 @@ void calculate_bandwidth(PCM *m, const ServerUncorePowerState uncState1[], const
                 \r|--           DIMM Rank Monitoring        --|\n\
                 \r|-------------------------------------------|\n\
                 \r";
-            for(uint64 channel = 0; channel < max_imc_channels; ++channel)
+            for(uint32 channel = 0; channel < max_imc_channels; ++channel)
             {
                 if(rankA >=0)
                   cout << "|-- Mem Ch "
@@ -622,6 +620,8 @@ int main(int argc, char * argv[])
     int calibrated = PCM_CALIBRATION_INTERVAL - 2; // keeps track is the clock calibration needed
 #endif
     int rankA = -1, rankB = -1;
+    unsigned int numberOfIterations = 0; // number of iterations
+
     string program = string(argv[0]);
 
     PCM * m = PCM::getInstance();
@@ -649,6 +649,20 @@ int main(int argc, char * argv[])
                 string filename = cmd.substr(found+1);
                 if (!filename.empty()) {
                     m->setOutput(filename);
+                }
+            }
+            continue;
+        }
+	else
+        if (strncmp(*argv, "-i", 2) == 0 ||
+            strncmp(*argv, "/i", 2) == 0)
+        {
+            string cmd = string(*argv);
+            size_t found = cmd.find('=', 2);
+            if (found != string::npos) {
+                string tmp = cmd.substr(found + 1);
+                if (!tmp.empty()) {
+                    numberOfIterations = (unsigned int)atoi(tmp.c_str());
                 }
             }
             continue;
@@ -812,7 +826,9 @@ int main(int argc, char * argv[])
         MySystem(sysCmd, sysArgv);
     }
 
-    while(1)
+    unsigned int i = 1;
+
+    while ((i <= numberOfIterations) || (numberOfIterations == 0))
     {
         if(!csv) cout << std::flush;
         int delay_ms = int(delay * 1000);
@@ -862,6 +878,7 @@ int main(int argc, char * argv[])
         // in case PCM was blocked after spawning child application: break monitoring loop here
             break;
         }
+	++i;
     }
 
     delete[] BeforeState;

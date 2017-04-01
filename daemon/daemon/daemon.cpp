@@ -65,13 +65,13 @@ namespace PCMDaemon {
 		{
 			if(debugMode_)
 			{
-				time_t rawtime;
-				struct tm * timeinfo;
-				char timeBuffer[200];
-				time ( &rawtime );
-				timeinfo = localtime ( &rawtime );
-				
-				sprintf(timeBuffer, "[%02d %02d %04d %02d:%02d:%02d]",timeinfo->tm_mday, timeinfo->tm_mon + 1, timeinfo->tm_year + 1900, timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec);
+                time_t rawtime;
+                struct tm timeinfo;
+                char timeBuffer[200];
+                time(&rawtime);
+                localtime_r(&rawtime, &timeinfo);
+
+                snprintf(timeBuffer, 200, "[%02d %02d %04d %02d:%02d:%02d]", timeinfo.tm_mday, timeinfo.tm_mon + 1, timeinfo.tm_year + 1900, timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
 
 				std::cout << timeBuffer << "\tFetching counters..." << std::endl;
 			}

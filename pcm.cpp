@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2009-2012, Intel Corporation
+Copyright (c) 2009-2017, Intel Corporation
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -21,7 +21,6 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #define HACK_TO_REMOVE_DUPLICATE_ERROR
 #include <iostream>
 #ifdef _MSC_VER
-#pragma warning(disable : 4996) // for sprintf
 #include <windows.h>
 #include "../PCM_Win/windriver.h"
 #else
@@ -783,13 +782,12 @@ void print_csv(PCM * m,
     struct timeval timestamp;
     gettimeofday(&timestamp, NULL);
 #endif
-    time_t t = time(NULL);
-    tm *tt = localtime(&t);
+    tm tt = pcm_localtime();
     char old_fill = cout.fill('0');
     cout.precision(3);
-    cout << endl << setw(4) << 1900 + tt->tm_year << '-' << setw(2) << 1 + tt->tm_mon << '-'
-        << setw(2) << tt->tm_mday << ';' << setw(2) << tt->tm_hour << ':'
-        << setw(2) << tt->tm_min << ':' << setw(2) << tt->tm_sec
+    cout << endl << setw(4) << 1900 + tt.tm_year << '-' << setw(2) << 1 + tt.tm_mon << '-'
+        << setw(2) << tt.tm_mday << ';' << setw(2) << tt.tm_hour << ':'
+        << setw(2) << tt.tm_min << ':' << setw(2) << tt.tm_sec
 #ifdef _MSC_VER
         << ';';
 #else
