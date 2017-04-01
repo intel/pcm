@@ -736,7 +736,8 @@ public:
         ATOM_BAYTRAIL = 55,
         ATOM_AVOTON = 77,
         ATOM_CHERRYTRAIL = 76,
-	ATOM_APOLLO_LAKE = 92,
+	    ATOM_APOLLO_LAKE = 92,
+        ATOM_DENVERTON = 95,
         CLARKDALE = 37,
         WESTMERE_EP = 44,
         NEHALEM_EX = 46,
@@ -753,6 +754,8 @@ public:
         BROADWELL_XEON_E3 = 71,
         BDX_DE = 86,
         SKL_UY = 78,
+        KBL = 158,
+        KBL_1 = 142,
         BDX = 79,
         KNL = 87,
         SKL = 94,
@@ -896,6 +899,7 @@ public:
         case BDX_DE:
         case BDX:
         case SKL:
+        case KBL:
             return 4;
         case ATOM:
         case KNL:
@@ -1019,13 +1023,15 @@ public:
                  || original_cpu_model == PCM::ATOM_AVOTON
                  || original_cpu_model == PCM::ATOM_CHERRYTRAIL
                  || original_cpu_model == PCM::ATOM_BAYTRAIL
-		 || original_cpu_model == PCM::ATOM_APOLLO_LAKE
+		         || original_cpu_model == PCM::ATOM_APOLLO_LAKE
+                 || original_cpu_model == PCM::ATOM_DENVERTON
                  || cpu_model == PCM::HASWELLX
                  || cpu_model == PCM::BROADWELL
                  || cpu_model == PCM::BDX_DE
                  || cpu_model == PCM::BDX
                  || cpu_model == PCM::KNL
                  || cpu_model == PCM::SKL
+                 || cpu_model == PCM::KBL
                );
     }
 
@@ -1094,6 +1100,7 @@ public:
             || cpu_model == PCM::HASWELL
             || cpu_model == PCM::BROADWELL
             || cpu_model == PCM::SKL
+            || cpu_model == PCM::KBL
             );
     }
 
@@ -1121,7 +1128,8 @@ public:
 
     bool useSkylakeEvents() const
     {
-        return PCM::SKL == cpu_model;
+        return    PCM::SKL == cpu_model
+               || PCM::KBL == cpu_model;
     }
 
     ~PCM();

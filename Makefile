@@ -22,7 +22,7 @@ UNAME:=$(shell uname)
 
 ifeq ($(UNAME), Linux)
 LIB= -pthread -lrt
-CXXFLAGS += -std=c++0x
+CXXFLAGS += -std=c++11
 endif
 ifeq ($(UNAME), DragonFly)
 LIB= -pthread -lrt

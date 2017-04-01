@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2009-2014, Intel Corporation
+Copyright (c) 2009-2017, Intel Corporation
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -96,8 +96,12 @@ HMODULE hOpenLibSys = NULL;
 bool PCM::initWinRing0Lib()
 {
 	const BOOL result = InitOpenLibSys(&hOpenLibSys);
-	
-	if(result == FALSE) hOpenLibSys = NULL;
+
+    if (result == FALSE)
+    {
+        hOpenLibSys = NULL;
+        return false;
+    }
 
     BYTE major, minor, revision, release;
     GetDriverVersion(&major, &minor, &revision, &release);
@@ -105,7 +109,7 @@ bool PCM::initWinRing0Lib()
     swprintf_s(buffer, 128, _T("\\\\.\\WinRing0_%d_%d_%d"),(int)major,(int)minor, (int)revision);
     restrictDriverAccess(buffer);
 
-	return result==TRUE;
+	return true;
 }
 
 class InstanceLock
@@ -588,7 +592,8 @@ void PCM::initCStateSupportTables()
         case ATOM_AVOTON:
         case ATOM_BAYTRAIL:
         case ATOM_CHERRYTRAIL:
-	case ATOM_APOLLO_LAKE:
+	    case ATOM_APOLLO_LAKE:
+        case ATOM_DENVERTON:
             PCM_CSTATE_ARRAY(pkgCStateMsr, PCM_PARAM_PROTECT({0,    0,  0x3F8,      0,  0x3F9,  0,  0x3FA,  0,      0,  0,  0 }) );
         case NEHALEM_EP:
         case NEHALEM:
@@ -613,6 +618,7 @@ void PCM::initCStateSupportTables()
         case BROADWELL:
         case SKL:
         case SKL_UY:
+        case KBL:
         case BROADWELL_XEON_E3:
             PCM_CSTATE_ARRAY(pkgCStateMsr, PCM_PARAM_PROTECT({0,    0,  0x60D,  0x3F8,      0,  0,  0x3F9,  0x3FA,  0x630,  0x631,  0x632}) );
 
@@ -650,9 +656,11 @@ void PCM::initCStateSupportTables()
         case ATOM_BAYTRAIL:
         case ATOM_AVOTON:
         case ATOM_CHERRYTRAIL:
-	case ATOM_APOLLO_LAKE:
+	    case ATOM_APOLLO_LAKE:
+        case ATOM_DENVERTON:
         case SKL_UY:
         case SKL:
+        case KBL:
             PCM_CSTATE_ARRAY(coreCStateMsr, PCM_PARAM_PROTECT({0,	0,	0,	0x3FC,	0,	0,	0x3FD,	0x3FE,	0,	0,	0}) );
         case KNL:
             PCM_CSTATE_ARRAY(coreCStateMsr, PCM_PARAM_PROTECT({0,	0,	0,	0,	0,	0,	0x3FF,	0,	0,	0,	0}) );
@@ -848,10 +856,10 @@ bool PCM::discoverSystemTopology()
     }
     fclose(f_presentcpus);
     num_cores = -1;
-    sscanf(buffer, "0-%d", &num_cores);
+    pcm_sscanf(buffer) >> s_expect("0-") >> num_cores;
     if(num_cores == -1)
     {
-       sscanf(buffer, "%d", &num_cores);
+       pcm_sscanf(buffer) >> num_cores;
     }
     if(num_cores == -1)
     {
@@ -876,7 +884,7 @@ bool PCM::discoverSystemTopology()
     {
         if (strncmp(buffer, "processor", sizeof("processor") - 1) == 0)
         {
-            sscanf(buffer, "processor\t: %d", &entry.os_id);
+            pcm_sscanf(buffer) >> s_expect("processor\t: ") >> entry.os_id;
             //std::cout << "os_core_id: "<<entry.os_id<< std::endl;
             TemporalThreadAffinity _(entry.os_id);
             pcm_cpuid(0xb, 0x0, cpuid_args);
@@ -1188,8 +1196,10 @@ bool PCM::detectNominalFrequency()
                || cpu_model == HASWELL
                || cpu_model == BROADWELL
                || original_cpu_model == ATOM_AVOTON
-	       || original_cpu_model == ATOM_APOLLO_LAKE
+	           || original_cpu_model == ATOM_APOLLO_LAKE
+               || original_cpu_model == ATOM_DENVERTON
                || cpu_model == SKL
+               || cpu_model == KBL
                || cpu_model == KNL
                ) ? (100000000ULL) : (133333333ULL);
 
@@ -1205,7 +1215,9 @@ bool PCM::detectNominalFrequency()
 		    return false;
         }
 
+#ifndef PCM_SILENT
         std::cerr << "Nominal core frequency: " << nominal_frequency << " Hz" << std::endl;
+#endif
     }
 
     return true;
@@ -1232,9 +1244,11 @@ void PCM::initEnergyMonitoring()
         pkgMinimumPower = (int32) (double(extract_bits(package_power_info, 16, 30))*wattsPerPowerUnit);
         pkgMaximumPower = (int32) (double(extract_bits(package_power_info, 32, 46))*wattsPerPowerUnit);
 
+#ifndef PCM_SILENT
         std::cerr << "Package thermal spec power: "<< pkgThermalSpecPower << " Watt; ";
         std::cerr << "Package minimum power: "<< pkgMinimumPower << " Watt; ";
         std::cerr << "Package maximum power: "<< pkgMaximumPower << " Watt; " << std::endl;
+#endif
 
         int i = 0;
 
@@ -1277,7 +1291,7 @@ void PCM::initUncoreObjects()
             std::cerr << "You must be root to access these Jaketown/Ivytown counters in PCM. " << std::endl;
                 #endif
         }
-    } else if((cpu_model == SANDY_BRIDGE || cpu_model == IVY_BRIDGE || cpu_model == HASWELL || cpu_model == BROADWELL || cpu_model == SKL) && MSR.size())
+    } else if((cpu_model == SANDY_BRIDGE || cpu_model == IVY_BRIDGE || cpu_model == HASWELL || cpu_model == BROADWELL || cpu_model == SKL || cpu_model == KBL) && MSR.size())
     {
        // initialize memory bandwidth counting
        try
@@ -1349,7 +1363,7 @@ bool isNMIWatchdogEnabled()
         return true;
     }
     int enabled = 1;
-    sscanf(buffer, "%d", &enabled);
+    pcm_sscanf(buffer) >> enabled;
     fclose(f);
 
     if(enabled == 1)
@@ -1437,7 +1451,9 @@ PCM::PCM() :
 
     if(!discoverSystemTopology()) return;
 
+#ifndef PCM_SILENT
     printSystemTopology();
+#endif
 
     if(!initMSR()) return;
 
@@ -1505,6 +1521,7 @@ bool PCM::isCPUModelSupported(int model_)
             || model_ == BROADWELL
             || model_ == KNL
             || model_ == SKL
+            || model_ == KBL
            );
 }
 
@@ -1516,13 +1533,15 @@ bool PCM::checkModel()
         || cpu_model == ATOM_BAYTRAIL
         || cpu_model == ATOM_AVOTON
         || cpu_model == ATOM_CHERRYTRAIL
-	|| cpu_model == ATOM_APOLLO_LAKE
+	    || cpu_model == ATOM_APOLLO_LAKE
+        || cpu_model == ATOM_DENVERTON
         ) {
         cpu_model = ATOM;
     }
     if (cpu_model == HASWELL_ULT || cpu_model == HASWELL_2) cpu_model = HASWELL;
     if (cpu_model == BROADWELL_XEON_E3) cpu_model = BROADWELL;
     if (cpu_model == SKL_UY) cpu_model = SKL;
+    if (cpu_model == KBL_1) cpu_model = KBL;
 
     if(!isCPUModelSupported((int)cpu_model))
     {
@@ -1763,7 +1782,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
             coreEventDesc[1].umask_value = ARCH_LLC_REFERENCE_UMASK;
             core_gen_counter_num_used = 2;
 
-        } else if ( SKL == cpu_model )
+        } else if ( useSkylakeEvents() )
         {
             coreEventDesc[0].event_number = SKL_MEM_LOAD_RETIRED_L3_MISS_EVTNR;
             coreEventDesc[0].umask_value = SKL_MEM_LOAD_RETIRED_L3_MISS_UMASK;
@@ -2447,6 +2466,8 @@ const char * PCM::getUArchCodename(int32 cpu_model_) const
             return "Broadwell";
         case SKL:
             return "Skylake";
+        case KBL:
+            return "Kabylake";
     }
     return "unknown";
 }
@@ -2479,7 +2500,9 @@ void PCM::cleanupPMU()
     if(cpu_model == JAKETOWN)
         enableJKTWorkaround(false);
 
+#ifndef PCM_SILENT
     std::cerr << " Zeroed PMU registers" << std::endl;
+#endif
 }
 
 void PCM::resetPMU()
@@ -2512,7 +2535,9 @@ void PCM::resetPMU()
             MSR[i]->write(IA32_CR_FIXED_CTR_CTRL, 0);
     }
 
+#ifndef PCM_SILENT
     std::cerr << " Zeroed PMU registers" << std::endl;
+#endif
 }
 void PCM::freeRMID()
 {
@@ -2852,6 +2877,7 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
     case PCM::HASWELL:
     case PCM::BROADWELL:
     case PCM::SKL:
+    case PCM::KBL:
         msr->read(IA32_PMC0, &cL3Miss);
         msr->read(IA32_PMC1, &cL3UnsharedHit);
         msr->read(IA32_PMC2, &cL2HitM);
