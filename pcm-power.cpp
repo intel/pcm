@@ -160,6 +160,7 @@ int main(int argc, char * argv[])
     bool csv = false;
     long diff_usec = 0;                            // deviation of clock is useconds between measurements
     int calibrated = PCM_CALIBRATION_INTERVAL - 2; // keeps track is the clock calibration needed
+    unsigned int numberOfIterations = 0; // number of iterations
     string program = string(argv[0]);
 
     PCM * m = PCM::getInstance();
@@ -185,6 +186,20 @@ int main(int argc, char * argv[])
                     string filename = cmd.substr(found + 1);
                     if (!filename.empty()) {
                         m->setOutput(filename);
+                    }
+                }
+                continue;
+            }
+            else
+            if (strncmp(*argv, "-i", 2) == 0 ||
+                strncmp(*argv, "/i", 2) == 0)
+            {
+                string cmd = string(*argv);
+                size_t found = cmd.find('=', 2);
+                if (found != string::npos) {
+                    string tmp = cmd.substr(found + 1);
+                    if (!tmp.empty()) {
+                    numberOfIterations = (unsigned int)atoi(tmp.c_str());
                     }
                 }
                 continue;
@@ -308,7 +323,9 @@ int main(int argc, char * argv[])
         MySystem(sysCmd, sysArgv);
     }
 
-    while (1)
+    unsigned int ic = 1;
+
+    while ((ic <= numberOfIterations) || (numberOfIterations == 0))
     {
         std::cout << "----------------------------------------------------------------------------------------------" << std::endl;
 
@@ -508,6 +525,7 @@ int main(int argc, char * argv[])
             // in case PCM was blocked after spawning child application: break monitoring loop here
             break;
         }
+	++ic;
     }
 
     delete[] BeforeState;
