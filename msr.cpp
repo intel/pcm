@@ -157,10 +157,11 @@ uint32 MsrHandle::decrementNumInstances()
     return driver->decrementNumInstances();
 }
 
-#elif (defined __FreeBSD__)
+#elif defined(__FreeBSD__) || defined(__DragonFly__)
 
 #include <sys/ioccom.h>
 #include <sys/cpuctl.h>
+
 MsrHandle::MsrHandle(uint32 cpu) : fd(-1), cpu_id(cpu)
 {
     char path[200];

@@ -25,6 +25,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #ifndef _MSC_VER
 #include <sys/mman.h>
 #include <errno.h>
+#include <strings.h>
 #endif
 
 #ifdef _MSC_VER
@@ -214,7 +215,7 @@ int32 PciHandle::read64(uint64 offset, uint64 * value)
 PciHandle::~PciHandle()
 { }
 
-#elif (defined __FreeBSD__)
+#elif defined (__FreeBSD__) || defined(__DragonFly__)
 
 #include <sys/pciio.h>
 
