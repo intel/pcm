@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009-2016, Intel Corporation
+   Copyright (c) 2009-2017, Intel Corporation
    All rights reserved.
 
    Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -18,10 +18,8 @@
 #include <cstring>
 #include <stdint.h>
 
-static const char VERSION[] = "1.0.1";
-
-//P=80, C=67, M=77
-#define SHARED_MEMORY_KEY 806777 + sizeof(PCMDaemon::SharedPCMState)
+static const char DEFAULT_SHM_ID_LOCATION[] = "/tmp/opcm-daemon-shm-id";
+static const char VERSION[] = "1.0.2";
 
 #define MAX_CPU_CORES 4096
 #define MAX_SOCKETS 256
