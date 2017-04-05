@@ -1399,6 +1399,8 @@ class BasicCounterState
     friend uint64 getRefCycles(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
     friend double getCoreCStateResidency(int state, const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
+    friend uint64 getSMICount(const CounterStateType & before, const CounterStateType & after);
 
 protected:
     uint64 InstRetiredAny;
@@ -1433,6 +1435,7 @@ protected:
     void readAndAggregateTSC(std::shared_ptr<SafeMsrHandle>);
     uint64 MemoryBWLocal;
     uint64 MemoryBWTotal;
+    uint64 SMICount;
 
 public:
     BasicCounterState() :
@@ -1447,7 +1450,8 @@ public:
         ThermalHeadroom(PCM_INVALID_THERMAL_HEADROOM),
         L3Occupancy(0),
         MemoryBWLocal(0),
-        MemoryBWTotal(0)
+        MemoryBWTotal(0),
+        SMICount(0)
     {
         memset(CStateResidency, 0, sizeof(CStateResidency));
     }
@@ -1469,6 +1473,7 @@ public:
         L3Occupancy += o.L3Occupancy;
         MemoryBWLocal += o.MemoryBWLocal;
         MemoryBWTotal += o.MemoryBWTotal;
+        SMICount += o.SMICount;
         return *this;
     }
 
@@ -2545,6 +2550,18 @@ template <class CounterStateType>
 uint64 getIORequestBytesFromMC(const CounterStateType & before, const CounterStateType & after)
 {
     return (after.UncMCIORequests - before.UncMCIORequests) * 64;
+}
+
+/*! \brief Returns the number of occured system management interrupts
+
+    \param before CPU counter state before the experiment
+    \param after CPU counter state after the experiment
+    \return Number of SMIs (system manegement interrupts)
+*/
+template <class CounterStateType>
+uint64 getSMICount(const CounterStateType & before, const CounterStateType & after)
+{
+    return after.SMICount - before.SMICount;
 }
 
 /*! \brief Returns the number of occured custom core events
