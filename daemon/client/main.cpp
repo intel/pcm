@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009-2016, Intel Corporation
+   Copyright (c) 2009-2017, Intel Corporation
    All rights reserved.
 
    Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -28,6 +28,8 @@ void printTitle(std::string title)
 int main(int argc, char *argv[])
 {
 	PCMDaemon::Client client;
+	// client.setSharedMemoryIdLocation("/tmp/test-file");
+	client.connect();
 	client.setPollInterval(atoi(argv[1]));
 
 	int coutPrecision = 2;
