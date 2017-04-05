@@ -2834,6 +2834,7 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
     uint64 cCStateResidency[PCM::MAX_C_STATE + 1];
     memset(cCStateResidency, 0, sizeof(cCStateResidency));
     uint64 thermStatus = 0;
+    uint64 cSMICount = 0;
     const int32 core_id = msr->getCoreId();
     TemporalThreadAffinity tempThreadAffinity(core_id); // speedup trick for Linux
 
@@ -2914,6 +2915,8 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
     // reading temperature
     msr->read(MSR_IA32_THERM_STATUS, &thermStatus);
 
+    msr->read(MSR_SMI_COUNT, &cSMICount);
+
     InstRetiredAny += m->extractCoreFixedCounterValue(cInstRetiredAny);
     CpuClkUnhaltedThread += m->extractCoreFixedCounterValue(cCpuClkUnhaltedThread);
     CpuClkUnhaltedRef += m->extractCoreFixedCounterValue(cCpuClkUnhaltedRef);
@@ -2927,6 +2930,7 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
     for(int i=0; i <= int(PCM::MAX_C_STATE);++i)
         CStateResidency[i] += cCStateResidency[i];
     ThermalHeadroom = extractThermalHeadroom(thermStatus);
+    SMICount += cSMICount;
 }
 
 PCM::ErrorCode PCM::programServerUncoreMemoryMetrics(int rankA, int rankB)

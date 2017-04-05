@@ -465,6 +465,8 @@ struct BecktonUncorePMUCNTCTLRegister
     };
 };
 
+#define MSR_SMI_COUNT (0x3fd)
+
 /* \brief Sandy Bridge energy counters
 */
 
