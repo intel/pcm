@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009-2016, Intel Corporation
+   Copyright (c) 2009-2017, Intel Corporation
    All rights reserved.
 
    Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -29,6 +29,7 @@
 
 namespace PCMDaemon {
 
+	std::string Daemon::shmIdLocation_;
 	int Daemon::sharedMemoryId_;
 	SharedPCMState* Daemon::sharedPCMState_;
 
@@ -39,15 +40,14 @@ namespace PCMDaemon {
 		allowedSubscribers_.push_back("memory");
 		allowedSubscribers_.push_back("qpi");
 
+		shmIdLocation_ = std::string(DEFAULT_SHM_ID_LOCATION);
 		sharedMemoryId_ = 0;
 		sharedPCMState_ = NULL;
 
 		readApplicationArguments(argc, argv);
-
+		setupSharedMemory();
 		setupPCM();
 		
-		setupSharedMemory();
-
 		//Put the poll interval in shared memory so that the client knows
 		sharedPCMState_->pollMs = pollIntervalMs_;
 
@@ -200,7 +200,7 @@ namespace PCMDaemon {
 
 		std::cout << std::endl;
 
-		while ((opt = getopt(argc, argv, "p:c:dg:m:")) != -1)
+		while ((opt = getopt(argc, argv, "p:c:dg:m:s:")) != -1)
 		{
 			switch (opt) {
 			case 'p':
@@ -264,7 +264,14 @@ namespace PCMDaemon {
 						printExampleUsageAndExit(argv);
 					}
 
-					std::cout << "Operational mode: " << mode << std::endl;
+					std::cout << "Operational mode: " << mode_ << std::endl;
+				}
+				break;
+			case 's':
+				{
+					shmIdLocation_ = std::string(optarg);
+
+					std::cout << "Shared memory ID location: " << shmIdLocation_ << std::endl;
 				}
 				break;
 			default:
@@ -309,22 +316,35 @@ namespace PCMDaemon {
 
 		std::cerr << std::endl << "-d flag for debug output [optional]" << std::endl;
 		std::cerr << "-g <group> to restrict access to group [optional]" << std::endl;
-		std::cerr << "-m <mode> stores differences or absolute values (Allowed: difference absolute) Default: difference [optional]" << std::endl << std::endl;
+		std::cerr << "-m <mode> stores differences or absolute values (Allowed: difference absolute) Default: difference [optional]" << std::endl;
+		std::cerr << "-s <filepath> to store shared memory ID Default: " << std::string(DEFAULT_SHM_ID_LOCATION) << " [optional]" << std::endl;
+
+		std::cerr << std::endl;
 
 		exit(EXIT_FAILURE);
 	}
 
-	void Daemon::setupSharedMemory(key_t key)
+	void Daemon::setupSharedMemory()
 	{
 		int mode = 0660;
 		int shmFlag = IPC_CREAT | mode;
 
-		sharedMemoryId_ = shmget(key, sizeof(SharedPCMState), shmFlag);
+		sharedMemoryId_ = shmget(IPC_PRIVATE, sizeof(SharedPCMState), shmFlag);
 		if (sharedMemoryId_ < 0)
 		{
 			std::cerr << "Failed to allocate shared memory segment (errno=" << errno << ")" << std::endl;
 			exit(EXIT_FAILURE);
 		}
+
+		//Store shm id in SHM_KEY_LOCATION file
+		FILE *fp = fopen (shmIdLocation_.c_str(), "w");
+		if (fp < 0)
+		{
+			std::cerr << "Failed to create/write to shared memory key location: " << shmIdLocation_ << std::endl;
+			exit(EXIT_FAILURE);
+		}
+		fprintf (fp, "%i", sharedMemoryId_);
+		fclose (fp);
 
 		if(groupName_.size() > 0)
 		{
@@ -338,6 +358,15 @@ namespace PCMDaemon {
 			if(success < 0)
 			{
 				std::cerr << "Failed to IPC_SET (errno=" << errno << ")" << std::endl;
+				exit(EXIT_FAILURE);
+			}
+
+			//Change group of shared memory ID file
+			uid_t uid = geteuid();
+			success = chown(shmIdLocation_.c_str(), uid, gid);
+			if(success < 0)
+			{
+				std::cerr << "Failed to change ownership of shared memory key location: " << shmIdLocation_ << std::endl;
 				exit(EXIT_FAILURE);
 			}
 		}
@@ -670,11 +699,11 @@ namespace PCMDaemon {
 	{
 		if(sharedPCMState_ != NULL)
 		{
-			// Detatch shared memory segment
+			//Detatch shared memory segment
 			int success = shmdt(sharedPCMState_);
 			if(success != 0)
 			{
-				std::cerr << "An error occurred when detatching the shared memory segment (errno=" << errno << ")" << std::endl;
+				std::cerr << "Failed to detatch the shared memory segment (errno=" << errno << ")" << std::endl;
 			}
 			else
 			{
@@ -682,8 +711,15 @@ namespace PCMDaemon {
 				success = shmctl(sharedMemoryId_, IPC_RMID, NULL);
 				if(success != 0)
 				{
-					std::cerr << "An error occurred when deleting the shared memory segment (errno=" << errno << ")" << std::endl;
+					std::cerr << "Failed to delete the shared memory segment (errno=" << errno << ")" << std::endl;
 				}
+			}
+
+			//Delete shared memory ID file
+			success = remove(shmIdLocation_.c_str());
+			if(success != 0)
+			{
+				std::cerr << "Failed to delete shared memory id location: " << shmIdLocation_ << " (errno=" << errno << ")" << std::endl;
 			}
 		}
 	}
