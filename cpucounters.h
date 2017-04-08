@@ -268,6 +268,7 @@ class PCM_API PCM
     int32 num_sockets;
     int32 num_phys_cores_per_socket;
     int32 num_online_cores;
+    int32 num_online_sockets;
     uint32 core_gen_counter_num_max;
     uint32 core_gen_counter_num_used;
     uint32 core_gen_counter_width;
@@ -726,9 +727,15 @@ public:
 
     /*! \brief Return true if the core in online
 
-        \param i OS core id
+        \param os_core_id OS core id
     */
     bool isCoreOnline(int32 os_core_id) const;
+
+    /*! \brief Return true if the socket in online
+
+        \param socket_id OS socket id
+    */
+    bool isSocketOnline(int32 socket_id) const;
 
     /*! \brief Reads the counter state of the system
 
@@ -769,6 +776,11 @@ public:
             \return Number of sockets in the system
     */
     uint32 getNumSockets();
+
+    /*! \brief Reads number of online sockets (CPUs) in the system
+            \return Number of online sockets in the system
+    */
+    uint32 getNumOnlineSockets();
 
     /*! \brief Reads how many hardware threads has a physical core
             "Hardware thread" is a logical core in a different terminology.

@@ -31,6 +31,8 @@ Graphical front ends:
 
 There is also a utility for reading/writing Intel model specific registers (pcm-msr) supported on Linux, Windows, Mac OS X and FreeBDS.
 
+And finally a daemon that stores core, memory and QPI counters in shared memory that can be be accessed by non-root users.
+
 --------------------------------------------------------------------------------
 PCM API documentation
 --------------------------------------------------------------------------------

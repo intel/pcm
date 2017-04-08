@@ -1111,12 +1111,21 @@ bool PCM::discoverSystemTopology()
 
     int32 i = 0;
 
-    socketRefCore.resize(num_sockets);
+    socketRefCore.resize(num_sockets, -1);
     for(i = 0; i < num_cores; ++i)
     {
         if(isCoreOnline(i))
         {
             socketRefCore[topology[i].socket] = i;
+        }
+    }
+
+    num_online_sockets = 0;
+    for(i = 0; i < num_sockets; ++i)
+    {
+        if(isSocketOnline(i))
+        {
+            ++num_online_sockets;
         }
     }
 
@@ -1431,6 +1440,7 @@ PCM::PCM() :
     num_sockets(0),
     num_phys_cores_per_socket(0),
     num_online_cores(0),
+    num_online_sockets(0),
     core_gen_counter_num_max(0),
     core_gen_counter_num_used(0), // 0 means no core gen counters used
     core_gen_counter_width(0),
@@ -1542,6 +1552,11 @@ void PCM::enableJKTWorkaround(bool enable)
 bool PCM::isCoreOnline(int32 os_core_id) const
 {
     return (topology[os_core_id].os_id != -1) && (topology[os_core_id].core_id != -1) && (topology[os_core_id].socket != -1);
+}
+
+bool PCM::isSocketOnline(int32 socket_id) const
+{
+    return socketRefCore[socket_id] != -1;
 }
 
 bool PCM::isCPUModelSupported(int model_)
@@ -3576,6 +3591,12 @@ uint32 PCM::getNumSockets()
 {
     return (uint32)num_sockets;
 }
+
+uint32 PCM::getNumOnlineSockets()
+{
+    return (uint32)num_online_sockets;
+}
+
 
 uint32 PCM::getThreadsPerCore()
 {
