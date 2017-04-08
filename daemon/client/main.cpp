@@ -56,200 +56,219 @@ int main(int argc, char *argv[])
 
 		std::cout << std::endl << std::endl;
 
+//		Display system counters
+		printTitle("Num. of cores");
+		std::cout << counters.system.numOfCores << std::endl;
+		
+		printTitle("Num. of online cores");
+		std::cout << counters.system.numOfOnlineCores << std::endl;
+		
+		printTitle("Num. of sockets");
+		std::cout << counters.system.numOfSockets << std::endl;
+		
+		printTitle("Num. of online sockets");
+		std::cout << counters.system.numOfOnlineSockets << std::endl;
+		
+		printTitle("QPI links per socket");
+		std::cout << counters.system.numOfQPILinksPerSocket << std::endl;
+
+		std::cout << std::endl << std::endl;
+
 //		Display core counters
 		printTitle("Core ID");
-		for(PCMDaemon::uint32 i = 0; i < counters.core.numOfOnlineCores; ++i)
+		for(PCMDaemon::uint32 i = 0; i < counters.system.numOfOnlineCores; ++i)
 		{
 			std::cout << std::setprecision(coutPrecision) << counters.core.cores[i].coreId << " ";
 		}
 		std::cout << std::endl;
 
 		printTitle("Socket ID");
-		for(PCMDaemon::uint32 i = 0; i < counters.core.numOfOnlineCores; ++i)
+		for(PCMDaemon::uint32 i = 0; i < counters.system.numOfOnlineCores; ++i)
 		{
 			std::cout << std::setprecision(coutPrecision) << counters.core.cores[i].socketId << " ";
 		}
 		std::cout << std::endl;
 
 		printTitle("IPC");
-		for(PCMDaemon::uint32 i = 0; i < counters.core.numOfOnlineCores; ++i)
+		for(PCMDaemon::uint32 i = 0; i < counters.system.numOfOnlineCores; ++i)
 		{
 			std::cout << std::setprecision(coutPrecision) << counters.core.cores[i].instructionsPerCycle << " ";
 		}
 		std::cout << std::endl;
 
 		printTitle("Cycles");
-		for(PCMDaemon::uint32 i = 0; i < counters.core.numOfOnlineCores; ++i)
+		for(PCMDaemon::uint32 i = 0; i < counters.system.numOfOnlineCores; ++i)
 		{
 			std::cout << std::setprecision(coutPrecision) << counters.core.cores[i].cycles << " ";
 		}
 		std::cout << std::endl;
 
 		printTitle("Inst. Ret.");
-		for(PCMDaemon::uint32 i = 0; i < counters.core.numOfOnlineCores; ++i)
+		for(PCMDaemon::uint32 i = 0; i < counters.system.numOfOnlineCores; ++i)
 		{
 			std::cout << std::setprecision(coutPrecision) << counters.core.cores[i].instructionsRetired << " ";
 		}
 		std::cout << std::endl;
 
 		printTitle("Exec usg.");
-		for(PCMDaemon::uint32 i = 0; i < counters.core.numOfOnlineCores; ++i)
+		for(PCMDaemon::uint32 i = 0; i < counters.system.numOfOnlineCores; ++i)
 		{
 			std::cout << std::setprecision(coutPrecision) << counters.core.cores[i].execUsage << " ";
 		}
 		std::cout << std::endl;
 
 		printTitle("Rela. Freq.");
-		for(PCMDaemon::uint32 i = 0; i < counters.core.numOfOnlineCores; ++i)
+		for(PCMDaemon::uint32 i = 0; i < counters.system.numOfOnlineCores; ++i)
 		{
 			std::cout << std::setprecision(coutPrecision) << counters.core.cores[i].relativeFrequency << " ";
 		}
 		std::cout << std::endl;
 
 		printTitle("Active Rela. Freq");
-		for(PCMDaemon::uint32 i = 0; i < counters.core.numOfOnlineCores; ++i)
+		for(PCMDaemon::uint32 i = 0; i < counters.system.numOfOnlineCores; ++i)
 		{
 			std::cout << std::setprecision(coutPrecision) << counters.core.cores[i].activeRelativeFrequency << " ";
 		}
 		std::cout << std::endl;
 
 		printTitle("L3 C Miss");
-		for(PCMDaemon::uint32 i = 0; i < counters.core.numOfOnlineCores; ++i)
+		for(PCMDaemon::uint32 i = 0; i < counters.system.numOfOnlineCores; ++i)
 		{
 			std::cout << std::setprecision(coutPrecision) << counters.core.cores[i].l3CacheMisses << " ";
 		}
 		std::cout << std::endl;
 
 		printTitle("L3 C Reference");
-		for(PCMDaemon::uint32 i = 0; i < counters.core.numOfOnlineCores; ++i)
+		for(PCMDaemon::uint32 i = 0; i < counters.system.numOfOnlineCores; ++i)
 		{
 			std::cout << std::setprecision(coutPrecision) << counters.core.cores[i].l3CacheReference << " ";
 		}
 		std::cout << std::endl;
 
 		printTitle("L2 C Miss");
-		for(PCMDaemon::uint32 i = 0; i < counters.core.numOfOnlineCores; ++i)
+		for(PCMDaemon::uint32 i = 0; i < counters.system.numOfOnlineCores; ++i)
 		{
 			std::cout << std::setprecision(coutPrecision) << counters.core.cores[i].l2CacheMisses << " ";
 		}
 		std::cout << std::endl;
 
 		printTitle("L3 Hit Ratio");
-		for(PCMDaemon::uint32 i = 0; i < counters.core.numOfOnlineCores; ++i)
+		for(PCMDaemon::uint32 i = 0; i < counters.system.numOfOnlineCores; ++i)
 		{
 			std::cout << std::setprecision(coutPrecision) << counters.core.cores[i].l3CacheHitRatio << " ";
 		}
 		std::cout << std::endl;
 
 		printTitle("L2 Hit Ratio");
-		for(PCMDaemon::uint32 i = 0; i < counters.core.numOfOnlineCores; ++i)
+		for(PCMDaemon::uint32 i = 0; i < counters.system.numOfOnlineCores; ++i)
 		{
 			std::cout << std::setprecision(coutPrecision) << counters.core.cores[i].l2CacheHitRatio << " ";
 		}
 		std::cout << std::endl;
 
 		printTitle("L3 C MPI");
-		for(PCMDaemon::uint32 i = 0; i < counters.core.numOfOnlineCores; ++i)
+		for(PCMDaemon::uint32 i = 0; i < counters.system.numOfOnlineCores; ++i)
 		{
 			std::cout << std::setprecision(coutPrecision) << counters.core.cores[i].l3CacheMPI << " ";
 		}
 		std::cout << std::endl;
 
 		printTitle("L2 C MPI");
-		for(PCMDaemon::uint32 i = 0; i < counters.core.numOfOnlineCores; ++i)
+		for(PCMDaemon::uint32 i = 0; i < counters.system.numOfOnlineCores; ++i)
 		{
 			std::cout << std::setprecision(coutPrecision) << counters.core.cores[i].l2CacheMPI << " ";
 		}
 		std::cout << std::endl;
 
 		printTitle("L3 Occu. Avail.");
-		for(PCMDaemon::uint32 i = 0; i < counters.core.numOfOnlineCores; ++i)
+		for(PCMDaemon::uint32 i = 0; i < counters.system.numOfOnlineCores; ++i)
 		{
 			std::cout << std::setprecision(coutPrecision) << counters.core.cores[i].l3CacheOccupancyAvailable << " ";
 		}
 		std::cout << std::endl;
 
 		printTitle("L3 Occu.");
-		for(PCMDaemon::uint32 i = 0; i < counters.core.numOfOnlineCores; ++i)
+		for(PCMDaemon::uint32 i = 0; i < counters.system.numOfOnlineCores; ++i)
 		{
 			std::cout << std::setprecision(coutPrecision) << counters.core.cores[i].l3CacheOccupancy << " ";
 		}
 		std::cout << std::endl;
 
 		printTitle("L. Mem. BW Avail.");
-		for(PCMDaemon::uint32 i = 0; i < counters.core.numOfOnlineCores; ++i)
+		for(PCMDaemon::uint32 i = 0; i < counters.system.numOfOnlineCores; ++i)
 		{
 			std::cout << std::setprecision(coutPrecision) << counters.core.cores[i].localMemoryBWAvailable << " ";
 		}
 		std::cout << std::endl;
 
 		printTitle("L. Mem. BW");
-		for(PCMDaemon::uint32 i = 0; i < counters.core.numOfOnlineCores; ++i)
+		for(PCMDaemon::uint32 i = 0; i < counters.system.numOfOnlineCores; ++i)
 		{
 			std::cout << std::setprecision(coutPrecision) << counters.core.cores[i].localMemoryBW << " ";
 		}
 		std::cout << std::endl;
 
 		printTitle("R. Mem. BW Avail.");
-		for(PCMDaemon::uint32 i = 0; i < counters.core.numOfOnlineCores; ++i)
+		for(PCMDaemon::uint32 i = 0; i < counters.system.numOfOnlineCores; ++i)
 		{
 			std::cout << std::setprecision(coutPrecision) << counters.core.cores[i].remoteMemoryBWAvailable << " ";
 		}
 		std::cout << std::endl;
 
 		printTitle("R. Mem. BW");
-		for(PCMDaemon::uint32 i = 0; i < counters.core.numOfOnlineCores; ++i)
+		for(PCMDaemon::uint32 i = 0; i < counters.system.numOfOnlineCores; ++i)
 		{
 			std::cout << std::setprecision(coutPrecision) << counters.core.cores[i].remoteMemoryBW << " ";
 		}
 		std::cout << std::endl;
 
 		printTitle("L. Mem. Accesses");
-		for(PCMDaemon::uint32 i = 0; i < counters.core.numOfOnlineCores; ++i)
+		for(PCMDaemon::uint32 i = 0; i < counters.system.numOfOnlineCores; ++i)
 		{
 			std::cout << std::setprecision(coutPrecision) << counters.core.cores[i].localMemoryAccesses << " ";
 		}
 		std::cout << std::endl;
 
 		printTitle("R. Mem. Accesses");
-		for(PCMDaemon::uint32 i = 0; i < counters.core.numOfOnlineCores; ++i)
+		for(PCMDaemon::uint32 i = 0; i < counters.system.numOfOnlineCores; ++i)
 		{
 			std::cout << std::setprecision(coutPrecision) << counters.core.cores[i].remoteMemoryAccesses << " ";
 		}
 		std::cout << std::endl;
 
 		printTitle("Thermal headroom");
-		for(PCMDaemon::uint32 i = 0; i < counters.core.numOfOnlineCores; ++i)
+		for(PCMDaemon::uint32 i = 0; i < counters.system.numOfOnlineCores; ++i)
 		{
 			std::cout << std::setprecision(coutPrecision) << counters.core.cores[i].thermalHeadroom << " ";
 		}
 		std::cout << std::endl;
 
 		std::cout << std::endl << std::endl;
+
 //		Display memory counters
 		printTitle("Mem Read p/Sock.");
-		for(PCMDaemon::uint32 i = 0; i < counters.memory.numOfSockets; ++i)
+		for(PCMDaemon::uint32 i = 0; i < counters.system.numOfOnlineSockets; ++i)
 		{
 			std::cout << std::setprecision(coutPrecision) << counters.memory.sockets[i].read << " ";
 		}
 		std::cout << std::endl;
 
 		printTitle("Mem Write p/Sock.");
-		for(PCMDaemon::uint32 i = 0; i < counters.memory.numOfSockets; ++i)
+		for(PCMDaemon::uint32 i = 0; i < counters.system.numOfOnlineSockets; ++i)
 		{
 			std::cout << std::setprecision(coutPrecision) << counters.memory.sockets[i].write << " ";
 		}
 		std::cout << std::endl;
 
 		printTitle("Mem Part. p/Sock.");
-		for(PCMDaemon::uint32 i = 0; i < counters.memory.numOfSockets; ++i)
+		for(PCMDaemon::uint32 i = 0; i < counters.system.numOfOnlineSockets; ++i)
 		{
 			std::cout << std::setprecision(coutPrecision) << counters.memory.sockets[i].partialWrite << " ";
 		}
 		std::cout << std::endl;
 
 		printTitle("Mem Total p/Sock.");
-		for(PCMDaemon::uint32 i = 0; i < counters.memory.numOfSockets; ++i)
+		for(PCMDaemon::uint32 i = 0; i < counters.system.numOfOnlineSockets; ++i)
 		{
 			std::cout << std::setprecision(coutPrecision) << counters.memory.sockets[i].total << " ";
 		}
@@ -272,18 +291,15 @@ int main(int argc, char *argv[])
 		std::cout << std::endl;
 
 		printTitle("Mem Energy p/Sock");
-		for(PCMDaemon::uint32 i = 0; i < counters.memory.numOfSockets; ++i)
+		for(PCMDaemon::uint32 i = 0; i < counters.system.numOfOnlineSockets; ++i)
 		{
-			std::cout << std::setprecision(coutPrecision) << counters.memory.dramEnergyForSockets[i] << " ";
+			std::cout << std::setprecision(coutPrecision) << counters.memory.sockets[i].dramEnergy << " ";
 		}
 		std::cout << std::endl;
 
 		std::cout << std::endl << std::endl;
-//		Display QPI counters
-		printTitle("QPI Links p/Sock");
-		std::cout << std::setprecision(coutPrecision) << counters.qpi.numOfLinksPerSocket << " ";
-		std::cout << std::endl;
 
+//		Display QPI counters
 		printTitle("QPI in. Avail.");
 		std::cout << std::setprecision(coutPrecision) << counters.qpi.incomingQPITrafficMetricsAvailable << " ";
 		std::cout << std::endl;
@@ -293,24 +309,24 @@ int main(int argc, char *argv[])
 		std::cout << std::endl;
 
 		printTitle("QPI in. p/Sock");
-		for(PCMDaemon::uint32 i = 0; i < counters.qpi.numOfSockets; ++i)
+		for(PCMDaemon::uint32 i = 0; i < counters.system.numOfOnlineSockets; ++i)
 		{
 			std::cout << std::setprecision(coutPrecision) << counters.qpi.incoming[i].total << " ";
 		}
 		std::cout << std::endl;
 
 		printTitle("QPI out. p/Sock");
-		for(PCMDaemon::uint32 i = 0; i < counters.qpi.numOfSockets; ++i)
+		for(PCMDaemon::uint32 i = 0; i < counters.system.numOfOnlineSockets; ++i)
 		{
 			std::cout << std::setprecision(coutPrecision) << counters.qpi.outgoing[i].total << " ";
 		}
 		std::cout << std::endl;
 
 		printTitle("QPI in. p/Link/Sock");
-		for(PCMDaemon::uint32 i = 0; i < counters.qpi.numOfSockets; ++i)
+		for(PCMDaemon::uint32 i = 0; i < counters.system.numOfOnlineSockets; ++i)
 		{
 			std::cout << i << " ";
-			for(PCMDaemon::uint32 l = 0; l < counters.qpi.numOfLinksPerSocket; ++l)
+			for(PCMDaemon::uint32 l = 0; l < counters.system.numOfQPILinksPerSocket; ++l)
 			{
 				std::cout << std::setw(12) << std::left << std::setprecision(coutPrecision) << counters.qpi.incoming[i].links[l].bytes << " ";
 			}
@@ -318,7 +334,7 @@ int main(int argc, char *argv[])
 			printTitle("");
 
 			std::cout << i << " ";
-			for(PCMDaemon::uint32 l = 0; l < counters.qpi.numOfLinksPerSocket; ++l)
+			for(PCMDaemon::uint32 l = 0; l < counters.system.numOfQPILinksPerSocket; ++l)
 			{
 				std::cout << std::setw(12) << std::left << std::setprecision(coutPrecision) << counters.qpi.incoming[i].links[l].utilization << " ";
 			}
@@ -328,10 +344,10 @@ int main(int argc, char *argv[])
 		std::cout << std::endl;
 
 		printTitle("QPI out. p/Link/Sock");
-		for(PCMDaemon::uint32 i = 0; i < counters.qpi.numOfSockets; ++i)
+		for(PCMDaemon::uint32 i = 0; i < counters.system.numOfOnlineSockets; ++i)
 		{
 			std::cout << i << " ";
-			for(PCMDaemon::uint32 l = 0; l < counters.qpi.numOfLinksPerSocket; ++l)
+			for(PCMDaemon::uint32 l = 0; l < counters.system.numOfQPILinksPerSocket; ++l)
 			{
 				std::cout << std::setw(12) << std::left << std::setprecision(coutPrecision) << counters.qpi.outgoing[i].links[l].bytes << " ";
 			}
@@ -339,7 +355,7 @@ int main(int argc, char *argv[])
 			printTitle("");
 
 			std::cout << i << " ";
-			for(PCMDaemon::uint32 l = 0; l < counters.qpi.numOfLinksPerSocket; ++l)
+			for(PCMDaemon::uint32 l = 0; l < counters.system.numOfQPILinksPerSocket; ++l)
 			{
 				std::cout << std::setw(12) << std::left << std::setprecision(coutPrecision) << counters.qpi.outgoing[i].links[l].utilization << " ";
 			}

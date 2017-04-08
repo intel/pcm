@@ -39,12 +39,12 @@ namespace PCMDaemon {
 		void printExampleUsageAndExit(char *argv[]);
 		void setupSharedMemory();
 		gid_t resolveGroupName(std::string& groupName);
+		void getPCMCounters();
 		void updatePCMState(SystemCounterState* systemStates, std::vector<SocketCounterState>* socketStates, std::vector<CoreCounterState>* coreStates);
 		void swapPCMBeforeAfterState();
-		void getPCMCounters();
+		void getPCMSystem();
 		void getPCMCore();
 		void getPCMMemory();
-		void calculateMemoryBandwidth(ServerUncorePowerState* uncState1, ServerUncorePowerState* uncState2, uint64 elapsedTime);
 		void getPCMQPI();
 		uint64 getTimestamp();
 		static void cleanup();
