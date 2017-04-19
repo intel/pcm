@@ -654,7 +654,7 @@ namespace PCMDaemon {
 		const uint32 numSockets = sharedPCMState_->pcm.system.numOfSockets;
 		const uint32 numLinksPerSocket = sharedPCMState_->pcm.system.numOfQPILinksPerSocket;
 
-		qpi.incomingQPITrafficMetricsAvailable = numLinksPerSocket > 0 && pcmInstance_->incomingQPITrafficMetricsAvailable();
+		qpi.incomingQPITrafficMetricsAvailable = pcmInstance_->incomingQPITrafficMetricsAvailable();
 		if (qpi.incomingQPITrafficMetricsAvailable)
 		{
 			uint32 onlineSocketsI = 0;
@@ -682,7 +682,7 @@ namespace PCMDaemon {
 			qpi.incomingTotal = getAllIncomingQPILinkBytes(systemStatesBefore_, systemStatesAfter_);
 		}
 
-		qpi.outgoingQPITrafficMetricsAvailable = numLinksPerSocket > 0 && pcmInstance_->outgoingQPITrafficMetricsAvailable();
+		qpi.outgoingQPITrafficMetricsAvailable = pcmInstance_->outgoingQPITrafficMetricsAvailable();
 		if (qpi.outgoingQPITrafficMetricsAvailable)
 		{
 			uint32 onlineSocketsI = 0;
