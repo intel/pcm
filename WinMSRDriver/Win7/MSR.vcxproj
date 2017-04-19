@@ -149,11 +149,11 @@
     <FilesToPackage Include="$(TargetPath)" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\..\..\..\adaware%40nvidia.com\Documents\Visual Studio 2015\Projects\MSR\MSR\msr.h" />
-    <ClInclude Include="..\..\..\..\..\..\adaware%40nvidia.com\documents\visual studio 2015\Projects\MSR\MSR\msrstruct.h" />
+    <ClInclude Include="msr.h" />
+    <ClInclude Include="msrstruct.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\..\..\..\adaware%40nvidia.com\documents\visual studio 2015\Projects\MSR\MSR\msrmain.c" />
+    <ClCompile Include="msrmain.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
