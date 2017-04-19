@@ -4813,6 +4813,21 @@ uint64 ServerPCICFGUncore::computeQPISpeed(const uint32 core_nr, const int cpumo
     }
 }
 
+#ifdef _MSC_VER
+static DWORD WINAPI WatchDogProc(LPVOID state)
+#else
+void * WatchDogProc(void * state)
+#endif
+{
+    CounterWidthExtender * ext = (CounterWidthExtender * ) state;
+    while(1)
+    {
+        MySleepMs(static_cast<int>(ext->watchdog_delay_ms));
+        /* uint64 dummy = */ ext->read();
+    }
+    return NULL;
+}
+
 uint64 PCM::CX_MSR_PMON_CTRY(uint32 Cbo, uint32 Ctr) const
 {
     if(JAKETOWN == cpu_model || IVYTOWN == cpu_model)
