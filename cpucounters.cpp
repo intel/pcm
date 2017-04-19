@@ -5108,13 +5108,19 @@ uint64 ServerPCICFGUncore::computeQPISpeed(const uint32 core_nr, const int cpumo
     }
 }
 
-void ServerPCICFGUncore::reportQPISpeed() const
+#ifdef _MSC_VER
+static DWORD WINAPI WatchDogProc(LPVOID state)
+#else
+void * WatchDogProc(void * state)
+#endif
 {
-    PCM * m = PCM::getInstance();
-    std::cerr.precision(1);
-    std::cerr << std::fixed;
-    for (uint32 i = 0; i < (uint32)qpi_speed.size(); ++i)
-        std::cerr << "Max QPI link " << i << " speed: " << qpi_speed[i] / (1e9) << " GBytes/second (" << qpi_speed[i] / (1e9 * m->getBytesPerLinkTransfer()) << " GT/second)" << std::endl;
+    CounterWidthExtender * ext = (CounterWidthExtender * ) state;
+    while(1)
+    {
+        MySleepMs(static_cast<int>(ext->watchdog_delay_ms));
+        /* uint64 dummy = */ ext->read();
+    }
+    return NULL;
 }
 
 uint64 PCM::CX_MSR_PMON_CTRY(uint32 Cbo, uint32 Ctr) const

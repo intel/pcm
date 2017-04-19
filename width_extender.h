@@ -20,13 +20,24 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
         \brief Provides 64-bit "virtual" counters from underlying 32-bit HW counters
 */
 
-#include <thread>
+#ifdef _MSC_VER
+#include <windows.h>
+#else
+#include <pthread.h>
+#endif
+
 #include <stdlib.h>
 #include "cpucounters.h"
-#include "utils.h"
 #include "client_bw.h"
 #include "mutex.h"
 #include <memory>
+
+
+#ifdef _MSC_VER
+DWORD WINAPI WatchDogProc(LPVOID state);
+#else
+void * WatchDogProc(void * state);
+#endif
 
 class CounterWidthExtender
 {
@@ -118,7 +129,11 @@ public:
     };
 
 private:
-    std::thread * UpdateThread;
+#ifdef _MSC_VER
+    HANDLE UpdateThread;
+#else
+    pthread_t UpdateThread;
+#endif
 
     PCM_Util::Mutex CounterMutex;
 
@@ -157,27 +172,30 @@ private:
     }
 
 public:
-
-    friend void WatchDogProc(void * state);
-
+#ifdef _MSC_VER
+    friend DWORD WINAPI WatchDogProc(LPVOID state);
+#else
+    friend void * WatchDogProc(void * state);
+#endif
     CounterWidthExtender(AbstractRawCounter * raw_counter_, uint64 counter_width_, uint32 watchdog_delay_ms_) : raw_counter(raw_counter_), counter_width(counter_width_), watchdog_delay_ms(watchdog_delay_ms_)
     {
         last_raw_value = (*raw_counter)();
         extended_value = last_raw_value;
         //std::cout << "Initial Value " << extended_value << "\n";
-        UpdateThread = new std::thread(
-            [&] () {
-                while (1)
-                {
-                    MySleepMs(static_cast<int>(this->watchdog_delay_ms));
-                    /* uint64 dummy = */ this->read();
-                }
-            }
-        );
+#ifdef _MSC_VER
+        UpdateThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)WatchDogProc, this, 0, NULL);
+#else
+        pthread_create(&UpdateThread, NULL, WatchDogProc, this);
+#endif
     }
     virtual ~CounterWidthExtender()
     {
-        delete UpdateThread;
+#ifdef _MSC_VER
+        TerminateThread(UpdateThread, 0);
+        CloseHandle(UpdateThread);
+#else
+        pthread_cancel(UpdateThread);
+#endif
         if (raw_counter) delete raw_counter;
     }
 
