@@ -1111,12 +1111,21 @@ bool PCM::discoverSystemTopology()
 
     int32 i = 0;
 
-    socketRefCore.resize(num_sockets);
+    socketRefCore.resize(num_sockets, -1);
     for(i = 0; i < num_cores; ++i)
     {
         if(isCoreOnline(i))
         {
             socketRefCore[topology[i].socket] = i;
+        }
+    }
+
+    num_online_sockets = 0;
+    for(i = 0; i < num_sockets; ++i)
+    {
+        if(isSocketOnline(i))
+        {
+            ++num_online_sockets;
         }
     }
 
@@ -1431,6 +1440,7 @@ PCM::PCM() :
     num_sockets(0),
     num_phys_cores_per_socket(0),
     num_online_cores(0),
+    num_online_sockets(0),
     core_gen_counter_num_max(0),
     core_gen_counter_num_used(0), // 0 means no core gen counters used
     core_gen_counter_width(0),
@@ -1542,6 +1552,11 @@ void PCM::enableJKTWorkaround(bool enable)
 bool PCM::isCoreOnline(int32 os_core_id) const
 {
     return (topology[os_core_id].os_id != -1) && (topology[os_core_id].core_id != -1) && (topology[os_core_id].socket != -1);
+}
+
+bool PCM::isSocketOnline(int32 socket_id) const
+{
+    return socketRefCore[socket_id] != -1;
 }
 
 bool PCM::isCPUModelSupported(int model_)
@@ -2295,12 +2310,7 @@ void PCM::computeNominalFrequency()
    const int ref_core = 0;
    uint64 before = 0, after = 0;
    MSR[ref_core]->read(IA32_TIME_STAMP_COUNTER, &before);
-// sleep fo 100 ms
-#ifdef _MSC_VER
-        Sleep(1000);
-#else
-        usleep(1000*1000);
-#endif
+   MySleepMs(1000);
    MSR[ref_core]->read(IA32_TIME_STAMP_COUNTER, &after);
    nominal_frequency = after-before; 
 }
@@ -3584,6 +3594,12 @@ uint32 PCM::getNumSockets()
 {
     return (uint32)num_sockets;
 }
+
+uint32 PCM::getNumOnlineSockets()
+{
+    return (uint32)num_online_sockets;
+}
+
 
 uint32 PCM::getThreadsPerCore()
 {
@@ -5099,21 +5115,6 @@ void ServerPCICFGUncore::reportQPISpeed() const
     std::cerr << std::fixed;
     for (uint32 i = 0; i < (uint32)qpi_speed.size(); ++i)
         std::cerr << "Max QPI link " << i << " speed: " << qpi_speed[i] / (1e9) << " GBytes/second (" << qpi_speed[i] / (1e9 * m->getBytesPerLinkTransfer()) << " GT/second)" << std::endl;
-}
-
-#ifdef _MSC_VER
-static DWORD WINAPI WatchDogProc(LPVOID state)
-#else
-void * WatchDogProc(void * state)
-#endif
-{
-    CounterWidthExtender * ext = (CounterWidthExtender * ) state;
-    while(1)
-    {
-        MySleepMs(static_cast<int>(ext->watchdog_delay_ms));
-        /* uint64 dummy = */ ext->read();
-    }
-    return NULL;
 }
 
 uint64 PCM::CX_MSR_PMON_CTRY(uint32 Cbo, uint32 Ctr) const
