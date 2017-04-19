@@ -2310,12 +2310,7 @@ void PCM::computeNominalFrequency()
    const int ref_core = 0;
    uint64 before = 0, after = 0;
    MSR[ref_core]->read(IA32_TIME_STAMP_COUNTER, &before);
-// sleep fo 100 ms
-#ifdef _MSC_VER
-        Sleep(1000);
-#else
-        usleep(1000*1000);
-#endif
+   MySleepMs(1000);
    MSR[ref_core]->read(IA32_TIME_STAMP_COUNTER, &after);
    nominal_frequency = after-before; 
 }
