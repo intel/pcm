@@ -1189,7 +1189,8 @@ public:
 
     bool outgoingQPITrafficMetricsAvailable() const
     {
-        return (
+        return getQPILinksPerSocket() > 0 &&
+            (
                 cpu_model == PCM::NEHALEM_EX 
             ||  cpu_model == PCM::WESTMERE_EX 
             ||  cpu_model == PCM::JAKETOWN
@@ -1202,7 +1203,8 @@ public:
 
     bool incomingQPITrafficMetricsAvailable() const
     {
-        return (
+        return getQPILinksPerSocket() > 0 &&
+            (
                 cpu_model == PCM::NEHALEM_EX
             ||  cpu_model == PCM::WESTMERE_EX
             ||  cpu_model == PCM::JAKETOWN
