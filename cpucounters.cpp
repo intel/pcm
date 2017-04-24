@@ -3522,43 +3522,43 @@ CoreCounterState PCM::getCoreCounterState(uint32 core)
     return result;
 }
 
-uint32 PCM::getNumCores()
+uint32 PCM::getNumCores() const
 {
     return (uint32)num_cores;
 }
 
-uint32 PCM::getNumOnlineCores()
+uint32 PCM::getNumOnlineCores() const
 {
     return (uint32)num_online_cores;
 }
 
-uint32 PCM::getNumSockets()
+uint32 PCM::getNumSockets() const
 {
     return (uint32)num_sockets;
 }
 
-uint32 PCM::getNumOnlineSockets()
+uint32 PCM::getNumOnlineSockets() const
 {
     return (uint32)num_online_sockets;
 }
 
 
-uint32 PCM::getThreadsPerCore()
+uint32 PCM::getThreadsPerCore() const
 {
     return (uint32)threads_per_core;
 }
 
-bool PCM::getSMT()
+bool PCM::getSMT() const
 {
     return threads_per_core > 1;
 }
 
-uint64 PCM::getNominalFrequency()
+uint64 PCM::getNominalFrequency() const
 {
     return nominal_frequency;
 }
 
-uint32 PCM::getL3ScalingFactor()
+uint32 PCM::getL3ScalingFactor() const
 {
 	PCM_CPUID_INFO cpuinfo;
 	pcm_cpuid(0xf,0x1,cpuinfo);
@@ -3799,7 +3799,7 @@ PciHandleType * ServerPCICFGUncore::createIntelPerfMonDevice(uint32 groupnr_, in
         return NULL;
 }
 
-ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, PCM * pcm) : 
+ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
      bus(-1)
    , groupnr(0)
    , qpi_speed(0)
