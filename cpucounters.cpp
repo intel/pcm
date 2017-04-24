@@ -69,6 +69,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <limits>
 #include <map>
 #include <algorithm>
+#include <thread>
 
 #ifdef __APPLE__
 #include <sys/types.h>
@@ -3580,43 +3581,43 @@ CoreCounterState PCM::getCoreCounterState(uint32 core)
     return result;
 }
 
-uint32 PCM::getNumCores()
+uint32 PCM::getNumCores() const
 {
     return (uint32)num_cores;
 }
 
-uint32 PCM::getNumOnlineCores()
+uint32 PCM::getNumOnlineCores() const
 {
     return (uint32)num_online_cores;
 }
 
-uint32 PCM::getNumSockets()
+uint32 PCM::getNumSockets() const
 {
     return (uint32)num_sockets;
 }
 
-uint32 PCM::getNumOnlineSockets()
+uint32 PCM::getNumOnlineSockets() const
 {
     return (uint32)num_online_sockets;
 }
 
 
-uint32 PCM::getThreadsPerCore()
+uint32 PCM::getThreadsPerCore() const
 {
     return (uint32)threads_per_core;
 }
 
-bool PCM::getSMT()
+bool PCM::getSMT() const
 {
     return threads_per_core > 1;
 }
 
-uint64 PCM::getNominalFrequency()
+uint64 PCM::getNominalFrequency() const
 {
     return nominal_frequency;
 }
 
-uint32 PCM::getL3ScalingFactor()
+uint32 PCM::getL3ScalingFactor() const
 {
 	PCM_CPUID_INFO cpuinfo;
 	pcm_cpuid(0xf,0x1,cpuinfo);
@@ -3772,11 +3773,13 @@ static const uint32 UPI_DEV_IDS[] = {
     0x2058
 };
 
+PCM_Util::Mutex ServerPCICFGUncore::socket2busMutex;
 std::vector<std::pair<uint32,uint32> > ServerPCICFGUncore::socket2iMCbus;
 std::vector<std::pair<uint32,uint32> > ServerPCICFGUncore::socket2UPIbus;
 
 void ServerPCICFGUncore::initSocket2Bus(std::vector<std::pair<uint32, uint32> > & socket2bus, uint32 device, uint32 function, const uint32 DEV_IDS[], uint32 devIdsSize)
 {
+    PCM_Util::Mutex::Scope _(socket2busMutex);
     if(!socket2bus.empty()) return;
 
     #ifdef __linux__
@@ -3865,7 +3868,7 @@ PciHandleType * ServerPCICFGUncore::createIntelPerfMonDevice(uint32 groupnr_, in
         return NULL;
 }
 
-ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, PCM * pcm) : 
+ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
      iMCbus(-1)
    , UPIbus(-1)
    , groupnr(0)
@@ -5117,21 +5120,6 @@ void ServerPCICFGUncore::reportQPISpeed() const
         std::cerr << "Max QPI link " << i << " speed: " << qpi_speed[i] / (1e9) << " GBytes/second (" << qpi_speed[i] / (1e9 * m->getBytesPerLinkTransfer()) << " GT/second)" << std::endl;
 }
 
-#ifdef _MSC_VER
-static DWORD WINAPI WatchDogProc(LPVOID state)
-#else
-void * WatchDogProc(void * state)
-#endif
-{
-    CounterWidthExtender * ext = (CounterWidthExtender * ) state;
-    while(1)
-    {
-        MySleepMs(static_cast<int>(ext->watchdog_delay_ms));
-        /* uint64 dummy = */ ext->read();
-    }
-    return NULL;
-}
-
 uint64 PCM::CX_MSR_PMON_CTRY(uint32 Cbo, uint32 Ctr) const
 {
     if(JAKETOWN == cpu_model || IVYTOWN == cpu_model)
@@ -5377,6 +5365,28 @@ PCIeCounterState PCM::getPCIeCounterState(const uint32 socket_)
     }
     return result;
 }
+
+CounterWidthExtender::CounterWidthExtender(AbstractRawCounter * raw_counter_, uint64 counter_width_, uint32 watchdog_delay_ms_) : raw_counter(raw_counter_), counter_width(counter_width_), watchdog_delay_ms(watchdog_delay_ms_)
+{
+    last_raw_value = (*raw_counter)();
+    extended_value = last_raw_value;
+    //std::cout << "Initial Value " << extended_value << "\n";
+    UpdateThread = new std::thread(
+        [&]() {
+        while (1)
+        {
+            MySleepMs(static_cast<int>(this->watchdog_delay_ms));
+            /* uint64 dummy = */ this->read();
+        }
+    }
+    );
+}
+CounterWidthExtender::~CounterWidthExtender()
+{
+    delete UpdateThread;
+    if (raw_counter) delete raw_counter;
+}
+
 
 IIOCounterState PCM::getIIOCounterState(int socket, int IIOStack, int counter)
 {
