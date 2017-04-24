@@ -274,6 +274,7 @@ class PCM_API PCM
     int32 num_sockets;
     int32 num_phys_cores_per_socket;
     int32 num_online_cores;
+    int32 num_online_sockets;
     uint32 core_gen_counter_num_max;
     uint32 core_gen_counter_num_used;
     uint32 core_gen_counter_width;
@@ -733,9 +734,15 @@ public:
 
     /*! \brief Return true if the core in online
 
-        \param i OS core id
+        \param os_core_id OS core id
     */
     bool isCoreOnline(int32 os_core_id) const;
+
+    /*! \brief Return true if the socket in online
+
+        \param socket_id OS socket id
+    */
+    bool isSocketOnline(int32 socket_id) const;
 
     /*! \brief Reads the counter state of the system
 
@@ -776,6 +783,11 @@ public:
             \return Number of sockets in the system
     */
     uint32 getNumSockets();
+
+    /*! \brief Reads number of online sockets (CPUs) in the system
+            \return Number of online sockets in the system
+    */
+    uint32 getNumOnlineSockets();
 
     /*! \brief Reads how many hardware threads has a physical core
             "Hardware thread" is a logical core in a different terminology.
@@ -1399,6 +1411,8 @@ class BasicCounterState
     friend uint64 getRefCycles(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
     friend double getCoreCStateResidency(int state, const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
+    friend uint64 getSMICount(const CounterStateType & before, const CounterStateType & after);
 
 protected:
     uint64 InstRetiredAny;
@@ -1433,6 +1447,7 @@ protected:
     void readAndAggregateTSC(std::shared_ptr<SafeMsrHandle>);
     uint64 MemoryBWLocal;
     uint64 MemoryBWTotal;
+    uint64 SMICount;
 
 public:
     BasicCounterState() :
@@ -1447,7 +1462,8 @@ public:
         ThermalHeadroom(PCM_INVALID_THERMAL_HEADROOM),
         L3Occupancy(0),
         MemoryBWLocal(0),
-        MemoryBWTotal(0)
+        MemoryBWTotal(0),
+        SMICount(0)
     {
         memset(CStateResidency, 0, sizeof(CStateResidency));
     }
@@ -1469,6 +1485,7 @@ public:
         L3Occupancy += o.L3Occupancy;
         MemoryBWLocal += o.MemoryBWLocal;
         MemoryBWTotal += o.MemoryBWTotal;
+        SMICount += o.SMICount;
         return *this;
     }
 
@@ -2545,6 +2562,18 @@ template <class CounterStateType>
 uint64 getIORequestBytesFromMC(const CounterStateType & before, const CounterStateType & after)
 {
     return (after.UncMCIORequests - before.UncMCIORequests) * 64;
+}
+
+/*! \brief Returns the number of occured system management interrupts
+
+    \param before CPU counter state before the experiment
+    \param after CPU counter state after the experiment
+    \return Number of SMIs (system manegement interrupts)
+*/
+template <class CounterStateType>
+uint64 getSMICount(const CounterStateType & before, const CounterStateType & after)
+{
+    return after.SMICount - before.SMICount;
 }
 
 /*! \brief Returns the number of occured custom core events

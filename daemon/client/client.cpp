@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009-2016, Intel Corporation
+   Copyright (c) 2009-2017, Intel Corporation
    All rights reserved.
 
    Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -23,6 +23,8 @@
 #include <exception>
 #include <stdexcept>
 #include <grp.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #include "../daemon/common.h"
 #include "client.h"
@@ -30,7 +32,24 @@
 namespace PCMDaemon {
 
 	Client::Client()
-	: pollIntervalMs_(0), lastUpdatedClientTsc_(0)
+	: pollIntervalMs_(0), shmIdLocation_(DEFAULT_SHM_ID_LOCATION), shmAttached_(false), lastUpdatedClientTsc_(0)
+	{}
+
+	void Client::setSharedMemoryIdLocation(const std::string& location)
+	{
+		if(shmAttached_)
+		{
+			throw std::runtime_error("Shared memory segment already attached. You must call this method before the .connect() method.");
+		}
+		shmIdLocation_ = location;
+	}
+
+	void Client::setPollInterval(int pollMs)
+	{
+		pollIntervalMs_ = pollMs;
+	}
+
+	void Client::connect()
 	{
 		setupSharedMemory();
 
@@ -39,16 +58,16 @@ namespace PCMDaemon {
 		lastUpdatedClientTsc_ = sharedPCMState_->lastUpdateTsc;
 	}
 
-	void Client::setPollInterval(int pollMs)
-	{
-		pollIntervalMs_ = pollMs;
-	}
-
 	PCMDaemon::SharedPCMState& Client::read()
 	{
 		if(pollIntervalMs_ <= 0)
 		{
 			throw std::runtime_error("The poll interval is not set or is negative.");
+		}
+
+		if(!shmAttached_)
+		{
+			throw std::runtime_error("Not attached to shared memory segment. Call .connect() method.");
 		}
 
 		while(true)
@@ -83,18 +102,21 @@ namespace PCMDaemon {
 		return lastUpdatedClientTsc_ != sharedPCMState_->lastUpdateTsc;
 	}
 
-	void Client::setupSharedMemory(key_t key)
+	void Client::setupSharedMemory()
 	{
-		int shmFlag = 0660;
-
-		int sharedMemoryId = shmget(key, sizeof(PCMDaemon::SharedPCMState), shmFlag);
-		if (sharedMemoryId < 0)
+		int sharedMemoryId;
+		FILE *fp = fopen (shmIdLocation_.c_str(), "r");
+		if (fp <= 0)
 		{
-			std::stringstream ss;
-			ss << "Failed to allocate shared memory segment (errno=" << errno << ")";
-
-			throw std::runtime_error(ss.str());
+			std::cerr << "Failed to open to shared memory key location: " << shmIdLocation_ << std::endl;
+			exit(EXIT_FAILURE);
 		}
+		int maxCharsToRead = 11;
+		char readBuffer[maxCharsToRead];
+		fread(&readBuffer, maxCharsToRead, 1, fp);
+		fclose (fp);
+
+		sharedMemoryId = atoi(readBuffer);
 
 		sharedPCMState_ = (PCMDaemon::SharedPCMState*)shmat(sharedMemoryId, NULL, 0);
 		if (sharedPCMState_ == (void *)-1)
@@ -104,6 +126,8 @@ namespace PCMDaemon {
 
 			throw std::runtime_error(ss.str());
 		}
+
+		shmAttached_ = true;
 	}
 
 }

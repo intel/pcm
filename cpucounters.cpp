@@ -1111,12 +1111,21 @@ bool PCM::discoverSystemTopology()
 
     int32 i = 0;
 
-    socketRefCore.resize(num_sockets);
+    socketRefCore.resize(num_sockets, -1);
     for(i = 0; i < num_cores; ++i)
     {
         if(isCoreOnline(i))
         {
             socketRefCore[topology[i].socket] = i;
+        }
+    }
+
+    num_online_sockets = 0;
+    for(i = 0; i < num_sockets; ++i)
+    {
+        if(isSocketOnline(i))
+        {
+            ++num_online_sockets;
         }
     }
 
@@ -1431,6 +1440,7 @@ PCM::PCM() :
     num_sockets(0),
     num_phys_cores_per_socket(0),
     num_online_cores(0),
+    num_online_sockets(0),
     core_gen_counter_num_max(0),
     core_gen_counter_num_used(0), // 0 means no core gen counters used
     core_gen_counter_width(0),
@@ -1542,6 +1552,11 @@ void PCM::enableJKTWorkaround(bool enable)
 bool PCM::isCoreOnline(int32 os_core_id) const
 {
     return (topology[os_core_id].os_id != -1) && (topology[os_core_id].core_id != -1) && (topology[os_core_id].socket != -1);
+}
+
+bool PCM::isSocketOnline(int32 socket_id) const
+{
+    return socketRefCore[socket_id] != -1;
 }
 
 bool PCM::isCPUModelSupported(int model_)
@@ -2295,12 +2310,7 @@ void PCM::computeNominalFrequency()
    const int ref_core = 0;
    uint64 before = 0, after = 0;
    MSR[ref_core]->read(IA32_TIME_STAMP_COUNTER, &before);
-// sleep fo 100 ms
-#ifdef _MSC_VER
-        Sleep(1000);
-#else
-        usleep(1000*1000);
-#endif
+   MySleepMs(1000);
    MSR[ref_core]->read(IA32_TIME_STAMP_COUNTER, &after);
    nominal_frequency = after-before; 
 }
@@ -2879,6 +2889,7 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
     uint64 cCStateResidency[PCM::MAX_C_STATE + 1];
     memset(cCStateResidency, 0, sizeof(cCStateResidency));
     uint64 thermStatus = 0;
+    uint64 cSMICount = 0;
     const int32 core_id = msr->getCoreId();
     TemporalThreadAffinity tempThreadAffinity(core_id); // speedup trick for Linux
 
@@ -2960,6 +2971,8 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
     // reading temperature
     msr->read(MSR_IA32_THERM_STATUS, &thermStatus);
 
+    msr->read(MSR_SMI_COUNT, &cSMICount);
+
     InstRetiredAny += m->extractCoreFixedCounterValue(cInstRetiredAny);
     CpuClkUnhaltedThread += m->extractCoreFixedCounterValue(cCpuClkUnhaltedThread);
     CpuClkUnhaltedRef += m->extractCoreFixedCounterValue(cCpuClkUnhaltedRef);
@@ -2973,6 +2986,7 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
     for(int i=0; i <= int(PCM::MAX_C_STATE);++i)
         CStateResidency[i] += cCStateResidency[i];
     ThermalHeadroom = extractThermalHeadroom(thermStatus);
+    SMICount += cSMICount;
 }
 
 PCM::ErrorCode PCM::programServerUncoreMemoryMetrics(int rankA, int rankB, bool DDR_T)
@@ -3580,6 +3594,12 @@ uint32 PCM::getNumSockets()
 {
     return (uint32)num_sockets;
 }
+
+uint32 PCM::getNumOnlineSockets()
+{
+    return (uint32)num_online_sockets;
+}
+
 
 uint32 PCM::getThreadsPerCore()
 {
