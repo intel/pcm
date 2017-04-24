@@ -66,6 +66,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <limits>
 #include <map>
 #include <algorithm>
+#include <thread>
 
 #ifdef __APPLE__
 #include <sys/types.h>
@@ -4813,21 +4814,6 @@ uint64 ServerPCICFGUncore::computeQPISpeed(const uint32 core_nr, const int cpumo
     }
 }
 
-#ifdef _MSC_VER
-static DWORD WINAPI WatchDogProc(LPVOID state)
-#else
-void * WatchDogProc(void * state)
-#endif
-{
-    CounterWidthExtender * ext = (CounterWidthExtender * ) state;
-    while(1)
-    {
-        MySleepMs(static_cast<int>(ext->watchdog_delay_ms));
-        /* uint64 dummy = */ ext->read();
-    }
-    return NULL;
-}
-
 uint64 PCM::CX_MSR_PMON_CTRY(uint32 Cbo, uint32 Ctr) const
 {
     if(JAKETOWN == cpu_model || IVYTOWN == cpu_model)
@@ -4997,4 +4983,25 @@ PCIeCounterState PCM::getPCIeCounterState(const uint32 socket_)
         result.data += ctrVal;
     }
     return result;
+}
+
+CounterWidthExtender::CounterWidthExtender(AbstractRawCounter * raw_counter_, uint64 counter_width_, uint32 watchdog_delay_ms_) : raw_counter(raw_counter_), counter_width(counter_width_), watchdog_delay_ms(watchdog_delay_ms_)
+{
+    last_raw_value = (*raw_counter)();
+    extended_value = last_raw_value;
+    //std::cout << "Initial Value " << extended_value << "\n";
+    UpdateThread = new std::thread(
+        [&]() {
+        while (1)
+        {
+            MySleepMs(static_cast<int>(this->watchdog_delay_ms));
+            /* uint64 dummy = */ this->read();
+        }
+    }
+    );
+}
+CounterWidthExtender::~CounterWidthExtender()
+{
+    delete UpdateThread;
+    if (raw_counter) delete raw_counter;
 }
