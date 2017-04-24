@@ -100,6 +100,7 @@ class ServerPCICFGUncore
     uint32 QPI_PORTX_REGISTER_DEV_ADDR[3];
     uint32 QPI_PORTX_REGISTER_FUNC_ADDR[3];
 
+    static PCM_Util::Mutex socket2busMutex;
     static std::vector<std::pair<uint32, uint32> > socket2bus;
     void initSocket2Bus();
 
@@ -126,7 +127,6 @@ public:
     uint64 getEdcReads();
     //! \brief Get the number of cache lines written by EDC (embedded DRAM controller)
     uint64 getEdcWrites();
-
 
     //! \brief Get the number of incoming data flits to the socket through a port
     //! \param port QPI port id

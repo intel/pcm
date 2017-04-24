@@ -3707,10 +3707,12 @@ static const uint32 IMC_DEV_IDS[] = {
         0x781f
 };
 
+PCM_Util::Mutex ServerPCICFGUncore::socket2busMutex;
 std::vector<std::pair<uint32,uint32> > ServerPCICFGUncore::socket2bus;
 
 void ServerPCICFGUncore::initSocket2Bus()
 {
+    PCM_Util::Mutex::Scope _(socket2busMutex);
     if(!socket2bus.empty()) return;
 
     #ifdef __linux__
