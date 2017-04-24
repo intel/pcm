@@ -70,6 +70,8 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <map>
 #include <algorithm>
 #include <thread>
+#include <future>
+#include <functional>
 
 #ifdef __APPLE__
 #include <sys/types.h>
@@ -2086,10 +2088,16 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
 
     if (hasPCICFGUncore())
     {
+        std::vector<std::future<uint64>> qpi_speeds;
         for (size_t i = 0; i < (size_t)server_pcicfg_uncore.size(); ++i)
         {
             server_pcicfg_uncore[i]->program();
-            max_qpi_speed = (std::max)(server_pcicfg_uncore[i]->computeQPISpeed(socketRefCore[i],cpu_model), max_qpi_speed); // parenthesis to avoid macro expansion on Windows
+            qpi_speeds.push_back(std::move(std::async(std::launch::async,
+                &ServerPCICFGUncore::computeQPISpeed, server_pcicfg_uncore[i].get(), socketRefCore[i], cpu_model)));
+        }
+        for (size_t i = 0; i < (size_t)server_pcicfg_uncore.size(); ++i)
+        {
+            max_qpi_speed = (std::max)(qpi_speeds[i].get(), max_qpi_speed);
         }
     }
 
@@ -4950,9 +4958,10 @@ void ServerPCICFGUncore::enableJKTWorkaround(bool enable)
 
 #define PCM_MEM_CAPACITY (1024ULL*1024ULL*64ULL) // 64 MByte
 
-void ServerPCICFGUncore::initMemTest()
+void ServerPCICFGUncore::initMemTest(ServerPCICFGUncore::MemTestParam & param)
 {
-    memBuffers.clear();
+    auto & memBufferBlockSize = param.first;
+    auto & memBuffers = param.second;
 #ifdef __linux__
     size_t capacity = PCM_MEM_CAPACITY;
     char * buffer = (char *)mmap(NULL, capacity, PROT_READ | PROT_WRITE,
@@ -5018,8 +5027,10 @@ void ServerPCICFGUncore::initMemTest()
         std::fill(b, b + (memBufferBlockSize / sizeof(uint64)), 0ULL);
 }
 
-void ServerPCICFGUncore::doMemTest()
+void ServerPCICFGUncore::doMemTest(const ServerPCICFGUncore::MemTestParam & param)
 {
+    const auto & memBufferBlockSize = param.first;
+    const auto & memBuffers = param.second;
     // read and write each cache line once
     for (auto b : memBuffers)
         for (unsigned int i = 0; i < memBufferBlockSize / sizeof(uint64); i += 64 / sizeof(uint64))
@@ -5028,8 +5039,10 @@ void ServerPCICFGUncore::doMemTest()
         }
 }
 
-void ServerPCICFGUncore::cleanupMemTest()
+void ServerPCICFGUncore::cleanupMemTest(const ServerPCICFGUncore::MemTestParam & param)
 {
+    const auto & memBufferBlockSize = param.first;
+    const auto & memBuffers = param.second;
     for (auto b : memBuffers)
     {
 #ifdef __linux__
@@ -5039,30 +5052,28 @@ void ServerPCICFGUncore::cleanupMemTest()
 #else
 #endif
     }
-    memBuffers.clear();
 }
 
 uint64 ServerPCICFGUncore::computeQPISpeed(const uint32 core_nr, const int cpumodel)
 {
     if(qpi_speed.empty())
     {
+        PCM * pcm = PCM::getInstance();
         TemporalThreadAffinity aff(core_nr);
         qpi_speed.resize(getNumQPIPorts());
-        for (size_t i = 0; i<getNumQPIPorts(); ++i) {
-           if(i == 1)
-           {
-              qpi_speed[1] = qpi_speed[0]; // link 1 does not have own speed register, it runs with the speed of link 0
-              continue;
-           }
-           uint32 value = 0;
+
+        auto getSpeed = [&] (size_t i) {
+           if (i == 1) return 0ULL; // link 1 should have the same speed as link 0, skip it
+           uint64 result = 0;
            if(cpumodel != PCM::SKX)
            {
                PciHandleType reg(groupnr,UPIbus,QPI_PORTX_REGISTER_DEV_ADDR[i],QPI_PORT0_MISC_REGISTER_FUNC_ADDR);
+               uint32 value = 0;
                reg.read32(QPI_RATE_STATUS_ADDR, &value);
                value &= 7; // extract lower 3 bits
-               if(value) qpi_speed[i] = static_cast<uint64>((4000000000ULL + ((uint64)value)*800000000ULL)*2ULL);
+               if(value) result = static_cast<uint64>((4000000000ULL + ((uint64)value)*800000000ULL)*2ULL);
            }
-           if(qpi_speed[i] == 0ULL)
+           if(result == 0ULL)
            {
                if(cpumodel != PCM::SKX)
                    std::cerr << "Warning: QPI_RATE_STATUS register is not available on port "<< i <<". Computing QPI speed using a measurement loop." << std::endl;
@@ -5070,25 +5081,33 @@ uint64 ServerPCICFGUncore::computeQPISpeed(const uint32 core_nr, const int cpumo
                // compute qpi speed
                const uint64 timerGranularity = 1000000ULL; // mks
     
-               PCM * pcm = PCM::getInstance();
-               initMemTest();
+               MemTestParam param;
+               initMemTest(param);
                uint64 startClocks = getQPIClocks((uint32)i);
                uint64 startTSC = pcm->getTickCount(timerGranularity, core_nr);
                uint64 endTSC;
                do
                {
-                    doMemTest();
+                    doMemTest(param);
                     endTSC = pcm->getTickCount(timerGranularity, core_nr);
                } while (endTSC - startTSC < 200000ULL); // spin for 200 ms
 
                uint64 endClocks = getQPIClocks((uint32)i);
-               cleanupMemTest();
+               cleanupMemTest(param);
 
-               qpi_speed[i] = ((std::max)(uint64(double(endClocks - startClocks) * PCM::getBytesPerLinkCycle(cpumodel) * double(timerGranularity) / double(endTSC - startTSC)),0ULL));
+               result = ((std::max)(uint64(double(endClocks - startClocks) * PCM::getBytesPerLinkCycle(cpumodel) * double(timerGranularity) / double(endTSC - startTSC)),0ULL));
                if(cpumodel == PCM::HASWELLX || cpumodel == PCM::BDX) /* BDX_DE does not have QPI. */{
-                  qpi_speed[i] /=2; // HSX runs QPI clocks with doubled speed
+                  result /=2; // HSX runs QPI clocks with doubled speed
                }
            }
+           return result;
+         };
+         std::vector<std::future<uint64> > getSpeedsAsync;
+         for (size_t i = 0; i < getNumQPIPorts(); ++i) {
+             getSpeedsAsync.push_back(std::move(std::async(std::launch::async, getSpeed, i)));
+         }
+         for (size_t i = 0; i < getNumQPIPorts(); ++i) {
+             qpi_speed[i] = (i==1)? qpi_speed[0] : getSpeedsAsync[i].get(); // link 1 does not have own speed register, it runs with the speed of link 0
          }
          if(cpumodel == PCM::SKX)
          {
