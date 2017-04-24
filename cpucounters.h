@@ -114,7 +114,7 @@ public:
     //! \brief Initialize access data structures
     //! \param socket_ socket id
     //! \param pcm pointer to PCM instance
-    ServerPCICFGUncore(uint32 socket_, PCM * pcm);
+    ServerPCICFGUncore(uint32 socket_, const PCM * pcm);
     //! \brief Program performance counters (disables programming power counters)
     void program();
     //! \brief Get the number of integrated controller reads (in cache lines)
@@ -690,45 +690,45 @@ public:
     /*! \brief Reads number of logical cores in the system
             \return Number of logical cores in the system
     */
-    uint32 getNumCores();
+    uint32 getNumCores() const;
 
     /*! \brief Reads number of online logical cores in the system
             \return Number of online logical cores in the system
     */
-    uint32 getNumOnlineCores();
+    uint32 getNumOnlineCores() const;
 
     /*! \brief Reads number of sockets (CPUs) in the system
             \return Number of sockets in the system
     */
-    uint32 getNumSockets();
+    uint32 getNumSockets() const;
 
     /*! \brief Reads number of online sockets (CPUs) in the system
             \return Number of online sockets in the system
     */
-    uint32 getNumOnlineSockets();
+    uint32 getNumOnlineSockets() const;
 
     /*! \brief Reads how many hardware threads has a physical core
             "Hardware thread" is a logical core in a different terminology.
             If Intel(r) Hyperthreading(tm) is enabled then this function returns 2.
             \return Number of hardware threads per physical core
     */
-    uint32 getThreadsPerCore();
+    uint32 getThreadsPerCore() const;
 
     /*! \brief Checks if SMT (HyperThreading) is enabled.
             \return true iff SMT (HyperThreading) is enabled.
     */
-    bool getSMT();                // returns true iff SMT ("Hyperthreading") is on
+    bool getSMT() const; // returns true iff SMT ("Hyperthreading") is on
 
     /*! \brief Reads the nominal core frequency
             \return Nominal frequency in Hz
     */
-    uint64 getNominalFrequency(); // in Hz
+    uint64 getNominalFrequency() const; // in Hz
 
     /*! \brief runs CPUID.0xF.0x01 to get the L3 up scaling factor to calculate L3 Occupancy
      *  Scaling factor is returned in EBX register after running the CPU instruction
      * \return L3 up scaling factor
      */
-    uint32 getL3ScalingFactor();
+    uint32 getL3ScalingFactor() const;
 
     /*! \brief runs CPUID.0xB.0x01 to get maximum logical cores (including SMT) per socket.
      *  max_lcores_per_socket is returned in EBX[15:0]. Compare this value with number of cores per socket
@@ -776,35 +776,35 @@ public:
 
     //! \brief Reads CPU model id
     //! \return CPU model ID
-    uint32 getCPUModel() { return (uint32)cpu_model; }
+    uint32 getCPUModel() const { return (uint32)cpu_model; }
 
     //! \brief Reads original CPU model id
     //! \return CPU model ID
-    uint32 getOriginalCPUModel() { return (uint32)original_cpu_model; }
+    uint32 getOriginalCPUModel() const { return (uint32)original_cpu_model; }
 
     //! \brief Reads CPU stepping id
     //! \return CPU stepping ID
-    uint32 getCPUStepping() { return (uint32)cpu_stepping; }
+    uint32 getCPUStepping() const { return (uint32)cpu_stepping; }
 
     //! \brief Determines physical thread of given processor ID within a core
     //! \param os_id processor identifier
     //! \return physical thread identifier
-    int32 getThreadId(uint32 os_id)  { return (int32)topology[os_id].thread_id; }
+    int32 getThreadId(uint32 os_id) const { return (int32)topology[os_id].thread_id; }
 
     //! \brief Determines physical core of given processor ID within a socket
     //! \param os_id processor identifier
     //! \return physical core identifier
-    int32 getCoreId(uint32 os_id) { return (int32)topology[os_id].core_id; }
+    int32 getCoreId(uint32 os_id) const { return (int32)topology[os_id].core_id; }
 
     //! \brief Determines physical tile (cores sharing L2 cache) of given processor ID
     //! \param os_id processor identifier
     //! \return physical tile identifier
-    int32 getTileId(uint32 os_id) { return (int32)topology[os_id].tile_id; }
+    int32 getTileId(uint32 os_id) const { return (int32)topology[os_id].tile_id; }
 
     //! \brief Determines socket of given core
     //! \param core_id core identifier
     //! \return socket identifier
-    int32 getSocketId(uint32 core_id) { return (int32)topology[core_id].socket; }
+    int32 getSocketId(uint32 core_id) const { return (int32)topology[core_id].socket; }
 
     //! \brief Returns the number of Intel(r) Quick Path Interconnect(tm) links per socket
     //! \return number of QPI links per socket
