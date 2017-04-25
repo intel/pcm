@@ -24,6 +24,7 @@ CT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
 #include <comdef.h>
 #else
 #include <sys/wait.h> // for waitpid()
+#include <unistd.h> // for ::sleep
 #endif
 #include "utils.h"
 #include "cpucounters.h"
