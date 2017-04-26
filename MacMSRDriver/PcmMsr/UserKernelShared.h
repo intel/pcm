@@ -33,8 +33,10 @@ typedef struct {
 // The topologyEntry struct that is used by PCM
 typedef struct{
     uint32_t os_id;
-    uint32_t socket;
+    uint32_t thread_id;
     uint32_t core_id;
+    uint32_t tile_id;
+    uint32_t socket;
 } topologyEntry;
 
 // A kernel version of the topology entry structure. It has
@@ -42,26 +44,28 @@ typedef struct{
 // boundary, preventing the compiler from adding extra padding.
 typedef struct{
     uint32_t os_id;
-    uint32_t socket;
+    uint32_t thread_id;
     uint32_t core_id;
-    char padding[116];
+    uint32_t tile_id;
+    uint32_t socket;
+    char padding[108];
 } kTopologyEntry;
 
 enum {
     kOpenDriver,
     kCloseDriver,
-	kReadMSR,
+    kReadMSR,
     kWriteMSR,
     kBuildTopology,
     kGetNumInstances,
     kIncrementNumInstances,
     kDecrementNumInstances,
-	// PCI functions
-	kRead,
-	kWrite,
-	kMapMemory,
-	kUnmapMemory,
-	kReadMemory,
-    kNumberOfMethods 
+    // PCI functions
+    kRead,
+    kWrite,
+    kMapMemory,
+    kUnmapMemory,
+    kReadMemory,
+    kNumberOfMethods
 };
 #endif
