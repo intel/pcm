@@ -1448,18 +1448,18 @@ class CoreTaskQueue
 public:
     CoreTaskQueue(int32 core) :
         worker([&]() {
-        TemporalThreadAffinity tempThreadAffinity(core);
-        std::unique_lock<std::mutex> lock(m);
-        while (1) {
-            while (wQueue.empty()) {
-                condVar.wait(lock);
+            TemporalThreadAffinity tempThreadAffinity(core);
+            std::unique_lock<std::mutex> lock(m);
+            while (1) {
+                while (wQueue.empty()) {
+                    condVar.wait(lock);
+                }
+                while (!wQueue.empty()) {
+                    wQueue.front()();
+                    wQueue.pop();
+                }
             }
-            while (!wQueue.empty()) {
-                wQueue.front()();
-                wQueue.pop();
-            }
-        }
-    })
+        })
     {}
     void push(std::packaged_task<void()> & task)
     {
