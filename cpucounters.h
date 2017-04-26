@@ -61,6 +61,7 @@ class CoreCounterState;
 class BasicCounterState;
 class ServerUncorePowerState;
 class PCM;
+class CoreTaskQueue;
 
 #ifdef _MSC_VER
 void PCM_API restrictDriverAccess(LPCWSTR path);
@@ -302,6 +303,8 @@ class PCM_API PCM
 
     uint64 * coreCStateMsr;    // MSR addresses of core C-state free-running counters
     uint64 * pkgCStateMsr;     // MSR addresses of package C-state free-running counters
+
+    std::vector<std::shared_ptr<CoreTaskQueue> > coreTaskQueues;
 
 public:
     enum { MAX_C_STATE = 10 }; // max C-state on Intel architecture
