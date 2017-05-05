@@ -1262,6 +1262,13 @@ public:
             );
     }
 
+    bool hasUPI() const // Intel(r) Ultra Path Interconnect
+    {
+        return (
+            cpu_model == PCM::SKX
+               );
+    }
+
     bool supportsHLE() const;
     bool supportsRTM() const;
 
@@ -2615,19 +2622,11 @@ inline double getOutgoingQPILinkUtilization(uint32 socketNr, uint32 linkNr, cons
         const uint64 b = before.outgoingQPIFlits[socketNr][linkNr]; // data + non-data flits or idle (null) flits
         const uint64 a = after.outgoingQPIFlits[socketNr][linkNr]; // data + non-data flits or idle (null) flits
         // prevent overflows due to counter dissynchronisation
-        const double flits = (double)((a > b) ? (a - b) : 0);
+        double flits = (double)((a > b) ? (a - b) : 0);
         const double max_flits = ((double(getInvariantTSC(before, after)) * double(m->getQPILinkSpeed(socketNr, linkNr)) / m->getBytesPerFlit()) / double(m->getNominalFrequency())) / double(m->getNumCores());
-        const int cpuModel = m->getCPUModel();
-        if(cpuModel == PCM::SKX)
+        if(m->hasUPI())
         {
-            const double null_flits = flits/3.; // on SKX the outgoingQPIFlits data field store idle (null) flits
-            if(null_flits >= max_flits) return 0.; // prevent oveflows due to potential counter dissynchronization
-            double rawUtil = (1. - (null_flits / max_flits));
-            const double fullActiveCycles = double(after.TxL0Cycles[socketNr][linkNr] - before.TxL0Cycles[socketNr][linkNr]);
-            const double max_cycles = max_flits / double(m->getFlitsPerLinkCycle(cpuModel));
-            /* does not take into account L0p half-lane mode. This is only a best-effort approximation
-                    (works best if the link is 100% in the full speed L0 mode).. */
-            return rawUtil*(fullActiveCycles/max_cycles);
+            flits = flits/3.;
         }
         if (flits > max_flits) return 1.; // prevent oveflows due to potential counter dissynchronization
         return (flits / max_flits);
