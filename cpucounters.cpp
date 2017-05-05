@@ -4283,8 +4283,8 @@ void ServerPCICFGUncore::program()
         event[0] = Q_P_PCI_PMON_CTL_EVENT(0x26);
         // monitor RxL_FLITS.DATA on counter 1
         event[1] = Q_P_PCI_PMON_CTL_EVENT(0x03) + Q_P_PCI_PMON_CTL_UMASK(0xF);
-        // monitor TxL_FLITS.IDLE on counter 2
-        event[2] = Q_P_PCI_PMON_CTL_EVENT(0x02) + Q_P_PCI_PMON_CTL_UMASK(0x47);
+        // monitor TxL_FLITS.NON_DATA+DATA on counter 2
+        event[2] = Q_P_PCI_PMON_CTL_EVENT(0x02) + Q_P_PCI_PMON_CTL_UMASK((0x97|0x0F));
         // monitor UPI CLOCKTICKS
         event[3] = Q_P_PCI_PMON_CTL_EVENT(0x01);
     }
