@@ -565,12 +565,6 @@ int main(int argc, char * argv[])
     counters = load_events(ev_file_name.c_str());
     //print_nameMap();
     //TODO: Taking from cli
-    for(uint32 s=0; s < m->getNumSockets();++s)
-        skt_list.push_back(s);
-    stack_list.push_back(PCM::IIO_CBDMA);
-    stack_list.push_back(PCM::IIO_PCIe0);
-    stack_list.push_back(PCM::IIO_PCIe1);
-    stack_list.push_back(PCM::IIO_PCIe2);
 
     vector<uint32_t> busno;
 
@@ -593,9 +587,17 @@ int main(int argc, char * argv[])
             cerr << "Only systems with "<<m->getNumSockets()<<" sockets are not supported! Program aborted" << endl;
             exit(EXIT_FAILURE);
     }
-
-    for (uint32_t s = 0; s < max_sockets; s++)
+    for(uint32 s=0; s < m->getNumSockets();++s) {
+        skt_list.push_back(s);
         discover_pci_tree(busno, s, iio_skx_v);
+    }
+    stack_list.push_back(PCM::IIO_CBDMA);
+    stack_list.push_back(PCM::IIO_PCIe0);
+    stack_list.push_back(PCM::IIO_PCIe1);
+    stack_list.push_back(PCM::IIO_PCIe2);
+    stack_list.push_back(PCM::IIO_MCP0);
+    stack_list.push_back(PCM::IIO_MCP1);
+
     while (1) {
         collect_data(m, iio_skx_v, counters);
         display_buffer = build_display(iio_skx_v, counters, skt_list, stack_list, pciDB);
