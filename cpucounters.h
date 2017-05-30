@@ -1283,6 +1283,14 @@ public:
                );
     }
 
+    const char * xPI() const
+    {
+        if (hasUPI())
+            return "UPI";
+
+        return "QPI";
+    }
+
     bool supportsHLE() const;
     bool supportsRTM() const;
 
