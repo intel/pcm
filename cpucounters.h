@@ -120,6 +120,7 @@ class ServerPCICFGUncore
     void initMemTest(MemTestParam & param);
     void doMemTest(const MemTestParam & param);
     void cleanupMemTest(const MemTestParam & param);
+    void cleanupQPIHandles();
 
 public:
     //! \brief Initialize access data structures

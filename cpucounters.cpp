@@ -4304,7 +4304,12 @@ void ServerPCICFGUncore::program()
         // QPI LL PMU
 
         // freeze enable
-        qpiLLHandles[i]->write32(LINK_PCI_PMON_BOX_CTL_ADDR, extra);
+        if (4 != qpiLLHandles[i]->write32(LINK_PCI_PMON_BOX_CTL_ADDR, extra))
+        {
+            std::cout << "Link "<<i<<" is disabled" << std::endl;
+            qpiLLHandles[i] = NULL;
+            continue;
+        }
         // freeze
         qpiLLHandles[i]->write32(LINK_PCI_PMON_BOX_CTL_ADDR, extra + Q_P_PCI_PMON_BOX_CTL_RST_FRZ);
 
@@ -4331,6 +4336,20 @@ void ServerPCICFGUncore::program()
 
         // unfreeze counters
         qpiLLHandles[i]->write32(LINK_PCI_PMON_BOX_CTL_ADDR, extra);
+    }
+    cleanupQPIHandles();
+}
+
+void ServerPCICFGUncore::cleanupQPIHandles()
+{
+    for(auto i = qpiLLHandles.begin(); i != qpiLLHandles.end(); ++i)
+    {
+        if (!i->get()) // NULL
+        {
+            qpiLLHandles.erase(i);
+            cleanupQPIHandles();
+            return;
+        }
     }
 }
 
@@ -4487,7 +4506,12 @@ void ServerPCICFGUncore::program_power_metrics(int mc_profile)
         // QPI LL PMU
 
         // freeze enable
-        qpiLLHandles[i]->write32(LINK_PCI_PMON_BOX_CTL_ADDR, extra);
+        if (4 != qpiLLHandles[i]->write32(LINK_PCI_PMON_BOX_CTL_ADDR, extra))
+        {
+            std::cout << "Link "<<i<<" is disabled";
+            qpiLLHandles[i] = NULL;
+            continue;
+        }
         // freeze
         qpiLLHandles[i]->write32(LINK_PCI_PMON_BOX_CTL_ADDR, extra + Q_P_PCI_PMON_BOX_CTL_RST_FRZ);
 
@@ -4516,6 +4540,7 @@ void ServerPCICFGUncore::program_power_metrics(int mc_profile)
         // unfreeze counters
         qpiLLHandles[i]->write32(LINK_PCI_PMON_BOX_CTL_ADDR, extra);
     }
+    cleanupQPIHandles();
 
 	uint32 MCCntConfig[4] = {0,0,0,0};
     switch(mc_profile)
