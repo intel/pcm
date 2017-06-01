@@ -4281,6 +4281,8 @@ void ServerPCICFGUncore::programServerUncoreMemoryMetrics(int rankA, int rankB)
     }
     programIMC(MCCntConfig);
     if(cpu_model == PCM::KNL) programEDC(EDCCntConfig);
+
+    qpiLLHandles.clear(); // no QPI events used
     return;
 }
 
@@ -4337,7 +4339,7 @@ void ServerPCICFGUncore::program()
         // freeze enable
         if (4 != qpiLLHandles[i]->write32(LINK_PCI_PMON_BOX_CTL_ADDR, extra))
         {
-            std::cout << "Link "<<i<<" is disabled" << std::endl;
+            std::cout << "Link "<<(i+1)<<" is disabled" << std::endl;
             qpiLLHandles[i] = NULL;
             continue;
         }
@@ -4519,7 +4521,7 @@ void ServerPCICFGUncore::program_power_metrics(int mc_profile)
         // freeze enable
         if (4 != qpiLLHandles[i]->write32(LINK_PCI_PMON_BOX_CTL_ADDR, extra))
         {
-            std::cout << "Link "<<i<<" is disabled";
+            std::cout << "Link "<<(i+1)<<" is disabled";
             qpiLLHandles[i] = NULL;
             continue;
         }
