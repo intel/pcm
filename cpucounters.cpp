@@ -3841,12 +3841,21 @@ static const uint32 UPI_DEV_IDS[] = {
     0x2058
 };
 
+static const uint32 M2M_DEV_IDS[] = {
+    0x2066
+};
+
 PCM_Util::Mutex ServerPCICFGUncore::socket2busMutex;
 std::vector<std::pair<uint32,uint32> > ServerPCICFGUncore::socket2iMCbus;
 std::vector<std::pair<uint32,uint32> > ServerPCICFGUncore::socket2UPIbus;
+std::vector<std::pair<uint32,uint32> > ServerPCICFGUncore::socket2M2Mbus;
 
 void ServerPCICFGUncore::initSocket2Bus(std::vector<std::pair<uint32, uint32> > & socket2bus, uint32 device, uint32 function, const uint32 DEV_IDS[], uint32 devIdsSize)
 {
+    if (device == PCM_INVALID_DEV_ADDR || function == PCM_INVALID_FUNC_ADDR)
+    {
+        return;
+    }
     PCM_Util::Mutex::Scope _(socket2busMutex);
     if(!socket2bus.empty()) return;
 
@@ -3939,6 +3948,7 @@ PciHandleType * ServerPCICFGUncore::createIntelPerfMonDevice(uint32 groupnr_, in
 ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
      iMCbus(-1)
    , UPIbus(-1)
+   , M2Mbus(-1)
    , groupnr(0)
    , qpi_speed(0)
    , num_imc(0)
@@ -3954,6 +3964,14 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
     EDCX_ECLK_REGISTER_DEV_ADDR[controller] = arch##_EDC##controller##_##clock##_REGISTER_DEV_ADDR; \
     EDCX_ECLK_REGISTER_FUNC_ADDR[controller] = arch##_EDC##controller##_##clock##_REGISTER_FUNC_ADDR;
 
+#define PCM_PCICFG_M2M_INIT(x, arch) \
+    M2M_REGISTER_DEV_ADDR[x] = arch##_M2M_##x##_REGISTER_DEV_ADDR; \
+    M2M_REGISTER_FUNC_ADDR[x] = arch##_M2M_##x##_REGISTER_FUNC_ADDR;
+
+    M2M_REGISTER_DEV_ADDR[0] = PCM_INVALID_DEV_ADDR;
+    M2M_REGISTER_FUNC_ADDR[0] = PCM_INVALID_FUNC_ADDR;
+    M2M_REGISTER_DEV_ADDR[1] = PCM_INVALID_DEV_ADDR;
+    M2M_REGISTER_FUNC_ADDR[1] = PCM_INVALID_FUNC_ADDR;
 
     if(cpu_model == PCM::JAKETOWN || cpu_model == PCM::IVYTOWN)
     {
@@ -3987,6 +4005,9 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
         PCM_PCICFG_MC_INIT(1, 1, SKX)
         PCM_PCICFG_MC_INIT(1, 2, SKX)
         PCM_PCICFG_MC_INIT(1, 3, SKX)
+
+        PCM_PCICFG_M2M_INIT(0, SKX)
+        PCM_PCICFG_M2M_INIT(1, SKX)
     }
     else if(cpu_model == PCM::KNL)
     {
@@ -4016,12 +4037,26 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
 
 #undef PCM_PCICFG_MC_INIT
 #undef PCM_PCICFG_EDC_INIT
+#undef PCM_PCICFG_M2M_INIT
+
+    const uint32 total_sockets_ = pcm->getNumSockets();
+
+    initSocket2Bus(socket2M2Mbus, M2M_REGISTER_DEV_ADDR[0], M2M_REGISTER_FUNC_ADDR[0], M2M_DEV_IDS, (uint32)sizeof(M2M_DEV_IDS) / sizeof(M2M_DEV_IDS[0]));
+    if (total_sockets_ == socket2M2Mbus.size())
+    {
+       groupnr = socket2M2Mbus[socket_].first;
+       M2Mbus = socket2M2Mbus[socket_].second;
+    }
 
     initSocket2Bus(socket2iMCbus, MCX_CHY_REGISTER_DEV_ADDR[0][0], MCX_CHY_REGISTER_FUNC_ADDR[0][0], IMC_DEV_IDS, (uint32)sizeof(IMC_DEV_IDS) / sizeof(IMC_DEV_IDS[0]));
-    const uint32 total_sockets_ = pcm->getNumSockets();
 
     if(total_sockets_ == socket2iMCbus.size())
     {
+      if (total_sockets_ == socket2M2Mbus.size() && socket2iMCbus[socket_].first != socket2M2Mbus[socket_].first)
+      {
+          std::cerr << "PCM error: mismatching PCICFG group number for M2M and IMC perfmon devices." << std::endl;
+          M2Mbus = -1;
+      }
       groupnr = socket2iMCbus[socket_].first;
       iMCbus = socket2iMCbus[socket_].second;
 
@@ -4096,6 +4131,20 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
 #undef PCM_PCICFG_SETUP_EDC_HANDLE
     }
 
+#define PCM_PCICFG_SETUP_M2M_HANDLE(x)                                               \
+        if (M2Mbus >= 0 && M2M_REGISTER_DEV_ADDR[x] != PCM_INVALID_DEV_ADDR &&       \
+            M2M_REGISTER_FUNC_ADDR[x] != PCM_INVALID_FUNC_ADDR )                     \
+        {                                                                            \
+            PciHandleType * handle = createIntelPerfMonDevice(groupnr, M2Mbus,       \
+                M2M_REGISTER_DEV_ADDR[x], M2M_REGISTER_FUNC_ADDR[x], true);          \
+            if (handle) m2mHandles.push_back(std::shared_ptr<PciHandleType>(handle));\
+        }
+
+    PCM_PCICFG_SETUP_M2M_HANDLE(0)
+    PCM_PCICFG_SETUP_M2M_HANDLE(1)
+
+#undef PCM_PCICFG_SETUP_M2M_HANDLE
+
     if (total_sockets_ == 1) {
         /*
          * For single socket systems, do not worry at all about QPI ports.  This
@@ -4105,13 +4154,15 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
          *  is possible with single socket systems.
          */
         qpiLLHandles.clear();
-        std::cerr << "On the socket detected " << num_imc << " memory controllers with total number of " << imcHandles.size() << " channels. " << std::endl;
+        std::cerr << "On the socket detected " << num_imc << " memory controllers with total number of " << imcHandles.size() << " channels. " <<
+                   m2mHandles.size() << " M2M (mesh to memory) blocks detected."<< std::endl; 
         return;
     }
 
 #ifdef PCM_NOQPI
     qpiLLHandles.clear();
-    std::cerr << num_imc<<" memory controllers detected with total number of "<< imcHandles.size() <<" channels. " << std::endl;
+    std::cerr << num_imc<<" memory controllers detected with total number of "<< imcHandles.size() <<" channels. " << 
+                 m2mHandles.size() << " M2M (mesh to memory) blocks detected."<< std::endl;
     return;
 #else
 
@@ -4229,7 +4280,8 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
 #endif
     std::cerr << "Socket "<<socket_<<": "<<
         num_imc<<" memory controllers detected with total number of "<< getNumMCChannels() <<" channels. "<<
-        getNumQPIPorts()<< " QPI ports detected."<<std::endl;
+        getNumQPIPorts()<< " QPI ports detected."<<
+         " "<<m2mHandles.size() << " M2M (mesh to memory) blocks detected."<< std::endl;
 }
 
 ServerPCICFGUncore::~ServerPCICFGUncore()

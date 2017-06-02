@@ -88,12 +88,13 @@ struct PCM_API TopologyEntry // decribes a core
 //! Object to access uncore counters in a socket/processor with microarchitecture codename SandyBridge-EP (Jaketown) or Ivytown-EP or Ivytown-EX
 class ServerPCICFGUncore
 {
-    int32 iMCbus,UPIbus;
+    int32 iMCbus,UPIbus,M2Mbus;
     uint32 groupnr;
     int32 cpu_model;
     std::vector<std::shared_ptr<PciHandleType> > imcHandles;
     std::vector<std::shared_ptr<PciHandleType> > edcHandles;
     std::vector<std::shared_ptr<PciHandleType> > qpiLLHandles;
+    std::vector<std::shared_ptr<PciHandleType> > m2mHandles;
     std::vector<uint64> qpi_speed;
     uint32 num_imc;
     uint32 MCX_CHY_REGISTER_DEV_ADDR[2][4];
@@ -102,6 +103,8 @@ class ServerPCICFGUncore
     uint32 EDCX_ECLK_REGISTER_FUNC_ADDR[8];
     uint32 QPI_PORTX_REGISTER_DEV_ADDR[3];
     uint32 QPI_PORTX_REGISTER_FUNC_ADDR[3];
+    uint32 M2M_REGISTER_DEV_ADDR[2];
+    uint32 M2M_REGISTER_FUNC_ADDR[2];
     uint32 LINK_PCI_PMON_BOX_CTL_ADDR;
     uint32 LINK_PCI_PMON_CTL_ADDR[4];
     uint32 LINK_PCI_PMON_CTR_ADDR[4];
@@ -109,6 +112,7 @@ class ServerPCICFGUncore
     static PCM_Util::Mutex socket2busMutex;
     static std::vector<std::pair<uint32, uint32> > socket2iMCbus;
     static std::vector<std::pair<uint32, uint32> > socket2UPIbus;
+    static std::vector<std::pair<uint32, uint32> > socket2M2Mbus;
     void initSocket2Bus(std::vector<std::pair<uint32, uint32> > & socket2bus, uint32 device, uint32 function, const uint32 DEV_IDS[], uint32 devIdsSize);
 
     ServerPCICFGUncore();                                         // forbidden
