@@ -62,6 +62,7 @@ class CoreCounterState;
 class BasicCounterState;
 class ServerUncorePowerState;
 class PCM;
+class CoreTaskQueue;
 
 #ifdef _MSC_VER
 void PCM_API restrictDriverAccess(LPCWSTR path);
@@ -120,6 +121,7 @@ class ServerPCICFGUncore
     void initMemTest(MemTestParam & param);
     void doMemTest(const MemTestParam & param);
     void cleanupMemTest(const MemTestParam & param);
+    void cleanupQPIHandles();
 
 public:
     //! \brief Initialize access data structures
@@ -324,6 +326,8 @@ class PCM_API PCM
 
     uint64 * coreCStateMsr;    // MSR addresses of core C-state free-running counters
     uint64 * pkgCStateMsr;     // MSR addresses of package C-state free-running counters
+
+    std::vector<std::shared_ptr<CoreTaskQueue> > coreTaskQueues;
 
 public:
     enum { MAX_C_STATE = 10 }; // max C-state on Intel architecture
@@ -1281,6 +1285,14 @@ public:
         return (
             cpu_model == PCM::SKX
                );
+    }
+
+    const char * xPI() const
+    {
+        if (hasUPI())
+            return "UPI";
+
+        return "QPI";
     }
 
     bool supportsHLE() const;

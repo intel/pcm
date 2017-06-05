@@ -72,6 +72,10 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <thread>
 #include <future>
 #include <functional>
+#include <queue>
+#include <condition_variable>
+#include <mutex>
+#include <atomic>
 
 #ifdef __APPLE__
 #include <sys/types.h>
@@ -1433,6 +1437,38 @@ bool isNMIWatchdogEnabled()
 
 #endif
 
+class CoreTaskQueue
+{
+    std::queue<std::packaged_task<void()> > wQueue;
+    std::mutex m;
+    std::condition_variable condVar;
+    std::thread worker;
+    CoreTaskQueue() = delete;
+    CoreTaskQueue(CoreTaskQueue &) = delete;
+public:
+    CoreTaskQueue(int32 core) :
+        worker([&]() {
+            TemporalThreadAffinity tempThreadAffinity(core);
+            std::unique_lock<std::mutex> lock(m);
+            while (1) {
+                while (wQueue.empty()) {
+                    condVar.wait(lock);
+                }
+                while (!wQueue.empty()) {
+                    wQueue.front()();
+                    wQueue.pop();
+                }
+            }
+        })
+    {}
+    void push(std::packaged_task<void()> & task)
+    {
+        std::unique_lock<std::mutex> lock(m);
+        wQueue.push(std::move(task));
+        condVar.notify_one();
+    }
+};
+
 PCM::PCM() :
     cpu_family(-1),
     cpu_model(-1),
@@ -1526,6 +1562,11 @@ PCM::PCM() :
     std::vector<int> dummy(PERF_MAX_COUNTERS, -1);
     perfEventHandle.resize(num_cores, dummy);
 #endif
+
+    for (int32 i = 0; i < num_cores; ++i)
+    {
+        coreTaskQueues.push_back(std::shared_ptr<CoreTaskQueue>(new CoreTaskQueue(i)));
+    }
 }
 
 void PCM::enableJKTWorkaround(bool enable)
@@ -3350,8 +3391,10 @@ void PCM::readAndAggregatePackageCStateResidencies(std::shared_ptr<SafeMsrHandle
         if(pkgCStateMsr && pkgCStateMsr[i])
                 msr->read(pkgCStateMsr[i], &(cCStateResidency[i]));
 
-      for(int i=0; i <= int(PCM::MAX_C_STATE) ;++i)
-        result.CStateResidency[i] += cCStateResidency[i];
+    for (int i = 0; i <= int(PCM::MAX_C_STATE); ++i)
+    {
+        atomic_fetch_add((std::atomic<uint64> *)(result.CStateResidency + i), cCStateResidency[i]);
+    }
 }
 
 void PCM::readQPICounters(SystemCounterState & result)
@@ -3510,25 +3553,42 @@ void PCM::getAllCounterStates(SystemCounterState & systemState, std::vector<Sock
     coreStates.clear();
     coreStates.resize(num_cores);
 
+    std::vector<std::future<void> > asyncCoreResults;
+
     for (int32 core = 0; core < num_cores; ++core)
     {
         // read core counters
-        if(isCoreOnline(core))
+        if (isCoreOnline(core))
         {
-          coreStates[core].readAndAggregate(MSR[core]);
-          socketStates[topology[core].socket].UncoreCounterState::readAndAggregate(MSR[core]); // read package C state counters
+            std::packaged_task<void()> task([this,&coreStates,&socketStates,core]()
+                {
+                    coreStates[core].readAndAggregate(MSR[core]);
+                    socketStates[topology[core].socket].UncoreCounterState::readAndAggregate(MSR[core]); // read package C state counters
+                }
+            );
+            asyncCoreResults.push_back(std::move(task.get_future()));
+            coreTaskQueues[core]->push(task);
         }
         // std::cout << "DEBUG2: "<< core<< " "<< coreStates[core].InstRetiredAny << " "<< std::endl;
     }
-
     for (uint32 s = 0; s < (uint32)num_sockets; ++s)
     {
-        readAndAggregateUncoreMCCounters(s, socketStates[s]);
-        readAndAggregateEnergyCounters(s, socketStates[s]);
-        readPackageThermalHeadroom(s, socketStates[s]);
+        int32 refCore = socketRefCore[s];
+        if (refCore<0) refCore = 0;
+        std::packaged_task<void()> task([this, s, &socketStates]()
+            {
+                readAndAggregateUncoreMCCounters(s, socketStates[s]);
+                readAndAggregateEnergyCounters(s, socketStates[s]);
+                readPackageThermalHeadroom(s, socketStates[s]);
+            } );
+        asyncCoreResults.push_back(std::move(task.get_future()));
+        coreTaskQueues[refCore]->push(task);
     }
 
     readQPICounters(systemState);
+
+    for (auto & ar : asyncCoreResults)
+        ar.wait();
 
     for (int32 core = 0; core < num_cores; ++core)
     {   // aggregate core counters into sockets
@@ -4245,6 +4305,8 @@ void ServerPCICFGUncore::programServerUncoreMemoryMetrics(int rankA, int rankB, 
     }
     programIMC(MCCntConfig);
     if(cpu_model == PCM::KNL) programEDC(EDCCntConfig);
+
+    qpiLLHandles.clear(); // no QPI events used
     return;
 }
 
@@ -4304,7 +4366,12 @@ void ServerPCICFGUncore::program()
         // QPI LL PMU
 
         // freeze enable
-        qpiLLHandles[i]->write32(LINK_PCI_PMON_BOX_CTL_ADDR, extra);
+        if (4 != qpiLLHandles[i]->write32(LINK_PCI_PMON_BOX_CTL_ADDR, extra))
+        {
+            std::cout << "Link "<<(i+1)<<" is disabled" << std::endl;
+            qpiLLHandles[i] = NULL;
+            continue;
+        }
         // freeze
         qpiLLHandles[i]->write32(LINK_PCI_PMON_BOX_CTL_ADDR, extra + Q_P_PCI_PMON_BOX_CTL_RST_FRZ);
 
@@ -4331,6 +4398,20 @@ void ServerPCICFGUncore::program()
 
         // unfreeze counters
         qpiLLHandles[i]->write32(LINK_PCI_PMON_BOX_CTL_ADDR, extra);
+    }
+    cleanupQPIHandles();
+}
+
+void ServerPCICFGUncore::cleanupQPIHandles()
+{
+    for(auto i = qpiLLHandles.begin(); i != qpiLLHandles.end(); ++i)
+    {
+        if (!i->get()) // NULL
+        {
+            qpiLLHandles.erase(i);
+            cleanupQPIHandles();
+            return;
+        }
     }
 }
 
@@ -4487,7 +4568,12 @@ void ServerPCICFGUncore::program_power_metrics(int mc_profile)
         // QPI LL PMU
 
         // freeze enable
-        qpiLLHandles[i]->write32(LINK_PCI_PMON_BOX_CTL_ADDR, extra);
+        if (4 != qpiLLHandles[i]->write32(LINK_PCI_PMON_BOX_CTL_ADDR, extra))
+        {
+            std::cout << "Link "<<(i+1)<<" is disabled";
+            qpiLLHandles[i] = NULL;
+            continue;
+        }
         // freeze
         qpiLLHandles[i]->write32(LINK_PCI_PMON_BOX_CTL_ADDR, extra + Q_P_PCI_PMON_BOX_CTL_RST_FRZ);
 
@@ -4516,6 +4602,7 @@ void ServerPCICFGUncore::program_power_metrics(int mc_profile)
         // unfreeze counters
         qpiLLHandles[i]->write32(LINK_PCI_PMON_BOX_CTL_ADDR, extra);
     }
+    cleanupQPIHandles();
 
 	uint32 MCCntConfig[4] = {0,0,0,0};
     switch(mc_profile)
