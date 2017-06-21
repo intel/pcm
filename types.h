@@ -696,13 +696,13 @@ struct BecktonUncorePMUCNTCTLRegister
 
 #define HSX_PCU_MSR_PMON_BOX_CTL_ADDR (0x0710)
 
-#define MC_CH_PCI_PMON_BOX_CTL_RST_CONTROL  (1 << 0)
-#define MC_CH_PCI_PMON_BOX_CTL_RST_COUNTERS     (1 << 1)
-#define MC_CH_PCI_PMON_BOX_CTL_FRZ  (1 << 8)
-#define MC_CH_PCI_PMON_BOX_CTL_FRZ_EN   (1 << 16)
-#define SKX_MC_CH_PCI_PMON_BOX_CTL_RSV  ((1 << 16) + (1 << 17))
+#define UNC_PMON_UNIT_CTL_RST_CONTROL  (1 << 0)
+#define UNC_PMON_UNIT_CTL_RST_COUNTERS     (1 << 1)
+#define UNC_PMON_UNIT_CTL_FRZ  (1 << 8)
+#define UNC_PMON_UNIT_CTL_FRZ_EN   (1 << 16)
+#define UNC_PMON_UNIT_CTL_RSV  ((1 << 16) + (1 << 17))
 
-#define UNCORE_PMON_BOX_CTL_VALID_BITS_MASK  ((1 << 17) - 1)
+#define UNC_PMON_UNIT_CTL_VALID_BITS_MASK  ((1 << 17) - 1)
 
 #define MC_CH_PCI_PMON_FIXED_CTL_RST (1 << 19)
 #define MC_CH_PCI_PMON_FIXED_CTL_EN (1 << 22)
@@ -715,12 +715,6 @@ struct BecktonUncorePMUCNTCTLRegister
 #define MC_CH_PCI_PMON_CTL_EN (1 << 22)
 #define MC_CH_PCI_PMON_CTL_INVERT (1 << 23)
 #define MC_CH_PCI_PMON_CTL_THRESH(x) (x << 24UL)
-
-#define Q_P_PCI_PMON_BOX_CTL_RST_CONTROL    (1 << 0)
-#define Q_P_PCI_PMON_BOX_CTL_RST_COUNTERS   (1 << 1)
-#define Q_P_PCI_PMON_BOX_CTL_RST_FRZ    (1 << 8)
-#define Q_P_PCI_PMON_BOX_CTL_RST_FRZ_EN     (1 << 16)
-#define U_L_PCI_PMON_BOX_CTL_RSV            ((1 << 16) + (1 << 17))
 
 #define Q_P_PCI_PMON_CTL_EVENT(x)   (x << 0)
 #define Q_P_PCI_PMON_CTL_UMASK(x)   (x << 8)
@@ -735,11 +729,6 @@ struct BecktonUncorePMUCNTCTLRegister
 #define PCU_MSR_PMON_BOX_FILTER_BAND_1(x) (x << 8)
 #define PCU_MSR_PMON_BOX_FILTER_BAND_2(x) (x << 16)
 #define PCU_MSR_PMON_BOX_FILTER_BAND_3(x) (x << 24)
-
-#define PCU_MSR_PMON_BOX_CTL_RST_CONTROL (1 << 0)
-#define PCU_MSR_PMON_BOX_CTL_RST_COUNTERS (1 << 1)
-#define PCU_MSR_PMON_BOX_CTL_FRZ (1 << 8)
-#define PCU_MSR_PMON_BOX_CTL_FRZ_EN (1 << 16)
 
 #define PCU_MSR_PMON_CTL_EVENT(x) (x << 0)
 #define PCU_MSR_PMON_CTL_OCC_SEL(x) (x << 14)
@@ -803,11 +792,6 @@ struct BecktonUncorePMUCNTCTLRegister
 #define KNL_CHA0_MSR_PMON_CTR2       0x0E0A // CHA 0 PMON Counter 2
 #define KNL_CHA0_MSR_PMON_CTR3       0x0E0B // CHA 0 PMON Counter 3
 
-#define CBO_MSR_PMON_BOX_CTL_RST_CONTROL (1 << 0)
-#define CBO_MSR_PMON_BOX_CTL_RST_COUNTERS (1 << 1)
-#define CBO_MSR_PMON_BOX_CTL_FRZ (1 << 8)
-#define CBO_MSR_PMON_BOX_CTL_FRZ_EN (1 << 16)
-
 #define CBO_MSR_PMON_CTL_EVENT(x) (x << 0)
 #define CBO_MSR_PMON_CTL_UMASK(x) (x << 8)
 #define CBO_MSR_PMON_CTL_RST    (1 << 17)
@@ -838,11 +822,6 @@ struct BecktonUncorePMUCNTCTLRegister
 #define SKX_IIO_CBDMA_CLK           (0x0A45)
 #define SKX_IIO_CBDMA_CTL0          (0x0A48)
 #define SKX_IIO_PM_REG_STEP         (0x0020)
-
-#define IIO_MSR_PMON_BOX_CTL_RST_CONTROL (1 << 0)
-#define IIO_MSR_PMON_BOX_CTL_RST_COUNTERS (1 << 1)
-#define IIO_MSR_PMON_BOX_CTL_FRZ (1 << 8)
-#define IIO_MSR_PMON_BOX_CTL_RSV ((1 << 16) + (1 << 17))
 
 #define IIO_MSR_PMON_CTL_EVENT(x)   ((x) << 0)
 #define IIO_MSR_PMON_CTL_UMASK(x)   ((x) << 8)
