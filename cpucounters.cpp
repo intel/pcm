@@ -3186,15 +3186,15 @@ PCM::ErrorCode PCM::programServerUncorePowerMetrics(int mc_profile, int pcu_prof
       TemporalThreadAffinity tempThreadAffinity(refCore); // speedup trick for Linux
 
        // freeze enable
-      MSR[refCore]->write(PCU_MSR_PMON_BOX_CTL_ADDR, PCU_MSR_PMON_BOX_CTL_FRZ_EN);
+      MSR[refCore]->write(PCU_MSR_PMON_BOX_CTL_ADDR, UNC_PMON_UNIT_CTL_FRZ_EN);
         // freeze
-      MSR[refCore]->write(PCU_MSR_PMON_BOX_CTL_ADDR, PCU_MSR_PMON_BOX_CTL_FRZ_EN + PCU_MSR_PMON_BOX_CTL_FRZ);
+      MSR[refCore]->write(PCU_MSR_PMON_BOX_CTL_ADDR, UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ);
 
 #ifdef PCM_UNCORE_PMON_BOX_CHECK_STATUS
       uint64 val = 0;
       MSR[refCore]->read(PCU_MSR_PMON_BOX_CTL_ADDR,&val);
-      if ((val & UNCORE_PMON_BOX_CTL_VALID_BITS_MASK) != (PCU_MSR_PMON_BOX_CTL_FRZ_EN + PCU_MSR_PMON_BOX_CTL_FRZ))
-            std::cerr << "ERROR: PCU counter programming seems not to work. PCU_MSR_PMON_BOX_CTL=0x" << std::hex << val << " needs to be =0x"<< (PCU_MSR_PMON_BOX_CTL_FRZ_EN + PCU_MSR_PMON_BOX_CTL_FRZ) << std::endl;
+      if ((val & UNC_PMON_UNIT_CTL_VALID_BITS_MASK) != (UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ))
+            std::cerr << "ERROR: PCU counter programming seems not to work. PCU_MSR_PMON_BOX_CTL=0x" << std::hex << val << " needs to be =0x"<< (UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ) << std::endl;
 #endif
 
 	  if(freq_bands == NULL)
@@ -3217,10 +3217,10 @@ PCM::ErrorCode PCM::programServerUncorePowerMetrics(int mc_profile, int pcu_prof
       }
 
       // reset counter values
-      MSR[refCore]->write(PCU_MSR_PMON_BOX_CTL_ADDR, PCU_MSR_PMON_BOX_CTL_FRZ_EN + PCU_MSR_PMON_BOX_CTL_FRZ + PCU_MSR_PMON_BOX_CTL_RST_COUNTERS);
+      MSR[refCore]->write(PCU_MSR_PMON_BOX_CTL_ADDR, UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ + UNC_PMON_UNIT_CTL_RST_COUNTERS);
 
       // unfreeze counters
-      MSR[refCore]->write(PCU_MSR_PMON_BOX_CTL_ADDR, PCU_MSR_PMON_BOX_CTL_FRZ_EN);
+      MSR[refCore]->write(PCU_MSR_PMON_BOX_CTL_ADDR, UNC_PMON_UNIT_CTL_FRZ_EN);
  
     }
     return PCM::Success;
@@ -3231,7 +3231,7 @@ void PCM::freezeServerUncoreCounters()
     for (int i = 0; (i < (int)server_pcicfg_uncore.size()) && MSR.size(); ++i)
     {
       server_pcicfg_uncore[i]->freezeCounters();
-	  MSR[socketRefCore[i]]->write(PCU_MSR_PMON_BOX_CTL_ADDR, PCU_MSR_PMON_BOX_CTL_FRZ_EN + PCU_MSR_PMON_BOX_CTL_FRZ);
+	  MSR[socketRefCore[i]]->write(PCU_MSR_PMON_BOX_CTL_ADDR, UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ);
 	}
 }
 void PCM::unfreezeServerUncoreCounters()
@@ -3239,7 +3239,7 @@ void PCM::unfreezeServerUncoreCounters()
     for (int i = 0; (i < (int)server_pcicfg_uncore.size()) && MSR.size(); ++i)
     {
       server_pcicfg_uncore[i]->unfreezeCounters();
-	  MSR[socketRefCore[i]]->write(PCU_MSR_PMON_BOX_CTL_ADDR, PCU_MSR_PMON_BOX_CTL_FRZ_EN);
+	  MSR[socketRefCore[i]]->write(PCU_MSR_PMON_BOX_CTL_ADDR, UNC_PMON_UNIT_CTL_FRZ_EN);
 	}
 }
 void UncoreCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
@@ -4308,7 +4308,7 @@ void ServerPCICFGUncore::program()
     programIMC(MCCntConfig);
     if(cpu_model == PCM::KNL) programEDC(EDCCntConfig);
 
-    const uint32 extra = (cpu_model == PCM::SKX)?U_L_PCI_PMON_BOX_CTL_RSV:Q_P_PCI_PMON_BOX_CTL_RST_FRZ_EN;
+    const uint32 extra = (cpu_model == PCM::SKX)?UNC_PMON_UNIT_CTL_RSV:UNC_PMON_UNIT_CTL_FRZ_EN;
     uint32 event[4];
     if(cpu_model == PCM::SKX)
     {
@@ -4344,12 +4344,12 @@ void ServerPCICFGUncore::program()
             continue;
         }
         // freeze
-        qpiLLHandles[i]->write32(LINK_PCI_PMON_BOX_CTL_ADDR, extra + Q_P_PCI_PMON_BOX_CTL_RST_FRZ);
+        qpiLLHandles[i]->write32(LINK_PCI_PMON_BOX_CTL_ADDR, extra + UNC_PMON_UNIT_CTL_FRZ);
 
 #ifdef PCM_UNCORE_PMON_BOX_CHECK_STATUS
         uint32 val = 0;
         qpiLLHandles[i]->read32(LINK_PCI_PMON_BOX_CTL_ADDR, &val);
-        if ((val & UNCORE_PMON_BOX_CTL_VALID_BITS_MASK) != (extra + Q_P_PCI_PMON_BOX_CTL_RST_FRZ))
+        if ((val & UNC_PMON_UNIT_CTL_VALID_BITS_MASK) != (extra + UNC_PMON_UNIT_CTL_FRZ))
 		{
             std::cerr << "ERROR: QPI LL counter programming seems not to work. Q_P" << i << "_PCI_PMON_BOX_CTL=0x" << std::hex << val << std::endl;
 			std::cerr << "       Please see BIOS options to enable the export of performance monitoring devices (devices 8 and 9: function 2)." << std::endl;
@@ -4365,7 +4365,7 @@ void ServerPCICFGUncore::program()
         }
 	
         // reset counters values
-        qpiLLHandles[i]->write32(LINK_PCI_PMON_BOX_CTL_ADDR, extra + Q_P_PCI_PMON_BOX_CTL_RST_FRZ + Q_P_PCI_PMON_BOX_CTL_RST_COUNTERS);
+        qpiLLHandles[i]->write32(LINK_PCI_PMON_BOX_CTL_ADDR, extra + UNC_PMON_UNIT_CTL_FRZ + UNC_PMON_UNIT_CTL_RST_COUNTERS);
 
         // unfreeze counters
         qpiLLHandles[i]->write32(LINK_PCI_PMON_BOX_CTL_ADDR, extra);
@@ -4513,7 +4513,7 @@ uint64 ServerPCICFGUncore::getUPIL0TxCycles(uint32 port)
 void ServerPCICFGUncore::program_power_metrics(int mc_profile)
 {
     const uint32 cpu_model = PCM::getInstance()->getCPUModel();
-    const uint32 extra = (cpu_model == PCM::SKX)?U_L_PCI_PMON_BOX_CTL_RSV:Q_P_PCI_PMON_BOX_CTL_RST_FRZ_EN;
+    const uint32 extra = (cpu_model == PCM::SKX)?UNC_PMON_UNIT_CTL_RSV:UNC_PMON_UNIT_CTL_FRZ_EN;
     for (uint32 i = 0; i < (uint32)qpiLLHandles.size(); ++i)
     {
         // QPI LL PMU
@@ -4526,12 +4526,12 @@ void ServerPCICFGUncore::program_power_metrics(int mc_profile)
             continue;
         }
         // freeze
-        qpiLLHandles[i]->write32(LINK_PCI_PMON_BOX_CTL_ADDR, extra + Q_P_PCI_PMON_BOX_CTL_RST_FRZ);
+        qpiLLHandles[i]->write32(LINK_PCI_PMON_BOX_CTL_ADDR, extra + UNC_PMON_UNIT_CTL_FRZ);
 
 #ifdef PCM_UNCORE_PMON_BOX_CHECK_STATUS
         uint32 val = 0;
         qpiLLHandles[i]->read32(LINK_PCI_PMON_BOX_CTL_ADDR, &val);
-        if ((val & UNCORE_PMON_BOX_CTL_VALID_BITS_MASK) != (extra + Q_P_PCI_PMON_BOX_CTL_RST_FRZ))
+        if ((val & UNC_PMON_UNIT_CTL_VALID_BITS_MASK) != (extra + UNC_PMON_UNIT_CTL_FRZ))
 		{
             std::cerr << "ERROR: QPI LL counter programming seems not to work. Q_P" << i << "_PCI_PMON_BOX_CTL=0x" << std::hex << val << std::endl;
 	    std::cerr << "       Please see BIOS options to enable the export of performance monitoring devices." << std::endl;
@@ -4548,7 +4548,7 @@ void ServerPCICFGUncore::program_power_metrics(int mc_profile)
         qpiLLHandles[i]->write32(LINK_PCI_PMON_CTL_ADDR[2], Q_P_PCI_PMON_CTL_EN + Q_P_PCI_PMON_CTL_EVENT((cpu_model == PCM::SKX ? 0x21 : 0x12))); // L1 Cycles (L1_POWER_CYCLES)
 
         // reset counters values
-        qpiLLHandles[i]->write32(LINK_PCI_PMON_BOX_CTL_ADDR, extra + Q_P_PCI_PMON_BOX_CTL_RST_FRZ + Q_P_PCI_PMON_BOX_CTL_RST_COUNTERS);
+        qpiLLHandles[i]->write32(LINK_PCI_PMON_BOX_CTL_ADDR, extra + UNC_PMON_UNIT_CTL_FRZ + UNC_PMON_UNIT_CTL_RST_COUNTERS);
 
         // unfreeze counters
         qpiLLHandles[i]->write32(LINK_PCI_PMON_BOX_CTL_ADDR, extra);
@@ -4594,7 +4594,7 @@ void ServerPCICFGUncore::program_power_metrics(int mc_profile)
 
 void ServerPCICFGUncore::programIMC(const uint32 * MCCntConfig)
 {
-    const uint32 extraIMC = (PCM::getInstance()->getCPUModel() == PCM::SKX)?SKX_MC_CH_PCI_PMON_BOX_CTL_RSV:MC_CH_PCI_PMON_BOX_CTL_FRZ_EN;
+    const uint32 extraIMC = (PCM::getInstance()->getCPUModel() == PCM::SKX)?UNC_PMON_UNIT_CTL_RSV:UNC_PMON_UNIT_CTL_FRZ_EN;
     uint64 MC_CH_PCI_PMON_BOX_CTL_ADDR = 0;
     uint64 MC_CH_PCI_PMON_FIXED_CTL_ADDR = 0;
     uint64 MC_CH_PCI_PMON_CTL0_ADDR = 0;
@@ -4626,14 +4626,14 @@ void ServerPCICFGUncore::programIMC(const uint32 * MCCntConfig)
         // freeze enable
         imcHandles[i]->write32(MC_CH_PCI_PMON_BOX_CTL_ADDR, extraIMC);
         // freeze
-        imcHandles[i]->write32(MC_CH_PCI_PMON_BOX_CTL_ADDR, extraIMC + MC_CH_PCI_PMON_BOX_CTL_FRZ);
+        imcHandles[i]->write32(MC_CH_PCI_PMON_BOX_CTL_ADDR, extraIMC + UNC_PMON_UNIT_CTL_FRZ);
 
 #ifdef PCM_UNCORE_PMON_BOX_CHECK_STATUS
         uint32 val = 0;
         imcHandles[i]->read32(MC_CH_PCI_PMON_BOX_CTL_ADDR, &val);
-        if ((val & UNCORE_PMON_BOX_CTL_VALID_BITS_MASK) != (extraIMC + MC_CH_PCI_PMON_BOX_CTL_FRZ))
+        if ((val & UNC_PMON_UNIT_CTL_VALID_BITS_MASK) != (extraIMC + UNC_PMON_UNIT_CTL_FRZ))
         {
-            std::cerr << "ERROR: IMC counter programming seems not to work. MC_CH" << i << "_PCI_PMON_BOX_CTL=0x" << std::hex << val << " " << (val & UNCORE_PMON_BOX_CTL_VALID_BITS_MASK) << std::endl;
+            std::cerr << "ERROR: IMC counter programming seems not to work. MC_CH" << i << "_PCI_PMON_BOX_CTL=0x" << std::hex << val << " " << (val & UNC_PMON_UNIT_CTL_VALID_BITS_MASK) << std::endl;
             std::cerr << "       Please see BIOS options to enable the export of performance monitoring devices." << std::endl;
         } else {
            std::cerr << "INFO: IMC counter programming OK: MC_CH" << i << "_PCI_PMON_BOX_CTL=0x" << std::hex << val << std::endl;
@@ -4661,7 +4661,7 @@ void ServerPCICFGUncore::programIMC(const uint32 * MCCntConfig)
         imcHandles[i]->write32(MC_CH_PCI_PMON_CTL3_ADDR, MC_CH_PCI_PMON_CTL_EN + MCCntConfig[3]);
 
         // reset counters values
-        imcHandles[i]->write32(MC_CH_PCI_PMON_BOX_CTL_ADDR, extraIMC + MC_CH_PCI_PMON_BOX_CTL_FRZ + MC_CH_PCI_PMON_BOX_CTL_RST_COUNTERS);
+        imcHandles[i]->write32(MC_CH_PCI_PMON_BOX_CTL_ADDR, extraIMC + UNC_PMON_UNIT_CTL_FRZ + UNC_PMON_UNIT_CTL_RST_COUNTERS);
 
         // unfreeze counters
         imcHandles[i]->write32(MC_CH_PCI_PMON_BOX_CTL_ADDR, extraIMC);
@@ -4693,14 +4693,14 @@ void ServerPCICFGUncore::programEDC(const uint32 * EDCCntConfig)
     for (uint32 i = 0; i < (uint32)edcHandles.size(); ++i)
     {
         // freeze enable
-        edcHandles[i]->write32(EDC_CH_PCI_PMON_BOX_CTL_ADDR, MC_CH_PCI_PMON_BOX_CTL_FRZ_EN);
+        edcHandles[i]->write32(EDC_CH_PCI_PMON_BOX_CTL_ADDR, UNC_PMON_UNIT_CTL_FRZ_EN);
         // freeze
-        edcHandles[i]->write32(EDC_CH_PCI_PMON_BOX_CTL_ADDR, MC_CH_PCI_PMON_BOX_CTL_FRZ_EN + MC_CH_PCI_PMON_BOX_CTL_FRZ);
+        edcHandles[i]->write32(EDC_CH_PCI_PMON_BOX_CTL_ADDR, UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ);
 
 #ifdef PCM_UNCORE_PMON_BOX_CHECK_STATUS
         uint32 val = 0;
         edcHandles[i]->read32(EDC_CH_PCI_PMON_BOX_CTL_ADDR, &val);
-        if ((val & UNCORE_PMON_BOX_CTL_VALID_BITS_MASK) != (MC_CH_PCI_PMON_BOX_CTL_FRZ_EN + MC_CH_PCI_PMON_BOX_CTL_FRZ))
+        if ((val & UNC_PMON_UNIT_CTL_VALID_BITS_MASK) != (UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ))
         {
             std::cerr << "ERROR: EDC counter programming seems not to work. EDC" << i << "_PCI_PMON_BOX_CTL=0x" << std::hex << val << std::endl;
             std::cerr << "       Please see BIOS options to enable the export of performance monitoring devices." << std::endl;
@@ -4726,10 +4726,10 @@ void ServerPCICFGUncore::programEDC(const uint32 * EDCCntConfig)
         edcHandles[i]->write32(EDC_CH_PCI_PMON_CTL3_ADDR, MC_CH_PCI_PMON_CTL_EN + EDCCntConfig[3]);
 
         // reset counters values
-        edcHandles[i]->write32(EDC_CH_PCI_PMON_BOX_CTL_ADDR, MC_CH_PCI_PMON_BOX_CTL_FRZ_EN + MC_CH_PCI_PMON_BOX_CTL_FRZ + MC_CH_PCI_PMON_BOX_CTL_RST_COUNTERS);
+        edcHandles[i]->write32(EDC_CH_PCI_PMON_BOX_CTL_ADDR, UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ + UNC_PMON_UNIT_CTL_RST_COUNTERS);
 
         // unfreeze counters
-        edcHandles[i]->write32(EDC_CH_PCI_PMON_BOX_CTL_ADDR, MC_CH_PCI_PMON_BOX_CTL_FRZ);
+        edcHandles[i]->write32(EDC_CH_PCI_PMON_BOX_CTL_ADDR, UNC_PMON_UNIT_CTL_FRZ);
     }
 }
 
@@ -4738,8 +4738,8 @@ void ServerPCICFGUncore::freezeCounters()
     uint64 MC_CH_PCI_PMON_BOX_CTL_ADDR = 0;
     uint64 EDC_CH_PCI_PMON_BOX_CTL_ADDR = 0;
     const uint32 cpu_model = PCM::getInstance()->getCPUModel();
-    const uint32 extra = (cpu_model == PCM::SKX)?U_L_PCI_PMON_BOX_CTL_RSV:Q_P_PCI_PMON_BOX_CTL_RST_FRZ_EN;
-    const uint32 extraIMC = (cpu_model == PCM::SKX)?SKX_MC_CH_PCI_PMON_BOX_CTL_RSV:MC_CH_PCI_PMON_BOX_CTL_FRZ_EN;
+    const uint32 extra = (cpu_model == PCM::SKX)?UNC_PMON_UNIT_CTL_RSV:UNC_PMON_UNIT_CTL_FRZ_EN;
+    const uint32 extraIMC = (cpu_model == PCM::SKX)?UNC_PMON_UNIT_CTL_RSV:UNC_PMON_UNIT_CTL_FRZ_EN;
     if (cpu_model == PCM::KNL) {
         MC_CH_PCI_PMON_BOX_CTL_ADDR = KNX_MC_CH_PCI_PMON_BOX_CTL_ADDR;
         EDC_CH_PCI_PMON_BOX_CTL_ADDR = KNX_EDC_CH_PCI_PMON_BOX_CTL_ADDR;
@@ -4748,23 +4748,23 @@ void ServerPCICFGUncore::freezeCounters()
     }
     for (size_t i = 0; i < (size_t)qpiLLHandles.size(); ++i)
     {
-        qpiLLHandles[i]->write32(LINK_PCI_PMON_BOX_CTL_ADDR, extra + Q_P_PCI_PMON_BOX_CTL_RST_FRZ);
+        qpiLLHandles[i]->write32(LINK_PCI_PMON_BOX_CTL_ADDR, extra + UNC_PMON_UNIT_CTL_FRZ);
     }
     for (size_t i = 0; i < (size_t)imcHandles.size(); ++i)
     {
-        imcHandles[i]->write32(MC_CH_PCI_PMON_BOX_CTL_ADDR, extraIMC + MC_CH_PCI_PMON_BOX_CTL_FRZ);
+        imcHandles[i]->write32(MC_CH_PCI_PMON_BOX_CTL_ADDR, extraIMC + UNC_PMON_UNIT_CTL_FRZ);
     }
     for (size_t i = 0; i < (size_t)edcHandles.size(); ++i)
     {
-		edcHandles[i]->write32(EDC_CH_PCI_PMON_BOX_CTL_ADDR, MC_CH_PCI_PMON_BOX_CTL_FRZ_EN + MC_CH_PCI_PMON_BOX_CTL_FRZ);
+		edcHandles[i]->write32(EDC_CH_PCI_PMON_BOX_CTL_ADDR, UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ);
 	}
 }
 
 void ServerPCICFGUncore::unfreezeCounters()
 {
     const uint32 cpu_model = PCM::getInstance()->getCPUModel();
-    const uint32 extra = (cpu_model == PCM::SKX)?U_L_PCI_PMON_BOX_CTL_RSV:Q_P_PCI_PMON_BOX_CTL_RST_FRZ_EN;
-    const uint32 extraIMC = (cpu_model == PCM::SKX)?SKX_MC_CH_PCI_PMON_BOX_CTL_RSV:MC_CH_PCI_PMON_BOX_CTL_FRZ_EN;
+    const uint32 extra = (cpu_model == PCM::SKX)?UNC_PMON_UNIT_CTL_RSV:UNC_PMON_UNIT_CTL_FRZ_EN;
+    const uint32 extraIMC = (cpu_model == PCM::SKX)?UNC_PMON_UNIT_CTL_RSV:UNC_PMON_UNIT_CTL_FRZ_EN;
     uint64 MC_CH_PCI_PMON_BOX_CTL_ADDR = 0;
     uint64 EDC_CH_PCI_PMON_BOX_CTL_ADDR = 0;
     if (cpu_model == PCM::KNL) {
@@ -4784,7 +4784,7 @@ void ServerPCICFGUncore::unfreezeCounters()
     }
     for (size_t i = 0; i < (size_t)edcHandles.size(); ++i)
     {
-		edcHandles[i]->write32(EDC_CH_PCI_PMON_BOX_CTL_ADDR, MC_CH_PCI_PMON_BOX_CTL_FRZ_EN);
+		edcHandles[i]->write32(EDC_CH_PCI_PMON_BOX_CTL_ADDR, UNC_PMON_UNIT_CTL_FRZ_EN);
     }
 }
 
@@ -5317,9 +5317,9 @@ void PCM::programIIOCounters(IIOPMUCNTCTLRegister rawEvents[4], int IIOStack)
         for (std::vector<int32>::const_iterator iunit = IIO_units.begin(); iunit != IIO_units.end(); ++iunit)
         {
             const int32 unit = *iunit;
-            MSR[refCore]->write(IIO_UNIT_CTL_ADDR[unit], IIO_MSR_PMON_BOX_CTL_RSV);
+            MSR[refCore]->write(IIO_UNIT_CTL_ADDR[unit], UNC_PMON_UNIT_CTL_RSV);
             // freeze
-            MSR[refCore]->write(IIO_UNIT_CTL_ADDR[unit], IIO_MSR_PMON_BOX_CTL_RSV + IIO_MSR_PMON_BOX_CTL_FRZ);
+            MSR[refCore]->write(IIO_UNIT_CTL_ADDR[unit], UNC_PMON_UNIT_CTL_RSV + UNC_PMON_UNIT_CTL_FRZ);
 
             for (int c = 0; c < 4; ++c)
             {
@@ -5328,10 +5328,10 @@ void PCM::programIIOCounters(IIOPMUCNTCTLRegister rawEvents[4], int IIOStack)
             }
 
             // reset counter values
-            MSR[refCore]->write(IIO_UNIT_CTL_ADDR[unit], IIO_MSR_PMON_BOX_CTL_RSV + IIO_MSR_PMON_BOX_CTL_FRZ + IIO_MSR_PMON_BOX_CTL_RST_COUNTERS);
+            MSR[refCore]->write(IIO_UNIT_CTL_ADDR[unit], UNC_PMON_UNIT_CTL_RSV + UNC_PMON_UNIT_CTL_FRZ + UNC_PMON_UNIT_CTL_RST_COUNTERS);
 
             // unfreeze counters
-            MSR[refCore]->write(IIO_UNIT_CTL_ADDR[unit], IIO_MSR_PMON_BOX_CTL_RSV);
+            MSR[refCore]->write(IIO_UNIT_CTL_ADDR[unit], UNC_PMON_UNIT_CTL_RSV);
 
         }
     }
@@ -5352,14 +5352,14 @@ void PCM::programPCIeCounters(const PCM::PCIeEventCode event_, const uint32 tid_
         for(uint32 cbo = 0; cbo < getMaxNumOfCBoxes(); ++cbo)
         {
             // freeze enable
-            MSR[refCore]->write(CX_MSR_PMON_BOX_CTL(cbo), CBO_MSR_PMON_BOX_CTL_FRZ_EN);
+            MSR[refCore]->write(CX_MSR_PMON_BOX_CTL(cbo), UNC_PMON_UNIT_CTL_FRZ_EN);
             // freeze
-            MSR[refCore]->write(CX_MSR_PMON_BOX_CTL(cbo), CBO_MSR_PMON_BOX_CTL_FRZ_EN + CBO_MSR_PMON_BOX_CTL_FRZ);
+            MSR[refCore]->write(CX_MSR_PMON_BOX_CTL(cbo), UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ);
 
 #ifdef PCM_UNCORE_PMON_BOX_CHECK_STATUS
             uint64 val = 0;
             MSR[refCore]->read(CX_MSR_PMON_BOX_CTL(cbo), &val);
-            if ((val & UNCORE_PMON_BOX_CTL_VALID_BITS_MASK) != (CBO_MSR_PMON_BOX_CTL_FRZ_EN + CBO_MSR_PMON_BOX_CTL_FRZ))
+            if ((val & UNC_PMON_UNIT_CTL_VALID_BITS_MASK) != (UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ))
             {
                 std::cerr << "ERROR: CBO counter programming seems not to work. ";
                 std::cerr << "C" << std::dec << cbo << "_MSR_PMON_BOX_CTL=0x" << std::hex << val << std::endl;
@@ -5400,10 +5400,10 @@ void PCM::programPCIeCounters(const PCM::PCIeEventCode event_, const uint32 tid_
                 MSR[refCore]->write(CX_MSR_PMON_CTLY(cbo, 0), CBO_MSR_PMON_CTL_EN + CBO_MSR_PMON_CTL_EVENT(0x35) + (CBO_MSR_PMON_CTL_UMASK(1) | (miss_?CBO_MSR_PMON_CTL_UMASK(0x3):0ULL)) + (tid_?CBO_MSR_PMON_CTL_TID_EN:0ULL));
 
             // reset counter values
-            MSR[refCore]->write(CX_MSR_PMON_BOX_CTL(cbo), CBO_MSR_PMON_BOX_CTL_FRZ_EN + CBO_MSR_PMON_BOX_CTL_FRZ + CBO_MSR_PMON_BOX_CTL_RST_COUNTERS);
+            MSR[refCore]->write(CX_MSR_PMON_BOX_CTL(cbo), UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ + UNC_PMON_UNIT_CTL_RST_COUNTERS);
 
             // unfreeze counters
-            MSR[refCore]->write(CX_MSR_PMON_BOX_CTL(cbo), CBO_MSR_PMON_BOX_CTL_FRZ_EN);
+            MSR[refCore]->write(CX_MSR_PMON_BOX_CTL(cbo), UNC_PMON_UNIT_CTL_FRZ_EN);
         }
     }
 }
