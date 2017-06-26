@@ -565,7 +565,6 @@ struct BecktonUncorePMUCNTCTLRegister
 #define KNL_EDC7_ECLK_REGISTER_DEV_ADDR (31)
 #define KNL_EDC7_ECLK_REGISTER_FUNC_ADDR (2)
 
-
 /**
  * XPF_ for Xeons: SNB, IVT, HSX, BDW, etc.
  * KNX_ for Xeon Phi (Knights *) processors
@@ -853,6 +852,15 @@ struct BecktonUncorePMUCNTCTLRegister
 #define IIO_MSR_PMON_CTL_THRESH(x)  ((x) << 24ULL)
 #define IIO_MSR_PMON_CTL_CH_MASK(x) ((x) << 36ULL)
 #define IIO_MSR_PMON_CTL_FC_MASK(x) ((x) << 44ULL)
+
+#define M2M_PCI_PMON_CTL_EVENT(x)   ((x) << 0)
+#define M2M_PCI_PMON_CTL_UMASK(x)   ((x) << 8)
+#define M2M_PCI_PMON_CTL_RST        (1 << 17)
+#define M2M_PCI_PMON_CTL_EDGE_DET   (1 << 18)
+#define M2M_PCI_PMON_CTL_OV_EN      (1 << 20)
+#define M2M_PCI_PMON_CTL_EN         (1 << 22)
+#define M2M_PCI_PMON_CTL_INVERT     (1 << 23)
+#define M2M_PCI_PMON_CTL_THRESH(x)  ((x) << 24ULL)
 
 /* \brief IIO Performance Monitoring Control Register format
 

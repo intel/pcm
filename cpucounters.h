@@ -121,6 +121,7 @@ class ServerPCICFGUncore
     PciHandleType * createIntelPerfMonDevice(uint32 groupnr, int32 bus, uint32 dev, uint32 func, bool checkVendor = false);
     void programIMC(const uint32 * MCCntConfig);
     void programEDC(const uint32 * EDCCntConfig);
+    void programM2M();
     typedef std::pair<size_t, std::vector<uint64 *> > MemTestParam;
     void initMemTest(MemTestParam & param);
     void doMemTest(const MemTestParam & param);

@@ -4358,6 +4358,8 @@ void ServerPCICFGUncore::programServerUncoreMemoryMetrics(int rankA, int rankB, 
     programIMC(MCCntConfig);
     if(cpu_model == PCM::KNL) programEDC(EDCCntConfig);
 
+    programM2M();
+
     qpiLLHandles.clear(); // no QPI events used
     return;
 }
@@ -4831,6 +4833,41 @@ void ServerPCICFGUncore::programEDC(const uint32 * EDCCntConfig)
 
         // unfreeze counters
         edcHandles[i]->write32(EDC_CH_PCI_PMON_BOX_CTL_ADDR, UNC_PMON_UNIT_CTL_FRZ);
+    }
+}
+
+void ServerPCICFGUncore::programM2M()
+{
+    PCM * pcm = PCM::getInstance();
+    const uint32 cpu_model = pcm->getCPUModel();
+    if (cpu_model == PCM::SKX)
+    {
+        for (auto & m2mHandle : m2mHandles)
+        {
+            // freeze enable
+            m2mHandle->write32(M2M_PCI_PMON_BOX_CTL_ADDR, UNC_PMON_UNIT_CTL_RSV);
+            // freeze
+            m2mHandle->write32(M2M_PCI_PMON_BOX_CTL_ADDR, UNC_PMON_UNIT_CTL_RSV + UNC_PMON_UNIT_CTL_FRZ);
+
+#ifdef PCM_UNCORE_PMON_BOX_CHECK_STATUS
+            uint32 val = 0;
+            m2mHandle->write32(M2M_PCI_PMON_BOX_CTL_ADDR, &val);
+            if ((val & UNC_PMON_UNIT_CTL_VALID_BITS_MASK) != (extra + UNC_PMON_UNIT_CTL_FRZ))
+            {
+                std::cerr << "ERROR: M2M counter programming seems not to work. M2M_PCI_PMON_BOX_CTL=0x" << std::hex << val << std::endl;
+                std::cerr << "       Please see BIOS options to enable the export of performance monitoring devices." << std::endl;
+            }
+#endif
+
+            m2mHandle->write32(M2M_PCI_PMON_CTL0_ADDR, M2M_PCI_PMON_CTL_EN);
+            // TAG_HIT.NM_DRD_HIT_* events (CLEAN | DIRTY)
+            m2mHandle->write32(M2M_PCI_PMON_CTL0_ADDR, M2M_PCI_PMON_CTL_EN + M2M_PCI_PMON_CTL_EVENT(0x2c) + M2M_PCI_PMON_CTL_UMASK(3));
+            // reset counters values
+            m2mHandle->write32(M2M_PCI_PMON_BOX_CTL_ADDR, UNC_PMON_UNIT_CTL_RSV + UNC_PMON_UNIT_CTL_FRZ + UNC_PMON_UNIT_CTL_RST_COUNTERS);
+
+            // unfreeze counters
+            m2mHandle->write32(M2M_PCI_PMON_BOX_CTL_ADDR, UNC_PMON_UNIT_CTL_RSV);
+        }
     }
 }
 
