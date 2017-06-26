@@ -202,6 +202,11 @@ public:
     //! \param counter counter number
     uint64 getQPILLCounter(uint32 port, uint32 counter);
 
+    //! \brief Direct read of M2M counter
+    //! \param box box ID/number
+    //! \param counter counter number
+    uint64 getM2MCounter(uint32 box, uint32 counter);
+
     //! \brief Freezes event counting
     void freezeCounters();
     //! \brief Unfreezes event counting

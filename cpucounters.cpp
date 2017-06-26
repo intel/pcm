@@ -5102,6 +5102,32 @@ uint64 ServerPCICFGUncore::getEDCCounter(uint32 channel, uint32 counter)
 }
 
 
+uint64 ServerPCICFGUncore::getM2MCounter(uint32 box, uint32 counter)
+{
+    uint64 result = 0;
+
+    if (box < (uint32)m2mHandles.size())
+    {
+        switch (counter)
+        {
+        case 0:
+            m2mHandles[box]->read64(M2M_PCI_PMON_CTR0_ADDR, &result);
+            break;
+        case 1:
+            m2mHandles[box]->read64(M2M_PCI_PMON_CTR1_ADDR, &result);
+            break;
+        case 2:
+            m2mHandles[box]->read64(M2M_PCI_PMON_CTR2_ADDR, &result);
+            break;
+        case 3:
+            m2mHandles[box]->read64(M2M_PCI_PMON_CTR3_ADDR, &result);
+            break;
+        }
+    }
+    return result;
+}
+
+
 uint64 ServerPCICFGUncore::getQPILLCounter(uint32 port, uint32 counter)
 {
     uint64 result = 0;
