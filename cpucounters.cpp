@@ -4846,9 +4846,11 @@ void ServerPCICFGUncore::programEDC(const uint32 * EDCCntConfig)
 
 void ServerPCICFGUncore::programM2M()
 {
+#if 0
     PCM * pcm = PCM::getInstance();
     const uint32 cpu_model = pcm->getCPUModel();
     if (cpu_model == PCM::SKX)
+#endif
     {
         for (auto & m2mHandle : m2mHandles)
         {
