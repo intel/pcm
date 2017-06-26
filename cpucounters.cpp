@@ -4877,7 +4877,6 @@ void ServerPCICFGUncore::freezeCounters()
     uint64 EDC_CH_PCI_PMON_BOX_CTL_ADDR = 0;
     const uint32 cpu_model = PCM::getInstance()->getCPUModel();
     const uint32 extra = (cpu_model == PCM::SKX)?UNC_PMON_UNIT_CTL_RSV:UNC_PMON_UNIT_CTL_FRZ_EN;
-    const uint32 extraIMC = (cpu_model == PCM::SKX)?UNC_PMON_UNIT_CTL_RSV:UNC_PMON_UNIT_CTL_FRZ_EN;
     if (cpu_model == PCM::KNL) {
         MC_CH_PCI_PMON_BOX_CTL_ADDR = KNX_MC_CH_PCI_PMON_BOX_CTL_ADDR;
         EDC_CH_PCI_PMON_BOX_CTL_ADDR = KNX_EDC_CH_PCI_PMON_BOX_CTL_ADDR;
@@ -4890,19 +4889,22 @@ void ServerPCICFGUncore::freezeCounters()
     }
     for (size_t i = 0; i < (size_t)imcHandles.size(); ++i)
     {
-        imcHandles[i]->write32(MC_CH_PCI_PMON_BOX_CTL_ADDR, extraIMC + UNC_PMON_UNIT_CTL_FRZ);
+        imcHandles[i]->write32(MC_CH_PCI_PMON_BOX_CTL_ADDR, extra + UNC_PMON_UNIT_CTL_FRZ);
     }
     for (size_t i = 0; i < (size_t)edcHandles.size(); ++i)
     {
 		edcHandles[i]->write32(EDC_CH_PCI_PMON_BOX_CTL_ADDR, UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ);
 	}
+    for (auto & handle: m2mHandles)
+    {
+        handle->write32(M2M_PCI_PMON_BOX_CTL_ADDR, extra + UNC_PMON_UNIT_CTL_FRZ);
+    }
 }
 
 void ServerPCICFGUncore::unfreezeCounters()
 {
     const uint32 cpu_model = PCM::getInstance()->getCPUModel();
     const uint32 extra = (cpu_model == PCM::SKX)?UNC_PMON_UNIT_CTL_RSV:UNC_PMON_UNIT_CTL_FRZ_EN;
-    const uint32 extraIMC = (cpu_model == PCM::SKX)?UNC_PMON_UNIT_CTL_RSV:UNC_PMON_UNIT_CTL_FRZ_EN;
     uint64 MC_CH_PCI_PMON_BOX_CTL_ADDR = 0;
     uint64 EDC_CH_PCI_PMON_BOX_CTL_ADDR = 0;
     if (cpu_model == PCM::KNL) {
@@ -4918,11 +4920,15 @@ void ServerPCICFGUncore::unfreezeCounters()
     }
     for (size_t i = 0; i < (size_t)imcHandles.size(); ++i)
     {
-        imcHandles[i]->write32(MC_CH_PCI_PMON_BOX_CTL_ADDR, extraIMC);
+        imcHandles[i]->write32(MC_CH_PCI_PMON_BOX_CTL_ADDR, extra);
     }
     for (size_t i = 0; i < (size_t)edcHandles.size(); ++i)
     {
 		edcHandles[i]->write32(EDC_CH_PCI_PMON_BOX_CTL_ADDR, UNC_PMON_UNIT_CTL_FRZ_EN);
+    }
+    for (auto & handle: m2mHandles)
+    {
+        handle->write32(M2M_PCI_PMON_BOX_CTL_ADDR, extra);
     }
 }
 
