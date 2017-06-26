@@ -3960,6 +3960,7 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
    , groupnr(0)
    , qpi_speed(0)
    , num_imc(0)
+   , num_imc_channels1(0)
 {
 
 #define PCM_PCICFG_MC_INIT(controller, channel, arch) \
@@ -4101,7 +4102,7 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
         PCM_PCICFG_SETUP_MC_HANDLE(0,3)
 
         if (!imcHandles.empty()) ++num_imc; // at least one memory controller
-        const size_t num_imc_channels1 = (size_t)imcHandles.size();
+        num_imc_channels1 = (uint32)imcHandles.size();
 
         PCM_PCICFG_SETUP_MC_HANDLE(1,0)
         PCM_PCICFG_SETUP_MC_HANDLE(1,1)
@@ -4290,6 +4291,18 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
         num_imc<<" memory controllers detected with total number of "<< getNumMCChannels() <<" channels. "<<
         getNumQPIPorts()<< " QPI ports detected."<<
          " "<<m2mHandles.size() << " M2M (mesh to memory) blocks detected."<< std::endl;
+}
+
+size_t ServerPCICFGUncore::getNumMCChannels(const uint32 controller) const
+{
+    switch (controller)
+    {
+    case 0:
+        return num_imc_channels1;
+    case 1:
+        return imcHandles.size() - num_imc_channels1;
+    }
+    return 0;
 }
 
 ServerPCICFGUncore::~ServerPCICFGUncore()

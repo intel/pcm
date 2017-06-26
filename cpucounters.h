@@ -97,6 +97,7 @@ class ServerPCICFGUncore
     std::vector<std::shared_ptr<PciHandleType> > m2mHandles;
     std::vector<uint64> qpi_speed;
     uint32 num_imc;
+    uint32 num_imc_channels1; // number of memory channels in the first memory controller
     uint32 MCX_CHY_REGISTER_DEV_ADDR[2][4];
     uint32 MCX_CHY_REGISTER_FUNC_ADDR[2][4];
     uint32 EDCX_ECLK_REGISTER_DEV_ADDR[8];
@@ -235,6 +236,10 @@ public:
 
     //! \brief Returns the total number of detected memory channels on all integrated memory controllers
     size_t getNumMCChannels() const { return (size_t)imcHandles.size(); }
+
+    //! \brief Returns the total number of detected memory channels on given integrated memory controller
+    //! \param controller controller number
+    size_t getNumMCChannels(const uint32 controller) const;
 
     //! \brief Returns the total number of detected memory channels on all embedded DRAM controllers (EDC)
     size_t getNumEDCChannels() const { return (size_t)edcHandles.size(); }
