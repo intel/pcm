@@ -3232,6 +3232,10 @@ void PCM::freezeServerUncoreCounters()
     {
       server_pcicfg_uncore[i]->freezeCounters();
 	  MSR[socketRefCore[i]]->write(PCU_MSR_PMON_BOX_CTL_ADDR, UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ);
+
+      if(IIOEventsAvailable())
+        for (int unit = 0; unit< IIO_STACK_COUNT; ++unit)
+            MSR[socketRefCore[i]]->write(IIO_UNIT_CTL_ADDR[unit], UNC_PMON_UNIT_CTL_RSV + UNC_PMON_UNIT_CTL_FRZ);
 	}
 }
 void PCM::unfreezeServerUncoreCounters()
@@ -3240,6 +3244,10 @@ void PCM::unfreezeServerUncoreCounters()
     {
       server_pcicfg_uncore[i]->unfreezeCounters();
 	  MSR[socketRefCore[i]]->write(PCU_MSR_PMON_BOX_CTL_ADDR, UNC_PMON_UNIT_CTL_FRZ_EN);
+
+      if (IIOEventsAvailable())
+          for (int unit = 0; unit< IIO_STACK_COUNT; ++unit)
+              MSR[socketRefCore[i]]->write(IIO_UNIT_CTL_ADDR[unit], UNC_PMON_UNIT_CTL_RSV);
 	}
 }
 void UncoreCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
