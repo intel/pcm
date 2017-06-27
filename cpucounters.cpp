@@ -4492,26 +4492,47 @@ void ServerPCICFGUncore::cleanupQPIHandles()
 
 uint64 ServerPCICFGUncore::getImcReads()
 {
+    return getImcReadsForChannels((uint32)0, (uint32)imcHandles.size());
+}
+
+uint64 ServerPCICFGUncore::getImcReadsForController(uint32 controller)
+{
+    uint32 beginChannel = 0;
+    uint32 endChannel = 0;
+    switch (controller)
+    {
+    case 0:
+        beginChannel = 0;
+        endChannel = num_imc_channels1;
+        break;
+    case 1:
+        beginChannel = num_imc_channels1;
+        endChannel = (uint32)imcHandles.size();
+        break;
+    }
+    return getImcReadsForChannels(beginChannel, endChannel);
+}
+
+uint64 ServerPCICFGUncore::getImcReadsForChannels(uint32 beginChannel, uint32 endChannel)
+{
     uint64 result = 0;
     uint64 MC_CH_PCI_PMON_CTR0_ADDR = 0;
 
     PCM * pcm = PCM::getInstance();
     const uint32 cpu_model = pcm->getCPUModel();
     if (cpu_model == PCM::KNL) {
-    	MC_CH_PCI_PMON_CTR0_ADDR = KNX_MC_CH_PCI_PMON_CTR0_ADDR;
-    } else {
-    	MC_CH_PCI_PMON_CTR0_ADDR = XPF_MC_CH_PCI_PMON_CTR0_ADDR;
+        MC_CH_PCI_PMON_CTR0_ADDR = KNX_MC_CH_PCI_PMON_CTR0_ADDR;
     }
-
-    // std::cout << "DEBUG: imcHandles.size() = " << imcHandles.size() << std::endl;
-    for (uint32 i = 0; i < (uint32)imcHandles.size(); ++i)
+    else {
+        MC_CH_PCI_PMON_CTR0_ADDR = XPF_MC_CH_PCI_PMON_CTR0_ADDR;
+    }
+    for (uint32 i = beginChannel; i < endChannel && i < imcHandles.size(); ++i)
     {
         uint64 value = 0;
         imcHandles[i]->read64(MC_CH_PCI_PMON_CTR0_ADDR, &value);
-	// std::cout << "DEBUG: getImcReads() with fd = " << imcHandles[i]->fd << " value = " << value << std::endl;
+        // std::cout << "DEBUG: getImcReads() with fd = " << imcHandles[i]->fd << " value = " << value << std::endl;
         result += value;
     }
-
     return result;
 }
 

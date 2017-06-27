@@ -138,6 +138,13 @@ public:
     void program();
     //! \brief Get the number of integrated controller reads (in cache lines)
     uint64 getImcReads();
+    //! \brief Get the number of integrated controller reads for given controller (in cache lines)
+    //! \param controller controller ID/number
+    uint64 getImcReadsForController(uint32 controller);
+    //! \brief Get the number of integrated controller reads for given channels (in cache lines)
+    //! \param beginChannel first channel in the range
+    //! \param endChannel last channel + 1: the range is [beginChannel, endChannel). endChannel is not included.
+    uint64 getImcReadsForChannels(uint32 beginChannel, uint32 endChannel);
     //! \brief Get the number of integrated controller writes (in cache lines)
     uint64 getImcWrites();
 
