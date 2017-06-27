@@ -989,6 +989,33 @@ public:
         return 0;
     }
 
+    //! \brief Returns the number of detected memory channels on given integrated memory controllers
+    //! \param socket socket
+    //! \param controller controller
+    size_t getMCChannels(uint32 socket, uint32 controller) const
+    {
+        switch (cpu_model)
+        {
+        case NEHALEM_EP:
+        case WESTMERE_EP:
+        case CLARKDALE:
+            return 3;
+        case NEHALEM_EX:
+        case WESTMERE_EX:
+            return 4;
+        case JAKETOWN:
+        case IVYTOWN:
+        case HASWELLX:
+        case BDX_DE:
+        case SKX:
+        case BDX:
+        case KNL:
+            return (socket < server_pcicfg_uncore.size() && server_pcicfg_uncore[socket].get()) ? (server_pcicfg_uncore[socket]->getNumMCChannels(controller)) : 0;
+        }
+        return 0;
+    }
+
+
     //! \brief Returns the total number of detected memory channels on all integrated memory controllers per socket
     size_t getEDCChannelsPerSocket() const
     {
@@ -1674,6 +1701,20 @@ uint64 getMCCounter(uint32 channel, uint32 counter, const CounterStateType & bef
     return after.MCCounter[channel][counter] - before.MCCounter[channel][counter];
 }
 
+
+/*! \brief Direct read of Memory2Mesh controller PMU counter (counter meaning depends on the programming: power/performance/etc)
+    \param counter counter number
+    \param controller controller number
+    \param before CPU counter state before the experiment
+    \param after CPU counter state after the experiment
+*/
+template <class CounterStateType>
+uint64 getM2MCounter(uint32 controller, uint32 counter, const CounterStateType & before, const CounterStateType & after)
+{
+    return after.M2MCounter[controller][counter] - before.M2MCounter[controller][counter];
+}
+
+
 /*! \brief Direct read of embedded DRAM memory controller counter (counter meaning depends on the programming: power/performance/etc)
     \param counter counter number
     \param channel channel number
@@ -1855,6 +1896,7 @@ class ServerUncorePowerState : public UncoreCounterState
     uint64 DRAMClocks[8];
     uint64 MCDRAMClocks[16];
     uint64 MCCounter[8][4]; // channel X counter
+    uint64 M2MCounter[2][4]; // M2M/iMC boxes x counter
     uint64 EDCCounter[8][4]; // EDC controller X counter
     uint64 PCUCounter[4];
     int32 PackageThermalHeadroom;
@@ -1872,6 +1914,8 @@ class ServerUncorePowerState : public UncoreCounterState
     friend uint64 getMCDRAMClocks(uint32 channel, const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
     friend uint64 getMCCounter(uint32 channel, uint32 counter, const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
+    friend uint64 getM2MCounter(uint32 controller, uint32 counter, const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
     friend uint64 getEDCCounter(uint32 channel, uint32 counter, const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
@@ -1900,6 +1944,9 @@ public:
             memset(&(MCCounter[i][0]), 0, 4 * sizeof(uint64));
             memset(&(EDCCounter[i][0]), 0, 4 * sizeof(uint64));
 	}
+        for (int i = 0; i < 2; ++i) {
+            memset(&(M2MCounter[i][0]), 0, 4 * sizeof(uint64));
+        }
     }
 };
 

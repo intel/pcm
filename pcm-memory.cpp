@@ -48,6 +48,7 @@
 #define PARTIAL 2
 #define DDRT_READ 2
 #define DDRT_WRITE 3
+#define TWO_LM_HIT 0
 #define PCM_DELAY_DEFAULT 1.0 // in seconds
 #define PCM_DELAY_MIN 0.015 // 15 milliseconds is practical on most modern CPUs
 #define PCM_CALIBRATION_INTERVAL 50 // calibrate clock only every 50th iteration
@@ -59,6 +60,7 @@ using namespace std;
 const uint32 max_sockets = 256;
 const uint32 max_imc_channels = 8;
 const uint32 max_edc_channels = 8;
+const uint32 max_imc_controllers = 2;
 
 typedef struct memdata {
     float iMC_Rd_socket_chan[max_sockets][max_imc_channels];
@@ -69,6 +71,7 @@ typedef struct memdata {
     float iMC_Wr_socket[max_sockets];
     float iMC_DDRT_Rd_socket[max_sockets];
     float iMC_DDRT_Wr_socket[max_sockets];
+    float M2M_2LM_read_hit_rate[max_sockets][max_imc_controllers];
     float EDC_Rd_socket_chan[max_sockets][max_edc_channels];
     float EDC_Wr_socket_chan[max_sockets][max_edc_channels];
     float EDC_Rd_socket[max_sockets];
@@ -229,6 +232,13 @@ void printSocketBWFooter(uint32 no_columns, uint32 skt, const memdata_t *md)
             cout << "|-- NODE"<<setw(2)<<i<<" DDR-T Write(MB/s):"<<setw(8)<<md->iMC_DDRT_Wr_socket[i]<<" --|";
         }
         cout << endl;
+        for (uint32 ctrl = 0; ctrl < max_imc_controllers; ++ctrl)
+        {
+            for (uint32 i=skt; i<(skt+no_columns); ++i) {
+                cout << "|-- NODE"<<setw(2)<<i<<"."<<ctrl<<" 2LM read hit rate:"<<setw(6)<<md->M2M_2LM_read_hit_rate[i][ctrl]<<" --|";
+            }
+            cout << endl;
+        }
     }
     else
     {
@@ -369,6 +379,10 @@ void display_bandwidth(PCM *m, memdata_t *md, uint32 no_columns)
                     cout << "\
                         \r|-- NODE"<<skt<<" DDR-T Read (MB/s):"<<setw(8)<<md->iMC_DDRT_Rd_socket[skt]<<"  --|\n\
                         \r|-- NODE"<<skt<<" DDR-T Write(MB/s):"<<setw(8)<<md->iMC_DDRT_Wr_socket[skt]<<"  --|\n";
+                    for (uint32 ctrl = 0; ctrl < max_imc_controllers; ++ctrl)
+                    {
+                        cout << "\r|-- NODE"<<setw(2)<<skt<<"."<<ctrl<<" 2LM read hit rate:"<<setw(6)<<md->M2M_2LM_read_hit_rate[skt][ctrl]<<" --|\n";
+                    }
                 }
                 else
                 {
@@ -563,6 +577,11 @@ void calculate_bandwidth(PCM *m, const ServerUncorePowerState uncState1[], const
         md.EDC_Rd_socket[skt] = 0.0;
         md.EDC_Wr_socket[skt] = 0.0;
         md.partial_write[skt] = 0;
+        for(uint32 i=0; i < max_imc_controllers; ++i)
+        {
+            md.M2M_2LM_read_hit_rate[skt][i] = 0.;
+        }
+        const uint32 numChannels1 = m->getMCChannels(skt, 0); // number of channels in the first controller
 
 	switch(m->getCPUModel()) {
 	case PCM::KNL:
@@ -607,6 +626,8 @@ void calculate_bandwidth(PCM *m, const ServerUncorePowerState uncState1[], const
 
                     md.iMC_DDRT_Rd_socket[skt] += md.iMC_DDRT_Rd_socket_chan[skt][channel];
                     md.iMC_DDRT_Wr_socket[skt] += md.iMC_DDRT_Wr_socket_chan[skt][channel];
+
+                    md.M2M_2LM_read_hit_rate[skt][(channel < numChannels1)?0:1] += (float)getMCCounter(channel,READ,uncState1[skt],uncState2[skt]);
                 }
                 else
                 {
@@ -614,6 +635,16 @@ void calculate_bandwidth(PCM *m, const ServerUncorePowerState uncState1[], const
                 }
             }
 	}
+        if (DDRT)
+        {
+            for(uint32 c = 0; c < max_imc_controllers; ++c)
+            {
+                if(md.M2M_2LM_read_hit_rate[skt][c] != 0.0)
+                {
+                    md.M2M_2LM_read_hit_rate[skt][c] = ((float)getM2MCounter(c, TWO_LM_HIT, uncState1[skt],uncState2[skt]))/ md.M2M_2LM_read_hit_rate[skt][c];
+                }
+            }
+        }
     }
 
     if (csv) {

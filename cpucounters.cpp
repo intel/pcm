@@ -3739,6 +3739,11 @@ ServerUncorePowerState PCM::getServerUncorePowerState(uint32 socket)
       for(uint32 cnt=0;cnt<4;++cnt)
 	    result.EDCCounter[channel][cnt] = server_pcicfg_uncore[socket]->getEDCCounter(channel,cnt);
     }
+    for (uint32 controller = 0; controller < (uint32)server_pcicfg_uncore[socket]->getNumMC(); ++controller)
+    {
+      for(uint32 cnt=0;cnt<4;++cnt)
+            result.M2MCounter[controller][cnt] = server_pcicfg_uncore[socket]->getM2MCounter(controller,cnt);
+    }
     server_pcicfg_uncore[socket]->unfreezeCounters();
   }
   if(MSR.size())
@@ -4906,6 +4911,7 @@ void ServerPCICFGUncore::programM2M()
             m2mHandle->write32(M2M_PCI_PMON_CTL0_ADDR, M2M_PCI_PMON_CTL_EN);
             // TAG_HIT.NM_DRD_HIT_* events (CLEAN | DIRTY)
             m2mHandle->write32(M2M_PCI_PMON_CTL0_ADDR, M2M_PCI_PMON_CTL_EN + M2M_PCI_PMON_CTL_EVENT(0x2c) + M2M_PCI_PMON_CTL_UMASK(3));
+            m2mHandle->write32(M2M_PCI_PMON_CTL3_ADDR, M2M_PCI_PMON_CTL_EN); // CLOCKTICKS
             // reset counters values
             m2mHandle->write32(M2M_PCI_PMON_BOX_CTL_ADDR, UNC_PMON_UNIT_CTL_RSV + UNC_PMON_UNIT_CTL_FRZ + UNC_PMON_UNIT_CTL_RST_COUNTERS);
 
@@ -5158,6 +5164,7 @@ uint64 ServerPCICFGUncore::getM2MCounter(uint32 box, uint32 counter)
             break;
         }
     }
+    std::cout << "DEBUG: read "<< result << " from M2M box "<< box <<" counter " << counter << std::endl;
     return result;
 }
 
