@@ -5164,7 +5164,7 @@ uint64 ServerPCICFGUncore::getM2MCounter(uint32 box, uint32 counter)
             break;
         }
     }
-    std::cout << "DEBUG: read "<< result << " from M2M box "<< box <<" counter " << counter << std::endl;
+//    std::cout << "DEBUG: read "<< result << " from M2M box "<< box <<" counter " << counter << std::endl;
     return result;
 }
 
