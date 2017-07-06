@@ -28,7 +28,7 @@ CT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
 #include <cstring>
 #include <fstream>
 #include <time.h>
-#include "types.h"
+#include "cpucounters.h"
 
 #ifndef _MSC_VER
 #include <csignal>
