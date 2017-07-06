@@ -1624,7 +1624,6 @@ bool PCM::isCPUModelSupported(int model_)
             || model_ == SKL
             || model_ == KBL
             || model_ == SKX
-            || model_ == KBL
            );
 }
 
