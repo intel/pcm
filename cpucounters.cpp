@@ -5090,6 +5090,14 @@ void ServerPCICFGUncore::reportQPISpeed() const
         std::cerr << "Max QPI link " << i << " speed: " << qpi_speed[i] / (1e9) << " GBytes/second (" << qpi_speed[i] / (1e9 * m->getBytesPerLinkTransfer()) << " GT/second)" << std::endl;
 }
 
+{
+    PCM * m = PCM::getInstance();
+    std::cerr.precision(1);
+    std::cerr << std::fixed;
+    for (uint32 i = 0; i < (uint32)qpi_speed.size(); ++i)
+        std::cerr << "Max QPI link " << i << " speed: " << qpi_speed[i] / (1e9) << " GBytes/second (" << qpi_speed[i] / (1e9 * m->getBytesPerLinkTransfer()) << " GT/second)" << std::endl;
+}
+
 uint64 PCM::CX_MSR_PMON_CTRY(uint32 Cbo, uint32 Ctr) const
 {
     if(JAKETOWN == cpu_model || IVYTOWN == cpu_model)
