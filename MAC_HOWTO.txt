@@ -24,6 +24,20 @@ Then do the following:
 	3) copy MSRKernel.h to a location on your path (auto-install uses /usr/include)
 	4) copy MSRAccessorPublic.h as MSRAccessor.h to a location on your path (auto-install uses /usr/include)
 
+kext Signatures
+---------------
+As of OS X El Capitan, kexts must be signed. So after building the kext, kextload.sh may fail with:
+
+  /System/Library/Extensions/PcmMsrDriver.kext failed to load - (libkern/kext) not loadable (reason unspecified); check the system/kernel logs for errors or try kextutil(8).
+
+In this event, you will need to either disable System Integrity Protection or sign the kext.
+You can disable SIP by rebooting into Recovery (reboot, command-option-R), opening a shell, csrutil disable and reboot again.
+Signing a kext is more involved. You can't self-sign and will first need to obtain a Developer ID from Apple:
+
+  https://developer.apple.com/contact/kext/
+
+With this ID, you can then sign your kext with codesign.
+
 PCM Binary Compilation
 ----------------------
 
