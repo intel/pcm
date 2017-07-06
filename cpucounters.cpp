@@ -1624,6 +1624,7 @@ bool PCM::isCPUModelSupported(int model_)
             || model_ == SKL
             || model_ == KBL
             || model_ == SKX
+            || model_ == KBL
            );
 }
 
@@ -5500,7 +5501,6 @@ CounterWidthExtender::~CounterWidthExtender()
     delete UpdateThread;
     if (raw_counter) delete raw_counter;
 }
-
 
 IIOCounterState PCM::getIIOCounterState(int socket, int IIOStack, int counter)
 {

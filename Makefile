@@ -26,6 +26,10 @@ CXXFLAGS += -std=c++11
 endif
 ifeq ($(UNAME), DragonFly)
 LIB= -pthread -lrt
+CXXFLAGS += -std=c++11
+endif
+ifeq ($(UNAME), DragonFly)
+LIB= -pthread -lrt
 CXXFLAGS += -std=c++0x
 endif
 ifeq ($(UNAME), Darwin)
