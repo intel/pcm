@@ -267,4 +267,16 @@ inline std::istream & operator >> (std::istream && istr, s_expect && s)
     return istr;
 }
 
+inline tm pcm_localtime()
+{
+    time_t now = time(NULL);
+    tm result;
+#ifdef _MSC_VER
+    localtime_s(&result, &now);
+#else
+    localtime_r(&now, &result);
+#endif
+    return result;
+}
+
 #endif
