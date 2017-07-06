@@ -26,6 +26,7 @@ CT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
 #include <sys/wait.h> // for waitpid()
 #endif
 #include "utils.h"
+#include "cpucounters.h"
 
 void (*post_cleanup_callback)(void) = NULL;
 

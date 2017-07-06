@@ -5068,21 +5068,6 @@ void ServerPCICFGUncore::reportQPISpeed() const
         std::cerr << "Max QPI link " << i << " speed: " << qpi_speed[i] / (1e9) << " GBytes/second (" << qpi_speed[i] / (1e9 * m->getBytesPerLinkTransfer()) << " GT/second)" << std::endl;
 }
 
-#ifdef _MSC_VER
-static DWORD WINAPI WatchDogProc(LPVOID state)
-#else
-void * WatchDogProc(void * state)
-#endif
-{
-    CounterWidthExtender * ext = (CounterWidthExtender * ) state;
-    while(1)
-    {
-        MySleepMs(static_cast<int>(ext->watchdog_delay_ms));
-        /* uint64 dummy = */ ext->read();
-    }
-    return NULL;
-}
-
 uint64 PCM::CX_MSR_PMON_CTRY(uint32 Cbo, uint32 Ctr) const
 {
     if(JAKETOWN == cpu_model || IVYTOWN == cpu_model)
