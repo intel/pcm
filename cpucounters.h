@@ -105,6 +105,7 @@ class ServerPCICFGUncore
     uint32 LINK_PCI_PMON_CTL_ADDR[4];
     uint32 LINK_PCI_PMON_CTR_ADDR[4];
 
+    static PCM_Util::Mutex socket2busMutex;
     static std::vector<std::pair<uint32, uint32> > socket2iMCbus;
     static std::vector<std::pair<uint32, uint32> > socket2UPIbus;
     void initSocket2Bus(std::vector<std::pair<uint32, uint32> > & socket2bus, uint32 device, uint32 function, const uint32 DEV_IDS[], uint32 devIdsSize);
@@ -137,7 +138,6 @@ public:
     uint64 getEdcReads();
     //! \brief Get the number of cache lines written by EDC (embedded DRAM controller)
     uint64 getEdcWrites();
-
 
     //! \brief Get the number of incoming data flits to the socket through a port
     //! \param port QPI port id
