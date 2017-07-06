@@ -829,6 +829,8 @@ public:
         BROADWELL_XEON_E3 = 71,
         BDX_DE = 86,
         SKL_UY = 78,
+        KBL = 158,
+        KBL_1 = 142,
         BDX = 79,
         KNL = 87,
         SKL = 94,
@@ -976,6 +978,7 @@ public:
         case BDX_DE:
         case BDX:
         case SKL:
+        case KBL:
         case SKX:
             return 4;
         case ATOM:
@@ -1142,6 +1145,7 @@ public:
                  || cpu_model == PCM::BDX
                  || cpu_model == PCM::KNL
                  || cpu_model == PCM::SKL
+                 || cpu_model == PCM::KBL
                  || cpu_model == PCM::SKX
                );
     }
@@ -1214,6 +1218,7 @@ public:
             || cpu_model == PCM::HASWELL
             || cpu_model == PCM::BROADWELL
             || cpu_model == PCM::SKL
+            || cpu_model == PCM::KBL
             );
     }
 
@@ -1249,7 +1254,10 @@ public:
 
     bool useSkylakeEvents() const
     {
-        return PCM::SKL == cpu_model || PCM::SKX == cpu_model;
+        return PCM::SKL == cpu_model
+            || PCM::SKX == cpu_model
+            || PCM::KBL == cpu_model
+            ;
     }
 
     static double getBytesPerFlit(int32 cpu_model_)
