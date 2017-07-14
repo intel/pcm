@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009-2016, Intel Corporation
+   Copyright (c) 2009-2017, Intel Corporation
    All rights reserved.
 
    Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -29,6 +29,7 @@
 
 namespace PCMDaemon {
 
+	std::string Daemon::shmIdLocation_;
 	int Daemon::sharedMemoryId_;
 	SharedPCMState* Daemon::sharedPCMState_;
 
@@ -39,15 +40,14 @@ namespace PCMDaemon {
 		allowedSubscribers_.push_back("memory");
 		allowedSubscribers_.push_back("qpi");
 
+		shmIdLocation_ = std::string(DEFAULT_SHM_ID_LOCATION);
 		sharedMemoryId_ = 0;
 		sharedPCMState_ = NULL;
 
 		readApplicationArguments(argc, argv);
-
+		setupSharedMemory();
 		setupPCM();
 		
-		setupSharedMemory();
-
 		//Put the poll interval in shared memory so that the client knows
 		sharedPCMState_->pollMs = pollIntervalMs_;
 
@@ -65,13 +65,13 @@ namespace PCMDaemon {
 		{
 			if(debugMode_)
 			{
-                time_t rawtime;
-                struct tm timeinfo;
-                char timeBuffer[200];
-                time(&rawtime);
-                localtime_r(&rawtime, &timeinfo);
+				time_t rawtime;
+				struct tm timeinfo;
+				char timeBuffer[200];
+				time(&rawtime);
+				localtime_r(&rawtime, &timeinfo);
 
-                snprintf(timeBuffer, 200, "[%02d %02d %04d %02d:%02d:%02d]", timeinfo.tm_mday, timeinfo.tm_mon + 1, timeinfo.tm_year + 1900, timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+				snprintf(timeBuffer, 200, "[%02d %02d %04d %02d:%02d:%02d]", timeinfo.tm_mday, timeinfo.tm_mon + 1, timeinfo.tm_year + 1900, timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
 
 				std::cout << timeBuffer << "\tFetching counters..." << std::endl;
 			}
@@ -200,7 +200,7 @@ namespace PCMDaemon {
 
 		std::cout << std::endl;
 
-		while ((opt = getopt(argc, argv, "p:c:dg:m:")) != -1)
+		while ((opt = getopt(argc, argv, "p:c:dg:m:s:")) != -1)
 		{
 			switch (opt) {
 			case 'p':
@@ -264,7 +264,14 @@ namespace PCMDaemon {
 						printExampleUsageAndExit(argv);
 					}
 
-					std::cout << "Operational mode: " << mode << std::endl;
+					std::cout << "Operational mode: " << mode_ << std::endl;
+				}
+				break;
+			case 's':
+				{
+					shmIdLocation_ = std::string(optarg);
+
+					std::cout << "Shared memory ID location: " << shmIdLocation_ << std::endl;
 				}
 				break;
 			default:
@@ -309,22 +316,35 @@ namespace PCMDaemon {
 
 		std::cerr << std::endl << "-d flag for debug output [optional]" << std::endl;
 		std::cerr << "-g <group> to restrict access to group [optional]" << std::endl;
-		std::cerr << "-m <mode> stores differences or absolute values (Allowed: difference absolute) Default: difference [optional]" << std::endl << std::endl;
+		std::cerr << "-m <mode> stores differences or absolute values (Allowed: difference absolute) Default: difference [optional]" << std::endl;
+		std::cerr << "-s <filepath> to store shared memory ID Default: " << std::string(DEFAULT_SHM_ID_LOCATION) << " [optional]" << std::endl;
+
+		std::cerr << std::endl;
 
 		exit(EXIT_FAILURE);
 	}
 
-	void Daemon::setupSharedMemory(key_t key)
+	void Daemon::setupSharedMemory()
 	{
 		int mode = 0660;
 		int shmFlag = IPC_CREAT | mode;
 
-		sharedMemoryId_ = shmget(key, sizeof(SharedPCMState), shmFlag);
+		sharedMemoryId_ = shmget(IPC_PRIVATE, sizeof(SharedPCMState), shmFlag);
 		if (sharedMemoryId_ < 0)
 		{
 			std::cerr << "Failed to allocate shared memory segment (errno=" << errno << ")" << std::endl;
 			exit(EXIT_FAILURE);
 		}
+
+		//Store shm id in SHM_KEY_LOCATION file
+		FILE *fp = fopen (shmIdLocation_.c_str(), "w");
+		if (fp < 0)
+		{
+			std::cerr << "Failed to create/write to shared memory key location: " << shmIdLocation_ << std::endl;
+			exit(EXIT_FAILURE);
+		}
+		fprintf (fp, "%i", sharedMemoryId_);
+		fclose (fp);
 
 		if(groupName_.size() > 0)
 		{
@@ -338,6 +358,15 @@ namespace PCMDaemon {
 			if(success < 0)
 			{
 				std::cerr << "Failed to IPC_SET (errno=" << errno << ")" << std::endl;
+				exit(EXIT_FAILURE);
+			}
+
+			//Change group of shared memory ID file
+			uid_t uid = geteuid();
+			success = chown(shmIdLocation_.c_str(), uid, gid);
+			if(success < 0)
+			{
+				std::cerr << "Failed to change ownership of shared memory key location: " << shmIdLocation_ << std::endl;
 				exit(EXIT_FAILURE);
 			}
 		}
@@ -375,6 +404,8 @@ namespace PCMDaemon {
 		sharedPCMState_->timestamp = getTimestamp();
 
 		updatePCMState(&systemStatesAfter_, &socketStatesAfter_, &coreStatesAfter_);
+
+		getPCMSystem();
 
 		if(subscribers_.find("core") != subscribers_.end())
 		{
@@ -424,11 +455,21 @@ namespace PCMDaemon {
 		std::swap(serverUncorePowerStatesBefore_, serverUncorePowerStatesAfter_);
 	}
 
+	void Daemon::getPCMSystem()
+	{
+		PCMSystem& system = sharedPCMState_->pcm.system;
+		system.numOfCores = pcmInstance_->getNumCores();
+		system.numOfOnlineCores = pcmInstance_->getNumOnlineCores();
+		system.numOfSockets = pcmInstance_->getNumSockets();
+		system.numOfOnlineSockets = pcmInstance_->getNumOnlineSockets();
+		system.numOfQPILinksPerSocket = pcmInstance_->getQPILinksPerSocket();
+	}
+
 	void Daemon::getPCMCore()
 	{
 		PCMCore& core = sharedPCMState_->pcm.core;
 
-		const uint32 numCores = pcmInstance_->getNumCores();
+		const uint32 numCores = sharedPCMState_->pcm.system.numOfCores;
 
 		uint32 onlineCoresI = 0;
 		for(uint32 coreI = 0; coreI < numCores ; ++coreI)
@@ -498,14 +539,12 @@ namespace PCMDaemon {
 			++onlineCoresI;
 		}
 
-		core.numOfCores = numCores;
-		core.numOfOnlineCores = onlineCoresI;
-		core.numOfSockets = pcmInstance_->getNumSockets();
+		const uint32 numSockets = sharedPCMState_->pcm.system.numOfSockets;
 
 		core.packageEnergyMetricsAvailable = pcmInstance_->packageEnergyMetricsAvailable();
 		if(core.packageEnergyMetricsAvailable)
 		{
-			for (uint32 i(0); i < core.numOfSockets; ++i)
+			for (uint32 i(0); i < numSockets; ++i)
 			{
 				core.energyUsedBySockets[i] = getConsumedJoules(socketStatesBefore_[i], socketStatesAfter_[i]);
 			}
@@ -516,35 +555,25 @@ namespace PCMDaemon {
 	{
 		pcmInstance_->disableJKTWorkaround();
 
-        for(uint32 i(0); i < pcmInstance_->getNumSockets(); ++i)
+		PCMMemory& memory = sharedPCMState_->pcm.memory;
+		memory.dramEnergyMetricsAvailable = pcmInstance_->dramEnergyMetricsAvailable();
+
+		const uint32 numSockets = sharedPCMState_->pcm.system.numOfSockets;
+
+        for(uint32 i(0); i < numSockets; ++i)
         {
         	serverUncorePowerStatesAfter_[i] = pcmInstance_->getServerUncorePowerState(i);
         }
 
-        calculateMemoryBandwidth(serverUncorePowerStatesBefore_, serverUncorePowerStatesAfter_, collectionTimeAfter_ - collectionTimeBefore_);
+        uint64 elapsedTime = collectionTimeAfter_ - collectionTimeBefore_;
 
-        PCMMemory memory = sharedPCMState_->pcm.memory;
-        memory.dramEnergyMetricsAvailable = pcmInstance_->dramEnergyMetricsAvailable();
-        if(memory.dramEnergyMetricsAvailable)
-        {
-			for (uint32 i(0); i < memory.numOfSockets; ++i)
-			{
-				memory.dramEnergyForSockets[i] = getDRAMConsumedJoules(socketStatesBefore_[i], socketStatesAfter_[i]);
-			}
-        }
-	}
-
-	void Daemon::calculateMemoryBandwidth(ServerUncorePowerState* uncState1, ServerUncorePowerState* uncState2, uint64 elapsedTime)
-	{
 		float iMC_Rd_socket_chan[MAX_SOCKETS][MEMORY_MAX_IMC_CHANNELS];
 		float iMC_Wr_socket_chan[MAX_SOCKETS][MEMORY_MAX_IMC_CHANNELS];
 		float iMC_Rd_socket[MAX_SOCKETS];
 		float iMC_Wr_socket[MAX_SOCKETS];
 		uint64 partial_write[MAX_SOCKETS];
 
-		uint32 numOfSockets = pcmInstance_->getNumSockets();
-
-		for(uint32 skt = 0; skt < numOfSockets; ++skt)
+		for(uint32 skt = 0; skt < numSockets; ++skt)
 		{
 			iMC_Rd_socket[skt] = 0.0;
 			iMC_Wr_socket[skt] = 0.0;
@@ -552,102 +581,130 @@ namespace PCMDaemon {
 
 			for(uint32 channel(0); channel < MEMORY_MAX_IMC_CHANNELS; ++channel)
 			{
-				if(getMCCounter(channel,MEMORY_READ,uncState1[skt],uncState2[skt]) == 0.0 && getMCCounter(channel,MEMORY_WRITE,uncState1[skt],uncState2[skt]) == 0.0) //In case of JKT-EN, there are only three channels. Skip one and continue.
+				bool memoryReadAvailable = getMCCounter(channel,MEMORY_READ,serverUncorePowerStatesBefore_[skt],serverUncorePowerStatesAfter_[skt]) == 0.0;
+				bool memoryWriteAvailable = getMCCounter(channel,MEMORY_WRITE,serverUncorePowerStatesBefore_[skt],serverUncorePowerStatesAfter_[skt]) == 0.0;
+				if(memoryReadAvailable && memoryWriteAvailable) //In case of JKT-EN, there are only three channels. Skip one and continue.
 				{
 					iMC_Rd_socket_chan[skt][channel] = -1.0;
 					iMC_Wr_socket_chan[skt][channel] = -1.0;
 					continue;
 				}
 
-				iMC_Rd_socket_chan[skt][channel] = (float) (getMCCounter(channel,MEMORY_READ,uncState1[skt],uncState2[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0));
-				iMC_Wr_socket_chan[skt][channel] = (float) (getMCCounter(channel,MEMORY_WRITE,uncState1[skt],uncState2[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0));
+				iMC_Rd_socket_chan[skt][channel] = (float) (getMCCounter(channel,MEMORY_READ,serverUncorePowerStatesBefore_[skt],serverUncorePowerStatesAfter_[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0));
+				iMC_Wr_socket_chan[skt][channel] = (float) (getMCCounter(channel,MEMORY_WRITE,serverUncorePowerStatesBefore_[skt],serverUncorePowerStatesAfter_[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0));
 
 				iMC_Rd_socket[skt] += iMC_Rd_socket_chan[skt][channel];
 				iMC_Wr_socket[skt] += iMC_Wr_socket_chan[skt][channel];
 
-				partial_write[skt] += (uint64) (getMCCounter(channel,MEMORY_PARTIAL,uncState1[skt],uncState2[skt]) / (elapsedTime/1000.0));
+				partial_write[skt] += (uint64) (getMCCounter(channel,MEMORY_PARTIAL,serverUncorePowerStatesBefore_[skt],serverUncorePowerStatesAfter_[skt]) / (elapsedTime/1000.0));
 			}
 		}
 
-		PCMMemory& memory = sharedPCMState_->pcm.memory;
-		memory.numOfSockets = numOfSockets;
+	    float systemRead(0.0);
+	    float systemWrite(0.0);
 
-	    float sysRead(0.0);
-	    float sysWrite(0.0);
-
-	    for(uint32 skt = 0; skt < numOfSockets; ++skt)
+	    uint32 onlineSocketsI = 0;
+	    for(uint32 skt = 0; skt < numSockets; ++skt)
 		{
+			if(!pcmInstance_->isSocketOnline(skt))
+				continue;
+
 			uint64 currentChannelI(0);
 	    	for(uint64 channel(0); channel < MEMORY_MAX_IMC_CHANNELS; ++channel)
 			{
 				if(iMC_Rd_socket_chan[0][skt*MEMORY_MAX_IMC_CHANNELS+channel] < 0.0 && iMC_Wr_socket_chan[0][skt*MEMORY_MAX_IMC_CHANNELS+channel] < 0.0) //If the channel read neg. value, the channel is not working; skip it.
 					continue;
 
-				memory.sockets[skt].channels[currentChannelI].read = iMC_Rd_socket_chan[0][skt*MEMORY_MAX_IMC_CHANNELS+channel];
-				memory.sockets[skt].channels[currentChannelI].write = iMC_Wr_socket_chan[0][skt*MEMORY_MAX_IMC_CHANNELS+channel];
-				memory.sockets[skt].channels[currentChannelI].total = memory.sockets[skt].channels[currentChannelI].read + memory.sockets[skt].channels[currentChannelI].write;
+				float socketChannelRead = iMC_Rd_socket_chan[0][skt*MEMORY_MAX_IMC_CHANNELS+channel];
+				float socketChannelWrite = iMC_Wr_socket_chan[0][skt*MEMORY_MAX_IMC_CHANNELS+channel];
+
+				memory.sockets[onlineSocketsI].channels[currentChannelI].read = socketChannelRead;
+				memory.sockets[onlineSocketsI].channels[currentChannelI].write = socketChannelWrite;
+				memory.sockets[onlineSocketsI].channels[currentChannelI].total = socketChannelRead + socketChannelWrite;
 
 				++currentChannelI;
 			}
 
-			memory.sockets[skt].read = iMC_Rd_socket[skt];
-			memory.sockets[skt].write = iMC_Wr_socket[skt];
-			memory.sockets[skt].partialWrite = partial_write[skt];
-			memory.sockets[skt].total= iMC_Rd_socket[skt] + iMC_Wr_socket[skt];
+			memory.sockets[onlineSocketsI].socketId = skt;
+			memory.sockets[onlineSocketsI].numOfChannels = currentChannelI;
+			memory.sockets[onlineSocketsI].read = iMC_Rd_socket[skt];
+			memory.sockets[onlineSocketsI].write = iMC_Wr_socket[skt];
+			memory.sockets[onlineSocketsI].partialWrite = partial_write[skt];
+			memory.sockets[onlineSocketsI].total= iMC_Rd_socket[skt] + iMC_Wr_socket[skt];
+			if(memory.dramEnergyMetricsAvailable)
+			{
+				memory.sockets[onlineSocketsI].dramEnergy = getDRAMConsumedJoules(socketStatesBefore_[skt], socketStatesAfter_[skt]);
+			}
 
-			sysRead += iMC_Rd_socket[skt];
-			sysWrite += iMC_Wr_socket[skt];
+			systemRead += iMC_Rd_socket[skt];
+			systemWrite += iMC_Wr_socket[skt];
+
+			++onlineSocketsI;
 	    }
 
-	    memory.system.read = sysRead;
-	    memory.system.write = sysWrite;
-	    memory.system.total = sysRead + sysWrite;
+	    memory.system.read = systemRead;
+	    memory.system.write = systemWrite;
+	    memory.system.total = systemRead + systemWrite;
 	}
 
 	void Daemon::getPCMQPI()
 	{
 		PCMQPI& qpi = sharedPCMState_->pcm.qpi;
 
-		qpi.numOfSockets = pcmInstance_->getNumSockets();
-		qpi.numOfLinksPerSocket = pcmInstance_->getQPILinksPerSocket();
+		const uint32 numSockets = sharedPCMState_->pcm.system.numOfSockets;
+		const uint32 numLinksPerSocket = sharedPCMState_->pcm.system.numOfQPILinksPerSocket;
 
-		qpi.incomingQPITrafficMetricsAvailable = pcmInstance_->getNumSockets() > 1 && pcmInstance_->incomingQPITrafficMetricsAvailable();
-		if (qpi.incomingQPITrafficMetricsAvailable) // QPI info only for multi socket systems
+		qpi.incomingQPITrafficMetricsAvailable = pcmInstance_->incomingQPITrafficMetricsAvailable();
+		if (qpi.incomingQPITrafficMetricsAvailable)
 		{
-			int64 qpiLinks = qpi.numOfLinksPerSocket;
-
-			for (uint32 i(0); i < qpi.numOfSockets; ++i)
+			uint32 onlineSocketsI = 0;
+			for (uint32 i(0); i < numSockets; ++i)
 			{
-				uint64 total(0);
-				for (uint32 l(0); l < qpiLinks; ++l)
-				{
-					qpi.outgoing[i].links[l].bytes = getIncomingQPILinkBytes(i, l, systemStatesBefore_, systemStatesAfter_);
-					qpi.outgoing[i].links[l].utilization = getIncomingQPILinkUtilization(i, l, systemStatesBefore_, systemStatesAfter_);
+				if(!pcmInstance_->isSocketOnline(i))
+					continue;
 
-					total+=qpi.incoming[i].links[l].bytes;
+				qpi.incoming[onlineSocketsI].socketId = i;
+
+				uint64 total(0);
+				for (uint32 l(0); l < numLinksPerSocket; ++l)
+				{
+					uint64 bytes = getIncomingQPILinkBytes(i, l, systemStatesBefore_, systemStatesAfter_);
+					qpi.incoming[onlineSocketsI].links[l].bytes = bytes;
+					qpi.incoming[onlineSocketsI].links[l].utilization = getIncomingQPILinkUtilization(i, l, systemStatesBefore_, systemStatesAfter_);
+
+					total+=bytes;
 				}
 				qpi.incoming[i].total = total;
+
+				++onlineSocketsI;
 			}
 
-			qpi.outgoingTotal = getAllIncomingQPILinkBytes(systemStatesBefore_, systemStatesAfter_);
+			qpi.incomingTotal = getAllIncomingQPILinkBytes(systemStatesBefore_, systemStatesAfter_);
 		}
 
-		qpi.outgoingQPITrafficMetricsAvailable = pcmInstance_->getNumSockets() > 1 && pcmInstance_->outgoingQPITrafficMetricsAvailable();
-		if (qpi.outgoingQPITrafficMetricsAvailable) // QPI info only for multi socket systems
+		qpi.outgoingQPITrafficMetricsAvailable = pcmInstance_->outgoingQPITrafficMetricsAvailable();
+		if (qpi.outgoingQPITrafficMetricsAvailable)
 		{
-			uint64 qpiLinks = qpi.numOfLinksPerSocket;
-
-			for (uint32 i(0); i < qpi.numOfSockets; ++i)
+			uint32 onlineSocketsI = 0;
+			for (uint32 i(0); i < numSockets; ++i)
 			{
-				uint64 total(0);
-				for (uint32 l(0); l < qpiLinks; ++l)
-				{
-					qpi.outgoing[i].links[l].bytes = getOutgoingQPILinkBytes(i, l, systemStatesBefore_, systemStatesAfter_);
-					qpi.outgoing[i].links[l].utilization = getOutgoingQPILinkUtilization(i, l, systemStatesBefore_, systemStatesAfter_);
+				if(!pcmInstance_->isSocketOnline(i))
+					continue;
 
-					total+=qpi.outgoing[i].links[l].bytes;
+				qpi.outgoing[onlineSocketsI].socketId = i;
+
+				uint64 total(0);
+				for (uint32 l(0); l < numLinksPerSocket; ++l)
+				{
+					uint64 bytes = getOutgoingQPILinkBytes(i, l, systemStatesBefore_, systemStatesAfter_);
+					qpi.outgoing[onlineSocketsI].links[l].bytes = bytes;
+					qpi.outgoing[onlineSocketsI].links[l].utilization = getOutgoingQPILinkUtilization(i, l, systemStatesBefore_, systemStatesAfter_);
+
+					total+=bytes;
 				}
 				qpi.outgoing[i].total = total;
+
+				++onlineSocketsI;
 			}
 
 			qpi.outgoingTotal = getAllOutgoingQPILinkBytes(systemStatesBefore_, systemStatesAfter_);
@@ -670,11 +727,11 @@ namespace PCMDaemon {
 	{
 		if(sharedPCMState_ != NULL)
 		{
-			// Detatch shared memory segment
+			//Detatch shared memory segment
 			int success = shmdt(sharedPCMState_);
 			if(success != 0)
 			{
-				std::cerr << "An error occurred when detatching the shared memory segment (errno=" << errno << ")" << std::endl;
+				std::cerr << "Failed to detatch the shared memory segment (errno=" << errno << ")" << std::endl;
 			}
 			else
 			{
@@ -682,8 +739,15 @@ namespace PCMDaemon {
 				success = shmctl(sharedMemoryId_, IPC_RMID, NULL);
 				if(success != 0)
 				{
-					std::cerr << "An error occurred when deleting the shared memory segment (errno=" << errno << ")" << std::endl;
+					std::cerr << "Failed to delete the shared memory segment (errno=" << errno << ")" << std::endl;
 				}
+			}
+
+			//Delete shared memory ID file
+			success = remove(shmIdLocation_.c_str());
+			if(success != 0)
+			{
+				std::cerr << "Failed to delete shared memory id location: " << shmIdLocation_ << " (errno=" << errno << ")" << std::endl;
 			}
 		}
 	}

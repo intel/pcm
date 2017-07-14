@@ -3,7 +3,7 @@
 # written by Roman Dementiev and Jim Harris
 #
 
-EXE = pcm-numa.x pcm-power.x pcm.x pcm-sensor.x pcm-msr.x pcm-memory.x pcm-tsx.x pcm-pcie.x pcm-core.x
+EXE = pcm.x pcm-numa.x pcm-power.x pcm-sensor.x pcm-msr.x pcm-memory.x pcm-tsx.x pcm-pcie.x pcm-core.x pcm-iio.x pcm-lspci.x
 
 all: $(EXE)
 
@@ -26,16 +26,16 @@ CXXFLAGS += -std=c++11
 endif
 ifeq ($(UNAME), DragonFly)
 LIB= -pthread -lrt
-CXXFLAGS += -std=c++0x
+CXXFLAGS += -std=c++11
 endif
 ifeq ($(UNAME), Darwin)
 LIB= -lpthread MacMSRDriver/build/Release/libPcmMsr.dylib 
-CXXFLAGS += -I/usr/include -IMacMSRDriver -std=c++0x
+CXXFLAGS += -I/usr/include -IMacMSRDriver -std=c++11
 endif
 ifeq ($(UNAME), FreeBSD)
 CXX=c++
 LIB= -lpthread -lc++
-CXXFLAGS += -std=c++0x
+CXXFLAGS += -std=c++11
 endif
 
 COMMON_OBJS = msr.o cpucounters.o pci.o client_bw.o utils.o

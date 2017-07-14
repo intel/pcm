@@ -465,7 +465,7 @@ struct BecktonUncorePMUCNTCTLRegister
     };
 };
 
-#define MSR_SMI_COUNT (0x3fd)
+#define MSR_SMI_COUNT (0x34)
 
 /* \brief Sandy Bridge energy counters
 */
@@ -476,13 +476,6 @@ struct BecktonUncorePMUCNTCTLRegister
 
 #define PCM_INTEL_PCI_VENDOR_ID (0x8086)
 #define PCM_PCI_VENDOR_ID_OFFSET (0)
-
-// 8 bytes per  QPI flit
-// 4 QPI cycles per QPI flit
-
-#define DATA_BYTES_PER_QPI_FLIT (8)
-#define QPI_CYCLES_PER_QPI_FLIT (4)
-#define DATA_BYTES_PER_QPI_CYCLE (DATA_BYTES_PER_QPI_FLIT / QPI_CYCLES_PER_QPI_FLIT)
 
 // server PCICFG uncore counters
 
@@ -528,6 +521,25 @@ struct BecktonUncorePMUCNTCTLRegister
 #define KNL_MC0_CH0_REGISTER_FUNC_ADDR (2)
 #define KNL_MC0_CH1_REGISTER_FUNC_ADDR (3)
 #define KNL_MC0_CH2_REGISTER_FUNC_ADDR (4)
+
+#define SKX_MC0_CH0_REGISTER_DEV_ADDR (10)
+#define SKX_MC0_CH1_REGISTER_DEV_ADDR (10)
+#define SKX_MC0_CH2_REGISTER_DEV_ADDR (11)
+#define SKX_MC0_CH3_REGISTER_DEV_ADDR (-1) //Does not exist
+#define SKX_MC0_CH0_REGISTER_FUNC_ADDR (2)
+#define SKX_MC0_CH1_REGISTER_FUNC_ADDR (6)
+#define SKX_MC0_CH2_REGISTER_FUNC_ADDR (2)
+#define SKX_MC0_CH3_REGISTER_FUNC_ADDR (-1) //Does not exist
+
+#define SKX_MC1_CH0_REGISTER_DEV_ADDR (12)
+#define SKX_MC1_CH1_REGISTER_DEV_ADDR (12)
+#define SKX_MC1_CH2_REGISTER_DEV_ADDR (13)
+#define SKX_MC1_CH3_REGISTER_DEV_ADDR (-1) //Does not exist
+#define SKX_MC1_CH0_REGISTER_FUNC_ADDR (2)
+#define SKX_MC1_CH1_REGISTER_FUNC_ADDR (6)
+#define SKX_MC1_CH2_REGISTER_FUNC_ADDR (2)
+#define SKX_MC1_CH3_REGISTER_FUNC_ADDR (-1) //Does not exist
+
 
 #define KNL_MC1_CH0_REGISTER_DEV_ADDR (9)
 #define KNL_MC1_CH1_REGISTER_DEV_ADDR (9)
@@ -619,6 +631,13 @@ struct BecktonUncorePMUCNTCTLRegister
 #define HSX_QPI_PORT2_REGISTER_DEV_ADDR  (10)
 #define HSX_QPI_PORT2_REGISTER_FUNC_ADDR (2)
 
+#define SKX_QPI_PORT0_REGISTER_DEV_ADDR  (14)
+#define SKX_QPI_PORT0_REGISTER_FUNC_ADDR (0)
+#define SKX_QPI_PORT1_REGISTER_DEV_ADDR  (15)
+#define SKX_QPI_PORT1_REGISTER_FUNC_ADDR (0)
+#define SKX_QPI_PORT2_REGISTER_DEV_ADDR  (16)
+#define SKX_QPI_PORT2_REGISTER_FUNC_ADDR (0)
+
 #define QPI_PORT0_MISC_REGISTER_FUNC_ADDR (0)
 #define QPI_PORT1_MISC_REGISTER_FUNC_ADDR (0)
 #define QPI_PORT2_MISC_REGISTER_FUNC_ADDR (0)
@@ -636,6 +655,18 @@ struct BecktonUncorePMUCNTCTLRegister
 #define Q_P_PCI_PMON_CTR0_ADDR (0x0A0)
 
 #define QPI_RATE_STATUS_ADDR (0x0D4)
+
+#define U_L_PCI_PMON_BOX_CTL_ADDR (0x378)
+
+#define U_L_PCI_PMON_CTL3_ADDR (0x368)
+#define U_L_PCI_PMON_CTL2_ADDR (0x360)
+#define U_L_PCI_PMON_CTL1_ADDR (0x358)
+#define U_L_PCI_PMON_CTL0_ADDR (0x350)
+
+#define U_L_PCI_PMON_CTR3_ADDR (0x330)
+#define U_L_PCI_PMON_CTR2_ADDR (0x328)
+#define U_L_PCI_PMON_CTR1_ADDR (0x320)
+#define U_L_PCI_PMON_CTR0_ADDR (0x318)
 
 #define JKTIVT_PCU_MSR_PMON_CTR3_ADDR (0x0C39)
 #define JKTIVT_PCU_MSR_PMON_CTR2_ADDR (0x0C38)
@@ -665,12 +696,13 @@ struct BecktonUncorePMUCNTCTLRegister
 
 #define HSX_PCU_MSR_PMON_BOX_CTL_ADDR (0x0710)
 
-#define MC_CH_PCI_PMON_BOX_CTL_RST_CONTROL  (1 << 0)
-#define MC_CH_PCI_PMON_BOX_CTL_RST_COUNTERS     (1 << 1)
-#define MC_CH_PCI_PMON_BOX_CTL_FRZ  (1 << 8)
-#define MC_CH_PCI_PMON_BOX_CTL_FRZ_EN   (1 << 16)
+#define UNC_PMON_UNIT_CTL_RST_CONTROL  (1 << 0)
+#define UNC_PMON_UNIT_CTL_RST_COUNTERS     (1 << 1)
+#define UNC_PMON_UNIT_CTL_FRZ  (1 << 8)
+#define UNC_PMON_UNIT_CTL_FRZ_EN   (1 << 16)
+#define UNC_PMON_UNIT_CTL_RSV  ((1 << 16) + (1 << 17))
 
-#define UNCORE_PMON_BOX_CTL_VALID_BITS_MASK  ((1 << 17) - 1)
+#define UNC_PMON_UNIT_CTL_VALID_BITS_MASK  ((1 << 17) - 1)
 
 #define MC_CH_PCI_PMON_FIXED_CTL_RST (1 << 19)
 #define MC_CH_PCI_PMON_FIXED_CTL_EN (1 << 22)
@@ -683,11 +715,6 @@ struct BecktonUncorePMUCNTCTLRegister
 #define MC_CH_PCI_PMON_CTL_EN (1 << 22)
 #define MC_CH_PCI_PMON_CTL_INVERT (1 << 23)
 #define MC_CH_PCI_PMON_CTL_THRESH(x) (x << 24UL)
-
-#define Q_P_PCI_PMON_BOX_CTL_RST_CONTROL    (1 << 0)
-#define Q_P_PCI_PMON_BOX_CTL_RST_COUNTERS   (1 << 1)
-#define Q_P_PCI_PMON_BOX_CTL_RST_FRZ    (1 << 8)
-#define Q_P_PCI_PMON_BOX_CTL_RST_FRZ_EN     (1 << 16)
 
 #define Q_P_PCI_PMON_CTL_EVENT(x)   (x << 0)
 #define Q_P_PCI_PMON_CTL_UMASK(x)   (x << 8)
@@ -702,11 +729,6 @@ struct BecktonUncorePMUCNTCTLRegister
 #define PCU_MSR_PMON_BOX_FILTER_BAND_1(x) (x << 8)
 #define PCU_MSR_PMON_BOX_FILTER_BAND_2(x) (x << 16)
 #define PCU_MSR_PMON_BOX_FILTER_BAND_3(x) (x << 24)
-
-#define PCU_MSR_PMON_BOX_CTL_RST_CONTROL (1 << 0)
-#define PCU_MSR_PMON_BOX_CTL_RST_COUNTERS (1 << 1)
-#define PCU_MSR_PMON_BOX_CTL_FRZ (1 << 8)
-#define PCU_MSR_PMON_BOX_CTL_FRZ_EN (1 << 16)
 
 #define PCU_MSR_PMON_CTL_EVENT(x) (x << 0)
 #define PCU_MSR_PMON_CTL_OCC_SEL(x) (x << 14)
@@ -770,11 +792,6 @@ struct BecktonUncorePMUCNTCTLRegister
 #define KNL_CHA0_MSR_PMON_CTR2       0x0E0A // CHA 0 PMON Counter 2
 #define KNL_CHA0_MSR_PMON_CTR3       0x0E0B // CHA 0 PMON Counter 3
 
-#define CBO_MSR_PMON_BOX_CTL_RST_CONTROL (1 << 0)
-#define CBO_MSR_PMON_BOX_CTL_RST_COUNTERS (1 << 1)
-#define CBO_MSR_PMON_BOX_CTL_FRZ (1 << 8)
-#define CBO_MSR_PMON_BOX_CTL_FRZ_EN (1 << 16)
-
 #define CBO_MSR_PMON_CTL_EVENT(x) (x << 0)
 #define CBO_MSR_PMON_CTL_UMASK(x) (x << 8)
 #define CBO_MSR_PMON_CTL_RST    (1 << 17)
@@ -786,6 +803,65 @@ struct BecktonUncorePMUCNTCTLRegister
 
 #define JKT_CBO_MSR_PMON_BOX_FILTER_OPC(x) (x << 23UL)
 #define IVTHSX_CBO_MSR_PMON_BOX_FILTER1_OPC(x) (x << 20UL)
+
+#define SKX_CHA_MSR_PMON_BOX_FILTER1_REM(x) (x << 0UL)
+#define SKX_CHA_MSR_PMON_BOX_FILTER1_LOC(x) (x << 1UL)
+#define SKX_CHA_MSR_PMON_BOX_FILTER1_NM(x) (x << 4UL)
+#define SKX_CHA_MSR_PMON_BOX_FILTER1_NOT_NM(x) (x << 5UL)
+#define SKX_CHA_MSR_PMON_BOX_FILTER1_OPC0(x) (x << 9UL)
+#define SKX_CHA_MSR_PMON_BOX_FILTER1_NC(x) (x << 30UL)
+
+#define SKX_CHA_TOR_INSERTS_UMASK_IRQ(x) (x << 0)
+#define SKX_CHA_TOR_INSERTS_UMASK_PRQ(x) (x << 2)
+#define SKX_CHA_TOR_INSERTS_UMASK_HIT(x) (x << 4)
+#define SKX_CHA_TOR_INSERTS_UMASK_MISS(x) (x << 5)
+
+#define SKX_IIO_CBDMA_UNIT_STATUS   (0x0A47)
+#define SKX_IIO_CBDMA_UNIT_CTL      (0x0A40)
+#define SKX_IIO_CBDMA_CTR0          (0x0A41)
+#define SKX_IIO_CBDMA_CLK           (0x0A45)
+#define SKX_IIO_CBDMA_CTL0          (0x0A48)
+#define SKX_IIO_PM_REG_STEP         (0x0020)
+
+#define IIO_MSR_PMON_CTL_EVENT(x)   ((x) << 0)
+#define IIO_MSR_PMON_CTL_UMASK(x)   ((x) << 8)
+#define IIO_MSR_PMON_CTL_RST        (1 << 17)
+#define IIO_MSR_PMON_CTL_EDGE_DET   (1 << 18)
+#define IIO_MSR_PMON_CTL_OV_EN      (1 << 20)
+#define IIO_MSR_PMON_CTL_EN         (1 << 22)
+#define IIO_MSR_PMON_CTL_INVERT     (1 << 23)
+#define IIO_MSR_PMON_CTL_THRESH(x)  ((x) << 24ULL)
+#define IIO_MSR_PMON_CTL_CH_MASK(x) ((x) << 36ULL)
+#define IIO_MSR_PMON_CTL_FC_MASK(x) ((x) << 44ULL)
+
+/* \brief IIO Performance Monitoring Control Register format
+
+    IIOn_MSR_PMON_CTL{3-0} Register- Field Definitions
+*/
+struct IIOPMUCNTCTLRegister
+{
+    union
+    {
+        struct
+        {
+            uint64 event_select : 8;
+            uint64 umask : 8;
+            uint64 reserved1 : 1;
+            uint64 reset : 1;
+            uint64 edge_det : 1;
+            uint64 ignored : 1;
+            uint64 overflow_enable : 1;
+            uint64 reserved2 : 1;
+            uint64 enable : 1;
+            uint64 invert : 1;
+            uint64 thresh : 12;
+            uint64 ch_mask : 8;
+            uint64 fc_mask : 3;
+            uint64 reservedX : 17;
+        } fields;
+        uint64 value;
+    };
+};
 
 #define MSR_PACKAGE_THERM_STATUS (0x01B1)
 #define MSR_IA32_THERM_STATUS    (0x019C)

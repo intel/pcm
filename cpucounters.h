@@ -37,11 +37,11 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <limits>
 #include <string>
 #include <memory>
+#include <map>
 #include <string.h>
 
 #ifdef PCM_USE_PERF
 #include <linux/perf_event.h>
-#include <sys/syscall.h>
 #include <errno.h>
 #define PCM_PERF_COUNT_HW_REF_CPU_CYCLES (9)
 #endif
@@ -52,6 +52,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <sys/syscall.h>
 #include <unistd.h>
 #endif
 
@@ -61,6 +62,7 @@ class CoreCounterState;
 class BasicCounterState;
 class ServerUncorePowerState;
 class PCM;
+class CoreTaskQueue;
 
 #ifdef _MSC_VER
 void PCM_API restrictDriverAccess(LPCWSTR path);
@@ -86,8 +88,9 @@ struct PCM_API TopologyEntry // decribes a core
 //! Object to access uncore counters in a socket/processor with microarchitecture codename SandyBridge-EP (Jaketown) or Ivytown-EP or Ivytown-EX
 class ServerPCICFGUncore
 {
-    int32 bus;
+    int32 iMCbus,UPIbus;
     uint32 groupnr;
+    int32 cpu_model;
     std::vector<std::shared_ptr<PciHandleType> > imcHandles;
     std::vector<std::shared_ptr<PciHandleType> > edcHandles;
     std::vector<std::shared_ptr<PciHandleType> > qpiLLHandles;
@@ -99,9 +102,14 @@ class ServerPCICFGUncore
     uint32 EDCX_ECLK_REGISTER_FUNC_ADDR[8];
     uint32 QPI_PORTX_REGISTER_DEV_ADDR[3];
     uint32 QPI_PORTX_REGISTER_FUNC_ADDR[3];
+    uint32 LINK_PCI_PMON_BOX_CTL_ADDR;
+    uint32 LINK_PCI_PMON_CTL_ADDR[4];
+    uint32 LINK_PCI_PMON_CTR_ADDR[4];
 
-    static std::vector<std::pair<uint32, uint32> > socket2bus;
-    void initSocket2Bus();
+    static PCM_Util::Mutex socket2busMutex;
+    static std::vector<std::pair<uint32, uint32> > socket2iMCbus;
+    static std::vector<std::pair<uint32, uint32> > socket2UPIbus;
+    void initSocket2Bus(std::vector<std::pair<uint32, uint32> > & socket2bus, uint32 device, uint32 function, const uint32 DEV_IDS[], uint32 devIdsSize);
 
     ServerPCICFGUncore();                                         // forbidden
     ServerPCICFGUncore(ServerPCICFGUncore &);                     // forbidden
@@ -109,12 +117,17 @@ class ServerPCICFGUncore
     PciHandleType * createIntelPerfMonDevice(uint32 groupnr, int32 bus, uint32 dev, uint32 func, bool checkVendor = false);
     void programIMC(const uint32 * MCCntConfig);
     void programEDC(const uint32 * EDCCntConfig);
+    typedef std::pair<size_t, std::vector<uint64 *> > MemTestParam;
+    void initMemTest(MemTestParam & param);
+    void doMemTest(const MemTestParam & param);
+    void cleanupMemTest(const MemTestParam & param);
+    void cleanupQPIHandles();
 
 public:
     //! \brief Initialize access data structures
     //! \param socket_ socket id
     //! \param pcm pointer to PCM instance
-    ServerPCICFGUncore(uint32 socket_, PCM * pcm);
+    ServerPCICFGUncore(uint32 socket_, const PCM * pcm);
     //! \brief Program performance counters (disables programming power counters)
     void program();
     //! \brief Get the number of integrated controller reads (in cache lines)
@@ -127,14 +140,13 @@ public:
     //! \brief Get the number of cache lines written by EDC (embedded DRAM controller)
     uint64 getEdcWrites();
 
-
     //! \brief Get the number of incoming data flits to the socket through a port
     //! \param port QPI port id
     uint64 getIncomingDataFlits(uint32 port);
 
-    //! \brief Get the number of outgoing data and non-data flits from the socket through a port
+    //! \brief Get the number of outgoing data and non-data or idle flits (depending on the architecture) from the socket through a port
     //! \param port QPI port id
-    uint64 getOutgoingDataNonDataFlits(uint32 port);
+    uint64 getOutgoingFlits(uint32 port);
 
     virtual ~ServerPCICFGUncore();
 
@@ -154,6 +166,9 @@ public:
     //! \brief Get number cycles on a QPI port when the link was in a power saving half-lane mode
     //! \param port QPI port number
     uint64 getQPIL0pTxCycles(uint32 port);
+    //! \brief Get number cycles on a UPI port when the link was in a L0 mode (fully active)
+    //! \param port UPI port number
+    uint64 getUPIL0TxCycles(uint32 port);
     //! \brief Get number cycles on a QPI port when the link was in a power saving shutdown mode
     //! \param port QPI port number
     uint64 getQPIL1Cycles(uint32 port);
@@ -197,13 +212,7 @@ public:
     }
 
     //! \brief Print QPI Speeds
-    void reportQPISpeed() const
-    {
-        std::cerr.precision(1);
-        std::cerr << std::fixed;
-        for (uint32 i = 0; i < (uint32)qpi_speed.size(); ++i)
-            std::cerr << "Max QPI link " << i << " speed: " << qpi_speed[i] / (1e9) << " GBytes/second (" << qpi_speed[i] / (1e9 * double(DATA_BYTES_PER_QPI_CYCLE)) << " GT/second)" << std::endl;
-    }
+    void reportQPISpeed() const;
 
     //! \brief Returns the number of detected integrated memory controllers
     uint32 getNumMC() const { return num_imc; }
@@ -215,17 +224,21 @@ public:
     size_t getNumEDCChannels() const { return (size_t)edcHandles.size(); }
 };
 
-class PCIeCounterState
+class SimpleCounterState
 {
-    friend uint64 getNumberOfEvents(PCIeCounterState before, PCIeCounterState after);
+    template <class T>
+    friend uint64 getNumberOfEvents(const T & before, const T & after);
     friend class PCM;
     uint64 data;
 
 public:
-    PCIeCounterState() : data(0)
+    SimpleCounterState() : data(0)
     { }
-    virtual ~PCIeCounterState() { }
+    virtual ~SimpleCounterState() { }
 };
+
+typedef SimpleCounterState PCIeCounterState;
+typedef SimpleCounterState IIOCounterState;
 
 #ifndef HACK_TO_REMOVE_DUPLICATE_ERROR
 template class PCM_API std::allocator<TopologyEntry>;
@@ -256,6 +269,7 @@ class PCM_API PCM
     int32 num_sockets;
     int32 num_phys_cores_per_socket;
     int32 num_online_cores;
+    int32 num_online_sockets;
     uint32 core_gen_counter_num_max;
     uint32 core_gen_counter_num_used;
     uint32 core_gen_counter_width;
@@ -284,6 +298,11 @@ class PCM_API PCM
     std::vector<std::shared_ptr<SafeMsrHandle> > MSR;
     std::vector<std::shared_ptr<ServerPCICFGUncore> > server_pcicfg_uncore;
     uint64 PCU_MSR_PMON_BOX_CTL_ADDR, PCU_MSR_PMON_CTRX_ADDR[4];
+    std::map<int32, uint32>    IIO_UNIT_STATUS_ADDR;
+    std::map<int32, uint32>    IIO_UNIT_CTL_ADDR;
+    std::map<int32, std::vector<uint32> > IIO_CTR_ADDR;
+    std::map<int32, uint32>    IIO_CLK_ADDR;
+    std::map<int32, std::vector<uint32> > IIO_CTL_ADDR;
     double joulesPerEnergyUnit;
     std::vector<std::shared_ptr<CounterWidthExtender> > energy_status;
     std::vector<std::shared_ptr<CounterWidthExtender> > dram_energy_status;
@@ -301,6 +320,8 @@ class PCM_API PCM
 
     uint64 * coreCStateMsr;    // MSR addresses of core C-state free-running counters
     uint64 * pkgCStateMsr;     // MSR addresses of package C-state free-running counters
+
+    std::vector<std::shared_ptr<CoreTaskQueue> > coreTaskQueues;
 
 public:
     enum { MAX_C_STATE = 10 }; // max C-state on Intel architecture
@@ -363,6 +384,55 @@ public:
         UnknownError
     };
 
+    enum PerfmonField {
+        INVALID, /* Use to parse invalid field */
+        OPCODE,
+        EVENT_SELECT,
+        UMASK,
+        RESET,
+        EDGE_DET,
+        IGNORED,
+        OVERFLOW_ENABLE,
+        ENABLE,
+        INVERT,
+        THRESH,
+        CH_MASK,
+        FC_MASK,
+        /* Below are not part of perfmon definition */
+        H_EVENT_NAME,
+        V_EVENT_NAME,
+        MULTIPLIER,
+        DIVIDER,
+        COUNTER_INDEX
+    };
+
+    enum PCIeWidthMode {
+        X1,
+        X4,
+        X8,
+        X16,
+        XFF
+    };
+
+    enum { // offsets/enumeration of IIO stacks
+        IIO_CBDMA = 0, // shared with DMI
+        IIO_PCIe0 = 1,
+        IIO_PCIe1 = 2,
+        IIO_PCIe2 = 3,
+        IIO_MCP0 = 4,
+        IIO_MCP1 = 5,
+        IIO_STACK_COUNT = 6
+    };
+
+    struct SimplePCIeDevInfo
+    {
+        enum PCIeWidthMode width;
+        std::string pciDevName;
+        std::string busNumber;
+
+        SimplePCIeDevInfo() : width(XFF) { }
+    };
+
     /*! \brief Custom Core event description
 
         See "Intel 64 and IA-32 Architectures Software Developers Manual Volume 3B:
@@ -395,6 +465,15 @@ public:
             OffcoreResponseMsrValue[0] = 0;
             OffcoreResponseMsrValue[1] = 0;
         }
+    };
+
+    struct CustomIIOEventDescription
+    {
+        /* We program the same counters to every IIO Stacks */
+        std::string eventNames[4];
+        IIOPMUCNTCTLRegister eventOpcodes[4];
+        int multiplier[4]; //Some IIO event requires transformation to get meaningful output (i.e. DWord to bytes)
+        int divider[4]; //We usually like to have some kind of divider (i.e. /10e6 )
     };
 
 private:
@@ -496,7 +575,7 @@ private:
     uint64 CX_MSR_PMON_CTLY(uint32 Cbo, uint32 Ctl) const;
     uint64 CX_MSR_PMON_BOX_CTL(uint32 Cbo) const;
     uint32 getMaxNumOfCBoxes() const;
-    void programCboOpcodeFilter(const uint32 opc, const uint32 cbo, std::shared_ptr<SafeMsrHandle> msr);
+    void programCboOpcodeFilter(const uint32 opc, const uint32 cbo, std::shared_ptr<SafeMsrHandle> msr, const uint32 nc_ = 0);
 
 public:
     /*!
@@ -651,9 +730,15 @@ public:
 
     /*! \brief Return true if the core in online
 
-        \param i OS core id
+        \param os_core_id OS core id
     */
     bool isCoreOnline(int32 os_core_id) const;
+
+    /*! \brief Return true if the socket in online
+
+        \param socket_id OS socket id
+    */
+    bool isSocketOnline(int32 socket_id) const;
 
     /*! \brief Reads the counter state of the system
 
@@ -683,40 +768,45 @@ public:
     /*! \brief Reads number of logical cores in the system
             \return Number of logical cores in the system
     */
-    uint32 getNumCores();
+    uint32 getNumCores() const;
 
     /*! \brief Reads number of online logical cores in the system
             \return Number of online logical cores in the system
     */
-    uint32 getNumOnlineCores();
+    uint32 getNumOnlineCores() const;
 
     /*! \brief Reads number of sockets (CPUs) in the system
             \return Number of sockets in the system
     */
-    uint32 getNumSockets();
+    uint32 getNumSockets() const;
+
+    /*! \brief Reads number of online sockets (CPUs) in the system
+            \return Number of online sockets in the system
+    */
+    uint32 getNumOnlineSockets() const;
 
     /*! \brief Reads how many hardware threads has a physical core
             "Hardware thread" is a logical core in a different terminology.
             If Intel(r) Hyperthreading(tm) is enabled then this function returns 2.
             \return Number of hardware threads per physical core
     */
-    uint32 getThreadsPerCore();
+    uint32 getThreadsPerCore() const;
 
     /*! \brief Checks if SMT (HyperThreading) is enabled.
             \return true iff SMT (HyperThreading) is enabled.
     */
-    bool getSMT();                // returns true iff SMT ("Hyperthreading") is on
+    bool getSMT() const; // returns true iff SMT ("Hyperthreading") is on
 
     /*! \brief Reads the nominal core frequency
             \return Nominal frequency in Hz
     */
-    uint64 getNominalFrequency(); // in Hz
+    uint64 getNominalFrequency() const; // in Hz
 
     /*! \brief runs CPUID.0xF.0x01 to get the L3 up scaling factor to calculate L3 Occupancy
      *  Scaling factor is returned in EBX register after running the CPU instruction
      * \return L3 up scaling factor
      */
-    uint32 getL3ScalingFactor();
+    uint32 getL3ScalingFactor() const;
 
     /*! \brief runs CPUID.0xB.0x01 to get maximum logical cores (including SMT) per socket.
      *  max_lcores_per_socket is returned in EBX[15:0]. Compare this value with number of cores per socket
@@ -759,40 +849,41 @@ public:
         BDX = 79,
         KNL = 87,
         SKL = 94,
+        SKX = 85,
         END_OF_MODEL_LIST = 0x0ffff
     };
 
     //! \brief Reads CPU model id
     //! \return CPU model ID
-    uint32 getCPUModel() { return (uint32)cpu_model; }
+    uint32 getCPUModel() const { return (uint32)cpu_model; }
 
     //! \brief Reads original CPU model id
     //! \return CPU model ID
-    uint32 getOriginalCPUModel() { return (uint32)original_cpu_model; }
+    uint32 getOriginalCPUModel() const { return (uint32)original_cpu_model; }
 
     //! \brief Reads CPU stepping id
     //! \return CPU stepping ID
-    uint32 getCPUStepping() { return (uint32)cpu_stepping; }
+    uint32 getCPUStepping() const { return (uint32)cpu_stepping; }
 
     //! \brief Determines physical thread of given processor ID within a core
     //! \param os_id processor identifier
     //! \return physical thread identifier
-    int32 getThreadId(uint32 os_id)  { return (int32)topology[os_id].thread_id; }
+    int32 getThreadId(uint32 os_id) const { return (int32)topology[os_id].thread_id; }
 
     //! \brief Determines physical core of given processor ID within a socket
     //! \param os_id processor identifier
     //! \return physical core identifier
-    int32 getCoreId(uint32 os_id) { return (int32)topology[os_id].core_id; }
+    int32 getCoreId(uint32 os_id) const { return (int32)topology[os_id].core_id; }
 
     //! \brief Determines physical tile (cores sharing L2 cache) of given processor ID
     //! \param os_id processor identifier
     //! \return physical tile identifier
-    int32 getTileId(uint32 os_id) { return (int32)topology[os_id].tile_id; }
+    int32 getTileId(uint32 os_id) const { return (int32)topology[os_id].tile_id; }
 
     //! \brief Determines socket of given core
     //! \param core_id core identifier
     //! \return socket identifier
-    int32 getSocketId(uint32 core_id) { return (int32)topology[core_id].socket; }
+    int32 getSocketId(uint32 core_id) const { return (int32)topology[core_id].socket; }
 
     //! \brief Returns the number of Intel(r) Quick Path Interconnect(tm) links per socket
     //! \return number of QPI links per socket
@@ -815,6 +906,7 @@ public:
         case HASWELLX:
         case BDX_DE:
         case BDX:
+        case SKX:
             return (server_pcicfg_uncore.size() && server_pcicfg_uncore[0].get()) ? (server_pcicfg_uncore[0]->getNumQPIPorts()) : 0;
         }
         return 0;
@@ -836,6 +928,7 @@ public:
         case IVYTOWN:
         case HASWELLX:
         case BDX_DE:
+        case SKX:
         case BDX:
         case KNL:
             return (server_pcicfg_uncore.size() && server_pcicfg_uncore[0].get()) ? (server_pcicfg_uncore[0]->getNumMC()) : 0;
@@ -859,6 +952,7 @@ public:
         case IVYTOWN:
         case HASWELLX:
         case BDX_DE:
+        case SKX:
         case BDX:
         case KNL:
             return (server_pcicfg_uncore.size() && server_pcicfg_uncore[0].get()) ? (server_pcicfg_uncore[0]->getNumMCChannels()) : 0;
@@ -900,6 +994,7 @@ public:
         case BDX:
         case SKL:
         case KBL:
+        case SKX:
             return 4;
         case ATOM:
         case KNL:
@@ -921,6 +1016,8 @@ public:
         case BDX:
         case KNL:
             return 1000000000ULL; // 1 GHz
+        case SKX:
+            return 1100000000ULL; // 1.1 GHz
         }
         return 0;
     }
@@ -979,6 +1076,21 @@ public:
         PRd = 0x187,       // Partial Reads (UC) (MMIO Read)
         WiL = 0x18F,       // Write Invalidate Line - partial (MMIO write), PL: Not documented in HSX/IVT
         ItoM = 0x1C8,      // Request Invalidate Line; share the same code for CPU, use tid to filter PCIe only traffic
+
+        SKX_RFO = 0x200,
+        SKX_CRd = 0x201,
+        SKX_DRd = 0x202,
+        SKX_PRd = 0x207,
+        SKX_WiL = 0x20F,
+        SKX_RdCur = 0x21E,
+        SKX_ItoM = 0x248,
+    };
+
+    enum ChaPipelineQueue
+    {
+	None,
+        IRQ,
+        PRQ,
     };
 
     enum CBoEventTid
@@ -990,13 +1102,30 @@ public:
     //! \brief Program uncore PCIe monitoring event(s)
     //! \param event_ a PCIe event to monitor
     //! \param tid_ tid filter (PCM supports it only on Haswell server)
-    void programPCIeCounters(const PCIeEventCode event_, const uint32 tid_ = 0, const uint32 miss_ = 0);
-    void programPCIeMissCounters(const PCIeEventCode event_, const uint32 tid_ = 0);
+    void programPCIeCounters(const PCIeEventCode event_, const uint32 tid_ = 0, const uint32 miss_ = 0, const uint32 q_ = 0, const uint32 nc_ = 0);
+    void programPCIeMissCounters(const PCIeEventCode event_, const uint32 tid_ = 0, const uint32 q_ = 0, const uint32 nc_ = 0);
 
     //! \brief Get the state of PCIe counter(s)
     //! \param socket_ socket of the PCIe controller
     //! \return State of PCIe counter(s)
     PCIeCounterState getPCIeCounterState(const uint32 socket_);
+
+    //! \brief Program uncore IIO events
+    //! \param rawEvents events to program (raw format)
+    //! \param IIOStack id of the IIO stack to program (-1 for all, if parameter omitted)
+    void programIIOCounters(IIOPMUCNTCTLRegister rawEvents[4], int IIOStack = -1);
+
+    //! \brief Get the state of IIO counter
+    //! \param socket socket of the IIO stack
+    //! \param IIOStack id of the IIO stack
+    //! \return State of IIO counter
+    IIOCounterState getIIOCounterState(int socket, int IIOStack, int counter);
+
+    //! \brief Get the states of the four IIO counters in bulk (faster than four single reads)
+    //! \param socket socket of the IIO stack
+    //! \param IIOStack id of the IIO stack
+    //! \param result states of IIO counters (array of four IIOCounterState elements)
+    void getIIOCounterStates(int socket, int IIOStack, IIOCounterState * result);
 
     uint64 extractCoreGenCounterValue(uint64 val);
     uint64 extractCoreFixedCounterValue(uint64 val);
@@ -1032,6 +1161,7 @@ public:
                  || cpu_model == PCM::KNL
                  || cpu_model == PCM::SKL
                  || cpu_model == PCM::KBL
+                 || cpu_model == PCM::SKX
                );
     }
 
@@ -1044,6 +1174,7 @@ public:
           || cpu_model == PCM::BDX_DE
           || cpu_model == PCM::BDX
           || cpu_model == PCM::KNL
+          || cpu_model == PCM::SKX
           );
     }
 
@@ -1054,23 +1185,27 @@ public:
 
     bool outgoingQPITrafficMetricsAvailable() const
     {
-        return (
+        return getQPILinksPerSocket() > 0 &&
+            (
                 cpu_model == PCM::NEHALEM_EX 
             ||  cpu_model == PCM::WESTMERE_EX 
             ||  cpu_model == PCM::JAKETOWN
             ||  cpu_model == PCM::IVYTOWN
             ||  cpu_model == PCM::HASWELLX
             ||  cpu_model == PCM::BDX
+            ||  cpu_model == PCM::SKX
             );
     }
 
     bool incomingQPITrafficMetricsAvailable() const
     {
-        return (
+        return getQPILinksPerSocket() > 0 &&
+            (
                 cpu_model == PCM::NEHALEM_EX
             ||  cpu_model == PCM::WESTMERE_EX
             ||  cpu_model == PCM::JAKETOWN
             ||  cpu_model == PCM::IVYTOWN
+            || (cpu_model == PCM::SKX && cpu_stepping > 1)
                );
     }
 
@@ -1104,6 +1239,13 @@ public:
             );
     }
 
+    bool IIOEventsAvailable() const
+    {
+        return (
+            cpu_model == PCM::SKX
+        );
+    }
+
     bool hasBecktonUncore() const
     {
         return (
@@ -1118,9 +1260,25 @@ public:
             || cpu_model == PCM::IVYTOWN
             || cpu_model == PCM::HASWELLX
             || cpu_model == PCM::BDX_DE
+          ||  cpu_model == PCM::SKX
             || cpu_model == PCM::BDX
             || cpu_model == PCM::KNL
             );
+    }
+
+    bool hasUPI() const // Intel(r) Ultra Path Interconnect
+    {
+        return (
+            cpu_model == PCM::SKX
+               );
+    }
+
+    const char * xPI() const
+    {
+        if (hasUPI())
+            return "UPI";
+
+        return "QPI";
     }
 
     bool supportsHLE() const;
@@ -1128,8 +1286,72 @@ public:
 
     bool useSkylakeEvents() const
     {
-        return    PCM::SKL == cpu_model
-               || PCM::KBL == cpu_model;
+        return PCM::SKL == cpu_model
+            || PCM::SKX == cpu_model
+            || PCM::KBL == cpu_model
+            ;
+    }
+
+    static double getBytesPerFlit(int32 cpu_model_)
+    {
+        if(cpu_model_ == PCM::SKX)
+        {
+            // 172 bits per UPI flit
+            return 172./8.;
+        }
+        // 8 bytes per QPI flit
+        return 8.;
+    }
+
+    double getBytesPerFlit() const
+    {
+        return getBytesPerFlit(cpu_model);
+    }
+
+    static double getDataBytesPerFlit(int32 cpu_model_)
+    {
+        if(cpu_model_ == PCM::SKX)
+        {
+            // 9 UPI flits to transfer 64 bytes
+            return 64./9.;
+        }
+        // 8 bytes per QPI flit
+        return 8.;
+    }
+
+    double getDataBytesPerFlit() const
+    {
+        return getDataBytesPerFlit(cpu_model);
+    }
+
+    static double getFlitsPerLinkCycle(int32 cpu_model_)
+    {
+        if(cpu_model_ == PCM::SKX)
+        {
+            // 5 UPI flits sent every 6 link cycles
+            return 5./6.;
+        }
+        return 2.;
+    }
+
+    static double getBytesPerLinkCycle(int32 cpu_model_)
+    {
+        return getBytesPerFlit(cpu_model_) * getFlitsPerLinkCycle(cpu_model_);
+    }
+
+    double getBytesPerLinkCycle() const
+    {
+        return getBytesPerLinkCycle(cpu_model);
+    }
+
+    static double getLinkTransfersPerLinkCycle()
+    {
+        return 8.;
+    }
+
+    double getBytesPerLinkTransfer() const
+    {
+        return getBytesPerLinkCycle() / getLinkTransfersPerLinkCycle();
     }
 
     ~PCM();
@@ -1496,6 +1718,7 @@ double getDRAMConsumedJoules(const CounterStateType & before, const CounterState
     if (PCM::HASWELLX == m->getCPUModel()
         || PCM::BDX_DE == m->getCPUModel()
         || PCM::BDX == m->getCPUModel()
+        || PCM::SKX == m->getCPUModel()
         || PCM::KNL == m->getCPUModel()
         ) {
 /* as described in sections 5.3.2 (DRAM_POWER_INFO) and 5.3.3 (DRAM_ENERGY_STATUS) of
@@ -1665,9 +1888,9 @@ public:
 class SystemCounterState : public BasicCounterState, public UncoreCounterState
 {
     friend class PCM;
-    std::vector<std::vector<uint64> > incomingQPIPackets;
-    std::vector<std::vector<uint64> > outgoingQPIIdleFlits;
-    std::vector<std::vector<uint64> > outgoingQPIDataNonDataFlits;
+    std::vector<std::vector<uint64> > incomingQPIPackets; // each 64 byte
+    std::vector<std::vector<uint64> > outgoingQPIFlits; // idle or data/non-data flits depending on the architecture
+    std::vector<std::vector<uint64> > TxL0Cycles;
     uint64 uncoreTSC;
 
 protected:
@@ -1689,10 +1912,10 @@ public:
         PCM * m = PCM::getInstance();
         incomingQPIPackets.resize(m->getNumSockets(),
                                   std::vector<uint64>((uint32)m->getQPILinksPerSocket(), 0));
-        outgoingQPIIdleFlits.resize(m->getNumSockets(),
+        outgoingQPIFlits.resize(m->getNumSockets(),
                                     std::vector<uint64>((uint32)m->getQPILinksPerSocket(), 0));
-        outgoingQPIDataNonDataFlits.resize(m->getNumSockets(),
-                                           std::vector<uint64>((uint32)m->getQPILinksPerSocket(), 0));
+        TxL0Cycles.resize(m->getNumSockets(),
+                                    std::vector<uint64>((uint32)m->getQPILinksPerSocket(), 0));
     }
 
     void accumulateSocketState(const SocketCounterState & o)
@@ -2396,23 +2619,27 @@ inline double getOutgoingQPILinkUtilization(uint32 socketNr, uint32 linkNr, cons
 
     if (m->hasBecktonUncore())
     {
-        const uint64 b = before.outgoingQPIIdleFlits[socketNr][linkNr];
-        const uint64 a = after.outgoingQPIIdleFlits[socketNr][linkNr];
+        const uint64 b = before.outgoingQPIFlits[socketNr][linkNr]; // idle flits
+        const uint64 a = after.outgoingQPIFlits[socketNr][linkNr];  // idle flits
         // prevent overflows due to counter dissynchronisation
         const double idle_flits = (double)((a > b) ? (a - b) : 0);
         const uint64 bTSC = before.uncoreTSC;
         const uint64 aTSC = after.uncoreTSC;
         const double tsc = (double)((aTSC > bTSC) ? (aTSC - bTSC) : 0);
-        if (idle_flits > tsc) return 0.; // prevent oveflows due to potential counter dissynchronization
+        if (idle_flits >= tsc) return 0.; // prevent oveflows due to potential counter dissynchronization
 
         return (1. - (idle_flits / tsc));
     } else if (m->hasPCICFGUncore())
     {
-        const uint64 b = before.outgoingQPIDataNonDataFlits[socketNr][linkNr];
-        const uint64 a = after.outgoingQPIDataNonDataFlits[socketNr][linkNr];
+        const uint64 b = before.outgoingQPIFlits[socketNr][linkNr]; // data + non-data flits or idle (null) flits
+        const uint64 a = after.outgoingQPIFlits[socketNr][linkNr]; // data + non-data flits or idle (null) flits
         // prevent overflows due to counter dissynchronisation
-        const double flits = (double)((a > b) ? (a - b) : 0);
-        const double max_flits = ((double(getInvariantTSC(before, after)) * double(m->getQPILinkSpeed(socketNr, linkNr)) / double(DATA_BYTES_PER_QPI_FLIT)) / double(m->getNominalFrequency())) / double(m->getNumCores());
+        double flits = (double)((a > b) ? (a - b) : 0);
+        const double max_flits = ((double(getInvariantTSC(before, after)) * double(m->getQPILinkSpeed(socketNr, linkNr)) / m->getBytesPerFlit()) / double(m->getNominalFrequency())) / double(m->getNumCores());
+        if(m->hasUPI())
+        {
+            flits = flits/3.;
+        }
         if (flits > max_flits) return 1.; // prevent oveflows due to potential counter dissynchronization
         return (flits / max_flits);
     }
@@ -2556,10 +2783,11 @@ inline double getQPItoMCTrafficRatio(const SystemCounterState & before, const Sy
     return double(totalQPI) / double(memTraffic);
 }
 
-//! \brief Returns the raw count of PCIe events
-//! \param before PCIe counter state before the experiment
-//! \param after PCIe counter state after the experiment
-inline uint64 getNumberOfEvents(PCIeCounterState before, PCIeCounterState after)
+//! \brief Returns the raw count of events
+//! \param before counter state before the experiment
+//! \param after counter state after the experiment
+template <class CounterType>
+inline uint64 getNumberOfEvents(const CounterType & before, const CounterType & after)
 {
     return after.data - before.data;
 }

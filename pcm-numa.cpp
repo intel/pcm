@@ -192,8 +192,13 @@ int main(int argc, char * argv[])
         conf.OffcoreResponseMsrValue[1] = 0x63f800000 | 0x08FFF; // OFFCORE_RESPONSE.*.REMOTE_DRAM
         break;
     case PCM::BDX:
-        conf.OffcoreResponseMsrValue[0] = 0x0604008FFF; // OFFCORE_RESPONSE.*.LOCAL_DRAM
-        conf.OffcoreResponseMsrValue[1] = 0x067BC08FFF; // OFFCORE_RESPONSE.*.REMOTE_DRAM
+        conf.OffcoreResponseMsrValue[0] = 0x0604008FFF; // OFFCORE_RESPONSE.ALL_REQUESTS.L3_MISS.LOCAL_DRAM
+        conf.OffcoreResponseMsrValue[1] = 0x067BC08FFF; // OFFCORE_RESPONSE.ALL_REQUESTS.L3_MISS.REMOTE_DRAM
+        break;
+    case PCM::SKX:
+        conf.OffcoreResponseMsrValue[0] = 0x3FC0009FFF | (1 << 26); // OFFCORE_RESPONSE.ALL_REQUESTS.L3_MISS_LOCAL_DRAM.ANY_SNOOP
+        // OFFCORE_RESPONSE.ALL_REQUESTS.L3_MISS_REMOTE_(HOP0,HOP1,HOP2P)_DRAM.ANY_SNOOP
+        conf.OffcoreResponseMsrValue[1] = 0x3FC0009FFF | (1 << 27) | (1 << 28) | (1 << 29);
         break;
     default:
         cerr << "pcm-numa tool does not support your processor currently." << endl;

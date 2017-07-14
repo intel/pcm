@@ -317,20 +317,19 @@ void print_output(PCM * m,
     {
         if (m->getNumSockets() > 1 && m->incomingQPITrafficMetricsAvailable()) // QPI info only for multi socket systems
         {
-            cout << "\n" << "Intel(r) QPI data traffic estimation in bytes (data traffic coming to CPU/socket through QPI links):" << "\n" << "\n";
-
+            cout << "\n" << "Intel(r) "<< m->xPI() <<" data traffic estimation in bytes (data traffic coming to CPU/socket through "<< m->xPI() <<" links):" << "\n" << "\n";
 
             const uint32 qpiLinks = (uint32)m->getQPILinksPerSocket();
 
             cout << "              ";
             for (uint32 i = 0; i < qpiLinks; ++i)
-                cout << " QPI" << i << "    ";
+                cout << " "<< m->xPI() << i << "    ";
 
             if (m->qpiUtilizationMetricsAvailable())
             {
                 cout << "| ";
                 for (uint32 i = 0; i < qpiLinks; ++i)
-                    cout << " QPI" << i << "  ";
+                    cout << " "<< m->xPI() << i << "  ";
             }
 
             cout << "\n" << longDiv;
@@ -359,30 +358,28 @@ void print_output(PCM * m,
         cout << longDiv;
 
         if (m->getNumSockets() > 1 && m->incomingQPITrafficMetricsAvailable()) // QPI info only for multi socket systems
-            cout << "Total QPI incoming data traffic: " << unit_format(getAllIncomingQPILinkBytes(sstate1, sstate2)) << "     QPI data traffic/Memory controller traffic: " << getQPItoMCTrafficRatio(sstate1, sstate2) << "\n";
+            cout << "Total "<< m->xPI() <<" incoming data traffic: " << unit_format(getAllIncomingQPILinkBytes(sstate1, sstate2)) << "     "<< m->xPI() <<" data traffic/Memory controller traffic: " << getQPItoMCTrafficRatio(sstate1, sstate2) << "\n";
     }
 
     if (show_socket_output)
     {
         if (m->getNumSockets() > 1 && (m->outgoingQPITrafficMetricsAvailable())) // QPI info only for multi socket systems
         {
-            cout << "\n" << "Intel(r) QPI traffic estimation in bytes (data and non-data traffic outgoing from CPU/socket through QPI links):" << "\n" << "\n";
+            cout << "\n" << "Intel(r) "<< m->xPI() <<" traffic estimation in bytes (data and non-data traffic outgoing from CPU/socket through "<< m->xPI() <<" links):" << "\n" << "\n";
 
 
             const uint32 qpiLinks = (uint32)m->getQPILinksPerSocket();
 
             cout << "              ";
             for (uint32 i = 0; i < qpiLinks; ++i)
-                cout << " QPI" << i << "    ";
+                cout << " " << m->xPI() << i << "    ";
 
 
             cout << "| ";
             for (uint32 i = 0; i < qpiLinks; ++i)
-                cout << " QPI" << i << "  ";
-
+                cout << " "<< m->xPI() << i << "  ";
 
             cout << "\n" << longDiv;
-
 
             for (uint32 i = 0; i < m->getNumSockets(); ++i)
             {
@@ -398,7 +395,7 @@ void print_output(PCM * m,
             }
 
             cout << longDiv;
-            cout << "Total QPI outgoing data and non-data traffic: " << unit_format(getAllOutgoingQPILinkBytes(sstate1, sstate2)) << "\n";
+            cout << "Total "<< m->xPI() <<" outgoing data and non-data traffic: " << unit_format(getAllOutgoingQPILinkBytes(sstate1, sstate2)) << "\n";
         }
     }
     if (show_socket_output)
@@ -633,9 +630,9 @@ void print_csv_header(PCM * m,
         cout << "INST;ACYC;TIME(ticks);PhysIPC;PhysIPC%;INSTnom;INSTnom%;";
         if (m->getNumSockets() > 1) { // QPI info only for multi socket systems
             if (m->incomingQPITrafficMetricsAvailable())
-                cout << "TotalQPIin;QPItoMC;";
+                cout << "Total"<<m->xPI()<<"in;"<<m->xPI()<<"toMC;";
             if (m->outgoingQPITrafficMetricsAvailable())
-                cout << "TotalQPIout;";
+                cout << "Total"<<m->xPI()<<"out;";
         }
 
 
@@ -693,11 +690,11 @@ void print_csv_header(PCM * m,
             for (uint32 s = 0; s < m->getNumSockets(); ++s)
             {
                 for (uint32 i = 0; i < qpiLinks; ++i)
-                    cout << "QPI" << i << ";";
+                    cout << m->xPI() << i << ";";
 
                 if (m->qpiUtilizationMetricsAvailable())
                 for (uint32 i = 0; i < qpiLinks; ++i)
-                    cout << "QPI" << i << ";";
+                    cout << m->xPI() << i << ";";
             }
 
         }
@@ -708,9 +705,9 @@ void print_csv_header(PCM * m,
             for (uint32 s = 0; s < m->getNumSockets(); ++s)
             {
                 for (uint32 i = 0; i < qpiLinks; ++i)
-                    cout << "QPI" << i << ";";
+                    cout << m->xPI() << i << ";";
                 for (uint32 i = 0; i < qpiLinks; ++i)
-                    cout << "QPI" << i << ";";
+                    cout << m->xPI() << i << ";";
             }
 
         }

@@ -52,6 +52,18 @@ namespace PCM_Util
             pthread_mutex_unlock(&mutex_);
 #endif
         }
+
+        class Scope {
+            Mutex & m;
+        public:
+            Scope(Mutex & m_) : m(m_)
+            {
+                m.lock();
+            }
+            ~Scope() {
+                m.unlock();
+            }
+        };
     };
 }
 

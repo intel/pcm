@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009-2016, Intel Corporation
+   Copyright (c) 2009-2017, Intel Corporation
    All rights reserved.
 
    Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -18,10 +18,8 @@
 #include <cstring>
 #include <stdint.h>
 
-static const char VERSION[] = "1.0.1";
-
-//P=80, C=67, M=77
-#define SHARED_MEMORY_KEY 806777 + sizeof(PCMDaemon::SharedPCMState)
+static const char DEFAULT_SHM_ID_LOCATION[] = "/tmp/opcm-daemon-shm-id";
+static const char VERSION[] = "1.0.3";
 
 #define MAX_CPU_CORES 4096
 #define MAX_SOCKETS 256
@@ -45,6 +43,23 @@ namespace PCMDaemon {
 	typedef long int64;
 	typedef unsigned int uint32;
 	typedef unsigned long uint64;
+
+	struct PCMSystem {
+		uint32 numOfCores;
+		uint32 numOfOnlineCores;
+		uint32 numOfSockets;
+		uint32 numOfOnlineSockets;
+		uint32 numOfQPILinksPerSocket;
+	public:
+		PCMSystem() :
+			numOfCores(0),
+			numOfOnlineCores(0),
+			numOfSockets(0),
+			numOfOnlineSockets(0),
+			numOfQPILinksPerSocket(0) {}
+	} ALIGN(ALIGNMENT);
+
+	typedef struct PCMSystem PCMSystem;
 
 	struct PCMCoreCounter {
 		uint64 coreId;
@@ -85,9 +100,6 @@ namespace PCMDaemon {
 	typedef struct PCMCoreCounter PCMCoreCounter;
 
 	struct PCMCore {
-		uint32 numOfCores;
-		uint32 numOfOnlineCores;
-		uint32 numOfSockets;
 		PCMCoreCounter cores[MAX_CPU_CORES];
 		bool packageEnergyMetricsAvailable;
 		double energyUsedBySockets[MAX_SOCKETS] ALIGN(ALIGNMENT);
@@ -119,18 +131,23 @@ namespace PCMDaemon {
 	typedef struct PCMMemoryChannelCounter PCMMemoryChannelCounter;
 
 	struct PCMMemorySocketCounter {
+		uint64 socketId;
 		PCMMemoryChannelCounter channels[MEMORY_MAX_IMC_CHANNELS];
+		uint32 numOfChannels;
 		float read;
 		float write;
 		float partialWrite;
 		float total;
+		double dramEnergy;
 
 	public:
 		PCMMemorySocketCounter() :
+			numOfChannels(0),
 			read(-1.0),
 			write(-1.0),
 			partialWrite(-1.0),
-			total(-1.0) {}
+			total(-1.0),
+			dramEnergy(0.0) {}
 	} ALIGN(ALIGNMENT);
 
 	typedef struct PCMMemorySocketCounter PCMMemorySocketCounter;
@@ -150,20 +167,13 @@ namespace PCMDaemon {
 	typedef struct PCMMemorySystemCounter PCMMemorySystemCounter;
 
 	struct PCMMemory {
-		uint32 numOfSockets;
 		PCMMemorySocketCounter sockets[MAX_SOCKETS];
 		PCMMemorySystemCounter system;
 		bool dramEnergyMetricsAvailable;
-		double dramEnergyForSockets[MAX_SOCKETS] ALIGN(ALIGNMENT);
 
 	public:
 		PCMMemory() :
-			dramEnergyMetricsAvailable(false) {
-			for(int i = 0; i < MAX_SOCKETS; ++i)
-			{
-				dramEnergyForSockets[i] = -1.0;
-			}
-		}
+			dramEnergyMetricsAvailable(false) {}
 	} ALIGN(ALIGNMENT);
 
 	typedef struct PCMMemory PCMMemory;
@@ -181,6 +191,7 @@ namespace PCMDaemon {
 	typedef struct PCMQPILinkCounter PCMQPILinkCounter;
 
 	struct PCMQPISocketCounter {
+		uint64 socketId;
 		PCMQPILinkCounter links[QPI_MAX_LINKS];
 		uint64 total;
 
@@ -192,8 +203,6 @@ namespace PCMDaemon {
 	typedef struct PCMQPISocketCounter PCMQPISocketCounter;
 
 	struct PCMQPI {
-		uint32 numOfSockets;
-		uint32 numOfLinksPerSocket;
 		PCMQPISocketCounter incoming[MAX_SOCKETS];
 		uint64 incomingTotal;
 		PCMQPISocketCounter outgoing[MAX_SOCKETS];
@@ -212,6 +221,7 @@ namespace PCMDaemon {
 	typedef struct PCMQPI PCMQPI;
 
 	struct SharedPCMCounters {
+		PCMSystem system;
 		PCMCore core;
 		PCMMemory memory;
 		PCMQPI qpi;

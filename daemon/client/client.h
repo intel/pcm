@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009-2016, Intel Corporation
+   Copyright (c) 2009-2017, Intel Corporation
    All rights reserved.
 
    Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -27,13 +27,17 @@ namespace PCMDaemon {
 	class Client {
 	public:
 		Client();
+		void setSharedMemoryIdLocation(const std::string& location);
 		void setPollInterval(int pollMs);
+		void connect();
 		PCMDaemon::SharedPCMState& read();
 		bool countersHaveUpdated();
 	private:
-		void setupSharedMemory(key_t key = SHARED_MEMORY_KEY);
+		void setupSharedMemory();
 
 		int pollIntervalMs_;
+		std::string shmIdLocation_;
+		bool shmAttached_;
 		PCMDaemon::SharedPCMState* sharedPCMState_;
 		PCMDaemon::uint64 lastUpdatedClientTsc_;
 	};

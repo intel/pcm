@@ -70,7 +70,7 @@ uint32 num_events = (sizeof(PCIeEvents_t)/sizeof(uint64));
 using namespace std;
 
 const uint32 max_sockets = 4;
-void getPCIeEvents(PCM *m, PCM::PCIeEventCode opcode, uint32 delay_ms, sample_t *sample, const uint32 tid=0);
+void getPCIeEvents(PCM *m, PCM::PCIeEventCode opcode, uint32 delay_ms, sample_t *sample, const uint32 tid=0, const uint32 q=0, const uint32 nc=0);
 
 void print_events()
 {
@@ -320,17 +320,30 @@ int main(int argc, char * argv[])
         memset(sample,0,sizeof(sample));
         memset(&aggregate_sample,0,sizeof(aggregate_sample));
         
-        if(m->getCPUModel() == PCM::HASWELLX || m->getCPUModel() == PCM::BDX_DE || m->getCPUModel() == PCM::BDX)
+        if(!(m->getCPUModel() == PCM::JAKETOWN) && !(m->getCPUModel() == PCM::IVYTOWN))
         {
             for(i=0;i<NUM_SAMPLES;i++)
             {
-                getPCIeEvents(m, m->PCIeRdCur, delay_ms, sample);
-                getPCIeEvents(m, m->RFO, delay_ms, sample,m->RFOtid);
-                getPCIeEvents(m, m->CRd, delay_ms, sample);
-                getPCIeEvents(m, m->DRd, delay_ms, sample);
-                getPCIeEvents(m, m->ItoM, delay_ms, sample,m->ItoMtid);
-                getPCIeEvents(m, m->PRd, delay_ms, sample);
-                getPCIeEvents(m, m->WiL, delay_ms, sample);
+                if(m->getCPUModel() == PCM::SKX)
+                {
+                    getPCIeEvents(m, m->SKX_RdCur, delay_ms, sample, 0, m->PRQ);
+                    getPCIeEvents(m, m->SKX_RFO, delay_ms, sample, 0, m->PRQ);
+                    getPCIeEvents(m, m->SKX_CRd, delay_ms, sample, 0, m->PRQ);
+                    getPCIeEvents(m, m->SKX_DRd, delay_ms, sample, 0, m->PRQ);
+                    getPCIeEvents(m, m->SKX_ItoM, delay_ms, sample, 0, m->PRQ);
+                    getPCIeEvents(m, m->SKX_PRd, delay_ms, sample, 0, m->IRQ, 1);
+                    getPCIeEvents(m, m->SKX_WiL, delay_ms, sample, 0, m->IRQ, 1);
+                }
+                else
+                {
+                    getPCIeEvents(m, m->PCIeRdCur, delay_ms, sample);
+                    getPCIeEvents(m, m->RFO, delay_ms, sample,m->RFOtid);
+                    getPCIeEvents(m, m->CRd, delay_ms, sample);
+                    getPCIeEvents(m, m->DRd, delay_ms, sample);
+                    getPCIeEvents(m, m->ItoM, delay_ms, sample,m->ItoMtid);
+                    getPCIeEvents(m, m->PRd, delay_ms, sample);
+                    getPCIeEvents(m, m->WiL, delay_ms, sample);
+                }
             }
             
             if(csv)
@@ -627,17 +640,30 @@ int main(int argc, char * argv[])
         memset(sample,0,sizeof(sample));
         memset(&aggregate_sample,0,sizeof(aggregate_sample));
         
-        if(m->getCPUModel() == PCM::HASWELLX || m->getCPUModel() == PCM::BDX_DE || m->getCPUModel() == PCM::BDX)
+        if(!(m->getCPUModel() == PCM::JAKETOWN) && !(m->getCPUModel() == PCM::IVYTOWN))
         {
             for(i=0;i<NUM_SAMPLES;i++)
             {
-                getPCIeEvents(m, m->PCIeRdCur, delay_ms, sample);
-                getPCIeEvents(m, m->RFO, delay_ms, sample,m->RFOtid);
-                getPCIeEvents(m, m->CRd, delay_ms, sample);
-                getPCIeEvents(m, m->DRd, delay_ms, sample);
-                getPCIeEvents(m, m->ItoM, delay_ms, sample,m->ItoMtid);
-                getPCIeEvents(m, m->PRd, delay_ms, sample);
-                getPCIeEvents(m, m->WiL, delay_ms, sample);
+                if(m->getCPUModel() == PCM::SKX)
+                {
+                    getPCIeEvents(m, m->SKX_RdCur, delay_ms, sample, 0, m->PRQ);
+                    getPCIeEvents(m, m->SKX_RFO, delay_ms, sample, 0, m->PRQ);
+                    getPCIeEvents(m, m->SKX_CRd, delay_ms, sample, 0, m->PRQ);
+                    getPCIeEvents(m, m->SKX_DRd, delay_ms, sample, 0, m->PRQ);
+                    getPCIeEvents(m, m->SKX_ItoM, delay_ms, sample, 0, m->PRQ);
+                    getPCIeEvents(m, m->SKX_PRd, delay_ms, sample, 0, m->IRQ, 1);
+                    getPCIeEvents(m, m->SKX_WiL, delay_ms, sample, 0, m->IRQ, 1);
+                }
+                 else 
+                {
+                    getPCIeEvents(m, m->PCIeRdCur, delay_ms, sample);
+                    getPCIeEvents(m, m->RFO, delay_ms, sample,m->RFOtid);
+                    getPCIeEvents(m, m->CRd, delay_ms, sample);
+                    getPCIeEvents(m, m->DRd, delay_ms, sample);
+                    getPCIeEvents(m, m->ItoM, delay_ms, sample,m->ItoMtid);
+                    getPCIeEvents(m, m->PRd, delay_ms, sample);
+                    getPCIeEvents(m, m->WiL, delay_ms, sample);
+                }
             }
             
             if(csv)
@@ -805,7 +831,7 @@ int main(int argc, char * argv[])
     exit(EXIT_SUCCESS);
 }
 
-void getPCIeEvents(PCM *m, PCM::PCIeEventCode opcode, uint32 delay_ms, sample_t *sample, const uint32 tid)
+void getPCIeEvents(PCM *m, PCM::PCIeEventCode opcode, uint32 delay_ms, sample_t *sample, const uint32 tid, const uint32 q, const uint32 nc)
 {
     PCIeCounterState * before = new PCIeCounterState[m->getNumSockets()];
     PCIeCounterState * after = new PCIeCounterState[m->getNumSockets()];
@@ -813,14 +839,14 @@ void getPCIeEvents(PCM *m, PCM::PCIeEventCode opcode, uint32 delay_ms, sample_t 
     PCIeCounterState * after2 = new PCIeCounterState[m->getNumSockets()];
     uint32 i;
 
-    m->programPCIeCounters(opcode, tid);
+    m->programPCIeCounters(opcode, tid, 0, q, nc);
     for(i=0; i<m->getNumSockets(); ++i)
         before[i] = m->getPCIeCounterState(i);
     MySleepUs(delay_ms*1000);
     for(i=0; i<m->getNumSockets(); ++i)
         after[i] = m->getPCIeCounterState(i);
 
-    m->programPCIeMissCounters(opcode, tid);
+    m->programPCIeMissCounters(opcode, tid, q, nc);
     for(i=0; i<m->getNumSockets(); ++i)
         before2[i] = m->getPCIeCounterState(i);
     MySleepUs(delay_ms*1000);
@@ -832,6 +858,7 @@ void getPCIeEvents(PCM *m, PCM::PCIeEventCode opcode, uint32 delay_ms, sample_t 
         switch(opcode)
         {
             case PCM::PCIeRdCur:
+            case PCM::SKX_RdCur:
                 sample[i].total.PCIeRdCur += (sizeof(PCIeEvents_t)/sizeof(uint64)) * getNumberOfEvents(before[i], after[i]);
                 sample[i].miss.PCIeRdCur += (sizeof(PCIeEvents_t)/sizeof(uint64)) * getNumberOfEvents(before2[i], after2[i]);
                 sample[i].hit.PCIeRdCur += (sample[i].total.PCIeRdCur > sample[i].miss.PCIeRdCur) ? sample[i].total.PCIeRdCur - sample[i].miss.PCIeRdCur : 0;
@@ -867,8 +894,9 @@ void getPCIeEvents(PCM *m, PCM::PCIeEventCode opcode, uint32 delay_ms, sample_t 
                 sample[i].hit.PCIeNSWrF += (sample[i].total.PCIeNSWrF > sample[i].miss.PCIeNSWrF) ? sample[i].total.PCIeNSWrF - sample[i].miss.PCIeNSWrF : 0;
                 aggregate_sample.PCIeNSWrF += sample[i].total.PCIeNSWrF;
                 break;
+            case PCM::SKX_RFO:
             case PCM::RFO:
-                if(tid == PCM::RFOtid) //Use tid to filter only PCIe traffic
+                if(opcode == PCM::SKX_RFO || tid == PCM::RFOtid) //Use tid to filter only PCIe traffic
                 {
                     sample[i].total.RFO += (sizeof(PCIeEvents_t)/sizeof(uint64)) * getNumberOfEvents(before[i], after[i]);
                     sample[i].miss.RFO += (sizeof(PCIeEvents_t)/sizeof(uint64)) * getNumberOfEvents(before2[i], after2[i]);
@@ -876,8 +904,9 @@ void getPCIeEvents(PCM *m, PCM::PCIeEventCode opcode, uint32 delay_ms, sample_t 
                     aggregate_sample.RFO += sample[i].total.RFO;
                 }
                 break;
+            case PCM::SKX_ItoM:
             case PCM::ItoM:
-                if(tid == PCM::ItoMtid) //Use tid to filter only PCIe traffic
+                if(opcode == PCM::SKX_ItoM || tid == PCM::ItoMtid) //Use tid to filter only PCIe traffic
                 {
                     sample[i].total.ItoM += (sizeof(PCIeEvents_t)/sizeof(uint64)) * getNumberOfEvents(before[i], after[i]);
                     sample[i].miss.ItoM += (sizeof(PCIeEvents_t)/sizeof(uint64)) * getNumberOfEvents(before2[i], after2[i]);
@@ -885,24 +914,28 @@ void getPCIeEvents(PCM *m, PCM::PCIeEventCode opcode, uint32 delay_ms, sample_t 
                     aggregate_sample.ItoM += sample[i].total.ItoM;
                 }
                 break;
+            case PCM::SKX_WiL:
             case PCM::WiL:
                 sample[i].total.WiL += (sizeof(PCIeEvents_t)/sizeof(uint64)) * getNumberOfEvents(before[i], after[i]);
                 sample[i].miss.WiL += (sizeof(PCIeEvents_t)/sizeof(uint64)) * getNumberOfEvents(before2[i], after2[i]);
                 sample[i].hit.WiL += (sample[i].total.WiL > sample[i].miss.WiL) ? sample[i].total.WiL - sample[i].miss.WiL : 0;
                 aggregate_sample.WiL += sample[i].total.WiL;
                 break;
+            case PCM::SKX_PRd:
             case PCM::PRd:
                 sample[i].total.PRd += (sizeof(PCIeEvents_t)/sizeof(uint64)) * getNumberOfEvents(before[i], after[i]);
-                sample[i].miss.PRd += (sizeof(PCIeEvents_t)/sizeof(uint64)) * getNumberOfEvents(before2[i], after[i]);
+                sample[i].miss.PRd += (sizeof(PCIeEvents_t)/sizeof(uint64)) * getNumberOfEvents(before2[i], after2[i]);
                 sample[i].hit.PRd += (sample[i].total.PRd > sample[i].miss.PRd) ? sample[i].total.PRd - sample[i].miss.PRd : 0;
                 aggregate_sample.PRd += sample[i].total.PRd;
                 break;
+            case PCM::SKX_CRd:
             case PCM::CRd:
                 sample[i].total.CRd += (sizeof(PCIeEvents_t)/sizeof(uint64)) * getNumberOfEvents(before[i], after[i]);
                 sample[i].miss.CRd += (sizeof(PCIeEvents_t)/sizeof(uint64)) * getNumberOfEvents(before2[i], after2[i]);
                 sample[i].hit.CRd += (sample[i].total.CRd > sample[i].miss.CRd) ? sample[i].total.CRd - sample[i].miss.CRd : 0;
                 aggregate_sample.CRd += sample[i].total.CRd;
                 break;
+            case PCM::SKX_DRd:
             case PCM::DRd:
                 sample[i].total.DRd += (sizeof(PCIeEvents_t)/sizeof(uint64)) * getNumberOfEvents(before[i], after[i]);
                 sample[i].miss.DRd += (sizeof(PCIeEvents_t)/sizeof(uint64)) * getNumberOfEvents(before2[i], after2[i]);

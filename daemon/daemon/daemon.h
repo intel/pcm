@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009-2016, Intel Corporation
+   Copyright (c) 2009-2017, Intel Corporation
    All rights reserved.
 
    Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -16,7 +16,6 @@
 #define DAEMON_H_
 
 #include <sys/types.h>
-#include <grp.h>
 #include <map>
 #include <string>
 #include <grp.h>
@@ -38,14 +37,14 @@ namespace PCMDaemon {
 		void checkAccessAndProgramPCM();
 		void readApplicationArguments(int argc, char *argv[]);
 		void printExampleUsageAndExit(char *argv[]);
-		void setupSharedMemory(key_t key = SHARED_MEMORY_KEY);
+		void setupSharedMemory();
 		gid_t resolveGroupName(std::string& groupName);
+		void getPCMCounters();
 		void updatePCMState(SystemCounterState* systemStates, std::vector<SocketCounterState>* socketStates, std::vector<CoreCounterState>* coreStates);
 		void swapPCMBeforeAfterState();
-		void getPCMCounters();
+		void getPCMSystem();
 		void getPCMCore();
 		void getPCMMemory();
-		void calculateMemoryBandwidth(ServerUncorePowerState* uncState1, ServerUncorePowerState* uncState2, uint64 elapsedTime);
 		void getPCMQPI();
 		uint64 getTimestamp();
 		static void cleanup();
@@ -54,6 +53,7 @@ namespace PCMDaemon {
 		uint32 pollIntervalMs_;
 		std::string groupName_;
 		Mode mode_;
+		static std::string shmIdLocation_;
 
 		static int sharedMemoryId_;
 		static SharedPCMState* sharedPCMState_;
@@ -66,8 +66,8 @@ namespace PCMDaemon {
 		std::vector<CoreCounterState> coreStatesBefore_, coreStatesAfter_;
 		std::vector<SocketCounterState> socketStatesBefore_, socketStatesAfter_;
 		SystemCounterState systemStatesBefore_, systemStatesAfter_;
-		ServerUncorePowerState * serverUncorePowerStatesBefore_;
-		ServerUncorePowerState * serverUncorePowerStatesAfter_;
+		ServerUncorePowerState* serverUncorePowerStatesBefore_;
+		ServerUncorePowerState* serverUncorePowerStatesAfter_;
 	};
 
 }

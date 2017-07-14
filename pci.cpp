@@ -57,7 +57,12 @@ PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 functi
 
 bool PciHandle::exists(uint32 bus_, uint32 device_, uint32 function_)
 {
-    if (hOpenLibSys != NULL) return true;
+    if (hOpenLibSys != NULL)
+    {
+        DWORD addr(PciBusDevFunc(bus_, device_, function_));
+        DWORD result = 0;
+        return ReadPciConfigDwordEx(addr, 0, &result)?true:false;
+    }
 
     HANDLE tempHandle = CreateFile(L"\\\\.\\RDMSR", GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
     if (tempHandle == INVALID_HANDLE_VALUE)
