@@ -26,10 +26,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include "client_bw.h"
 #include "mutex.h"
 #include <memory>
-
-namespace std {
-    class thread;
-}
+#include <thread>
 
 class CounterWidthExtender
 {
