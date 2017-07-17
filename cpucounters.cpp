@@ -4020,7 +4020,7 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
     initSocket2Bus(socket2iMCbus, MCX_CHY_REGISTER_DEV_ADDR[0][0], MCX_CHY_REGISTER_FUNC_ADDR[0][0], IMC_DEV_IDS, (uint32)sizeof(IMC_DEV_IDS) / sizeof(IMC_DEV_IDS[0]));
     const uint32 total_sockets_ = pcm->getNumSockets();
 
-    if(total_sockets_ == socket2iMCbus.size())
+    if(total_sockets_ <= socket2iMCbus.size())
     {
       groupnr = socket2iMCbus[socket_].first;
       iMCbus = socket2iMCbus[socket_].second;
