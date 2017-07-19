@@ -202,6 +202,9 @@ public:
 }; 
 #endif // end of _MSC_VER else
 
+#if defined(__FreeBSD__)
+#define cpu_set_t cpuset_t
+#endif
 
 class TemporalThreadAffinity  // speedup trick for Linux, FreeBSD, DragonFlyBSD
 {
