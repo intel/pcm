@@ -1978,7 +1978,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
       if(canUsePerf)
       {
         e.type = PERF_TYPE_HARDWARE;
-        e.config = (((long long unsigned)PERF_TYPE_HARDWARE)<<(64ULL-8ULL)) + PERF_COUNT_HW_INSTRUCTIONS;
+        e.config = PERF_COUNT_HW_INSTRUCTIONS;
         if((perfEventHandle[i][PERF_INST_RETIRED_ANY_POS] = syscall(SYS_perf_event_open, &e, -1,
                    i /* core id */, leader_counter /* group leader */ ,0 )) <= 0)
         {
@@ -1989,7 +1989,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
         }
         leader_counter = perfEventHandle[i][PERF_INST_RETIRED_ANY_POS];
         e.pinned = 0; // all following counter are not leaders, thus need not be pinned explicitly
-        e.config = (((long long unsigned)PERF_TYPE_HARDWARE)<<(64ULL-8ULL)) + PERF_COUNT_HW_CPU_CYCLES;
+        e.config = PERF_COUNT_HW_CPU_CYCLES;
         if( (perfEventHandle[i][PERF_CPU_CLK_UNHALTED_THREAD_POS] = syscall(SYS_perf_event_open, &e, -1,
                                                 i /* core id */, leader_counter /* group leader */ ,0 )) <= 0)
         {
@@ -1998,7 +1998,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
           decrementInstanceSemaphore();
           return PCM::UnknownError;
         }
-        e.config = (((long long unsigned)PERF_TYPE_HARDWARE)<<(64ULL-8ULL)) + PCM_PERF_COUNT_HW_REF_CPU_CYCLES;
+        e.config = PCM_PERF_COUNT_HW_REF_CPU_CYCLES;
         if((perfEventHandle[i][PERF_CPU_CLK_UNHALTED_REF_POS] = syscall(SYS_perf_event_open, &e, -1,
                          i /* core id */, leader_counter /* group leader */ ,0 )) <= 0)
         {
