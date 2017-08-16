@@ -141,6 +141,11 @@ typedef signed int int32;
 #define ATOM_MEM_LOAD_RETIRED_L2_MISS_EVTNR   (0xCB)
 #define ATOM_MEM_LOAD_RETIRED_L2_MISS_UMASK   (0x02)
 
+// Offcore response events
+#define OFFCORE_RESPONSE_0_EVTNR (0xB7)
+#define OFFCORE_RESPONSE_1_EVTNR (0xBB)
+#define OFFCORE_RESPONSE_0_UMASK (1)
+#define OFFCORE_RESPONSE_1_UMASK (1)
 /*
      For Nehalem(-EP) processors from Intel(r) 64 and IA-32 Architectures Software Developer's Manual
 */
