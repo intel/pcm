@@ -202,6 +202,9 @@ public:
 }; 
 #endif // end of _MSC_VER else
 
+#if defined(__FreeBSD__)
+#define cpu_set_t cpuset_t
+#endif
 
 class TemporalThreadAffinity  // speedup trick for Linux, FreeBSD, DragonFlyBSD
 {
@@ -688,21 +691,28 @@ void PCM::initCStateSupportTables()
 
 
 #ifdef __linux__
-int readMaxFromSysFS(const char * path)
+std::string readSysFS(const char * path)
 {
     FILE * f = fopen(path, "r");
     if (!f)
     {
         std::cerr << "Can not open "<< path <<" file." << std::endl;
-        return false;
+        return std::string();
     }
     char buffer[1024];
     if(NULL == fgets(buffer, 1024, f))
     {
         std::cerr << "Can not read "<< path << "." << std::endl;
-        return false;
+        return std::string();
     }
     fclose(f);
+    return std::string(buffer);
+}
+
+int readMaxFromSysFS(const char * path)
+{
+    std::string content = readSysFS(path);
+    const char * buffer = content.c_str();
     int result = -1;
     pcm_sscanf(buffer) >> s_expect("0-") >> result;
     if(result == -1)
@@ -1744,8 +1754,12 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
     }
     else if(EXT_CUSTOM_CORE_EVENTS == mode_ && pExtDesc && (pExtDesc->OffcoreResponseMsrValue[0] || pExtDesc->OffcoreResponseMsrValue[1]))
     {
-        canUsePerf = false;
-        std::cerr << "Can not use Linux perf because OffcoreResponse counter usage requested. Falling-back to direct PMU programming." << std::endl;
+        const std::string offcore_rsp_format = readSysFS("/sys/bus/event_source/devices/cpu/format/offcore_rsp");
+        if (offcore_rsp_format != "config1:0-63\n")
+        {
+            canUsePerf = false;
+            std::cerr << "Can not use Linux perf because OffcoreResponse usage is not supported. Falling-back to direct PMU programming." << std::endl;
+        }
     }
 #endif
 
@@ -1978,7 +1992,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
       if(canUsePerf)
       {
         e.type = PERF_TYPE_HARDWARE;
-        e.config = (((long long unsigned)PERF_TYPE_HARDWARE)<<(64ULL-8ULL)) + PERF_COUNT_HW_INSTRUCTIONS;
+        e.config = PERF_COUNT_HW_INSTRUCTIONS;
         if((perfEventHandle[i][PERF_INST_RETIRED_ANY_POS] = syscall(SYS_perf_event_open, &e, -1,
                    i /* core id */, leader_counter /* group leader */ ,0 )) <= 0)
         {
@@ -1989,7 +2003,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
         }
         leader_counter = perfEventHandle[i][PERF_INST_RETIRED_ANY_POS];
         e.pinned = 0; // all following counter are not leaders, thus need not be pinned explicitly
-        e.config = (((long long unsigned)PERF_TYPE_HARDWARE)<<(64ULL-8ULL)) + PERF_COUNT_HW_CPU_CYCLES;
+        e.config = PERF_COUNT_HW_CPU_CYCLES;
         if( (perfEventHandle[i][PERF_CPU_CLK_UNHALTED_THREAD_POS] = syscall(SYS_perf_event_open, &e, -1,
                                                 i /* core id */, leader_counter /* group leader */ ,0 )) <= 0)
         {
@@ -1998,7 +2012,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
           decrementInstanceSemaphore();
           return PCM::UnknownError;
         }
-        e.config = (((long long unsigned)PERF_TYPE_HARDWARE)<<(64ULL-8ULL)) + PCM_PERF_COUNT_HW_REF_CPU_CYCLES;
+        e.config = PCM_PERF_COUNT_HW_REF_CPU_CYCLES;
         if((perfEventHandle[i][PERF_CPU_CLK_UNHALTED_REF_POS] = syscall(SYS_perf_event_open, &e, -1,
                          i /* core id */, leader_counter /* group leader */ ,0 )) <= 0)
         {
@@ -2045,7 +2059,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
 
         if(EXT_CUSTOM_CORE_EVENTS == mode_ && pExtDesc)
         {
-            if(pExtDesc->OffcoreResponseMsrValue[0])
+            if(pExtDesc->OffcoreResponseMsrValue[0]) // still need to do also if perf API is used due to a bug in perf
                 MSR[i]->write(MSR_OFFCORE_RSP0, pExtDesc->OffcoreResponseMsrValue[0]);
             if(pExtDesc->OffcoreResponseMsrValue[1])
                 MSR[i]->write(MSR_OFFCORE_RSP1, pExtDesc->OffcoreResponseMsrValue[1]);
@@ -2082,6 +2096,10 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
             {
                 e.type = PERF_TYPE_RAW;
                 e.config = (1ULL<<63ULL) + (((long long unsigned)PERF_TYPE_RAW)<<(64ULL-8ULL)) + event_select_reg.value;
+                if (event_select_reg.fields.event_select == OFFCORE_RESPONSE_0_EVTNR)
+                    e.config1 = pExtDesc->OffcoreResponseMsrValue[0];
+                if (event_select_reg.fields.event_select == OFFCORE_RESPONSE_1_EVTNR)
+                    e.config1 = pExtDesc->OffcoreResponseMsrValue[1];
                 if((perfEventHandle[i][PERF_GEN_EVENT_0_POS + j] = syscall(SYS_perf_event_open, &e, -1,
                                                 i /* core id */, leader_counter /* group leader */ ,0 )) <= 0)
                 {

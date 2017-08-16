@@ -209,10 +209,10 @@ int main(int argc, char * argv[])
     for (int i = 0; i < 4; ++i)
         regs[i] = def_event_select_reg;
 
-    regs[0].fields.event_select = 0xB7; // OFFCORE_RESPONSE 0 event
-    regs[0].fields.umask = 0x01;
-    regs[1].fields.event_select = 0xBB; // OFFCORE_RESPONSE 1 event
-    regs[1].fields.umask = 0x01;
+    regs[0].fields.event_select = OFFCORE_RESPONSE_0_EVTNR; // OFFCORE_RESPONSE 0 event
+    regs[0].fields.umask =        OFFCORE_RESPONSE_0_UMASK;
+    regs[1].fields.event_select = OFFCORE_RESPONSE_1_EVTNR; // OFFCORE_RESPONSE 1 event
+    regs[1].fields.umask =        OFFCORE_RESPONSE_1_UMASK;
 
     PCM::ErrorCode status = m->program(PCM::EXT_CUSTOM_CORE_EVENTS, &conf);
     switch (status)

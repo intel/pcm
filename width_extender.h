@@ -26,10 +26,14 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include "client_bw.h"
 #include "mutex.h"
 #include <memory>
-
+#ifndef _MSC_VER
+// the header can not be included into code using CLR
+#include <thread>
+#else
 namespace std {
-    class thread;
-}
+     class thread;
+ }
+#endif
 
 class CounterWidthExtender
 {

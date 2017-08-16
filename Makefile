@@ -26,16 +26,14 @@ CXXFLAGS += -std=c++11
 endif
 ifeq ($(UNAME), DragonFly)
 LIB= -pthread -lrt
-CXXFLAGS += -std=c++0x
-endif
 ifeq ($(UNAME), Darwin)
 LIB= -lpthread MacMSRDriver/build/Release/libPcmMsr.dylib 
-CXXFLAGS += -I/usr/include -IMacMSRDriver -std=c++0x
+CXXFLAGS += -I/usr/include -IMacMSRDriver -std=c++11
 endif
 ifeq ($(UNAME), FreeBSD)
 CXX=c++
 LIB= -lpthread -lc++
-CXXFLAGS += -std=c++0x
+CXXFLAGS += -std=c++11
 endif
 
 COMMON_OBJS = msr.o cpucounters.o pci.o client_bw.o utils.o
