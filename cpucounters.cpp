@@ -24,6 +24,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 //#define PCM_TEST_FALLBACK_TO_ATOM
 
 #include <stdio.h>
+#include <assert.h>
 #ifdef PCM_EXPORTS
 // pcm-lib.h includes cpucounters.h
 #include "PCM-Lib_Win\pcm-lib.h"
