@@ -1,0 +1,15 @@
+include $(WORKSPACE_TOP)/common/Makefile.env
+
+PCM_COMPONENT_DIR := $(shell component-tool localpath --repo=pcm --type=$(BUILD_TYPE) pcm)
+
+all: build
+
+build:
+	$(Q) $(MAKE)
+
+install:
+	$(Q) $(shell mkdir -p $(PCM_COMPONENT_DIR))
+	$(Q) cp *.x $(PCM_COMPONENT_DIR)
+
+checkin:
+	$(Q)component-tool checkin -v --repo=pcm --type=$(BUILD_TYPE) pcm
