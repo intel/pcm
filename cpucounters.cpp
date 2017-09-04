@@ -24,6 +24,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 //#define PCM_TEST_FALLBACK_TO_ATOM
 
 #include <stdio.h>
+#include <assert.h>
 #ifdef PCM_EXPORTS
 // pcm-lib.h includes cpucounters.h
 #include "PCM-Lib_Win\pcm-lib.h"
@@ -88,7 +89,7 @@ int convertUnknownToInt(size_t size, char* value);
 #endif
 
 #undef PCM_UNCORE_PMON_BOX_CHECK_STATUS // debug only
-#undef PCM_DEBUG_TOPOLOGY // debug of topoogy enumeration routine
+#undef PCM_DEBUG_TOPOLOGY // debug of topology enumeration routine
 
 // FreeBSD is much more restrictive about names for semaphores
 #if defined (__FreeBSD__)
@@ -608,35 +609,35 @@ void PCM::initCStateSupportTables()
         case ATOM_CHERRYTRAIL:
         case ATOM_APOLLO_LAKE:
         case ATOM_DENVERTON:
-            PCM_CSTATE_ARRAY(pkgCStateMsr, PCM_PARAM_PROTECT({0,    0,  0x3F8,      0,  0x3F9,  0,  0x3FA,  0,      0,  0,  0 }) );
+            PCM_CSTATE_ARRAY(pkgCStateMsr, PCM_PARAM_PROTECT({0, 0, 0x3F8, 0, 0x3F9, 0, 0x3FA, 0, 0, 0, 0 }) );
         case NEHALEM_EP:
         case NEHALEM:
         case CLARKDALE:
         case WESTMERE_EP:
         case NEHALEM_EX:
         case WESTMERE_EX:
-            PCM_CSTATE_ARRAY(pkgCStateMsr, PCM_PARAM_PROTECT({0,    0,      0,  0x3F8,      0,  0,  0x3F9,  0x3FA,  0,  0,  0}) );
+            PCM_CSTATE_ARRAY(pkgCStateMsr, PCM_PARAM_PROTECT({0, 0, 0, 0x3F8, 0, 0, 0x3F9, 0x3FA, 0, 0, 0}) );
         case SANDY_BRIDGE:
         case JAKETOWN:
         case IVY_BRIDGE:
         case IVYTOWN:
-            PCM_CSTATE_ARRAY(pkgCStateMsr, PCM_PARAM_PROTECT({0,    0,  0x60D,  0x3F8,      0,  0,  0x3F9,  0x3FA,  0,  0,  0}) );
+            PCM_CSTATE_ARRAY(pkgCStateMsr, PCM_PARAM_PROTECT({0, 0, 0x60D, 0x3F8, 0, 0, 0x3F9, 0x3FA, 0, 0, 0}) );
         case HASWELL:
         case HASWELL_2:
         case HASWELLX:
         case BDX_DE:
         case BDX:
         case KNL:
-            PCM_CSTATE_ARRAY(pkgCStateMsr, PCM_PARAM_PROTECT({0,    0,  0x60D,  0x3F8,      0,  0,  0x3F9,  0x3FA,  0,  0,  0}) );
+            PCM_CSTATE_ARRAY(pkgCStateMsr, PCM_PARAM_PROTECT({0, 0, 0x60D, 0x3F8, 0, 0, 0x3F9,  0x3FA, 0, 0, 0}) );
         case SKX:
-            PCM_CSTATE_ARRAY(pkgCStateMsr, PCM_PARAM_PROTECT({0,    0,  0x60D,  0,      0,  0,  0x3F9,  0,  0,  0,  0}) );
+            PCM_CSTATE_ARRAY(pkgCStateMsr, PCM_PARAM_PROTECT({0, 0, 0x60D, 0, 0, 0, 0x3F9, 0, 0, 0, 0}) );
         case HASWELL_ULT:
         case BROADWELL:
         case SKL:
         case SKL_UY:
         case KBL:
         case BROADWELL_XEON_E3:
-            PCM_CSTATE_ARRAY(pkgCStateMsr, PCM_PARAM_PROTECT({0,    0,  0x60D,  0x3F8,      0,  0,  0x3F9,  0x3FA,  0x630,  0x631,  0x632}) );
+            PCM_CSTATE_ARRAY(pkgCStateMsr, PCM_PARAM_PROTECT({0, 0, 0x60D, 0x3F8, 0, 0, 0x3F9, 0x3FA, 0x630, 0x631, 0x632}) );
 
         default:
             std::cerr << "PCM error: package C-states support array is not initialized. Package C-states metrics will not be shown." << std::endl;
@@ -656,7 +657,7 @@ void PCM::initCStateSupportTables()
         case WESTMERE_EP:
         case NEHALEM_EX:
         case WESTMERE_EX:
-            PCM_CSTATE_ARRAY(coreCStateMsr, PCM_PARAM_PROTECT({0,    0,    0,    0x3FC,    0,    0,    0x3FD,      0,  0,    0,    0}) );
+            PCM_CSTATE_ARRAY(coreCStateMsr, PCM_PARAM_PROTECT({0, 0, 0, 0x3FC, 0, 0, 0x3FD, 0, 0, 0, 0}) );
         case SANDY_BRIDGE:
         case JAKETOWN:
         case IVY_BRIDGE:
@@ -677,11 +678,11 @@ void PCM::initCStateSupportTables()
         case SKL_UY:
         case SKL:
         case KBL:
-            PCM_CSTATE_ARRAY(coreCStateMsr, PCM_PARAM_PROTECT({0,    0,    0,    0x3FC,    0,    0,    0x3FD,    0x3FE,    0,    0,    0}) );
+            PCM_CSTATE_ARRAY(coreCStateMsr, PCM_PARAM_PROTECT({0, 0, 0, 0x3FC, 0, 0, 0x3FD, 0x3FE, 0, 0, 0}) );
         case KNL:
-            PCM_CSTATE_ARRAY(coreCStateMsr, PCM_PARAM_PROTECT({0,    0,    0,    0,    0,    0,    0x3FF,    0,    0,    0,    0}) );
+            PCM_CSTATE_ARRAY(coreCStateMsr, PCM_PARAM_PROTECT({0, 0, 0, 0, 0, 0, 0x3FF, 0, 0, 0, 0}) );
         case SKX:
-            PCM_CSTATE_ARRAY(coreCStateMsr, PCM_PARAM_PROTECT({0,    0,    0,    0,    0,    0,    0x3FD,    0,    0,    0,    0}) );
+            PCM_CSTATE_ARRAY(coreCStateMsr, PCM_PARAM_PROTECT({0, 0, 0, 0, 0, 0, 0x3FD, 0, 0, 0, 0}) );
         default:
             std::cerr << "PCM error: core C-states support array is not initialized. Core C-states metrics will not be shown." << std::endl;
             PCM_CSTATE_ARRAY(coreCStateMsr, PCM_PARAM_PROTECT({ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }) );
@@ -730,7 +731,8 @@ bool PCM::discoverSystemTopology()
     PCM_CPUID_INFO cpuid_args;
     pcm_cpuid(1, cpuid_args);
 
-    int apic_ids_per_package = (cpuid_args.array[1] & 0x00FF0000) >> 16, apic_ids_per_core;
+    int apic_ids_per_package = extract_bits_ui(cpuid_args.array[1], 16, 23);
+    int apic_ids_per_core;
 
     if (apic_ids_per_package == 0)
     {
@@ -740,8 +742,8 @@ bool PCM::discoverSystemTopology()
 
     pcm_cpuid(0xb, 0x0, cpuid_args);
 
-    if ((cpuid_args.array[2] & 0xFF00) == 0x100)
-        apic_ids_per_core = cpuid_args.array[1] & 0xFFFF;
+    if (extract_bits_ui(cpuid_args.array[2], 8, 15) == 0x1)
+        apic_ids_per_core = extract_bits_ui(cpuid_args.array[1], 0, 15);
     else
         apic_ids_per_core = 1;
 
@@ -751,71 +753,23 @@ bool PCM::discoverSystemTopology()
         return false;
     }
 
-    // init constants for CPU topology leaf 0xB
-    // adapted from Topology Enumeration Reference code for Intel 64 Architecture
-    // https://software.intel.com/en-us/articles/intel-64-architecture-processor-topology-enumeration
-    int wasCoreReported = 0, wasThreadReported = 0;
-    int subleaf = 0, levelType, levelShift;
-    unsigned long coreplusSMT_Mask = 0L;
-    uint32 coreSelectMask = 0, smtSelectMask = 0, smtMaskWidth = 0;
-    uint32 l2CacheMaskShift = 0, l2CacheMaskWidth;
-    uint32 pkgSelectMask = (-1), pkgSelectMaskShift = 0;
-    unsigned long mask;
-
-    do
-    {
-        pcm_cpuid(0xb, subleaf, cpuid_args);
-        if (cpuid_args.array[1] == 0)
-        { // if EBX ==0 then this subleaf is not valid, we can exit the loop
-            break;
-        }
-        mask = (1<<(16)) - 1;
-        levelType = (cpuid_args.array[2] & mask) >> 8;
-        mask = (1<<(5)) - 1;
-        levelShift = (cpuid_args.array[0] & mask);
-        switch (levelType)
-        {
-            case 1:         //level type is SMT, so levelShift is the SMT_Mask_Width
-                smtSelectMask = ~((-1) << levelShift);
-                smtMaskWidth = levelShift;
-                wasThreadReported = 1;
-                break;
-            case 2: //level type is Core, so levelShift is the CorePlsuSMT_Mask_Width
-                coreplusSMT_Mask = ~((-1) << levelShift);
-                pkgSelectMaskShift =  levelShift;
-                pkgSelectMask = (-1) ^ coreplusSMT_Mask;
-                wasCoreReported = 1;
-                break;
-            default:
-                break;
-        }
-        subleaf++;
-    } while (1);
-
-    if(wasThreadReported && wasCoreReported)
-    {
-        coreSelectMask = coreplusSMT_Mask ^ smtSelectMask;
-    }
-    else if (!wasCoreReported && wasThreadReported)
-    {
-        pkgSelectMaskShift =  smtMaskWidth;
-        pkgSelectMask = (-1) ^ smtSelectMask;
-    }
-    else
-    {
-        std::cerr << "ERROR: this should not happen if hardware function normally" << std::endl;
-        return false;
-    }
+    uint32 l2CacheMaskShift = 0;
+#ifdef PCM_DEBUG_TOPOLOGY
+    uint32 threadsSharingL2;
+#endif
+    uint32 l2CacheMaskWidth;
 
     pcm_cpuid(0x4, 2, cpuid_args); // get ID for L2 cache
-    mask = ((1<<(12)) - 1) << (14); // mask with bits 25:14 set to 1
-    l2CacheMaskWidth = 1 + ((cpuid_args.array[0] & mask) >> 14); // number of APIC IDs sharing L2 cache
+    l2CacheMaskWidth = 1 + extract_bits_ui(cpuid_args.array[0],14,25); // number of APIC IDs sharing L2 cache
+#ifdef PCM_DEBUG_TOPOLOGY
+    threadsSharingL2 = l2CacheMaskWidth;
+#endif
     for( ; l2CacheMaskWidth > 1; l2CacheMaskWidth >>= 1)
     {
         l2CacheMaskShift++;
     }
 #ifdef PCM_DEBUG_TOPOLOGY
-    std::cerr << "DEBUG: Number of threads sharing L2 cache = " << l2CacheMaskWidth
+    std::cerr << "DEBUG: Number of threads sharing L2 cache = " << threadsSharingL2
               << " [the most significant bit = " << l2CacheMaskShift << "]" << std::endl;
 #endif
 
@@ -893,6 +847,57 @@ bool PCM::discoverSystemTopology()
     TopologyEntry entry;
 
 #ifdef __linux__
+    // init constants for CPU topology leaf 0xB
+    // adapted from Topology Enumeration Reference code for Intel 64 Architecture
+    // https://software.intel.com/en-us/articles/intel-64-architecture-processor-topology-enumeration
+    int wasCoreReported = 0, wasThreadReported = 0;
+    int subleaf = 0, levelType, levelShift;
+    //uint32 coreSelectMask = 0, smtSelectMask = 0;
+    uint32 smtMaskWidth = 0;
+    //uint32 pkgSelectMask = (-1), pkgSelectMaskShift = 0;
+    uint32 corePlusSMTMaskWidth = 0;
+    uint32 coreMaskWidth = 0;
+
+    // This code needs to run affinitized to a single core, how do we make sure of that?
+    do
+    {
+        pcm_cpuid(0xb, subleaf, cpuid_args);
+        if (cpuid_args.array[1] == 0)
+        { // if EBX ==0 then this subleaf is not valid, we can exit the loop
+            break;
+        }
+        levelType = extract_bits_ui(cpuid_args.array[2], 8, 15);
+        levelShift = extract_bits_ui(cpuid_args.array[0], 0, 4);
+        switch (levelType)
+        {
+            case 1: //level type is SMT, so levelShift is the SMT_Mask_Width
+                smtMaskWidth = levelShift;
+                wasThreadReported = 1;
+                break;
+            case 2: //level type is Core, so levelShift is the CorePlusSMT_Mask_Width
+                corePlusSMTMaskWidth = levelShift;
+                wasCoreReported = 1;
+                break;
+            default:
+                break;
+        }
+        subleaf++;
+    } while (1);
+
+    if(wasThreadReported && wasCoreReported)
+    {
+        coreMaskWidth = corePlusSMTMaskWidth - smtMaskWidth;
+    }
+    else if (!wasCoreReported && wasThreadReported)
+    {
+        coreMaskWidth = smtMaskWidth;
+    }
+    else
+    {
+        std::cerr << "ERROR: Major problem? No leaf 0 under cpuid function 11." << std::endl;
+        return false;
+    }
+
 
     num_cores = readMaxFromSysFS("/sys/devices/system/cpu/present");
     if(num_cores == -1)
@@ -925,10 +930,10 @@ bool PCM::discoverSystemTopology()
             pcm_cpuid(0xb, 0x0, cpuid_args);
             int apic_id = cpuid_args.array[3];
 
-            entry.thread_id = (apic_id & smtSelectMask);
-            entry.core_id = (apic_id & coreSelectMask) >> smtMaskWidth;
-            entry.socket = (apic_id & pkgSelectMask) >> pkgSelectMaskShift;
-            entry.tile_id = (apic_id >> l2CacheMaskShift);
+            entry.thread_id = extract_bits_ui(apic_id, 0, smtMaskWidth-1);
+            entry.core_id = extract_bits_ui(apic_id, smtMaskWidth, smtMaskWidth+coreMaskWidth-1);
+            entry.socket = extract_bits_ui(apic_id, smtMaskWidth+coreMaskWidth, 31);
+            entry.tile_id = extract_bits_ui(apic_id, l2CacheMaskShift, 31);
 
             topology[entry.os_id] = entry;
             socketIdMap[entry.socket] = 0;
@@ -944,7 +949,8 @@ bool PCM::discoverSystemTopology()
     std::map<uint32, std::vector<uint32> > os_id_by_core, os_id_by_tile, core_id_by_socket;
     for(auto it = topology.begin(); it != topology.end(); ++it)
     {
-        std::cerr << std::left << std::setfill(' ') << std::setw(16) << it->os_id
+        std::cerr << std::left << std::setfill(' ')
+                  << std::setw(16) << it->os_id
                   << std::setw(16) << it->thread_id
                   << std::setw(16) << it->core_id
                   << std::setw(16) << it->tile_id
