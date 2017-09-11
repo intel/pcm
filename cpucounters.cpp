@@ -902,7 +902,7 @@ bool PCM::discoverSystemTopology()
     num_cores = readMaxFromSysFS("/sys/devices/system/cpu/present");
     if(num_cores == -1)
     {
-      std::cerr << "Can not read number of present cores" << std::endl;
+      std::cerr << "Cannot read number of present cores" << std::endl;
       return false;
     }
     ++num_cores;
@@ -911,7 +911,7 @@ bool PCM::discoverSystemTopology()
     FILE * f_cpuinfo = fopen("/proc/cpuinfo", "r");
     if (!f_cpuinfo)
     {
-        std::cerr << "Can not open /proc/cpuinfo file." << std::endl;
+        std::cerr << "Cannot open /proc/cpuinfo file." << std::endl;
         return false;
     }
 
