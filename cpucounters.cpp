@@ -5490,3 +5490,43 @@ void PCM::getIIOCounterStates(int socket, int IIOStack, IIOCounterState * result
         MSR[refCore]->read(IIO_CTR_ADDR[IIOStack][c], &(result[c].data));
     }
 }
+
+void PCM::setupCustomCoreEventsForNuma(PCM::ExtendedCustomCoreEventDescription& conf) const
+{
+    switch (this->getCPUModel())
+    {
+    case PCM::WESTMERE_EX:
+        // OFFCORE_RESPONSE.ANY_REQUEST.LOCAL_DRAM:  Offcore requests satisfied by the local DRAM
+        conf.OffcoreResponseMsrValue[0] = 0x40FF;
+        // OFFCORE_RESPONSE.ANY_REQUEST.REMOTE_DRAM: Offcore requests satisfied by a remote DRAM
+        conf.OffcoreResponseMsrValue[1] = 0x20FF;
+        break;
+    case PCM::JAKETOWN:
+    case PCM::IVYTOWN:
+        // OFFCORE_RESPONSE.*.LOCAL_DRAM
+        conf.OffcoreResponseMsrValue[0] = 0x780400000 | 0x08FFF;
+        // OFFCORE_RESPONSE.*.REMOTE_DRAM
+        conf.OffcoreResponseMsrValue[1] = 0x7ff800000 | 0x08FFF;
+        break;
+    case PCM::HASWELLX:
+        // OFFCORE_RESPONSE.*.LOCAL_DRAM
+        conf.OffcoreResponseMsrValue[0] = 0x600400000 | 0x08FFF;
+        // OFFCORE_RESPONSE.*.REMOTE_DRAM
+        conf.OffcoreResponseMsrValue[1] = 0x63f800000 | 0x08FFF;
+        break;
+    case PCM::BDX:
+        // OFFCORE_RESPONSE.ALL_REQUESTS.L3_MISS.LOCAL_DRAM
+        conf.OffcoreResponseMsrValue[0] = 0x0604008FFF;
+        // OFFCORE_RESPONSE.ALL_REQUESTS.L3_MISS.REMOTE_DRAM
+        conf.OffcoreResponseMsrValue[1] = 0x067BC08FFF;
+        break;
+    case PCM::SKX:
+        // OFFCORE_RESPONSE.ALL_REQUESTS.L3_MISS_LOCAL_DRAM.ANY_SNOOP
+        conf.OffcoreResponseMsrValue[0] = 0x3FC0009FFF | (1 << 26);
+        // OFFCORE_RESPONSE.ALL_REQUESTS.L3_MISS_REMOTE_(HOP0,HOP1,HOP2P)_DRAM.ANY_SNOOP
+        conf.OffcoreResponseMsrValue[1] = 0x3FC0009FFF | (1 << 27) | (1 << 28) | (1 << 29);
+        break;
+    default:
+        throw UnsupportedProcessorException();
+    }
+}
