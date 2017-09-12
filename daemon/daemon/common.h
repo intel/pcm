@@ -19,7 +19,7 @@
 #include <stdint.h>
 
 static const char DEFAULT_SHM_ID_LOCATION[] = "/tmp/opcm-daemon-shm-id";
-static const char VERSION[] = "1.0.3";
+static const char VERSION[] = "1.0.4";
 
 #define MAX_CPU_CORES 4096
 #define MAX_SOCKETS 256
