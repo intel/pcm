@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2009-2013, Intel Corporation
+Copyright (c) 2009-2017, Intel Corporation
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -33,6 +33,8 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include "pci.h"
 #include "client_bw.h"
 #include "width_extender.h"
+#include "exceptions/unsupported_processor_exception.hpp"
+
 #include <vector>
 #include <limits>
 #include <string>
@@ -1353,6 +1355,10 @@ public:
     {
         return getBytesPerLinkCycle() / getLinkTransfersPerLinkCycle();
     }
+
+    //! \brief Setup ExtendedCustomCoreEventDescription object to read offcore (numa) counters for each processor type
+    //! \param conf conf object to setup offcore MSR values
+    void setupCustomCoreEventsForNuma(PCM::ExtendedCustomCoreEventDescription& conf) const;
 
     ~PCM();
 };

@@ -52,6 +52,7 @@ namespace PCMDaemon {
 		sharedPCMState_->pollMs = pollIntervalMs_;
 
 		updatePCMState(&systemStatesBefore_, &socketStatesBefore_, &coreStatesBefore_);
+		systemStatesForQPIBefore_ = SystemCounterState(systemStatesBefore_);
 
 		serverUncorePowerStatesBefore_ = new ServerUncorePowerState[pcmInstance_->getNumSockets()];
 		serverUncorePowerStatesAfter_ = new ServerUncorePowerState[pcmInstance_->getNumSockets()];
@@ -119,30 +120,13 @@ namespace PCMDaemon {
 		    conf.nGPCounters = numOfCustomCounters;
 		    conf.gpCounterCfg = regs;
 
-		    // TODO: This needs to be abstracted somewhere else
-		    switch (pcmInstance_->getCPUModel())
-		    {
-		    case PCM::WESTMERE_EX:
-		        conf.OffcoreResponseMsrValue[0] = 0x40FF;                // OFFCORE_RESPONSE.ANY_REQUEST.LOCAL_DRAM:  Offcore requests satisfied by the local DRAM
-		        conf.OffcoreResponseMsrValue[1] = 0x20FF;                // OFFCORE_RESPONSE.ANY_REQUEST.REMOTE_DRAM: Offcore requests satisfied by a remote DRAM
-		        break;
-		    case PCM::JAKETOWN:
-		    case PCM::IVYTOWN:
-		        conf.OffcoreResponseMsrValue[0] = 0x780400000 | 0x08FFF; // OFFCORE_RESPONSE.*.LOCAL_DRAM
-		        conf.OffcoreResponseMsrValue[1] = 0x7ff800000 | 0x08FFF; // OFFCORE_RESPONSE.*.REMOTE_DRAM
-		        break;
-		    case PCM::HASWELLX:
-		        conf.OffcoreResponseMsrValue[0] = 0x600400000 | 0x08FFF; // OFFCORE_RESPONSE.*.LOCAL_DRAM
-		        conf.OffcoreResponseMsrValue[1] = 0x63f800000 | 0x08FFF; // OFFCORE_RESPONSE.*.REMOTE_DRAM
-		        break;
-		    case PCM::BDX:
-		        conf.OffcoreResponseMsrValue[0] = 0x0604008FFF; // OFFCORE_RESPONSE.*.LOCAL_DRAM
-		        conf.OffcoreResponseMsrValue[1] = 0x067BC08FFF; // OFFCORE_RESPONSE.*.REMOTE_DRAM
-		        break;
-		    default:
+			try {
+				pcmInstance_->setupCustomCoreEventsForNuma(conf);
+			}
+			catch (UnsupportedProcessorException& e) {
 		        std::cerr << std::endl << "PCM daemon does not support your processor currently." << std::endl << std::endl;
 		        exit(EXIT_FAILURE);
-		    }
+			}
 
 			// Set default values for event select registers
 			for (uint32 i(0); i < numOfCustomCounters; ++i)
@@ -264,7 +248,14 @@ namespace PCMDaemon {
 						printExampleUsageAndExit(argv);
 					}
 
-					std::cout << "Operational mode: " << mode_ << std::endl;
+					std::cout << "Operational mode: " << mode_ << " (";
+
+					if(mode_ == Mode::DIFFERENCE)
+						std::cout << "difference";
+					else if(mode_ == Mode::ABSOLUTE)
+						std::cout << "absolute";
+
+					std::cout << ")" << std::endl;
 				}
 				break;
 			case 's':
@@ -285,7 +276,7 @@ namespace PCMDaemon {
 			printExampleUsageAndExit(argv);
 		}
 
-		std::cout << "PCM Daemon version: " << VERSION << std::endl;
+		std::cout << "PCM Daemon version: " << VERSION << std::endl << std::endl;
 	}
 
 	void Daemon::printExampleUsageAndExit(char *argv[])
@@ -415,7 +406,8 @@ namespace PCMDaemon {
 		{
 			getPCMMemory();
 		}
-		if(subscribers_.find("qpi") != subscribers_.end())
+		bool fetchQPICounters = subscribers_.find("qpi") != subscribers_.end();
+		if(fetchQPICounters)
 		{
 			getPCMQPI();
 		}
@@ -425,6 +417,10 @@ namespace PCMDaemon {
 		if(mode_ == Mode::DIFFERENCE)
 		{
 			swapPCMBeforeAfterState();
+		}
+		if(fetchQPICounters)
+		{
+			systemStatesForQPIBefore_ = SystemCounterState(systemStatesAfter_);
 		}
 
 		std::swap(collectionTimeBefore_, collectionTimeAfter_);
@@ -670,7 +666,7 @@ namespace PCMDaemon {
 				{
 					uint64 bytes = getIncomingQPILinkBytes(i, l, systemStatesBefore_, systemStatesAfter_);
 					qpi.incoming[onlineSocketsI].links[l].bytes = bytes;
-					qpi.incoming[onlineSocketsI].links[l].utilization = getIncomingQPILinkUtilization(i, l, systemStatesBefore_, systemStatesAfter_);
+					qpi.incoming[onlineSocketsI].links[l].utilization = getIncomingQPILinkUtilization(i, l, systemStatesForQPIBefore_, systemStatesAfter_);
 
 					total+=bytes;
 				}
@@ -698,7 +694,7 @@ namespace PCMDaemon {
 				{
 					uint64 bytes = getOutgoingQPILinkBytes(i, l, systemStatesBefore_, systemStatesAfter_);
 					qpi.outgoing[onlineSocketsI].links[l].bytes = bytes;
-					qpi.outgoing[onlineSocketsI].links[l].utilization = getOutgoingQPILinkUtilization(i, l, systemStatesBefore_, systemStatesAfter_);
+					qpi.outgoing[onlineSocketsI].links[l].utilization = getOutgoingQPILinkUtilization(i, l, systemStatesForQPIBefore_, systemStatesAfter_);
 
 					total+=bytes;
 				}
