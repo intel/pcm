@@ -5034,18 +5034,18 @@ void ServerPCICFGUncore::initMemTest(ServerPCICFGUncore::MemTestParam & param)
         std::cerr << "ERROR: mmap failed" << std::endl;
         return;
     }
-    unsigned long maxNode = (unsigned long)(readMaxFromSysFS("/sys/devices/system/node/online") + 1);
+    unsigned long long maxNode = (unsigned long long)(readMaxFromSysFS("/sys/devices/system/node/online") + 1);
     if (maxNode == 0)
     {
         std::cerr << "ERROR: max node is 0 " << std::endl;
         return;
     }
     if (maxNode >= 63) maxNode = 63;
-    const unsigned long nodeMask = (1 << maxNode) - 1;
+    const unsigned long long nodeMask = (1ULL << maxNode) - 1ULL;
     if (0 != syscall(SYS_mbind, buffer, capacity, 3 /* MPOL_INTERLEAVE */,
         &nodeMask, maxNode, 0))
     {
-        std::cerr << "ERROR: mbind failed" << std::endl;
+        std::cerr << "ERROR: mbind failed. nodeMask: "<< nodeMask << " maxNode: "<< maxNode << std::endl;
         return;
     }
     memBuffers.push_back((uint64 *)buffer);
