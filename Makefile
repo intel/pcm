@@ -26,6 +26,8 @@ CXXFLAGS += -std=c++11
 endif
 ifeq ($(UNAME), DragonFly)
 LIB= -pthread -lrt
+CXXFLAGS += -std=c++11
+endif
 ifeq ($(UNAME), Darwin)
 LIB= -lpthread MacMSRDriver/build/Release/libPcmMsr.dylib 
 CXXFLAGS += -I/usr/include -IMacMSRDriver -std=c++11
