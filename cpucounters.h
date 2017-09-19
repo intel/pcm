@@ -833,7 +833,7 @@ public:
         ATOM_BAYTRAIL = 55,
         ATOM_AVOTON = 77,
         ATOM_CHERRYTRAIL = 76,
-	    ATOM_APOLLO_LAKE = 92,
+        ATOM_APOLLO_LAKE = 92,
         ATOM_DENVERTON = 95,
         CLARKDALE = 37,
         WESTMERE_EP = 44,
@@ -1095,7 +1095,7 @@ public:
 
     enum ChaPipelineQueue
     {
-	None,
+        None,
         IRQ,
         PRQ,
     };
@@ -1153,13 +1153,13 @@ public:
         return (
                     cpu_model == PCM::JAKETOWN
                  || cpu_model == PCM::IVYTOWN
-                 || cpu_model == PCM::SANDY_BRIDGE 
+                 || cpu_model == PCM::SANDY_BRIDGE
                  || cpu_model == PCM::IVY_BRIDGE
                  || cpu_model == PCM::HASWELL
                  || original_cpu_model == PCM::ATOM_AVOTON
                  || original_cpu_model == PCM::ATOM_CHERRYTRAIL
                  || original_cpu_model == PCM::ATOM_BAYTRAIL
-		         || original_cpu_model == PCM::ATOM_APOLLO_LAKE
+                 || original_cpu_model == PCM::ATOM_APOLLO_LAKE
                  || original_cpu_model == PCM::ATOM_DENVERTON
                  || cpu_model == PCM::HASWELLX
                  || cpu_model == PCM::BROADWELL
@@ -1174,7 +1174,7 @@ public:
 
     bool dramEnergyMetricsAvailable() const
     {
-        return ( 
+        return (
              cpu_model == PCM::JAKETOWN
           || cpu_model == PCM::IVYTOWN
           || cpu_model == PCM::HASWELLX
@@ -1187,15 +1187,15 @@ public:
 
     bool packageThermalMetricsAvailable() const
     {
-    	return packageEnergyMetricsAvailable();
+        return packageEnergyMetricsAvailable();
     }
 
     bool outgoingQPITrafficMetricsAvailable() const
     {
         return getQPILinksPerSocket() > 0 &&
             (
-                cpu_model == PCM::NEHALEM_EX 
-            ||  cpu_model == PCM::WESTMERE_EX 
+                cpu_model == PCM::NEHALEM_EX
+            ||  cpu_model == PCM::WESTMERE_EX
             ||  cpu_model == PCM::JAKETOWN
             ||  cpu_model == PCM::IVYTOWN
             ||  cpu_model == PCM::HASWELLX
@@ -1533,24 +1533,24 @@ inline uint64 RDTSC()
 
 inline uint64 RDTSCP()
 {
-	uint64 result = 0;
+    uint64 result = 0;
 #ifdef _MSC_VER
-        // Windows
-        #if _MSC_VER>= 1600
-        unsigned int Aux;
-        result = __rdtscp(&Aux);
-        #endif
+    // Windows
+    #if _MSC_VER>= 1600
+    unsigned int Aux;
+    result = __rdtscp(&Aux);
+    #endif
 #else
-	// Linux and OS X
-        uint32 high = 0, low = 0;
-        asm volatile (
-           "rdtscp\n\t"
-           "mov %%edx, %0\n\t"
-           "mov %%eax, %1\n\t":
-           "=r" (high), "=r" (low) :: "%rax", "%rcx", "%rdx");
-        result = low + (uint64(high)<<32ULL);
+    // Linux and OS X
+    uint32 high = 0, low = 0;
+    asm volatile (
+       "rdtscp\n\t"
+       "mov %%edx, %0\n\t"
+       "mov %%eax, %1\n\t":
+       "=r" (high), "=r" (low) :: "%rax", "%rcx", "%rdx");
+    result = low + (uint64(high)<<32ULL);
 #endif
-	return result;
+    return result;
 }
 
 /*! \brief Returns QPI LL clock ticks
@@ -1877,7 +1877,7 @@ public:
         for (int i = 0; i < 8; ++i) {
             memset(&(MCCounter[i][0]), 0, 4 * sizeof(uint64));
             memset(&(EDCCounter[i][0]), 0, 4 * sizeof(uint64));
-	}
+        }
     }
 };
 
