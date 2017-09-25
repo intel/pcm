@@ -29,8 +29,10 @@ int main(int argc, const char *argv[])
 	int lcore_id;
 
 	void * handle = dlopen("libpcm.so", RTLD_LAZY);
-	if(!handle)
+	if(!handle) {
+		printf("Abort: could not (dynamically) load shared library \n");
 		return -1;
+	}
 
 	PCM.pcm_c_build_core_event = (int (*)(uint8_t, const char *)) dlsym(handle, "pcm_c_build_core_event");
 	PCM.pcm_c_init = (int (*)()) dlsym(handle, "pcm_c_init");
