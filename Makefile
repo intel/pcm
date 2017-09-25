@@ -8,6 +8,7 @@ EXE = pcm.x pcm-numa.x pcm-latency.x pcm-power.x pcm-sensor.x pcm-msr.x pcm-memo
 EXE += pcm-mmio.x
 
 EXE += c_example.x
+EXE += c_example_shlib.x
 
 EXE += pcm-raw.x
 
@@ -81,8 +82,11 @@ pcm-sensor-server.x: pcm-sensor-server.o $(COMMON_OBJS)
 libpcm.so: $(COMMON_OBJS) pcm-core.o
 	$(CXX) $(LDFLAGS) $(CXXFLAGS) -DPCM_SILENT -shared $^ $(LIB) -o $@
 
-c_example.x: c_example.o libpcm.so
-	$(CC) $< -ldl -Wl,-rpath,$(shell pwd) -o $@
+c_example.x: c_example.c libpcm.so
+	$(CC) -DPCM_DYNAMIC_LIB $< -ldl -Wl,-rpath,$(shell pwd) -o $@
+
+c_example_shlib.x: c_example.c libpcm.so
+	$(CC) $< -L./ -Wl,-rpath,$(shell pwd) -lpcm -o $@
 
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $*.cpp -o $*.o
