@@ -26,3 +26,4 @@ Release64
 .metadata/
 html/
 latex/
+*.swp
