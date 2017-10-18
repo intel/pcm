@@ -295,6 +295,10 @@ int main(int argc, char * argv[])
 	bool show_partial_core_output = false;
 	std::bitset<MAX_CORES> ycores;
 
+	// Occasionally the memory is not properly nulled because counters appear to
+	// be programmed even without given arguments so making really sure
+	memset( &regs, 0, sizeof(regs) );
+
 	conf.fixedCfg = NULL; // default
 	conf.nGPCounters = 4;
 	conf.gpCounterCfg = regs;
@@ -432,7 +436,10 @@ int main(int argc, char * argv[])
 			}
 			continue;
 		}
-	} while(argc > 1); // end of command line partsing loop
+	} while(argc > 1); // end of command line parsing loop
+
+	if ( cur_event == 0 )
+		cerr << "WARNING: you did not provide any custom events, is this intentional?\n";
 
 	conf.OffcoreResponseMsrValue[0] = events[0].msr_value;
 	conf.OffcoreResponseMsrValue[1] = events[1].msr_value;
