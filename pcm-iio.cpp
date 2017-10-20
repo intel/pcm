@@ -24,6 +24,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #endif
 #include <fstream>
 #include <stdlib.h>
+#include <stdexcept>      // std::length_error
 #include <cstdint>
 #include <numeric>
 #include <algorithm>
