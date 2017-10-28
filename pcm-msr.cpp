@@ -27,6 +27,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #ifdef _MSC_VER
 #include "freegetopt/getopt.h"
 #endif
+#include "utils.h"
 
 uint64 read_number(char * str)
 {
@@ -101,8 +102,8 @@ int main(int argc, char * argv[])
     // drv.stop();     // restart driver (usually not needed)
     if (!drv.start(driverPath))
     {
-        std::cerr << "Can not load MSR driver." << std::endl;
-        std::cerr << "You must have signed msr.sys driver in your current directory and have administrator rights to run this program" << std::endl;
+        pcm_cerr << "Can not load MSR driver." << std::endl;
+        pcm_cerr << "You must have signed msr.sys driver in your current directory and have administrator rights to run this program" << std::endl;
         return -1;
     }
     #endif
@@ -120,7 +121,7 @@ int main(int argc, char * argv[])
     }
     catch (std::exception & e)
     {
-        std::cerr << "Error accessing MSRs: " << e.what() << std::endl;
-        std::cerr << "Please check if the program can access MSR drivers." << std::endl;
+        pcm_cerr << "Error accessing MSRs: " << e.what() << std::endl;
+        pcm_cerr << "Please check if the program can access MSR drivers." << std::endl;
     }
 }

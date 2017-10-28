@@ -100,7 +100,7 @@ int main(int argc, char * argv[])
 #ifdef PCM_FORCE_SILENT
     null_stream nullStream1, nullStream2;
     std::cout.rdbuf(&nullStream1);
-    std::cerr.rdbuf(&nullStream2);
+    pcm_cerr.rdbuf(&nullStream2);
 #endif
 
     cerr << endl;
@@ -176,12 +176,12 @@ int main(int argc, char * argv[])
     PCM::ExtendedCustomCoreEventDescription conf;
     conf.fixedCfg = NULL; // default
     conf.nGPCounters = 4;
-    
+
     try {
         m->setupCustomCoreEventsForNuma(conf);
     }
     catch (UnsupportedProcessorException& e) {
-        std::cerr << "pcm-numa tool does not support your processor currently." << std::endl;
+        pcm_cerr << "pcm-numa tool does not support your processor currently." << std::endl;
         exit(EXIT_FAILURE);
     }
 

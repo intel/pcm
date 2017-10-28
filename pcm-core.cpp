@@ -208,7 +208,7 @@ void build_event(const char * argv, EventSelectRegister *reg, int idx)
 #ifdef _MSC_VER
     strncpy_s(name, argv, EVENT_SIZE - 1);
 #else
-	strncpy(name,argv,EVENT_SIZE-1); 
+	strncpy(name,argv,EVENT_SIZE-1);
 #endif
 	/*
 	   uint64 apic_int : 1;
@@ -273,7 +273,7 @@ int main(int argc, char * argv[])
 #ifdef PCM_FORCE_SILENT
 	null_stream nullStream1, nullStream2;
 	std::cout.rdbuf(&nullStream1);
-	std::cerr.rdbuf(&nullStream2);
+	pcm_cerr.rdbuf(&nullStream2);
 #endif
 
 	cerr << endl;
@@ -487,7 +487,7 @@ int main(int argc, char * argv[])
 	if (csv) {
 		if( delay<=0.0 ) delay = PCM_DELAY_DEFAULT;
 	} else {
-		// for non-CSV mode delay < 1.0 does not make a lot of practical sense: 
+		// for non-CSV mode delay < 1.0 does not make a lot of practical sense:
 		// hard to read from the screen, or
 		// in case delay is not provided in command line => set default
 		if( ((delay<1.0) && (delay>0.0)) || (delay<=0.0) ) delay = PCM_DELAY_DEFAULT;
@@ -496,7 +496,7 @@ int main(int argc, char * argv[])
 	cerr << "Update every "<<delay<<" seconds"<< endl;
 
 	std::cout.precision(2);
-	std::cout << std::fixed; 
+	std::cout << std::fixed;
 
 	BeforeTime = m->getTickCount();
 	m->getAllCounterStates(SysBeforeState, DummySocketStates, BeforeState);
@@ -566,7 +566,7 @@ int main(int argc, char * argv[])
 			if(csv)
 				cout <<i<<",";
 			else
-				cout <<" "<< setw(3) << i << "   " << setw(2) ; 
+				cout <<" "<< setw(3) << i << "   " << setw(2) ;
 			print_custom_stats(BeforeState[i], AfterState[i], csv, txn_rate);
 		}
 		if(csv)

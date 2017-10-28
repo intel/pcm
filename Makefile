@@ -11,7 +11,7 @@ lib: libPCM.a
 
 klocwork: $(EXE)
 
-CXXFLAGS += -Wall -g -O3 -Wno-unknown-pragmas
+CXXFLAGS += -std=c++1z -Wall -g -O3 -Wno-unknown-pragmas
 
 # rely on Linux perf support (user needs CAP_SYS_ADMIN privileges), comment out to disable
 ifneq ($(wildcard /usr/include/linux/perf_event.h),)
@@ -29,7 +29,7 @@ LIB= -pthread -lrt
 CXXFLAGS += -std=c++11
 endif
 ifeq ($(UNAME), Darwin)
-LIB= -lpthread MacMSRDriver/build/Release/libPcmMsr.dylib 
+LIB= -lpthread MacMSRDriver/build/Release/libPcmMsr.dylib
 CXXFLAGS += -I/usr/include -IMacMSRDriver -std=c++11
 endif
 ifeq ($(UNAME), FreeBSD)
@@ -70,7 +70,7 @@ libPCM.a: $(OBJS)
 	@rm -f $*.d.tmp
 
 nice:
-	uncrustify --replace -c ~/uncrustify.cfg *.cpp *.h WinMSRDriver/Win7/*.h WinMSRDriver/Win7/*.c WinMSRDriver/WinXP/*.h WinMSRDriver/WinXP/*.c  PCM_Win/*.h PCM_Win/*.cpp  
+	uncrustify --replace -c ~/uncrustify.cfg *.cpp *.h WinMSRDriver/Win7/*.h WinMSRDriver/Win7/*.c WinMSRDriver/WinXP/*.h WinMSRDriver/WinXP/*.c  PCM_Win/*.h PCM_Win/*.cpp
 
 clean:
 	rm -rf *.x *.o *~ *.d

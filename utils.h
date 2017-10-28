@@ -30,6 +30,31 @@ CT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
 #include <time.h>
 #include "types.h"
 
+class ostreamWrapper {
+private:
+    std::ostream* str;
+
+public:
+    ostreamWrapper(std::ostream* str_v) : str(str_v) {}
+
+    template <typename T>
+    ostreamWrapper& operator<<(const T& t) {
+        #if defined(PCM_PRINTS)
+        *str << std::forward<T>(t);
+        #endif
+        return *this;
+    }
+
+    ostreamWrapper& operator<<(std::ostream& (*manip)(std::ostream&)) {
+        #if defined(PCM_PRINTS)
+        *str << manip;
+        #endif
+        return *this;
+    }
+};
+
+extern ostreamWrapper pcm_cerr;
+
 #ifndef _MSC_VER
 #include <csignal>
 #include <ctime>

@@ -21,6 +21,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <sys/stat.h>
 #include <fcntl.h>
 #include "pci.h"
+#include "utils.h"
 
 #ifndef _MSC_VER
 #include <sys/mman.h>
@@ -45,7 +46,7 @@ PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 functi
 {
     if (groupnr_ != 0)
     {
-        std::cerr << "Non-zero PCI group segments are not supported in PCM/Windows" << std::endl;
+        pcm_cerr << "Non-zero PCI group segments are not supported in PCM/Windows" << std::endl;
         throw std::exception();
     }
 
@@ -92,7 +93,7 @@ int32 PciHandle::read32(uint64 offset, uint32 * value)
         *value = (uint32)result;
         if (!status)
         {
-            //std::cerr << "Error reading PCI Config space at bus "<<bus<<" dev "<< device<<" function "<< function <<" offset "<< offset << " size "<< req.bytes  << ". Windows error: "<<GetLastError()<<std::endl;
+            //pcm_cerr << "Error reading PCI Config space at bus "<<bus<<" dev "<< device<<" function "<< function <<" offset "<< offset << " size "<< req.bytes  << ". Windows error: "<<GetLastError()<<std::endl;
         }
         return (int32)reslength;
     }
@@ -122,7 +123,7 @@ int32 PciHandle::write32(uint64 offset, uint32 value)
         BOOL status = DeviceIoControl(hDriver, IO_CTL_PCICFG_WRITE, &req, (DWORD)sizeof(PCICFG_Request), &result, (DWORD)sizeof(uint64), &reslength, NULL);
         if (!status)
         {
-            //std::cerr << "Error writing PCI Config space at bus "<<bus<<" dev "<< device<<" function "<< function <<" offset "<< offset << " size "<< req.bytes  << ". Windows error: "<<GetLastError()<<std::endl;
+            //pcm_cerr << "Error writing PCI Config space at bus "<<bus<<" dev "<< device<<" function "<< function <<" offset "<< offset << " size "<< req.bytes  << ". Windows error: "<<GetLastError()<<std::endl;
         }
         return (int32)reslength;
     }
@@ -146,7 +147,7 @@ int32 PciHandle::read64(uint64 offset, uint64 * value)
         BOOL status = DeviceIoControl(hDriver, IO_CTL_PCICFG_READ, &req, (DWORD)sizeof(PCICFG_Request), value, (DWORD)sizeof(uint64), &reslength, NULL);
         if (!status)
         {
-            //std::cerr << "Error reading PCI Config space at bus "<<bus<<" dev "<< device<<" function "<< function <<" offset "<< offset << " size "<< req.bytes  << ". Windows error: "<<GetLastError()<<std::endl;
+            //pcm_cerr << "Error reading PCI Config space at bus "<<bus<<" dev "<< device<<" function "<< function <<" offset "<< offset << " size "<< req.bytes  << ". Windows error: "<<GetLastError()<<std::endl;
         }
         return (int32)reslength;
     }
@@ -394,7 +395,7 @@ int32 PciHandle::read64(uint64 offset, uint64 * value)
     size_t res = ::pread(fd, (void *)value, sizeof(uint64), offset);
     if(res != sizeof(uint64))
     {
-        std::cerr << " ERROR: pread from " << fd << " with offset 0x" << std::hex << offset << std::dec << " returned " << res << " bytes " << std::endl;
+        pcm_cerr << " ERROR: pread from " << fd << " with offset 0x" << std::hex << offset << std::dec << " returned " << res << " bytes " << std::endl;
     }
     return res;
 }
@@ -519,7 +520,7 @@ void PciHandleMM::readMCFG()
 
     if (mcfg_handle < 0)
     {
-        std::cerr << "PCM Error: Cannot open " << path << std::endl;
+        pcm_cerr << "PCM Error: Cannot open " << path << std::endl;
         throw std::exception();
     }
 
@@ -527,7 +528,7 @@ void PciHandleMM::readMCFG()
 
     if (read_bytes == 0)
     {
-        std::cerr << "PCM Error: Cannot read " << path << std::endl;
+        pcm_cerr << "PCM Error: Cannot read " << path << std::endl;
         throw std::exception();
     }
 
@@ -543,7 +544,7 @@ void PciHandleMM::readMCFG()
         read_bytes = ::read(mcfg_handle, (void *)&record, sizeof(MCFGRecord));
         if (read_bytes == 0)
         {
-            std::cerr << "PCM Error: Cannot read " << path << " (2)" << std::endl;
+            pcm_cerr << "PCM Error: Cannot read " << path << " (2)" << std::endl;
             throw std::exception();
         }
 #ifdef PCM_DEBUG
@@ -580,7 +581,7 @@ PciHandleMM::PciHandleMM(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 fu
     }
     if (segment == mcfgRecords.size())
     {
-        std::cerr << "PCM Error: (group " << groupnr_ << ", bus " << bus_ << ") not found in the MCFG table." << std::endl;
+        pcm_cerr << "PCM Error: (group " << groupnr_ << ", bus " << bus_ << ") not found in the MCFG table." << std::endl;
         throw std::exception();
     }
     else

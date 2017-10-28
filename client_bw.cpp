@@ -23,6 +23,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <fcntl.h>
 #include "pci.h"
 #include "client_bw.h"
+#include "utils.h"
 
 #ifndef _MSC_VER
 #include <sys/mman.h>
@@ -83,7 +84,7 @@ ClientBW::ClientBW() : pmem(new PCMPmem())
     // std::cout << "DEBUG: imcbar="<<std::hex << imcbar <<std::endl;
     if (!imcbar)
     {
-        std::cerr << "ERROR: imcbar is zero." << std::endl;
+        pcm_cerr << "ERROR: imcbar is zero." << std::endl;
         throw std::exception();
     }
     startAddr = imcbar & (~(4096ULL - 1ULL)); // round down to 4K
@@ -186,7 +187,7 @@ ClientBW::ClientBW() :
     // std::cout << "DEBUG: imcbar="<<std::hex << imcbar <<std::endl;
     if (!imcbar)
     {
-        std::cerr << "ERROR: imcbar is zero." << std::endl;
+        pcm_cerr << "ERROR: imcbar is zero." << std::endl;
         throw std::exception();
     }
     uint64 startAddr = imcbar & (~(4096 - 1)); // round down to 4K

@@ -144,8 +144,8 @@ int main(int argc, char * argv[])
 {
     set_signal_handlers();
 
-    std::cerr << "\n Processor Counter Monitor " << PCM_VERSION << std::endl;
-    std::cerr << "\n Power Monitoring Utility\n";
+    pcm_cerr << "\n Processor Counter Monitor " << PCM_VERSION << std::endl;
+    pcm_cerr << "\n Power Monitoring Utility\n";
 
     int imc_profile = 0;
     int pcu_profile = 0;
@@ -269,16 +269,16 @@ int main(int argc, char * argv[])
     const int cpu_model = m->getCPUModel();
     if (!(m->hasPCICFGUncore()))
     {
-        std::cerr << "Unsupported processor model (" << cpu_model << ")." << std::endl;
+        pcm_cerr << "Unsupported processor model (" << cpu_model << ")." << std::endl;
         exit(EXIT_FAILURE);
     }
 
     if (PCM::Success != m->programServerUncorePowerMetrics(imc_profile, pcu_profile, freq_band))
     {
 #ifdef _MSC_VER
-        std::cerr << "You must have signed msr.sys driver in your current directory and have administrator rights to run this program" << std::endl;
+        pcm_cerr << "You must have signed msr.sys driver in your current directory and have administrator rights to run this program" << std::endl;
 #elif defined(__linux__)
-        std::cerr << "You need to be root and loaded 'msr' Linux kernel module to execute the program. You may load the 'msr' module with 'modprobe msr'. \n";
+        pcm_cerr << "You need to be root and loaded 'msr' Linux kernel module to execute the program. You may load the 'msr' module with 'modprobe msr'. \n";
 #endif
         exit(EXIT_FAILURE);
     }
@@ -286,22 +286,22 @@ int main(int argc, char * argv[])
     ServerUncorePowerState * AfterState = new ServerUncorePowerState[m->getNumSockets()];
     uint64 BeforeTime = 0, AfterTime = 0;
 
-    std::cerr << std::dec << std::endl;
-    std::cerr.precision(2);
-    std::cerr << std::fixed;
+    pcm_cerr << std::dec << std::endl;
+    pcm_cerr << std::setprecision(2);
+    pcm_cerr << std::fixed;
     std::cout << std::dec << std::endl;
     std::cout.precision(2);
     std::cout << std::fixed;
-    std::cerr << "\nMC counter group: " << imc_profile << std::endl;
-    std::cerr << "PCU counter group: " << pcu_profile << std::endl;
+    pcm_cerr << "\nMC counter group: " << imc_profile << std::endl;
+    pcm_cerr << "PCU counter group: " << pcu_profile << std::endl;
     if (pcu_profile == 0) {
         if (cpu_model == PCM::HASWELLX || cpu_model == PCM::BDX_DE || cpu_model == PCM::SKX)
-            std::cerr << "Your processor does not support frequency band statistics" << std::endl;
+            pcm_cerr << "Your processor does not support frequency band statistics" << std::endl;
         else
-            std::cerr << "Freq bands [0/1/2]: " << freq_band[0] * 100 << " MHz; " << freq_band[1] * 100 << " MHz; " << freq_band[2] * 100 << " MHz; " << std::endl;
+            pcm_cerr << "Freq bands [0/1/2]: " << freq_band[0] * 100 << " MHz; " << freq_band[1] * 100 << " MHz; " << freq_band[2] * 100 << " MHz; " << std::endl;
     }
     if (sysCmd != NULL)
-        std::cerr << "Update every " << delay << " seconds" << std::endl;
+        pcm_cerr << "Update every " << delay << " seconds" << std::endl;
 
     if ((sysCmd != NULL) && (delay <= 0.0)) {
         // in case external command is provided in command line, and
@@ -419,7 +419,7 @@ int main(int argc, char * argv[])
             case 1:
                 std::cout << "S" << socket
                           << "; PCUClocks: " << getPCUClocks(BeforeState[socket], AfterState[socket])
-                          << ((cpu_model == PCM::SKX)?"; core C0_1/C3/C6_7-state residency: ":"; core C0/C3/C6-state residency: ") 
+                          << ((cpu_model == PCM::SKX)?"; core C0_1/C3/C6_7-state residency: ":"; core C0/C3/C6-state residency: ")
                           << getNormalizedPCUCounter(1, BeforeState[socket], AfterState[socket])
                           << "; " << getNormalizedPCUCounter(2, BeforeState[socket], AfterState[socket])
                           << "; " << getNormalizedPCUCounter(3, BeforeState[socket], AfterState[socket])

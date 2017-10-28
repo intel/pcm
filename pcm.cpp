@@ -1004,13 +1004,13 @@ int main(int argc, char * argv[])
 #ifdef PCM_FORCE_SILENT
     null_stream nullStream1, nullStream2;
     std::cout.rdbuf(&nullStream1);
-    std::cerr.rdbuf(&nullStream2);
+    pcm_cerr.rdbuf(&nullStream2);
 #endif
 
     cerr << endl;
     cerr << " Processor Counter Monitor " << PCM_VERSION << endl;
     cerr << endl;
-    
+
     cerr << endl;
 
     // if delay is not specified: use either default (1 second),
