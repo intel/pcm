@@ -11,7 +11,7 @@ lib: libPCM.a
 
 klocwork: $(EXE)
 
-CXXFLAGS += -std=c++1z -Wall -g -O3 -Wno-unknown-pragmas
+CXXFLAGS += -std=c++11 -Wall -g -O3 -Wno-unknown-pragmas
 
 # rely on Linux perf support (user needs CAP_SYS_ADMIN privileges), comment out to disable
 ifneq ($(wildcard /usr/include/linux/perf_event.h),)
