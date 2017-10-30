@@ -131,6 +131,7 @@ vector<string> combine_stack_name_and_counter_names(string stack_name)
         v.push_back(tmp[i]);
     }
 
+	delete[] tmp;
     return v;
 }
 

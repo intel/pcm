@@ -341,6 +341,9 @@ namespace PCMServiceNS {
             }
             // Here we now have the chance to do cleanup after catching the ThreadAbortException because of the ResetAbort
             m_->cleanup();
+
+			delete[] oldSocketStates;
+			delete[] oldCoreStates;
         }
 
     private:

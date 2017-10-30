@@ -1101,7 +1101,7 @@ int main(int argc, char * argv[])
             continue;
         }
         else
-        if (strncmp(*argv, "--nosystem", 9) == 0 ||
+        if (strncmp(*argv, "--nosystem", 10) == 0 ||
             strncmp(*argv, "-nsys", 5) == 0 ||
             strncmp(*argv, "/nsys", 5) == 0)
         {
