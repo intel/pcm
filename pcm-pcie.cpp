@@ -947,4 +947,6 @@ void getPCIeEvents(PCM *m, PCM::PCIeEventCode opcode, uint32 delay_ms, sample_t 
 
     delete[] before;
     delete[] after;
+	delete[] before2;
+	delete[] after2;
 }
