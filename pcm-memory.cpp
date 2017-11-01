@@ -95,6 +95,7 @@ void print_help(const string prog_name)
 
 void printSocketBWHeader(uint32 no_columns, uint32 skt)
 {
+    cout << "\033[3;J\033[H\033[J";
     for (uint32 i=skt; i<(no_columns+skt); ++i) {
         cout << "|---------------------------------------|";
     }
