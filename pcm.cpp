@@ -207,7 +207,7 @@ void print_output(PCM * m,
                     "    " << getActiveRelativeFrequency(cstates1[i], cstates2[i]) <<
                     "    " << unit_format(getL3CacheMisses(cstates1[i], cstates2[i])) <<
                     "   " << unit_format(getL2CacheMisses(cstates1[i], cstates2[i])) <<
-                    "    " << getL3CacheHitRatio(cstates1[i], cstates2[i]) <<
+                    "  " << getL3CacheHitRatio(cstates1[i], cstates2[i]) <<
                     "    " << getL2CacheHitRatio(cstates1[i], cstates2[i]) <<
                     "    " << double(getL3CacheMisses(cstates1[i], cstates2[i])) / getInstructionsRetired(cstates1[i], cstates2[i]) <<
                     "    " << double(getL2CacheMisses(cstates1[i], cstates2[i])) / getInstructionsRetired(cstates1[i], cstates2[i]) ;
@@ -236,7 +236,7 @@ void print_output(PCM * m,
                     "    " << getActiveRelativeFrequency(sktstate1[i], sktstate2[i]) <<
                     "    " << unit_format(getL3CacheMisses(sktstate1[i], sktstate2[i])) <<
                     "   " << unit_format(getL2CacheMisses(sktstate1[i], sktstate2[i])) <<
-                    "    " << getL3CacheHitRatio(sktstate1[i], sktstate2[i]) <<
+                    "  " << getL3CacheHitRatio(sktstate1[i], sktstate2[i]) <<
                     "    " << getL2CacheHitRatio(sktstate1[i], sktstate2[i]) <<
                     "    " << double(getL3CacheMisses(sktstate1[i], sktstate2[i])) / getInstructionsRetired(sktstate1[i], sktstate2[i]) <<
                     "    " << double(getL2CacheMisses(sktstate1[i], sktstate2[i])) / getInstructionsRetired(sktstate1[i], sktstate2[i]);
@@ -278,7 +278,7 @@ void print_output(PCM * m,
                 "    " << getActiveRelativeFrequency(sstate1, sstate2) <<
                 "    " << unit_format(getL3CacheMisses(sstate1, sstate2)) <<
                 "   " << unit_format(getL2CacheMisses(sstate1, sstate2)) <<
-                "    " << getL3CacheHitRatio(sstate1, sstate2) <<
+                "  " << getL3CacheHitRatio(sstate1, sstate2) <<
                 "    " << getL2CacheHitRatio(sstate1, sstate2) <<
                 "    " << double(getL3CacheMisses(sstate1, sstate2)) / getInstructionsRetired(sstate1, sstate2) <<
                 "    " << double(getL2CacheMisses(sstate1, sstate2)) / getInstructionsRetired(sstate1, sstate2);
