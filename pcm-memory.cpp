@@ -418,7 +418,10 @@ void display_bandwidth_csv_header(PCM *m, memdata_t *md)
 	   << "SKT"<<skt<<";"
 	   << "SKT"<<skt<<";";
       if (m->getCPUModel() != PCM::KNL)
-	   cout << "SKT"<<skt<<";";
+          if (md->DDRT)
+	      cout << "SKT"<<skt<<";" << "SKT"<<skt<<";";
+          else
+              cout << "SKT"<<skt<<";";
 
       if (m->MCDRAMmemoryTrafficMetricsAvailable()) {
           for(uint64 channel = 0; channel < max_edc_channels; ++channel)
@@ -455,7 +458,7 @@ void display_bandwidth_csv_header(PCM *m, memdata_t *md)
       else
       {
           if(md->DDRT)
-              cout << "Mem Read (MB/s);Mem Write (MB/s); Memory (MB/s);";
+              cout << "Mem Read (MB/s);Mem Write (MB/s); DDR-T_Read; DDR-T_Write; Memory (MB/s);";
           else
               cout << "Mem Read (MB/s);Mem Write (MB/s); P. Write (T/s); Memory (MB/s);";
       }
