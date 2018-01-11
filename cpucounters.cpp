@@ -471,6 +471,12 @@ bool PCM::detectModel()
         return false;
     }
 
+    pcm_cpuid(7, 0, cpuinfo);
+
+    std::cout << "IBRS and IBPB supported  : " << ((cpuinfo.reg.edx & (1 << 26)) ? "yes" : "no") << std::endl;
+    std::cout << "STIBP supported          : " << ((cpuinfo.reg.edx & (1 << 27)) ? "yes" : "no") << std::endl;
+    std::cout << "Spec arch caps supported : " << ((cpuinfo.reg.edx & (1 << 29)) ? "yes" : "no") << std::endl;
+
     return true;
 }
 
