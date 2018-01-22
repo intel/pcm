@@ -153,8 +153,8 @@ vector<struct data> prepare_data(const vector<uint64_t> &values, const vector<st
 string build_pci_header(const PCIDB & pciDB, uint32_t column_width, struct pci p, int part = -1, uint32_t level = 0)
 {
     string s = "|";
-    char bdf_buf[8];
-    char speed_buf[9];
+    char bdf_buf[10];
+    char speed_buf[10];
     char vid_did_buf[10];
     char device_name_buf[128];
 
