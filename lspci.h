@@ -4,6 +4,25 @@
 #include <vector>
 #include <fstream>
 #include "cpucounters.h"
+
+#if defined(_MSC_VER)
+#define PCI_IDS_PATH "pci.ids"
+#define PCI_IDS_NOT_FOUND "pci.ids file is not available. Download it from" \
+    " https://raw.githubusercontent.com/pciutils/pciids/master/pci.ids."
+#elif defined (__FreeBSD__) || defined(__DragonFly__)
+#define PCI_IDS_PATH "/usr/local/share/pciids/pci.ids"
+#define PCI_IDS_NOT_FOUND "/usr/local/share/pciids/pci.ids file is not available." \
+    " Ensure that the \"pciids\" package is properly installed or download" \
+    " https://raw.githubusercontent.com/pciutils/pciids/master/pci.ids and" \
+    " copy it to the current directory."
+#else
+#define PCI_IDS_PATH "/usr/share/hwdata/pci.ids"
+#define PCI_IDS_NOT_FOUND "/usr/share/hwdata/pci.ids file is not available." \
+    " Ensure that the \"hwdata\" package is properly installed or download" \
+    " https://raw.githubusercontent.com/pciutils/pciids/master/pci.ids and" \
+    " copy it to the current directory."
+#endif
+
 using namespace std;
 typedef uint32_t h_id;
 typedef uint32_t v_id;
@@ -179,12 +198,20 @@ void print_pci(struct pci p, const PCIDB & pciDB)
 
 void load_PCIDB(PCIDB & pciDB)
 {
-    std::ifstream in("pci.ids");
+    std::ifstream in(PCI_IDS_PATH);
     std::string line, item;
 
     if (!in.is_open())
     {
-        std::cerr << "pci.ids file is not available. Download it from https://raw.githubusercontent.com/pciutils/pciids/master/pci.ids " << endl;
+#ifndef _MSC_VER
+        // On Unix, try the current directory if the default path failed
+        in.open("pci.ids");
+    }
+
+    if (!in.is_open())
+    {
+#endif
+        std::cerr << PCI_IDS_NOT_FOUND << endl;
         return;
     }
 
