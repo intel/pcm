@@ -1746,6 +1746,8 @@ PCM::PCM() :
 
     if(!detectNominalFrequency()) return;
 
+    showSpecControlMSRs();
+
 #ifdef __linux__
     if (isNMIWatchdogEnabled())
     {
@@ -1796,6 +1798,30 @@ void PCM::enableJKTWorkaround(bool enable)
     for (size_t i = 0; i < (size_t)server_pcicfg_uncore.size(); ++i)
     {
             if(server_pcicfg_uncore[i].get()) server_pcicfg_uncore[i]->enableJKTWorkaround(enable);
+    }
+}
+
+void PCM::showSpecControlMSRs()
+{
+    PCM_CPUID_INFO cpuinfo;
+    pcm_cpuid(7, 0, cpuinfo);
+
+    if (MSR.size())
+    {
+        if ((cpuinfo.reg.edx & (1 << 26)) || (cpuinfo.reg.edx & (1 << 27)))
+        {
+            uint64 val64 = 0;
+            MSR[0]->read(MSR_IA32_SPEC_CTRL, &val64);
+            std::cout << "IBRS enabled in the kernel   : " << ((val64 & 1) ? "yes" : "no") << std::endl;
+            std::cout << "STIBP enabled in the kernel  : " << ((val64 & 2) ? "yes" : "no") << std::endl;
+        }
+        if (cpuinfo.reg.edx & (1 << 29))
+        {
+            uint64 val64 = 0;
+            MSR[0]->read(MSR_IA32_ARCH_CAPABILITIES, &val64);
+            std::cout << "The processor is not susceptible to Rogue Data Cache Load: " << ((val64 & 1) ? "yes" : "no") << std::endl;
+            std::cout << "The processor supports enhanced IBRS                     : " << ((val64 & 2) ? "yes" : "no") << std::endl;
+        }
     }
 }
 
