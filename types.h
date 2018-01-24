@@ -882,6 +882,9 @@ struct IIOPMUCNTCTLRegister
 #define MSR_CORE_C6_RESIDENCY   (0x3FD)
 #define MSR_CORE_C7_RESIDENCY   (0x3FE)
 
+#define MSR_IA32_SPEC_CTRL         (0x48)
+#define MSR_IA32_ARCH_CAPABILITIES (0x10A)
+
 #ifdef _MSC_VER
 #include <windows.h>
 // data structure for converting two uint32s <-> uin64
