@@ -73,4 +73,4 @@ nice:
 	uncrustify --replace -c ~/uncrustify.cfg *.cpp *.h WinMSRDriver/Win7/*.h WinMSRDriver/Win7/*.c WinMSRDriver/WinXP/*.h WinMSRDriver/WinXP/*.c  PCM_Win/*.h PCM_Win/*.cpp  
 
 clean:
-	rm -rf *.x *.o *~ *.d
+	rm -rf *.x *.o *~ *.d *.a
