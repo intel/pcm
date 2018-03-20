@@ -673,6 +673,9 @@ struct BecktonUncorePMUCNTCTLRegister
 #define U_L_PCI_PMON_CTR1_ADDR (0x320)
 #define U_L_PCI_PMON_CTR0_ADDR (0x318)
 
+#define UCLK_FIXED_CTR_ADDR (0x704)
+#define UCLK_FIXED_CTL_ADDR (0x703)
+
 #define JKTIVT_PCU_MSR_PMON_CTR3_ADDR (0x0C39)
 #define JKTIVT_PCU_MSR_PMON_CTR2_ADDR (0x0C38)
 #define JKTIVT_PCU_MSR_PMON_CTR1_ADDR (0x0C37)
@@ -813,7 +816,8 @@ struct BecktonUncorePMUCNTCTLRegister
 #define SKX_CHA_MSR_PMON_BOX_FILTER1_LOC(x) (x << 1UL)
 #define SKX_CHA_MSR_PMON_BOX_FILTER1_NM(x) (x << 4UL)
 #define SKX_CHA_MSR_PMON_BOX_FILTER1_NOT_NM(x) (x << 5UL)
-#define SKX_CHA_MSR_PMON_BOX_FILTER1_OPC0(x) (x << 9UL)
+#define SKX_CHA_MSR_PMON_BOX_FILTER1_OPC0(x) ((x) << 9UL)
+#define SKX_CHA_MSR_PMON_BOX_FILTER1_OPC1(x) ((x) << 19UL)
 #define SKX_CHA_MSR_PMON_BOX_FILTER1_NC(x) (x << 30UL)
 
 #define SKX_CHA_TOR_INSERTS_UMASK_IRQ(x) (x << 0)
@@ -838,6 +842,9 @@ struct BecktonUncorePMUCNTCTLRegister
 #define IIO_MSR_PMON_CTL_THRESH(x)  ((x) << 24ULL)
 #define IIO_MSR_PMON_CTL_CH_MASK(x) ((x) << 36ULL)
 #define IIO_MSR_PMON_CTL_FC_MASK(x) ((x) << 44ULL)
+
+#define UCLK_FIXED_CTL_OV_EN (1 << 20)
+#define UCLK_FIXED_CTL_EN    (1 << 22)
 
 /* \brief IIO Performance Monitoring Control Register format
 

@@ -308,6 +308,7 @@ class PCM_API PCM
     double joulesPerEnergyUnit;
     std::vector<std::shared_ptr<CounterWidthExtender> > energy_status;
     std::vector<std::shared_ptr<CounterWidthExtender> > dram_energy_status;
+    std::vector<std::vector<std::vector<std::shared_ptr<CounterWidthExtender> > > > CBoCounters;
 
     std::vector<std::shared_ptr<CounterWidthExtender> > memory_bw_local;
     std::vector<std::shared_ptr<CounterWidthExtender> > memory_bw_total;
@@ -577,7 +578,9 @@ private:
     uint64 CX_MSR_PMON_CTLY(uint32 Cbo, uint32 Ctl) const;
     uint64 CX_MSR_PMON_BOX_CTL(uint32 Cbo) const;
     uint32 getMaxNumOfCBoxes() const;
-    void programCboOpcodeFilter(const uint32 opc, const uint32 cbo, std::shared_ptr<SafeMsrHandle> msr, const uint32 nc_ = 0);
+    void programCboOpcodeFilter(const uint32 opc0, const uint32 cbo, std::shared_ptr<SafeMsrHandle> msr, const uint32 nc_ = 0, const uint32 opc1 = 0);
+    void programLLCReadMissLatencyEvents();
+    uint64 getCBOCounterState(const uint32 socket, const uint32 ctr_);
 
 public:
     /*!
@@ -1036,6 +1039,8 @@ public:
     //! \return time counter value
     uint64 getTickCountRDTSCP(uint64 multiplier = 1000 /* ms */);
 
+    //! \brief Returns uncore clock ticks on specified socket
+    uint64 getUncoreClocks(const uint32 socket_);
 
     //! \brief Return QPI Link Speed in GBytes/second
     //! \warning Works only for Nehalem-EX (Xeon 7500) and Xeon E7 and E5 processors
@@ -1246,6 +1251,16 @@ public:
         return (
             cpu_model == PCM::SKX
         );
+    }
+
+    bool LLCReadMissLatencyMetricsAvailable() const
+    {
+        return (
+               HASWELLX == cpu_model
+            || BDX_DE == cpu_model
+            || BDX == cpu_model
+            || SKX == cpu_model
+               );
     }
 
     bool hasBecktonUncore() const
@@ -1742,7 +1757,6 @@ double getDRAMConsumedJoules(const CounterStateType & before, const CounterState
     return double(getDRAMConsumedEnergy(before, after)) * dram_joules_per_energy_unit;
 }
 
-
 //! \brief Basic uncore counter state
 //!
 //! Intended only for derivation, but not for the direct use
@@ -1765,6 +1779,7 @@ class UncoreCounterState
     friend uint64 getDRAMConsumedEnergy(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
     friend double getPackageCStateResidency(int state, const CounterStateType & before, const CounterStateType & after);
+    friend double getLLCReadMissLatency(const UncoreCounterState & before, const UncoreCounterState & after);
 
 protected:
     uint64 UncMCFullWrites;
@@ -1774,6 +1789,9 @@ protected:
     uint64 UncMCIORequests;
     uint64 PackageEnergyStatus;
     uint64 DRAMEnergyStatus;
+    uint64 TOROccupancyIAMiss;
+    uint64 TORInsertsIAMiss;
+    uint64 UncClocks;
     uint64 CStateResidency[PCM::MAX_C_STATE + 1];
     void readAndAggregate(std::shared_ptr<SafeMsrHandle>);
 
@@ -1785,7 +1803,10 @@ public:
         UncEDCNormalReads(0),
         UncMCIORequests(0),
         PackageEnergyStatus(0),
-        DRAMEnergyStatus(0)
+        DRAMEnergyStatus(0),
+        TOROccupancyIAMiss(0),
+        TORInsertsIAMiss(0),
+        UncClocks(0)
     {
         memset(CStateResidency, 0, sizeof(CStateResidency));
     }
@@ -1800,6 +1821,9 @@ public:
         UncMCIORequests += o.UncMCIORequests;
         PackageEnergyStatus += o.PackageEnergyStatus;
         DRAMEnergyStatus += o.DRAMEnergyStatus;
+        TOROccupancyIAMiss += o.TOROccupancyIAMiss;
+        TORInsertsIAMiss += o.TORInsertsIAMiss;
+        UncClocks += o.UncClocks;
         for (int i = 0; i <= (int)PCM::MAX_C_STATE; ++i)
             CStateResidency[i] += o.CStateResidency[i];
         return *this;
@@ -2796,6 +2820,21 @@ template <class CounterType>
 inline uint64 getNumberOfEvents(const CounterType & before, const CounterType & after)
 {
     return after.data - before.data;
+}
+//! \brief Returns average last level cache read+prefetch miss latency in ns
+inline double getLLCReadMissLatency(const UncoreCounterState & before, const UncoreCounterState & after)
+{
+    const double occupancy = double(after.TOROccupancyIAMiss) - double(before.TOROccupancyIAMiss);
+    const double inserts = double(after.TORInsertsIAMiss) - double(before.TORInsertsIAMiss);
+    const double unc_clocks = double(after.UncClocks) - double(before.UncClocks);
+    return 1e9*(occupancy/inserts)/unc_clocks;
+}
+
+// specialization for SystemCounterState
+inline double getLLCReadMissLatency(const SystemCounterState & before, const SystemCounterState & after)
+{
+    auto pcm = PCM::getInstance();
+    return pcm->getNumSockets() * getLLCReadMissLatency((UncoreCounterState)before, (UncoreCounterState)after);
 }
 
 #endif

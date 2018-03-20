@@ -172,6 +172,12 @@ public:
     {
         return internal_read();
     }
+    void reset()
+    {
+        CounterMutex.lock();
+        extended_value = last_raw_value = (*raw_counter)();
+        CounterMutex.unlock();
+    }
 };
 
 
