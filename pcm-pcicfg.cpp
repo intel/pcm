@@ -52,6 +52,12 @@ int main(int argc, char * argv[])
 
     std::cout << "\n PCICFG read/write utility\n\n";
 
+    #ifdef __linux__
+    #ifndef PCM_USE_PCI_MM_LINUX
+    std::cout << "\n To access *extended* configuration space recompile with -DPCM_USE_PCI_MM_LINUX option.\n";
+    #endif
+    #endif
+
     uint32 value = 0;
     bool write = false;
     bool dec = false;
