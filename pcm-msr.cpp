@@ -112,11 +112,20 @@ int main(int argc, char * argv[])
         if (write)
         {
             std::cout << " Writing " << value << " to MSR " << msr << " on core " << core << std::endl;
-            h.write(msr, value);
+            if(h.write(msr, value) != 8)
+            {
+                std::cout << " Write error!" << std::endl;
+            }
         }
         value = 0;
-        h.read(msr, &value);
-        std::cout << " Read value " << value << " from MSR " << msr << " on core " << core << "\n" << std::endl;
+        if(h.read(msr, &value) == 8)
+        {
+            std::cout << " Read value " << value << " from MSR " << msr << " on core " << core << "\n" << std::endl;
+        }
+        else
+        {
+            std::cout << " Read error!" << std::endl;
+        }
     }
     catch (std::exception & e)
     {
