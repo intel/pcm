@@ -1782,7 +1782,8 @@ class UncoreCounterState
     friend uint64 getDRAMConsumedEnergy(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
     friend double getPackageCStateResidency(int state, const CounterStateType & before, const CounterStateType & after);
-    friend double getLLCReadMissLatency(const UncoreCounterState & before, const UncoreCounterState & after);
+    template <class CounterStateType>
+    friend double getLLCReadMissLatency(const CounterStateType & before, const CounterStateType & after);
 
 protected:
     uint64 UncMCFullWrites;
@@ -2825,19 +2826,16 @@ inline uint64 getNumberOfEvents(const CounterType & before, const CounterType & 
     return after.data - before.data;
 }
 //! \brief Returns average last level cache read+prefetch miss latency in ns
-inline double getLLCReadMissLatency(const UncoreCounterState & before, const UncoreCounterState & after)
+
+template <class CounterStateType>
+inline double getLLCReadMissLatency(const CounterStateType & before, const CounterStateType & after)
 {
     const double occupancy = double(after.TOROccupancyIAMiss) - double(before.TOROccupancyIAMiss);
     const double inserts = double(after.TORInsertsIAMiss) - double(before.TORInsertsIAMiss);
     const double unc_clocks = double(after.UncClocks) - double(before.UncClocks);
-    return 1e9*(occupancy/inserts)/unc_clocks;
-}
-
-// specialization for SystemCounterState
-inline double getLLCReadMissLatency(const SystemCounterState & before, const SystemCounterState & after)
-{
-    auto pcm = PCM::getInstance();
-    return pcm->getNumSockets() * getLLCReadMissLatency((UncoreCounterState)before, (UncoreCounterState)after);
+    auto * m = PCM::getInstance();
+    const double seconds = double(getInvariantTSC(before, after)) / double(m->getNumCores()/m->getNumSockets()) / double(m->getNominalFrequency());
+    return 1e9*seconds*(occupancy/inserts)/unc_clocks;
 }
 
 #endif
