@@ -2146,8 +2146,9 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
     }
 
     InstanceLock lock(allow_multiple_instances);
-    if (MSR.empty()) return PCM::MSRAccessDenied;
-
+    if (MSR.empty() || (hasPCICFGUncore() && server_pcicfg_uncore.empty()))
+        return PCM::MSRAccessDenied;
+    
     ExtendedCustomCoreEventDescription * pExtDesc = (ExtendedCustomCoreEventDescription *)parameter_;
 
 #ifdef PCM_USE_PERF
