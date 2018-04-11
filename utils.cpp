@@ -40,6 +40,7 @@ void exit_cleanup(void)
 
     // this replaces same call in cleanup() from util.h
     PCM::getInstance()->cleanup(); // this replaces same call in cleanup() from util.h
+    delete PCM::getInstance();
 
 //TODO: delete other shared objects.... if any.
 

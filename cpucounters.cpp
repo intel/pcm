@@ -1452,25 +1452,42 @@ class CoreTaskQueue
     std::queue<std::packaged_task<void()> > wQueue;
     std::mutex m;
     std::condition_variable condVar;
+    bool workerStop;
     std::thread worker;
     CoreTaskQueue() = delete;
     CoreTaskQueue(CoreTaskQueue &) = delete;
 public:
     CoreTaskQueue(int32 core) :
+        workerStop(false),
         worker([&]() {
             TemporalThreadAffinity tempThreadAffinity(core);
             std::unique_lock<std::mutex> lock(m);
             while (1) {
                 while (wQueue.empty()) {
                     condVar.wait(lock);
+                    if (workerStop)
+                        break;
                 }
                 while (!wQueue.empty()) {
+                    if (workerStop)
+                        break;
+
                     wQueue.front()();
                     wQueue.pop();
                 }
+                if (workerStop)
+                    break;
             }
         })
     {}
+
+    ~CoreTaskQueue()
+    {
+        workerStop = true;
+        condVar.notify_one();
+        worker.join();
+    }
+
     void push(std::packaged_task<void()> & task)
     {
         std::unique_lock<std::mutex> lock(m);
@@ -5455,11 +5472,15 @@ CounterWidthExtender::CounterWidthExtender(AbstractRawCounter * raw_counter_, ui
     last_raw_value = (*raw_counter)();
     extended_value = last_raw_value;
     //std::cout << "Initial Value " << extended_value << "\n";
+    updateThreadStop = false;
     UpdateThread = new std::thread(
         [&]() {
         while (1)
         {
             MySleepMs(static_cast<int>(this->watchdog_delay_ms));
+            if (updateThreadStop)
+                break;
+
             /* uint64 dummy = */ this->read();
         }
     }
@@ -5467,7 +5488,10 @@ CounterWidthExtender::CounterWidthExtender(AbstractRawCounter * raw_counter_, ui
 }
 CounterWidthExtender::~CounterWidthExtender()
 {
+    updateThreadStop = true;
+    UpdateThread->join();
     delete UpdateThread;
+
     if (raw_counter) delete raw_counter;
 }
 

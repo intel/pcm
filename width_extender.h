@@ -126,6 +126,7 @@ public:
 
 private:
     std::thread * UpdateThread;
+    bool updateThreadStop;
 
     PCM_Util::Mutex CounterMutex;
 
