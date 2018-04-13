@@ -26,6 +26,12 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include "client_bw.h"
 #include "mutex.h"
 #include <memory>
+
+#ifdef __linux__
+#include <mutex>
+#include <condition_variable>
+#endif
+
 #ifndef _MSC_VER
 // the header can not be included into code using CLR
 #include <thread>
@@ -127,6 +133,8 @@ public:
 private:
     std::thread * UpdateThread;
     bool updateThreadStop;
+    std::mutex updateThreadMutex;
+    std::condition_variable updateThreadCondVar;
 
     PCM_Util::Mutex CounterMutex;
 

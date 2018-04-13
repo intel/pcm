@@ -5475,9 +5475,10 @@ CounterWidthExtender::CounterWidthExtender(AbstractRawCounter * raw_counter_, ui
     updateThreadStop = false;
     UpdateThread = new std::thread(
         [&]() {
+        std::unique_lock<std::mutex> lock(updateThreadMutex);
         while (1)
         {
-            MySleepMs(static_cast<int>(this->watchdog_delay_ms));
+            updateThreadCondVar.wait_for(lock, std::chrono::milliseconds(this->watchdog_delay_ms));
             if (updateThreadStop)
                 break;
 
@@ -5489,6 +5490,7 @@ CounterWidthExtender::CounterWidthExtender(AbstractRawCounter * raw_counter_, ui
 CounterWidthExtender::~CounterWidthExtender()
 {
     updateThreadStop = true;
+    updateThreadCondVar.notify_one();
     UpdateThread->join();
     delete UpdateThread;
 
