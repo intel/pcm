@@ -281,15 +281,16 @@ int32 PciHandle::read32(uint64 offset, uint32 * value)
     pi.pi_width = 4;
 
     ret = ioctl(fd, PCIOCREAD, &pi);
+    if (ret) return ret;
 
-    if (!ret) *value = pi.pi_data;
-
-    return ret;
+    *value = pi.pi_data;
+    return sizeof(*value);
 }
 
 int32 PciHandle::write32(uint64 offset, uint32 value)
 {
     struct pci_io pi;
+    int ret;
 
     pi.pi_sel.pc_domain = 0;
     pi.pi_sel.pc_bus = bus;
@@ -299,7 +300,10 @@ int32 PciHandle::write32(uint64 offset, uint32 value)
     pi.pi_width = 4;
     pi.pi_data = value;
 
-    return ioctl(fd, PCIOCWRITE, &pi);
+    ret = ioctl(fd, PCIOCWRITE, &pi);
+    if (ret) return ret;
+
+    return sizeof(value);
 }
 
 int32 PciHandle::read64(uint64 offset, uint64 * value)
@@ -325,7 +329,7 @@ int32 PciHandle::read64(uint64 offset, uint64 * value)
     if (ret) return ret;
 
     *value += ((uint64)pi.pi_data << 32);
-    return 0;
+    return sizeof(value);
 }
 
 PciHandle::~PciHandle()
