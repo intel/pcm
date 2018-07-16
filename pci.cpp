@@ -421,7 +421,9 @@ int PciHandle::openMcfgTable() {
          */
         path = "/sys/firmware/acpi/tables/MCFG1";
         handle = ::open(path, O_RDONLY);
-        std::cerr << "Can't open MCFG table. Check permission of /sys/firmware/acpi/tables/MCFG or MCFG1" << std::endl;
+        if ( handle < 0 ) {
+            std::cerr << "Can't open MCFG table. Check permission of /sys/firmware/acpi/tables/MCFG or MCFG1" << std::endl;
+        }
     }
 
     return handle;
