@@ -60,6 +60,7 @@ public:
     PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 function_);
 
     static bool exists(uint32 bus_, uint32 device_, uint32 function_);
+    static int openMcfgTable();
 
     int32 read32(uint64 offset, uint32 * value);
     int32 write32(uint64 offset, uint32 value);
