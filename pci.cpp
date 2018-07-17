@@ -410,6 +410,25 @@ PciHandle::~PciHandle()
 
 #ifndef PCM_USE_PCI_MM_LINUX
 
+int PciHandle::openMcfgTable() {
+    const char* path = "/sys/firmware/acpi/tables/MCFG";
+    int handle = ::open(path, O_RDONLY);
+
+    if ( handle < 0 ) {
+        /**
+         * There are no MCFG table on some machines, but MCFG1.
+         * See https://github.com/opcm/pcm/issues/74 for details
+         */
+        path = "/sys/firmware/acpi/tables/MCFG1";
+        handle = ::open(path, O_RDONLY);
+        if ( handle < 0 ) {
+            std::cerr << "Can't open MCFG table. Check permission of /sys/firmware/acpi/tables/MCFG or MCFG1" << std::endl;
+        }
+    }
+
+    return handle;
+}
+
 PciHandleM::PciHandleM(uint32 bus_, uint32 device_, uint32 function_) :
     fd(-1),
     bus(bus_),
@@ -421,8 +440,7 @@ PciHandleM::PciHandleM(uint32 bus_, uint32 device_, uint32 function_) :
     if (handle < 0) throw std::exception();
     fd = handle;
 
-    int mcfg_handle = ::open("/sys/firmware/acpi/tables/MCFG", O_RDONLY);
-
+    int mcfg_handle = PciHandle::openMcfgTable();
     if (mcfg_handle < 0) throw std::exception();
 
     int32 result = ::pread(mcfg_handle, (void *)&base_addr, sizeof(uint64), 44);
@@ -437,13 +455,11 @@ PciHandleM::PciHandleM(uint32 bus_, uint32 device_, uint32 function_) :
 
     result = ::pread(mcfg_handle, (void *)&max_bus, sizeof(unsigned char), 55);
 
+    ::close(mcfg_handle);
     if (result != sizeof(unsigned char))
     {
-        ::close(mcfg_handle);
         throw std::exception();
     }
-
-    ::close(mcfg_handle);
 
     if (bus > (unsigned)max_bus)
     {
@@ -468,10 +484,8 @@ bool PciHandleM::exists(uint32 /* bus_*/, uint32 /* device_ */, uint32 /* functi
 
     ::close(handle);
 
-    handle = ::open("/sys/firmware/acpi/tables/MCFG", O_RDONLY);
-
+    handle = PciHandle::openMcfgTable();
     if (handle < 0) {
-        perror("error opening /sys/firmware/acpi/tables/MCFG");
         return false;
     }
 
@@ -518,12 +532,10 @@ void PciHandleMM::readMCFG()
     if (mcfgRecords.size() > 0)
         return; // already initialized
 
-    const char * path = "/sys/firmware/acpi/tables/MCFG";
-    int mcfg_handle = ::open(path, O_RDONLY);
+    int mcfg_handle = PciHandle::openMcfgTable();
 
     if (mcfg_handle < 0)
     {
-        std::cerr << "PCM Error: Cannot open " << path << std::endl;
         throw std::exception();
     }
 
@@ -531,7 +543,8 @@ void PciHandleMM::readMCFG()
 
     if (read_bytes == 0)
     {
-        std::cerr << "PCM Error: Cannot read " << path << std::endl;
+        ::close(mcfg_handle);
+        std::cerr << "PCM Error: Cannot read MCFG-table" << std::endl;
         throw std::exception();
     }
 
@@ -547,7 +560,8 @@ void PciHandleMM::readMCFG()
         read_bytes = ::read(mcfg_handle, (void *)&record, sizeof(MCFGRecord));
         if (read_bytes == 0)
         {
-            std::cerr << "PCM Error: Cannot read " << path << " (2)" << std::endl;
+            ::close(mcfg_handle);
+            std::cerr << "PCM Error: Cannot read MCFG-table (2)" << std::endl;
             throw std::exception();
         }
 #ifdef PCM_DEBUG
@@ -618,10 +632,9 @@ bool PciHandleMM::exists(uint32 bus_, uint32 device_, uint32 function_)
 
     ::close(handle);
 
-    handle = ::open("/sys/firmware/acpi/tables/MCFG", O_RDONLY);
+    handle = PciHandle::openMcfgTable();
 
     if (handle < 0) {
-        perror("error opening /sys/firmware/acpi/tables/MCFG");
         return false;
     }
 
