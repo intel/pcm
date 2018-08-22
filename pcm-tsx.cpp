@@ -424,7 +424,7 @@ int main(int argc, char * argv[])
         if (events.empty())
         {
             if (csv)
-                cout << "Core,IPC,Instructions,Cycles,Transactional Cycles,Aborted Cycles,#RTM,#HLE,Cycles/Transaction \n";
+                cout << "Core,IPC,Instructions,Cycles,Transactional Cycles,Transactional Cycles %,Aborted Cycles,Aborted Cycles %,#RTM,#HLE,Cycles/Transaction \n";
             else
                 cout << "Core | IPC  | Instructions | Cycles  | Transactional Cycles | Aborted Cycles  | #RTM  | #HLE  | Cycles/Transaction \n";
         }
