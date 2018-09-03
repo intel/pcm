@@ -1994,6 +1994,19 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
         enableJKTWorkaround(enableWA); // this has a performance penalty on memory access
     }
 
+    if (core_gen_counter_num_used > core_gen_counter_num_max)
+    {
+        std::cerr << "PCM ERROR: Trying to program " << core_gen_counter_num_used << " general purpose counters with only "
+            << core_gen_counter_num_max << " available" << std::endl;
+        return PCM::UnknownError;
+    }
+    if (core_fixed_counter_num_used > core_fixed_counter_num_max)
+    {
+        std::cerr << "PCM ERROR: Trying to program " << core_fixed_counter_num_used << " fixed counters with only "
+            << core_fixed_counter_num_max << " available" << std::endl;
+        return PCM::UnknownError;
+    }
+
     programmed_pmu = true;
 
     // Version for linux/windows/freebsd/dragonflybsd
