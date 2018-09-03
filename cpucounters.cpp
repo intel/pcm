@@ -420,6 +420,24 @@ void pcm_cpuid(const unsigned leaf, const unsigned subleaf, PCM_CPUID_INFO & inf
     #endif
 }
 
+void PCM::readCoreCounterConfig()
+{
+    if (max_cpuid >= 0xa)
+    {
+        // get counter related info
+        PCM_CPUID_INFO cpuinfo;
+        pcm_cpuid(0xa, cpuinfo);
+        perfmon_version = extract_bits_ui(cpuinfo.array[0], 0, 7);
+        core_gen_counter_num_max = extract_bits_ui(cpuinfo.array[0], 8, 15);
+        core_gen_counter_width = extract_bits_ui(cpuinfo.array[0], 16, 23);
+        if (perfmon_version > 1)
+        {
+            core_fixed_counter_num_max = extract_bits_ui(cpuinfo.array[3], 0, 4);
+            core_fixed_counter_width = extract_bits_ui(cpuinfo.array[3], 5, 12);
+        }
+    }
+}
+
 bool PCM::detectModel()
 {
     char buffer[1024];
@@ -428,7 +446,6 @@ bool PCM::detectModel()
         int  ibuf[16/sizeof(int)];
     } buf;
     PCM_CPUID_INFO cpuinfo;
-    int max_cpuid;
     pcm_cpuid(0, cpuinfo);
     memset(buffer, 0, 1024);
     memset(buf.cbuf, 0, 16);
@@ -451,19 +468,7 @@ bool PCM::detectModel()
         std::cerr << "Detected a hypervisor/virtualization technology. Some metrics might not be available due to configuration or availability of virtual hardware features." << std::endl;
     }
 
-    if (max_cpuid >= 0xa)
-    {
-        // get counter related info
-        pcm_cpuid(0xa, cpuinfo);
-        perfmon_version = extract_bits_ui(cpuinfo.array[0], 0, 7);
-        core_gen_counter_num_max = extract_bits_ui(cpuinfo.array[0], 8, 15);
-        core_gen_counter_width = extract_bits_ui(cpuinfo.array[0], 16, 23);
-        if (perfmon_version > 1)
-        {
-            core_fixed_counter_num_max = extract_bits_ui(cpuinfo.array[3], 0, 4);
-            core_fixed_counter_width = extract_bits_ui(cpuinfo.array[3], 5, 12);
-        }
-    }
+    readCoreCounterConfig();
 
     if (cpu_family != 6)
     {
@@ -1502,6 +1507,7 @@ PCM::PCM() :
     cpu_model(-1),
     original_cpu_model(-1),
     cpu_stepping(-1),
+    max_cpuid(-1),
     threads_per_core(0),
     num_cores(0),
     num_sockets(0),
