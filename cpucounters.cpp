@@ -438,6 +438,11 @@ void PCM::readCoreCounterConfig()
     }
 }
 
+int32 PCM::getMaxCustomCoreEvents()
+{
+    return core_gen_counter_num_max;
+}
+
 bool PCM::detectModel()
 {
     char buffer[1024];
@@ -3001,7 +3006,8 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
     TemporalThreadAffinity tempThreadAffinity(core_id); // speedup trick for Linux
 
     PCM * m = PCM::getInstance();
-    uint32 cpu_model = m->getCPUModel();
+    const uint32 cpu_model = m->getCPUModel();
+    const int32 core_gen_counter_num_max = m->getMaxCustomCoreEvents();
 
     // reading core PMU counters
 #ifdef PCM_USE_PERF
@@ -3012,10 +3018,10 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
         cInstRetiredAny =       perfData[PCM::PERF_INST_RETIRED_ANY_POS];
         cCpuClkUnhaltedThread = perfData[PCM::PERF_CPU_CLK_UNHALTED_THREAD_POS];
         cCpuClkUnhaltedRef =    perfData[PCM::PERF_CPU_CLK_UNHALTED_REF_POS];
-        cL3Miss =               perfData[PCM::PERF_GEN_EVENT_0_POS];
-        cL3UnsharedHit =        perfData[PCM::PERF_GEN_EVENT_1_POS];
-        cL2HitM =               perfData[PCM::PERF_GEN_EVENT_2_POS];
-        cL2Hit =                perfData[PCM::PERF_GEN_EVENT_3_POS];
+        if (core_gen_counter_num_max > 0) cL3Miss =               perfData[PCM::PERF_GEN_EVENT_0_POS];
+        if (core_gen_counter_num_max > 1) cL3UnsharedHit =        perfData[PCM::PERF_GEN_EVENT_1_POS];
+        if (core_gen_counter_num_max > 2) cL2HitM =               perfData[PCM::PERF_GEN_EVENT_2_POS];
+        if (core_gen_counter_num_max > 3) cL2Hit =                perfData[PCM::PERF_GEN_EVENT_3_POS];
     }
     else
 #endif
@@ -3042,15 +3048,15 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
         case PCM::SKL:
         case PCM::KBL:
         case PCM::SKX:
-            msr->read(IA32_PMC0, &cL3Miss);
-            msr->read(IA32_PMC1, &cL3UnsharedHit);
-            msr->read(IA32_PMC2, &cL2HitM);
-            msr->read(IA32_PMC3, &cL2Hit);
+            if (core_gen_counter_num_max > 0) msr->read(IA32_PMC0, &cL3Miss);
+            if (core_gen_counter_num_max > 1) msr->read(IA32_PMC1, &cL3UnsharedHit);
+            if (core_gen_counter_num_max > 2) msr->read(IA32_PMC2, &cL2HitM);
+            if (core_gen_counter_num_max > 3) msr->read(IA32_PMC3, &cL2Hit);
             break;
         case PCM::ATOM:
         case PCM::KNL:
-            msr->read(IA32_PMC0, &cL3Miss);         // for Atom mapped to ArchLLCMiss field
-            msr->read(IA32_PMC1, &cL3UnsharedHit);  // for Atom mapped to ArchLLCRef field
+            if (core_gen_counter_num_max > 0) msr->read(IA32_PMC0, &cL3Miss);         // for Atom mapped to ArchLLCMiss field
+            if (core_gen_counter_num_max > 1) msr->read(IA32_PMC1, &cL3UnsharedHit);  // for Atom mapped to ArchLLCRef field
             break;
         }
     }

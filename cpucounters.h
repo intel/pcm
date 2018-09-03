@@ -822,6 +822,10 @@ public:
      */
     bool isSomeCoreOfflined();
 
+    /*! \brief Returns the maximum number of custom (general-purpose) core events supported by CPU
+    */
+    int32 getMaxCustomCoreEvents();
+
     //! \brief Identifiers of supported CPU models
     enum SupportedCPUModels
     {
