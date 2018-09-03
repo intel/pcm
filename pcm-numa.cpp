@@ -175,7 +175,7 @@ int main(int argc, char * argv[])
 
     PCM::ExtendedCustomCoreEventDescription conf;
     conf.fixedCfg = NULL; // default
-    conf.nGPCounters = 4;
+    conf.nGPCounters = 2;
     
     try {
         m->setupCustomCoreEventsForNuma(conf);
