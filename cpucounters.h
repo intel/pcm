@@ -266,6 +266,7 @@ class PCM_API PCM
     int32 cpu_family;
     int32 cpu_model, original_cpu_model;
     int32 cpu_stepping;
+    int32 max_cpuid;
     int32 threads_per_core;
     int32 num_cores;
     int32 num_sockets;
@@ -571,6 +572,7 @@ private:
     void readAndAggregatePackageCStateResidencies(std::shared_ptr<SafeMsrHandle> msr, CounterStateType & result);
     void readQPICounters(SystemCounterState & counterState);
     void reportQPISpeed() const;
+    void readCoreCounterConfig();
 
     uint64 CX_MSR_PMON_CTRY(uint32 Cbo, uint32 Ctr) const;
     uint64 CX_MSR_PMON_BOX_FILTER(uint32 Cbo) const;
