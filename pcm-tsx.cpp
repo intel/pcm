@@ -113,16 +113,22 @@ void print_usage(const string progname)
     cerr << endl;
 }
 
+
+#define TX_CYCLES_POS           (3)
+#define TX_CYCLES_COMMITED_POS  (2)
+#define N_HLE_POS               (1)
+#define N_RTM_POS               (0)
+
 template <class StateType>
 void print_basic_stats(const StateType & BeforeState, const StateType & AfterState, bool csv)
 {
     uint64 cycles = getCycles(BeforeState, AfterState);
     uint64 instr = getInstructionsRetired(BeforeState, AfterState);
-    const uint64 TXcycles = getNumberOfCustomEvents(3, BeforeState, AfterState);
-    const uint64 TXcycles_commited = getNumberOfCustomEvents(2, BeforeState, AfterState);
+    const uint64 TXcycles = getNumberOfCustomEvents(TX_CYCLES_POS, BeforeState, AfterState);
+    const uint64 TXcycles_commited = getNumberOfCustomEvents(TX_CYCLES_COMMITED_POS, BeforeState, AfterState);
     const uint64 Abr_cycles = (TXcycles > TXcycles_commited) ? (TXcycles - TXcycles_commited) : 0ULL;
-    uint64 nRTM = getNumberOfCustomEvents(0, BeforeState, AfterState);
-    uint64 nHLE = getNumberOfCustomEvents(1, BeforeState, AfterState);
+    uint64 nRTM = getNumberOfCustomEvents(N_RTM_POS, BeforeState, AfterState);
+    uint64 nHLE = getNumberOfCustomEvents(N_HLE_POS, BeforeState, AfterState);
 
     if (csv)
     {
@@ -297,15 +303,15 @@ int main(int argc, char * argv[])
 
     if (events.empty())
     {
-        regs[0].fields.event_select = 0xc9;
-        regs[0].fields.umask = 0x01;
-        regs[1].fields.event_select = 0xc8;
-        regs[1].fields.umask = 0x01;
-        regs[2].fields.event_select = 0x3c;
-        regs[2].fields.in_tx = 1;
-        regs[2].fields.in_txcp = 1;
-        regs[3].fields.event_select = 0x3c;
-        regs[3].fields.in_tx = 1;
+        regs[N_RTM_POS].fields.event_select = 0xc9;
+        regs[N_RTM_POS].fields.umask = 0x01;
+        regs[N_HLE_POS].fields.event_select = 0xc8;
+        regs[N_HLE_POS].fields.umask = 0x01;
+        regs[TX_CYCLES_COMMITED_POS].fields.event_select = 0x3c;
+        regs[TX_CYCLES_COMMITED_POS].fields.in_tx = 1;
+        regs[TX_CYCLES_COMMITED_POS].fields.in_txcp = 1;
+        regs[TX_CYCLES_POS].fields.event_select = 0x3c;
+        regs[TX_CYCLES_POS].fields.in_tx = 1;
     }
     else
     {
