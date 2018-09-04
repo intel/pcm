@@ -114,9 +114,9 @@ void print_usage(const string progname)
 }
 
 
-#define TX_CYCLES_POS           (3)
+#define TX_CYCLES_POS           (1)
 #define TX_CYCLES_COMMITED_POS  (2)
-#define N_HLE_POS               (1)
+#define N_HLE_POS               (3)
 #define N_RTM_POS               (0)
 
 template <class StateType>
