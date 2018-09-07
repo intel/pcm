@@ -1960,7 +1960,6 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
                 L3CacheMissesAvailable = true;
                 L2CacheMissesAvailable = true;
                 L2CacheHitsAvailable = true;
-                L3CacheHitsNoSnoopAvailable = true;
                 L3CacheHitsSnoopAvailable = true;
                 L3CacheHitsAvailable = true;
                 core_gen_counter_num_used = 4;

@@ -2328,6 +2328,7 @@ double getL2CacheHitRatio(const CounterStateType & before, const CounterStateTyp
 template <class CounterStateType>
 double getL3CacheHitRatio(const CounterStateType & before, const CounterStateType & after) // 0.0 - 1.0
 {
+    if (!PCM::getInstance()->isL3CacheHitRatioAvailable()) return -1;
     if (PCM::getInstance()->useSkylakeEvents()) {
         uint64 L3Hit = after.SKLL3Hit - before.SKLL3Hit;
         uint64 L3Ref = L3Hit + after.L3Miss - before.L3Miss;
@@ -2336,9 +2337,6 @@ double getL3CacheHitRatio(const CounterStateType & before, const CounterStateTyp
         }
         return 1;
     }
-
-    const int cpu_model = PCM::getInstance()->getCPUModel();
-    if (cpu_model == PCM::ATOM || cpu_model == PCM::KNL) return -1;
 
     uint64 L3Miss = after.L3Miss - before.L3Miss;
     uint64 L3UnsharedHit = after.L3UnsharedHit - before.L3UnsharedHit;
@@ -2360,8 +2358,7 @@ double getL3CacheHitRatio(const CounterStateType & before, const CounterStateTyp
 template <class CounterStateType>
 uint64 getL3CacheMisses(const CounterStateType & before, const CounterStateType & after)
 {
-    const int cpu_model = PCM::getInstance()->getCPUModel();
-    if (cpu_model == PCM::ATOM || cpu_model == PCM::KNL) return 0;
+    if (!PCM::getInstance()->isL3CacheMissesAvailable()) return 0;
     return after.L3Miss - before.L3Miss;
 }
 
@@ -2450,8 +2447,7 @@ uint64 getRemoteMemoryBW(const CounterStateType & before, const CounterStateType
 template <class CounterStateType>
 uint64 getL3CacheHitsNoSnoop(const CounterStateType & before, const CounterStateType & after)
 {
-    const int cpu_model = PCM::getInstance()->getCPUModel();
-    if (cpu_model == PCM::ATOM || cpu_model == PCM::KNL || PCM::getInstance()->useSkylakeEvents()) return 0;
+    if (!PCM::getInstance()->isL3CacheHitsNoSnoopAvailable()) return 0;
     return after.L3UnsharedHit - before.L3UnsharedHit;
 }
 
@@ -2465,11 +2461,10 @@ uint64 getL3CacheHitsNoSnoop(const CounterStateType & before, const CounterState
 template <class CounterStateType>
 uint64 getL3CacheHitsSnoop(const CounterStateType & before, const CounterStateType & after)
 {
+    if (!PCM::getInstance()->isL3CacheHitsSnoopAvailable()) return 0;
     if (PCM::getInstance()->useSkylakeEvents()) {
         return after.SKLL3Hit - before.SKLL3Hit;
     }
-    const int cpu_model = PCM::getInstance()->getCPUModel();
-    if (cpu_model == PCM::ATOM || cpu_model == PCM::KNL) return 0;
     return after.L2HitM - before.L2HitM;
 }
 
@@ -2484,8 +2479,7 @@ uint64 getL3CacheHitsSnoop(const CounterStateType & before, const CounterStateTy
 template <class CounterStateType>
 uint64 getL3CacheHits(const CounterStateType & before, const CounterStateType & after)
 {
-    const int cpu_model = PCM::getInstance()->getCPUModel();
-    if (cpu_model == PCM::ATOM || cpu_model == PCM::KNL) return 0;
+    if (!PCM::getInstance()->isL3CacheHitsAvailable()) return 0;
     return getL3CacheHitsSnoop(before, after) + getL3CacheHitsNoSnoop(before, after);
 }
 
