@@ -601,31 +601,31 @@ public:
 
              \returns true or false
      */
-    bool QOSMetricAvailable();
+    bool QOSMetricAvailable() const;
     /*!
              \brief checks L3 cache support for QOS present
 
              \returns true or false
      */
-    bool L3QOSMetricAvailable();
+    bool L3QOSMetricAvailable() const;
     /*!
              \brief checks if L3 cache monitoring present
 
              \returns true or false
      */
-    bool L3CacheOccupancyMetricAvailable();
+    bool L3CacheOccupancyMetricAvailable() const;
     /*!
             \brief checks if local memory bandwidth monitoring present
 
             \returns true or false
     */
-    bool CoreLocalMemoryBWMetricAvailable();
+    bool CoreLocalMemoryBWMetricAvailable() const;
     /*!
     \brief checks if total memory bandwidth monitoring present
 
     \returns true or false
     */
-    bool CoreRemoteMemoryBWMetricAvailable();
+    bool CoreRemoteMemoryBWMetricAvailable() const;
     /*!
      *      \brief returns the max number of RMID supported by socket
      *
