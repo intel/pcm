@@ -327,6 +327,17 @@ class PCM_API PCM
 
     std::vector<std::shared_ptr<CoreTaskQueue> > coreTaskQueues;
 
+    bool L2CacheHitRatioAvailable;
+    bool L3CacheHitRatioAvailable;
+    bool L3CacheMissesAvailable;
+    bool L2CacheMissesAvailable;
+    bool L2CacheHitsAvailable;
+    bool L3CacheHitsNoSnoopAvailable;
+    bool L3CacheHitsSnoopAvailable;
+    bool L3CacheHitsAvailable;
+    bool CyclesLostDueL3CacheMissesAvailable;
+    bool CyclesLostDueL2CacheMissesAvailable;
+
 public:
     enum { MAX_C_STATE = 10 }; // max C-state on Intel architecture
 
@@ -1385,6 +1396,26 @@ public:
     //! \param conf conf object to setup offcore MSR values
     void setupCustomCoreEventsForNuma(PCM::ExtendedCustomCoreEventDescription& conf) const;
 
+    #define PCM_GENERATE_METRIC_AVAILABLE_FUNCTION(m) bool is##m() const { return m; }
+
+    PCM_GENERATE_METRIC_AVAILABLE_FUNCTION(L2CacheHitRatioAvailable)
+    PCM_GENERATE_METRIC_AVAILABLE_FUNCTION(L3CacheHitRatioAvailable)
+    PCM_GENERATE_METRIC_AVAILABLE_FUNCTION(L3CacheMissesAvailable)
+    PCM_GENERATE_METRIC_AVAILABLE_FUNCTION(L2CacheMissesAvailable)
+    PCM_GENERATE_METRIC_AVAILABLE_FUNCTION(L2CacheHitsAvailable)
+    PCM_GENERATE_METRIC_AVAILABLE_FUNCTION(L3CacheHitsNoSnoopAvailable)
+    PCM_GENERATE_METRIC_AVAILABLE_FUNCTION(L3CacheHitsSnoopAvailable)
+    PCM_GENERATE_METRIC_AVAILABLE_FUNCTION(L3CacheHitsAvailable)
+    PCM_GENERATE_METRIC_AVAILABLE_FUNCTION(CyclesLostDueL3CacheMissesAvailable) // deprecated
+    PCM_GENERATE_METRIC_AVAILABLE_FUNCTION(CyclesLostDueL2CacheMissesAvailable) // deprecated
+
+    #undef PCM_GEN_METRIC_AVAILABLE_FUNCTION
+
+    bool isActiveRelativeFrequencyAvailable() const
+    {
+        return ATOM != cpu_model;
+    }
+
     ~PCM();
 };
 
@@ -1403,10 +1434,6 @@ class BasicCounterState
     template <class CounterStateType>
     friend double getActiveAverageFrequency(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
-    friend double getCyclesLostDueL3CacheMisses(const CounterStateType & before, const CounterStateType & after);
-    template <class CounterStateType>
-    friend double getCyclesLostDueL2CacheMisses(const CounterStateType & before, const CounterStateType & after);
-    template <class CounterStateType>
     friend double getRelativeFrequency(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
     friend double getActiveRelativeFrequency(const CounterStateType & before, const CounterStateType & after);
@@ -1421,6 +1448,16 @@ class BasicCounterState
     template <class CounterStateType>
     friend uint64 getL2CacheHits(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
+    friend uint64 getL3CacheHitsNoSnoop(const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
+    friend uint64 getL3CacheHitsSnoop(const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
+    friend uint64 getL3CacheHits(const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
+    friend double getCyclesLostDueL3CacheMisses(const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
+    friend double getCyclesLostDueL2CacheMisses(const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
     friend uint64 getL3CacheOccupancy(const CounterStateType & now);
     template <class CounterStateType>
     friend uint64 getLocalMemoryBW(const CounterStateType & before, const CounterStateType & after);
@@ -1434,12 +1471,6 @@ class BasicCounterState
     friend uint64 getCycles(const CounterStateType & now);
     template <class CounterStateType>
     friend uint64 getInstructionsRetired(const CounterStateType & now);
-    template <class CounterStateType>
-    friend uint64 getL3CacheHitsNoSnoop(const CounterStateType & before, const CounterStateType & after);
-    template <class CounterStateType>
-    friend uint64 getL3CacheHitsSnoop(const CounterStateType & before, const CounterStateType & after);
-    template <class CounterStateType>
-    friend uint64 getL3CacheHits(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
     friend uint64 getNumberOfCustomEvents(int32 eventCounterNr, const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
