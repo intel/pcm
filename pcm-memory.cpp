@@ -868,6 +868,14 @@ int main(int argc, char * argv[])
     } while(argc > 1); // end of command line partsing loop
 
     m->disableJKTWorkaround();
+    cerr << "\nDetected " << m->getCPUBrandString() << " \"Intel(r) microarchitecture codename " << m->getUArchCodename() << "\"" << endl;
+    if (!m->hasPCICFGUncore())
+    {
+        std::cerr << "Unsupported processor model (" << m->getCPUModel() << ")." << std::endl;
+        if (m->memoryTrafficMetricsAvailable())
+            cerr << "For processor-level memory bandwidth statistics please use pcm.x" << endl;
+        exit(EXIT_FAILURE);
+    }
     if(DDRT && (m->DDRTTrafficMetricsAvailable() == false))
     {
         cerr << "DDR-T traffic metrics are not available on your processor." << endl;
@@ -900,15 +908,6 @@ int main(int argc, char * argv[])
         default:
             cerr << "Access to Processor Counter Monitor has denied (Unknown error)." << endl;
             exit(EXIT_FAILURE);
-    }
-    
-    cerr << "\nDetected "<< m->getCPUBrandString() << " \"Intel(r) microarchitecture codename "<<m->getUArchCodename()<<"\""<<endl;
-    if(!m->hasPCICFGUncore())
-    {
-        cerr << "Jaketown, Ivytown or Haswell Server CPU is required for this tool!" << endl;
-        if(m->memoryTrafficMetricsAvailable())
-            cerr << "For processor-level memory bandwidth statistics please use pcm.x" << endl;
-        exit(EXIT_FAILURE);
     }
 
     if(m->getNumSockets() > max_sockets)
