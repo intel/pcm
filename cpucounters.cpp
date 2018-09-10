@@ -484,21 +484,21 @@ bool PCM::detectModel()
     return true;
 }
 
-bool PCM::QOSMetricAvailable()
+bool PCM::QOSMetricAvailable() const
 {
     PCM_CPUID_INFO cpuinfo;
     pcm_cpuid(0x7,0,cpuinfo);
     return (cpuinfo.reg.ebx & (1<<12))?true:false;
 }
 
-bool PCM::L3QOSMetricAvailable()
+bool PCM::L3QOSMetricAvailable() const
 {
     PCM_CPUID_INFO cpuinfo;
     pcm_cpuid(0xf,0,cpuinfo);
     return (cpuinfo.reg.edx & (1<<1))?true:false;
 }
 
-bool PCM::L3CacheOccupancyMetricAvailable()
+bool PCM::L3CacheOccupancyMetricAvailable() const
 {
     PCM_CPUID_INFO cpuinfo;
     if (!(QOSMetricAvailable() && L3QOSMetricAvailable()))
@@ -507,7 +507,7 @@ bool PCM::L3CacheOccupancyMetricAvailable()
     return (cpuinfo.reg.edx & 1)?true:false;
 }
 
-bool PCM::CoreLocalMemoryBWMetricAvailable()
+bool PCM::CoreLocalMemoryBWMetricAvailable() const
 {
     if (cpu_model == SKX) return false; // SKZ4 errata
     PCM_CPUID_INFO cpuinfo;
@@ -517,7 +517,7 @@ bool PCM::CoreLocalMemoryBWMetricAvailable()
     return (cpuinfo.reg.edx & 2)?true:false;
 }
 
-bool PCM::CoreRemoteMemoryBWMetricAvailable()
+bool PCM::CoreRemoteMemoryBWMetricAvailable() const
 {
     if (cpu_model == SKX) return false; // SKZ4 errata
     PCM_CPUID_INFO cpuinfo;
@@ -1965,7 +1965,6 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
                 L3CacheMissesAvailable = true;
                 L2CacheMissesAvailable = true;
                 L2CacheHitsAvailable = true;
-                L3CacheHitsNoSnoopAvailable = true;
                 L3CacheHitsSnoopAvailable = true;
                 L3CacheHitsAvailable = true;
                 core_gen_counter_num_used = 4;

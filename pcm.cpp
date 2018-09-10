@@ -126,6 +126,18 @@ void print_basic_metrics(const PCM * m, const State & state1, const State & stat
         cout << "    " << double(getL2CacheMisses(state1, state2)) / getInstructionsRetired(state1, state2);
 }
 
+template <class State>
+void print_other_metrics(const PCM * m, const State & state1, const State & state2)
+{
+    if (m->L3CacheOccupancyMetricAvailable())
+        cout << "   " << setw(6) << l3cache_occ_format(getL3CacheOccupancy(state2));
+    if (m->CoreLocalMemoryBWMetricAvailable())
+        cout << "   " << setw(6) << getLocalMemoryBW(state1, state2);
+    if (m->CoreRemoteMemoryBWMetricAvailable())
+        cout << "   " << setw(6) << getRemoteMemoryBW(state1, state2);
+    cout << "     " << temp_format(state2.getThermalHeadroom()) << "\n";
+}
+
 void print_output(PCM * m,
     const std::vector<CoreCounterState> & cstates1,
     const std::vector<CoreCounterState> & cstates2,
@@ -227,14 +239,7 @@ void print_output(PCM * m,
                 cout << " " << setw(3) << i << "   " << setw(2) << m->getSocketId(i);
 
             print_basic_metrics(m, cstates1[i], cstates2[i]);
-
-            if (m->L3CacheOccupancyMetricAvailable())
-                cout << "   " << setw(6) << l3cache_occ_format(getL3CacheOccupancy(cstates2[i])) ;
-            if (m->CoreLocalMemoryBWMetricAvailable())
-                cout << "   " << setw(6) << getLocalMemoryBW(cstates1[i], cstates2[i]);
-            if (m->CoreRemoteMemoryBWMetricAvailable())
-                cout << "   " << setw(6) << getRemoteMemoryBW(cstates1[i], cstates2[i]) ;
-            cout << "     " << temp_format(cstates2[i].getThermalHeadroom()) << "\n";
+            print_other_metrics(m, cstates1[i], cstates2[i]);
         }
     }
     if (show_socket_output)
@@ -246,14 +251,7 @@ void print_output(PCM * m,
             {
                 cout << " SKT   " << setw(2) << i;
                 print_basic_metrics(m, sktstate1[i], sktstate2[i]);
-                if (m->L3CacheOccupancyMetricAvailable())
-                    cout << "   " << setw(6) << l3cache_occ_format(getL3CacheOccupancy(sktstate2[i])) ;
-				if (m->CoreLocalMemoryBWMetricAvailable())
-					cout << "   " << setw(6) << getLocalMemoryBW(sktstate1[i], sktstate2[i]);
-				if (m->CoreRemoteMemoryBWMetricAvailable())
-					cout << "   " << setw(6) << getRemoteMemoryBW(sktstate1[i], sktstate2[i]);
-
-                cout << "     " << temp_format(sktstate2[i].getThermalHeadroom()) << "\n";
+                print_other_metrics(m, sktstate1[i], sktstate2[i]);
             }
         }
     }
@@ -807,6 +805,17 @@ void print_basic_metrics_csv(const PCM * m, const State & state1, const State & 
         cout << ";";
 }
 
+template <class State>
+void print_other_metrics_csv(const PCM * m, const State & state1, const State & state2)
+{
+    if (m->L3CacheOccupancyMetricAvailable())
+        cout << ';' << l3cache_occ_format(getL3CacheOccupancy(state2));
+    if (m->CoreLocalMemoryBWMetricAvailable())
+        cout << ';' << getLocalMemoryBW(state1, state2);
+    if (m->CoreRemoteMemoryBWMetricAvailable())
+        cout << ';' << getRemoteMemoryBW(state1, state2);
+}
+
 void print_csv(PCM * m,
     const std::vector<CoreCounterState> & cstates1,
     const std::vector<CoreCounterState> & cstates2,
@@ -890,12 +899,7 @@ void print_csv(PCM * m,
         for (uint32 i = 0; i < m->getNumSockets(); ++i)
         {
             print_basic_metrics_csv(m, sktstate1[i], sktstate2[i], false);
-            if (m->L3CacheOccupancyMetricAvailable())
-                cout << ';' << l3cache_occ_format(getL3CacheOccupancy(sktstate2[i]));
-            if (m->CoreLocalMemoryBWMetricAvailable())
-                cout << ';' << getLocalMemoryBW(sktstate1[i], sktstate2[i]);
-            if (m->CoreRemoteMemoryBWMetricAvailable())
-                cout << ';' << getRemoteMemoryBW(sktstate1[i], sktstate2[i]) ;
+            print_other_metrics_csv(m, sktstate1[i], sktstate2[i]);
             if (m->memoryTrafficMetricsAvailable())
                 cout << ';' << getBytesReadFromMC(sktstate1[i], sktstate2[i]) / double(1e9) <<
                     ';' << getBytesWrittenToMC(sktstate1[i], sktstate2[i]) / double(1e9);
@@ -970,12 +974,7 @@ void print_csv(PCM * m,
         for (uint32 i = 0; i < m->getNumCores(); ++i)
         {
             print_basic_metrics_csv(m, cstates1[i], cstates2[i], false);
-            if (m->L3CacheOccupancyMetricAvailable())
-                cout << ';' << l3cache_occ_format(getL3CacheOccupancy(cstates2[i]));
-            if (m->CoreLocalMemoryBWMetricAvailable())
-                cout << ';' << getLocalMemoryBW(cstates1[i], cstates2[i]);
-            if (m->CoreRemoteMemoryBWMetricAvailable())
-                cout << ';' << getRemoteMemoryBW(cstates1[i], cstates2[i]);
+            print_other_metrics_csv(m, cstates1[i], cstates2[i]);
             cout << ';';
 
             for (int s = 0; s <= PCM::MAX_C_STATE; ++s)
