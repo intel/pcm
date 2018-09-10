@@ -47,11 +47,12 @@ namespace PCMDaemon {
 		readApplicationArguments(argc, argv);
 		setupSharedMemory();
 		setupPCM();
-		
+
 		//Put the poll interval in shared memory so that the client knows
 		sharedPCMState_->pollMs = pollIntervalMs_;
 
 		updatePCMState(&systemStatesBefore_, &socketStatesBefore_, &coreStatesBefore_);
+		systemStatesForQPIBefore_ = SystemCounterState(systemStatesBefore_);
 
 		serverUncorePowerStatesBefore_ = new ServerUncorePowerState[pcmInstance_->getNumSockets()];
 		serverUncorePowerStatesAfter_ = new ServerUncorePowerState[pcmInstance_->getNumSockets()];
@@ -119,30 +120,13 @@ namespace PCMDaemon {
 		    conf.nGPCounters = numOfCustomCounters;
 		    conf.gpCounterCfg = regs;
 
-		    // TODO: This needs to be abstracted somewhere else
-		    switch (pcmInstance_->getCPUModel())
-		    {
-		    case PCM::WESTMERE_EX:
-		        conf.OffcoreResponseMsrValue[0] = 0x40FF;                // OFFCORE_RESPONSE.ANY_REQUEST.LOCAL_DRAM:  Offcore requests satisfied by the local DRAM
-		        conf.OffcoreResponseMsrValue[1] = 0x20FF;                // OFFCORE_RESPONSE.ANY_REQUEST.REMOTE_DRAM: Offcore requests satisfied by a remote DRAM
-		        break;
-		    case PCM::JAKETOWN:
-		    case PCM::IVYTOWN:
-		        conf.OffcoreResponseMsrValue[0] = 0x780400000 | 0x08FFF; // OFFCORE_RESPONSE.*.LOCAL_DRAM
-		        conf.OffcoreResponseMsrValue[1] = 0x7ff800000 | 0x08FFF; // OFFCORE_RESPONSE.*.REMOTE_DRAM
-		        break;
-		    case PCM::HASWELLX:
-		        conf.OffcoreResponseMsrValue[0] = 0x600400000 | 0x08FFF; // OFFCORE_RESPONSE.*.LOCAL_DRAM
-		        conf.OffcoreResponseMsrValue[1] = 0x63f800000 | 0x08FFF; // OFFCORE_RESPONSE.*.REMOTE_DRAM
-		        break;
-		    case PCM::BDX:
-		        conf.OffcoreResponseMsrValue[0] = 0x0604008FFF; // OFFCORE_RESPONSE.*.LOCAL_DRAM
-		        conf.OffcoreResponseMsrValue[1] = 0x067BC08FFF; // OFFCORE_RESPONSE.*.REMOTE_DRAM
-		        break;
-		    default:
+			try {
+				pcmInstance_->setupCustomCoreEventsForNuma(conf);
+			}
+			catch (UnsupportedProcessorException& e) {
 		        std::cerr << std::endl << "PCM daemon does not support your processor currently." << std::endl << std::endl;
 		        exit(EXIT_FAILURE);
-		    }
+			}
 
 			// Set default values for event select registers
 			for (uint32 i(0); i < numOfCustomCounters; ++i)
@@ -264,7 +248,14 @@ namespace PCMDaemon {
 						printExampleUsageAndExit(argv);
 					}
 
-					std::cout << "Operational mode: " << mode_ << std::endl;
+					std::cout << "Operational mode: " << mode_ << " (";
+
+					if(mode_ == Mode::DIFFERENCE)
+						std::cout << "difference";
+					else if(mode_ == Mode::ABSOLUTE)
+						std::cout << "absolute";
+
+					std::cout << ")" << std::endl;
 				}
 				break;
 			case 's':
@@ -285,7 +276,7 @@ namespace PCMDaemon {
 			printExampleUsageAndExit(argv);
 		}
 
-		std::cout << "PCM Daemon version: " << VERSION << std::endl;
+		std::cout << "PCM Daemon version: " << VERSION << std::endl << std::endl;
 	}
 
 	void Daemon::printExampleUsageAndExit(char *argv[])
@@ -298,7 +289,7 @@ namespace PCMDaemon {
 		std::cerr << "Example usage: " << argv[0] << " -p 250 -c all -g pcm -m absolute" << std::endl;
 		std::cerr << "Poll every 250ms. Fetch all counters (core, numa & memory)." << std::endl;
 		std::cerr << "Restrict access to user group 'pcm'. Store absolute values on each poll interval" << std::endl << std::endl;
-		
+
 		std::cerr << "-p <milliseconds> for poll frequency" << std::endl;
 		std::cerr << "-c <counter> to request specific counters (Allowed counters: all ";
 
@@ -336,7 +327,7 @@ namespace PCMDaemon {
 			exit(EXIT_FAILURE);
 		}
 
-		//Store shm id in SHM_KEY_LOCATION file
+		//Store shm id in a file (shmIdLocation_)
 		FILE *fp = fopen (shmIdLocation_.c_str(), "w");
 		if (fp < 0)
 		{
@@ -382,7 +373,7 @@ namespace PCMDaemon {
 		std::memset(sharedPCMState_, 0, sizeof(SharedPCMState));
 	}
 
-	gid_t Daemon::resolveGroupName(std::string& groupName)
+	gid_t Daemon::resolveGroupName(const std::string& groupName)
 	{
 		struct group* group = getgrnam(groupName.c_str());
 
@@ -400,8 +391,7 @@ namespace PCMDaemon {
 		memcpy (sharedPCMState_->version, VERSION, sizeof(VERSION));
 		sharedPCMState_->version[sizeof(VERSION)] = '\0';
 
-		sharedPCMState_->lastUpdateTsc = RDTSC();
-		sharedPCMState_->timestamp = getTimestamp();
+		uint64 rdtscNow = RDTSC();
 
 		updatePCMState(&systemStatesAfter_, &socketStatesAfter_, &coreStatesAfter_);
 
@@ -415,16 +405,25 @@ namespace PCMDaemon {
 		{
 			getPCMMemory();
 		}
-		if(subscribers_.find("qpi") != subscribers_.end())
+		bool fetchQPICounters = subscribers_.find("qpi") != subscribers_.end();
+		if(fetchQPICounters)
 		{
 			getPCMQPI();
 		}
 
-		sharedPCMState_->cyclesToGetPCMState = RDTSC() - sharedPCMState_->lastUpdateTsc;
+		sharedPCMState_->cyclesToGetPCMState = RDTSC() - rdtscNow;
+		sharedPCMState_->timestamp = getTimestamp();
 
+		// As the client polls this timestamp (lastUpdateTsc)
+		// All the data has to be in shm before
+		sharedPCMState_->lastUpdateTsc = rdtscNow;
 		if(mode_ == Mode::DIFFERENCE)
 		{
 			swapPCMBeforeAfterState();
+		}
+		if(fetchQPICounters)
+		{
+			systemStatesForQPIBefore_ = SystemCounterState(systemStatesAfter_);
 		}
 
 		std::swap(collectionTimeBefore_, collectionTimeAfter_);
@@ -471,8 +470,8 @@ namespace PCMDaemon {
 
 		const uint32 numCores = sharedPCMState_->pcm.system.numOfCores;
 
-		uint32 onlineCoresI = 0;
-		for(uint32 coreI = 0; coreI < numCores ; ++coreI)
+		uint32 onlineCoresI(0);
+		for(uint32 coreI(0); coreI < numCores ; ++coreI)
 		{
 			if(!pcmInstance_->isCoreOnline(coreI))
 				continue;
@@ -573,7 +572,7 @@ namespace PCMDaemon {
 		float iMC_Wr_socket[MAX_SOCKETS];
 		uint64 partial_write[MAX_SOCKETS];
 
-		for(uint32 skt = 0; skt < numSockets; ++skt)
+		for(uint32 skt(0); skt < numSockets; ++skt)
 		{
 			iMC_Rd_socket[skt] = 0.0;
 			iMC_Wr_socket[skt] = 0.0;
@@ -581,9 +580,10 @@ namespace PCMDaemon {
 
 			for(uint32 channel(0); channel < MEMORY_MAX_IMC_CHANNELS; ++channel)
 			{
+				//In case of JKT-EN, there are only three channels. Skip one and continue.
 				bool memoryReadAvailable = getMCCounter(channel,MEMORY_READ,serverUncorePowerStatesBefore_[skt],serverUncorePowerStatesAfter_[skt]) == 0.0;
 				bool memoryWriteAvailable = getMCCounter(channel,MEMORY_WRITE,serverUncorePowerStatesBefore_[skt],serverUncorePowerStatesAfter_[skt]) == 0.0;
-				if(memoryReadAvailable && memoryWriteAvailable) //In case of JKT-EN, there are only three channels. Skip one and continue.
+				if(memoryReadAvailable && memoryWriteAvailable)
 				{
 					iMC_Rd_socket_chan[skt][channel] = -1.0;
 					iMC_Wr_socket_chan[skt][channel] = -1.0;
@@ -603,8 +603,8 @@ namespace PCMDaemon {
 	    float systemRead(0.0);
 	    float systemWrite(0.0);
 
-	    uint32 onlineSocketsI = 0;
-	    for(uint32 skt = 0; skt < numSockets; ++skt)
+	    uint32 onlineSocketsI(0);
+	    for(uint32 skt (0); skt < numSockets; ++skt)
 		{
 			if(!pcmInstance_->isSocketOnline(skt))
 				continue;
@@ -612,7 +612,8 @@ namespace PCMDaemon {
 			uint64 currentChannelI(0);
 	    	for(uint64 channel(0); channel < MEMORY_MAX_IMC_CHANNELS; ++channel)
 			{
-				if(iMC_Rd_socket_chan[0][skt*MEMORY_MAX_IMC_CHANNELS+channel] < 0.0 && iMC_Wr_socket_chan[0][skt*MEMORY_MAX_IMC_CHANNELS+channel] < 0.0) //If the channel read neg. value, the channel is not working; skip it.
+				//If the channel read neg. value, the channel is not working; skip it.
+				if(iMC_Rd_socket_chan[0][skt*MEMORY_MAX_IMC_CHANNELS+channel] < 0.0 && iMC_Wr_socket_chan[0][skt*MEMORY_MAX_IMC_CHANNELS+channel] < 0.0)
 					continue;
 
 				float socketChannelRead = iMC_Rd_socket_chan[0][skt*MEMORY_MAX_IMC_CHANNELS+channel];
@@ -657,7 +658,7 @@ namespace PCMDaemon {
 		qpi.incomingQPITrafficMetricsAvailable = pcmInstance_->incomingQPITrafficMetricsAvailable();
 		if (qpi.incomingQPITrafficMetricsAvailable)
 		{
-			uint32 onlineSocketsI = 0;
+			uint32 onlineSocketsI(0);
 			for (uint32 i(0); i < numSockets; ++i)
 			{
 				if(!pcmInstance_->isSocketOnline(i))
@@ -670,7 +671,7 @@ namespace PCMDaemon {
 				{
 					uint64 bytes = getIncomingQPILinkBytes(i, l, systemStatesBefore_, systemStatesAfter_);
 					qpi.incoming[onlineSocketsI].links[l].bytes = bytes;
-					qpi.incoming[onlineSocketsI].links[l].utilization = getIncomingQPILinkUtilization(i, l, systemStatesBefore_, systemStatesAfter_);
+					qpi.incoming[onlineSocketsI].links[l].utilization = getIncomingQPILinkUtilization(i, l, systemStatesForQPIBefore_, systemStatesAfter_);
 
 					total+=bytes;
 				}
@@ -685,7 +686,7 @@ namespace PCMDaemon {
 		qpi.outgoingQPITrafficMetricsAvailable = pcmInstance_->outgoingQPITrafficMetricsAvailable();
 		if (qpi.outgoingQPITrafficMetricsAvailable)
 		{
-			uint32 onlineSocketsI = 0;
+			uint32 onlineSocketsI(0);
 			for (uint32 i(0); i < numSockets; ++i)
 			{
 				if(!pcmInstance_->isSocketOnline(i))
@@ -698,7 +699,7 @@ namespace PCMDaemon {
 				{
 					uint64 bytes = getOutgoingQPILinkBytes(i, l, systemStatesBefore_, systemStatesAfter_);
 					qpi.outgoing[onlineSocketsI].links[l].bytes = bytes;
-					qpi.outgoing[onlineSocketsI].links[l].utilization = getOutgoingQPILinkUtilization(i, l, systemStatesBefore_, systemStatesAfter_);
+					qpi.outgoing[onlineSocketsI].links[l].utilization = getOutgoingQPILinkUtilization(i, l, systemStatesForQPIBefore_, systemStatesAfter_);
 
 					total+=bytes;
 				}
@@ -717,7 +718,7 @@ namespace PCMDaemon {
 
 		clock_gettime(CLOCK_MONOTONIC_RAW, &now);
 
-		uint64 epoch = (uint64)now.tv_sec * 10E9;
+		uint64 epoch = (uint64)now.tv_sec * 1E9;
 		epoch+=(uint64)now.tv_nsec;
 
 		return epoch;

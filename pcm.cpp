@@ -139,6 +139,7 @@ void print_output(PCM * m,
         cout << " L2MPI : number of L2 cache misses per instruction\n";
     if (cpu_model != PCM::ATOM) cout << " READ  : bytes read from main memory controller (in GBytes)" << "\n";
     if (cpu_model != PCM::ATOM) cout << " WRITE : bytes written to main memory controller (in GBytes)" << "\n";
+    if (m->LLCReadMissLatencyMetricsAvailable()) cout << "LLCRDMISSLAT: average latency of last level cache miss for reads and prefetches (in ns)";
     if (m->DDRTTrafficMetricsAvailable()) cout << " DDR-T RD : bytes read from DDR-T memory (in GBytes)" << "\n";
     if (m->DDRTTrafficMetricsAvailable()) cout << " DDR-T WR : bytes written to DDR-T memory (in GBytes)" << "\n";
     if (m->MCDRAMmemoryTrafficMetricsAvailable()) cout << " MCDRAM READ  : bytes read from MCDRAM controller (in GBytes)" << "\n";
@@ -413,7 +414,9 @@ void print_output(PCM * m,
         if (m->packageEnergyMetricsAvailable())
             cout << " CPU energy |";
         if (m->dramEnergyMetricsAvailable())
-            cout << " DIMM energy";
+            cout << " DIMM energy |";
+        if (m->LLCReadMissLatencyMetricsAvailable())
+            cout << " LLCRDMISSLAT (ns)";
         cout << "\n";
         cout << longDiv;
         for (uint32 i = 0; i < m->getNumSockets(); ++i)
@@ -438,6 +441,10 @@ void print_output(PCM * m,
                 if(m->dramEnergyMetricsAvailable()) {
                   cout << setw(6) << getDRAMConsumedJoules(sktstate1[i], sktstate2[i]);
                 }
+                cout << "         ";
+                if (m->LLCReadMissLatencyMetricsAvailable()) {
+                  cout << setw(6) << getLLCReadMissLatency(sktstate1[i], sktstate2[i]);
+                }
                 cout << "\n";
         }
         cout << longDiv;
@@ -458,6 +465,10 @@ void print_output(PCM * m,
             cout << "     ";
             if (m->dramEnergyMetricsAvailable()) {
                 cout << setw(6) << getDRAMConsumedJoules(sstate1, sstate2);
+            }
+            cout << "         ";
+            if (m->LLCReadMissLatencyMetricsAvailable()) {
+                cout << setw(6) << getLLCReadMissLatency(sstate1, sstate2);
             }
             cout << "\n";
         }
@@ -509,6 +520,8 @@ void print_csv_header(PCM * m,
         if (m->packageEnergyMetricsAvailable())
             cout << ";";
         if (m->dramEnergyMetricsAvailable())
+            cout << ";";
+        if (m->LLCReadMissLatencyMetricsAvailable())
             cout << ";";
     }
 
@@ -600,6 +613,12 @@ void print_csv_header(PCM * m,
             for (uint32 i = 0; i < m->getNumSockets(); ++i)
                 cout << ";";
         }
+        if (m->LLCReadMissLatencyMetricsAvailable())
+        {
+            cout << "LLCRDMISSLAT (ns)";
+            for (uint32 i = 0; i < m->getNumSockets(); ++i)
+                cout << ";";
+        }
     }
 
     if (show_core_output)
@@ -663,6 +682,8 @@ void print_csv_header(PCM * m,
             cout << "Proc Energy (Joules);";
         if (m->dramEnergyMetricsAvailable())
             cout << "DRAM Energy (Joules);";
+        if (m->LLCReadMissLatencyMetricsAvailable())
+            cout << "LLCRDMISSLAT (ns);";
     }
 
 
@@ -744,6 +765,11 @@ void print_csv_header(PCM * m,
                 cout << "SKT" << i << ";";
         }
         if (m->dramEnergyMetricsAvailable())
+        {
+            for (uint32 i = 0; i < m->getNumSockets(); ++i)
+                cout << "SKT" << i << ";";
+        }
+        if (m->LLCReadMissLatencyMetricsAvailable())
         {
             for (uint32 i = 0; i < m->getNumSockets(); ++i)
                 cout << "SKT" << i << ";";
@@ -868,6 +894,8 @@ void print_csv(PCM * m,
             cout << getConsumedJoules(sstate1, sstate2) << ";";
         if (m->dramEnergyMetricsAvailable())
             cout << getDRAMConsumedJoules(sstate1, sstate2) << ";";
+        if (m->LLCReadMissLatencyMetricsAvailable())
+            cout << getLLCReadMissLatency(sstate1, sstate2) << ";";
     }
 
     if (show_socket_output)
@@ -970,6 +998,11 @@ void print_csv(PCM * m,
         {
             for (uint32 i = 0; i < m->getNumSockets(); ++i)
                 cout << getDRAMConsumedJoules(sktstate1[i], sktstate2[i]) << " ;";
+        }
+        if (m->LLCReadMissLatencyMetricsAvailable())
+        {
+            for (uint32 i = 0; i < m->getNumSockets(); ++i)
+                cout << getLLCReadMissLatency(sktstate1[i], sktstate2[i]) << " ;";
         }
     }
 
@@ -1118,7 +1151,7 @@ int main(int argc, char * argv[])
             continue;
         }
         else
-        if (strncmp(*argv, "--nosystem", 9) == 0 ||
+        if (strncmp(*argv, "--nosystem", 10) == 0 ||
             strncmp(*argv, "-nsys", 5) == 0 ||
             strncmp(*argv, "/nsys", 5) == 0)
         {

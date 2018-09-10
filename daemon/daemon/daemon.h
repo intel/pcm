@@ -38,7 +38,7 @@ namespace PCMDaemon {
 		void readApplicationArguments(int argc, char *argv[]);
 		void printExampleUsageAndExit(char *argv[]);
 		void setupSharedMemory();
-		gid_t resolveGroupName(std::string& groupName);
+		gid_t resolveGroupName(const std::string& groupName);
 		void getPCMCounters();
 		void updatePCMState(SystemCounterState* systemStates, std::vector<SocketCounterState>* socketStates, std::vector<CoreCounterState>* coreStates);
 		void swapPCMBeforeAfterState();
@@ -65,7 +65,7 @@ namespace PCMDaemon {
 		uint64 collectionTimeBefore_, collectionTimeAfter_;
 		std::vector<CoreCounterState> coreStatesBefore_, coreStatesAfter_;
 		std::vector<SocketCounterState> socketStatesBefore_, socketStatesAfter_;
-		SystemCounterState systemStatesBefore_, systemStatesAfter_;
+		SystemCounterState systemStatesBefore_, systemStatesForQPIBefore_, systemStatesAfter_;
 		ServerUncorePowerState* serverUncorePowerStatesBefore_;
 		ServerUncorePowerState* serverUncorePowerStatesAfter_;
 	};

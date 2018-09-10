@@ -24,6 +24,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #endif
 #include <fstream>
 #include <stdlib.h>
+#include <stdexcept>      // std::length_error
 #include <cstdint>
 #include <numeric>
 #include <algorithm>
@@ -130,6 +131,7 @@ vector<string> combine_stack_name_and_counter_names(string stack_name)
         v.push_back(tmp[i]);
     }
 
+	delete[] tmp;
     return v;
 }
 
@@ -151,8 +153,8 @@ vector<struct data> prepare_data(const vector<uint64_t> &values, const vector<st
 string build_pci_header(const PCIDB & pciDB, uint32_t column_width, struct pci p, int part = -1, uint32_t level = 0)
 {
     string s = "|";
-    char bdf_buf[8];
-    char speed_buf[9];
+    char bdf_buf[10];
+    char speed_buf[10];
     char vid_did_buf[10];
     char device_name_buf[128];
 

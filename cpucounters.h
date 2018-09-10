@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2009-2013, Intel Corporation
+Copyright (c) 2009-2017, Intel Corporation
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -33,6 +33,8 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include "pci.h"
 #include "client_bw.h"
 #include "width_extender.h"
+#include "exceptions/unsupported_processor_exception.hpp"
+
 #include <vector>
 #include <limits>
 #include <string>
@@ -270,6 +272,7 @@ class PCM_API PCM
     int32 cpu_family;
     int32 cpu_model, original_cpu_model;
     int32 cpu_stepping;
+    int32 max_cpuid;
     int32 threads_per_core;
     int32 num_cores;
     int32 num_sockets;
@@ -312,6 +315,7 @@ class PCM_API PCM
     double joulesPerEnergyUnit;
     std::vector<std::shared_ptr<CounterWidthExtender> > energy_status;
     std::vector<std::shared_ptr<CounterWidthExtender> > dram_energy_status;
+    std::vector<std::vector<std::vector<std::shared_ptr<CounterWidthExtender> > > > CBoCounters;
 
     std::vector<std::shared_ptr<CounterWidthExtender> > memory_bw_local;
     std::vector<std::shared_ptr<CounterWidthExtender> > memory_bw_total;
@@ -574,6 +578,7 @@ private:
     void readAndAggregatePackageCStateResidencies(std::shared_ptr<SafeMsrHandle> msr, CounterStateType & result);
     void readQPICounters(SystemCounterState & counterState);
     void reportQPISpeed() const;
+    void readCoreCounterConfig();
 
     uint64 CX_MSR_PMON_CTRY(uint32 Cbo, uint32 Ctr) const;
     uint64 CX_MSR_PMON_BOX_FILTER(uint32 Cbo) const;
@@ -581,7 +586,9 @@ private:
     uint64 CX_MSR_PMON_CTLY(uint32 Cbo, uint32 Ctl) const;
     uint64 CX_MSR_PMON_BOX_CTL(uint32 Cbo) const;
     uint32 getMaxNumOfCBoxes() const;
-    void programCboOpcodeFilter(const uint32 opc, const uint32 cbo, std::shared_ptr<SafeMsrHandle> msr, const uint32 nc_ = 0);
+    void programCboOpcodeFilter(const uint32 opc0, const uint32 cbo, std::shared_ptr<SafeMsrHandle> msr, const uint32 nc_ = 0, const uint32 opc1 = 0);
+    void programLLCReadMissLatencyEvents();
+    uint64 getCBOCounterState(const uint32 socket, const uint32 ctr_);
 
 public:
     /*!
@@ -822,6 +829,10 @@ public:
      */
     bool isSomeCoreOfflined();
 
+    /*! \brief Returns the maximum number of custom (general-purpose) core events supported by CPU
+    */
+    int32 getMaxCustomCoreEvents();
+
     //! \brief Identifiers of supported CPU models
     enum SupportedCPUModels
     {
@@ -1041,6 +1052,8 @@ public:
     //! \return time counter value
     uint64 getTickCountRDTSCP(uint64 multiplier = 1000 /* ms */);
 
+    //! \brief Returns uncore clock ticks on specified socket
+    uint64 getUncoreClocks(const uint32 socket_);
 
     //! \brief Return QPI Link Speed in GBytes/second
     //! \warning Works only for Nehalem-EX (Xeon 7500) and Xeon E7 and E5 processors
@@ -1259,6 +1272,20 @@ public:
             cpu_model == PCM::SKX
             );
     }
+    
+    bool LLCReadMissLatencyMetricsAvailable() const
+    {
+        return (
+               HASWELLX == cpu_model
+            || BDX_DE == cpu_model
+            || BDX == cpu_model
+#ifdef PCM_ENABLE_LLCRDLAT_SKX_MP
+            || SKX == cpu_model
+#else
+            || ((SKX == cpu_model) && (num_sockets == 1))
+#endif
+               );
+    }
 
     bool hasBecktonUncore() const
     {
@@ -1367,6 +1394,10 @@ public:
     {
         return getBytesPerLinkCycle() / getLinkTransfersPerLinkCycle();
     }
+
+    //! \brief Setup ExtendedCustomCoreEventDescription object to read offcore (numa) counters for each processor type
+    //! \param conf conf object to setup offcore MSR values
+    void setupCustomCoreEventsForNuma(PCM::ExtendedCustomCoreEventDescription& conf) const;
 
     ~PCM();
 };
@@ -1750,7 +1781,6 @@ double getDRAMConsumedJoules(const CounterStateType & before, const CounterState
     return double(getDRAMConsumedEnergy(before, after)) * dram_joules_per_energy_unit;
 }
 
-
 //! \brief Basic uncore counter state
 //!
 //! Intended only for derivation, but not for the direct use
@@ -1777,6 +1807,8 @@ class UncoreCounterState
     friend uint64 getDRAMConsumedEnergy(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
     friend double getPackageCStateResidency(int state, const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
+    friend double getLLCReadMissLatency(const CounterStateType & before, const CounterStateType & after);
 
 protected:
     uint64 UncMCFullWrites;
@@ -1788,6 +1820,9 @@ protected:
     uint64 UncMCIORequests;
     uint64 PackageEnergyStatus;
     uint64 DRAMEnergyStatus;
+    uint64 TOROccupancyIAMiss;
+    uint64 TORInsertsIAMiss;
+    uint64 UncClocks;
     uint64 CStateResidency[PCM::MAX_C_STATE + 1];
     void readAndAggregate(std::shared_ptr<SafeMsrHandle>);
 
@@ -1801,7 +1836,10 @@ public:
         UncEDCNormalReads(0),
         UncMCIORequests(0),
         PackageEnergyStatus(0),
-        DRAMEnergyStatus(0)
+        DRAMEnergyStatus(0),
+        TOROccupancyIAMiss(0),
+        TORInsertsIAMiss(0),
+        UncClocks(0)
     {
         memset(CStateResidency, 0, sizeof(CStateResidency));
     }
@@ -1818,6 +1856,9 @@ public:
         UncMCIORequests += o.UncMCIORequests;
         PackageEnergyStatus += o.PackageEnergyStatus;
         DRAMEnergyStatus += o.DRAMEnergyStatus;
+        TOROccupancyIAMiss += o.TOROccupancyIAMiss;
+        TORInsertsIAMiss += o.TORInsertsIAMiss;
+        UncClocks += o.UncClocks;
         for (int i = 0; i <= (int)PCM::MAX_C_STATE; ++i)
             CStateResidency[i] += o.CStateResidency[i];
         return *this;
@@ -2842,6 +2883,18 @@ template <class CounterType>
 inline uint64 getNumberOfEvents(const CounterType & before, const CounterType & after)
 {
     return after.data - before.data;
+}
+//! \brief Returns average last level cache read+prefetch miss latency in ns
+
+template <class CounterStateType>
+inline double getLLCReadMissLatency(const CounterStateType & before, const CounterStateType & after)
+{
+    const double occupancy = double(after.TOROccupancyIAMiss) - double(before.TOROccupancyIAMiss);
+    const double inserts = double(after.TORInsertsIAMiss) - double(before.TORInsertsIAMiss);
+    const double unc_clocks = double(after.UncClocks) - double(before.UncClocks);
+    auto * m = PCM::getInstance();
+    const double seconds = double(getInvariantTSC(before, after)) / double(m->getNumCores()/m->getNumSockets()) / double(m->getNominalFrequency());
+    return 1e9*seconds*(occupancy/inserts)/unc_clocks;
 }
 
 #endif

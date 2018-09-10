@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2012, Intel Corporation
+Copyright (c) 2012, 2018 Intel Corporation
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -39,10 +39,9 @@ uint64 read_number(char * str)
 
 void print_usage(const char * progname)
 {
-    std::cout << "Usage " << progname << " [-w value] [-c core] [-d] msr\n\n";
-    std::cout << "  Reads specified msr (model specific register) \n";
+    std::cout << "Usage " << progname << " [-w value] [-d] group bus device function offset\n\n";
+    std::cout << "  Reads/writes 32-bit PCICFG register \n";
     std::cout << "   -w value : write the value before reading \n";
-    std::cout << "   -c core  : perform msr read/write on specified core (default is 0)\n";
     std::cout << "   -d       : output all numbers in dec (default is hex)\n";
     std::cout << "\n";
 }
@@ -51,25 +50,26 @@ int main(int argc, char * argv[])
 {
     std::cout << "\n Processor Counter Monitor " << PCM_VERSION << std::endl;
 
-    std::cout << "\n MSR read/write utility\n\n";
+    std::cout << "\n PCICFG read/write utility\n\n";
 
-    uint64 value = 0;
+    #ifdef __linux__
+    #ifndef PCM_USE_PCI_MM_LINUX
+    std::cout << "\n To access *extended* configuration space recompile with -DPCM_USE_PCI_MM_LINUX option.\n";
+    #endif
+    #endif
+
+    uint32 value = 0;
     bool write = false;
-    int core = 0;
-    int msr = -1;
     bool dec = false;
 
     int my_opt = -1;
-    while ((my_opt = getopt(argc, argv, "w:c:d")) != -1)
+    while ((my_opt = getopt(argc, argv, "w:d")) != -1)
     {
         switch (my_opt)
         {
         case 'w':
             write = true;
             value = read_number(optarg);
-            break;
-        case 'c':
-            core = (int)read_number(optarg);
             break;
         case 'd':
             dec = true;
@@ -80,13 +80,17 @@ int main(int argc, char * argv[])
         }
     }
 
-    if (optind >= argc)
+    if (optind + 4 >= argc)
     {
         print_usage(argv[0]);
         return -1;
     }
 
-    msr = (int)read_number(argv[optind]);
+    int group = (int)read_number(argv[optind]);
+    int bus = (int)read_number(argv[optind + 1]);
+    int device = (int)read_number(argv[optind+2]);
+    int function = (int)read_number(argv[optind+3]);
+    int offset = (int)read_number(argv[optind+4]);
 
     #ifdef _MSC_VER
     // Increase the priority a bit to improve context switching delays on Windows
@@ -107,29 +111,20 @@ int main(int argc, char * argv[])
     }
     #endif
     try {
-        MsrHandle h(core);
+        PciHandleType h(group, bus, device, function);
         if (!dec) std::cout << std::hex << std::showbase;
         if (write)
         {
-            std::cout << " Writing " << value << " to MSR " << msr << " on core " << core << std::endl;
-            if(h.write(msr, value) != 8)
-            {
-                std::cout << " Write error!" << std::endl;
-            }
+            std::cout << " Writing " << value << " to " << group << ":"<<bus<<":"<<device<<":"<< function<<"@"<<offset  << std::endl;
+            h.write32(offset, value);
         }
         value = 0;
-        if(h.read(msr, &value) == 8)
-        {
-            std::cout << " Read value " << value << " from MSR " << msr << " on core " << core << "\n" << std::endl;
-        }
-        else
-        {
-            std::cout << " Read error!" << std::endl;
-        }
+        h.read32(offset, &value);
+        std::cout << " Read value " << value << " from " << group << ":"<<bus<<":"<<device<<":"<< function<<"@"<<offset << "\n" << std::endl;
     }
     catch (std::exception & e)
     {
-        std::cerr << "Error accessing MSRs: " << e.what() << std::endl;
-        std::cerr << "Please check if the program can access MSR drivers." << std::endl;
+        std::cerr << "Error accessing registers: " << e.what() << std::endl;
+        std::cerr << "Please check if the program can access MSR/PCICFG drivers." << std::endl;
     }
 }

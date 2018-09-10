@@ -80,7 +80,7 @@ extern "C" {
 	{
 		PCM * m = PCM::getInstance();
 		conf.fixedCfg = NULL; // default
-		conf.nGPCounters = 4;
+		conf.nGPCounters = m->getMaxCustomCoreEvents();
 		conf.gpCounterCfg = regs;
 		conf.OffcoreResponseMsrValue[0] = events[0].msr_value;
 		conf.OffcoreResponseMsrValue[1] = events[1].msr_value;
@@ -299,11 +299,12 @@ int main(int argc, char * argv[])
 	// be programmed even without given arguments so making really sure
 	memset( &regs, 0, sizeof(regs) );
 
-	conf.fixedCfg = NULL; // default
-	conf.nGPCounters = 4;
-	conf.gpCounterCfg = regs;
 
-	PCM * m = PCM::getInstance();
+    PCM * m = PCM::getInstance();
+
+	conf.fixedCfg = NULL; // default
+	conf.nGPCounters = m->getMaxCustomCoreEvents();
+	conf.gpCounterCfg = regs;
 
 	if(argc > 1) do
 	{
@@ -400,8 +401,8 @@ int main(int argc, char * argv[])
 		{
 			argv++;
 			argc--;
-			if(cur_event >= 4 ) {
-				cerr << "At most 4 events are allowed"<< endl;
+			if(cur_event >= conf.nGPCounters) {
+				cerr << "At most " << conf.nGPCounters << " events are allowed"<< endl;
 				exit(EXIT_FAILURE);
 			}
 			try {
