@@ -691,7 +691,6 @@ void print_csv_header(PCM * m,
         for (uint32 i = 0; i < m->getNumSockets(); ++i)
         {
              print_basic_metrics_csv_header(m);
-             }
              if (m->L3CacheOccupancyMetricAvailable())
                  cout << "L3OCC;";
              if (m->CoreLocalMemoryBWMetricAvailable())
