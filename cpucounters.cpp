@@ -646,6 +646,7 @@ void PCM::initCStateSupportTables()
         case SKL:
         case SKL_UY:
         case KBL:
+        case KBL_1:
         case BROADWELL_XEON_E3:
             PCM_CSTATE_ARRAY(pkgCStateMsr, PCM_PARAM_PROTECT({0, 0, 0x60D, 0x3F8, 0, 0, 0x3F9, 0x3FA, 0x630, 0x631, 0x632}) );
 
@@ -688,6 +689,7 @@ void PCM::initCStateSupportTables()
         case SKL_UY:
         case SKL:
         case KBL:
+        case KBL_1:
             PCM_CSTATE_ARRAY(coreCStateMsr, PCM_PARAM_PROTECT({0, 0, 0, 0x3FC, 0, 0, 0x3FD, 0x3FE, 0, 0, 0}) );
         case KNL:
             PCM_CSTATE_ARRAY(coreCStateMsr, PCM_PARAM_PROTECT({0, 0, 0, 0, 0, 0, 0x3FF, 0, 0, 0, 0}) );
