@@ -1554,6 +1554,16 @@ PCM::PCM() :
     blocked(false),
     coreCStateMsr(NULL),
     pkgCStateMsr(NULL),
+    L2CacheHitRatioAvailable(false),
+    L3CacheHitRatioAvailable(false),
+    L3CacheMissesAvailable(false),
+    L2CacheMissesAvailable(false),
+    L2CacheHitsAvailable(false),
+    L3CacheHitsNoSnoopAvailable(false),
+    L3CacheHitsSnoopAvailable(false),
+    L3CacheHitsAvailable(false),
+    CyclesLostDueL3CacheMissesAvailable(false),
+    CyclesLostDueL2CacheMissesAvailable(false),
     mode(INVALID_MODE),
     numInstancesSemaphore(NULL),
     canUsePerf(false),
@@ -1933,6 +1943,9 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
                 coreEventDesc[0].umask_value = ARCH_LLC_MISS_UMASK;
                 coreEventDesc[1].event_number = ARCH_LLC_REFERENCE_EVTNR;
                 coreEventDesc[1].umask_value = ARCH_LLC_REFERENCE_UMASK;
+                L2CacheHitRatioAvailable = true;
+                L2CacheMissesAvailable = true;
+                L2CacheHitsAvailable = true;
                 core_gen_counter_num_used = 2;
                 break;
             case SKL:
@@ -1947,6 +1960,14 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
                 coreEventDesc[2].umask_value = SKL_MEM_LOAD_RETIRED_L2_MISS_UMASK;
                 coreEventDesc[3].event_number = SKL_MEM_LOAD_RETIRED_L2_HIT_EVTNR;
                 coreEventDesc[3].umask_value = SKL_MEM_LOAD_RETIRED_L2_HIT_UMASK;
+                L2CacheHitRatioAvailable = true;
+                L3CacheHitRatioAvailable = true;
+                L3CacheMissesAvailable = true;
+                L2CacheMissesAvailable = true;
+                L2CacheHitsAvailable = true;
+                L3CacheHitsNoSnoopAvailable = true;
+                L3CacheHitsSnoopAvailable = true;
+                L3CacheHitsAvailable = true;
                 core_gen_counter_num_used = 4;
                 break;
             case SANDY_BRIDGE:
@@ -1966,6 +1987,14 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
                 coreEventDesc[2].umask_value = MEM_LOAD_UOPS_LLC_HIT_RETIRED_XSNP_UMASK;
                 coreEventDesc[3].event_number = MEM_LOAD_UOPS_RETIRED_L2_HIT_EVTNR;
                 coreEventDesc[3].umask_value = MEM_LOAD_UOPS_RETIRED_L2_HIT_UMASK;
+                L2CacheHitRatioAvailable = true;
+                L3CacheHitRatioAvailable = true;
+                L3CacheMissesAvailable = true;
+                L2CacheMissesAvailable = true;
+                L2CacheHitsAvailable = true;
+                L3CacheHitsNoSnoopAvailable = true;
+                L3CacheHitsSnoopAvailable = true;
+                L3CacheHitsAvailable = true;
                 core_gen_counter_num_used = 4;
                 break;
             case NEHALEM_EP:
@@ -1979,6 +2008,14 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
                 coreEventDesc[2].umask_value = MEM_LOAD_RETIRED_L2_HITM_UMASK;
                 coreEventDesc[3].event_number = MEM_LOAD_RETIRED_L2_HIT_EVTNR;
                 coreEventDesc[3].umask_value = MEM_LOAD_RETIRED_L2_HIT_UMASK;
+                L2CacheHitRatioAvailable = true;
+                L3CacheHitRatioAvailable = true;
+                L3CacheMissesAvailable = true;
+                L2CacheMissesAvailable = true;
+                L2CacheHitsAvailable = true;
+                L3CacheHitsNoSnoopAvailable = true;
+                L3CacheHitsSnoopAvailable = true;
+                L3CacheHitsAvailable = true;
                 core_gen_counter_num_used = 4;
             default:
                 assert(!useSkylakeEvents());
@@ -1990,6 +2027,14 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
                 coreEventDesc[2].umask_value = MEM_LOAD_RETIRED_L2_HITM_UMASK;
                 coreEventDesc[3].event_number = MEM_LOAD_RETIRED_L2_HIT_EVTNR;
                 coreEventDesc[3].umask_value = MEM_LOAD_RETIRED_L2_HIT_UMASK;
+                L2CacheHitRatioAvailable = true;
+                L3CacheHitRatioAvailable = true;
+                L3CacheMissesAvailable = true;
+                L2CacheMissesAvailable = true;
+                L2CacheHitsAvailable = true;
+                L3CacheHitsNoSnoopAvailable = true;
+                L3CacheHitsSnoopAvailable = true;
+                L3CacheHitsAvailable = true;
                 core_gen_counter_num_used = 4;
         }
     }
