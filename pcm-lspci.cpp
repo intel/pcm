@@ -33,7 +33,7 @@ using namespace std;
 
 void scanBus(int bus, const PCIDB & pciDB)
 {
-    if(!PciHandleType::exists(bus, 8, 2)) return;
+    if(!PciHandleType::exists(0, bus, 8, 2)) return;
 
     std::cout << "BUS 0x" << std::hex << bus << std::dec << endl;
 

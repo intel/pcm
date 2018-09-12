@@ -4035,7 +4035,7 @@ int getBusFromSocket(const uint32 socket)
 
 PciHandleType * ServerPCICFGUncore::createIntelPerfMonDevice(uint32 groupnr_, int32 bus_, uint32 dev_, uint32 func_, bool checkVendor)
 {
-    if (PciHandleType::exists((uint32)bus_, dev_, func_))
+    if (PciHandleType::exists(groupnr_, (uint32)bus_, dev_, func_))
     {
         PciHandleType * handle = new PciHandleType(groupnr_, bus_, dev_, func_);
 

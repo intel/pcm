@@ -266,7 +266,7 @@ void discover_pci_tree(const vector<uint32_t> & busno, uint8_t socket_id, vector
     struct iio_skx iio_skx;
     uint32 cpubusno = 0;
 
-    if (PciHandleType::exists((uint32)busno[socket_id], 8, 2)) {
+    if (PciHandleType::exists(0, (uint32)busno[socket_id], 8, 2)) {
         iio_skx.socket_id = socket_id;
         PciHandleType h(0, busno[socket_id], 8, 2);
         h.read32(0xcc, &cpubusno); // CPUBUSNO register
