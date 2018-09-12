@@ -55,8 +55,13 @@ PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 functi
         throw std::exception();
 }
 
-bool PciHandle::exists(uint32 bus_, uint32 device_, uint32 function_)
+bool PciHandle::exists(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 function_)
 {
+    if (groupnr_ != 0)
+    {
+        std::cerr << "Non-zero PCI group segments are not supported in PCM/Windows" << std::endl;
+        return false;
+    }
     if (hOpenLibSys != NULL)
     {
         DWORD addr(PciBusDevFunc(bus_, device_, function_));
@@ -178,8 +183,13 @@ PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 functi
     function(function_)
 { }
 
-bool PciHandle::exists(uint32 bus_, uint32 device_, uint32 function_)
+bool PciHandle::exists(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 function_)
 {
+    if (groupnr_ != 0)
+    {
+        std::cerr << "Non-zero PCI group segments are not supported in PCM/APPLE OSX" << std::endl;
+        return false;
+    }
     uint32_t pci_address = FORM_PCI_ADDR(bus_, device_, function_, 0);
     uint32_t value = 0;
     PCIDriver_read32(pci_address, &value);
@@ -236,8 +246,13 @@ PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 functi
     fd = handle;
 }
 
-bool PciHandle::exists(uint32 bus_, uint32 device_, uint32 function_)
+bool PciHandle::exists(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 function_)
 {
+    if (groupnr_ != 0)
+    {
+        std::cerr << "Non-zero PCI group segments are not supported in PCM/FreeBSD/DragonFlyBSD" << std::endl;
+        return false;
+    }
     struct pci_conf_io pc;
     struct pci_match_conf pattern;
     struct pci_conf conf[4];
@@ -348,17 +363,16 @@ PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 functi
     device(device_),
     function(function_)
 {
-    if (groupnr_ != 0)
-    {
-        std::cout << "ERROR: non-zero PCI segment groupnr is not supported in this PciHandle implementation. Please recompile with -DPCM_USE_PCI_MM_LINUX option." << std::endl;
-        throw std::exception();
-    }
-
     std::ostringstream path(std::ostringstream::out);
 
-    path << std::hex << "/proc/bus/pci/" << std::setw(2) << std::setfill('0') << bus << "/" << std::setw(2) << std::setfill('0') << device << "." << function;
+    path << std::hex << "/proc/bus/pci/";
+    if (groupnr_)
+    {
+        path << std::setw(4) << std::setfill('0') << groupnr_ << ":";
+    }
+    path << std::setw(2) << std::setfill('0') << bus << "/" << std::setw(2) << std::setfill('0') << device << "." << function;
 
-    // std::cout << path.str().c_str() << std::endl;
+//    std::cout << "PciHandle: Opening "<<path.str()<<std::endl;
 
     int handle = ::open(path.str().c_str(), O_RDWR);
     if (handle < 0) throw std::exception();
@@ -368,11 +382,18 @@ PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 functi
 }
 
 
-bool PciHandle::exists(uint32 bus_, uint32 device_, uint32 function_)
+bool PciHandle::exists(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 function_)
 {
     std::ostringstream path(std::ostringstream::out);
 
-    path << std::hex << "/proc/bus/pci/" << std::setw(2) << std::setfill('0') << bus_ << "/" << std::setw(2) << std::setfill('0') << device_ << "." << function_;
+    path << std::hex << "/proc/bus/pci/";
+    if (groupnr_)
+    {
+        path << std::setw(4) << std::setfill('0') << groupnr_ << ":";
+    }
+    path << std::setw(2) << std::setfill('0') << bus_ << "/" << std::setw(2) << std::setfill('0') << device_ << "." << function_;
+
+    // std::cout << "PciHandle: Opening "<<path.str()<<std::endl;
 
     int handle = ::open(path.str().c_str(), O_RDWR);
 
@@ -473,7 +494,7 @@ PciHandleM::PciHandleM(uint32 bus_, uint32 device_, uint32 function_) :
 }
 
 
-bool PciHandleM::exists(uint32 /* bus_*/, uint32 /* device_ */, uint32 /* function_ */)
+bool PciHandleM::exists(uint32 /*groupnr_*/, uint32 /* bus_*/, uint32 /* device_ */, uint32 /* function_ */)
 {
     int handle = ::open("/dev/mem", O_RDWR);
 
@@ -621,7 +642,7 @@ PciHandleMM::PciHandleMM(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 fu
     }
 }
 
-bool PciHandleMM::exists(uint32 bus_, uint32 device_, uint32 function_)
+bool PciHandleMM::exists(uint32 /*groupnr_*/, uint32 bus_, uint32 device_, uint32 function_)
 {
     int handle = ::open("/dev/mem", O_RDWR);
 

@@ -129,7 +129,7 @@ void probe_pci(struct pci *p)
 {
     uint32 value;
     struct bdf *bdf = &p->bdf;
-    if (PciHandleType::exists(bdf->busno, bdf->devno, bdf->funcno)) {
+    if (PciHandleType::exists(0, bdf->busno, bdf->devno, bdf->funcno)) {
         p->exist = true;
         PciHandleType h(0, bdf->busno, bdf->devno, bdf->funcno);
         h.read32(0x0, &value); //VID:DID
