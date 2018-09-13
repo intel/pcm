@@ -3,11 +3,15 @@
 # written by Roman Dementiev and Jim Harris
 #
 
-EXE = pcm.x pcm-numa.x pcm-power.x pcm-sensor.x pcm-msr.x pcm-memory.x pcm-tsx.x pcm-pcie.x pcm-core.x pcm-iio.x pcm-lspci.x pcm-pcicfg.x
+EXE = pcm.x pcm-numa.x pcm-power.x pcm-sensor.x pcm-msr.x pcm-memory.x pcm-tsx.x pcm-pcie.x pcm-core.x pcm-iio.x pcm-lspci.x pcm-pcicfg.x daemon-binaries
 
 all: $(EXE)
 
 lib: libPCM.a
+
+daemon-binaries:
+	make -C daemon/daemon/Debug
+	make -C daemon/client/Debug
 
 klocwork: $(EXE)
 
