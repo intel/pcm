@@ -1929,7 +1929,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
         else
             core_gen_counter_num_used = 2;
     }
-    else
+    else if (mode != EXT_CUSTOM_CORE_EVENTS)
     {
         switch ( cpu_model ) {
             case ATOM:
@@ -2037,7 +2037,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
 
     if(EXT_CUSTOM_CORE_EVENTS == mode_ && pExtDesc && pExtDesc->gpCounterCfg)
     {
-        core_gen_counter_num_used = (std::min)(core_gen_counter_num_used,pExtDesc->nGPCounters);
+        core_gen_counter_num_used = pExtDesc->nGPCounters;
     }
 
     if(cpu_model == JAKETOWN)
