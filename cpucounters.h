@@ -67,6 +67,9 @@ class PCM;
 class CoreTaskQueue;
 
 #ifdef _MSC_VER
+#if _MSC_VER>= 1600
+#include <intrin.h>
+#endif
 void PCM_API restrictDriverAccess(LPCWSTR path);
 #endif
 

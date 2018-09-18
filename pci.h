@@ -52,6 +52,9 @@ class PciHandle
     DWORD pciAddress;
 #endif
 
+    friend class PciHandleM;
+    friend class PciHandleMM;
+
     PciHandle();                                // forbidden
     PciHandle(const PciHandle &);               // forbidden
     PciHandle & operator = (const PciHandle &); // forbidden
@@ -67,6 +70,9 @@ public:
     int32 read64(uint64 offset, uint64 * value);
 
     virtual ~PciHandle();
+
+protected:
+    static int openMcfgTable();
 };
 
 #ifdef _MSC_VER

@@ -179,10 +179,13 @@ MsrHandle::~MsrHandle()
 int32 MsrHandle::write(uint64 msr_number, uint64 value)
 {
     cpuctl_msr_args_t args;
+    int ret;
 
     args.msr = msr_number;
     args.data = value;
-    return ::ioctl(fd, CPUCTL_WRMSR, &args);
+    ret = ::ioctl(fd, CPUCTL_WRMSR, &args);
+    if (ret) return ret;
+    return sizeof(value);
 }
 
 int32 MsrHandle::read(uint64 msr_number, uint64 * value)
@@ -192,8 +195,9 @@ int32 MsrHandle::read(uint64 msr_number, uint64 * value)
 
     args.msr = msr_number;
     ret = ::ioctl(fd, CPUCTL_RDMSR, &args);
-    if (!ret) *value = args.data;
-    return ret;
+    if (ret) return ret;
+    *value = args.data;
+    return sizeof(*value);
 }
 
 #else
