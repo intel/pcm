@@ -254,7 +254,14 @@ void set_signal_handlers(void)
         _exit(EXIT_FAILURE);
     }
     SetUnhandledExceptionFilter((LPTOP_LEVEL_EXCEPTION_FILTER)&unhandled_exception_handler);
-    if (getenv("_"))
+    char *envPath;
+    if (_dupenv_s(&envPath, NULL, "_"))
+    {
+        std::cerr << "\nPCM ERROR: _dupenv_s failed." << std::endl;
+        _exit(EXIT_FAILURE);
+    }
+    free(envPath);
+    if (envPath)
     {
         std::cerr << "\nPCM ERROR: Detected cygwin/mingw environment which does not allow to setup PMU clean-up handlers on Ctrl-C and other termination signals." << std::endl;
         std::cerr << "See https://www.mail-archive.com/cygwin@cygwin.com/msg74817.html" << std::endl;
