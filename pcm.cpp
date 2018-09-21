@@ -1207,8 +1207,7 @@ int main(int argc, char * argv[])
         exit(EXIT_FAILURE);
     }
 
-    cerr << "\nDetected " << m->getCPUBrandString() << " \"Intel(r) microarchitecture codename " <<
-        m->getUArchCodename() << "\" stepping "<< m->getCPUStepping() << endl;
+    print_cpu_details();
 
     std::vector<CoreCounterState> cstates1, cstates2;
     std::vector<SocketCounterState> sktstate1, sktstate2;

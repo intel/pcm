@@ -755,7 +755,7 @@ int main(int argc, char * argv[])
     } while(argc > 1); // end of command line partsing loop
 
     m->disableJKTWorkaround();
-    cerr << "\nDetected " << m->getCPUBrandString() << " \"Intel(r) microarchitecture codename " << m->getUArchCodename() << "\"" << endl;
+    print_cpu_details();
     if (!m->hasPCICFGUncore())
     {
         std::cerr << "Unsupported processor model (" << m->getCPUModel() << ")." << std::endl;

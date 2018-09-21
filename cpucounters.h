@@ -269,6 +269,7 @@ class PCM_API PCM
     int32 cpu_family;
     int32 cpu_model, original_cpu_model;
     int32 cpu_stepping;
+    int64 cpu_microcode_level;
     int32 max_cpuid;
     int32 threads_per_core;
     int32 num_cores;
@@ -498,12 +499,12 @@ private:
     ProgramMode mode;
     CustomCoreEventDescription coreEventDesc[4];
 
-        #ifdef _MSC_VER
+#ifdef _MSC_VER
     HANDLE numInstancesSemaphore;     // global semaphore that counts the number of PCM instances on the system
-        #else
+#else
     // global semaphore that counts the number of PCM instances on the system
     sem_t * numInstancesSemaphore;
-        #endif
+#endif
 
     std::vector<int32> socketRefCore;
 
@@ -587,6 +588,7 @@ private:
     void readQPICounters(SystemCounterState & counterState);
     void reportQPISpeed() const;
     void readCoreCounterConfig();
+    void readCPUMicrocodeLevel();
 
     uint64 CX_MSR_PMON_CTRY(uint32 Cbo, uint32 Ctr) const;
     uint64 CX_MSR_PMON_BOX_FILTER(uint32 Cbo) const;
@@ -726,10 +728,10 @@ public:
 */
     void cleanup();
 
-/*! \brief Forces PMU reset
+    /*! \brief Forces PMU reset
 
-            If there is no chance to free up PMU from other applications you might try to call this method at your own risk.
-*/
+                If there is no chance to free up PMU from other applications you might try to call this method at your own risk.
+    */
     void resetPMU();
 
     /*! \brief Reads all counter states (including system, sockets and cores)
@@ -851,7 +853,7 @@ public:
         ATOM_BAYTRAIL = 55,
         ATOM_AVOTON = 77,
         ATOM_CHERRYTRAIL = 76,
-	    ATOM_APOLLO_LAKE = 92,
+        ATOM_APOLLO_LAKE = 92,
         ATOM_DENVERTON = 95,
         CLARKDALE = 37,
         WESTMERE_EP = 44,
@@ -1066,7 +1068,9 @@ public:
     //! \warning Works only for Nehalem-EX (Xeon 7500) and Xeon E7 and E5 processors
     //! \return QPI Link Speed in GBytes/second
     uint64 getQPILinkSpeed(uint32 socketNr, uint32 linkNr) const
-    { return hasPCICFGUncore() ? server_pcicfg_uncore[socketNr]->getQPILinkSpeed(linkNr) : max_qpi_speed; }
+    {
+        return hasPCICFGUncore() ? server_pcicfg_uncore[socketNr]->getQPILinkSpeed(linkNr) : max_qpi_speed;
+    }
 
     //! \brief Returns how many joules are in an internal processor energy unit
     double getJoulesPerEnergyUnit() const { return joulesPerEnergyUnit; }
@@ -1115,7 +1119,7 @@ public:
 
     enum ChaPipelineQueue
     {
-	None,
+        None,
         IRQ,
         PRQ,
     };
@@ -1167,6 +1171,9 @@ public:
     //! \brief Get Brand string of processor
     static std::string getCPUBrandString();
     std::string getCPUFamilyModelString();
+
+    //! \brief Get microcode level (returns -1 if retrieval not supported due to some restrictions)
+    int64 getCPUMicrocodeLevel() const { return cpu_microcode_level; }
 
     bool packageEnergyMetricsAvailable() const
     {

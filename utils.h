@@ -148,6 +148,7 @@ inline std::string unit_format(IntType n)
     return buffer;
 }
 
+void print_cpu_details();
 
 #define PCM_UNUSED(x) (void)(x)
 

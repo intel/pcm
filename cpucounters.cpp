@@ -443,6 +443,28 @@ void PCM::readCoreCounterConfig()
     }
 }
 
+void PCM::readCPUMicrocodeLevel()
+{
+    if (MSR.empty()) return;
+    const int ref_core = 0;
+    TemporalThreadAffinity affinity(ref_core);
+    bool ucode_msr_exists = false;
+    if (affinity.supported() && isCoreOnline(ref_core))
+    {   // see "Update Signature and Verification" section in Intel SDM how to read ucode level
+        ucode_msr_exists = (MSR[ref_core]->write(MSR_IA32_BIOS_SIGN_ID, 0) == sizeof(uint64));
+    }
+    PCM_CPUID_INFO cpuinfo;
+    pcm_cpuid(1, cpuinfo);
+    if (affinity.supported() && ucode_msr_exists)
+    {
+        uint64 result = 0;
+        if (MSR[ref_core]->read(MSR_IA32_BIOS_SIGN_ID, &result) == sizeof(uint64))
+        {
+            cpu_microcode_level = result>>32;
+        }
+    }
+}
+
 int32 PCM::getMaxCustomCoreEvents()
 {
     return core_gen_counter_num_max;
@@ -1519,6 +1541,7 @@ PCM::PCM() :
     cpu_model(-1),
     original_cpu_model(-1),
     cpu_stepping(-1),
+    cpu_microcode_level(-1),
     max_cpuid(-1),
     threads_per_core(0),
     num_cores(0),
@@ -1612,6 +1635,8 @@ PCM::PCM() :
 
     // Initialize RMID to the cores for QOS monitoring
     initRMID();
+
+    readCPUMicrocodeLevel();
 
 #ifdef PCM_USE_PERF
     canUsePerf = true;
