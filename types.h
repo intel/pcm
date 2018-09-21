@@ -879,6 +879,8 @@ struct IIOPMUCNTCTLRegister
 #define MSR_IA32_THERM_STATUS    (0x019C)
 #define PCM_INVALID_THERMAL_HEADROOM ((std::numeric_limits<int32>::min)())
 
+#define MSR_IA32_BIOS_SIGN_ID   (0x8B)
+
 #define MSR_DRAM_ENERGY_STATUS (0x0619)
 
 #define MSR_PKG_C2_RESIDENCY    (0x60D)
