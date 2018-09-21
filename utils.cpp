@@ -52,6 +52,19 @@ void exit_cleanup(void)
     _exit(EXIT_SUCCESS);
 }
 
+void print_cpu_details()
+{
+    const auto m = PCM::getInstance();
+    std::cerr << "\nDetected " << m->getCPUBrandString() << " \"Intel(r) microarchitecture codename " <<
+        m->getUArchCodename() << "\" stepping " << m->getCPUStepping();
+    const auto ucode_level = m->getCPUMicrocodeLevel();
+    if (ucode_level >= 0)
+    {
+        std::cerr << " microcode level 0x" << std::hex << ucode_level;
+    }
+    std::cerr << std::endl;
+}
+
 #ifdef _MSC_VER
 
 ThreadGroupTempAffinity::ThreadGroupTempAffinity(uint32 core_id)
