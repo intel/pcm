@@ -448,19 +448,18 @@ void PCM::readCPUMicrocodeLevel()
     if (MSR.empty()) return;
     const int ref_core = 0;
     TemporalThreadAffinity affinity(ref_core);
-    bool ucode_msr_exists = false;
     if (affinity.supported() && isCoreOnline(ref_core))
-    {   // see "Update Signature and Verification" section in Intel SDM how to read ucode level
-        ucode_msr_exists = (MSR[ref_core]->write(MSR_IA32_BIOS_SIGN_ID, 0) == sizeof(uint64));
-    }
-    PCM_CPUID_INFO cpuinfo;
-    pcm_cpuid(1, cpuinfo);
-    if (affinity.supported() && ucode_msr_exists)
-    {
-        uint64 result = 0;
-        if (MSR[ref_core]->read(MSR_IA32_BIOS_SIGN_ID, &result) == sizeof(uint64))
+    {   // see "Update Signature and Verification" and "Determining the Signature"
+        // sections in Intel SDM how to read ucode level
+        if (MSR[ref_core]->write(MSR_IA32_BIOS_SIGN_ID, 0) == sizeof(uint64))
         {
-            cpu_microcode_level = result>>32;
+            PCM_CPUID_INFO cpuinfo;
+            pcm_cpuid(1, cpuinfo); // cpuid instructions updates MSR_IA32_BIOS_SIGN_ID
+            uint64 result = 0;
+            if (MSR[ref_core]->read(MSR_IA32_BIOS_SIGN_ID, &result) == sizeof(uint64))
+            {
+                cpu_microcode_level = result >> 32;
+            }
         }
     }
 }
