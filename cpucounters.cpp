@@ -207,11 +207,11 @@ public:
 #define cpu_set_t cpuset_t
 #endif
 
-class TemporalThreadAffinity  // speedup trick for Linux, FreeBSD, DragonFlyBSD
+class TemporalThreadAffinity  // speedup trick for Linux, FreeBSD, DragonFlyBSD, Windows
 {
+    TemporalThreadAffinity(); // forbiden
 #if defined(__linux__) || defined(__FreeBSD__) || (defined(__DragonFly__) && __DragonFly_version >= 400707)
     cpu_set_t old_affinity;
-    TemporalThreadAffinity(); // forbiden
 
 public:
     TemporalThreadAffinity(uint32 core_id)
@@ -227,11 +227,16 @@ public:
     {
         pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &old_affinity);
     }
-#else // not implemented for windows or os x
-    TemporalThreadAffinity(); // forbiden
-
+    bool supported() const { return true; }
+#elif defined(_MSC_VER)
+    ThreadGroupTempAffinity affinity;
+public:
+    TemporalThreadAffinity(uint32 core) : affinity(core) {}
+    bool supported() const { return true; }
+#else // not implemented for os x
 public:
     TemporalThreadAffinity(uint32) { }
+    bool supported() const { return false;  }
 #endif
 };
 
