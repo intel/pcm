@@ -442,11 +442,12 @@ void display_bandwidth_csv_header(PCM *m, memdata_t *md, const bool show_channel
       cout << "SKT"<<skt<<";"
 	   << "SKT"<<skt<<";"
 	   << "SKT"<<skt<<";";
-      if (m->getCPUModel() != PCM::KNL)
+      if (m->getCPUModel() != PCM::KNL) {
           if (md->PMM)
 	      cout << "SKT"<<skt<<";" << "SKT"<<skt<<";";
           else
               cout << "SKT"<<skt<<";";
+      }
 
       if (m->MCDRAMmemoryTrafficMetricsAvailable()) {
 	  if (show_channel_output) {

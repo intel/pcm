@@ -508,8 +508,8 @@ void print_csv_header(PCM * m,
         if (m->memoryTrafficMetricsAvailable())
             cout << ";;";
 
-    if (m->PMMTrafficMetricsAvailable())
-        cout << ";;";
+        if (m->PMMTrafficMetricsAvailable())
+            cout << ";;";
 
         if (m->MCDRAMmemoryTrafficMetricsAvailable())
             cout << ";;";
