@@ -5542,6 +5542,7 @@ void PCM::programPCIeCounters(const PCM::PCIeEventCode event_, const uint32 tid_
                 {
                     case 0:
                         umask |= (uint64)(SKX_CHA_TOR_INSERTS_UMASK_HIT(1));
+                        umask |= (uint64)(SKX_CHA_TOR_INSERTS_UMASK_MISS(1));
                         break;
                     case 1:
                         umask |= (uint64)(SKX_CHA_TOR_INSERTS_UMASK_MISS(1));
