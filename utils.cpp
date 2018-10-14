@@ -405,3 +405,65 @@ void MySystem(char * sysCmd, char ** sysArgv)
     }
 #endif
 }
+
+#ifdef _WIN32
+static double QP_freq_inv = 0.0;
+static int64_t QP_initial = 0;
+
+static void QP_init(void)
+{
+    LARGE_INTEGER li;
+    if(!QueryPerformanceFrequency(&li)) {
+        printf("QueryPerformanceFrequency issues. Bye at %s %d\n", __FILE__, __LINE__);
+        exit(1);
+    }
+
+    double freq = (double)li.QuadPart;
+    QP_freq_inv = 1.0/freq;
+
+    QueryPerformanceCounter(&li);
+    QP_initial = li.QuadPart;
+}
+static double QP_diff(void)
+{
+    static bool first_time=true;
+    if (first_time) {
+        QP_init();
+        first_time = false;
+    }
+    LARGE_INTEGER li;
+    QueryPerformanceCounter(&li);
+    return QP_freq_inv * (double)(li.QuadPart-QP_initial);
+}
+
+double getfiletime(void)
+{
+    FILETIME    ft;
+    uint64_t    time;
+    double x;
+
+#if 1
+    GetSystemTimePreciseAsFileTime(&ft); // for win 8+... gets link err on win7
+#else
+    GetSystemTimeAsFileTime(&ft); // for win7
+#endif
+    time =  (uint64_t)ft.dwLowDateTime + ((uint64_t)ft.dwHighDateTime << 32);
+    x = (double)time;
+    return 1.0e-7 * x; // convert to seconds
+}
+#endif
+
+double pcm_timestamp(void)
+{
+#ifdef _WIN32
+    static double gtod_initial=0.0;
+    if (gtod_initial == 0.0) {
+        gtod_initial = getfiletime();
+    }
+    return gtod_initial + QP_diff();
+#else
+    struct timespec tp;
+    clock_gettime(CLOCK_MONOTONIC, &tp);
+    return (double)(tp.tv_sec) + 1.0e-9 * (double)(tp.tv_nsec);
+#endif
+}

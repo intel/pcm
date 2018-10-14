@@ -97,6 +97,8 @@ inline void MySleepUs(int delay_us)
 }
 
 void MySystem(char * sysCmd, char ** argc);
+double pcm_timestamp(void);
+
 
 #ifdef _MSC_VER
 #pragma warning (disable : 4068 ) // disable unknown pragma warning

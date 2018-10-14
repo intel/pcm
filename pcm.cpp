@@ -464,7 +464,7 @@ void print_csv_header(PCM * m,
     )
 {
     // print first header line
-    cout << "System;;";
+    cout << "System;;;";
     if (show_system_output)
     {
     	if (cpu_model == PCM::ATOM || cpu_model == PCM::KNL)
@@ -613,7 +613,8 @@ void print_csv_header(PCM * m,
     }
 
     // print second header line
-    cout << "\nDate;Time;";
+    cout << "\nDate;Time;TimeStamp;";
+
     if (show_system_output)
     {
         if (cpu_model == PCM::ATOM || cpu_model == PCM::KNL)
@@ -776,6 +777,7 @@ void print_csv(PCM * m,
     const bool show_system_output
     )
 {
+    double ts = pcm_timestamp();
 #ifndef _MSC_VER
     struct timeval timestamp;
     gettimeofday(&timestamp, NULL);
@@ -791,6 +793,9 @@ void print_csv(PCM * m,
 #else
         << "." << setw(3) << ceil(timestamp.tv_usec / 1000) << ';';
 #endif
+    cout.precision(6);
+    cout << std::setw(16) << std::fixed << ts << ";" << setw(3);
+    cout.precision(3);
     cout.fill(old_fill);
 
     if (show_system_output)
