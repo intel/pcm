@@ -206,7 +206,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <AdditionalIncludeDirectories>../;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <PrecompiledHeader />
       <WarningLevel>Level3</WarningLevel>
@@ -251,11 +251,15 @@
     <ClCompile Include="PCMService.cpp" />
     <ClCompile Include="..\utils.cpp" />
         <ClCompile Include="..\PCM_Win\restrictDriverAccess.cpp">
-	      <CompileAsManaged Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</CompileAsManaged>
-	            <ExceptionHandling Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Async</ExceptionHandling>
-		          <CompileAsManaged Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</CompileAsManaged>
-			        <ExceptionHandling Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Async</ExceptionHandling>
-				    </ClCompile>
+            <CompileAsManaged Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</CompileAsManaged>
+            <ExceptionHandling Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Async</ExceptionHandling>
+            <CompileAsManaged Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</CompileAsManaged>
+            <ExceptionHandling Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Async</ExceptionHandling>
+            <CompileAsManaged Condition="'$(Configuration)|$(Platform)'=='Debug64|x64'">true</CompileAsManaged>
+            <ExceptionHandling Condition="'$(Configuration)|$(Platform)'=='Debug64|x64'">Async</ExceptionHandling>
+            <CompileAsManaged Condition="'$(Configuration)|$(Platform)'=='Release64|x64'">true</CompileAsManaged>
+            <ExceptionHandling Condition="'$(Configuration)|$(Platform)'=='Release64|x64'">Async</ExceptionHandling>
+     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\PCM-Lib_Win\pcm-lib.h" />
