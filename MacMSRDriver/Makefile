@@ -4,14 +4,18 @@
 #
 # Build and install the PcmMsr kext and dynamically linked library.
 
+clean:
+	xcodebuild clean
+
 kext:
-	xcodebuild -configuration Release -target PcmMsrDriver clean build
+	xcodebuild -configuration Release -target PcmMsrDriver build
 
 library:
-	xcodebuild -configuration Release -target PcmMsrLibrary clean build
+	xcodebuild -configuration Release -target PcmMsrLibrary build
 
-install: kext library
+install: clean kext library
 	sudo sh ./kextload.sh
+	sudo mkdir -p /usr/include /usr/lib
 	sudo cp build/Release/libPcmMsr.dylib /usr/lib/
 	sudo cp MSRAccessorPublic.h /usr/include/MSRAccessor.h
 	sudo cp MSRKernel.h /usr/include/MSRKernel.h
