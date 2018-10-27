@@ -5522,9 +5522,9 @@ void PCM::setupCustomCoreEventsForNuma(PCM::ExtendedCustomCoreEventDescription& 
         break;
     case PCM::SKX:
         // OFFCORE_RESPONSE.ALL_REQUESTS.L3_MISS_LOCAL_DRAM.ANY_SNOOP
-        conf.OffcoreResponseMsrValue[0] = 0x3FC0009FFF | (1 << 26);
+        conf.OffcoreResponseMsrValue[0] = 0x3FC0008FFF | (1 << 26);
         // OFFCORE_RESPONSE.ALL_REQUESTS.L3_MISS_REMOTE_(HOP0,HOP1,HOP2P)_DRAM.ANY_SNOOP
-        conf.OffcoreResponseMsrValue[1] = 0x3FC0009FFF | (1 << 27) | (1 << 28) | (1 << 29);
+        conf.OffcoreResponseMsrValue[1] = 0x3FC0008FFF | (1 << 27) | (1 << 28) | (1 << 29);
         break;
     default:
         throw UnsupportedProcessorException();
