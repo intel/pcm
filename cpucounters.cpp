@@ -2095,7 +2095,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
             if(canUsePerf)
             {
                 e.type = PERF_TYPE_RAW;
-                e.config = (1ULL<<63ULL) + (((long long unsigned)PERF_TYPE_RAW)<<(64ULL-8ULL)) + event_select_reg.value;
+		e.config = (1ULL<<63ULL) + event_select_reg.value;
                 if (event_select_reg.fields.event_select == OFFCORE_RESPONSE_0_EVTNR)
                     e.config1 = pExtDesc->OffcoreResponseMsrValue[0];
                 if (event_select_reg.fields.event_select == OFFCORE_RESPONSE_1_EVTNR)
