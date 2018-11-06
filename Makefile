@@ -3,7 +3,11 @@
 # written by Roman Dementiev and Jim Harris
 #
 
-EXE = pcm.x pcm-numa.x pcm-power.x pcm-sensor.x pcm-msr.x pcm-memory.x pcm-tsx.x pcm-pcie.x pcm-core.x pcm-iio.x pcm-lspci.x pcm-pcicfg.x daemon-binaries
+EXE = pcm.x pcm-numa.x pcm-power.x pcm-sensor.x pcm-msr.x pcm-memory.x pcm-tsx.x pcm-pcie.x pcm-core.x pcm-iio.x pcm-lspci.x pcm-pcicfg.x
+
+ifeq ($(UNAME), Linux)
+EXE += daemon-binaries
+endif
 
 all: $(EXE)
 
