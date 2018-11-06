@@ -1,9 +1,15 @@
 #
-# Copyright (c) 2009-2015 Intel Corporation
+# Copyright (c) 2009-2018 Intel Corporation
 # written by Roman Dementiev and Jim Harris
 #
 
-EXE = pcm.x pcm-numa.x pcm-power.x pcm-sensor.x pcm-msr.x pcm-memory.x pcm-tsx.x pcm-pcie.x pcm-core.x pcm-iio.x pcm-lspci.x pcm-pcicfg.x daemon-binaries
+EXE = pcm.x pcm-numa.x pcm-power.x pcm-sensor.x pcm-msr.x pcm-memory.x pcm-tsx.x pcm-pcie.x pcm-core.x pcm-iio.x pcm-lspci.x pcm-pcicfg.x
+
+UNAME:=$(shell uname)
+
+ifeq ($(UNAME), Linux)
+EXE += daemon-binaries
+endif
 
 all: $(EXE)
 
@@ -21,8 +27,6 @@ CXXFLAGS += -Wall -g -O3 -Wno-unknown-pragmas
 ifneq ($(wildcard /usr/include/linux/perf_event.h),)
 CXXFLAGS += -DPCM_USE_PERF
 endif
-
-UNAME:=$(shell uname)
 
 ifeq ($(UNAME), Linux)
 LIB= -pthread -lrt
