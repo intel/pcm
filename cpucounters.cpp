@@ -2640,8 +2640,9 @@ bool PCM::PMUinUse()
     return false;
 }
 
-const char * PCM::getUArchCodename(int32 cpu_model_) const
+const char * PCM::getUArchCodename(const int32 cpu_model_param) const
 {
+    auto cpu_model_ = cpu_model_param;
     if(cpu_model_ < 0)
         cpu_model_ = this->cpu_model ;
 
@@ -2685,6 +2686,15 @@ const char * PCM::getUArchCodename(int32 cpu_model_) const
         case KBL:
             return "Kabylake";
         case SKX:
+            if (cpu_model_param >= 0)
+            {
+                // query for specified cpu_model_param, stepping not provided
+                return "Skylake-SP, Cascade Lake-SP";
+            }
+            if (cpu_stepping > 4)
+            {
+                return "Cascade Lake-SP";
+            }
             return "Skylake-SP";
     }
     return "unknown";

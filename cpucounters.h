@@ -1166,7 +1166,7 @@ public:
 
     //! \brief Get a string describing the codename of the processor microarchitecture
     //! \param cpu_model_ cpu model (if no parameter provided the codename of the detected CPU is returned)
-    const char * getUArchCodename(int32 cpu_model_ = -1) const;
+    const char * getUArchCodename(const int32 cpu_model_ = -1) const;
 
     //! \brief Get Brand string of processor
     static std::string getCPUBrandString();
