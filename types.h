@@ -873,11 +873,14 @@ struct IIOPMUCNTCTLRegister
         } fields;
         uint64 value;
     };
+    IIOPMUCNTCTLRegister() : value(0) { }
 };
 
 #define MSR_PACKAGE_THERM_STATUS (0x01B1)
 #define MSR_IA32_THERM_STATUS    (0x019C)
 #define PCM_INVALID_THERMAL_HEADROOM ((std::numeric_limits<int32>::min)())
+
+#define MSR_IA32_BIOS_SIGN_ID   (0x8B)
 
 #define MSR_DRAM_ENERGY_STATUS (0x0619)
 

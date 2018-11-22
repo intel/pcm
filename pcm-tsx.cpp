@@ -295,7 +295,6 @@ int main(int argc, char * argv[])
 
     PCM::ExtendedCustomCoreEventDescription conf;
     conf.fixedCfg = NULL; // default
-    conf.nGPCounters = 4;
     EventSelectRegister regs[4];
     conf.gpCounterCfg = regs;
     for (int i = 0; i < 4; ++i)
@@ -303,6 +302,7 @@ int main(int argc, char * argv[])
 
     if (events.empty())
     {
+        conf.nGPCounters = 4;
         regs[N_RTM_POS].fields.event_select = 0xc9;
         regs[N_RTM_POS].fields.umask = 0x01;
         regs[N_HLE_POS].fields.event_select = 0xc8;
@@ -315,6 +315,7 @@ int main(int argc, char * argv[])
     }
     else
     {
+        conf.nGPCounters = (uint32) events.size();
         for (unsigned int i = 0; i < events.size(); ++i)
         {
             regs[i].fields.event_select = eventDefinition[events[i]].event;
@@ -346,7 +347,7 @@ int main(int argc, char * argv[])
         exit(EXIT_FAILURE);
     }
 
-    cerr << "\nDetected " << m->getCPUBrandString() << " \"Intel(r) microarchitecture codename " << m->getUArchCodename() << "\"" << endl;
+    print_cpu_details();
 
     bool rtm_support = m->supportsRTM();
 

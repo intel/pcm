@@ -52,6 +52,9 @@ class PciHandle
     DWORD pciAddress;
 #endif
 
+    friend class PciHandleM;
+    friend class PciHandleMM;
+
     PciHandle();                                // forbidden
     PciHandle(const PciHandle &);               // forbidden
     PciHandle & operator = (const PciHandle &); // forbidden
@@ -59,7 +62,7 @@ class PciHandle
 public:
     PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 function_);
 
-    static bool exists(uint32 bus_, uint32 device_, uint32 function_);
+    static bool exists(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 function_);
 
     int32 read32(uint64 offset, uint32 * value);
     int32 write32(uint64 offset, uint32 value);
@@ -67,6 +70,9 @@ public:
     int32 read64(uint64 offset, uint64 * value);
 
     virtual ~PciHandle();
+
+protected:
+    static int openMcfgTable();
 };
 
 #ifdef _MSC_VER
@@ -98,7 +104,7 @@ class PciHandleM
 public:
     PciHandleM(uint32 bus_, uint32 device_, uint32 function_);
 
-    static bool exists(uint32 bus_, uint32 device_, uint32 function_);
+    static bool exists(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 function_);
 
     int32 read32(uint64 offset, uint32 * value);
     int32 write32(uint64 offset, uint32 value);
@@ -133,7 +139,7 @@ class PciHandleMM
 public:
     PciHandleMM(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 function_);
 
-    static bool exists(uint32 bus_, uint32 device_, uint32 function_);
+    static bool exists(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 function_);
 
     int32 read32(uint64 offset, uint32 * value);
     int32 write32(uint64 offset, uint32 value);

@@ -207,11 +207,11 @@ public:
 #define cpu_set_t cpuset_t
 #endif
 
-class TemporalThreadAffinity  // speedup trick for Linux, FreeBSD, DragonFlyBSD
+class TemporalThreadAffinity  // speedup trick for Linux, FreeBSD, DragonFlyBSD, Windows
 {
+    TemporalThreadAffinity(); // forbiden
 #if defined(__linux__) || defined(__FreeBSD__) || (defined(__DragonFly__) && __DragonFly_version >= 400707)
     cpu_set_t old_affinity;
-    TemporalThreadAffinity(); // forbiden
 
 public:
     TemporalThreadAffinity(uint32 core_id)
@@ -227,11 +227,16 @@ public:
     {
         pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &old_affinity);
     }
-#else // not implemented for windows or os x
-    TemporalThreadAffinity(); // forbiden
-
+    bool supported() const { return true; }
+#elif defined(_MSC_VER)
+    ThreadGroupTempAffinity affinity;
+public:
+    TemporalThreadAffinity(uint32 core) : affinity(core) {}
+    bool supported() const { return true; }
+#else // not implemented for os x
 public:
     TemporalThreadAffinity(uint32) { }
+    bool supported() const { return false;  }
 #endif
 };
 
@@ -434,6 +439,27 @@ void PCM::readCoreCounterConfig()
         {
             core_fixed_counter_num_max = extract_bits_ui(cpuinfo.array[3], 0, 4);
             core_fixed_counter_width = extract_bits_ui(cpuinfo.array[3], 5, 12);
+        }
+    }
+}
+
+void PCM::readCPUMicrocodeLevel()
+{
+    if (MSR.empty()) return;
+    const int ref_core = 0;
+    TemporalThreadAffinity affinity(ref_core);
+    if (affinity.supported() && isCoreOnline(ref_core))
+    {   // see "Update Signature and Verification" and "Determining the Signature"
+        // sections in Intel SDM how to read ucode level
+        if (MSR[ref_core]->write(MSR_IA32_BIOS_SIGN_ID, 0) == sizeof(uint64))
+        {
+            PCM_CPUID_INFO cpuinfo;
+            pcm_cpuid(1, cpuinfo); // cpuid instructions updates MSR_IA32_BIOS_SIGN_ID
+            uint64 result = 0;
+            if (MSR[ref_core]->read(MSR_IA32_BIOS_SIGN_ID, &result) == sizeof(uint64))
+            {
+                cpu_microcode_level = result >> 32;
+            }
         }
     }
 }
@@ -1519,6 +1545,7 @@ PCM::PCM() :
     cpu_model(-1),
     original_cpu_model(-1),
     cpu_stepping(-1),
+    cpu_microcode_level(-1),
     max_cpuid(-1),
     threads_per_core(0),
     num_cores(0),
@@ -1612,6 +1639,8 @@ PCM::PCM() :
 
     // Initialize RMID to the cores for QOS monitoring
     initRMID();
+
+    readCPUMicrocodeLevel();
 
 #ifdef PCM_USE_PERF
     canUsePerf = true;
@@ -1934,7 +1963,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
         else
             core_gen_counter_num_used = 2;
     }
-    else
+    else if (mode != EXT_CUSTOM_CORE_EVENTS)
     {
         switch ( cpu_model ) {
             case ATOM:
@@ -2042,7 +2071,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
 
     if(EXT_CUSTOM_CORE_EVENTS == mode_ && pExtDesc && pExtDesc->gpCounterCfg)
     {
-        core_gen_counter_num_used = (std::min)(core_gen_counter_num_used,pExtDesc->nGPCounters);
+        core_gen_counter_num_used = pExtDesc->nGPCounters;
     }
 
     if(cpu_model == JAKETOWN)
@@ -4058,7 +4087,7 @@ int getBusFromSocket(const uint32 socket)
 
 PciHandleType * ServerPCICFGUncore::createIntelPerfMonDevice(uint32 groupnr_, int32 bus_, uint32 dev_, uint32 func_, bool checkVendor)
 {
-    if (PciHandleType::exists((uint32)bus_, dev_, func_))
+    if (PciHandleType::exists(groupnr_, (uint32)bus_, dev_, func_))
     {
         PciHandleType * handle = new PciHandleType(groupnr_, bus_, dev_, func_);
 
@@ -5576,6 +5605,7 @@ void PCM::programPCIeCounters(const PCM::PCIeEventCode event_, const uint32 tid_
                 {
                     case 0:
                         umask |= (uint64)(SKX_CHA_TOR_INSERTS_UMASK_HIT(1));
+                        umask |= (uint64)(SKX_CHA_TOR_INSERTS_UMASK_MISS(1));
                         break;
                     case 1:
                         umask |= (uint64)(SKX_CHA_TOR_INSERTS_UMASK_MISS(1));

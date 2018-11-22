@@ -55,8 +55,13 @@ PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 functi
         throw std::exception();
 }
 
-bool PciHandle::exists(uint32 bus_, uint32 device_, uint32 function_)
+bool PciHandle::exists(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 function_)
 {
+    if (groupnr_ != 0)
+    {
+        std::cerr << "Non-zero PCI group segments are not supported in PCM/Windows" << std::endl;
+        return false;
+    }
     if (hOpenLibSys != NULL)
     {
         DWORD addr(PciBusDevFunc(bus_, device_, function_));
@@ -178,8 +183,13 @@ PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 functi
     function(function_)
 { }
 
-bool PciHandle::exists(uint32 bus_, uint32 device_, uint32 function_)
+bool PciHandle::exists(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 function_)
 {
+    if (groupnr_ != 0)
+    {
+        std::cerr << "Non-zero PCI group segments are not supported in PCM/APPLE OSX" << std::endl;
+        return false;
+    }
     uint32_t pci_address = FORM_PCI_ADDR(bus_, device_, function_, 0);
     uint32_t value = 0;
     PCIDriver_read32(pci_address, &value);
@@ -236,8 +246,13 @@ PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 functi
     fd = handle;
 }
 
-bool PciHandle::exists(uint32 bus_, uint32 device_, uint32 function_)
+bool PciHandle::exists(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 function_)
 {
+    if (groupnr_ != 0)
+    {
+        std::cerr << "Non-zero PCI group segments are not supported in PCM/FreeBSD/DragonFlyBSD" << std::endl;
+        return false;
+    }
     struct pci_conf_io pc;
     struct pci_match_conf pattern;
     struct pci_conf conf[4];
@@ -281,15 +296,16 @@ int32 PciHandle::read32(uint64 offset, uint32 * value)
     pi.pi_width = 4;
 
     ret = ioctl(fd, PCIOCREAD, &pi);
+    if (ret) return ret;
 
-    if (!ret) *value = pi.pi_data;
-
-    return ret;
+    *value = pi.pi_data;
+    return sizeof(*value);
 }
 
 int32 PciHandle::write32(uint64 offset, uint32 value)
 {
     struct pci_io pi;
+    int ret;
 
     pi.pi_sel.pc_domain = 0;
     pi.pi_sel.pc_bus = bus;
@@ -299,7 +315,10 @@ int32 PciHandle::write32(uint64 offset, uint32 value)
     pi.pi_width = 4;
     pi.pi_data = value;
 
-    return ioctl(fd, PCIOCWRITE, &pi);
+    ret = ioctl(fd, PCIOCWRITE, &pi);
+    if (ret) return ret;
+
+    return sizeof(value);
 }
 
 int32 PciHandle::read64(uint64 offset, uint64 * value)
@@ -325,7 +344,7 @@ int32 PciHandle::read64(uint64 offset, uint64 * value)
     if (ret) return ret;
 
     *value += ((uint64)pi.pi_data << 32);
-    return 0;
+    return sizeof(value);
 }
 
 PciHandle::~PciHandle()
@@ -344,17 +363,16 @@ PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 functi
     device(device_),
     function(function_)
 {
-    if (groupnr_ != 0)
-    {
-        std::cout << "ERROR: non-zero PCI segment groupnr is not supported in this PciHandle implementation. Please recompile with -DPCM_USE_PCI_MM_LINUX option." << std::endl;
-        throw std::exception();
-    }
-
     std::ostringstream path(std::ostringstream::out);
 
-    path << std::hex << "/proc/bus/pci/" << std::setw(2) << std::setfill('0') << bus << "/" << std::setw(2) << std::setfill('0') << device << "." << function;
+    path << std::hex << "/proc/bus/pci/";
+    if (groupnr_)
+    {
+        path << std::setw(4) << std::setfill('0') << groupnr_ << ":";
+    }
+    path << std::setw(2) << std::setfill('0') << bus << "/" << std::setw(2) << std::setfill('0') << device << "." << function;
 
-    // std::cout << path.str().c_str() << std::endl;
+//    std::cout << "PciHandle: Opening "<<path.str()<<std::endl;
 
     int handle = ::open(path.str().c_str(), O_RDWR);
     if (handle < 0) throw std::exception();
@@ -364,11 +382,18 @@ PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 functi
 }
 
 
-bool PciHandle::exists(uint32 bus_, uint32 device_, uint32 function_)
+bool PciHandle::exists(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 function_)
 {
     std::ostringstream path(std::ostringstream::out);
 
-    path << std::hex << "/proc/bus/pci/" << std::setw(2) << std::setfill('0') << bus_ << "/" << std::setw(2) << std::setfill('0') << device_ << "." << function_;
+    path << std::hex << "/proc/bus/pci/";
+    if (groupnr_)
+    {
+        path << std::setw(4) << std::setfill('0') << groupnr_ << ":";
+    }
+    path << std::setw(2) << std::setfill('0') << bus_ << "/" << std::setw(2) << std::setfill('0') << device_ << "." << function_;
+
+    // std::cout << "PciHandle: Opening "<<path.str()<<std::endl;
 
     int handle = ::open(path.str().c_str(), O_RDWR);
 
@@ -406,6 +431,25 @@ PciHandle::~PciHandle()
 
 #ifndef PCM_USE_PCI_MM_LINUX
 
+int PciHandle::openMcfgTable() {
+    const char* path = "/sys/firmware/acpi/tables/MCFG";
+    int handle = ::open(path, O_RDONLY);
+
+    if ( handle < 0 ) {
+        /**
+         * There are no MCFG table on some machines, but MCFG1.
+         * See https://github.com/opcm/pcm/issues/74 for details
+         */
+        path = "/sys/firmware/acpi/tables/MCFG1";
+        handle = ::open(path, O_RDONLY);
+        if ( handle < 0 ) {
+            std::cerr << "Can't open MCFG table. Check permission of /sys/firmware/acpi/tables/MCFG or MCFG1" << std::endl;
+        }
+    }
+
+    return handle;
+}
+
 PciHandleM::PciHandleM(uint32 bus_, uint32 device_, uint32 function_) :
     fd(-1),
     bus(bus_),
@@ -417,8 +461,7 @@ PciHandleM::PciHandleM(uint32 bus_, uint32 device_, uint32 function_) :
     if (handle < 0) throw std::exception();
     fd = handle;
 
-    int mcfg_handle = ::open("/sys/firmware/acpi/tables/MCFG", O_RDONLY);
-
+    int mcfg_handle = PciHandle::openMcfgTable();
     if (mcfg_handle < 0) throw std::exception();
 
     int32 result = ::pread(mcfg_handle, (void *)&base_addr, sizeof(uint64), 44);
@@ -433,13 +476,11 @@ PciHandleM::PciHandleM(uint32 bus_, uint32 device_, uint32 function_) :
 
     result = ::pread(mcfg_handle, (void *)&max_bus, sizeof(unsigned char), 55);
 
+    ::close(mcfg_handle);
     if (result != sizeof(unsigned char))
     {
-        ::close(mcfg_handle);
         throw std::exception();
     }
-
-    ::close(mcfg_handle);
 
     if (bus > (unsigned)max_bus)
     {
@@ -453,7 +494,7 @@ PciHandleM::PciHandleM(uint32 bus_, uint32 device_, uint32 function_) :
 }
 
 
-bool PciHandleM::exists(uint32 /* bus_*/, uint32 /* device_ */, uint32 /* function_ */)
+bool PciHandleM::exists(uint32 /*groupnr_*/, uint32 /* bus_*/, uint32 /* device_ */, uint32 /* function_ */)
 {
     int handle = ::open("/dev/mem", O_RDWR);
 
@@ -464,10 +505,8 @@ bool PciHandleM::exists(uint32 /* bus_*/, uint32 /* device_ */, uint32 /* functi
 
     ::close(handle);
 
-    handle = ::open("/sys/firmware/acpi/tables/MCFG", O_RDONLY);
-
+    handle = PciHandle::openMcfgTable();
     if (handle < 0) {
-        perror("error opening /sys/firmware/acpi/tables/MCFG");
         return false;
     }
 
@@ -514,12 +553,10 @@ void PciHandleMM::readMCFG()
     if (mcfgRecords.size() > 0)
         return; // already initialized
 
-    const char * path = "/sys/firmware/acpi/tables/MCFG";
-    int mcfg_handle = ::open(path, O_RDONLY);
+    int mcfg_handle = PciHandle::openMcfgTable();
 
     if (mcfg_handle < 0)
     {
-        std::cerr << "PCM Error: Cannot open " << path << std::endl;
         throw std::exception();
     }
 
@@ -527,7 +564,8 @@ void PciHandleMM::readMCFG()
 
     if (read_bytes == 0)
     {
-        std::cerr << "PCM Error: Cannot read " << path << std::endl;
+        ::close(mcfg_handle);
+        std::cerr << "PCM Error: Cannot read MCFG-table" << std::endl;
         throw std::exception();
     }
 
@@ -543,7 +581,8 @@ void PciHandleMM::readMCFG()
         read_bytes = ::read(mcfg_handle, (void *)&record, sizeof(MCFGRecord));
         if (read_bytes == 0)
         {
-            std::cerr << "PCM Error: Cannot read " << path << " (2)" << std::endl;
+            ::close(mcfg_handle);
+            std::cerr << "PCM Error: Cannot read MCFG-table (2)" << std::endl;
             throw std::exception();
         }
 #ifdef PCM_DEBUG
@@ -603,7 +642,7 @@ PciHandleMM::PciHandleMM(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 fu
     }
 }
 
-bool PciHandleMM::exists(uint32 bus_, uint32 device_, uint32 function_)
+bool PciHandleMM::exists(uint32 /*groupnr_*/, uint32 bus_, uint32 device_, uint32 function_)
 {
     int handle = ::open("/dev/mem", O_RDWR);
 
@@ -614,10 +653,9 @@ bool PciHandleMM::exists(uint32 bus_, uint32 device_, uint32 function_)
 
     ::close(handle);
 
-    handle = ::open("/sys/firmware/acpi/tables/MCFG", O_RDONLY);
+    handle = PciHandle::openMcfgTable();
 
     if (handle < 0) {
-        perror("error opening /sys/firmware/acpi/tables/MCFG");
         return false;
     }
 

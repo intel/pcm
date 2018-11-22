@@ -23,6 +23,10 @@
 #include <errno.h>
 #include <time.h>
 
+#ifndef CLOCK_MONOTONIC_RAW
+#define CLOCK_MONOTONIC_RAW             (4) /* needed for SLES11 */
+#endif
+
 #include "daemon.h"
 #include "common.h"
 #include "pcm.h"

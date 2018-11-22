@@ -469,7 +469,7 @@ int main(int argc, char * argv[])
 			exit(EXIT_FAILURE);
 	}
 
-	cerr << "\nDetected "<< m->getCPUBrandString() << " \"Intel(r) microarchitecture codename "<<m->getUArchCodename()<<"\""<<endl;
+    print_cpu_details();
 
 	uint64 BeforeTime = 0, AfterTime = 0;
 	SystemCounterState SysBeforeState, SysAfterState;

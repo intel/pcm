@@ -52,6 +52,19 @@ void exit_cleanup(void)
     _exit(EXIT_SUCCESS);
 }
 
+void print_cpu_details()
+{
+    const auto m = PCM::getInstance();
+    std::cerr << "\nDetected " << m->getCPUBrandString() << " \"Intel(r) microarchitecture codename " <<
+        m->getUArchCodename() << "\" stepping " << m->getCPUStepping();
+    const auto ucode_level = m->getCPUMicrocodeLevel();
+    if (ucode_level >= 0)
+    {
+        std::cerr << " microcode level 0x" << std::hex << ucode_level;
+    }
+    std::cerr << std::endl;
+}
+
 #ifdef _MSC_VER
 
 ThreadGroupTempAffinity::ThreadGroupTempAffinity(uint32 core_id)
@@ -245,8 +258,30 @@ void set_signal_handlers(void)
         std::wcerr << std::endl;
         _exit(EXIT_FAILURE);
     }
-    SetConsoleCtrlHandler((PHANDLER_ROUTINE)sigINT_handler, TRUE);
+    handlerStatus = SetConsoleCtrlHandler((PHANDLER_ROUTINE)sigINT_handler, TRUE);
+    if (handlerStatus == 0) {
+        std::wcerr << "Failed to set Ctrl+C hanlder. Error code: " << GetLastError() << " ";
+        const TCHAR * errorStr = _com_error(GetLastError()).ErrorMessage();
+        if (errorStr) std::wcerr << errorStr;
+        std::wcerr << std::endl;
+        _exit(EXIT_FAILURE);
+    }
     SetUnhandledExceptionFilter((LPTOP_LEVEL_EXCEPTION_FILTER)&unhandled_exception_handler);
+    char *envPath;
+    if (_dupenv_s(&envPath, NULL, "_"))
+    {
+        std::cerr << "\nPCM ERROR: _dupenv_s failed." << std::endl;
+        _exit(EXIT_FAILURE);
+    }
+    free(envPath);
+    if (envPath)
+    {
+        std::cerr << "\nPCM ERROR: Detected cygwin/mingw environment which does not allow to setup PMU clean-up handlers on Ctrl-C and other termination signals." << std::endl;
+        std::cerr << "See https://www.mail-archive.com/cygwin@cygwin.com/msg74817.html" << std::endl;
+        std::cerr << "As a workaround please run pcm directly from a native windows shell (e.g. cmd)." << std::endl;
+        std::cerr << "Exiting...\n" << std::endl;
+        _exit(EXIT_FAILURE);
+    }
     std::cerr << "DEBUG: Setting Ctrl+C done." << std::endl;
 
 #else
