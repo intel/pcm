@@ -56,16 +56,8 @@ DriverEntry(
 {
     NTSTATUS status = STATUS_SUCCESS;
     UNICODE_STRING UnicodeString;
-    UNICODE_STRING dosDeviceName, RegName;
-    UNICODE_STRING RegValueName;
+    UNICODE_STRING dosDeviceName;
     PDEVICE_OBJECT MSRSystemDeviceObject = NULL;
-    OBJECT_ATTRIBUTES RegKeyAttributes;
-    HANDLE RegKey;
-    UCHAR buffer[sizeof(KEY_VALUE_PARTIAL_INFORMATION) + 1024];
-    ULONG resultLength;
-    PWCHAR domainStr;
-    ULONG domainStrL;
-    int i = 0;
 
     UNREFERENCED_PARAMETER(RegistryPath);
 
@@ -138,11 +130,12 @@ NTSTATUS deviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
     struct PCICFG_Request * input_pcicfg_req = NULL;
     ULONG64 * output = NULL;
     GROUP_AFFINITY old_affinity, new_affinity;
-    ULONG currentGroupSize;
     ULONG inputSize = 0;
     PCI_SLOT_NUMBER slot;
     unsigned size = 0;
     PROCESSOR_NUMBER ProcNumber;
+
+    UNREFERENCED_PARAMETER(DeviceObject);
 
     PAGED_CODE();
 
