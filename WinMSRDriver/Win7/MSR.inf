@@ -12,6 +12,7 @@ DriverVer= ; TODO: set DriverVer in stampinf property pages
 
 [DestinationDirs]
 DefaultDestDir = 12
+MSR_Device_CoInstaller_CopyFiles = 11
 
 ; ================= Class section =====================
 
@@ -24,6 +25,7 @@ HKR,,Icon,,-5
 
 [SourceDisksNames]
 1 = %DiskName%,,,""
+WdfCoInstaller$KMDFCOINSTALLERVERSION$.dll=1 ; make sure the number matches with SourceDisksNames
 
 [SourceDisksFiles]
 MSR.sys  = 1,,
@@ -60,9 +62,6 @@ ServiceBinary  = %12%\MSR.sys
 ;--- MSR_Device Coinstaller installation ------
 ;
 
-[DestinationDirs]
-MSR_Device_CoInstaller_CopyFiles = 11
-
 [MSR_Device.NT.CoInstallers]
 AddReg=MSR_Device_CoInstaller_AddReg
 CopyFiles=MSR_Device_CoInstaller_CopyFiles
@@ -72,9 +71,6 @@ HKR,,CoInstallers32,0x00010000, "WdfCoInstaller$KMDFCOINSTALLERVERSION$.dll,WdfC
 
 [MSR_Device_CoInstaller_CopyFiles]
 WdfCoInstaller$KMDFCOINSTALLERVERSION$.dll
-
-[SourceDisksFiles]
-WdfCoInstaller$KMDFCOINSTALLERVERSION$.dll=1 ; make sure the number matches with SourceDisksNames
 
 [MSR_Device.NT.Wdf]
 KmdfService =  MSR, MSR_wdfsect
