@@ -19,8 +19,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{2CDE03E0-BF03-448E-8AA6-D764F8BDE7C1}</ProjectGuid>
-    <RootNamespace>pcm-tsx-win</RootNamespace>
+    <ProjectGuid>{14E59E75-FA0A-4B4C-BA15-F59C6A031F84}</ProjectGuid>
+    <RootNamespace>pcm-pcicfg-win</RootNamespace>
     <Keyword>Win32Proj</Keyword>
     <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
@@ -94,7 +94,7 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
-      <OutputFile>$(OutDir)pcm-tsx.exe</OutputFile>
+      <OutputFile>$(OutDir)pcm-pcicfg.exe</OutputFile>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
       <TargetMachine>MachineX86</TargetMachine>
@@ -111,7 +111,7 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
-      <OutputFile>$(OutDir)pcm-tsx.exe</OutputFile>
+      <OutputFile>$(OutDir)pcm-pcicfg.exe</OutputFile>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
     </Link>
@@ -125,7 +125,7 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
-      <OutputFile>$(OutDir)pcm-tsx.exe</OutputFile>
+      <OutputFile>$(OutDir)pcm-pcicfg.exe</OutputFile>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
@@ -143,7 +143,7 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
-      <OutputFile>$(OutDir)pcm-tsx.exe</OutputFile>
+      <OutputFile>$(OutDir)pcm-pcicfg.exe</OutputFile>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
@@ -154,10 +154,10 @@
     <ClCompile Include="..\cpucounters.cpp" />
     <ClCompile Include="..\msr.cpp" />
     <ClCompile Include="..\pci.cpp" />
+    <ClCompile Include="..\winpmem\winpmem.cpp" />
     <ClCompile Include="..\client_bw.cpp" />
     <ClCompile Include="..\freegetopt\getopt.cpp" />
-    <ClCompile Include="pcm-tsx-win.cpp" />
-    <ClCompile Include="..\winpmem\winpmem.cpp" />
+    <ClCompile Include="pcm-pcicfg-win.cpp" />
     <ClCompile Include="stdafx.cpp" />
     <ClCompile Include="..\utils.cpp" />
     <ClCompile Include="..\PCM_Win\restrictDriverAccess.cpp">
@@ -173,6 +173,10 @@
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="..\types.h" />
     <ClInclude Include="windriver.h" />
+    <ClInclude Include="..\utils.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="My Amplifier Results\r000hs\r000hs.ampl" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="ReadMe.txt" />

@@ -2217,7 +2217,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
             if(canUsePerf)
             {
                 e.type = PERF_TYPE_RAW;
-                e.config = (1ULL<<63ULL) + (((long long unsigned)PERF_TYPE_RAW)<<(64ULL-8ULL)) + event_select_reg.value;
+		e.config = (1ULL<<63ULL) + event_select_reg.value;
                 if (event_select_reg.fields.event_select == OFFCORE_RESPONSE_0_EVTNR)
                     e.config1 = pExtDesc->OffcoreResponseMsrValue[0];
                 if (event_select_reg.fields.event_select == OFFCORE_RESPONSE_1_EVTNR)
@@ -5797,9 +5797,9 @@ void PCM::setupCustomCoreEventsForNuma(PCM::ExtendedCustomCoreEventDescription& 
         break;
     case PCM::SKX:
         // OFFCORE_RESPONSE.ALL_REQUESTS.L3_MISS_LOCAL_DRAM.ANY_SNOOP
-        conf.OffcoreResponseMsrValue[0] = 0x3FC0009FFF | (1 << 26);
+        conf.OffcoreResponseMsrValue[0] = 0x3FC0008FFF | (1 << 26);
         // OFFCORE_RESPONSE.ALL_REQUESTS.L3_MISS_REMOTE_(HOP0,HOP1,HOP2P)_DRAM.ANY_SNOOP
-        conf.OffcoreResponseMsrValue[1] = 0x3FC0009FFF | (1 << 27) | (1 << 28) | (1 << 29);
+        conf.OffcoreResponseMsrValue[1] = 0x3FC0008FFF | (1 << 27) | (1 << 28) | (1 << 29);
         break;
     default:
         throw UnsupportedProcessorException();
