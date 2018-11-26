@@ -2720,7 +2720,7 @@ const char * PCM::getUArchCodename(const int32 cpu_model_param) const
                 // query for specified cpu_model_param, stepping not provided
                 return "Skylake-SP, Cascade Lake-SP";
             }
-            if (cpu_stepping > 4)
+            if (isCLX())
             {
                 return "Cascade Lake-SP";
             }

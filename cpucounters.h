@@ -606,6 +606,11 @@ private:
     void programLLCReadMissLatencyEvents();
     uint64 getCBOCounterState(const uint32 socket, const uint32 ctr_);
 
+	bool isCLX() const // Cascade Lake-SP
+	{
+		return (PCM::SKX == cpu_model) && (cpu_stepping > 4);
+	}
+
 public:
     /*!
              \brief checks if QOS monitoring support present
@@ -1289,8 +1294,8 @@ public:
 
     bool DDRTTrafficMetricsAvailable() const
     {
-        return (
-            cpu_model == PCM::SKX
+		return (
+			isCLX()
             );
     }
     
