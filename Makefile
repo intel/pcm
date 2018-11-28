@@ -11,7 +11,7 @@ ifeq ($(UNAME), Linux)
 EXE += daemon-binaries
 endif
 
-all: $(EXE)
+all: $(EXE) lib
 
 lib: libPCM.a
 
@@ -54,7 +54,7 @@ OBJS = $(COMMON_OBJS) $(EXE_OBJS)
 .PRECIOUS: $(OBJS)
 
 -include $(OBJS:.o=.d)
-libPCM.a: $(OBJS)
+libPCM.a: $(COMMON_OBJS)
 	ar -rcs $@ $^
 
 %.x: %.o $(COMMON_OBJS)
