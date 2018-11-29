@@ -50,7 +50,7 @@ typedef signed int int32;
 #define IA32_PERFEVTSEL2_ADDR           (IA32_PERFEVTSEL0_ADDR + 2)
 #define IA32_PERFEVTSEL3_ADDR           (IA32_PERFEVTSEL0_ADDR + 3)
 
-#define PERF_MAX_COUNTERS               (7)
+#define PERF_MAX_COUNTERS               (11)
 
 #define IA32_DEBUGCTL                   (0x1D9)
 
