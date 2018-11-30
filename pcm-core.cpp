@@ -63,7 +63,7 @@ extern "C" {
 	SystemCounterState SysBeforeState, SysAfterState;
 	std::vector<CoreCounterState> BeforeState, AfterState;
 	std::vector<SocketCounterState> DummySocketStates;
-	EventSelectRegister regs[4];
+	EventSelectRegister *regs;
 	PCM::ExtendedCustomCoreEventDescription conf;
 
 	int pcm_c_build_core_event(uint8_t idx, const char * argv)
@@ -79,6 +79,7 @@ extern "C" {
 	int pcm_c_init()
 	{
 		PCM * m = PCM::getInstance();
+		regs = (EventSelectRegister*)malloc(sizeof(EventSelectRegister) * m->getMaxCustomCoreEvents());
 		conf.fixedCfg = NULL; // default
 		conf.nGPCounters = m->getMaxCustomCoreEvents();
 		conf.gpCounterCfg = regs;
@@ -290,16 +291,17 @@ int main(int argc, char * argv[])
 	int calibrated = PCM_CALIBRATION_INTERVAL - 2; // keeps track is the clock calibration needed
 	unsigned int numberOfIterations = 0; // number of iterations
 	string program = string(argv[0]);
-	EventSelectRegister regs[4];
+	EventSelectRegister *regs;
 	PCM::ExtendedCustomCoreEventDescription conf;
 	bool show_partial_core_output = false;
 	std::bitset<MAX_CORES> ycores;
 
+        PCM * m = PCM::getInstance();
+
+        regs = (EventSelectRegister*)malloc(sizeof(EventSelectRegister) * m->getMaxCustomCoreEvents());
 	// Occasionally the memory is not properly nulled because counters appear to
 	// be programmed even without given arguments so making really sure
-	memset( &regs, 0, sizeof(regs) );
-
-    PCM * m = PCM::getInstance();
+        memset(regs, 0, sizeof(EventSelectRegister) * m->getMaxCustomCoreEvents());
 
 	conf.fixedCfg = NULL; // default
 	conf.nGPCounters = m->getMaxCustomCoreEvents();
