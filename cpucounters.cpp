@@ -3192,13 +3192,13 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
     SMICount += cSMICount;
 }
 
-PCM::ErrorCode PCM::programServerUncoreMemoryMetrics(int rankA, int rankB, bool DDR_T)
+PCM::ErrorCode PCM::programServerUncoreMemoryMetrics(int rankA, int rankB, bool PMM)
 {
     if(MSR.empty() || server_pcicfg_uncore.empty())  return PCM::MSRAccessDenied;
 
     for (int i = 0; (i < (int)server_pcicfg_uncore.size()) && MSR.size(); ++i)
     {
-        server_pcicfg_uncore[i]->programServerUncoreMemoryMetrics(rankA, rankB, DDR_T);
+        server_pcicfg_uncore[i]->programServerUncoreMemoryMetrics(rankA, rankB, PMM);
     }
 
     return PCM::Success;
@@ -3473,10 +3473,10 @@ void PCM::readAndAggregateUncoreMCCounters(const uint32 socket, CounterStateType
             server_pcicfg_uncore[socket]->freezeCounters();
             result.UncMCNormalReads += server_pcicfg_uncore[socket]->getImcReads();
             result.UncMCFullWrites += server_pcicfg_uncore[socket]->getImcWrites();
-            if (DDRTTrafficMetricsAvailable())
+            if (PMMTrafficMetricsAvailable())
             {
-                result.UncDDRTReads += server_pcicfg_uncore[socket]->getDDRTReads();
-                result.UncDDRTWrites += server_pcicfg_uncore[socket]->getDDRTWrites();
+                result.UncPMMReads += server_pcicfg_uncore[socket]->getPMMReads();
+                result.UncPMMWrites += server_pcicfg_uncore[socket]->getPMMWrites();
             }
             if (MCDRAMmemoryTrafficMetricsAvailable())
             {
@@ -4405,7 +4405,7 @@ ServerPCICFGUncore::~ServerPCICFGUncore()
 }
 
 
-void ServerPCICFGUncore::programServerUncoreMemoryMetrics(int rankA, int rankB, bool DDR_T)
+void ServerPCICFGUncore::programServerUncoreMemoryMetrics(int rankA, int rankB, bool PMM)
 {
     PCM * pcm = PCM::getInstance();
     const uint32 cpu_model = pcm->getCPUModel();
@@ -4424,16 +4424,16 @@ void ServerPCICFGUncore::programServerUncoreMemoryMetrics(int rankA, int rankB, 
         default:
             MCCntConfig[0] = MC_CH_PCI_PMON_CTL_EVENT(0x04) + MC_CH_PCI_PMON_CTL_UMASK(3);  // monitor reads on counter 0: CAS_COUNT.RD
             MCCntConfig[1] = MC_CH_PCI_PMON_CTL_EVENT(0x04) + MC_CH_PCI_PMON_CTL_UMASK(12); // monitor writes on counter 1: CAS_COUNT.WR
-            if (DDR_T)
+            if (PMM)
             {
-                if (pcm->DDRTTrafficMetricsAvailable())
+                if (pcm->PMMTrafficMetricsAvailable())
                 {
-                    MCCntConfig[2] = MC_CH_PCI_PMON_CTL_EVENT(0xe3); // monitor DDRT_RDQ_REQUESTS on counter 2
-                    MCCntConfig[3] = MC_CH_PCI_PMON_CTL_EVENT(0xe7); // monitor DDRT_WPQ_REQUESTS on counter 3
+                    MCCntConfig[2] = MC_CH_PCI_PMON_CTL_EVENT(0xe3); // monitor PMM_RDQ_REQUESTS on counter 2
+                    MCCntConfig[3] = MC_CH_PCI_PMON_CTL_EVENT(0xe7); // monitor PMM_WPQ_REQUESTS on counter 3
                 }
                 else
                 {
-                    std::cerr << "PCM Error: DDR-T metrics are not available on your platform" << std::endl;
+                    std::cerr << "PCM Error: PMM metrics are not available on your platform" << std::endl;
                     return;
                 }
             }
@@ -4495,10 +4495,10 @@ void ServerPCICFGUncore::program()
     default:
         MCCntConfig[0] = MC_CH_PCI_PMON_CTL_EVENT(0x04) + MC_CH_PCI_PMON_CTL_UMASK(3);  // monitor reads on counter 0: CAS_COUNT.RD
         MCCntConfig[1] = MC_CH_PCI_PMON_CTL_EVENT(0x04) + MC_CH_PCI_PMON_CTL_UMASK(12); // monitor writes on counter 1: CAS_COUNT.WR
-        if (pcm->DDRTTrafficMetricsAvailable())
+        if (pcm->PMMTrafficMetricsAvailable())
         {
-            MCCntConfig[2] = MC_CH_PCI_PMON_CTL_EVENT(0xe3); // monitor DDRT_RDQ_REQUESTS on counter 2
-            MCCntConfig[3] = MC_CH_PCI_PMON_CTL_EVENT(0xe7); // monitor DDRT_WPQ_REQUESTS on counter 3
+            MCCntConfig[2] = MC_CH_PCI_PMON_CTL_EVENT(0xe3); // monitor PMM_RDQ_REQUESTS on counter 2
+            MCCntConfig[3] = MC_CH_PCI_PMON_CTL_EVENT(0xe7); // monitor PMM_WPQ_REQUESTS on counter 3
         }
     }
 
@@ -4631,7 +4631,7 @@ uint64 ServerPCICFGUncore::getImcWrites()
     return result;
 }
 
-uint64 ServerPCICFGUncore::getDDRTReads()
+uint64 ServerPCICFGUncore::getPMMReads()
 {
     uint64 result = 0;
     for (uint32 i = 0; i < (uint32)imcHandles.size(); ++i)
@@ -4641,7 +4641,7 @@ uint64 ServerPCICFGUncore::getDDRTReads()
     return result;
 }
 
-uint64 ServerPCICFGUncore::getDDRTWrites()
+uint64 ServerPCICFGUncore::getPMMWrites()
 {
     uint64 result = 0;
     for (uint32 i = 0; i < (uint32)imcHandles.size(); ++i)

@@ -70,8 +70,8 @@ int main()
             for (uint32 a = 0; a < counters.getNumSockets(); ++a) {
                 cout << "Socket" << a << "/BytesReadFromMC\tfloat" << endl;
                 cout << "Socket" << a << "/BytesWrittenToMC\tfloat" << endl;
-                cout << "Socket" << a << "/BytesReadFromDDR-T\tfloat" << endl;
-                cout << "Socket" << a << "/BytesWrittenToDDR-T\tfloat" << endl;
+                cout << "Socket" << a << "/BytesReadFromPMM\tfloat" << endl;
+                cout << "Socket" << a << "/BytesWrittenToPMM\tfloat" << endl;
                 cout << "Socket" << a << "/Frequency\tfloat" << endl;
                 cout << "Socket" << a << "/IPC\tfloat" << endl;
                 cout << "Socket" << a << "/L2CacheHitRatio\tfloat" << endl;
@@ -262,9 +262,9 @@ int main()
         }
         for (uint32 i = 0; i < counters.getNumSockets(); ++i) {
             stringstream c;
-            c << "Socket" << i << "/BytesReadFromDDR-T?";
+            c << "Socket" << i << "/BytesReadFromPMM?";
             if (s == c.str()) {
-                cout << "read from DDR-T memory on Socket" << i << "\t0\t\tGB" << endl;
+                cout << "read from PMM memory on Socket" << i << "\t0\t\tGB" << endl;
             }
         }
         for (uint32 i = 0; i < counters.getNumSockets(); ++i) {
@@ -346,9 +346,9 @@ int main()
         }
         for (uint32 i = 0; i < counters.getNumSockets(); ++i) {
             stringstream c;
-            c << "Socket" << i << "/BytesWrittenToDDR-T?";
+            c << "Socket" << i << "/BytesWrittenToPMM?";
             if (s == c.str()) {
-                cout << "written to DDR-T memory on Socket" << i << "\t0\t\tGB" << endl;
+                cout << "written to PMM memory on Socket" << i << "\t0\t\tGB" << endl;
                 //cout << "CPU" << i << "\tBytes written to memory channel\t0\t1\t GB" << endl;
             }
         }
@@ -622,8 +622,8 @@ int main()
         OUTPUT_SOCKET_METRIC("/ThermalHeadroom", (counters.getSocket<int32, ::getThermalHeadroom>(i)))
         OUTPUT_SOCKET_METRIC("/BytesReadFromMC", (double(counters.getSocket<uint64, ::getBytesReadFromMC>(i)) / 1024 / 1024 / 1024))
         OUTPUT_SOCKET_METRIC("/BytesWrittenToMC", (double(counters.getSocket<uint64, ::getBytesWrittenToMC>(i)) / 1024 / 1024 / 1024))
-        OUTPUT_SOCKET_METRIC("/BytesReadFromDDR-T", (double(counters.getSocket<uint64, ::getBytesReadFromDDRT>(i)) / 1024 / 1024 / 1024))
-        OUTPUT_SOCKET_METRIC("/BytesWrittenToDDR-T", (double(counters.getSocket<uint64, ::getBytesWrittenToDDRT>(i)) / 1024 / 1024 / 1024))
+        OUTPUT_SOCKET_METRIC("/BytesReadFromPMM", (double(counters.getSocket<uint64, ::getBytesReadFromPMM>(i)) / 1024 / 1024 / 1024))
+        OUTPUT_SOCKET_METRIC("/BytesWrittenToPMM", (double(counters.getSocket<uint64, ::getBytesWrittenToPMM>(i)) / 1024 / 1024 / 1024))
         OUTPUT_SOCKET_METRIC("/Frequency", (counters.getSocket<double, ::getAverageFrequency>(i) / 1000000))
         OUTPUT_SOCKET_METRIC("/IPC", (counters.getSocket<double, ::getIPC>(i)))
         OUTPUT_SOCKET_METRIC("/L2CacheHitRatio", (counters.getSocket<double, ::getL2CacheHitRatio>(i)))
