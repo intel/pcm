@@ -93,20 +93,24 @@ struct PCM_API TopologyEntry // decribes a core
 //! Object to access uncore counters in a socket/processor with microarchitecture codename SandyBridge-EP (Jaketown) or Ivytown-EP or Ivytown-EX
 class ServerPCICFGUncore
 {
-    int32 iMCbus,UPIbus;
+    int32 iMCbus,UPIbus,M2Mbus;
     uint32 groupnr;
     int32 cpu_model;
     std::vector<std::shared_ptr<PciHandleType> > imcHandles;
     std::vector<std::shared_ptr<PciHandleType> > edcHandles;
     std::vector<std::shared_ptr<PciHandleType> > qpiLLHandles;
+    std::vector<std::shared_ptr<PciHandleType> > m2mHandles;
     std::vector<uint64> qpi_speed;
     uint32 num_imc;
+    uint32 num_imc_channels1; // number of memory channels in the first memory controller
     uint32 MCX_CHY_REGISTER_DEV_ADDR[2][4];
     uint32 MCX_CHY_REGISTER_FUNC_ADDR[2][4];
     uint32 EDCX_ECLK_REGISTER_DEV_ADDR[8];
     uint32 EDCX_ECLK_REGISTER_FUNC_ADDR[8];
     uint32 QPI_PORTX_REGISTER_DEV_ADDR[3];
     uint32 QPI_PORTX_REGISTER_FUNC_ADDR[3];
+    uint32 M2M_REGISTER_DEV_ADDR[2];
+    uint32 M2M_REGISTER_FUNC_ADDR[2];
     uint32 LINK_PCI_PMON_BOX_CTL_ADDR;
     uint32 LINK_PCI_PMON_CTL_ADDR[4];
     uint32 LINK_PCI_PMON_CTR_ADDR[4];
@@ -114,6 +118,7 @@ class ServerPCICFGUncore
     static PCM_Util::Mutex socket2busMutex;
     static std::vector<std::pair<uint32, uint32> > socket2iMCbus;
     static std::vector<std::pair<uint32, uint32> > socket2UPIbus;
+    static std::vector<std::pair<uint32, uint32> > socket2M2Mbus;
     void initSocket2Bus(std::vector<std::pair<uint32, uint32> > & socket2bus, uint32 device, uint32 function, const uint32 DEV_IDS[], uint32 devIdsSize);
 
     ServerPCICFGUncore();                                         // forbidden
@@ -122,6 +127,7 @@ class ServerPCICFGUncore
     PciHandleType * createIntelPerfMonDevice(uint32 groupnr, int32 bus, uint32 dev, uint32 func, bool checkVendor = false);
     void programIMC(const uint32 * MCCntConfig);
     void programEDC(const uint32 * EDCCntConfig);
+    void programM2M();
     typedef std::pair<size_t, std::vector<uint64 *> > MemTestParam;
     void initMemTest(MemTestParam & param);
     void doMemTest(const MemTestParam & param);
@@ -137,8 +143,20 @@ public:
     void program();
     //! \brief Get the number of integrated controller reads (in cache lines)
     uint64 getImcReads();
+    //! \brief Get the number of integrated controller reads for given controller (in cache lines)
+    //! \param controller controller ID/number
+    uint64 getImcReadsForController(uint32 controller);
+    //! \brief Get the number of integrated controller reads for given channels (in cache lines)
+    //! \param beginChannel first channel in the range
+    //! \param endChannel last channel + 1: the range is [beginChannel, endChannel). endChannel is not included.
+    uint64 getImcReadsForChannels(uint32 beginChannel, uint32 endChannel);
     //! \brief Get the number of integrated controller writes (in cache lines)
     uint64 getImcWrites();
+
+    //! \brief Get the number of PMM memory reads (in cache lines)
+    uint64 getPMMReads();
+    //! \brief Get the number of PMM memory writes (in cache lines)
+    uint64 getPMMWrites();
 
     //! \brief Get the number of cache lines read by EDC (embedded DRAM controller)
     uint64 getEdcReads();
@@ -162,7 +180,8 @@ public:
     //! \brief Program memory counters (disables programming performance counters)
     //! \param rankA count DIMM rank1 statistics (disables memory channel monitoring)
     //! \param rankB count DIMM rank2 statistics (disables memory channel monitoring)
-    void programServerUncoreMemoryMetrics(int rankA = -1, int rankB = -1);
+    //! \param PMM monitor PMM bandwidth instead of partial writes
+    void programServerUncoreMemoryMetrics(int rankA = -1, int rankB = -1, bool PMM = false);
 
     //! \brief Get number of QPI LL clocks on a QPI port
     //! \param port QPI port number
@@ -196,6 +215,11 @@ public:
     //! \param counter counter number
     uint64 getQPILLCounter(uint32 port, uint32 counter);
 
+    //! \brief Direct read of M2M counter
+    //! \param box box ID/number
+    //! \param counter counter number
+    uint64 getM2MCounter(uint32 box, uint32 counter);
+
     //! \brief Freezes event counting
     void freezeCounters();
     //! \brief Unfreezes event counting
@@ -224,6 +248,10 @@ public:
 
     //! \brief Returns the total number of detected memory channels on all integrated memory controllers
     size_t getNumMCChannels() const { return (size_t)imcHandles.size(); }
+
+    //! \brief Returns the total number of detected memory channels on given integrated memory controller
+    //! \param controller controller number
+    size_t getNumMCChannels(const uint32 controller) const;
 
     //! \brief Returns the total number of detected memory channels on all embedded DRAM controllers (EDC)
     size_t getNumEDCChannels() const { return (size_t)edcHandles.size(); }
@@ -600,6 +628,11 @@ private:
     void programLLCReadMissLatencyEvents();
     uint64 getCBOCounterState(const uint32 socket, const uint32 ctr_);
 
+	bool isCLX() const // Cascade Lake-SP
+	{
+		return (PCM::SKX == cpu_model) && (cpu_stepping > 4);
+	}
+
 public:
     /*!
              \brief checks if QOS monitoring support present
@@ -699,6 +732,7 @@ public:
     /*! \brief Programs uncore memory counters on microarchitectures codename SandyBridge-EP and later Xeon uarch
         \param rankA count DIMM rank1 statistics (disables memory channel monitoring)
         \param rankB count DIMM rank2 statistics (disables memory channel monitoring)
+        \param PMM monitor PMM bandwidth instead of partial writes
 
         Call this method before you start using the memory counter routines on microarchitecture codename SandyBridge-EP and later Xeon uarch
 
@@ -707,7 +741,7 @@ public:
         program PMUs: Intel(r) VTune(tm), Intel(r) Performance Tuning Utility (PTU). This code may make
         VTune or PTU measurements invalid. VTune or PTU measurement may make measurement with this code invalid. Please enable either usage of these routines or VTune/PTU/etc.
     */
-    ErrorCode programServerUncoreMemoryMetrics(int rankA = -1, int rankB = -1);
+    ErrorCode programServerUncoreMemoryMetrics(int rankA = -1, int rankB = -1, bool PMM = false);
 
     //! \brief Freezes uncore event counting (works only on microarchitecture codename SandyBridge-EP and IvyTown)
     void freezeServerUncoreCounters();
@@ -987,6 +1021,33 @@ public:
         return 0;
     }
 
+    //! \brief Returns the number of detected memory channels on given integrated memory controllers
+    //! \param socket socket
+    //! \param controller controller
+    size_t getMCChannels(uint32 socket, uint32 controller) const
+    {
+        switch (cpu_model)
+        {
+        case NEHALEM_EP:
+        case WESTMERE_EP:
+        case CLARKDALE:
+            return 3;
+        case NEHALEM_EX:
+        case WESTMERE_EX:
+            return 4;
+        case JAKETOWN:
+        case IVYTOWN:
+        case HASWELLX:
+        case BDX_DE:
+        case SKX:
+        case BDX:
+        case KNL:
+            return (socket < server_pcicfg_uncore.size() && server_pcicfg_uncore[socket].get()) ? (server_pcicfg_uncore[socket]->getNumMCChannels(controller)) : 0;
+        }
+        return 0;
+    }
+
+
     //! \brief Returns the total number of detected memory channels on all integrated memory controllers per socket
     size_t getEDCChannelsPerSocket() const
     {
@@ -1166,7 +1227,7 @@ public:
 
     //! \brief Get a string describing the codename of the processor microarchitecture
     //! \param cpu_model_ cpu model (if no parameter provided the codename of the detected CPU is returned)
-    const char * getUArchCodename(int32 cpu_model_ = -1) const;
+    const char * getUArchCodename(const int32 cpu_model_ = -1) const;
 
     //! \brief Get Brand string of processor
     static std::string getCPUBrandString();
@@ -1180,13 +1241,13 @@ public:
         return (
                     cpu_model == PCM::JAKETOWN
                  || cpu_model == PCM::IVYTOWN
-                 || cpu_model == PCM::SANDY_BRIDGE 
+                 || cpu_model == PCM::SANDY_BRIDGE
                  || cpu_model == PCM::IVY_BRIDGE
                  || cpu_model == PCM::HASWELL
                  || original_cpu_model == PCM::ATOM_AVOTON
                  || original_cpu_model == PCM::ATOM_CHERRYTRAIL
                  || original_cpu_model == PCM::ATOM_BAYTRAIL
-		         || original_cpu_model == PCM::ATOM_APOLLO_LAKE
+                 || original_cpu_model == PCM::ATOM_APOLLO_LAKE
                  || original_cpu_model == PCM::ATOM_DENVERTON
                  || cpu_model == PCM::HASWELLX
                  || cpu_model == PCM::BROADWELL
@@ -1201,7 +1262,7 @@ public:
 
     bool dramEnergyMetricsAvailable() const
     {
-        return ( 
+        return (
              cpu_model == PCM::JAKETOWN
           || cpu_model == PCM::IVYTOWN
           || cpu_model == PCM::HASWELLX
@@ -1214,15 +1275,15 @@ public:
 
     bool packageThermalMetricsAvailable() const
     {
-    	return packageEnergyMetricsAvailable();
+        return packageEnergyMetricsAvailable();
     }
 
     bool outgoingQPITrafficMetricsAvailable() const
     {
         return getQPILinksPerSocket() > 0 &&
             (
-                cpu_model == PCM::NEHALEM_EX 
-            ||  cpu_model == PCM::WESTMERE_EX 
+                cpu_model == PCM::NEHALEM_EX
+            ||  cpu_model == PCM::WESTMERE_EX
             ||  cpu_model == PCM::JAKETOWN
             ||  cpu_model == PCM::IVYTOWN
             ||  cpu_model == PCM::HASWELLX
@@ -1280,6 +1341,13 @@ public:
         );
     }
 
+    bool PMMTrafficMetricsAvailable() const
+    {
+		return (
+			isCLX()
+            );
+    }
+    
     bool LLCReadMissLatencyMetricsAvailable() const
     {
         return (
@@ -1334,10 +1402,10 @@ public:
 
     bool useSkylakeEvents() const
     {
-        return PCM::SKL == cpu_model
-            || PCM::SKX == cpu_model
-            || PCM::KBL == cpu_model
-            ;
+        return    PCM::SKL == cpu_model
+               || PCM::KBL == cpu_model
+               || PCM::SKX == cpu_model
+               ;
     }
 
     static double getBytesPerFlit(int32 cpu_model_)
@@ -1591,24 +1659,24 @@ inline uint64 RDTSC()
 
 inline uint64 RDTSCP()
 {
-	uint64 result = 0;
+    uint64 result = 0;
 #ifdef _MSC_VER
-        // Windows
-        #if _MSC_VER>= 1600
-        unsigned int Aux;
-        result = __rdtscp(&Aux);
-        #endif
+    // Windows
+    #if _MSC_VER>= 1600
+    unsigned int Aux;
+    result = __rdtscp(&Aux);
+    #endif
 #else
-	// Linux and OS X
-        uint32 high = 0, low = 0;
-        asm volatile (
-           "rdtscp\n\t"
-           "mov %%edx, %0\n\t"
-           "mov %%eax, %1\n\t":
-           "=r" (high), "=r" (low) :: "%rax", "%rcx", "%rdx");
-        result = low + (uint64(high)<<32ULL);
+    // Linux and OS X
+    uint32 high = 0, low = 0;
+    asm volatile (
+       "rdtscp\n\t"
+       "mov %%edx, %0\n\t"
+       "mov %%eax, %1\n\t":
+       "=r" (high), "=r" (low) :: "%rax", "%rcx", "%rdx");
+    result = low + (uint64(high)<<32ULL);
 #endif
-	return result;
+    return result;
 }
 
 /*! \brief Returns QPI LL clock ticks
@@ -1709,6 +1777,20 @@ uint64 getMCCounter(uint32 channel, uint32 counter, const CounterStateType & bef
 {
     return after.MCCounter[channel][counter] - before.MCCounter[channel][counter];
 }
+
+
+/*! \brief Direct read of Memory2Mesh controller PMU counter (counter meaning depends on the programming: power/performance/etc)
+    \param counter counter number
+    \param controller controller number
+    \param before CPU counter state before the experiment
+    \param after CPU counter state after the experiment
+*/
+template <class CounterStateType>
+uint64 getM2MCounter(uint32 controller, uint32 counter, const CounterStateType & before, const CounterStateType & after)
+{
+    return after.M2MCounter[controller][counter] - before.M2MCounter[controller][counter];
+}
+
 
 /*! \brief Direct read of embedded DRAM memory controller counter (counter meaning depends on the programming: power/performance/etc)
     \param counter counter number
@@ -1819,6 +1901,10 @@ class UncoreCounterState
     template <class CounterStateType>
     friend uint64 getBytesWrittenToMC(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
+    friend uint64 getBytesReadFromPMM(const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
+    friend uint64 getBytesWrittenToPMM(const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
     friend uint64 getBytesReadFromEDC(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
     friend uint64 getBytesWrittenToEDC(const CounterStateType & before, const CounterStateType & after);
@@ -1836,6 +1922,8 @@ class UncoreCounterState
 protected:
     uint64 UncMCFullWrites;
     uint64 UncMCNormalReads;
+    uint64 UncPMMWrites;
+    uint64 UncPMMReads;
     uint64 UncEDCFullWrites;
     uint64 UncEDCNormalReads;
     uint64 UncMCIORequests;
@@ -1851,6 +1939,8 @@ public:
     UncoreCounterState() :
         UncMCFullWrites(0),
         UncMCNormalReads(0),
+        UncPMMWrites(0),
+        UncPMMReads(0),
         UncEDCFullWrites(0),
         UncEDCNormalReads(0),
         UncMCIORequests(0),
@@ -1868,6 +1958,8 @@ public:
     {
         UncMCFullWrites += o.UncMCFullWrites;
         UncMCNormalReads += o.UncMCNormalReads;
+        UncPMMReads += o.UncPMMReads;
+        UncPMMWrites += o.UncPMMWrites;
         UncEDCFullWrites += o.UncEDCFullWrites;
         UncEDCNormalReads += o.UncEDCNormalReads;
         UncMCIORequests += o.UncMCIORequests;
@@ -1891,6 +1983,7 @@ class ServerUncorePowerState : public UncoreCounterState
     uint64 DRAMClocks[8];
     uint64 MCDRAMClocks[16];
     uint64 MCCounter[8][4]; // channel X counter
+    uint64 M2MCounter[2][4]; // M2M/iMC boxes x counter
     uint64 EDCCounter[8][4]; // EDC controller X counter
     uint64 PCUCounter[4];
     int32 PackageThermalHeadroom;
@@ -1908,6 +2001,8 @@ class ServerUncorePowerState : public UncoreCounterState
     friend uint64 getMCDRAMClocks(uint32 channel, const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
     friend uint64 getMCCounter(uint32 channel, uint32 counter, const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
+    friend uint64 getM2MCounter(uint32 controller, uint32 counter, const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
     friend uint64 getEDCCounter(uint32 channel, uint32 counter, const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
@@ -1935,7 +2030,10 @@ public:
         for (int i = 0; i < 8; ++i) {
             memset(&(MCCounter[i][0]), 0, 4 * sizeof(uint64));
             memset(&(EDCCounter[i][0]), 0, 4 * sizeof(uint64));
-	}
+        }
+        for (int i = 0; i < 2; ++i) {
+            memset(&(M2MCounter[i][0]), 0, 4 * sizeof(uint64));
+        }
     }
 };
 
@@ -2575,6 +2673,30 @@ uint64 getBytesWrittenToMC(const CounterStateType & before, const CounterStateTy
     return (after.UncMCFullWrites - before.UncMCFullWrites) * 64;
 }
 
+/*! \brief Computes number of bytes read from PMM memory
+
+    \param before CPU counter state before the experiment
+    \param after CPU counter state after the experiment
+    \return Number of bytes
+*/
+template <class CounterStateType>
+uint64 getBytesReadFromPMM(const CounterStateType & before, const CounterStateType & after)
+{
+    return (after.UncPMMReads - before.UncPMMReads) * 64;
+}
+
+/*! \brief Computes number of bytes written to PMM memory
+
+    \param before CPU counter state before the experiment
+    \param after CPU counter state after the experiment
+    \return Number of bytes
+*/
+template <class CounterStateType>
+uint64 getBytesWrittenToPMM(const CounterStateType & before, const CounterStateType & after)
+{
+    return (after.UncPMMWrites - before.UncPMMWrites) * 64;
+}
+
 /*! \brief Computes number of bytes read from MCDRAM memory controllers
 
     \param before CPU counter state before the experiment
@@ -2855,7 +2977,11 @@ inline uint64 getAllIncomingQPILinkBytes(const SystemCounterState & now)
 inline double getQPItoMCTrafficRatio(const SystemCounterState & before, const SystemCounterState & after)
 {
     const uint64 totalQPI = getAllIncomingQPILinkBytes(before, after);
-    const uint64 memTraffic = getBytesReadFromMC(before, after) + getBytesWrittenToMC(before, after);
+    uint64 memTraffic = getBytesReadFromMC(before, after) + getBytesWrittenToMC(before, after);
+    if (PCM::getInstance()->PMMTrafficMetricsAvailable())
+    {
+        memTraffic += getBytesReadFromPMM(before, after) + getBytesWrittenToPMM(before, after);
+    }
     return double(totalQPI) / double(memTraffic);
 }
 

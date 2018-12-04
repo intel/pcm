@@ -179,6 +179,8 @@ void print_output(PCM * m,
     if (m->memoryTrafficMetricsAvailable()) cout << " READ  : bytes read from main memory controller (in GBytes)" << "\n";
     if (m->memoryTrafficMetricsAvailable()) cout << " WRITE : bytes written to main memory controller (in GBytes)" << "\n";
     if (m->LLCReadMissLatencyMetricsAvailable()) cout << "LLCRDMISSLAT: average latency of last level cache miss for reads and prefetches (in ns)";
+    if (m->PMMTrafficMetricsAvailable()) cout << " PMM RD : bytes read from PMM memory (in GBytes)" << "\n";
+    if (m->PMMTrafficMetricsAvailable()) cout << " PMM WR : bytes written to PMM memory (in GBytes)" << "\n";
     if (m->MCDRAMmemoryTrafficMetricsAvailable()) cout << " MCDRAM READ  : bytes read from MCDRAM controller (in GBytes)" << "\n";
     if (m->MCDRAMmemoryTrafficMetricsAvailable()) cout << " MCDRAM WRITE : bytes written to MCDRAM controller (in GBytes)" << "\n";
     if (m->memoryIOTrafficMetricAvailable()) cout << " IO    : bytes read/written due to IO requests to memory controller (in GBytes); this may be an over estimate due to same-cache-line partial requests" << "\n";
@@ -345,7 +347,6 @@ void print_output(PCM * m,
         {
             cout << "\n" << "Intel(r) "<< m->xPI() <<" traffic estimation in bytes (data and non-data traffic outgoing from CPU/socket through "<< m->xPI() <<" links):" << "\n" << "\n";
 
-
             const uint32 qpiLinks = (uint32)m->getQPILinksPerSocket();
 
             cout << "              ";
@@ -381,6 +382,8 @@ void print_output(PCM * m,
         cout << "MEM (GB)->|";
         if (m->memoryTrafficMetricsAvailable())
             cout << "  READ |  WRITE |";
+        if (m->PMMTrafficMetricsAvailable())
+            cout << " PMM RD | PMM WR |";
         if (m->MCDRAMmemoryTrafficMetricsAvailable())
             cout << " MCDRAM READ | MCDRAM WRITE |";
         if (m->memoryIOTrafficMetricAvailable())
@@ -399,6 +402,9 @@ void print_output(PCM * m,
                 if (m->memoryTrafficMetricsAvailable())
                     cout << "    " << setw(5) << getBytesReadFromMC(sktstate1[i], sktstate2[i]) / double(1e9) <<
                             "    " << setw(5) << getBytesWrittenToMC(sktstate1[i], sktstate2[i]) / double(1e9);
+                if (m->PMMTrafficMetricsAvailable())
+                    cout << "     " << setw(5) << getBytesReadFromPMM(sktstate1[i], sktstate2[i]) / double(1e9) <<
+                            "     " << setw(5) << getBytesWrittenToPMM(sktstate1[i], sktstate2[i]) / double(1e9);
                 if (m->MCDRAMmemoryTrafficMetricsAvailable())
                     cout << "   " << setw(11) << getBytesReadFromEDC(sktstate1[i], sktstate2[i]) / double(1e9) <<
                             "    " << setw(11) << getBytesWrittenToEDC(sktstate1[i], sktstate2[i]) / double(1e9);
@@ -424,6 +430,9 @@ void print_output(PCM * m,
             if (m->memoryTrafficMetricsAvailable())
                 cout << "    " << setw(5) << getBytesReadFromMC(sstate1, sstate2) / double(1e9) <<
                         "    " << setw(5) << getBytesWrittenToMC(sstate1, sstate2) / double(1e9);
+            if (m->PMMTrafficMetricsAvailable())
+                cout << "     " << setw(5) << getBytesReadFromPMM(sstate1, sstate2) / double(1e9) <<
+                        "     " << setw(5) << getBytesWrittenToPMM(sstate1, sstate2) / double(1e9);
             if (m->memoryIOTrafficMetricAvailable())
                 cout << "    " << setw(5) << getIORequestBytesFromMC(sstate1, sstate2) / double(1e9);
             cout << "     ";
@@ -499,6 +508,9 @@ void print_csv_header(PCM * m,
         if (m->memoryTrafficMetricsAvailable())
             cout << ";;";
 
+    if (m->PMMTrafficMetricsAvailable())
+        cout << ";;";
+
         if (m->MCDRAMmemoryTrafficMetricsAvailable())
             cout << ";;";
 
@@ -540,6 +552,8 @@ void print_csv_header(PCM * m,
                 cout << ";";
             if (m->memoryTrafficMetricsAvailable())
                 cout << ";;";
+            if (m->PMMTrafficMetricsAvailable())
+                 cout << ";;";
             if (m->MCDRAMmemoryTrafficMetricsAvailable())
                 cout << ";;";
         }
@@ -639,6 +653,9 @@ void print_csv_header(PCM * m,
         if (m->memoryTrafficMetricsAvailable())
                 cout << "READ;WRITE;";
 
+        if (m->PMMTrafficMetricsAvailable())
+            cout << "PMM_RD;PMM_WR;";
+
         if (m->MCDRAMmemoryTrafficMetricsAvailable())
                 cout << "MCDRAM_READ;MCDRAM_WRITE;";
 
@@ -680,6 +697,8 @@ void print_csv_header(PCM * m,
                  cout << "RMB;";
              if (m->memoryTrafficMetricsAvailable())
                  cout << "READ;WRITE;";
+             if (m->PMMTrafficMetricsAvailable())
+                 cout << "PMM_RD;PMM_WR;";
              if (m->MCDRAMmemoryTrafficMetricsAvailable())
                  cout << "MCDRAM_READ;MCDRAM_WRITE;";
              cout << "TEMP;";
@@ -835,6 +854,10 @@ void print_csv(PCM * m,
                 cout << getBytesReadFromMC(sstate1, sstate2) / double(1e9) <<
                 ';' << getBytesWrittenToMC(sstate1, sstate2) / double(1e9) << ';';
 
+        if (m->PMMTrafficMetricsAvailable())
+            cout << getBytesReadFromPMM(sstate1, sstate2) / double(1e9) <<
+            ';' << getBytesWrittenToPMM(sstate1, sstate2) / double(1e9) << ';';
+
         if (m->MCDRAMmemoryTrafficMetricsAvailable())
                 cout << getBytesReadFromEDC(sstate1, sstate2) / double(1e9) <<
                 ';' << getBytesWrittenToEDC(sstate1, sstate2) / double(1e9) << ';';
@@ -880,6 +903,9 @@ void print_csv(PCM * m,
             if (m->memoryTrafficMetricsAvailable())
                 cout << ';' << getBytesReadFromMC(sktstate1[i], sktstate2[i]) / double(1e9) <<
                     ';' << getBytesWrittenToMC(sktstate1[i], sktstate2[i]) / double(1e9);
+            if (m->PMMTrafficMetricsAvailable())
+                cout << ';' << getBytesReadFromPMM(sktstate1[i], sktstate2[i]) / double(1e9) <<
+                ';' << getBytesWrittenToPMM(sktstate1[i], sktstate2[i]) / double(1e9);
             if (m->MCDRAMmemoryTrafficMetricsAvailable())
                 cout << ';' << getBytesReadFromEDC(sktstate1[i], sktstate2[i]) / double(1e9) <<
                 ';' << getBytesWrittenToEDC(sktstate1[i], sktstate2[i]) / double(1e9);

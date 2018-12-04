@@ -295,6 +295,7 @@ int main(int argc, char * argv[])
 	bool show_partial_core_output = false;
 	std::bitset<MAX_CORES> ycores;
 
+
         PCM * m = PCM::getInstance();
 
 	conf.fixedCfg = NULL; // default

@@ -574,7 +574,6 @@ struct BecktonUncorePMUCNTCTLRegister
 #define KNL_EDC7_ECLK_REGISTER_DEV_ADDR (31)
 #define KNL_EDC7_ECLK_REGISTER_FUNC_ADDR (2)
 
-
 /**
  * XPF_ for Xeons: SNB, IVT, HSX, BDW, etc.
  * KNX_ for Xeon Phi (Knights *) processors
@@ -650,6 +649,26 @@ struct BecktonUncorePMUCNTCTLRegister
 #define QPI_PORT0_MISC_REGISTER_FUNC_ADDR (0)
 #define QPI_PORT1_MISC_REGISTER_FUNC_ADDR (0)
 #define QPI_PORT2_MISC_REGISTER_FUNC_ADDR (0)
+
+#define SKX_M2M_0_REGISTER_DEV_ADDR  (8)
+#define SKX_M2M_0_REGISTER_FUNC_ADDR (0)
+#define SKX_M2M_1_REGISTER_DEV_ADDR  (9)
+#define SKX_M2M_1_REGISTER_FUNC_ADDR (0)
+
+#define M2M_PCI_PMON_BOX_CTL_ADDR (0x258)
+
+#define M2M_PCI_PMON_CTL0_ADDR (0x228)
+#define M2M_PCI_PMON_CTL1_ADDR (0x230)
+#define M2M_PCI_PMON_CTL2_ADDR (0x238)
+#define M2M_PCI_PMON_CTL3_ADDR (0x240)
+
+#define M2M_PCI_PMON_CTR0_ADDR (0x200)
+#define M2M_PCI_PMON_CTR1_ADDR (0x208)
+#define M2M_PCI_PMON_CTR2_ADDR (0x210)
+#define M2M_PCI_PMON_CTR3_ADDR (0x218)
+
+#define PCM_INVALID_DEV_ADDR (~(uint32)0UL)
+#define PCM_INVALID_FUNC_ADDR (~(uint32)0UL)
 
 #define Q_P_PCI_PMON_BOX_CTL_ADDR (0x0F4)
 
@@ -846,6 +865,15 @@ struct BecktonUncorePMUCNTCTLRegister
 #define IIO_MSR_PMON_CTL_THRESH(x)  ((x) << 24ULL)
 #define IIO_MSR_PMON_CTL_CH_MASK(x) ((x) << 36ULL)
 #define IIO_MSR_PMON_CTL_FC_MASK(x) ((x) << 44ULL)
+
+#define M2M_PCI_PMON_CTL_EVENT(x)   ((x) << 0)
+#define M2M_PCI_PMON_CTL_UMASK(x)   ((x) << 8)
+#define M2M_PCI_PMON_CTL_RST        (1 << 17)
+#define M2M_PCI_PMON_CTL_EDGE_DET   (1 << 18)
+#define M2M_PCI_PMON_CTL_OV_EN      (1 << 20)
+#define M2M_PCI_PMON_CTL_EN         (1 << 22)
+#define M2M_PCI_PMON_CTL_INVERT     (1 << 23)
+#define M2M_PCI_PMON_CTL_THRESH(x)  ((x) << 24ULL)
 
 #define UCLK_FIXED_CTL_OV_EN (1 << 20)
 #define UCLK_FIXED_CTL_EN    (1 << 22)
