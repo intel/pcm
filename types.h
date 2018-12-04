@@ -50,7 +50,9 @@ typedef signed int int32;
 #define IA32_PERFEVTSEL2_ADDR           (IA32_PERFEVTSEL0_ADDR + 2)
 #define IA32_PERFEVTSEL3_ADDR           (IA32_PERFEVTSEL0_ADDR + 3)
 
-#define PERF_MAX_COUNTERS               (11)
+#define PERF_MAX_FIXED_COUNTERS          (3)
+#define PERF_MAX_CUSTOM_COUNTERS         (8)
+#define PERF_MAX_COUNTERS               (PERF_MAX_FIXED_COUNTERS + PERF_MAX_CUSTOM_COUNTERS)
 
 #define IA32_DEBUGCTL                   (0x1D9)
 
@@ -319,6 +321,8 @@ struct EventSelectRegister
         } fields;
         uint64 value;
     };
+
+    EventSelectRegister() : value(0) {}
 };
 
 
