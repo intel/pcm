@@ -89,7 +89,7 @@ int convertUnknownToInt(size_t size, char* value);
 #endif
 
 #undef PCM_UNCORE_PMON_BOX_CHECK_STATUS // debug only
-#undef PCM_DEBUG_TOPOLOGY // debug of topoogy enumeration routine
+#undef PCM_DEBUG_TOPOLOGY // debug of topology enumeration routine
 
 // FreeBSD is much more restrictive about names for semaphores
 #if defined (__FreeBSD__)
@@ -645,28 +645,28 @@ void PCM::initCStateSupportTables()
         case ATOM_CHERRYTRAIL:
         case ATOM_APOLLO_LAKE:
         case ATOM_DENVERTON:
-            PCM_CSTATE_ARRAY(pkgCStateMsr, PCM_PARAM_PROTECT({0,    0,  0x3F8,      0,  0x3F9,  0,  0x3FA,  0,      0,  0,  0 }) );
+            PCM_CSTATE_ARRAY(pkgCStateMsr, PCM_PARAM_PROTECT({0, 0, 0x3F8, 0, 0x3F9, 0, 0x3FA, 0, 0, 0, 0 }) );
         case NEHALEM_EP:
         case NEHALEM:
         case CLARKDALE:
         case WESTMERE_EP:
         case NEHALEM_EX:
         case WESTMERE_EX:
-            PCM_CSTATE_ARRAY(pkgCStateMsr, PCM_PARAM_PROTECT({0,    0,      0,  0x3F8,      0,  0,  0x3F9,  0x3FA,  0,  0,  0}) );
+            PCM_CSTATE_ARRAY(pkgCStateMsr, PCM_PARAM_PROTECT({0, 0, 0, 0x3F8, 0, 0, 0x3F9, 0x3FA, 0, 0, 0}) );
         case SANDY_BRIDGE:
         case JAKETOWN:
         case IVY_BRIDGE:
         case IVYTOWN:
-            PCM_CSTATE_ARRAY(pkgCStateMsr, PCM_PARAM_PROTECT({0,    0,  0x60D,  0x3F8,      0,  0,  0x3F9,  0x3FA,  0,  0,  0}) );
+            PCM_CSTATE_ARRAY(pkgCStateMsr, PCM_PARAM_PROTECT({0, 0, 0x60D, 0x3F8, 0, 0, 0x3F9, 0x3FA, 0, 0, 0}) );
         case HASWELL:
         case HASWELL_2:
         case HASWELLX:
         case BDX_DE:
         case BDX:
         case KNL:
-            PCM_CSTATE_ARRAY(pkgCStateMsr, PCM_PARAM_PROTECT({0,    0,  0x60D,  0x3F8,      0,  0,  0x3F9,  0x3FA,  0,  0,  0}) );
+            PCM_CSTATE_ARRAY(pkgCStateMsr, PCM_PARAM_PROTECT({0, 0, 0x60D, 0x3F8, 0, 0, 0x3F9,  0x3FA, 0, 0, 0}) );
         case SKX:
-            PCM_CSTATE_ARRAY(pkgCStateMsr, PCM_PARAM_PROTECT({0,    0,  0x60D,  0,      0,  0,  0x3F9,  0,  0,  0,  0}) );
+            PCM_CSTATE_ARRAY(pkgCStateMsr, PCM_PARAM_PROTECT({0, 0, 0x60D, 0, 0, 0, 0x3F9, 0, 0, 0, 0}) );
         case HASWELL_ULT:
         case BROADWELL:
         case SKL:
@@ -674,7 +674,7 @@ void PCM::initCStateSupportTables()
         case KBL:
         case KBL_1:
         case BROADWELL_XEON_E3:
-            PCM_CSTATE_ARRAY(pkgCStateMsr, PCM_PARAM_PROTECT({0,    0,  0x60D,  0x3F8,      0,  0,  0x3F9,  0x3FA,  0x630,  0x631,  0x632}) );
+            PCM_CSTATE_ARRAY(pkgCStateMsr, PCM_PARAM_PROTECT({0, 0, 0x60D, 0x3F8, 0, 0, 0x3F9, 0x3FA, 0x630, 0x631, 0x632}) );
 
         default:
             std::cerr << "PCM error: package C-states support array is not initialized. Package C-states metrics will not be shown." << std::endl;
@@ -694,7 +694,7 @@ void PCM::initCStateSupportTables()
         case WESTMERE_EP:
         case NEHALEM_EX:
         case WESTMERE_EX:
-            PCM_CSTATE_ARRAY(coreCStateMsr, PCM_PARAM_PROTECT({0,    0,    0,    0x3FC,    0,    0,    0x3FD,      0,  0,    0,    0}) );
+            PCM_CSTATE_ARRAY(coreCStateMsr, PCM_PARAM_PROTECT({0, 0, 0, 0x3FC, 0, 0, 0x3FD, 0, 0, 0, 0}) );
         case SANDY_BRIDGE:
         case JAKETOWN:
         case IVY_BRIDGE:
@@ -716,11 +716,11 @@ void PCM::initCStateSupportTables()
         case SKL:
         case KBL:
         case KBL_1:
-            PCM_CSTATE_ARRAY(coreCStateMsr, PCM_PARAM_PROTECT({0,    0,    0,    0x3FC,    0,    0,    0x3FD,    0x3FE,    0,    0,    0}) );
+            PCM_CSTATE_ARRAY(coreCStateMsr, PCM_PARAM_PROTECT({0, 0, 0, 0x3FC, 0, 0, 0x3FD, 0x3FE, 0, 0, 0}) );
         case KNL:
-            PCM_CSTATE_ARRAY(coreCStateMsr, PCM_PARAM_PROTECT({0,    0,    0,    0,    0,    0,    0x3FF,    0,    0,    0,    0}) );
+            PCM_CSTATE_ARRAY(coreCStateMsr, PCM_PARAM_PROTECT({0, 0, 0, 0, 0, 0, 0x3FF, 0, 0, 0, 0}) );
         case SKX:
-            PCM_CSTATE_ARRAY(coreCStateMsr, PCM_PARAM_PROTECT({0,    0,    0,    0,    0,    0,    0x3FD,    0,    0,    0,    0}) );
+            PCM_CSTATE_ARRAY(coreCStateMsr, PCM_PARAM_PROTECT({0, 0, 0, 0, 0, 0, 0x3FD, 0, 0, 0, 0}) );
         default:
             std::cerr << "PCM error: core C-states support array is not initialized. Core C-states metrics will not be shown." << std::endl;
             PCM_CSTATE_ARRAY(coreCStateMsr, PCM_PARAM_PROTECT({ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }) );
@@ -769,7 +769,8 @@ bool PCM::discoverSystemTopology()
     PCM_CPUID_INFO cpuid_args;
     pcm_cpuid(1, cpuid_args);
 
-    int apic_ids_per_package = (cpuid_args.array[1] & 0x00FF0000) >> 16, apic_ids_per_core;
+    int apic_ids_per_package = extract_bits_ui(cpuid_args.array[1], 16, 23);
+    int apic_ids_per_core;
 
     if (apic_ids_per_package == 0)
     {
@@ -779,8 +780,8 @@ bool PCM::discoverSystemTopology()
 
     pcm_cpuid(0xb, 0x0, cpuid_args);
 
-    if ((cpuid_args.array[2] & 0xFF00) == 0x100)
-        apic_ids_per_core = cpuid_args.array[1] & 0xFFFF;
+    if (extract_bits_ui(cpuid_args.array[2], 8, 15) == 0x1)
+        apic_ids_per_core = extract_bits_ui(cpuid_args.array[1], 0, 15);
     else
         apic_ids_per_core = 1;
 
@@ -790,71 +791,23 @@ bool PCM::discoverSystemTopology()
         return false;
     }
 
-    // init constants for CPU topology leaf 0xB
-    // adapted from Topology Enumeration Reference code for Intel 64 Architecture
-    // https://software.intel.com/en-us/articles/intel-64-architecture-processor-topology-enumeration
-    int wasCoreReported = 0, wasThreadReported = 0;
-    int subleaf = 0, levelType, levelShift;
-    unsigned long coreplusSMT_Mask = 0L;
-    uint32 coreSelectMask = 0, smtSelectMask = 0, smtMaskWidth = 0;
-    uint32 l2CacheMaskShift = 0, l2CacheMaskWidth;
-    uint32 pkgSelectMask = (-1), pkgSelectMaskShift = 0;
-    unsigned long mask;
-
-    do
-    {
-        pcm_cpuid(0xb, subleaf, cpuid_args);
-        if (cpuid_args.array[1] == 0)
-        { // if EBX ==0 then this subleaf is not valid, we can exit the loop
-            break;
-        }
-        mask = (1<<(16)) - 1;
-        levelType = (cpuid_args.array[2] & mask) >> 8;
-        mask = (1<<(5)) - 1;
-        levelShift = (cpuid_args.array[0] & mask);
-        switch (levelType)
-        {
-            case 1:         //level type is SMT, so levelShift is the SMT_Mask_Width
-                smtSelectMask = ~((-1) << levelShift);
-                smtMaskWidth = levelShift;
-                wasThreadReported = 1;
-                break;
-            case 2: //level type is Core, so levelShift is the CorePlsuSMT_Mask_Width
-                coreplusSMT_Mask = ~((-1) << levelShift);
-                pkgSelectMaskShift =  levelShift;
-                pkgSelectMask = (-1) ^ coreplusSMT_Mask;
-                wasCoreReported = 1;
-                break;
-            default:
-                break;
-        }
-        subleaf++;
-    } while (1);
-
-    if(wasThreadReported && wasCoreReported)
-    {
-        coreSelectMask = coreplusSMT_Mask ^ smtSelectMask;
-    }
-    else if (!wasCoreReported && wasThreadReported)
-    {
-        pkgSelectMaskShift =  smtMaskWidth;
-        pkgSelectMask = (-1) ^ smtSelectMask;
-    }
-    else
-    {
-        std::cerr << "ERROR: this should not happen if hardware function normally" << std::endl;
-        return false;
-    }
+    uint32 l2CacheMaskShift = 0;
+#ifdef PCM_DEBUG_TOPOLOGY
+    uint32 threadsSharingL2;
+#endif
+    uint32 l2CacheMaskWidth;
 
     pcm_cpuid(0x4, 2, cpuid_args); // get ID for L2 cache
-    mask = ((1<<(12)) - 1) << (14); // mask with bits 25:14 set to 1
-    l2CacheMaskWidth = 1 + ((cpuid_args.array[0] & mask) >> 14); // number of APIC IDs sharing L2 cache
+    l2CacheMaskWidth = 1 + extract_bits_ui(cpuid_args.array[0],14,25); // number of APIC IDs sharing L2 cache
+#ifdef PCM_DEBUG_TOPOLOGY
+    threadsSharingL2 = l2CacheMaskWidth;
+#endif
     for( ; l2CacheMaskWidth > 1; l2CacheMaskWidth >>= 1)
     {
         l2CacheMaskShift++;
     }
 #ifdef PCM_DEBUG_TOPOLOGY
-    std::cerr << "DEBUG: Number of threads sharing L2 cache = " << l2CacheMaskWidth
+    std::cerr << "DEBUG: Number of threads sharing L2 cache = " << threadsSharingL2
               << " [the most significant bit = " << l2CacheMaskShift << "]" << std::endl;
 #endif
 
@@ -932,11 +885,62 @@ bool PCM::discoverSystemTopology()
     TopologyEntry entry;
 
 #ifdef __linux__
+    // init constants for CPU topology leaf 0xB
+    // adapted from Topology Enumeration Reference code for Intel 64 Architecture
+    // https://software.intel.com/en-us/articles/intel-64-architecture-processor-topology-enumeration
+    int wasCoreReported = 0, wasThreadReported = 0;
+    int subleaf = 0, levelType, levelShift;
+    //uint32 coreSelectMask = 0, smtSelectMask = 0;
+    uint32 smtMaskWidth = 0;
+    //uint32 pkgSelectMask = (-1), pkgSelectMaskShift = 0;
+    uint32 corePlusSMTMaskWidth = 0;
+    uint32 coreMaskWidth = 0;
+
+    // This code needs to run affinitized to a single core, how do we make sure of that?
+    do
+    {
+        pcm_cpuid(0xb, subleaf, cpuid_args);
+        if (cpuid_args.array[1] == 0)
+        { // if EBX ==0 then this subleaf is not valid, we can exit the loop
+            break;
+        }
+        levelType = extract_bits_ui(cpuid_args.array[2], 8, 15);
+        levelShift = extract_bits_ui(cpuid_args.array[0], 0, 4);
+        switch (levelType)
+        {
+            case 1: //level type is SMT, so levelShift is the SMT_Mask_Width
+                smtMaskWidth = levelShift;
+                wasThreadReported = 1;
+                break;
+            case 2: //level type is Core, so levelShift is the CorePlusSMT_Mask_Width
+                corePlusSMTMaskWidth = levelShift;
+                wasCoreReported = 1;
+                break;
+            default:
+                break;
+        }
+        subleaf++;
+    } while (1);
+
+    if(wasThreadReported && wasCoreReported)
+    {
+        coreMaskWidth = corePlusSMTMaskWidth - smtMaskWidth;
+    }
+    else if (!wasCoreReported && wasThreadReported)
+    {
+        coreMaskWidth = smtMaskWidth;
+    }
+    else
+    {
+        std::cerr << "ERROR: Major problem? No leaf 0 under cpuid function 11." << std::endl;
+        return false;
+    }
+
 
     num_cores = readMaxFromSysFS("/sys/devices/system/cpu/present");
     if(num_cores == -1)
     {
-      std::cerr << "Can not read number of present cores" << std::endl;
+      std::cerr << "Cannot read number of present cores" << std::endl;
       return false;
     }
     ++num_cores;
@@ -945,7 +949,7 @@ bool PCM::discoverSystemTopology()
     FILE * f_cpuinfo = fopen("/proc/cpuinfo", "r");
     if (!f_cpuinfo)
     {
-        std::cerr << "Can not open /proc/cpuinfo file." << std::endl;
+        std::cerr << "Cannot open /proc/cpuinfo file." << std::endl;
         return false;
     }
 
@@ -964,10 +968,10 @@ bool PCM::discoverSystemTopology()
             pcm_cpuid(0xb, 0x0, cpuid_args);
             int apic_id = cpuid_args.array[3];
 
-            entry.thread_id = (apic_id & smtSelectMask);
-            entry.core_id = (apic_id & coreSelectMask) >> smtMaskWidth;
-            entry.socket = (apic_id & pkgSelectMask) >> pkgSelectMaskShift;
-            entry.tile_id = (apic_id >> l2CacheMaskShift);
+            entry.thread_id = extract_bits_ui(apic_id, 0, smtMaskWidth-1);
+            entry.core_id = extract_bits_ui(apic_id, smtMaskWidth, smtMaskWidth+coreMaskWidth-1);
+            entry.socket = extract_bits_ui(apic_id, smtMaskWidth+coreMaskWidth, 31);
+            entry.tile_id = extract_bits_ui(apic_id, l2CacheMaskShift, 31);
 
             topology[entry.os_id] = entry;
             socketIdMap[entry.socket] = 0;
@@ -983,7 +987,8 @@ bool PCM::discoverSystemTopology()
     std::map<uint32, std::vector<uint32> > os_id_by_core, os_id_by_tile, core_id_by_socket;
     for(auto it = topology.begin(); it != topology.end(); ++it)
     {
-        std::cerr << std::left << std::setfill(' ') << std::setw(16) << it->os_id
+        std::cerr << std::left << std::setfill(' ')
+                  << std::setw(16) << it->os_id
                   << std::setw(16) << it->thread_id
                   << std::setw(16) << it->core_id
                   << std::setw(16) << it->tile_id
@@ -1702,8 +1707,8 @@ bool PCM::isCPUModelSupported(int model_)
             || model_ == BROADWELL
             || model_ == KNL
             || model_ == SKL
-            || model_ == SKX
             || model_ == KBL
+            || model_ == SKX
            );
 }
 
@@ -2664,8 +2669,9 @@ bool PCM::PMUinUse()
     return false;
 }
 
-const char * PCM::getUArchCodename(int32 cpu_model_) const
+const char * PCM::getUArchCodename(const int32 cpu_model_param) const
 {
+    auto cpu_model_ = cpu_model_param;
     if(cpu_model_ < 0)
         cpu_model_ = this->cpu_model ;
 
@@ -2709,6 +2715,15 @@ const char * PCM::getUArchCodename(int32 cpu_model_) const
         case KBL:
             return "Kabylake";
         case SKX:
+            if (cpu_model_param >= 0)
+            {
+                // query for specified cpu_model_param, stepping not provided
+                return "Skylake-SP, Cascade Lake-SP";
+            }
+            if (isCLX())
+            {
+                return "Cascade Lake-SP";
+            }
             return "Skylake-SP";
     }
     return "unknown";
@@ -3177,13 +3192,13 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
     SMICount += cSMICount;
 }
 
-PCM::ErrorCode PCM::programServerUncoreMemoryMetrics(int rankA, int rankB)
+PCM::ErrorCode PCM::programServerUncoreMemoryMetrics(int rankA, int rankB, bool PMM)
 {
     if(MSR.empty() || server_pcicfg_uncore.empty())  return PCM::MSRAccessDenied;
 
     for (int i = 0; (i < (int)server_pcicfg_uncore.size()) && MSR.size(); ++i)
     {
-        server_pcicfg_uncore[i]->programServerUncoreMemoryMetrics(rankA, rankB);
+        server_pcicfg_uncore[i]->programServerUncoreMemoryMetrics(rankA, rankB, PMM);
     }
 
     return PCM::Success;
@@ -3458,8 +3473,16 @@ void PCM::readAndAggregateUncoreMCCounters(const uint32 socket, CounterStateType
             server_pcicfg_uncore[socket]->freezeCounters();
             result.UncMCNormalReads += server_pcicfg_uncore[socket]->getImcReads();
             result.UncMCFullWrites += server_pcicfg_uncore[socket]->getImcWrites();
-            result.UncEDCNormalReads += server_pcicfg_uncore[socket]->getEdcReads();
-            result.UncEDCFullWrites += server_pcicfg_uncore[socket]->getEdcWrites();
+            if (PMMTrafficMetricsAvailable())
+            {
+                result.UncPMMReads += server_pcicfg_uncore[socket]->getPMMReads();
+                result.UncPMMWrites += server_pcicfg_uncore[socket]->getPMMWrites();
+            }
+            if (MCDRAMmemoryTrafficMetricsAvailable())
+            {
+                result.UncEDCNormalReads += server_pcicfg_uncore[socket]->getEdcReads();
+                result.UncEDCFullWrites += server_pcicfg_uncore[socket]->getEdcWrites();
+            }
             server_pcicfg_uncore[socket]->unfreezeCounters();
         }
         if (LLCReadMissLatencyMetricsAvailable())
@@ -4382,7 +4405,7 @@ ServerPCICFGUncore::~ServerPCICFGUncore()
 }
 
 
-void ServerPCICFGUncore::programServerUncoreMemoryMetrics(int rankA, int rankB)
+void ServerPCICFGUncore::programServerUncoreMemoryMetrics(int rankA, int rankB, bool PMM)
 {
     PCM * pcm = PCM::getInstance();
     const uint32 cpu_model = pcm->getCPUModel();
@@ -4401,7 +4424,23 @@ void ServerPCICFGUncore::programServerUncoreMemoryMetrics(int rankA, int rankB)
         default:
             MCCntConfig[0] = MC_CH_PCI_PMON_CTL_EVENT(0x04) + MC_CH_PCI_PMON_CTL_UMASK(3);  // monitor reads on counter 0: CAS_COUNT.RD
             MCCntConfig[1] = MC_CH_PCI_PMON_CTL_EVENT(0x04) + MC_CH_PCI_PMON_CTL_UMASK(12); // monitor writes on counter 1: CAS_COUNT.WR
-            MCCntConfig[2] = MC_CH_PCI_PMON_CTL_EVENT(0x04) + MC_CH_PCI_PMON_CTL_UMASK(2);  // monitor partial writes on counter 2: CAS_COUNT.RD_UNDERFILL,
+            if (PMM)
+            {
+                if (pcm->PMMTrafficMetricsAvailable())
+                {
+                    MCCntConfig[2] = MC_CH_PCI_PMON_CTL_EVENT(0xe3); // monitor PMM_RDQ_REQUESTS on counter 2
+                    MCCntConfig[3] = MC_CH_PCI_PMON_CTL_EVENT(0xe7); // monitor PMM_WPQ_REQUESTS on counter 3
+                }
+                else
+                {
+                    std::cerr << "PCM Error: PMM metrics are not available on your platform" << std::endl;
+                    return;
+                }
+            }
+            else
+            {
+                MCCntConfig[2] = MC_CH_PCI_PMON_CTL_EVENT(0x04) + MC_CH_PCI_PMON_CTL_UMASK(2);  // monitor partial writes on counter 2: CAS_COUNT.RD_UNDERFILL,
+            }
         }
     } else {
         switch(cpu_model)
@@ -4453,9 +4492,14 @@ void ServerPCICFGUncore::program()
         EDCCntConfig[0] = MC_CH_PCI_PMON_CTL_EVENT(0x01) + MC_CH_PCI_PMON_CTL_UMASK(1);  // monitor reads on counter 0: RPQ
         EDCCntConfig[1] = MC_CH_PCI_PMON_CTL_EVENT(0x02) + MC_CH_PCI_PMON_CTL_UMASK(1);  // monitor reads on counter 1: WPQ
         break;
-    default: // check if this should be set for specific processors, like BDX only?
+    default:
         MCCntConfig[0] = MC_CH_PCI_PMON_CTL_EVENT(0x04) + MC_CH_PCI_PMON_CTL_UMASK(3);  // monitor reads on counter 0: CAS_COUNT.RD
         MCCntConfig[1] = MC_CH_PCI_PMON_CTL_EVENT(0x04) + MC_CH_PCI_PMON_CTL_UMASK(12); // monitor writes on counter 1: CAS_COUNT.WR
+        if (pcm->PMMTrafficMetricsAvailable())
+        {
+            MCCntConfig[2] = MC_CH_PCI_PMON_CTL_EVENT(0xe3); // monitor PMM_RDQ_REQUESTS on counter 2
+            MCCntConfig[3] = MC_CH_PCI_PMON_CTL_EVENT(0xe7); // monitor PMM_WPQ_REQUESTS on counter 3
+        }
     }
 
     programIMC(MCCntConfig);
@@ -4584,6 +4628,26 @@ uint64 ServerPCICFGUncore::getImcWrites()
         result += value;
     }
 
+    return result;
+}
+
+uint64 ServerPCICFGUncore::getPMMReads()
+{
+    uint64 result = 0;
+    for (uint32 i = 0; i < (uint32)imcHandles.size(); ++i)
+    {
+        result += getMCCounter(i, 2);
+    }
+    return result;
+}
+
+uint64 ServerPCICFGUncore::getPMMWrites()
+{
+    uint64 result = 0;
+    for (uint32 i = 0; i < (uint32)imcHandles.size(); ++i)
+    {
+        result += getMCCounter(i, 3);
+    }
     return result;
 }
 
@@ -5329,7 +5393,6 @@ void ServerPCICFGUncore::reportQPISpeed() const
     for (uint32 i = 0; i < (uint32)qpi_speed.size(); ++i)
         std::cerr << "Max QPI link " << i << " speed: " << qpi_speed[i] / (1e9) << " GBytes/second (" << qpi_speed[i] / (1e9 * m->getBytesPerLinkTransfer()) << " GT/second)" << std::endl;
 }
-
 
 uint64 PCM::CX_MSR_PMON_CTRY(uint32 Cbo, uint32 Ctr) const
 {

@@ -140,6 +140,11 @@ public:
     //! \brief Get the number of integrated controller writes (in cache lines)
     uint64 getImcWrites();
 
+    //! \brief Get the number of PMM memory reads (in cache lines)
+    uint64 getPMMReads();
+    //! \brief Get the number of PMM memory writes (in cache lines)
+    uint64 getPMMWrites();
+
     //! \brief Get the number of cache lines read by EDC (embedded DRAM controller)
     uint64 getEdcReads();
     //! \brief Get the number of cache lines written by EDC (embedded DRAM controller)
@@ -162,7 +167,8 @@ public:
     //! \brief Program memory counters (disables programming performance counters)
     //! \param rankA count DIMM rank1 statistics (disables memory channel monitoring)
     //! \param rankB count DIMM rank2 statistics (disables memory channel monitoring)
-    void programServerUncoreMemoryMetrics(int rankA = -1, int rankB = -1);
+    //! \param PMM monitor PMM bandwidth instead of partial writes
+    void programServerUncoreMemoryMetrics(int rankA = -1, int rankB = -1, bool PMM = false);
 
     //! \brief Get number of QPI LL clocks on a QPI port
     //! \param port QPI port number
@@ -600,6 +606,11 @@ private:
     void programLLCReadMissLatencyEvents();
     uint64 getCBOCounterState(const uint32 socket, const uint32 ctr_);
 
+	bool isCLX() const // Cascade Lake-SP
+	{
+		return (PCM::SKX == cpu_model) && (cpu_stepping > 4);
+	}
+
 public:
     /*!
              \brief checks if QOS monitoring support present
@@ -699,6 +710,7 @@ public:
     /*! \brief Programs uncore memory counters on microarchitectures codename SandyBridge-EP and later Xeon uarch
         \param rankA count DIMM rank1 statistics (disables memory channel monitoring)
         \param rankB count DIMM rank2 statistics (disables memory channel monitoring)
+        \param PMM monitor PMM bandwidth instead of partial writes
 
         Call this method before you start using the memory counter routines on microarchitecture codename SandyBridge-EP and later Xeon uarch
 
@@ -707,7 +719,7 @@ public:
         program PMUs: Intel(r) VTune(tm), Intel(r) Performance Tuning Utility (PTU). This code may make
         VTune or PTU measurements invalid. VTune or PTU measurement may make measurement with this code invalid. Please enable either usage of these routines or VTune/PTU/etc.
     */
-    ErrorCode programServerUncoreMemoryMetrics(int rankA = -1, int rankB = -1);
+    ErrorCode programServerUncoreMemoryMetrics(int rankA = -1, int rankB = -1, bool PMM = false);
 
     //! \brief Freezes uncore event counting (works only on microarchitecture codename SandyBridge-EP and IvyTown)
     void freezeServerUncoreCounters();
@@ -1166,7 +1178,7 @@ public:
 
     //! \brief Get a string describing the codename of the processor microarchitecture
     //! \param cpu_model_ cpu model (if no parameter provided the codename of the detected CPU is returned)
-    const char * getUArchCodename(int32 cpu_model_ = -1) const;
+    const char * getUArchCodename(const int32 cpu_model_ = -1) const;
 
     //! \brief Get Brand string of processor
     static std::string getCPUBrandString();
@@ -1180,13 +1192,13 @@ public:
         return (
                     cpu_model == PCM::JAKETOWN
                  || cpu_model == PCM::IVYTOWN
-                 || cpu_model == PCM::SANDY_BRIDGE 
+                 || cpu_model == PCM::SANDY_BRIDGE
                  || cpu_model == PCM::IVY_BRIDGE
                  || cpu_model == PCM::HASWELL
                  || original_cpu_model == PCM::ATOM_AVOTON
                  || original_cpu_model == PCM::ATOM_CHERRYTRAIL
                  || original_cpu_model == PCM::ATOM_BAYTRAIL
-		         || original_cpu_model == PCM::ATOM_APOLLO_LAKE
+                 || original_cpu_model == PCM::ATOM_APOLLO_LAKE
                  || original_cpu_model == PCM::ATOM_DENVERTON
                  || cpu_model == PCM::HASWELLX
                  || cpu_model == PCM::BROADWELL
@@ -1201,7 +1213,7 @@ public:
 
     bool dramEnergyMetricsAvailable() const
     {
-        return ( 
+        return (
              cpu_model == PCM::JAKETOWN
           || cpu_model == PCM::IVYTOWN
           || cpu_model == PCM::HASWELLX
@@ -1214,15 +1226,15 @@ public:
 
     bool packageThermalMetricsAvailable() const
     {
-    	return packageEnergyMetricsAvailable();
+        return packageEnergyMetricsAvailable();
     }
 
     bool outgoingQPITrafficMetricsAvailable() const
     {
         return getQPILinksPerSocket() > 0 &&
             (
-                cpu_model == PCM::NEHALEM_EX 
-            ||  cpu_model == PCM::WESTMERE_EX 
+                cpu_model == PCM::NEHALEM_EX
+            ||  cpu_model == PCM::WESTMERE_EX
             ||  cpu_model == PCM::JAKETOWN
             ||  cpu_model == PCM::IVYTOWN
             ||  cpu_model == PCM::HASWELLX
@@ -1280,6 +1292,13 @@ public:
         );
     }
 
+    bool PMMTrafficMetricsAvailable() const
+    {
+		return (
+			isCLX()
+            );
+    }
+    
     bool LLCReadMissLatencyMetricsAvailable() const
     {
         return (
@@ -1334,10 +1353,10 @@ public:
 
     bool useSkylakeEvents() const
     {
-        return PCM::SKL == cpu_model
-            || PCM::SKX == cpu_model
-            || PCM::KBL == cpu_model
-            ;
+        return    PCM::SKL == cpu_model
+               || PCM::KBL == cpu_model
+               || PCM::SKX == cpu_model
+               ;
     }
 
     static double getBytesPerFlit(int32 cpu_model_)
@@ -1591,24 +1610,24 @@ inline uint64 RDTSC()
 
 inline uint64 RDTSCP()
 {
-	uint64 result = 0;
+    uint64 result = 0;
 #ifdef _MSC_VER
-        // Windows
-        #if _MSC_VER>= 1600
-        unsigned int Aux;
-        result = __rdtscp(&Aux);
-        #endif
+    // Windows
+    #if _MSC_VER>= 1600
+    unsigned int Aux;
+    result = __rdtscp(&Aux);
+    #endif
 #else
-	// Linux and OS X
-        uint32 high = 0, low = 0;
-        asm volatile (
-           "rdtscp\n\t"
-           "mov %%edx, %0\n\t"
-           "mov %%eax, %1\n\t":
-           "=r" (high), "=r" (low) :: "%rax", "%rcx", "%rdx");
-        result = low + (uint64(high)<<32ULL);
+    // Linux and OS X
+    uint32 high = 0, low = 0;
+    asm volatile (
+       "rdtscp\n\t"
+       "mov %%edx, %0\n\t"
+       "mov %%eax, %1\n\t":
+       "=r" (high), "=r" (low) :: "%rax", "%rcx", "%rdx");
+    result = low + (uint64(high)<<32ULL);
 #endif
-	return result;
+    return result;
 }
 
 /*! \brief Returns QPI LL clock ticks
@@ -1819,6 +1838,10 @@ class UncoreCounterState
     template <class CounterStateType>
     friend uint64 getBytesWrittenToMC(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
+    friend uint64 getBytesReadFromPMM(const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
+    friend uint64 getBytesWrittenToPMM(const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
     friend uint64 getBytesReadFromEDC(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
     friend uint64 getBytesWrittenToEDC(const CounterStateType & before, const CounterStateType & after);
@@ -1836,6 +1859,8 @@ class UncoreCounterState
 protected:
     uint64 UncMCFullWrites;
     uint64 UncMCNormalReads;
+    uint64 UncPMMWrites;
+    uint64 UncPMMReads;
     uint64 UncEDCFullWrites;
     uint64 UncEDCNormalReads;
     uint64 UncMCIORequests;
@@ -1851,6 +1876,8 @@ public:
     UncoreCounterState() :
         UncMCFullWrites(0),
         UncMCNormalReads(0),
+        UncPMMWrites(0),
+        UncPMMReads(0),
         UncEDCFullWrites(0),
         UncEDCNormalReads(0),
         UncMCIORequests(0),
@@ -1868,6 +1895,8 @@ public:
     {
         UncMCFullWrites += o.UncMCFullWrites;
         UncMCNormalReads += o.UncMCNormalReads;
+        UncPMMReads += o.UncPMMReads;
+        UncPMMWrites += o.UncPMMWrites;
         UncEDCFullWrites += o.UncEDCFullWrites;
         UncEDCNormalReads += o.UncEDCNormalReads;
         UncMCIORequests += o.UncMCIORequests;
@@ -1935,7 +1964,7 @@ public:
         for (int i = 0; i < 8; ++i) {
             memset(&(MCCounter[i][0]), 0, 4 * sizeof(uint64));
             memset(&(EDCCounter[i][0]), 0, 4 * sizeof(uint64));
-	}
+        }
     }
 };
 
@@ -2575,6 +2604,30 @@ uint64 getBytesWrittenToMC(const CounterStateType & before, const CounterStateTy
     return (after.UncMCFullWrites - before.UncMCFullWrites) * 64;
 }
 
+/*! \brief Computes number of bytes read from PMM memory
+
+    \param before CPU counter state before the experiment
+    \param after CPU counter state after the experiment
+    \return Number of bytes
+*/
+template <class CounterStateType>
+uint64 getBytesReadFromPMM(const CounterStateType & before, const CounterStateType & after)
+{
+    return (after.UncPMMReads - before.UncPMMReads) * 64;
+}
+
+/*! \brief Computes number of bytes written to PMM memory
+
+    \param before CPU counter state before the experiment
+    \param after CPU counter state after the experiment
+    \return Number of bytes
+*/
+template <class CounterStateType>
+uint64 getBytesWrittenToPMM(const CounterStateType & before, const CounterStateType & after)
+{
+    return (after.UncPMMWrites - before.UncPMMWrites) * 64;
+}
+
 /*! \brief Computes number of bytes read from MCDRAM memory controllers
 
     \param before CPU counter state before the experiment
@@ -2855,7 +2908,11 @@ inline uint64 getAllIncomingQPILinkBytes(const SystemCounterState & now)
 inline double getQPItoMCTrafficRatio(const SystemCounterState & before, const SystemCounterState & after)
 {
     const uint64 totalQPI = getAllIncomingQPILinkBytes(before, after);
-    const uint64 memTraffic = getBytesReadFromMC(before, after) + getBytesWrittenToMC(before, after);
+    uint64 memTraffic = getBytesReadFromMC(before, after) + getBytesWrittenToMC(before, after);
+    if (PCM::getInstance()->PMMTrafficMetricsAvailable())
+    {
+        memTraffic += getBytesReadFromPMM(before, after) + getBytesWrittenToPMM(before, after);
+    }
     return double(totalQPI) / double(memTraffic);
 }
 
