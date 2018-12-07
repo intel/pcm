@@ -3192,6 +3192,33 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
     SMICount += cSMICount;
 }
 
+PCM::ErrorCode PCM::programServerUncoreLatencyMetrics(bool enable_pmm)
+{
+    uint32 DDRConfig[4] = {0,0,0,0};
+
+    if (enable_pmm == false)
+    {   //DDR is false
+        DDRConfig[0] = MC_CH_PCI_PMON_CTL_EVENT(0x80) + MC_CH_PCI_PMON_CTL_UMASK(0);  // DRAM RPQ occupancy
+        DDRConfig[1] = MC_CH_PCI_PMON_CTL_EVENT(0x10) + MC_CH_PCI_PMON_CTL_UMASK(0);  // DRAM RPQ Insert
+        DDRConfig[2] = MC_CH_PCI_PMON_CTL_EVENT(0x81) + MC_CH_PCI_PMON_CTL_UMASK(0);  // DRAM WPQ Occupancy
+        DDRConfig[3] = MC_CH_PCI_PMON_CTL_EVENT(0x20) + MC_CH_PCI_PMON_CTL_UMASK(0);  // DRAM WPQ Insert
+    } else {
+        DDRConfig[0] = MC_CH_PCI_PMON_CTL_EVENT(0xe0) + MC_CH_PCI_PMON_CTL_UMASK(1);  // PMM RDQ occupancy
+        DDRConfig[1] = MC_CH_PCI_PMON_CTL_EVENT(0xe3) + MC_CH_PCI_PMON_CTL_UMASK(0);  // PMM RDQ Insert
+        DDRConfig[2] = MC_CH_PCI_PMON_CTL_EVENT(0xe4) + MC_CH_PCI_PMON_CTL_UMASK(1);  // PMM WPQ Occupancy
+        DDRConfig[3] = MC_CH_PCI_PMON_CTL_EVENT(0xe7) + MC_CH_PCI_PMON_CTL_UMASK(0);  // PMM WPQ Insert
+    }
+
+    if (hasPCICFGUncore())
+    {
+        for (size_t i = 0; i < (size_t)server_pcicfg_uncore.size(); ++i)
+        {
+            server_pcicfg_uncore[i]->programIMC(DDRConfig);
+        }
+    }
+    return PCM::Success;
+}
+
 PCM::ErrorCode PCM::programServerUncoreMemoryMetrics(int rankA, int rankB, bool PMM)
 {
     if(MSR.empty() || server_pcicfg_uncore.empty())  return PCM::MSRAccessDenied;

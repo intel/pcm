@@ -93,6 +93,7 @@ struct PCM_API TopologyEntry // decribes a core
 //! Object to access uncore counters in a socket/processor with microarchitecture codename SandyBridge-EP (Jaketown) or Ivytown-EP or Ivytown-EX
 class ServerPCICFGUncore
 {
+    friend class PCM;
     int32 iMCbus,UPIbus,M2Mbus;
     uint32 groupnr;
     int32 cpu_model;
@@ -713,6 +714,19 @@ public:
         VTune or PTU measurements invalid. VTune or PTU measurement may make measurement with this code invalid. Please enable either usage of these routines or VTune/PTU/etc.
     */
     ErrorCode program(const ProgramMode mode_ = DEFAULT_EVENTS, const void * parameter_ = NULL); // program counters and start counting
+
+    /*! \brief Programs uncore latency counters on microarchitectures codename SandyBridge-EP and later Xeon uarch
+        \param enable_pmm enables DDR/PMM. See possible profile values in pcm-latency.cpp example
+
+        Call this method before you start using the latency counter routines on microarchitecture codename SandyBridge-EP and later Xeon uarch
+
+        \warning After this call the memory and QPI bandwidth counters on microarchitecture codename SandyBridge-EP and later Xeon uarch will not work.
+        \warning Using this routines with other tools that *program* Performance Monitoring
+        Units (PMUs) on CPUs is not recommended because PMU can not be shared. Tools that are known to
+        program PMUs: Intel(r) VTune(tm), Intel(r) Performance Tuning Utility (PTU). This code may make
+        VTune or PTU measurements invalid. VTune or PTU measurement may make measurement with this code invalid. Please enable either usage of these routines or VTune/PTU/etc.
+    */
+    ErrorCode programServerUncoreLatencyMetrics(bool enable_pmm);
 
     /*! \brief Programs uncore power/energy counters on microarchitectures codename SandyBridge-EP and later Xeon uarch
         \param mc_profile profile for integrated memory controller PMU. See possible profile values in pcm-power.cpp example
@@ -1341,13 +1355,22 @@ public:
         );
     }
 
+    bool LatencyMetricsAvailable() const
+    {
+        return (
+            cpu_model == PCM::HASWELLX
+            || cpu_model == PCM::BDX
+	    || cpu_model == PCM::SKX
+        );
+    }
+
     bool PMMTrafficMetricsAvailable() const
     {
 		return (
 			isCLX()
             );
     }
-    
+
     bool LLCReadMissLatencyMetricsAvailable() const
     {
         return (
