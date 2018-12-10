@@ -178,11 +178,11 @@ void printSocketChannelBW(PCM *m, memdata_t *md, uint32 no_columns, uint32 skt)
         if(md->PMM)
         {
             for (uint32 i=skt; i<(skt+no_columns); ++i) {
-                cout << "|--      PMM Reads(MB/s) : "<<setw(8)<<md->iMC_PMM_Rd_socket_chan[i][channel]<<" --|";
+                cout << "|--      PMM Reads(MB/s)   : "<<setw(8)<<md->iMC_PMM_Rd_socket_chan[i][channel]<<" --|";
             }
             cout << endl;
             for (uint32 i=skt; i<(skt+no_columns); ++i) {
-                cout << "|--      PMM Writes(MB/s): "<<setw(8)<<md->iMC_PMM_Wr_socket_chan[i][channel]<<" --|";
+                cout << "|--      PMM Writes(MB/s)  : "<<setw(8)<<md->iMC_PMM_Wr_socket_chan[i][channel]<<" --|";
             }
             cout << endl;
         }
@@ -228,11 +228,11 @@ void printSocketBWFooter(uint32 no_columns, uint32 skt, const memdata_t *md)
     if (md->PMM)
     {
         for (uint32 i=skt; i<(skt+no_columns); ++i) {
-            cout << "|-- NODE"<<setw(2)<<i<<" PMM Read (MB/s):"<<setw(8)<<md->iMC_PMM_Rd_socket[i]<<" --|";
+            cout << "|-- NODE"<<setw(2)<<i<<" PMM Read (MB/s):  "<<setw(8)<<md->iMC_PMM_Rd_socket[i]<<" --|";
         }
         cout << endl;
         for (uint32 i=skt; i<(skt+no_columns); ++i) {
-            cout << "|-- NODE"<<setw(2)<<i<<" PMM Write(MB/s):"<<setw(8)<<md->iMC_PMM_Wr_socket[i]<<" --|";
+            cout << "|-- NODE"<<setw(2)<<i<<" PMM Write(MB/s):  "<<setw(8)<<md->iMC_PMM_Wr_socket[i]<<" --|";
         }
         cout << endl;
         for (uint32 ctrl = 0; ctrl < max_imc_controllers; ++ctrl)
@@ -263,7 +263,7 @@ void printSocketBWFooter(uint32 no_columns, uint32 skt, const memdata_t *md)
 
 void display_bandwidth(PCM *m, memdata_t *md, uint32 no_columns, const bool show_channel_output)
 {
-    float sysRead = 0.0, sysWrite = 0.0;
+    float sysReadDRAM = 0.0, sysWriteDRAM = 0.0, sysReadPMM = 0.0, sysWritePMM = 0.0;
     uint32 numSockets = m->getNumSockets();
     uint32 skt = 0;
     cout.setf(ios::fixed);
@@ -279,10 +279,10 @@ void display_bandwidth(PCM *m, memdata_t *md, uint32 no_columns, const bool show
                 printSocketChannelBW(m, md, no_columns, skt);
             printSocketBWFooter (no_columns, skt, md);
             for (uint32 i=skt; i<(skt+no_columns); i++) {
-                sysRead += md->iMC_Rd_socket[i];
-                sysWrite += md->iMC_Wr_socket[i];
-                sysRead += md->iMC_PMM_Rd_socket[i];
-                sysWrite += md->iMC_PMM_Wr_socket[i];
+                sysReadDRAM += md->iMC_Rd_socket[i];
+                sysWriteDRAM += md->iMC_Wr_socket[i];
+                sysReadPMM += md->iMC_PMM_Rd_socket[i];
+                sysWritePMM += md->iMC_PMM_Wr_socket[i];
             }
             skt += no_columns;
         }
@@ -351,8 +351,8 @@ void display_bandwidth(PCM *m, memdata_t *md, uint32 no_columns, const bool show
                     \r|---------------------------------------||---------------------------------------|\n\
                     \r";
 
-                sysRead  += (md->iMC_Rd_socket[skt]+md->EDC_Rd_socket[skt]);
-                sysWrite += (md->iMC_Wr_socket[skt]+md->EDC_Wr_socket[skt]);
+                sysReadDRAM  += (md->iMC_Rd_socket[skt]+md->EDC_Rd_socket[skt]);
+                sysWriteDRAM += (md->iMC_Wr_socket[skt]+md->EDC_Wr_socket[skt]);
                 skt += 1;
             }
 	    else
@@ -404,18 +404,25 @@ void display_bandwidth(PCM *m, memdata_t *md, uint32 no_columns, const bool show
                     \r|---------------------------------------|\n\
                     \r";
 
-                sysRead += md->iMC_Rd_socket[skt];
-                sysWrite += md->iMC_Wr_socket[skt];
-                sysRead += md->iMC_PMM_Rd_socket[skt];
-                sysWrite += md->iMC_PMM_Wr_socket[skt];
+                sysReadDRAM += md->iMC_Rd_socket[skt];
+                sysWriteDRAM += md->iMC_Wr_socket[skt];
+                sysReadPMM += md->iMC_PMM_Rd_socket[skt];
+                sysWritePMM += md->iMC_PMM_Wr_socket[skt];
                 skt += 1;
             }
         }
         cout << "\
-            \r|---------------------------------------||---------------------------------------|\n\
-            \r|--                 System Read Throughput(MB/s):"<<setw(14)<<sysRead<<"                --|\n\
-            \r|--                System Write Throughput(MB/s):"<<setw(14)<<sysWrite<<"                --|\n\
-            \r|--               System Memory Throughput(MB/s):"<<setw(14)<<sysRead+sysWrite<<"                --|\n\
+            \r|---------------------------------------||---------------------------------------|\n";
+	if(md->PMM)
+           cout << "\
+            \r|--            System DRAM Read Throughput(MB/s):"<<setw(14)<<sysReadDRAM<<"                --|\n\
+            \r|--           System DRAM Write Throughput(MB/s):"<<setw(14)<<sysWriteDRAM<<"                --|\n\
+            \r|--             System PMM Read Throughput(MB/s):"<<setw(14)<<sysReadPMM<<"                --|\n\
+            \r|--            System PMM Write Throughput(MB/s):"<<setw(14)<<sysWritePMM<<"                --|\n";
+        cout << "\
+            \r|--                 System Read Throughput(MB/s):"<<setw(14)<<sysReadDRAM+sysReadPMM<<"                --|\n\
+            \r|--                System Write Throughput(MB/s):"<<setw(14)<<sysWriteDRAM+sysWritePMM<<"                --|\n\
+            \r|--               System Memory Throughput(MB/s):"<<setw(14)<<sysReadDRAM+sysReadPMM+sysWriteDRAM+sysWritePMM<<"                --|\n\
             \r|---------------------------------------||---------------------------------------|" << endl;
     }
 }
@@ -464,6 +471,8 @@ void display_bandwidth_csv_header(PCM *m, memdata_t *md, const bool show_channel
       }
 
     }
+    if (md->PMM)
+        cout << "System;System;System;System;";
     cout << "System;System;System\n";
 
     cout << "Date;Time;" ;
@@ -507,6 +516,8 @@ void display_bandwidth_csv_header(PCM *m, memdata_t *md, const bool show_channel
       }
     }
 
+    if (md->PMM)
+	cout << "DRAMRead;DRAMWrite;PMMREAD;PMMWrite;";
     cout << "Read;Write;Memory" << endl;
 }
 
@@ -519,7 +530,7 @@ void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 elapsedTime, const bool
          << tt.tm_hour << ':' << tt.tm_min << ':' << tt.tm_sec << ';';
 
 
-    float sysRead = 0.0, sysWrite = 0.0;
+    float sysReadDRAM = 0.0, sysWriteDRAM = 0.0, sysReadPMM = 0.0, sysWritePMM = 0.0;
 
     cout.setf(ios::fixed);
     cout.precision(2);
@@ -556,10 +567,10 @@ void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 elapsedTime, const bool
          }
          cout << setw(8) << md->iMC_Rd_socket[skt]+md->iMC_Wr_socket[skt] <<';';
 
-	 sysRead += md->iMC_Rd_socket[skt];
-         sysWrite += md->iMC_Wr_socket[skt];
-         sysRead += md->iMC_PMM_Rd_socket[skt];
-         sysWrite += md->iMC_PMM_Wr_socket[skt];
+	 sysReadDRAM += md->iMC_Rd_socket[skt];
+         sysWriteDRAM += md->iMC_Wr_socket[skt];
+         sysReadPMM += md->iMC_PMM_Rd_socket[skt];
+         sysWritePMM += md->iMC_PMM_Wr_socket[skt];
 
 	 if (m->MCDRAMmemoryTrafficMetricsAvailable()) {
             if (show_channel_output) {
@@ -576,14 +587,20 @@ void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 elapsedTime, const bool
 	          <<setw(8) << md->EDC_Wr_socket[skt] <<';'
                   <<setw(8) << md->EDC_Rd_socket[skt]+md->EDC_Wr_socket[skt] <<';';
 
-             sysRead += md->EDC_Rd_socket[skt];
-             sysWrite += md->EDC_Wr_socket[skt];
+             sysReadDRAM += md->EDC_Rd_socket[skt];
+             sysWriteDRAM += md->EDC_Wr_socket[skt];
 	 }
     }
 
-    cout <<setw(10) <<sysRead <<';'
-	 <<setw(10) <<sysWrite <<';'
-	 <<setw(10) <<sysRead+sysWrite << endl;
+    if (md->PMM)
+        cout <<setw(10) <<sysReadDRAM <<';'
+             <<setw(10) <<sysWriteDRAM <<';'
+             <<setw(10) <<sysReadPMM <<';'
+             <<setw(10) <<sysWritePMM <<';';
+
+    cout <<setw(10) <<sysReadDRAM+sysReadPMM <<';'
+	 <<setw(10) <<sysWriteDRAM+sysWritePMM <<';'
+	 <<setw(10) <<sysReadDRAM+sysReadPMM+sysWriteDRAM+sysWritePMM << endl;
 }
 
 void calculate_bandwidth(PCM *m, const ServerUncorePowerState uncState1[], const ServerUncorePowerState uncState2[], uint64 elapsedTime, bool csv, bool & csvheader, uint32 no_columns, bool PMM, const bool show_channel_output)
