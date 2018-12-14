@@ -122,12 +122,13 @@ void collect_afterstate_uncore(PCM *m)
     }
 }
 
-void store_latency_uncore(PCM *m, bool ddr)
+void store_latency_uncore(PCM *m, bool ddr, int delay_ms)
 {
     for (unsigned int i=0; i<m->getNumSockets(); i++)
     {
 	uncore_event[ddr].skt[i].socket_id = i;
-        DRAMSpeed = double(getDRAMClocks(0, BeforeState[i], AfterState[i]))/float(1e9);
+        const double delay_seconds = double(delay_ms) / 1000.;
+        DRAMSpeed = double(getDRAMClocks(0, BeforeState[i], AfterState[i]))/(double(1e9) * delay_seconds);
         if (getMCCounter(i,1,BeforeState[i], AfterState[i]) == 0)
         {
             uncore_event[ddr].skt[i].rlatency = 0;
@@ -406,7 +407,7 @@ void build_registers(PCM *m, PCM::ExtendedCustomCoreEventDescription conf, bool 
     m->programServerUncoreLatencyMetrics(enable_pmm);
 }
 
-void collect_data(PCM *m, bool enable_pmm, bool enable_verbose, int delay)
+void collect_data(PCM *m, bool enable_pmm, bool enable_verbose, int delay_ms)
 {
 
     BeforeState = new ServerUncorePowerState[m->getNumSockets()];
@@ -417,12 +418,12 @@ void collect_data(PCM *m, bool enable_pmm, bool enable_verbose, int delay)
         collect_beforestate_uncore(m);
         collect_beforestate_core(m);
 
-	MySleepMs(delay);
+	MySleepMs(delay_ms);
 
         collect_afterstate_uncore(m);
         collect_afterstate_core(m);
 
-	store_latency_uncore(m, enable_pmm);// 0 for DDR
+	store_latency_uncore(m, enable_pmm, delay_ms);// 0 for DDR
 	store_latency_core(m);
 
         print_all_stats(m, enable_pmm, enable_verbose);
@@ -448,7 +449,7 @@ int main(int argc, char * argv[])
     std::cout << "\n This utility measures Latency information\n\n";
     bool enable_pmm = false;
     bool enable_verbose = false;
-    int delay = 1000;
+    int delay_ms = 1000;
     if(argc > 1) do
     {
         argv++;
@@ -484,7 +485,7 @@ int main(int argc, char * argv[])
     PCM * m = PCM::getInstance();
 
     build_registers(m, conf, enable_pmm, enable_verbose);
-    collect_data(m,enable_pmm, enable_verbose, delay);
+    collect_data(m, enable_pmm, enable_verbose, delay_ms);
 
     exit(EXIT_SUCCESS);
 }
