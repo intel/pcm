@@ -232,11 +232,18 @@ void print_ddr(PCM *m, int ddr_ip)
 {
     if (ddr_ip == PMM)
     {
-        cout << "PMM read Latency(ns)" << endl;
-        for (unsigned int n=0; n<m->getNumSockets(); n++)
+        if (m->PMMTrafficMetricsAvailable())
         {
-            cout << "Socket" << n << ": " << double(uncore_event[PMM].skt[n].rlatency)/DRAMSpeed;
-            cout << endl;
+            cout << "PMM read Latency(ns)" << endl;
+            for (unsigned int n=0; n<m->getNumSockets(); n++)
+            {
+                cout << "Socket" << n << ": " << double(uncore_event[PMM].skt[n].rlatency)/DRAMSpeed;
+                cout << endl;
+            }
+        }
+        else
+        {
+            cout << "PMM metrics are not supported on your processor" << endl;
         }
     }
 
