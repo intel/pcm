@@ -437,7 +437,7 @@ void print_usage()
 {
     cerr << endl << "Usage: " << endl;
     cerr << " -h | --help | /h        => Print this help and exit" << endl;
-    cerr << " --PMM                   => to enable PMM (Default DDR uncore latency)" << endl;
+    cerr << " --PMM | -pmm            => to enable PMM (Default DDR uncore latency)" << endl;
     cerr << " -v | --verbose          => Verbose Output" << endl;
     cerr << endl;
 }
@@ -462,7 +462,7 @@ int main(int argc, char * argv[])
             print_usage();
             exit(EXIT_FAILURE);
         }
-        else if (strncmp(*argv, "--PMM",6) == 0)
+        else if (strncmp(*argv, "--PMM",6) == 0 || strncmp(*argv, "-pmm", 5) == 0)
         {
             argv++;
             argc--;
