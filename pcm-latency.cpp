@@ -384,14 +384,14 @@ void build_registers(PCM *m, PCM::ExtendedCustomCoreEventDescription conf, bool 
     }
 
 //Check for Maximum Custom Core Events
-    if (m->getMaxCustomCoreEvents() < 3)
+    if (m->getMaxCustomCoreEvents() < 2)
     {
-	cout << "System should support a minimum of 3 Custom Core Events to run pcm-latency" << endl;
+	cout << "System should support a minimum of 2 Custom Core Events to run pcm-latency" << endl;
         exit(EXIT_FAILURE);
     }
 //Creating conf
     conf.fixedCfg = NULL; // default
-    conf.nGPCounters = 3;
+    conf.nGPCounters = 2;
     conf.gpCounterCfg = regs;
     conf.OffcoreResponseMsrValue[0] = 0;
     conf.OffcoreResponseMsrValue[1] = 0;
