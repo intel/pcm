@@ -132,18 +132,18 @@ void store_latency_uncore(PCM *m, bool ddr)
         {
             uncore_event[ddr].skt[i].rlatency = 0;
         } else {
-            uncore_event[ddr].skt[i].rinsert = getMCCounter(i,RPQ_INS,BeforeState[i], AfterState[i]);
-            uncore_event[ddr].skt[i].roccupancy = getMCCounter(i,RPQ_OCC,BeforeState[i], AfterState[i]);
-            uncore_event[ddr].skt[i].rlatency = getMCCounter(i,RPQ_OCC,BeforeState[i], AfterState[i])/getMCCounter(i,RPQ_INS,BeforeState[i], AfterState[i]);
+            uncore_event[ddr].skt[i].rinsert = (double)getMCCounter(i,RPQ_INS,BeforeState[i], AfterState[i]);
+            uncore_event[ddr].skt[i].roccupancy = (double)getMCCounter(i,RPQ_OCC,BeforeState[i], AfterState[i]);
+            uncore_event[ddr].skt[i].rlatency = (double)getMCCounter(i,RPQ_OCC,BeforeState[i], AfterState[i])/getMCCounter(i,RPQ_INS,BeforeState[i], AfterState[i]);
         }
 
         if (getMCCounter(i,3,BeforeState[i], AfterState[i]) == 0)
         {
             uncore_event[ddr].skt[i].wlatency = 0;
         } else {
-            uncore_event[ddr].skt[i].wlatency = getMCCounter(i,WPQ_OCC,BeforeState[i], AfterState[i])/getMCCounter(i,WPQ_INS,BeforeState[i], AfterState[i]);
-            uncore_event[ddr].skt[i].winsert = getMCCounter(i,WPQ_INS,BeforeState[i], AfterState[i]);
-            uncore_event[ddr].skt[i].woccupancy = getMCCounter(i,WPQ_OCC,BeforeState[i], AfterState[i]);
+            uncore_event[ddr].skt[i].wlatency = (double)getMCCounter(i,WPQ_OCC,BeforeState[i], AfterState[i])/getMCCounter(i,WPQ_INS,BeforeState[i], AfterState[i]);
+            uncore_event[ddr].skt[i].winsert = (double)getMCCounter(i,WPQ_INS,BeforeState[i], AfterState[i]);
+            uncore_event[ddr].skt[i].woccupancy = (double)getMCCounter(i,WPQ_OCC,BeforeState[i], AfterState[i]);
         }
 
         swap(BeforeState[i], AfterState[i]);
@@ -175,7 +175,7 @@ void store_latency_core(PCM *m)
         for(int j=0; j<2; j++)// 2 events
         {
             core_event[j].core[i].core_id = i;
-            core_event[j].core[i].latency = getNumberOfCustomEvents(j, BeforeState_core[i], AfterState_core[i]);
+            core_event[j].core[i].latency = (double)getNumberOfCustomEvents(j, BeforeState_core[i], AfterState_core[i]);
         }
         // L1 latency
         //Adding 5 clocks for L1 Miss
