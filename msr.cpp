@@ -213,7 +213,11 @@ MsrHandle::MsrHandle(uint32 cpu) : fd(-1), cpu_id(cpu)
         handle = ::open(path, O_RDWR);
     }
     delete[] path;
-    if (handle < 0) throw std::exception();
+    if (handle < 0)
+    {
+         std::cerr << "PCM Error: can't open MSR handle for core " << cpu << std::endl;
+         throw std::exception();
+    }
     fd = handle;
 }
 
