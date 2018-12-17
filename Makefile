@@ -23,6 +23,9 @@ klocwork: $(EXE)
 
 CXXFLAGS += -Wall -g -O3 -Wno-unknown-pragmas
 
+# uncomment if your Linux kernel supports access to /dev/mem from user space
+# CXXFLAGS += -DPCM_USE_PCI_MM_LINUX
+
 # rely on Linux perf support (user needs CAP_SYS_ADMIN privileges), comment out to disable
 ifneq ($(wildcard /usr/include/linux/perf_event.h),)
 CXXFLAGS += -DPCM_USE_PERF
