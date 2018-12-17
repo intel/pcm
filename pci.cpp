@@ -429,8 +429,6 @@ PciHandle::~PciHandle()
     if (fd >= 0) ::close(fd);
 }
 
-#ifndef PCM_USE_PCI_MM_LINUX
-
 int PciHandle::openMcfgTable() {
     const char* path = "/sys/firmware/acpi/tables/MCFG";
     int handle = ::open(path, O_RDONLY);
@@ -449,6 +447,8 @@ int PciHandle::openMcfgTable() {
 
     return handle;
 }
+
+#ifndef PCM_USE_PCI_MM_LINUX
 
 PciHandleM::PciHandleM(uint32 bus_, uint32 device_, uint32 function_) :
     fd(-1),
