@@ -560,6 +560,13 @@ private:
     std::streambuf * backup_ofile; // backup of original output = cout
     int run_state;                 // either running (1) or sleeping (0)
 
+    std::vector<std::vector<EventSelectRegister> > lastProgrammedCustomCounters;
+    uint32 checkCustomCoreProgramming(std::shared_ptr<SafeMsrHandle> msr);
+    void reservePMU();
+    void unreservePMU();
+    ErrorCode programCoreCounters(int core, const PCM::ProgramMode mode, const ExtendedCustomCoreEventDescription * pExtDesc,
+        std::vector<EventSelectRegister> & programmedCustomCounters);
+
     bool PMUinUse();
     void cleanupPMU();
     void freeRMID();

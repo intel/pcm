@@ -2100,154 +2100,17 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
 
     programmed_pmu = true;
 
+    lastProgrammedCustomCounters.clear();
+    lastProgrammedCustomCounters.resize(num_cores);
     // Version for linux/windows/freebsd/dragonflybsd
     for (int i = 0; i < (int)num_cores; ++i)
     {
-        // program core counters
-
         TemporalThreadAffinity tempThreadAffinity(i); // speedup trick for Linux
 
-        FixedEventControlRegister ctrl_reg;
-#ifdef PCM_USE_PERF
-        int leader_counter = -1;
-        perf_event_attr e = PCM_init_perf_event_attr();
-        if(canUsePerf)
+        const auto status = programCoreCounters(i, mode_, pExtDesc, lastProgrammedCustomCounters[i]);
+        if (status != PCM::Success)
         {
-            e.type = PERF_TYPE_HARDWARE;
-            e.config = PERF_COUNT_HW_INSTRUCTIONS;
-            if((perfEventHandle[i][PERF_INST_RETIRED_ANY_POS] = syscall(SYS_perf_event_open, &e, -1,
-                   i /* core id */, leader_counter /* group leader */ ,0 )) <= 0)
-            {
-                std::cerr <<"Linux Perf: Error on programming INST_RETIRED_ANY: "<<strerror(errno)<< std::endl;
-                if(errno == 24) std::cerr << "try executing 'ulimit -n 10000' to increase the limit on the number of open files." << std::endl;
-                decrementInstanceSemaphore();
-                return PCM::UnknownError;
-            }
-            leader_counter = perfEventHandle[i][PERF_INST_RETIRED_ANY_POS];
-            e.pinned = 0; // all following counter are not leaders, thus need not be pinned explicitly
-            e.config = PERF_COUNT_HW_CPU_CYCLES;
-            if( (perfEventHandle[i][PERF_CPU_CLK_UNHALTED_THREAD_POS] = syscall(SYS_perf_event_open, &e, -1,
-                                                i /* core id */, leader_counter /* group leader */ ,0 )) <= 0)
-            {
-                std::cerr <<"Linux Perf: Error on programming CPU_CLK_UNHALTED_THREAD: "<<strerror(errno)<< std::endl;
-                if(errno == 24) std::cerr << "try executing 'ulimit -n 10000' to increase the limit on the number of open files." << std::endl;
-                decrementInstanceSemaphore();
-                return PCM::UnknownError;
-            }
-            e.config = PCM_PERF_COUNT_HW_REF_CPU_CYCLES;
-            if((perfEventHandle[i][PERF_CPU_CLK_UNHALTED_REF_POS] = syscall(SYS_perf_event_open, &e, -1,
-                         i /* core id */, leader_counter /* group leader */ ,0 )) <= 0)
-            {
-                std::cerr <<"Linux Perf: Error on programming CPU_CLK_UNHALTED_REF: "<<strerror(errno)<< std::endl;
-                if(errno == 24) std::cerr << "try executing 'ulimit -n 10000' to increase the limit on the number of open files." << std::endl;
-                decrementInstanceSemaphore();
-                return PCM::UnknownError;
-            }
-        }
-        else
-#endif
-        {
-            // disable counters while programming
-            MSR[i]->write(IA32_CR_PERF_GLOBAL_CTRL, 0);
-            MSR[i]->read(IA32_CR_FIXED_CTR_CTRL, &ctrl_reg.value);
-
-
-            if(EXT_CUSTOM_CORE_EVENTS == mode_ && pExtDesc && pExtDesc->fixedCfg)
-            {
-                ctrl_reg = *(pExtDesc->fixedCfg);
-            }
-            else
-            {
-                ctrl_reg.fields.os0 = 1;
-                ctrl_reg.fields.usr0 = 1;
-                ctrl_reg.fields.any_thread0 = 0;
-                ctrl_reg.fields.enable_pmi0 = 0;
-
-                ctrl_reg.fields.os1 = 1;
-                ctrl_reg.fields.usr1 = 1;
-                ctrl_reg.fields.any_thread1 = 0;
-                ctrl_reg.fields.enable_pmi1 = 0;
-
-                ctrl_reg.fields.os2 = 1;
-                ctrl_reg.fields.usr2 = 1;
-                ctrl_reg.fields.any_thread2 = 0;
-                ctrl_reg.fields.enable_pmi2 = 0;
-
-                ctrl_reg.fields.reserved1 = 0;
-            }
-
-            MSR[i]->write(IA32_CR_FIXED_CTR_CTRL, ctrl_reg.value);
-        }
-
-        if(EXT_CUSTOM_CORE_EVENTS == mode_ && pExtDesc)
-        {
-            if(pExtDesc->OffcoreResponseMsrValue[0]) // still need to do also if perf API is used due to a bug in perf
-                MSR[i]->write(MSR_OFFCORE_RSP0, pExtDesc->OffcoreResponseMsrValue[0]);
-            if(pExtDesc->OffcoreResponseMsrValue[1])
-                MSR[i]->write(MSR_OFFCORE_RSP1, pExtDesc->OffcoreResponseMsrValue[1]);
-        }
-
-        EventSelectRegister event_select_reg;
-
-        for (uint32 j = 0; j < core_gen_counter_num_used; ++j)
-        {
-            if(EXT_CUSTOM_CORE_EVENTS == mode_ && pExtDesc && pExtDesc->gpCounterCfg)
-            {
-              event_select_reg = pExtDesc->gpCounterCfg[j];
-            }
-            else
-            {
-              MSR[i]->read(IA32_PERFEVTSEL0_ADDR + j, &event_select_reg.value); // read-only also safe for perf
-
-              event_select_reg.fields.event_select = coreEventDesc[j].event_number;
-              event_select_reg.fields.umask = coreEventDesc[j].umask_value;
-              event_select_reg.fields.usr = 1;
-              event_select_reg.fields.os = 1;
-              event_select_reg.fields.edge = 0;
-              event_select_reg.fields.pin_control = 0;
-              event_select_reg.fields.apic_int = 0;
-              event_select_reg.fields.any_thread = 0;
-              event_select_reg.fields.enable = 1;
-              event_select_reg.fields.invert = 0;
-              event_select_reg.fields.cmask = 0;
-              event_select_reg.fields.in_tx = 0;
-              event_select_reg.fields.in_txcp = 0;
-            }
-#ifdef PCM_USE_PERF
-            if(canUsePerf)
-            {
-                e.type = PERF_TYPE_RAW;
-		e.config = (1ULL<<63ULL) + event_select_reg.value;
-                if (event_select_reg.fields.event_select == OFFCORE_RESPONSE_0_EVTNR)
-                    e.config1 = pExtDesc->OffcoreResponseMsrValue[0];
-                if (event_select_reg.fields.event_select == OFFCORE_RESPONSE_1_EVTNR)
-                    e.config1 = pExtDesc->OffcoreResponseMsrValue[1];
-                if((perfEventHandle[i][PERF_GEN_EVENT_0_POS + j] = syscall(SYS_perf_event_open, &e, -1,
-                                                i /* core id */, leader_counter /* group leader */ ,0 )) <= 0)
-                {
-                    std::cerr <<"Linux Perf: Error on programming generic event #"<< i <<" error: "<<strerror(errno)<< std::endl;
-                    if(errno == 24) std::cerr << "try executing 'ulimit -n 10000' to increase the limit on the number of open files." << std::endl;
-                    decrementInstanceSemaphore();
-                    return PCM::UnknownError;
-                }
-            }
-            else
-#endif
-            {
-                MSR[i]->write(IA32_PMC0 + j, 0);
-                 MSR[i]->write(IA32_PERFEVTSEL0_ADDR + j, event_select_reg.value);
-            }
-        }
-
-        if(!canUsePerf)
-        {
-            // start counting, enable all (4 programmable + 3 fixed) counters
-            uint64 value = (1ULL << 0) + (1ULL << 1) + (1ULL << 2) + (1ULL << 3) + (1ULL << 32) + (1ULL << 33) + (1ULL << 34);
-
-            if (cpu_model == ATOM || cpu_model == KNL)       // KNL and Atom have 3 fixed + only 2 programmable counters
-                value = (1ULL << 0) + (1ULL << 1) + (1ULL << 32) + (1ULL << 33) + (1ULL << 34);
-
-            MSR[i]->write(IA32_CR_PERF_GLOBAL_CTRL, value);
+            return status;
         }
 
         // program uncore counters
@@ -2261,6 +2124,8 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
             programBecktonUncore(i);
         }
     }
+
+    reservePMU();
 
     if(canUsePerf)
     {
@@ -2286,6 +2151,159 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
 
     reportQPISpeed();
 
+    return PCM::Success;
+}
+
+PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
+    const PCM::ProgramMode mode_,
+    const ExtendedCustomCoreEventDescription * pExtDesc,
+    std::vector<EventSelectRegister> & result)
+{
+    // program core counters
+
+    result.clear();
+    FixedEventControlRegister ctrl_reg;
+#ifdef PCM_USE_PERF
+    int leader_counter = -1;
+    perf_event_attr e = PCM_init_perf_event_attr();
+    if (canUsePerf)
+    {
+        e.type = PERF_TYPE_HARDWARE;
+        e.config = PERF_COUNT_HW_INSTRUCTIONS;
+        if ((perfEventHandle[i][PERF_INST_RETIRED_ANY_POS] = syscall(SYS_perf_event_open, &e, -1,
+            i /* core id */, leader_counter /* group leader */, 0)) <= 0)
+        {
+            std::cerr << "Linux Perf: Error on programming INST_RETIRED_ANY: " << strerror(errno) << std::endl;
+            if (errno == 24) std::cerr << "try executing 'ulimit -n 10000' to increase the limit on the number of open files." << std::endl;
+            decrementInstanceSemaphore();
+            return PCM::UnknownError;
+        }
+        leader_counter = perfEventHandle[i][PERF_INST_RETIRED_ANY_POS];
+        e.pinned = 0; // all following counter are not leaders, thus need not be pinned explicitly
+        e.config = PERF_COUNT_HW_CPU_CYCLES;
+        if ((perfEventHandle[i][PERF_CPU_CLK_UNHALTED_THREAD_POS] = syscall(SYS_perf_event_open, &e, -1,
+            i /* core id */, leader_counter /* group leader */, 0)) <= 0)
+        {
+            std::cerr << "Linux Perf: Error on programming CPU_CLK_UNHALTED_THREAD: " << strerror(errno) << std::endl;
+            if (errno == 24) std::cerr << "try executing 'ulimit -n 10000' to increase the limit on the number of open files." << std::endl;
+            decrementInstanceSemaphore();
+            return PCM::UnknownError;
+        }
+        e.config = PCM_PERF_COUNT_HW_REF_CPU_CYCLES;
+        if ((perfEventHandle[i][PERF_CPU_CLK_UNHALTED_REF_POS] = syscall(SYS_perf_event_open, &e, -1,
+            i /* core id */, leader_counter /* group leader */, 0)) <= 0)
+        {
+            std::cerr << "Linux Perf: Error on programming CPU_CLK_UNHALTED_REF: " << strerror(errno) << std::endl;
+            if (errno == 24) std::cerr << "try executing 'ulimit -n 10000' to increase the limit on the number of open files." << std::endl;
+            decrementInstanceSemaphore();
+            return PCM::UnknownError;
+        }
+    }
+    else
+#endif
+    {
+        // disable counters while programming
+        MSR[i]->write(IA32_CR_PERF_GLOBAL_CTRL, 0);
+        MSR[i]->read(IA32_CR_FIXED_CTR_CTRL, &ctrl_reg.value);
+
+
+        if (EXT_CUSTOM_CORE_EVENTS == mode_ && pExtDesc && pExtDesc->fixedCfg)
+        {
+            ctrl_reg = *(pExtDesc->fixedCfg);
+        }
+        else
+        {
+            ctrl_reg.fields.os0 = 1;
+            ctrl_reg.fields.usr0 = 1;
+            ctrl_reg.fields.any_thread0 = 0;
+            ctrl_reg.fields.enable_pmi0 = 0;
+
+            ctrl_reg.fields.os1 = 1;
+            ctrl_reg.fields.usr1 = 1;
+            ctrl_reg.fields.any_thread1 = 0;
+            ctrl_reg.fields.enable_pmi1 = 0;
+
+            ctrl_reg.fields.os2 = 1;
+            ctrl_reg.fields.usr2 = 1;
+            ctrl_reg.fields.any_thread2 = 0;
+            ctrl_reg.fields.enable_pmi2 = 0;
+
+            ctrl_reg.fields.reserved1 = 0;
+        }
+
+        MSR[i]->write(IA32_CR_FIXED_CTR_CTRL, ctrl_reg.value);
+    }
+
+    if (EXT_CUSTOM_CORE_EVENTS == mode_ && pExtDesc)
+    {
+        if (pExtDesc->OffcoreResponseMsrValue[0]) // still need to do also if perf API is used due to a bug in perf
+            MSR[i]->write(MSR_OFFCORE_RSP0, pExtDesc->OffcoreResponseMsrValue[0]);
+        if (pExtDesc->OffcoreResponseMsrValue[1])
+            MSR[i]->write(MSR_OFFCORE_RSP1, pExtDesc->OffcoreResponseMsrValue[1]);
+    }
+
+    EventSelectRegister event_select_reg;
+    for (uint32 j = 0; j < core_gen_counter_num_used; ++j)
+    {
+        if (EXT_CUSTOM_CORE_EVENTS == mode_ && pExtDesc && pExtDesc->gpCounterCfg)
+        {
+            event_select_reg = pExtDesc->gpCounterCfg[j];
+        }
+        else
+        {
+            MSR[i]->read(IA32_PERFEVTSEL0_ADDR + j, &event_select_reg.value); // read-only also safe for perf
+
+            event_select_reg.fields.event_select = coreEventDesc[j].event_number;
+            event_select_reg.fields.umask = coreEventDesc[j].umask_value;
+            event_select_reg.fields.usr = 1;
+            event_select_reg.fields.os = 1;
+            event_select_reg.fields.edge = 0;
+            event_select_reg.fields.pin_control = 0;
+            event_select_reg.fields.apic_int = 0;
+            event_select_reg.fields.any_thread = 0;
+            event_select_reg.fields.enable = 1;
+            event_select_reg.fields.invert = 0;
+            event_select_reg.fields.cmask = 0;
+            event_select_reg.fields.in_tx = 0;
+            event_select_reg.fields.in_txcp = 0;
+        }
+        result.push_back(event_select_reg);
+#ifdef PCM_USE_PERF
+        if (canUsePerf)
+        {
+            e.type = PERF_TYPE_RAW;
+            e.config = (1ULL << 63ULL) + event_select_reg.value;
+            if (event_select_reg.fields.event_select == OFFCORE_RESPONSE_0_EVTNR)
+                e.config1 = pExtDesc->OffcoreResponseMsrValue[0];
+            if (event_select_reg.fields.event_select == OFFCORE_RESPONSE_1_EVTNR)
+                e.config1 = pExtDesc->OffcoreResponseMsrValue[1];
+            if ((perfEventHandle[i][PERF_GEN_EVENT_0_POS + j] = syscall(SYS_perf_event_open, &e, -1,
+                i /* core id */, leader_counter /* group leader */, 0)) <= 0)
+            {
+                std::cerr << "Linux Perf: Error on programming generic event #" << i << " error: " << strerror(errno) << std::endl;
+                if (errno == 24) std::cerr << "try executing 'ulimit -n 10000' to increase the limit on the number of open files." << std::endl;
+                decrementInstanceSemaphore();
+                return PCM::UnknownError;
+            }
+        }
+        else
+#endif
+        {
+            MSR[i]->write(IA32_PMC0 + j, 0);
+            MSR[i]->write(IA32_PERFEVTSEL0_ADDR + j, event_select_reg.value);
+        }
+    }
+
+    if (!canUsePerf)
+    {
+        // start counting, enable all (4 programmable + 3 fixed) counters
+        uint64 value = (1ULL << 0) + (1ULL << 1) + (1ULL << 2) + (1ULL << 3) + (1ULL << 32) + (1ULL << 33) + (1ULL << 34);
+
+        if (cpu_model == ATOM || cpu_model == KNL)       // KNL and Atom have 3 fixed + only 2 programmable counters
+            value = (1ULL << 0) + (1ULL << 1) + (1ULL << 32) + (1ULL << 33) + (1ULL << 34);
+
+        MSR[i]->write(IA32_CR_PERF_GLOBAL_CTRL, value);
+    }
     return PCM::Success;
 }
 
@@ -2620,13 +2638,72 @@ void PCM::computeQPISpeedBeckton(int core_nr)
 
 }
 
+uint32 PCM::checkCustomCoreProgramming(std::shared_ptr<SafeMsrHandle> msr)
+{
+    const auto core = msr->getCoreId();
+    uint32 corruptedCountersMask = 0;
+
+    for (size_t ctr = 0; ctr < lastProgrammedCustomCounters[core].size(); ++ctr)
+    {
+        uint64 value = 0;
+        msr->read(IA32_PERFEVTSEL0_ADDR + ctr, &value);
+        if (value != lastProgrammedCustomCounters[core][ctr].value)
+        {
+            std::cerr << "PCM Error: someone has corrupted custom counter " << ctr << " on core " << core
+                << " expected value " << lastProgrammedCustomCounters[core][ctr].value << " value read " << value << std::endl;
+
+            corruptedCountersMask |= (1<<ctr);
+        }
+    }
+    return corruptedCountersMask;
+}
+
+void PCM::reservePMU()
+{
+    if (perfmon_version >= 4 && canUsePerf == false)
+    {
+        const uint64 value = (7ULL << 32ULL) + ((1ULL << core_gen_counter_num_used) - 1ULL);
+        for (auto msr : MSR)
+        {
+            msr->write(MSR_PERF_GLOBAL_INUSE, value);
+        }
+    }
+}
+
+void PCM::unreservePMU()
+{
+    if (perfmon_version >= 4 && canUsePerf == false)
+    {
+        for (auto msr : MSR)
+        {
+            msr->write(MSR_PERF_GLOBAL_INUSE, 0ULL);
+        }
+    }
+}
+
 bool PCM::PMUinUse()
 {
     // follow the "Performance Monitoring Unit Sharing Guide" by P. Irelan and Sh. Kuo
     for (int i = 0; i < (int)num_cores; ++i)
     {
         //std::cout << "Core "<<i<<" exemine registers"<< std::endl;
-        uint64 value;
+        uint64 value = 0;
+        if (perfmon_version >= 4)
+        {
+            MSR[i]->read(MSR_PERF_GLOBAL_INUSE, &value);
+            for (uint32 j = 0; j < core_gen_counter_num_max; ++j)
+            {
+                if (value & (1ULL << j))
+                {
+                    std::cerr << "WARNING: Custom counter " << j << " is in use. MSR_PERF_GLOBAL_INUSE on core " << i << ": " << value << std::endl;
+                    /*
+                    Testing MSR_PERF_GLOBAL_INUSE mechanism for a moment. At a later point in time will report BUSY.
+                    return true;
+                    */
+                }
+            }
+        }
+
         MSR[i]->read(IA32_CR_PERF_GLOBAL_CTRL, &value);
         // std::cout << "Core "<<i<<" IA32_CR_PERF_GLOBAL_CTRL is "<< std::hex << value << std::dec << std::endl;
 
@@ -2756,6 +2833,8 @@ void PCM::cleanupPMU()
 
     if(cpu_model == JAKETOWN)
         enableJKTWorkaround(false);
+
+    unreservePMU();
 
 #ifndef PCM_SILENT
     std::cerr << " Zeroed PMU registers" << std::endl;
@@ -3099,6 +3178,7 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
     const uint32 cpu_model = m->getCPUModel();
     const int32 core_gen_counter_num_max = m->getMaxCustomCoreEvents();
 
+    const auto corruptedCountersMask = m->checkCustomCoreProgramming(msr);
     // reading core PMU counters
 #ifdef PCM_USE_PERF
     if(m->canUsePerf)
@@ -3150,6 +3230,11 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
             break;
         }
     }
+
+    if (corruptedCountersMask & 1) cL3Miss = ~0ULL;
+    if (corruptedCountersMask & 2) cL3UnsharedHit = ~0ULL;
+    if (corruptedCountersMask & 4) cL2HitM = ~0ULL;
+    if (corruptedCountersMask & 8) cL2Hit = ~0ULL;
 
     // std::cout << "DEBUG1: "<< msr->getCoreId() << " " << cInstRetiredAny<< " "<< std::endl;
     if(m->L3CacheOccupancyMetricAvailable())
