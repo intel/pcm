@@ -3,7 +3,7 @@
 # written by Roman Dementiev and Jim Harris
 #
 
-EXE = pcm.x pcm-numa.x pcm-power.x pcm-sensor.x pcm-msr.x pcm-memory.x pcm-tsx.x pcm-pcie.x pcm-core.x pcm-iio.x pcm-lspci.x pcm-pcicfg.x
+EXE = pcm.x pcm-numa.x pcm-latency.x pcm-power.x pcm-sensor.x pcm-msr.x pcm-memory.x pcm-tsx.x pcm-pcie.x pcm-core.x pcm-iio.x pcm-lspci.x pcm-pcicfg.x
 
 UNAME:=$(shell uname)
 
@@ -22,6 +22,9 @@ daemon-binaries:
 klocwork: $(EXE)
 
 CXXFLAGS += -Wall -g -O3 -Wno-unknown-pragmas
+
+# uncomment if your Linux kernel supports access to /dev/mem from user space
+# CXXFLAGS += -DPCM_USE_PCI_MM_LINUX
 
 # rely on Linux perf support (user needs CAP_SYS_ADMIN privileges), comment out to disable
 ifneq ($(wildcard /usr/include/linux/perf_event.h),)

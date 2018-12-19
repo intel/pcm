@@ -32,6 +32,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "pcm-lspci-win", "PCM-LSPCI_
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "pcm-pcicfg-win", "PCM-PCICFG_Win\pcm-pcicfg-win.vcxproj", "{14E59E75-FA0A-4B4C-BA15-F59C6A031F84}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "pcm-latency-win", "PCM-Latency_Win\pcm-latency-win.vcxproj", "{C0457D62-B484-4E44-8FCE-25761051E698}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -144,6 +146,14 @@ Global
 		{14E59E75-FA0A-4B4C-BA15-F59C6A031F84}.Release|x64.Build.0 = Release|x64
 		{14E59E75-FA0A-4B4C-BA15-F59C6A031F84}.Release|x86.ActiveCfg = Release|Win32
 		{14E59E75-FA0A-4B4C-BA15-F59C6A031F84}.Release|x86.Build.0 = Release|Win32
+		{C0457D62-B484-4E44-8FCE-25761051E698}.Debug|x64.ActiveCfg = Debug|x64
+		{C0457D62-B484-4E44-8FCE-25761051E698}.Debug|x64.Build.0 = Debug|x64
+		{C0457D62-B484-4E44-8FCE-25761051E698}.Debug|x86.ActiveCfg = Debug|Win32
+		{C0457D62-B484-4E44-8FCE-25761051E698}.Debug|x86.Build.0 = Debug|Win32
+		{C0457D62-B484-4E44-8FCE-25761051E698}.Release|x64.ActiveCfg = Release|x64
+		{C0457D62-B484-4E44-8FCE-25761051E698}.Release|x64.Build.0 = Release|x64
+		{C0457D62-B484-4E44-8FCE-25761051E698}.Release|x86.ActiveCfg = Release|Win32
+		{C0457D62-B484-4E44-8FCE-25761051E698}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
