@@ -2645,12 +2645,17 @@ uint32 PCM::checkCustomCoreProgramming(std::shared_ptr<SafeMsrHandle> msr)
 
     for (size_t ctr = 0; ctr < lastProgrammedCustomCounters[core].size(); ++ctr)
     {
-        uint64 value = 0;
-        msr->read(IA32_PERFEVTSEL0_ADDR + ctr, &value);
-        if (value != lastProgrammedCustomCounters[core][ctr].value)
+        EventSelectRegister current;
+        msr->read(IA32_PERFEVTSEL0_ADDR + ctr, &current.value);
+        if (canUsePerf)
+        {
+            current.fields.apic_int = 0; // perf sets this bit
+        }
+        if (current.value != lastProgrammedCustomCounters[core][ctr].value)
         {
             std::cerr << "PCM Error: someone has corrupted custom counter " << ctr << " on core " << core
-                << " expected value " << lastProgrammedCustomCounters[core][ctr].value << " value read " << value << std::endl;
+                << " expected value " << lastProgrammedCustomCounters[core][ctr].value << " value read "
+                << current.value << std::endl;
 
             corruptedCountersMask |= (1<<ctr);
         }
