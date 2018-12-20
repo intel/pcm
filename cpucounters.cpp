@@ -2646,7 +2646,12 @@ uint32 PCM::checkCustomCoreProgramming(std::shared_ptr<SafeMsrHandle> msr)
     for (size_t ctr = 0; ctr < lastProgrammedCustomCounters[core].size(); ++ctr)
     {
         EventSelectRegister current;
-        msr->read(IA32_PERFEVTSEL0_ADDR + ctr, &current.value);
+        if (msr->read(IA32_PERFEVTSEL0_ADDR + ctr, &current.value) != sizeof(current.value))
+        {
+            std::cerr << "PCM Error: can not read MSR 0x" << std::hex << (IA32_PERFEVTSEL0_ADDR + ctr) <<
+                " on core " << std::dec << core << std::endl;
+            continue;
+        }
         if (canUsePerf)
         {
             current.fields.apic_int = 0; // perf sets this bit
