@@ -2641,6 +2641,10 @@ void PCM::computeQPISpeedBeckton(int core_nr)
 uint32 PCM::checkCustomCoreProgramming(std::shared_ptr<SafeMsrHandle> msr)
 {
     const auto core = msr->getCoreId();
+    if (size_t(core) >= lastProgrammedCustomCounters.size())
+    {
+        return 0;
+    }
     uint32 corruptedCountersMask = 0;
 
     for (size_t ctr = 0; ctr < lastProgrammedCustomCounters[core].size(); ++ctr)
