@@ -1814,7 +1814,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
     if(num_online_cores < num_cores)
     {
         canUsePerf = false;
-        std::cerr << "PCM does not support using Linux perf APU systems with offlined cores. Falling-back to direct PMU programming."
+        std::cerr << "PCM does not support using Linux perf API on systems with offlined cores. Falling-back to direct PMU programming."
               << std::endl;
     }
     else if(PERF_COUNT_HW_MAX <= PCM_PERF_COUNT_HW_REF_CPU_CYCLES)
