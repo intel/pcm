@@ -2267,6 +2267,7 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
             event_select_reg.fields.in_tx = 0;
             event_select_reg.fields.in_txcp = 0;
         }
+        result.push_back(event_select_reg);
 #ifdef PCM_USE_PERF
         if (canUsePerf)
         {
@@ -2640,8 +2641,10 @@ void PCM::computeQPISpeedBeckton(int core_nr)
 uint32 PCM::checkCustomCoreProgramming(std::shared_ptr<SafeMsrHandle> msr)
 {
     const auto core = msr->getCoreId();
-    if (size_t(core) >= lastProgrammedCustomCounters.size())
+    if (size_t(core) >= lastProgrammedCustomCounters.size() || canUsePerf)
     {
+        // checking 'canUsePerf'because corruption detection curently works
+        // only if perf is not used, see https://github.com/opcm/pcm/issues/106
         return 0;
     }
     uint32 corruptedCountersMask = 0;
