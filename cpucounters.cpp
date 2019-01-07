@@ -2267,7 +2267,6 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
             event_select_reg.fields.in_tx = 0;
             event_select_reg.fields.in_txcp = 0;
         }
-        result.push_back(event_select_reg);
 #ifdef PCM_USE_PERF
         if (canUsePerf)
         {
