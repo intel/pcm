@@ -33,36 +33,91 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include "mutex.h"
 #include <memory>
 
-#define PCM_CLIENT_IMC_BAR_OFFSET       (0x0048)
-#define PCM_CLIENT_IMC_DRAM_IO_REQESTS  (0x5048)
-#define PCM_CLIENT_IMC_DRAM_DATA_READS  (0x5050)
-#define PCM_CLIENT_IMC_DRAM_DATA_WRITES (0x5054)
-#define PCM_CLIENT_IMC_MMAP_SIZE        (0x6000)
+#ifdef _MSC_VER
+class MMIORange
+{
 
+    static std::shared_ptr<WinPmem> pmem;
+    static PCM_Util::Mutex mutex;
+    static bool writeSupported;
+    uint64 startAddr;
+
+    template <class T>
+    void writeInternal(uint64 offset, T val)
+    {
+        if (!writeSupported)
+        {
+            std::cerr << "PCM Error: MMIORange writes are not supported by the driver" << std::endl;
+            return;
+        }
+        if (readonly)
+        {
+            std::cerr << "PCM Error: attempting to write to a read-only MMIORange" << std::endl;
+            return;
+        }
+        mutex.lock();
+        pmem->write(startAddr + offset, val);
+        mutex.unlock();
+    }
+    template <class T>
+    void readInternal(uint64 offset, T & res)
+    {
+        mutex.lock();
+        pmem->read(startAddr + offset, res);
+        mutex.unlock();
+    }
+    const bool readonly;
+public:
+    MMIORange(uint64 baseAddr_, uint64 size_, bool readonly_ = true);
+    uint32 read32(uint64 offset)
+    {
+        uint32 result = 0;
+        readInternal(offset, result);
+        return result;
+    }
+    uint64 read64(uint64 offset)
+    {
+        uint64 result = 0;
+        readInternal(offset, result);
+        return result;
+    }
+    void write32(uint64 offset, uint32 val)
+    {
+        writeInternal(offset, val);
+    }
+    void write64(uint64 offset, uint64 val)
+    {
+        writeInternal(offset, val);
+    }
+};
+
+#elif defined(__APPLE__) || defined(__linux__) || defined(__FreeBSD__) || defined(__DragonFly__)
+
+class MMIORange
+{
+    int32 fd;
+    char * mmapAddr;
+    const uint64 size;
+    const bool readonly;
+public:
+    MMIORange(uint64 baseAddr_, uint64 size_, bool readonly_ = true);
+    uint32 read32(uint64 offset);
+    uint64 read64(uint64 offset);
+    void write32(uint64 offset, uint32 val);
+    void write64(uint64 offset, uint64 val);
+    ~MMIORange();
+};
+#endif
 
 class ClientBW
 {
-#if defined(__linux__) || defined(__FreeBSD__) || defined(__DragonFly__)
-    int32 fd;
-    char * mmapAddr;
-#endif
-#ifdef __APPLE__
-    char * mmapAddr;
-#endif
-#ifdef _MSC_VER
-    std::shared_ptr<WinPmem> pmem;
-    uint64 startAddr;
-    PCM_Util::Mutex mutex;
-#endif
-
+    std::shared_ptr<MMIORange> mmioRange;
 public:
     ClientBW();
 
     uint64 getImcReads();
     uint64 getImcWrites();
     uint64 getIoRequests();
-
-    ~ClientBW();
 };
 
 

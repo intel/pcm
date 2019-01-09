@@ -17,8 +17,49 @@ class WinPmem {
   virtual int install_driver(bool delete_driver = true);
   virtual int uninstall_driver();
   virtual int set_acquisition_mode(__int32 mode);
+  virtual int toggle_write_mode();
 
-  unsigned int read32(__int64 start);
+  template <class T>
+  void read(__int64 start, T & result)
+  {
+      LARGE_INTEGER large_start;
+
+      DWORD bytes_read = 0;
+      large_start.QuadPart = start;
+
+      if (0xFFFFFFFF == SetFilePointer(fd_, (LONG)large_start.LowPart,
+          &large_start.HighPart, FILE_BEGIN))
+      {
+          LogError(TEXT("Failed to seek in the pmem device.\n"));
+          return;
+      }
+
+      if (!ReadFile(fd_, &result, (DWORD)sizeof(T), &bytes_read, NULL))
+      {
+          LogError(TEXT("Failed to read memory."));
+      }
+  }
+
+  template <class T>
+  void write(__int64 start, T val)
+  {
+      LARGE_INTEGER large_start;
+
+      DWORD bytes_written = 0;
+      large_start.QuadPart = start;
+
+      if (0xFFFFFFFF == SetFilePointer(fd_, (LONG)large_start.LowPart,
+          &large_start.HighPart, FILE_BEGIN))
+      {
+          LogError(TEXT("Failed to seek in the pmem device.\n"));
+          return;
+      }
+
+      if (!WriteFile(fd_, &val, (DWORD)sizeof(T), &bytes_written, NULL))
+      {
+          LogError(TEXT("Failed to write memory."));
+      }
+  }
 
   // This is set if output should be suppressed (e.g. if we pipe the
   // image to the STDOUT).

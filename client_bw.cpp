@@ -72,126 +72,86 @@ protected:
     }
 };
 
-ClientBW::ClientBW() : pmem(new PCMPmem())
-{
-    pmem->install_driver(false);
-    pmem->set_acquisition_mode(PMEM_MODE_IOSPACE);
+std::shared_ptr<WinPmem> MMIORange::pmem;
+PCM_Util::Mutex MMIORange::mutex;
+bool MMIORange::writeSupported;
 
-    PciHandleType imcHandle(0, 0, 0, 0); // memory controller device coordinates: domain 0, bus 0, device 0, function 0
-    uint64 imcbar = 0;
-    imcHandle.read64(PCM_CLIENT_IMC_BAR_OFFSET, &imcbar);
-    // std::cout << "DEBUG: imcbar="<<std::hex << imcbar <<std::endl;
-    if (!imcbar)
+MMIORange::MMIORange(uint64 baseAddr_, uint64 /* size_ */, bool readonly_) : startAddr(baseAddr_), readonly(readonly_)
+{
+    mutex.lock();
+    if (pmem.get() == NULL)
     {
-        std::cerr << "ERROR: imcbar is zero." << std::endl;
-        throw std::exception();
+        pmem = std::shared_ptr<PCMPmem>(new PCMPmem());
+        pmem->install_driver(false);
+        pmem->set_acquisition_mode(PMEM_MODE_IOSPACE);
+        writeSupported = pmem->toggle_write_mode() >= 0; // since it is a global object enable write mode just in case someone needs it
     }
-    startAddr = imcbar & (~(4096ULL - 1ULL)); // round down to 4K
-}
-
-uint64 ClientBW::getImcReads()
-{
-    mutex.lock();
-    uint32 res = pmem->read32(startAddr + PCM_CLIENT_IMC_DRAM_DATA_READS);
     mutex.unlock();
-    return (uint64)res;
 }
-
-uint64 ClientBW::getImcWrites()
-{
-    mutex.lock();
-    uint32 res = pmem->read32(startAddr + PCM_CLIENT_IMC_DRAM_DATA_WRITES);
-    mutex.unlock();
-    return (uint64)res;
-}
-
-uint64 ClientBW::getIoRequests()
-{
-    mutex.lock();
-    uint32 res = pmem->read32(startAddr + PCM_CLIENT_IMC_DRAM_IO_REQESTS);
-    mutex.unlock();
-    return (uint64)res;
-}
-
-ClientBW::~ClientBW()
-{
-    pmem->uninstall_driver();
-}
-
 
 #elif __APPLE__
 
 #include "PCIDriverInterface.h"
 
-#define CLIENT_BUS          0
-#define CLIENT_DEV          0
-#define CLIENT_FUNC         0
-#define CLIENT_BAR_MASK     0x0007FFFFF8000LL
-#define CLIENT_EVENT_BASE   0x5000
-
-ClientBW::ClientBW()
+MMIORange::MMIORange(uint64 physical_address, uint64 size_, bool readonly_) : mmapAddr(NULL), readonly(readonly_)
 {
-    uint64_t bar = 0;
-    uint32_t pci_address = FORM_PCI_ADDR(CLIENT_BUS, CLIENT_DEV, CLIENT_FUNC, PCM_CLIENT_IMC_BAR_OFFSET);
-    PCIDriver_read64(pci_address, &bar);
-    uint64_t physical_address = (bar & CLIENT_BAR_MASK) + CLIENT_EVENT_BASE;//bar & (~(4096-1));
-    mmapAddr = NULL;
+    if (size_ > 4096)
+    {
+        std::cerr << "PCM Error: the driver does not support mapping of regions > 4KB" << std::endl;
+        return;
+    }
     if (physical_address) {
         PCIDriver_mapMemory((uint32_t)physical_address, (uint8_t **)&mmapAddr);
     }
 }
 
-uint64 ClientBW::getImcReads()
+uint32 MMIORange::read32(uint64 offset)
 {
-    uint32_t val = 0;
-    PCIDriver_readMemory32((uint8_t *)mmapAddr + PCM_CLIENT_IMC_DRAM_DATA_READS - CLIENT_EVENT_BASE, &val);
-    return (uint64_t)val;
+    uint32 val = 0;
+    PCIDriver_readMemory32((uint8_t *)mmapAddr + offset, &val);
+    return val;
 }
 
-uint64 ClientBW::getImcWrites()
+uint64 MMIORange::read64(uint64 offset)
 {
-    uint32_t val = 0;
-    PCIDriver_readMemory32((uint8_t *)mmapAddr + PCM_CLIENT_IMC_DRAM_DATA_WRITES - CLIENT_EVENT_BASE, &val);
-    return (uint64_t)val;
+    uint64 val = 0;
+    PCIDriver_readMemory64((uint8_t *)mmapAddr + offset, &val);
+    return val;
 }
 
-uint64 ClientBW::getIoRequests()
+void MMIORange::write32(uint64 offset, uint32 val)
 {
-    uint32_t val = 0;
-    PCIDriver_readMemory32((uint8_t *)mmapAddr + PCM_CLIENT_IMC_DRAM_IO_REQESTS - CLIENT_EVENT_BASE, &val);
-    return (uint64_t)val;
+    std::cerr << "PCM Error: the driver does not support writing to MMIORange" << std::endl;
+}
+void MMIORange::write64(uint64 offset, uint64 val)
+{
+    std::cerr << "PCM Error: the driver does not support writing to MMIORange" << std::endl;
 }
 
-ClientBW::~ClientBW()
+MMIORange::~MMIORange()
 {
-    PCIDriver_unmapMemory((uint8_t *)mmapAddr);
+    if(mmapAddr) PCIDriver_unmapMemory((uint8_t *)mmapAddr);
 }
 
-#else
+#elif defined(__linux__) || defined(__FreeBSD__) || defined(__DragonFly__)
 
-#if defined(__linux__) || defined(__FreeBSD__) || defined(__DragonFly__)
-// Linux implementation
-
-ClientBW::ClientBW() :
+MMIORange::MMIORange(uint64 baseAddr_, uint64 size_, bool readonly_) :
     fd(-1),
-    mmapAddr(NULL)
+    mmapAddr(NULL),
+    size(size_),
+    readonly(readonly_)
 {
-    int handle = ::open("/dev/mem", O_RDONLY);
-    if (handle < 0) throw std::exception();
+    const int oflag = readonly ? O_RDONLY : O_RDWR;
+    int handle = ::open("/dev/mem", oflag);
+    if (handle < 0)
+    {
+       std::cout << "opening /dev/mem failed: errno is " << errno << " (" << strerror(errno) << ")" << std::endl;
+       throw std::exception();
+    }
     fd = handle;
 
-    PciHandleType imcHandle(0, 0, 0, 0); // memory controller device coordinates: domain 0, bus 0, device 0, function 0
-    uint64 imcbar = 0;
-    imcHandle.read64(PCM_CLIENT_IMC_BAR_OFFSET, &imcbar);
-    // std::cout << "DEBUG: imcbar="<<std::hex << imcbar <<std::endl;
-    if (!imcbar)
-    {
-        std::cerr << "ERROR: imcbar is zero." << std::endl;
-        throw std::exception();
-    }
-    uint64 startAddr = imcbar & (~(4096 - 1)); // round down to 4K
-    // std::cout << "DEBUG: startAddr="<<std::hex << startAddr <<std::endl;
-    mmapAddr = (char *)mmap(NULL, PCM_CLIENT_IMC_MMAP_SIZE, PROT_READ, MAP_SHARED, fd, startAddr);
+    const int prot = readonly ? PROT_READ : (PROT_READ | PROT_WRITE);
+    mmapAddr = (char *)mmap(NULL, size, prot, MAP_SHARED, fd, baseAddr_);
 
     if (mmapAddr == MAP_FAILED)
     {
@@ -200,27 +160,76 @@ ClientBW::ClientBW() :
     }
 }
 
-uint64 ClientBW::getImcReads()
+uint32 MMIORange::read32(uint64 offset)
 {
-    return *((uint32 *)(mmapAddr + PCM_CLIENT_IMC_DRAM_DATA_READS));
+    return *((uint32 *)(mmapAddr + offset));
 }
 
-uint64 ClientBW::getImcWrites()
+uint64 MMIORange::read64(uint64 offset)
 {
-    return *((uint32 *)(mmapAddr + PCM_CLIENT_IMC_DRAM_DATA_WRITES));
+    return *((uint64 *)(mmapAddr + offset));
 }
 
-uint64 ClientBW::getIoRequests()
+void MMIORange::write32(uint64 offset, uint32 val)
 {
-    return *((uint32 *)(mmapAddr + PCM_CLIENT_IMC_DRAM_IO_REQESTS));
+    if (readonly)
+    {
+        std::cerr << "PCM Error: attempting to write to a read-only MMIORange" << std::endl;
+        return;
+    }
+    *((uint32 *)(mmapAddr + offset)) = val;
+}
+void MMIORange::write64(uint64 offset, uint64 val)
+{
+    if (readonly)
+    {
+        std::cerr << "PCM Error: attempting to write to a read-only MMIORange" << std::endl;
+        return;
+    }
+    *((uint64 *)(mmapAddr + offset)) = val;
 }
 
-ClientBW::~ClientBW()
+MMIORange::~MMIORange()
 {
-    if (mmapAddr) munmap(mmapAddr, PCM_CLIENT_IMC_MMAP_SIZE);
+    if (mmapAddr) munmap(mmapAddr, size);
     if (fd >= 0) ::close(fd);
 }
 
 #endif
 
-#endif
+#define PCM_CLIENT_IMC_BAR_OFFSET       (0x0048)
+#define PCM_CLIENT_IMC_DRAM_IO_REQESTS  (0x5048)
+#define PCM_CLIENT_IMC_DRAM_DATA_READS  (0x5050)
+#define PCM_CLIENT_IMC_DRAM_DATA_WRITES (0x5054)
+#define PCM_CLIENT_IMC_MMAP_SIZE        (0x6000)
+#define PCM_CLIENT_IMC_EVENT_BASE       (0x5000)
+
+ClientBW::ClientBW()
+{
+    PciHandleType imcHandle(0, 0, 0, 0); // memory controller device coordinates: domain 0, bus 0, device 0, function 0
+    uint64 imcbar = 0;
+    imcHandle.read64(PCM_CLIENT_IMC_BAR_OFFSET, &imcbar);
+    // std::cout << "DEBUG: imcbar="<<std::hex << imcbar <<std::endl;
+    if (!imcbar)
+    {
+        std::cerr << "ERROR: imcbar is zero." << std::endl;
+        throw std::exception();
+    }
+    auto startAddr = imcbar & (~(4096ULL - 1ULL)); // round down to 4K
+    mmioRange = std::shared_ptr<MMIORange>(new MMIORange(startAddr + PCM_CLIENT_IMC_EVENT_BASE, PCM_CLIENT_IMC_MMAP_SIZE - PCM_CLIENT_IMC_EVENT_BASE));
+}
+
+uint64 ClientBW::getImcReads()
+{
+    return mmioRange->read32(PCM_CLIENT_IMC_DRAM_DATA_READS - PCM_CLIENT_IMC_EVENT_BASE);
+}
+
+uint64 ClientBW::getImcWrites()
+{
+    return mmioRange->read32(PCM_CLIENT_IMC_DRAM_DATA_WRITES - PCM_CLIENT_IMC_EVENT_BASE);
+}
+
+uint64 ClientBW::getIoRequests()
+{
+    return mmioRange->read32(PCM_CLIENT_IMC_DRAM_IO_REQESTS - PCM_CLIENT_IMC_EVENT_BASE);
+}
