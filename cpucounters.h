@@ -165,17 +165,11 @@ public:
         const HWRegisterPtr & fixedCounterControl_ = HWRegisterPtr(),
         const HWRegisterPtr & fixedCounterValue_ = HWRegisterPtr()) :
         unitControl(unitControl_),
+        counterControl{counterControl0, counterControl1, counterControl2, counterControl3},
+        counterValue{counterValue0, counterValue1, counterValue2, counterValue3},
         fixedCounterControl(fixedCounterControl_),
         fixedCounterValue(fixedCounterValue_)
     {
-        counterControl[0] = counterControl0;
-        counterControl[1] = counterControl1;
-        counterControl[2] = counterControl2;
-        counterControl[3] = counterControl3;
-        counterValue[0] = counterValue0;
-        counterValue[1] = counterValue1;
-        counterValue[2] = counterValue2;
-        counterValue[3] = counterValue3;
     }
 };
 
