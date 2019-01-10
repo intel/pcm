@@ -49,7 +49,7 @@ LIB= -lpthread -lc++
 CXXFLAGS += -std=c++11
 endif
 
-COMMON_OBJS = msr.o cpucounters.o pci.o client_bw.o utils.o
+COMMON_OBJS = msr.o cpucounters.o pci.o mmio.o client_bw.o utils.o
 EXE_OBJS = $(EXE:.x=.o)
 OBJS = $(COMMON_OBJS) $(EXE_OBJS)
 

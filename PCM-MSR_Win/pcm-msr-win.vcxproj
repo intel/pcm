@@ -154,7 +154,7 @@
     <ClCompile Include="..\cpucounters.cpp" />
     <ClCompile Include="..\msr.cpp" />
     <ClCompile Include="..\pci.cpp" />
-    <ClCompile Include="..\client_bw.cpp" />
+    <ClCompile Include="..\client_bw.cpp" /> <ClCompile Include="..\mmio.cpp" />
     <ClCompile Include="..\freegetopt\getopt.cpp" />
     <ClCompile Include="pcm-msr-win.cpp" />
     <ClCompile Include="..\winpmem\winpmem.cpp" />
@@ -169,7 +169,7 @@
     <ClInclude Include="..\cpucounters.h" />
     <ClInclude Include="..\msr.h" />
     <ClInclude Include="..\pci.h" />
-    <ClInclude Include="..\client_bw.h" />
+    <ClInclude Include="..\client_bw.h" /> <ClInclude Include="..\mmio.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="..\types.h" />
     <ClInclude Include="windriver.h" />
