@@ -601,8 +601,8 @@ void PCM::initRMID()
                 MSR[core]->unlock();
 
         /* Initializing the memory bandwidth counters */
-        memory_bw_local.push_back(std::shared_ptr<CounterWidthExtender>(new CounterWidthExtender(new CounterWidthExtender::MBLCounter(MSR[core]), 24, 500)));
-        memory_bw_total.push_back(std::shared_ptr<CounterWidthExtender>(new CounterWidthExtender(new CounterWidthExtender::MBTCounter(MSR[core]), 24, 500)));
+        memory_bw_local.push_back(std::make_shared<CounterWidthExtender>(new CounterWidthExtender::MBLCounter(MSR[core]), 24, 500));
+        memory_bw_total.push_back(std::make_shared<CounterWidthExtender>(new CounterWidthExtender::MBTCounter(MSR[core]), 24, 500));
         rmid[topology[core].socket] --;
     }
     /* Get The scaling factor by running CPUID.0xF.0x1 instruction */
@@ -1112,7 +1112,7 @@ bool PCM::discoverSystemTopology()
     // This topology functionality should potentially go into a different KEXT
     for(int i = 0; i < num_cores; i++)
     {
-        MSR.push_back(std::shared_ptr<SafeMsrHandle>(new SafeMsrHandle(i)) );
+        MSR.push_back(std::make_shared<SafeMsrHandle>(i));
     }
 
     TopologyEntry *entries = new TopologyEntry[num_cores];
@@ -1241,9 +1241,9 @@ bool PCM::initMSR()
         for (int i = 0; i < (int)num_cores; ++i)
         {
             if (isCoreOnline((int32)i))
-                MSR.push_back(std::shared_ptr<SafeMsrHandle>(new SafeMsrHandle(i)));
+                MSR.push_back(std::make_shared<SafeMsrHandle>(i));
             else // the core is offlined, assign an invalid MSR handle
-                MSR.push_back(std::shared_ptr<SafeMsrHandle>(new SafeMsrHandle()));
+                MSR.push_back(std::make_shared<SafeMsrHandle>());
         }
     }
     catch (...)
@@ -1364,7 +1364,7 @@ void PCM::initUncoreObjects()
         {
             for (i = 0; i < (int)num_sockets; ++i)
             {
-                server_pcicfg_uncore.push_back(std::shared_ptr<ServerPCICFGUncore>(new ServerPCICFGUncore(i, this)));
+                server_pcicfg_uncore.push_back(std::make_shared<ServerPCICFGUncore>(i, this));
             }
         }
         catch (...)
@@ -1385,13 +1385,13 @@ void PCM::initUncoreObjects()
        // initialize memory bandwidth counting
        try
        {
-           clientBW = std::shared_ptr<ClientBW>(new ClientBW());
-           clientImcReads = std::shared_ptr<CounterWidthExtender>(
-               new CounterWidthExtender(new CounterWidthExtender::ClientImcReadsCounter(clientBW), 32, 10000));
-           clientImcWrites = std::shared_ptr<CounterWidthExtender>(
-               new CounterWidthExtender(new CounterWidthExtender::ClientImcWritesCounter(clientBW), 32, 10000));
-           clientIoRequests = std::shared_ptr<CounterWidthExtender>(
-               new CounterWidthExtender(new CounterWidthExtender::ClientIoRequestsCounter(clientBW), 32, 10000));
+           clientBW = std::make_shared<ClientBW>();
+           clientImcReads = std::make_shared<CounterWidthExtender>(
+               new CounterWidthExtender::ClientImcReadsCounter(clientBW), 32, 10000);
+           clientImcWrites = std::make_shared<CounterWidthExtender>(
+               new CounterWidthExtender::ClientImcWritesCounter(clientBW), 32, 10000);
+           clientIoRequests = std::make_shared<CounterWidthExtender>(
+               new CounterWidthExtender::ClientIoRequestsCounter(clientBW), 32, 10000);
 
        } catch(...)
        {
@@ -1650,7 +1650,7 @@ PCM::PCM() :
 
     for (int32 i = 0; i < num_cores; ++i)
     {
-        coreTaskQueues.push_back(std::shared_ptr<CoreTaskQueue>(new CoreTaskQueue(i)));
+        coreTaskQueues.push_back(std::make_shared<CoreTaskQueue>(i));
     }
 }
 

@@ -37,7 +37,7 @@ ClientBW::ClientBW()
         throw std::exception();
     }
     auto startAddr = imcbar & (~(4096ULL - 1ULL)); // round down to 4K
-    mmioRange = std::shared_ptr<MMIORange>(new MMIORange(startAddr + PCM_CLIENT_IMC_EVENT_BASE, PCM_CLIENT_IMC_MMAP_SIZE - PCM_CLIENT_IMC_EVENT_BASE));
+    mmioRange = std::make_shared<MMIORange>(startAddr + PCM_CLIENT_IMC_EVENT_BASE, PCM_CLIENT_IMC_MMAP_SIZE - PCM_CLIENT_IMC_EVENT_BASE);
 }
 
 uint64 ClientBW::getImcReads()

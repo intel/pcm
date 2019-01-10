@@ -81,7 +81,7 @@ MMIORange::MMIORange(uint64 baseAddr_, uint64 /* size_ */, bool readonly_) : sta
     mutex.lock();
     if (pmem.get() == NULL)
     {
-        pmem = std::shared_ptr<PCMPmem>(new PCMPmem());
+        pmem = std::make_shared<PCMPmem>();
         pmem->install_driver(false);
         pmem->set_acquisition_mode(PMEM_MODE_IOSPACE);
         writeSupported = pmem->toggle_write_mode() >= 0; // since it is a global object enable write mode just in case someone needs it
