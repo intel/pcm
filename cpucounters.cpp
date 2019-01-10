@@ -4381,6 +4381,7 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
         throw std::exception();
     }
 
+    std::vector<std::shared_ptr<PciHandleType> > imcHandles;
     {
 #define PCM_PCICFG_SETUP_MC_HANDLE(controller,channel)                                 \
         {                                                                           \
@@ -4405,6 +4406,42 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
         if ((size_t)imcHandles.size() > num_imc_channels1) ++num_imc; // another memory controller found
 
 #undef PCM_PCICFG_SETUP_MC_HANDLE
+
+        for (auto & handle : imcHandles)
+        {
+            if (cpu_model == PCM::KNL) {
+                imcPMUs.push_back(
+                    UncorePMU(
+                        std::make_shared<PCICFGRegister32>(handle, KNX_MC_CH_PCI_PMON_BOX_CTL_ADDR),
+                        std::make_shared<PCICFGRegister32>(handle, KNX_MC_CH_PCI_PMON_CTL0_ADDR),
+                        std::make_shared<PCICFGRegister32>(handle, KNX_MC_CH_PCI_PMON_CTL1_ADDR),
+                        std::make_shared<PCICFGRegister32>(handle, KNX_MC_CH_PCI_PMON_CTL2_ADDR),
+                        std::make_shared<PCICFGRegister32>(handle, KNX_MC_CH_PCI_PMON_CTL3_ADDR),
+                        std::make_shared<PCICFGRegister64>(handle, KNX_MC_CH_PCI_PMON_CTR0_ADDR),
+                        std::make_shared<PCICFGRegister64>(handle, KNX_MC_CH_PCI_PMON_CTR1_ADDR),
+                        std::make_shared<PCICFGRegister64>(handle, KNX_MC_CH_PCI_PMON_CTR2_ADDR),
+                        std::make_shared<PCICFGRegister64>(handle, KNX_MC_CH_PCI_PMON_CTR3_ADDR),
+                        std::make_shared<PCICFGRegister32>(handle, KNX_MC_CH_PCI_PMON_FIXED_CTL_ADDR),
+                        std::make_shared<PCICFGRegister64>(handle, KNX_MC_CH_PCI_PMON_FIXED_CTR_ADDR))
+                );
+            }
+            else {
+                imcPMUs.push_back(
+                    UncorePMU(
+                        std::make_shared<PCICFGRegister32>(handle, XPF_MC_CH_PCI_PMON_BOX_CTL_ADDR),
+                        std::make_shared<PCICFGRegister32>(handle, XPF_MC_CH_PCI_PMON_CTL0_ADDR),
+                        std::make_shared<PCICFGRegister32>(handle, XPF_MC_CH_PCI_PMON_CTL1_ADDR),
+                        std::make_shared<PCICFGRegister32>(handle, XPF_MC_CH_PCI_PMON_CTL2_ADDR),
+                        std::make_shared<PCICFGRegister32>(handle, XPF_MC_CH_PCI_PMON_CTL3_ADDR),
+                        std::make_shared<PCICFGRegister64>(handle, XPF_MC_CH_PCI_PMON_CTR0_ADDR),
+                        std::make_shared<PCICFGRegister64>(handle, XPF_MC_CH_PCI_PMON_CTR1_ADDR),
+                        std::make_shared<PCICFGRegister64>(handle, XPF_MC_CH_PCI_PMON_CTR2_ADDR),
+                        std::make_shared<PCICFGRegister64>(handle, XPF_MC_CH_PCI_PMON_CTR3_ADDR),
+                        std::make_shared<PCICFGRegister32>(handle, XPF_MC_CH_PCI_PMON_FIXED_CTL_ADDR),
+                        std::make_shared<PCICFGRegister64>(handle, XPF_MC_CH_PCI_PMON_FIXED_CTR_ADDR))
+                );
+            }
+        }
     }
 
     if (imcHandles.empty())
@@ -4593,7 +4630,7 @@ size_t ServerPCICFGUncore::getNumMCChannels(const uint32 controller) const
     case 0:
         return num_imc_channels1;
     case 1:
-        return imcHandles.size() - num_imc_channels1;
+        return imcPMUs.size() - num_imc_channels1;
     }
     return 0;
 }
@@ -4785,7 +4822,7 @@ void ServerPCICFGUncore::cleanupQPIHandles()
 
 uint64 ServerPCICFGUncore::getImcReads()
 {
-    return getImcReadsForChannels((uint32)0, (uint32)imcHandles.size());
+    return getImcReadsForChannels((uint32)0, (uint32)imcPMUs.size());
 }
 
 uint64 ServerPCICFGUncore::getImcReadsForController(uint32 controller)
@@ -4800,7 +4837,7 @@ uint64 ServerPCICFGUncore::getImcReadsForController(uint32 controller)
         break;
     case 1:
         beginChannel = num_imc_channels1;
-        endChannel = (uint32)imcHandles.size();
+        endChannel = (uint32)imcPMUs.size();
         break;
     }
     return getImcReadsForChannels(beginChannel, endChannel);
@@ -4809,22 +4846,9 @@ uint64 ServerPCICFGUncore::getImcReadsForController(uint32 controller)
 uint64 ServerPCICFGUncore::getImcReadsForChannels(uint32 beginChannel, uint32 endChannel)
 {
     uint64 result = 0;
-    uint64 MC_CH_PCI_PMON_CTR0_ADDR = 0;
-
-    PCM * pcm = PCM::getInstance();
-    const uint32 cpu_model = pcm->getCPUModel();
-    if (cpu_model == PCM::KNL) {
-        MC_CH_PCI_PMON_CTR0_ADDR = KNX_MC_CH_PCI_PMON_CTR0_ADDR;
-    }
-    else {
-        MC_CH_PCI_PMON_CTR0_ADDR = XPF_MC_CH_PCI_PMON_CTR0_ADDR;
-    }
-    for (uint32 i = beginChannel; i < endChannel && i < imcHandles.size(); ++i)
+    for (uint32 i = beginChannel; i < endChannel && i < imcPMUs.size(); ++i)
     {
-        uint64 value = 0;
-        imcHandles[i]->read64(MC_CH_PCI_PMON_CTR0_ADDR, &value);
-        // std::cout << "DEBUG: getImcReads() with fd = " << imcHandles[i]->fd << " value = " << value << std::endl;
-        result += value;
+        result += getMCCounter(i, 0);
     }
     return result;
 }
@@ -4832,21 +4856,9 @@ uint64 ServerPCICFGUncore::getImcReadsForChannels(uint32 beginChannel, uint32 en
 uint64 ServerPCICFGUncore::getImcWrites()
 {
     uint64 result = 0;
-    uint64 MC_CH_PCI_PMON_CTR1_ADDR = 0;
-
-    PCM * pcm = PCM::getInstance();
-    const uint32 cpu_model = pcm->getCPUModel();
-    if (cpu_model == PCM::KNL) {
-        MC_CH_PCI_PMON_CTR1_ADDR = KNX_MC_CH_PCI_PMON_CTR1_ADDR;
-    } else {
-        MC_CH_PCI_PMON_CTR1_ADDR = XPF_MC_CH_PCI_PMON_CTR1_ADDR;
-    }
-
-    for (uint32 i = 0; i < (uint32)imcHandles.size(); ++i)
+    for (uint32 i = 0; i < (uint32)imcPMUs.size(); ++i)
     {
-        uint64 value = 0;
-        imcHandles[i]->read64(MC_CH_PCI_PMON_CTR1_ADDR, &value);
-        result += value;
+        result += getMCCounter(i, 1);
     }
 
     return result;
@@ -4855,7 +4867,7 @@ uint64 ServerPCICFGUncore::getImcWrites()
 uint64 ServerPCICFGUncore::getPMMReads()
 {
     uint64 result = 0;
-    for (uint32 i = 0; i < (uint32)imcHandles.size(); ++i)
+    for (uint32 i = 0; i < (uint32)imcPMUs.size(); ++i)
     {
         result += getMCCounter(i, 2);
     }
@@ -4865,7 +4877,7 @@ uint64 ServerPCICFGUncore::getPMMReads()
 uint64 ServerPCICFGUncore::getPMMWrites()
 {
     uint64 result = 0;
-    for (uint32 i = 0; i < (uint32)imcHandles.size(); ++i)
+    for (uint32 i = 0; i < (uint32)imcPMUs.size(); ++i)
     {
         result += getMCCounter(i, 3);
     }
@@ -5033,42 +5045,17 @@ void ServerPCICFGUncore::program_power_metrics(int mc_profile)
 void ServerPCICFGUncore::programIMC(const uint32 * MCCntConfig)
 {
     const uint32 extraIMC = (PCM::getInstance()->getCPUModel() == PCM::SKX)?UNC_PMON_UNIT_CTL_RSV:UNC_PMON_UNIT_CTL_FRZ_EN;
-    uint64 MC_CH_PCI_PMON_BOX_CTL_ADDR = 0;
-    uint64 MC_CH_PCI_PMON_FIXED_CTL_ADDR = 0;
-    uint64 MC_CH_PCI_PMON_CTL0_ADDR = 0;
-    uint64 MC_CH_PCI_PMON_CTL1_ADDR = 0;
-    uint64 MC_CH_PCI_PMON_CTL2_ADDR = 0;
-    uint64 MC_CH_PCI_PMON_CTL3_ADDR = 0;
 
-    PCM * pcm = PCM::getInstance();
-    const uint32 cpu_model = pcm->getCPUModel();
-    if (cpu_model == PCM::KNL) {
-        MC_CH_PCI_PMON_BOX_CTL_ADDR = KNX_MC_CH_PCI_PMON_BOX_CTL_ADDR;
-        MC_CH_PCI_PMON_FIXED_CTL_ADDR = KNX_MC_CH_PCI_PMON_FIXED_CTL_ADDR;
-        MC_CH_PCI_PMON_CTL0_ADDR = KNX_MC_CH_PCI_PMON_CTL0_ADDR;
-        MC_CH_PCI_PMON_CTL1_ADDR = KNX_MC_CH_PCI_PMON_CTL1_ADDR;
-        MC_CH_PCI_PMON_CTL2_ADDR = KNX_MC_CH_PCI_PMON_CTL2_ADDR;
-        MC_CH_PCI_PMON_CTL3_ADDR = KNX_MC_CH_PCI_PMON_CTL3_ADDR;
-    } else {
-        MC_CH_PCI_PMON_BOX_CTL_ADDR = XPF_MC_CH_PCI_PMON_BOX_CTL_ADDR;
-        MC_CH_PCI_PMON_FIXED_CTL_ADDR = XPF_MC_CH_PCI_PMON_FIXED_CTL_ADDR;
-        MC_CH_PCI_PMON_CTL0_ADDR = XPF_MC_CH_PCI_PMON_CTL0_ADDR;
-        MC_CH_PCI_PMON_CTL1_ADDR = XPF_MC_CH_PCI_PMON_CTL1_ADDR;
-        MC_CH_PCI_PMON_CTL2_ADDR = XPF_MC_CH_PCI_PMON_CTL2_ADDR;
-        MC_CH_PCI_PMON_CTL3_ADDR = XPF_MC_CH_PCI_PMON_CTL3_ADDR;
-    }
-
-    for (uint32 i = 0; i < (uint32)imcHandles.size(); ++i)
+    for (uint32 i = 0; i < (uint32)imcPMUs.size(); ++i)
     {
         // imc PMU
         // freeze enable
-        imcHandles[i]->write32(MC_CH_PCI_PMON_BOX_CTL_ADDR, extraIMC);
+        *imcPMUs[i].unitControl = extraIMC;
         // freeze
-        imcHandles[i]->write32(MC_CH_PCI_PMON_BOX_CTL_ADDR, extraIMC + UNC_PMON_UNIT_CTL_FRZ);
+        *imcPMUs[i].unitControl = extraIMC + UNC_PMON_UNIT_CTL_FRZ;
 
 #ifdef PCM_UNCORE_PMON_BOX_CHECK_STATUS
-        uint32 val = 0;
-        imcHandles[i]->read32(MC_CH_PCI_PMON_BOX_CTL_ADDR, &val);
+        uint32 val = *imcPMUs[i].unitControl;
         if ((val & UNC_PMON_UNIT_CTL_VALID_BITS_MASK) != (extraIMC + UNC_PMON_UNIT_CTL_FRZ))
         {
             std::cerr << "ERROR: IMC counter programming seems not to work. MC_CH" << i << "_PCI_PMON_BOX_CTL=0x" << std::hex << val << " " << (val & UNC_PMON_UNIT_CTL_VALID_BITS_MASK) << std::endl;
@@ -5080,29 +5067,22 @@ void ServerPCICFGUncore::programIMC(const uint32 * MCCntConfig)
 #endif
 
         // enable fixed counter (DRAM clocks)
-        imcHandles[i]->write32(MC_CH_PCI_PMON_FIXED_CTL_ADDR, MC_CH_PCI_PMON_FIXED_CTL_EN);
+        *imcPMUs[i].fixedCounterControl = MC_CH_PCI_PMON_FIXED_CTL_EN;
 
         // reset it
-        imcHandles[i]->write32(MC_CH_PCI_PMON_FIXED_CTL_ADDR, MC_CH_PCI_PMON_FIXED_CTL_EN + MC_CH_PCI_PMON_FIXED_CTL_RST);
+        *imcPMUs[i].fixedCounterControl = MC_CH_PCI_PMON_FIXED_CTL_EN + MC_CH_PCI_PMON_FIXED_CTL_RST;
 
-
-        imcHandles[i]->write32(MC_CH_PCI_PMON_CTL0_ADDR, MC_CH_PCI_PMON_CTL_EN);
-        imcHandles[i]->write32(MC_CH_PCI_PMON_CTL0_ADDR, MC_CH_PCI_PMON_CTL_EN + MCCntConfig[0]);
-
-        imcHandles[i]->write32(MC_CH_PCI_PMON_CTL1_ADDR, MC_CH_PCI_PMON_CTL_EN);
-        imcHandles[i]->write32(MC_CH_PCI_PMON_CTL1_ADDR, MC_CH_PCI_PMON_CTL_EN + MCCntConfig[1]);
-
-        imcHandles[i]->write32(MC_CH_PCI_PMON_CTL2_ADDR, MC_CH_PCI_PMON_CTL_EN);
-        imcHandles[i]->write32(MC_CH_PCI_PMON_CTL2_ADDR, MC_CH_PCI_PMON_CTL_EN + MCCntConfig[2]);
-
-        imcHandles[i]->write32(MC_CH_PCI_PMON_CTL3_ADDR, MC_CH_PCI_PMON_CTL_EN);
-        imcHandles[i]->write32(MC_CH_PCI_PMON_CTL3_ADDR, MC_CH_PCI_PMON_CTL_EN + MCCntConfig[3]);
+        for (int c = 0; c < 4; ++c)
+        {
+            *imcPMUs[i].counterControl[c] = MC_CH_PCI_PMON_CTL_EN;
+            *imcPMUs[i].counterControl[c] = MC_CH_PCI_PMON_CTL_EN + MCCntConfig[c];
+        }
 
         // reset counters values
-        imcHandles[i]->write32(MC_CH_PCI_PMON_BOX_CTL_ADDR, extraIMC + UNC_PMON_UNIT_CTL_FRZ + UNC_PMON_UNIT_CTL_RST_COUNTERS);
+        *imcPMUs[i].unitControl = extraIMC + UNC_PMON_UNIT_CTL_FRZ + UNC_PMON_UNIT_CTL_RST_COUNTERS;
 
         // unfreeze counters
-        imcHandles[i]->write32(MC_CH_PCI_PMON_BOX_CTL_ADDR, extraIMC);
+        *imcPMUs[i].unitControl = extraIMC;
     }
 }
 
@@ -5211,27 +5191,19 @@ void ServerPCICFGUncore::programM2M()
 
 void ServerPCICFGUncore::freezeCounters()
 {
-    uint64 MC_CH_PCI_PMON_BOX_CTL_ADDR = 0;
-    uint64 EDC_CH_PCI_PMON_BOX_CTL_ADDR = 0;
     const uint32 cpu_model = PCM::getInstance()->getCPUModel();
     const uint32 extra = (cpu_model == PCM::SKX)?UNC_PMON_UNIT_CTL_RSV:UNC_PMON_UNIT_CTL_FRZ_EN;
-    if (cpu_model == PCM::KNL) {
-        MC_CH_PCI_PMON_BOX_CTL_ADDR = KNX_MC_CH_PCI_PMON_BOX_CTL_ADDR;
-        EDC_CH_PCI_PMON_BOX_CTL_ADDR = KNX_EDC_CH_PCI_PMON_BOX_CTL_ADDR;
-    } else {
-        MC_CH_PCI_PMON_BOX_CTL_ADDR = XPF_MC_CH_PCI_PMON_BOX_CTL_ADDR;
-    }
     for (size_t i = 0; i < (size_t)qpiLLHandles.size(); ++i)
     {
         qpiLLHandles[i]->write32(LINK_PCI_PMON_BOX_CTL_ADDR, extra + UNC_PMON_UNIT_CTL_FRZ);
     }
-    for (size_t i = 0; i < (size_t)imcHandles.size(); ++i)
+    for (auto & pmu : imcPMUs)
     {
-        imcHandles[i]->write32(MC_CH_PCI_PMON_BOX_CTL_ADDR, extra + UNC_PMON_UNIT_CTL_FRZ);
+        *pmu.unitControl = extra + UNC_PMON_UNIT_CTL_FRZ;
     }
     for (size_t i = 0; i < (size_t)edcHandles.size(); ++i)
     {
-        edcHandles[i]->write32(EDC_CH_PCI_PMON_BOX_CTL_ADDR, UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ);
+        edcHandles[i]->write32(KNX_EDC_CH_PCI_PMON_BOX_CTL_ADDR, UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ);
     }
     for (auto & handle: m2mHandles)
     {
@@ -5243,26 +5215,18 @@ void ServerPCICFGUncore::unfreezeCounters()
 {
     const uint32 cpu_model = PCM::getInstance()->getCPUModel();
     const uint32 extra = (cpu_model == PCM::SKX)?UNC_PMON_UNIT_CTL_RSV:UNC_PMON_UNIT_CTL_FRZ_EN;
-    uint64 MC_CH_PCI_PMON_BOX_CTL_ADDR = 0;
-    uint64 EDC_CH_PCI_PMON_BOX_CTL_ADDR = 0;
-    if (cpu_model == PCM::KNL) {
-        MC_CH_PCI_PMON_BOX_CTL_ADDR = KNX_MC_CH_PCI_PMON_BOX_CTL_ADDR;
-        EDC_CH_PCI_PMON_BOX_CTL_ADDR = KNX_EDC_CH_PCI_PMON_BOX_CTL_ADDR;
-    } else {
-        MC_CH_PCI_PMON_BOX_CTL_ADDR = XPF_MC_CH_PCI_PMON_BOX_CTL_ADDR;
-    }
 
     for (size_t i = 0; i < (size_t)qpiLLHandles.size(); ++i)
     {
         qpiLLHandles[i]->write32(LINK_PCI_PMON_BOX_CTL_ADDR, extra);
     }
-    for (size_t i = 0; i < (size_t)imcHandles.size(); ++i)
+    for (auto & pmu : imcPMUs)
     {
-        imcHandles[i]->write32(MC_CH_PCI_PMON_BOX_CTL_ADDR, extra);
+        *pmu.unitControl = extra;
     }
     for (size_t i = 0; i < (size_t)edcHandles.size(); ++i)
     {
-        edcHandles[i]->write32(EDC_CH_PCI_PMON_BOX_CTL_ADDR, UNC_PMON_UNIT_CTL_FRZ_EN);
+        edcHandles[i]->write32(KNX_EDC_CH_PCI_PMON_BOX_CTL_ADDR, UNC_PMON_UNIT_CTL_FRZ_EN);
     }
     for (auto & handle: m2mHandles)
     {
@@ -5309,17 +5273,9 @@ uint64 ServerPCICFGUncore::getQPIL1Cycles(uint32 port)
 uint64 ServerPCICFGUncore::getDRAMClocks(uint32 channel)
 {
     uint64 result = 0;
-    uint64 MC_CH_PCI_PMON_FIXED_CTR_ADDR = 0;
-    PCM * pcm = PCM::getInstance();
-    const uint32 cpu_model = pcm->getCPUModel();
-    if (cpu_model == PCM::KNL) {
-        MC_CH_PCI_PMON_FIXED_CTR_ADDR = KNX_MC_CH_PCI_PMON_FIXED_CTR_ADDR;
-    } else {
-        MC_CH_PCI_PMON_FIXED_CTR_ADDR = XPF_MC_CH_PCI_PMON_FIXED_CTR_ADDR;
-    }
 
-    if (channel < (uint32)imcHandles.size())
-        imcHandles[channel]->read64(MC_CH_PCI_PMON_FIXED_CTR_ADDR, &result);
+    if (channel < (uint32)imcPMUs.size())
+        result = *(imcPMUs[channel].fixedCounterValue);
 
     // std::cout << "DEBUG: DRAMClocks on channel " << channel << " = " << result << std::endl;
     return result;
@@ -5347,42 +5303,10 @@ uint64 ServerPCICFGUncore::getMCDRAMClocks(uint32 channel)
 uint64 ServerPCICFGUncore::getMCCounter(uint32 channel, uint32 counter)
 {
     uint64 result = 0;
-    uint64 MC_CH_PCI_PMON_CTR0_ADDR = 0;
-    uint64 MC_CH_PCI_PMON_CTR1_ADDR = 0;
-    uint64 MC_CH_PCI_PMON_CTR2_ADDR = 0;
-    uint64 MC_CH_PCI_PMON_CTR3_ADDR = 0;
 
-    PCM * pcm = PCM::getInstance();
-    const uint32 cpu_model = pcm->getCPUModel();
-    if (cpu_model == PCM::KNL) {
-        MC_CH_PCI_PMON_CTR0_ADDR = KNX_MC_CH_PCI_PMON_CTR0_ADDR;
-        MC_CH_PCI_PMON_CTR1_ADDR = KNX_MC_CH_PCI_PMON_CTR1_ADDR;
-        MC_CH_PCI_PMON_CTR2_ADDR = KNX_MC_CH_PCI_PMON_CTR2_ADDR;
-        MC_CH_PCI_PMON_CTR3_ADDR = KNX_MC_CH_PCI_PMON_CTR3_ADDR;
-    } else {
-        MC_CH_PCI_PMON_CTR0_ADDR = XPF_MC_CH_PCI_PMON_CTR0_ADDR;
-        MC_CH_PCI_PMON_CTR1_ADDR = XPF_MC_CH_PCI_PMON_CTR1_ADDR;
-        MC_CH_PCI_PMON_CTR2_ADDR = XPF_MC_CH_PCI_PMON_CTR2_ADDR;
-        MC_CH_PCI_PMON_CTR3_ADDR = XPF_MC_CH_PCI_PMON_CTR3_ADDR;
-    }
-
-    if (channel < (uint32)imcHandles.size())
+    if (channel < (uint32)imcPMUs.size())
     {
-        switch(counter)
-        {
-            case 0:
-                imcHandles[channel]->read64(MC_CH_PCI_PMON_CTR0_ADDR, &result);
-                break;
-            case 1:
-                imcHandles[channel]->read64(MC_CH_PCI_PMON_CTR1_ADDR, &result);
-                break;
-            case 2:
-                imcHandles[channel]->read64(MC_CH_PCI_PMON_CTR2_ADDR, &result);
-                break;
-            case 3:
-                imcHandles[channel]->read64(MC_CH_PCI_PMON_CTR3_ADDR, &result);
-                break;
-        }
+        result = *(imcPMUs[channel].counterValue[counter]);
     }
     // std::cout << "DEBUG: ServerPCICFGUncore::getMCCounter(" << channel << ", " << counter << ") = " << result << std::endl;
     return result;

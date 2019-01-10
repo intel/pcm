@@ -90,6 +90,95 @@ struct PCM_API TopologyEntry // decribes a core
     TopologyEntry() : os_id(-1), thread_id (-1), core_id(-1), tile_id(-1), socket(-1) { }
 };
 
+class HWRegister
+{
+public:
+    virtual void operator = (uint64 val) = 0; // write operation
+    virtual operator uint64 () = 0; //read operation
+    virtual ~HWRegister() {}
+};
+
+class PCICFGRegister64 : public HWRegister
+{
+    std::shared_ptr<PciHandleType> handle;
+    size_t offset;
+public:
+    PCICFGRegister64(const std::shared_ptr<PciHandleType> & handle_, size_t offset_) :
+        handle(handle_),
+        offset(offset_)
+    {
+    }
+    void operator = (uint64 val)
+    {
+        std::cerr << "PCICFGRegister64 write operation is not supported" << std::endl;
+        throw std::exception();
+    }
+    operator uint64 ()
+    {
+        uint64 result = 0;
+        handle->read64(offset, &result);
+        return result;
+    }
+};
+
+class PCICFGRegister32 : public HWRegister
+{
+    std::shared_ptr<PciHandleType> handle;
+    size_t offset;
+public:
+    PCICFGRegister32(const std::shared_ptr<PciHandleType> & handle_, size_t offset_) :
+        handle(handle_),
+        offset(offset_)
+    {
+    }
+    void operator = (uint64 val)
+    {
+        handle->write32(offset, (uint32)val);
+    }
+    operator uint64 ()
+    {
+        uint32 result = 0;
+        handle->read32(offset, &result);
+        return result;
+    }
+};
+
+class UncorePMU
+{
+    typedef std::shared_ptr<HWRegister> HWRegisterPtr;
+public:
+    HWRegisterPtr unitControl;
+    HWRegisterPtr counterControl[4];
+    HWRegisterPtr counterValue[4];
+    HWRegisterPtr fixedCounterControl;
+    HWRegisterPtr fixedCounterValue;
+
+    UncorePMU(const HWRegisterPtr & unitControl_,
+        const HWRegisterPtr & counterControl0,
+        const HWRegisterPtr & counterControl1,
+        const HWRegisterPtr & counterControl2,
+        const HWRegisterPtr & counterControl3,
+        const HWRegisterPtr & counterValue0,
+        const HWRegisterPtr & counterValue1,
+        const HWRegisterPtr & counterValue2,
+        const HWRegisterPtr & counterValue3,
+        const HWRegisterPtr & fixedCounterControl_ = HWRegisterPtr(),
+        const HWRegisterPtr & fixedCounterValue_ = HWRegisterPtr()) :
+        unitControl(unitControl_),
+        fixedCounterControl(fixedCounterControl_),
+        fixedCounterValue(fixedCounterValue_)
+    {
+        counterControl[0] = counterControl0;
+        counterControl[1] = counterControl1;
+        counterControl[2] = counterControl2;
+        counterControl[3] = counterControl3;
+        counterValue[0] = counterValue0;
+        counterValue[1] = counterValue1;
+        counterValue[2] = counterValue2;
+        counterValue[3] = counterValue3;
+    }
+};
+
 //! Object to access uncore counters in a socket/processor with microarchitecture codename SandyBridge-EP (Jaketown) or Ivytown-EP or Ivytown-EX
 class ServerPCICFGUncore
 {
@@ -97,7 +186,7 @@ class ServerPCICFGUncore
     int32 iMCbus,UPIbus,M2Mbus;
     uint32 groupnr;
     int32 cpu_model;
-    std::vector<std::shared_ptr<PciHandleType> > imcHandles;
+    std::vector<UncorePMU> imcPMUs;
     std::vector<std::shared_ptr<PciHandleType> > edcHandles;
     std::vector<std::shared_ptr<PciHandleType> > qpiLLHandles;
     std::vector<std::shared_ptr<PciHandleType> > m2mHandles;
@@ -248,7 +337,7 @@ public:
     uint32 getNumMC() const { return num_imc; }
 
     //! \brief Returns the total number of detected memory channels on all integrated memory controllers
-    size_t getNumMCChannels() const { return (size_t)imcHandles.size(); }
+    size_t getNumMCChannels() const { return (size_t)imcPMUs.size(); }
 
     //! \brief Returns the total number of detected memory channels on given integrated memory controller
     //! \param controller controller number
