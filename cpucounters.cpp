@@ -4251,6 +4251,7 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
    , UPIbus(-1)
    , M2Mbus(-1)
    , groupnr(0)
+   , cpu_model(pcm->getCPUModel())
    , qpi_speed(0)
    , num_imc(0)
    , num_imc_channels1(0)
@@ -4260,7 +4261,9 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
     MCX_CHY_REGISTER_DEV_ADDR[controller][channel] = arch##_MC##controller##_CH##channel##_REGISTER_DEV_ADDR; \
     MCX_CHY_REGISTER_FUNC_ADDR[controller][channel] = arch##_MC##controller##_CH##channel##_REGISTER_FUNC_ADDR;
 
-    cpu_model = pcm->getCPUModel();
+#define PCM_PCICFG_QPI_INIT(port, arch) \
+        QPI_PORTX_REGISTER_DEV_ADDR[port] = arch##_QPI_PORT##port##_REGISTER_DEV_ADDR; \
+        QPI_PORTX_REGISTER_FUNC_ADDR[port] = arch##_QPI_PORT##port##_REGISTER_FUNC_ADDR;
 
 #define PCM_PCICFG_EDC_INIT(controller, clock, arch) \
     EDCX_ECLK_REGISTER_DEV_ADDR[controller] = arch##_EDC##controller##_##clock##_REGISTER_DEV_ADDR; \
@@ -4285,6 +4288,10 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
         PCM_PCICFG_MC_INIT(1, 1, JKTIVT)
         PCM_PCICFG_MC_INIT(1, 2, JKTIVT)
         PCM_PCICFG_MC_INIT(1, 3, JKTIVT)
+
+        PCM_PCICFG_QPI_INIT(0, JKTIVT);
+        PCM_PCICFG_QPI_INIT(1, JKTIVT);
+        PCM_PCICFG_QPI_INIT(2, JKTIVT);
     }
     else if(cpu_model == PCM::HASWELLX || cpu_model == PCM::BDX_DE || cpu_model == PCM::BDX)
     {
@@ -4296,6 +4303,10 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
         PCM_PCICFG_MC_INIT(1, 1, HSX)
         PCM_PCICFG_MC_INIT(1, 2, HSX)
         PCM_PCICFG_MC_INIT(1, 3, HSX)
+
+        PCM_PCICFG_QPI_INIT(0, HSX);
+        PCM_PCICFG_QPI_INIT(1, HSX);
+        PCM_PCICFG_QPI_INIT(2, HSX);
     }
     else if(cpu_model == PCM::SKX)
     {
@@ -4307,6 +4318,10 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
         PCM_PCICFG_MC_INIT(1, 1, SKX)
         PCM_PCICFG_MC_INIT(1, 2, SKX)
         PCM_PCICFG_MC_INIT(1, 3, SKX)
+
+        PCM_PCICFG_QPI_INIT(0, SKX);
+        PCM_PCICFG_QPI_INIT(1, SKX);
+        PCM_PCICFG_QPI_INIT(2, SKX);
 
         PCM_PCICFG_M2M_INIT(0, SKX)
         PCM_PCICFG_M2M_INIT(1, SKX)
@@ -4338,6 +4353,7 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
     }
 
 #undef PCM_PCICFG_MC_INIT
+#undef PCM_PCICFG_QPI_INIT
 #undef PCM_PCICFG_EDC_INIT
 #undef PCM_PCICFG_M2M_INIT
 
@@ -4381,8 +4397,8 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
         throw std::exception();
     }
 
-    std::vector<std::shared_ptr<PciHandleType> > imcHandles;
     {
+        std::vector<std::shared_ptr<PciHandleType> > imcHandles;
 #define PCM_PCICFG_SETUP_MC_HANDLE(controller,channel)                                 \
         {                                                                           \
             PciHandleType * handle = createIntelPerfMonDevice(groupnr, iMCbus,      \
@@ -4444,7 +4460,7 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
         }
     }
 
-    if (imcHandles.empty())
+    if (imcPMUs.empty())
     {
         std::cerr << "PCM error: no memory controllers found." << std::endl;
         throw std::exception();
@@ -4493,7 +4509,7 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
          *  is possible with single socket systems.
          */
         qpiLLHandles.clear();
-        std::cerr << "On the socket detected " << num_imc << " memory controllers with total number of " << imcHandles.size() << " channels. " <<
+        std::cerr << "On the socket detected " << num_imc << " memory controllers with total number of " << imcPMUs.size() << " channels. " <<
                    m2mHandles.size() << " M2M (mesh to memory) blocks detected."<< std::endl; 
         return;
     }
@@ -4504,36 +4520,6 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
                  m2mHandles.size() << " M2M (mesh to memory) blocks detected."<< std::endl;
     return;
 #else
-
-    #define PCM_PCICFG_QPI_INIT(port, arch) \
-        QPI_PORTX_REGISTER_DEV_ADDR[port] = arch##_QPI_PORT##port##_REGISTER_DEV_ADDR; \
-        QPI_PORTX_REGISTER_FUNC_ADDR[port] = arch##_QPI_PORT##port##_REGISTER_FUNC_ADDR;
-
-    if(cpu_model == PCM::JAKETOWN || cpu_model == PCM::IVYTOWN)
-    {
-        PCM_PCICFG_QPI_INIT(0, JKTIVT);
-        PCM_PCICFG_QPI_INIT(1, JKTIVT);
-        PCM_PCICFG_QPI_INIT(2, JKTIVT);
-    }
-    else if(cpu_model == PCM::HASWELLX || cpu_model == PCM::BDX_DE || cpu_model == PCM::BDX)
-    {
-        PCM_PCICFG_QPI_INIT(0, HSX);
-        PCM_PCICFG_QPI_INIT(1, HSX);
-        PCM_PCICFG_QPI_INIT(2, HSX);
-    }
-    else if(cpu_model == PCM::SKX)
-    {
-        PCM_PCICFG_QPI_INIT(0, SKX);
-        PCM_PCICFG_QPI_INIT(1, SKX);
-        PCM_PCICFG_QPI_INIT(2, SKX);
-    }
-    else
-    {
-        std::cout << "Error: Uncore PMU for processor with model id "<< cpu_model << " is not supported."<< std::endl;
-        throw std::exception();
-    }
-
-    #undef PCM_PCICFG_QPI_INIT
 
     if(cpu_model == PCM::SKX)
     {
