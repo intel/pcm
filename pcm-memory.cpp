@@ -411,6 +411,8 @@ void display_bandwidth(PCM *m, memdata_t *md, uint32 no_columns, const bool show
                 skt += 1;
             }
         }
+    }
+    {
         cout << "\
             \r|---------------------------------------||---------------------------------------|\n";
 	if(md->PMM)
