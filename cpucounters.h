@@ -108,12 +108,12 @@ public:
         offset(offset_)
     {
     }
-    void operator = (uint64 val)
+    void operator = (uint64 val) override
     {
         std::cerr << "PCICFGRegister64 write operation is not supported" << std::endl;
         throw std::exception();
     }
-    operator uint64 ()
+    operator uint64 ()  override
     {
         uint64 result = 0;
         handle->read64(offset, &result);
@@ -131,11 +131,11 @@ public:
         offset(offset_)
     {
     }
-    void operator = (uint64 val)
+    void operator = (uint64 val) override
     {
         handle->write32(offset, (uint32)val);
     }
-    operator uint64 ()
+    operator uint64 () override
     {
         uint32 result = 0;
         handle->read32(offset, &result);
@@ -153,11 +153,11 @@ public:
         offset(offset_)
     {
     }
-    void operator = (uint64 val)
+    void operator = (uint64 val) override
     {
         handle->write64(offset, val);
     }
-    operator uint64 ()
+    operator uint64 () override
     {
         return handle->read64(offset);
     }
@@ -173,11 +173,11 @@ public:
         offset(offset_)
     {
     }
-    void operator = (uint64 val)
+    void operator = (uint64 val) override
     {
         handle->write32(offset, (uint32)val);
     }
-    operator uint64 ()
+    operator uint64 () override
     {
         return (uint64)handle->read32(offset);
     }
@@ -227,8 +227,6 @@ class ServerPCICFGUncore
     std::vector<uint64> qpi_speed;
     uint32 num_imc;
     uint32 num_imc_channels1; // number of memory channels in the first memory controller
-    uint32 MCX_CHY_REGISTER_DEV_ADDR[2][4];
-    uint32 MCX_CHY_REGISTER_FUNC_ADDR[2][4];
     uint32 EDCX_ECLK_REGISTER_DEV_ADDR[8];
     uint32 EDCX_ECLK_REGISTER_FUNC_ADDR[8];
     uint32 QPI_PORTX_REGISTER_DEV_ADDR[3];

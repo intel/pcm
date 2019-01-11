@@ -4256,6 +4256,8 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
    , num_imc(0)
    , num_imc_channels1(0)
 {
+    uint32 MCX_CHY_REGISTER_DEV_ADDR[2][4];
+    uint32 MCX_CHY_REGISTER_FUNC_ADDR[2][4];
 
 #define PCM_PCICFG_MC_INIT(controller, channel, arch) \
     MCX_CHY_REGISTER_DEV_ADDR[controller][channel] = arch##_MC##controller##_CH##channel##_REGISTER_DEV_ADDR; \
