@@ -143,6 +143,46 @@ public:
     }
 };
 
+class MMIORegister64 : public HWRegister
+{
+    std::shared_ptr<MMIORange> handle;
+    size_t offset;
+public:
+    MMIORegister64(const std::shared_ptr<MMIORange> & handle_, size_t offset_) :
+        handle(handle_),
+        offset(offset_)
+    {
+    }
+    void operator = (uint64 val)
+    {
+        handle->write64(offset, val);
+    }
+    operator uint64 ()
+    {
+        return handle->read64(offset);
+    }
+};
+
+class MMIORegister32 : public HWRegister
+{
+    std::shared_ptr<MMIORange> handle;
+    size_t offset;
+public:
+    MMIORegister32(const std::shared_ptr<MMIORange> & handle_, size_t offset_) :
+        handle(handle_),
+        offset(offset_)
+    {
+    }
+    void operator = (uint64 val)
+    {
+        handle->write32(offset, (uint32)val);
+    }
+    operator uint64 ()
+    {
+        return (uint64)handle->read32(offset);
+    }
+};
+
 class UncorePMU
 {
     typedef std::shared_ptr<HWRegister> HWRegisterPtr;
