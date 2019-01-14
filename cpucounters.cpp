@@ -4508,8 +4508,8 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
     }
 
 #ifdef PCM_NOQPI
-    qpiLLHandles.clear();
-    std::cerr << num_imc<<" memory controllers detected with total number of "<< imcHandles.size() <<" channels. " << 
+    xpiPMUs.clear();
+    std::cerr << getNumMC() <<" memory controllers detected with total number of "<< imcPMUs.size() <<" channels. " <<
                  m2mHandles.size() << " M2M (mesh to memory) blocks detected."<< std::endl;
     return;
 #else
