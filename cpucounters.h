@@ -211,6 +211,7 @@ public:
         fixedCounterValue(fixedCounterValue_)
     {
     }
+    UncorePMU() {}
 };
 
 //! Object to access uncore counters in a socket/processor with microarchitecture codename SandyBridge-EP (Jaketown) or Ivytown-EP or Ivytown-EX
@@ -222,19 +223,15 @@ class ServerPCICFGUncore
     int32 cpu_model;
     std::vector<UncorePMU> imcPMUs;
     std::vector<std::shared_ptr<PciHandleType> > edcHandles;
-    std::vector<std::shared_ptr<PciHandleType> > qpiLLHandles;
+    std::vector<UncorePMU> xpiPMUs;
     std::vector<std::shared_ptr<PciHandleType> > m2mHandles;
     std::vector<uint64> qpi_speed;
     std::vector<uint32> num_imc_channels; // number of memory channels in each memory controller
     uint32 EDCX_ECLK_REGISTER_DEV_ADDR[8];
     uint32 EDCX_ECLK_REGISTER_FUNC_ADDR[8];
-    uint32 QPI_PORTX_REGISTER_DEV_ADDR[3];
-    uint32 QPI_PORTX_REGISTER_FUNC_ADDR[3];
     uint32 M2M_REGISTER_DEV_ADDR[2];
     uint32 M2M_REGISTER_FUNC_ADDR[2];
-    uint32 LINK_PCI_PMON_BOX_CTL_ADDR;
-    uint32 LINK_PCI_PMON_CTL_ADDR[4];
-    uint32 LINK_PCI_PMON_CTR_ADDR[4];
+    std::vector<std::pair<uint32, uint32> > XPIRegisterLocation; // (device, function)
 
     static PCM_Util::Mutex socket2busMutex;
     static std::vector<std::pair<uint32, uint32> > socket2iMCbus;
@@ -249,6 +246,7 @@ class ServerPCICFGUncore
     void programIMC(const uint32 * MCCntConfig);
     void programEDC(const uint32 * EDCCntConfig);
     void programM2M();
+    void programXPI(const uint32 * XPICntConfig);
     typedef std::pair<size_t, std::vector<uint64 *> > MemTestParam;
     void initMemTest(MemTestParam & param);
     void doMemTest(const MemTestParam & param);
@@ -353,7 +351,7 @@ public:
     void enableJKTWorkaround(bool enable);
 
     //! \brief Returns the number of detected QPI ports
-    size_t getNumQPIPorts() const { return (size_t)qpiLLHandles.size(); }
+    size_t getNumQPIPorts() const { return xpiPMUs.size(); }
 
     //! \brief Returns the speed of the QPI link
     uint64 getQPILinkSpeed(const uint32 linkNr) const

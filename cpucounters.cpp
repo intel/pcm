@@ -4263,8 +4263,8 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
         std::make_pair(arch##_MC##controller##_CH##channel##_REGISTER_DEV_ADDR, arch##_MC##controller##_CH##channel##_REGISTER_FUNC_ADDR);
 
 #define PCM_PCICFG_QPI_INIT(port, arch) \
-        QPI_PORTX_REGISTER_DEV_ADDR[port] = arch##_QPI_PORT##port##_REGISTER_DEV_ADDR; \
-        QPI_PORTX_REGISTER_FUNC_ADDR[port] = arch##_QPI_PORT##port##_REGISTER_FUNC_ADDR;
+    XPIRegisterLocation.resize(port + 1); \
+    XPIRegisterLocation[port] = std::make_pair(arch##_QPI_PORT##port##_REGISTER_DEV_ADDR, arch##_QPI_PORT##port##_REGISTER_FUNC_ADDR);
 
 #define PCM_PCICFG_EDC_INIT(controller, clock, arch) \
     EDCX_ECLK_REGISTER_DEV_ADDR[controller] = arch##_EDC##controller##_##clock##_REGISTER_DEV_ADDR; \
@@ -4501,7 +4501,7 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
          *  eliminates register programming that is not needed since no QPI traffic
          *  is possible with single socket systems.
          */
-        qpiLLHandles.clear();
+        xpiPMUs.clear();
         std::cerr << "On the socket detected " << getNumMC() << " memory controllers with total number of " << imcPMUs.size() << " channels. " <<
                    m2mHandles.size() << " M2M (mesh to memory) blocks detected."<< std::endl; 
         return;
@@ -4514,9 +4514,11 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
     return;
 #else
 
+    std::vector<std::shared_ptr<PciHandleType> > qpiLLHandles;
+
     if(cpu_model == PCM::SKX)
     {
-        initSocket2Bus(socket2UPIbus, QPI_PORTX_REGISTER_DEV_ADDR[0], QPI_PORTX_REGISTER_FUNC_ADDR[0], UPI_DEV_IDS, (uint32)sizeof(UPI_DEV_IDS) / sizeof(UPI_DEV_IDS[0]));
+        initSocket2Bus(socket2UPIbus, XPIRegisterLocation[0].first, XPIRegisterLocation[0].second, UPI_DEV_IDS, (uint32)sizeof(UPI_DEV_IDS) / sizeof(UPI_DEV_IDS[0]));
         if(total_sockets_ == socket2UPIbus.size())
         {
             UPIbus = socket2UPIbus[socket_].second;
@@ -4530,71 +4532,77 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
         {
             std::cerr << "PCM error: Did not find UPI perfmon device on every socket in a multisocket system." << std::endl;
         }
-
-        LINK_PCI_PMON_BOX_CTL_ADDR = U_L_PCI_PMON_BOX_CTL_ADDR;
-
-        LINK_PCI_PMON_CTL_ADDR[3] = U_L_PCI_PMON_CTL3_ADDR;
-        LINK_PCI_PMON_CTL_ADDR[2] = U_L_PCI_PMON_CTL2_ADDR;
-        LINK_PCI_PMON_CTL_ADDR[1] = U_L_PCI_PMON_CTL1_ADDR;
-        LINK_PCI_PMON_CTL_ADDR[0] = U_L_PCI_PMON_CTL0_ADDR;
-
-        LINK_PCI_PMON_CTR_ADDR[3] = U_L_PCI_PMON_CTR3_ADDR;
-        LINK_PCI_PMON_CTR_ADDR[2] = U_L_PCI_PMON_CTR2_ADDR;
-        LINK_PCI_PMON_CTR_ADDR[1] = U_L_PCI_PMON_CTR1_ADDR;
-        LINK_PCI_PMON_CTR_ADDR[0] = U_L_PCI_PMON_CTR0_ADDR;
     }
     else
     {
         UPIbus = iMCbus;
-        LINK_PCI_PMON_BOX_CTL_ADDR = Q_P_PCI_PMON_BOX_CTL_ADDR;
-
-        LINK_PCI_PMON_CTL_ADDR[3] = Q_P_PCI_PMON_CTL3_ADDR;
-        LINK_PCI_PMON_CTL_ADDR[2] = Q_P_PCI_PMON_CTL2_ADDR;
-        LINK_PCI_PMON_CTL_ADDR[1] = Q_P_PCI_PMON_CTL1_ADDR;
-        LINK_PCI_PMON_CTL_ADDR[0] = Q_P_PCI_PMON_CTL0_ADDR;
-
-        LINK_PCI_PMON_CTR_ADDR[3] = Q_P_PCI_PMON_CTR3_ADDR;
-        LINK_PCI_PMON_CTR_ADDR[2] = Q_P_PCI_PMON_CTR2_ADDR;
-        LINK_PCI_PMON_CTR_ADDR[1] = Q_P_PCI_PMON_CTR1_ADDR;
-        LINK_PCI_PMON_CTR_ADDR[0] = Q_P_PCI_PMON_CTR0_ADDR;
     }
 
+    auto xPI = pcm->xPI();
     try
     {
+        for (size_t i = 0; i < XPIRegisterLocation.size(); ++i)
         {
-            PciHandleType * handle = createIntelPerfMonDevice(groupnr, UPIbus, QPI_PORTX_REGISTER_DEV_ADDR[0], QPI_PORTX_REGISTER_FUNC_ADDR[0], true);
+            PciHandleType * handle = createIntelPerfMonDevice(groupnr, UPIbus, XPIRegisterLocation[i].first, XPIRegisterLocation[i].second, true);
             if (handle)
                 qpiLLHandles.push_back(std::shared_ptr<PciHandleType>(handle));
             else
-                std::cerr << "ERROR: QPI LL monitoring device ("<< std::hex << groupnr<<":"<<UPIbus<<":"<< QPI_PORTX_REGISTER_DEV_ADDR[0] <<":"<<  QPI_PORTX_REGISTER_FUNC_ADDR[0] << ") is missing. The QPI statistics will be incomplete or missing."<< std::dec << std::endl;
-        }
-        {
-            PciHandleType * handle = createIntelPerfMonDevice(groupnr, UPIbus, QPI_PORTX_REGISTER_DEV_ADDR[1], QPI_PORTX_REGISTER_FUNC_ADDR[1], true);
-            if (handle)
-                qpiLLHandles.push_back(std::shared_ptr<PciHandleType>(handle));
-            else
-                std::cerr << "ERROR: QPI LL monitoring device ("<< std::hex << groupnr<<":"<<UPIbus<<":"<< QPI_PORTX_REGISTER_DEV_ADDR[1] <<":"<<  QPI_PORTX_REGISTER_FUNC_ADDR[1] << ") is missing. The QPI statistics will be incomplete or missing."<< std::dec << std::endl;
-        }
-        bool probe_3rd_link = true;
-        if(probe_3rd_link)
-        {
-            PciHandleType * handle = createIntelPerfMonDevice(groupnr, UPIbus, QPI_PORTX_REGISTER_DEV_ADDR[2], QPI_PORTX_REGISTER_FUNC_ADDR[2], true);
-            if (handle)
-                qpiLLHandles.push_back(std::shared_ptr<PciHandleType>(handle));
-            else {
-
-                if (pcm->getCPUBrandString().find("E7") != std::string::npos) { // Xeon E7
-                    std::cerr << "ERROR: QPI LL performance monitoring device for the third QPI link was not found on " << pcm->getCPUBrandString() <<
-                        " processor in socket " << socket_ << ". Possibly BIOS hides the device. The QPI statistics will be incomplete or missing." << std::endl;
+            {
+                if (i == 0 || i == 1)
+                {
+                    std::cerr << "ERROR: " << xPI << " LL monitoring device (" << std::hex << groupnr << ":" << UPIbus << ":" << XPIRegisterLocation[i].first << ":" <<
+                        XPIRegisterLocation[i].second << ") is missing. The " << xPI << " statistics will be incomplete or missing." << std::dec << std::endl;
+                }
+                else if (pcm->getCPUBrandString().find("E7") != std::string::npos) // Xeon E7
+                {
+                    std::cerr << "ERROR: " << xPI << " LL performance monitoring device for the third " << xPI << " link was not found on " << pcm->getCPUBrandString() <<
+                        " processor in socket " << socket_ << ". Possibly BIOS hides the device. The " << xPI << " statistics will be incomplete or missing." << std::endl;
                 }
             }
         }
     }
     catch (...)
     {
-        std::cerr << "PCM Error: can not create QPI LL handles." <<std::endl;
+        std::cerr << "PCM Error: can not create " << xPI << " LL handles." <<std::endl;
         throw std::exception();
     }
+
+    for (auto & handle : qpiLLHandles)
+    {
+        if (cpu_model == PCM::SKX)
+        {
+            xpiPMUs.push_back(
+                UncorePMU(
+                    std::make_shared<PCICFGRegister32>(handle, U_L_PCI_PMON_BOX_CTL_ADDR),
+                    std::make_shared<PCICFGRegister32>(handle, U_L_PCI_PMON_CTL0_ADDR),
+                    std::make_shared<PCICFGRegister32>(handle, U_L_PCI_PMON_CTL1_ADDR),
+                    std::make_shared<PCICFGRegister32>(handle, U_L_PCI_PMON_CTL2_ADDR),
+                    std::make_shared<PCICFGRegister32>(handle, U_L_PCI_PMON_CTL3_ADDR),
+                    std::make_shared<PCICFGRegister64>(handle, U_L_PCI_PMON_CTR0_ADDR),
+                    std::make_shared<PCICFGRegister64>(handle, U_L_PCI_PMON_CTR1_ADDR),
+                    std::make_shared<PCICFGRegister64>(handle, U_L_PCI_PMON_CTR2_ADDR),
+                    std::make_shared<PCICFGRegister64>(handle, U_L_PCI_PMON_CTR3_ADDR)
+                    )
+            );
+        }
+        else
+        {
+            xpiPMUs.push_back(
+                UncorePMU(
+                    std::make_shared<PCICFGRegister32>(handle, Q_P_PCI_PMON_BOX_CTL_ADDR),
+                    std::make_shared<PCICFGRegister32>(handle, Q_P_PCI_PMON_CTL0_ADDR),
+                    std::make_shared<PCICFGRegister32>(handle, Q_P_PCI_PMON_CTL1_ADDR),
+                    std::make_shared<PCICFGRegister32>(handle, Q_P_PCI_PMON_CTL2_ADDR),
+                    std::make_shared<PCICFGRegister32>(handle, Q_P_PCI_PMON_CTL3_ADDR),
+                    std::make_shared<PCICFGRegister64>(handle, Q_P_PCI_PMON_CTR0_ADDR),
+                    std::make_shared<PCICFGRegister64>(handle, Q_P_PCI_PMON_CTR1_ADDR),
+                    std::make_shared<PCICFGRegister64>(handle, Q_P_PCI_PMON_CTR2_ADDR),
+                    std::make_shared<PCICFGRegister64>(handle, Q_P_PCI_PMON_CTR3_ADDR)
+                    )
+            );
+        }
+    }
+
 #endif
     std::cerr << "Socket "<<socket_<<": "<<
         getNumMC() <<" memory controllers detected with total number of "<< getNumMCChannels() <<" channels. "<<
@@ -4687,7 +4695,7 @@ void ServerPCICFGUncore::programServerUncoreMemoryMetrics(int rankA, int rankB, 
 
     programM2M();
 
-    qpiLLHandles.clear(); // no QPI events used
+    xpiPMUs.clear(); // no QPI events used
     return;
 }
 
@@ -4718,7 +4726,6 @@ void ServerPCICFGUncore::program()
     programIMC(MCCntConfig);
     if(cpu_model == PCM::KNL) programEDC(EDCCntConfig);
 
-    const uint32 extra = (cpu_model == PCM::SKX)?UNC_PMON_UNIT_CTL_RSV:UNC_PMON_UNIT_CTL_FRZ_EN;
     uint32 event[4];
     if(cpu_model == PCM::SKX)
     {
@@ -4742,23 +4749,29 @@ void ServerPCICFGUncore::program()
         // monitor QPI clocks
         event[3] = Q_P_PCI_PMON_CTL_EVENT(0x14); // QPI clocks (CLOCKTICKS)
     }
-    for (uint32 i = 0; i < (uint32)qpiLLHandles.size(); ++i)
+    programXPI(event);
+}
+
+void ServerPCICFGUncore::programXPI(const uint32 * event)
+{
+    const uint32 extra = (cpu_model == PCM::SKX) ? UNC_PMON_UNIT_CTL_RSV : UNC_PMON_UNIT_CTL_FRZ_EN;
+    for (uint32 i = 0; i < (uint32)xpiPMUs.size(); ++i)
     {
         // QPI LL PMU
 
         // freeze enable
-        if (4 != qpiLLHandles[i]->write32(LINK_PCI_PMON_BOX_CTL_ADDR, extra))
+        *xpiPMUs[i].unitControl = extra;
+        if (extra != *xpiPMUs[i].unitControl)
         {
-            std::cout << "Link "<<(i+1)<<" is disabled" << std::endl;
-            qpiLLHandles[i] = NULL;
+            std::cout << "Link " << (i + 1) << " is disabled" << std::endl;
+            xpiPMUs[i].unitControl = NULL;
             continue;
         }
         // freeze
-        qpiLLHandles[i]->write32(LINK_PCI_PMON_BOX_CTL_ADDR, extra + UNC_PMON_UNIT_CTL_FRZ);
+        *xpiPMUs[i].unitControl = extra + UNC_PMON_UNIT_CTL_FRZ;
 
 #ifdef PCM_UNCORE_PMON_BOX_CHECK_STATUS
-        uint32 val = 0;
-        qpiLLHandles[i]->read32(LINK_PCI_PMON_BOX_CTL_ADDR, &val);
+        uint32 val = *xpiPMUs[i].unitControl;
         if ((val & UNC_PMON_UNIT_CTL_VALID_BITS_MASK) != (extra + UNC_PMON_UNIT_CTL_FRZ))
         {
             std::cerr << "ERROR: QPI LL counter programming seems not to work. Q_P" << i << "_PCI_PMON_BOX_CTL=0x" << std::hex << val << std::endl;
@@ -4766,30 +4779,29 @@ void ServerPCICFGUncore::program()
         }
 #endif
 
-        for(int cnt = 0; cnt < 4; ++cnt)
+        for (int cnt = 0; cnt < 4; ++cnt)
         {
             // enable counter
-            qpiLLHandles[i]->write32(LINK_PCI_PMON_CTL_ADDR[cnt], (event[cnt]?Q_P_PCI_PMON_CTL_EN:0));
-
-            qpiLLHandles[i]->write32(LINK_PCI_PMON_CTL_ADDR[cnt], (event[cnt]?Q_P_PCI_PMON_CTL_EN:0) + event[cnt]);
+            *xpiPMUs[i].counterControl[cnt] = Q_P_PCI_PMON_CTL_EN;
+            *xpiPMUs[i].counterControl[cnt] = Q_P_PCI_PMON_CTL_EN + event[cnt];
         }
 
         // reset counters values
-        qpiLLHandles[i]->write32(LINK_PCI_PMON_BOX_CTL_ADDR, extra + UNC_PMON_UNIT_CTL_FRZ + UNC_PMON_UNIT_CTL_RST_COUNTERS);
+        *xpiPMUs[i].unitControl = extra + UNC_PMON_UNIT_CTL_FRZ + UNC_PMON_UNIT_CTL_RST_COUNTERS;
 
         // unfreeze counters
-        qpiLLHandles[i]->write32(LINK_PCI_PMON_BOX_CTL_ADDR, extra);
+        *xpiPMUs[i].unitControl = extra;
     }
     cleanupQPIHandles();
 }
 
 void ServerPCICFGUncore::cleanupQPIHandles()
 {
-    for(auto i = qpiLLHandles.begin(); i != qpiLLHandles.end(); ++i)
+    for(auto i = xpiPMUs.begin(); i != xpiPMUs.end(); ++i)
     {
-        if (!i->get()) // NULL
+        if (!i->unitControl.get()) // NULL
         {
-            qpiLLHandles.erase(i);
+            xpiPMUs.erase(i);
             cleanupQPIHandles();
             return;
         }
@@ -4906,14 +4918,14 @@ uint64 ServerPCICFGUncore::getIncomingDataFlits(uint32 port)
 {
     uint64 drs = 0, ncb = 0;
 
-    if (port >= (uint32)qpiLLHandles.size())
+    if (port >= (uint32)xpiPMUs.size())
         return 0;
 
     if(cpu_model != PCM::SKX)
     {
-        qpiLLHandles[port]->read64(LINK_PCI_PMON_CTR_ADDR[0], &drs);
+        drs = *xpiPMUs[port].counterValue[0];
     }
-    qpiLLHandles[port]->read64(LINK_PCI_PMON_CTR_ADDR[1], &ncb);
+    ncb = *xpiPMUs[port].counterValue[1];
 
     return drs + ncb;
 }
@@ -4932,48 +4944,13 @@ uint64 ServerPCICFGUncore::getUPIL0TxCycles(uint32 port)
 
 void ServerPCICFGUncore::program_power_metrics(int mc_profile)
 {
-    const uint32 cpu_model = PCM::getInstance()->getCPUModel();
-    const uint32 extra = (cpu_model == PCM::SKX)?UNC_PMON_UNIT_CTL_RSV:UNC_PMON_UNIT_CTL_FRZ_EN;
-    for (uint32 i = 0; i < (uint32)qpiLLHandles.size(); ++i)
-    {
-        // QPI LL PMU
-
-        // freeze enable
-        if (4 != qpiLLHandles[i]->write32(LINK_PCI_PMON_BOX_CTL_ADDR, extra))
-        {
-            std::cout << "Link "<<(i+1)<<" is disabled";
-            qpiLLHandles[i] = NULL;
-            continue;
-        }
-        // freeze
-        qpiLLHandles[i]->write32(LINK_PCI_PMON_BOX_CTL_ADDR, extra + UNC_PMON_UNIT_CTL_FRZ);
-
-#ifdef PCM_UNCORE_PMON_BOX_CHECK_STATUS
-        uint32 val = 0;
-        qpiLLHandles[i]->read32(LINK_PCI_PMON_BOX_CTL_ADDR, &val);
-        if ((val & UNC_PMON_UNIT_CTL_VALID_BITS_MASK) != (extra + UNC_PMON_UNIT_CTL_FRZ))
-        {
-            std::cerr << "ERROR: QPI LL counter programming seems not to work. Q_P" << i << "_PCI_PMON_BOX_CTL=0x" << std::hex << val << std::endl;
-        std::cerr << "       Please see BIOS options to enable the export of performance monitoring devices." << std::endl;
-        }
-#endif
-
-        qpiLLHandles[i]->write32(LINK_PCI_PMON_CTL_ADDR[3], Q_P_PCI_PMON_CTL_EN);
-        qpiLLHandles[i]->write32(LINK_PCI_PMON_CTL_ADDR[3], Q_P_PCI_PMON_CTL_EN + Q_P_PCI_PMON_CTL_EVENT((cpu_model==PCM::SKX ? 0x01 : 0x14))); // QPI/UPI clocks (CLOCKTICKS)
-
-        qpiLLHandles[i]->write32(LINK_PCI_PMON_CTL_ADDR[0], Q_P_PCI_PMON_CTL_EN);
-        qpiLLHandles[i]->write32(LINK_PCI_PMON_CTL_ADDR[0], Q_P_PCI_PMON_CTL_EN + Q_P_PCI_PMON_CTL_EVENT((cpu_model == PCM::SKX ? 0x27 : 0x0D))); // L0p Tx Cycles (TxL0P_POWER_CYCLES)
-
-        qpiLLHandles[i]->write32(LINK_PCI_PMON_CTL_ADDR[2], Q_P_PCI_PMON_CTL_EN);
-        qpiLLHandles[i]->write32(LINK_PCI_PMON_CTL_ADDR[2], Q_P_PCI_PMON_CTL_EN + Q_P_PCI_PMON_CTL_EVENT((cpu_model == PCM::SKX ? 0x21 : 0x12))); // L1 Cycles (L1_POWER_CYCLES)
-
-        // reset counters values
-        qpiLLHandles[i]->write32(LINK_PCI_PMON_BOX_CTL_ADDR, extra + UNC_PMON_UNIT_CTL_FRZ + UNC_PMON_UNIT_CTL_RST_COUNTERS);
-
-        // unfreeze counters
-        qpiLLHandles[i]->write32(LINK_PCI_PMON_BOX_CTL_ADDR, extra);
-    }
-    cleanupQPIHandles();
+    uint32 xPIEvents[4] = {
+        (uint32)Q_P_PCI_PMON_CTL_EVENT((cpu_model == PCM::SKX ? 0x27 : 0x0D)), // L0p Tx Cycles (TxL0P_POWER_CYCLES)
+        0, // event not used
+        (uint32)Q_P_PCI_PMON_CTL_EVENT((cpu_model == PCM::SKX ? 0x21 : 0x12)), // L1 Cycles (L1_POWER_CYCLES)
+        (uint32)Q_P_PCI_PMON_CTL_EVENT((cpu_model == PCM::SKX ? 0x01 : 0x14)) // QPI/UPI clocks (CLOCKTICKS)
+    };
+    programXPI(xPIEvents);
 
     uint32 MCCntConfig[4] = {0,0,0,0};
     switch(mc_profile)
@@ -5163,9 +5140,9 @@ void ServerPCICFGUncore::freezeCounters()
 {
     const uint32 cpu_model = PCM::getInstance()->getCPUModel();
     const uint32 extra = (cpu_model == PCM::SKX)?UNC_PMON_UNIT_CTL_RSV:UNC_PMON_UNIT_CTL_FRZ_EN;
-    for (size_t i = 0; i < (size_t)qpiLLHandles.size(); ++i)
+    for(auto & pmu : xpiPMUs)
     {
-        qpiLLHandles[i]->write32(LINK_PCI_PMON_BOX_CTL_ADDR, extra + UNC_PMON_UNIT_CTL_FRZ);
+        *pmu.unitControl = extra + UNC_PMON_UNIT_CTL_FRZ;
     }
     for (auto & pmu : imcPMUs)
     {
@@ -5186,9 +5163,9 @@ void ServerPCICFGUncore::unfreezeCounters()
     const uint32 cpu_model = PCM::getInstance()->getCPUModel();
     const uint32 extra = (cpu_model == PCM::SKX)?UNC_PMON_UNIT_CTL_RSV:UNC_PMON_UNIT_CTL_FRZ_EN;
 
-    for (size_t i = 0; i < (size_t)qpiLLHandles.size(); ++i)
+    for (auto & pmu : xpiPMUs)
     {
-        qpiLLHandles[i]->write32(LINK_PCI_PMON_BOX_CTL_ADDR, extra);
+        *pmu.unitControl = extra;
     }
     for (auto & pmu : imcPMUs)
     {
@@ -5206,38 +5183,17 @@ void ServerPCICFGUncore::unfreezeCounters()
 
 uint64 ServerPCICFGUncore::getQPIClocks(uint32 port)
 {
-    uint64 res = 0;
-
-    if (port >= (uint32)qpiLLHandles.size())
-        return 0;
-
-    qpiLLHandles[port]->read64(LINK_PCI_PMON_CTR_ADDR[3], &res);
-
-    return res;
+    return getQPILLCounter(port, 3);
 }
 
 uint64 ServerPCICFGUncore::getQPIL0pTxCycles(uint32 port)
 {
-    uint64 res = 0;
-
-    if (port >= (uint32)qpiLLHandles.size())
-        return 0;
-
-    qpiLLHandles[port]->read64(LINK_PCI_PMON_CTR_ADDR[0], &res);
-
-    return res;
+    return getQPILLCounter(port, 0);
 }
 
 uint64 ServerPCICFGUncore::getQPIL1Cycles(uint32 port)
 {
-    uint64 res = 0;
-
-    if (port >= (uint32)qpiLLHandles.size())
-        return 0;
-
-    qpiLLHandles[port]->read64(LINK_PCI_PMON_CTR_ADDR[2], &res);
-
-    return res;
+    return getQPILLCounter(port, 2);
 }
 
 uint64 ServerPCICFGUncore::getDRAMClocks(uint32 channel)
@@ -5355,9 +5311,9 @@ uint64 ServerPCICFGUncore::getQPILLCounter(uint32 port, uint32 counter)
 {
     uint64 result = 0;
 
-    if (port < (uint32)qpiLLHandles.size() && counter < 4)
+    if (port < (uint32)xpiPMUs.size() && counter < 4)
     {
-        qpiLLHandles[port]->read64(LINK_PCI_PMON_CTR_ADDR[counter], &result);
+        result = *xpiPMUs[port].counterValue[counter];
     }
 
     return result;
@@ -5508,7 +5464,7 @@ uint64 ServerPCICFGUncore::computeQPISpeed(const uint32 core_nr, const int cpumo
            uint64 result = 0;
            if(cpumodel != PCM::SKX)
            {
-               PciHandleType reg(groupnr,UPIbus,QPI_PORTX_REGISTER_DEV_ADDR[i],QPI_PORT0_MISC_REGISTER_FUNC_ADDR);
+               PciHandleType reg(groupnr,UPIbus, XPIRegisterLocation[i].first, QPI_PORT0_MISC_REGISTER_FUNC_ADDR);
                uint32 value = 0;
                reg.read32(QPI_RATE_STATUS_ADDR, &value);
                value &= 7; // extract lower 3 bits
@@ -5557,7 +5513,7 @@ uint64 ServerPCICFGUncore::computeQPISpeed(const uint32 core_nr, const int cpumo
              {
                 std::cerr << "UPI link 3 is disabled"<< std::endl;
                 qpi_speed.resize(2);
-                qpiLLHandles.resize(2);
+                xpiPMUs.resize(2);
              }
          }
     }
