@@ -4400,12 +4400,6 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
 
     {
         std::vector<std::shared_ptr<PciHandleType> > imcHandles;
-#define PCM_PCICFG_SETUP_MC_HANDLE(controller,channel)                                 \
-        {                                                                           \
-            PciHandleType * handle = createIntelPerfMonDevice(groupnr, iMCbus,      \
-                MCX_CHY_REGISTER_DEV_ADDR[controller][channel], MCX_CHY_REGISTER_FUNC_ADDR[controller][channel], true); \
-            if (handle) imcHandles.push_back(std::shared_ptr<PciHandleType>(handle));                     \
-        }
 
         auto lastWorkingChannels = imcHandles.size();
         for (auto & ctrl: MCRegisterLocation)
