@@ -225,8 +225,7 @@ class ServerPCICFGUncore
     std::vector<std::shared_ptr<PciHandleType> > qpiLLHandles;
     std::vector<std::shared_ptr<PciHandleType> > m2mHandles;
     std::vector<uint64> qpi_speed;
-    uint32 num_imc;
-    uint32 num_imc_channels1; // number of memory channels in the first memory controller
+    std::vector<uint32> num_imc_channels; // number of memory channels in each memory controller
     uint32 EDCX_ECLK_REGISTER_DEV_ADDR[8];
     uint32 EDCX_ECLK_REGISTER_FUNC_ADDR[8];
     uint32 QPI_PORTX_REGISTER_DEV_ADDR[3];
@@ -366,7 +365,7 @@ public:
     void reportQPISpeed() const;
 
     //! \brief Returns the number of detected integrated memory controllers
-    uint32 getNumMC() const { return num_imc; }
+    uint32 getNumMC() const { return (uint32)num_imc_channels.size(); }
 
     //! \brief Returns the total number of detected memory channels on all integrated memory controllers
     size_t getNumMCChannels() const { return (size_t)imcPMUs.size(); }

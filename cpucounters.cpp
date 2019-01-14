@@ -4253,15 +4253,14 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
    , groupnr(0)
    , cpu_model(pcm->getCPUModel())
    , qpi_speed(0)
-   , num_imc(0)
-   , num_imc_channels1(0)
 {
-    uint32 MCX_CHY_REGISTER_DEV_ADDR[2][4];
-    uint32 MCX_CHY_REGISTER_FUNC_ADDR[2][4];
+    std::vector<std::vector< std::pair<uint32, uint32> > > MCRegisterLocation; // MCRegisterLocation[controller]: (device, function)
 
 #define PCM_PCICFG_MC_INIT(controller, channel, arch) \
-    MCX_CHY_REGISTER_DEV_ADDR[controller][channel] = arch##_MC##controller##_CH##channel##_REGISTER_DEV_ADDR; \
-    MCX_CHY_REGISTER_FUNC_ADDR[controller][channel] = arch##_MC##controller##_CH##channel##_REGISTER_FUNC_ADDR;
+    MCRegisterLocation.resize(controller + 1); \
+    MCRegisterLocation[controller].resize(channel + 1); \
+    MCRegisterLocation[controller][channel] =  \
+        std::make_pair(arch##_MC##controller##_CH##channel##_REGISTER_DEV_ADDR, arch##_MC##controller##_CH##channel##_REGISTER_FUNC_ADDR);
 
 #define PCM_PCICFG_QPI_INIT(port, arch) \
         QPI_PORTX_REGISTER_DEV_ADDR[port] = arch##_QPI_PORT##port##_REGISTER_DEV_ADDR; \
@@ -4368,7 +4367,7 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
        M2Mbus = socket2M2Mbus[socket_].second;
     }
 
-    initSocket2Bus(socket2iMCbus, MCX_CHY_REGISTER_DEV_ADDR[0][0], MCX_CHY_REGISTER_FUNC_ADDR[0][0], IMC_DEV_IDS, (uint32)sizeof(IMC_DEV_IDS) / sizeof(IMC_DEV_IDS[0]));
+    initSocket2Bus(socket2iMCbus, MCRegisterLocation[0][0].first, MCRegisterLocation[0][0].second, IMC_DEV_IDS, (uint32)sizeof(IMC_DEV_IDS) / sizeof(IMC_DEV_IDS[0]));
 
     if(total_sockets_ == socket2iMCbus.size())
     {
@@ -4408,20 +4407,20 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
             if (handle) imcHandles.push_back(std::shared_ptr<PciHandleType>(handle));                     \
         }
 
-        PCM_PCICFG_SETUP_MC_HANDLE(0,0)
-        PCM_PCICFG_SETUP_MC_HANDLE(0,1)
-        PCM_PCICFG_SETUP_MC_HANDLE(0,2)
-        PCM_PCICFG_SETUP_MC_HANDLE(0,3)
-
-        if (!imcHandles.empty()) ++num_imc; // at least one memory controller
-        num_imc_channels1 = (uint32)imcHandles.size();
-
-        PCM_PCICFG_SETUP_MC_HANDLE(1,0)
-        PCM_PCICFG_SETUP_MC_HANDLE(1,1)
-        PCM_PCICFG_SETUP_MC_HANDLE(1,2)
-        PCM_PCICFG_SETUP_MC_HANDLE(1,3)
-
-        if ((size_t)imcHandles.size() > num_imc_channels1) ++num_imc; // another memory controller found
+        auto lastWorkingChannels = imcHandles.size();
+        for (auto & ctrl: MCRegisterLocation)
+        {
+            for (auto & channel : ctrl)
+            {
+                PciHandleType * handle = createIntelPerfMonDevice(groupnr, iMCbus, channel.first, channel.second, true);
+                if (handle) imcHandles.push_back(std::shared_ptr<PciHandleType>(handle));
+            }
+            if (imcHandles.size() > lastWorkingChannels)
+            {
+                num_imc_channels.push_back((uint32)(imcHandles.size() - lastWorkingChannels));
+            }
+            lastWorkingChannels = imcHandles.size();
+        }
 
 #undef PCM_PCICFG_SETUP_MC_HANDLE
 
@@ -4511,7 +4510,7 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
          *  is possible with single socket systems.
          */
         qpiLLHandles.clear();
-        std::cerr << "On the socket detected " << num_imc << " memory controllers with total number of " << imcPMUs.size() << " channels. " <<
+        std::cerr << "On the socket detected " << getNumMC() << " memory controllers with total number of " << imcPMUs.size() << " channels. " <<
                    m2mHandles.size() << " M2M (mesh to memory) blocks detected."<< std::endl; 
         return;
     }
@@ -4606,19 +4605,16 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
     }
 #endif
     std::cerr << "Socket "<<socket_<<": "<<
-        num_imc<<" memory controllers detected with total number of "<< getNumMCChannels() <<" channels. "<<
+        getNumMC() <<" memory controllers detected with total number of "<< getNumMCChannels() <<" channels. "<<
         getNumQPIPorts()<< " QPI ports detected."<<
          " "<<m2mHandles.size() << " M2M (mesh to memory) blocks detected."<< std::endl;
 }
 
 size_t ServerPCICFGUncore::getNumMCChannels(const uint32 controller) const
 {
-    switch (controller)
+    if (controller < num_imc_channels.size())
     {
-    case 0:
-        return num_imc_channels1;
-    case 1:
-        return imcPMUs.size() - num_imc_channels1;
+        return num_imc_channels[controller];
     }
     return 0;
 }
@@ -4815,19 +4811,13 @@ uint64 ServerPCICFGUncore::getImcReads()
 
 uint64 ServerPCICFGUncore::getImcReadsForController(uint32 controller)
 {
+    assert(controller < num_imc_channels.size());
     uint32 beginChannel = 0;
-    uint32 endChannel = 0;
-    switch (controller)
+    for (uint32 i = 0; i < controller; ++i)
     {
-    case 0:
-        beginChannel = 0;
-        endChannel = num_imc_channels1;
-        break;
-    case 1:
-        beginChannel = num_imc_channels1;
-        endChannel = (uint32)imcPMUs.size();
-        break;
+        beginChannel += num_imc_channels[i];
     }
+    const uint32 endChannel = beginChannel + num_imc_channels[controller];
     return getImcReadsForChannels(beginChannel, endChannel);
 }
 
