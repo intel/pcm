@@ -4416,8 +4416,6 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
             lastWorkingChannels = imcHandles.size();
         }
 
-#undef PCM_PCICFG_SETUP_MC_HANDLE
-
         for (auto & handle : imcHandles)
         {
             if (cpu_model == PCM::KNL) {
