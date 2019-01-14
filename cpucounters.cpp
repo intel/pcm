@@ -4270,14 +4270,11 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
     EDCX_ECLK_REGISTER_DEV_ADDR[controller] = arch##_EDC##controller##_##clock##_REGISTER_DEV_ADDR; \
     EDCX_ECLK_REGISTER_FUNC_ADDR[controller] = arch##_EDC##controller##_##clock##_REGISTER_FUNC_ADDR;
 
-#define PCM_PCICFG_M2M_INIT(x, arch) \
-    M2M_REGISTER_DEV_ADDR[x] = arch##_M2M_##x##_REGISTER_DEV_ADDR; \
-    M2M_REGISTER_FUNC_ADDR[x] = arch##_M2M_##x##_REGISTER_FUNC_ADDR;
+    std::vector<std::pair<uint32, uint32> > M2MRegisterLocation; // M2MRegisterLocation: (device, function)
 
-    M2M_REGISTER_DEV_ADDR[0] = PCM_INVALID_DEV_ADDR;
-    M2M_REGISTER_FUNC_ADDR[0] = PCM_INVALID_FUNC_ADDR;
-    M2M_REGISTER_DEV_ADDR[1] = PCM_INVALID_DEV_ADDR;
-    M2M_REGISTER_FUNC_ADDR[1] = PCM_INVALID_FUNC_ADDR;
+#define PCM_PCICFG_M2M_INIT(x, arch) \
+    M2MRegisterLocation.resize(x + 1); \
+    M2MRegisterLocation[x] = std::make_pair(arch##_M2M_##x##_REGISTER_DEV_ADDR, arch##_M2M_##x##_REGISTER_FUNC_ADDR);
 
     if(cpu_model == PCM::JAKETOWN || cpu_model == PCM::IVYTOWN)
     {
@@ -4360,11 +4357,14 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
 
     const uint32 total_sockets_ = pcm->getNumSockets();
 
-    initSocket2Bus(socket2M2Mbus, M2M_REGISTER_DEV_ADDR[0], M2M_REGISTER_FUNC_ADDR[0], M2M_DEV_IDS, (uint32)sizeof(M2M_DEV_IDS) / sizeof(M2M_DEV_IDS[0]));
-    if (total_sockets_ == socket2M2Mbus.size())
+    if (M2MRegisterLocation.size())
     {
-       groupnr = socket2M2Mbus[socket_].first;
-       M2Mbus = socket2M2Mbus[socket_].second;
+        initSocket2Bus(socket2M2Mbus, M2MRegisterLocation[0].first, M2MRegisterLocation[0].second, M2M_DEV_IDS, (uint32)sizeof(M2M_DEV_IDS) / sizeof(M2M_DEV_IDS[0]));
+        if (total_sockets_ == socket2M2Mbus.size())
+        {
+            groupnr = socket2M2Mbus[socket_].first;
+            M2Mbus = socket2M2Mbus[socket_].second;
+        }
     }
 
     initSocket2Bus(socket2iMCbus, MCRegisterLocation[0][0].first, MCRegisterLocation[0][0].second, IMC_DEV_IDS, (uint32)sizeof(IMC_DEV_IDS) / sizeof(IMC_DEV_IDS[0]));
@@ -4479,19 +4479,35 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
 #undef PCM_PCICFG_SETUP_EDC_HANDLE
     }
 
-#define PCM_PCICFG_SETUP_M2M_HANDLE(x)                                               \
-        if (M2Mbus >= 0 && M2M_REGISTER_DEV_ADDR[x] != PCM_INVALID_DEV_ADDR &&       \
-            M2M_REGISTER_FUNC_ADDR[x] != PCM_INVALID_FUNC_ADDR )                     \
-        {                                                                            \
-            PciHandleType * handle = createIntelPerfMonDevice(groupnr, M2Mbus,       \
-                M2M_REGISTER_DEV_ADDR[x], M2M_REGISTER_FUNC_ADDR[x], true);          \
-            if (handle) m2mHandles.push_back(std::shared_ptr<PciHandleType>(handle));\
+    {
+        std::vector<std::shared_ptr<PciHandleType> > m2mHandles;
+
+        if (M2Mbus >= 0)
+        {
+            for (auto & reg : M2MRegisterLocation)
+            {
+                PciHandleType * handle = createIntelPerfMonDevice(groupnr, M2Mbus, reg.first, reg.second, true);
+                if (handle) m2mHandles.push_back(std::shared_ptr<PciHandleType>(handle));
+            }
         }
 
-    PCM_PCICFG_SETUP_M2M_HANDLE(0)
-    PCM_PCICFG_SETUP_M2M_HANDLE(1)
-
-#undef PCM_PCICFG_SETUP_M2M_HANDLE
+        for (auto & handle : m2mHandles)
+        {
+            m2mPMUs.push_back(
+                UncorePMU(
+                    std::make_shared<PCICFGRegister32>(handle, M2M_PCI_PMON_BOX_CTL_ADDR),
+                    std::make_shared<PCICFGRegister32>(handle, M2M_PCI_PMON_CTL0_ADDR),
+                    std::make_shared<PCICFGRegister32>(handle, M2M_PCI_PMON_CTL1_ADDR),
+                    std::make_shared<PCICFGRegister32>(handle, M2M_PCI_PMON_CTL2_ADDR),
+                    std::make_shared<PCICFGRegister32>(handle, M2M_PCI_PMON_CTL3_ADDR),
+                    std::make_shared<PCICFGRegister64>(handle, M2M_PCI_PMON_CTR0_ADDR),
+                    std::make_shared<PCICFGRegister64>(handle, M2M_PCI_PMON_CTR1_ADDR),
+                    std::make_shared<PCICFGRegister64>(handle, M2M_PCI_PMON_CTR2_ADDR),
+                    std::make_shared<PCICFGRegister64>(handle, M2M_PCI_PMON_CTR3_ADDR)
+                )
+            );
+        }
+    }
 
     if (total_sockets_ == 1) {
         /*
@@ -4503,14 +4519,14 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
          */
         xpiPMUs.clear();
         std::cerr << "On the socket detected " << getNumMC() << " memory controllers with total number of " << imcPMUs.size() << " channels. " <<
-                   m2mHandles.size() << " M2M (mesh to memory) blocks detected."<< std::endl; 
+                   m2mPMUs.size() << " M2M (mesh to memory) blocks detected."<< std::endl;
         return;
     }
 
 #ifdef PCM_NOQPI
     xpiPMUs.clear();
     std::cerr << getNumMC() <<" memory controllers detected with total number of "<< imcPMUs.size() <<" channels. " <<
-                 m2mHandles.size() << " M2M (mesh to memory) blocks detected."<< std::endl;
+                 m2mPMUs.size() << " M2M (mesh to memory) blocks detected."<< std::endl;
     return;
 #else
 
@@ -4607,7 +4623,7 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
     std::cerr << "Socket "<<socket_<<": "<<
         getNumMC() <<" memory controllers detected with total number of "<< getNumMCChannels() <<" channels. "<<
         getNumQPIPorts()<< " QPI ports detected."<<
-         " "<<m2mHandles.size() << " M2M (mesh to memory) blocks detected."<< std::endl;
+         " "<<m2mPMUs.size() << " M2M (mesh to memory) blocks detected."<< std::endl;
 }
 
 size_t ServerPCICFGUncore::getNumMCChannels(const uint32 controller) const
@@ -5106,16 +5122,15 @@ void ServerPCICFGUncore::programM2M()
     if (cpu_model == PCM::SKX)
 #endif
     {
-        for (auto & m2mHandle : m2mHandles)
+        for (auto & pmu : m2mPMUs)
         {
             // freeze enable
-            m2mHandle->write32(M2M_PCI_PMON_BOX_CTL_ADDR, UNC_PMON_UNIT_CTL_RSV);
+            *pmu.unitControl = UNC_PMON_UNIT_CTL_RSV;
             // freeze
-            m2mHandle->write32(M2M_PCI_PMON_BOX_CTL_ADDR, UNC_PMON_UNIT_CTL_RSV + UNC_PMON_UNIT_CTL_FRZ);
+            *pmu.unitControl = UNC_PMON_UNIT_CTL_RSV + UNC_PMON_UNIT_CTL_FRZ;
 
 #ifdef PCM_UNCORE_PMON_BOX_CHECK_STATUS
-            uint32 val = 0;
-            m2mHandle->write32(M2M_PCI_PMON_BOX_CTL_ADDR, &val);
+            uint32 val = *pmu.unitControl;
             if ((val & UNC_PMON_UNIT_CTL_VALID_BITS_MASK) != (extra + UNC_PMON_UNIT_CTL_FRZ))
             {
                 std::cerr << "ERROR: M2M counter programming seems not to work. M2M_PCI_PMON_BOX_CTL=0x" << std::hex << val << std::endl;
@@ -5123,15 +5138,15 @@ void ServerPCICFGUncore::programM2M()
             }
 #endif
 
-            m2mHandle->write32(M2M_PCI_PMON_CTL0_ADDR, M2M_PCI_PMON_CTL_EN);
+            *pmu.counterControl[0] = M2M_PCI_PMON_CTL_EN;
             // TAG_HIT.NM_DRD_HIT_* events (CLEAN | DIRTY)
-            m2mHandle->write32(M2M_PCI_PMON_CTL0_ADDR, M2M_PCI_PMON_CTL_EN + M2M_PCI_PMON_CTL_EVENT(0x2c) + M2M_PCI_PMON_CTL_UMASK(3));
-            m2mHandle->write32(M2M_PCI_PMON_CTL3_ADDR, M2M_PCI_PMON_CTL_EN); // CLOCKTICKS
-            // reset counters values
-            m2mHandle->write32(M2M_PCI_PMON_BOX_CTL_ADDR, UNC_PMON_UNIT_CTL_RSV + UNC_PMON_UNIT_CTL_FRZ + UNC_PMON_UNIT_CTL_RST_COUNTERS);
+            *pmu.counterControl[0] = M2M_PCI_PMON_CTL_EN + M2M_PCI_PMON_CTL_EVENT(0x2c) + M2M_PCI_PMON_CTL_UMASK(3);
+            *pmu.counterControl[3] = M2M_PCI_PMON_CTL_EN; // CLOCKTICKS
 
+            // reset counters values
+            *pmu.unitControl = UNC_PMON_UNIT_CTL_RSV + UNC_PMON_UNIT_CTL_FRZ + UNC_PMON_UNIT_CTL_RST_COUNTERS;
             // unfreeze counters
-            m2mHandle->write32(M2M_PCI_PMON_BOX_CTL_ADDR, UNC_PMON_UNIT_CTL_RSV);
+            *pmu.unitControl = UNC_PMON_UNIT_CTL_RSV;
         }
     }
 }
@@ -5152,9 +5167,9 @@ void ServerPCICFGUncore::freezeCounters()
     {
         edcHandles[i]->write32(KNX_EDC_CH_PCI_PMON_BOX_CTL_ADDR, UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ);
     }
-    for (auto & handle: m2mHandles)
+    for (auto & pmu: m2mPMUs)
     {
-        handle->write32(M2M_PCI_PMON_BOX_CTL_ADDR, extra + UNC_PMON_UNIT_CTL_FRZ);
+        *pmu.unitControl = extra + UNC_PMON_UNIT_CTL_FRZ;
     }
 }
 
@@ -5175,9 +5190,9 @@ void ServerPCICFGUncore::unfreezeCounters()
     {
         edcHandles[i]->write32(KNX_EDC_CH_PCI_PMON_BOX_CTL_ADDR, UNC_PMON_UNIT_CTL_FRZ_EN);
     }
-    for (auto & handle: m2mHandles)
+    for (auto & pmu: m2mPMUs)
     {
-        handle->write32(M2M_PCI_PMON_BOX_CTL_ADDR, extra);
+        *pmu.unitControl = extra;
     }
 }
 
@@ -5284,28 +5299,13 @@ uint64 ServerPCICFGUncore::getM2MCounter(uint32 box, uint32 counter)
 {
     uint64 result = 0;
 
-    if (box < (uint32)m2mHandles.size())
+    if (box < (uint32)m2mPMUs.size())
     {
-        switch (counter)
-        {
-        case 0:
-            m2mHandles[box]->read64(M2M_PCI_PMON_CTR0_ADDR, &result);
-            break;
-        case 1:
-            m2mHandles[box]->read64(M2M_PCI_PMON_CTR1_ADDR, &result);
-            break;
-        case 2:
-            m2mHandles[box]->read64(M2M_PCI_PMON_CTR2_ADDR, &result);
-            break;
-        case 3:
-            m2mHandles[box]->read64(M2M_PCI_PMON_CTR3_ADDR, &result);
-            break;
-        }
+        return *m2mPMUs[box].counterValue[counter];
     }
 //    std::cout << "DEBUG: read "<< result << " from M2M box "<< box <<" counter " << counter << std::endl;
     return result;
 }
-
 
 uint64 ServerPCICFGUncore::getQPILLCounter(uint32 port, uint32 counter)
 {

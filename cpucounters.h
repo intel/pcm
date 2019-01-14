@@ -212,6 +212,7 @@ public:
     {
     }
     UncorePMU() {}
+    virtual ~UncorePMU() {}
 };
 
 //! Object to access uncore counters in a socket/processor with microarchitecture codename SandyBridge-EP (Jaketown) or Ivytown-EP or Ivytown-EX
@@ -224,13 +225,11 @@ class ServerPCICFGUncore
     std::vector<UncorePMU> imcPMUs;
     std::vector<std::shared_ptr<PciHandleType> > edcHandles;
     std::vector<UncorePMU> xpiPMUs;
-    std::vector<std::shared_ptr<PciHandleType> > m2mHandles;
+    std::vector<UncorePMU> m2mPMUs;
     std::vector<uint64> qpi_speed;
     std::vector<uint32> num_imc_channels; // number of memory channels in each memory controller
     uint32 EDCX_ECLK_REGISTER_DEV_ADDR[8];
     uint32 EDCX_ECLK_REGISTER_FUNC_ADDR[8];
-    uint32 M2M_REGISTER_DEV_ADDR[2];
-    uint32 M2M_REGISTER_FUNC_ADDR[2];
     std::vector<std::pair<uint32, uint32> > XPIRegisterLocation; // (device, function)
 
     static PCM_Util::Mutex socket2busMutex;
