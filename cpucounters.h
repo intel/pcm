@@ -223,13 +223,11 @@ class ServerPCICFGUncore
     uint32 groupnr;
     int32 cpu_model;
     std::vector<UncorePMU> imcPMUs;
-    std::vector<std::shared_ptr<PciHandleType> > edcHandles;
+    std::vector<UncorePMU> edcPMUs;
     std::vector<UncorePMU> xpiPMUs;
     std::vector<UncorePMU> m2mPMUs;
     std::vector<uint64> qpi_speed;
     std::vector<uint32> num_imc_channels; // number of memory channels in each memory controller
-    uint32 EDCX_ECLK_REGISTER_DEV_ADDR[8];
-    uint32 EDCX_ECLK_REGISTER_FUNC_ADDR[8];
     std::vector<std::pair<uint32, uint32> > XPIRegisterLocation; // (device, function)
 
     static PCM_Util::Mutex socket2busMutex;
@@ -251,6 +249,7 @@ class ServerPCICFGUncore
     void doMemTest(const MemTestParam & param);
     void cleanupMemTest(const MemTestParam & param);
     void cleanupQPIHandles();
+    void writeAllUnitControl(const uint32 value);
 
 public:
     //! \brief Initialize access data structures
@@ -372,7 +371,7 @@ public:
     size_t getNumMCChannels(const uint32 controller) const;
 
     //! \brief Returns the total number of detected memory channels on all embedded DRAM controllers (EDC)
-    size_t getNumEDCChannels() const { return (size_t)edcHandles.size(); }
+    size_t getNumEDCChannels() const { return edcPMUs.size(); }
 };
 
 class SimpleCounterState
