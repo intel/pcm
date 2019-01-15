@@ -183,6 +183,28 @@ public:
     }
 };
 
+class MSRRegister : public HWRegister
+{
+    std::shared_ptr<SafeMsrHandle> handle;
+    size_t offset;
+public:
+    MSRRegister(const std::shared_ptr<SafeMsrHandle> & handle_, size_t offset_) :
+        handle(handle_),
+        offset(offset_)
+    {
+    }
+    void operator = (uint64 val) override
+    {
+        handle->write(offset, val);
+    }
+    operator uint64 () override
+    {
+        uint64 value = 0;
+        handle->read(offset, &value);
+        return value;
+    }
+};
+
 class UncorePMU
 {
     typedef std::shared_ptr<HWRegister> HWRegisterPtr;
@@ -192,6 +214,7 @@ public:
     HWRegisterPtr counterValue[4];
     HWRegisterPtr fixedCounterControl;
     HWRegisterPtr fixedCounterValue;
+    HWRegisterPtr filter[2];
 
     UncorePMU(const HWRegisterPtr & unitControl_,
         const HWRegisterPtr & counterControl0,
@@ -203,12 +226,16 @@ public:
         const HWRegisterPtr & counterValue2,
         const HWRegisterPtr & counterValue3,
         const HWRegisterPtr & fixedCounterControl_ = HWRegisterPtr(),
-        const HWRegisterPtr & fixedCounterValue_ = HWRegisterPtr()) :
+        const HWRegisterPtr & fixedCounterValue_ = HWRegisterPtr(),
+        const HWRegisterPtr & filter0 = HWRegisterPtr(),
+        const HWRegisterPtr & filter1 = HWRegisterPtr()
+    ) :
         unitControl(unitControl_),
-        counterControl{counterControl0, counterControl1, counterControl2, counterControl3},
-        counterValue{counterValue0, counterValue1, counterValue2, counterValue3},
+        counterControl{ counterControl0, counterControl1, counterControl2, counterControl3 },
+        counterValue{ counterValue0, counterValue1, counterValue2, counterValue3 },
         fixedCounterControl(fixedCounterControl_),
-        fixedCounterValue(fixedCounterValue_)
+        fixedCounterValue(fixedCounterValue_),
+        filter{ filter0 , filter1 }
     {
     }
     UncorePMU() {}
@@ -449,7 +476,7 @@ class PCM_API PCM
     bool programmed_pmu;
     std::vector<std::shared_ptr<SafeMsrHandle> > MSR;
     std::vector<std::shared_ptr<ServerPCICFGUncore> > server_pcicfg_uncore;
-    uint64 PCU_MSR_PMON_BOX_CTL_ADDR, PCU_MSR_PMON_CTRX_ADDR[4];
+    std::vector<UncorePMU> pcuPMUs;
     std::map<int32, uint32>    IIO_UNIT_STATUS_ADDR;
     std::map<int32, uint32>    IIO_UNIT_CTL_ADDR;
     std::map<int32, std::vector<uint32> > IIO_CTR_ADDR;

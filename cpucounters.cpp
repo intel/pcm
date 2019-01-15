@@ -1404,34 +1404,53 @@ void PCM::initUncoreObjects()
            #endif
        }
     }
-
-    switch(cpu_model)
+    for (uint32 s = 0; s < (uint32)num_sockets; ++s)
     {
+        auto & handle = MSR[socketRefCore[s]];
+        switch (cpu_model)
+        {
         case IVYTOWN:
         case JAKETOWN:
-            PCU_MSR_PMON_BOX_CTL_ADDR = JKTIVT_PCU_MSR_PMON_BOX_CTL_ADDR;
-            PCU_MSR_PMON_CTRX_ADDR[0] = JKTIVT_PCU_MSR_PMON_CTR0_ADDR;
-            PCU_MSR_PMON_CTRX_ADDR[1] = JKTIVT_PCU_MSR_PMON_CTR1_ADDR;
-            PCU_MSR_PMON_CTRX_ADDR[2] = JKTIVT_PCU_MSR_PMON_CTR2_ADDR;
-            PCU_MSR_PMON_CTRX_ADDR[3] = JKTIVT_PCU_MSR_PMON_CTR3_ADDR;
+            pcuPMUs.push_back(
+                UncorePMU(
+                    std::make_shared<MSRRegister>(handle, JKTIVT_PCU_MSR_PMON_BOX_CTL_ADDR),
+                    std::make_shared<MSRRegister>(handle, JKTIVT_PCU_MSR_PMON_CTL0_ADDR),
+                    std::make_shared<MSRRegister>(handle, JKTIVT_PCU_MSR_PMON_CTL1_ADDR),
+                    std::make_shared<MSRRegister>(handle, JKTIVT_PCU_MSR_PMON_CTL2_ADDR),
+                    std::make_shared<MSRRegister>(handle, JKTIVT_PCU_MSR_PMON_CTL3_ADDR),
+                    std::make_shared<MSRRegister>(handle, JKTIVT_PCU_MSR_PMON_CTR0_ADDR),
+                    std::make_shared<MSRRegister>(handle, JKTIVT_PCU_MSR_PMON_CTR1_ADDR),
+                    std::make_shared<MSRRegister>(handle, JKTIVT_PCU_MSR_PMON_CTR2_ADDR),
+                    std::make_shared<MSRRegister>(handle, JKTIVT_PCU_MSR_PMON_CTR3_ADDR),
+                    std::shared_ptr<MSRRegister>(),
+                    std::shared_ptr<MSRRegister>(),
+                    std::make_shared<MSRRegister>(handle, JKTIVT_PCU_MSR_PMON_BOX_FILTER_ADDR)
+                )
+            );
             break;
         case BDX_DE:
         case BDX:
         case KNL:
         case HASWELLX:
         case SKX:
-            PCU_MSR_PMON_BOX_CTL_ADDR = HSX_PCU_MSR_PMON_BOX_CTL_ADDR;
-            PCU_MSR_PMON_CTRX_ADDR[0] = HSX_PCU_MSR_PMON_CTR0_ADDR;
-            PCU_MSR_PMON_CTRX_ADDR[1] = HSX_PCU_MSR_PMON_CTR1_ADDR;
-            PCU_MSR_PMON_CTRX_ADDR[2] = HSX_PCU_MSR_PMON_CTR2_ADDR;
-            PCU_MSR_PMON_CTRX_ADDR[3] = HSX_PCU_MSR_PMON_CTR3_ADDR;
+            pcuPMUs.push_back(
+                UncorePMU(
+                    std::make_shared<MSRRegister>(handle, HSX_PCU_MSR_PMON_BOX_CTL_ADDR),
+                    std::make_shared<MSRRegister>(handle, HSX_PCU_MSR_PMON_CTL0_ADDR),
+                    std::make_shared<MSRRegister>(handle, HSX_PCU_MSR_PMON_CTL1_ADDR),
+                    std::make_shared<MSRRegister>(handle, HSX_PCU_MSR_PMON_CTL2_ADDR),
+                    std::make_shared<MSRRegister>(handle, HSX_PCU_MSR_PMON_CTL3_ADDR),
+                    std::make_shared<MSRRegister>(handle, HSX_PCU_MSR_PMON_CTR0_ADDR),
+                    std::make_shared<MSRRegister>(handle, HSX_PCU_MSR_PMON_CTR1_ADDR),
+                    std::make_shared<MSRRegister>(handle, HSX_PCU_MSR_PMON_CTR2_ADDR),
+                    std::make_shared<MSRRegister>(handle, HSX_PCU_MSR_PMON_CTR3_ADDR),
+                    std::shared_ptr<MSRRegister>(),
+                    std::shared_ptr<MSRRegister>(),
+                    std::make_shared<MSRRegister>(handle, HSX_PCU_MSR_PMON_BOX_FILTER_ADDR)
+                )
+            );
             break;
-        default:
-            PCU_MSR_PMON_BOX_CTL_ADDR = (uint64)0;
-            PCU_MSR_PMON_CTRX_ADDR[0] = (uint64)0;
-            PCU_MSR_PMON_CTRX_ADDR[1] = (uint64)0;
-            PCU_MSR_PMON_CTRX_ADDR[2] = (uint64)0;
-            PCU_MSR_PMON_CTRX_ADDR[3] = (uint64)0;
+        }
     }
     // init IIO addresses
     std::vector<int32> IIO_units;
@@ -1575,7 +1594,6 @@ PCM::PCM() :
     pkgMaximumPower(-1),
     allow_multiple_instances(false),
     programmed_pmu(false),
-    PCU_MSR_PMON_BOX_CTL_ADDR(0),
     joulesPerEnergyUnit(0),
     disable_JKT_workaround(false),
     blocked(false),
@@ -3431,34 +3449,6 @@ PCM::ErrorCode PCM::programServerUncorePowerMetrics(int mc_profile, int pcu_prof
          std::cerr << "ERROR: unsupported PCU profile "<< pcu_profile << std::endl;
     }
 
-    uint64 PCU_MSR_PMON_BOX_FILTER_ADDR, PCU_MSR_PMON_CTLX_ADDR[4] = { 0, 0, 0, 0 };
-
-    switch(cpu_model)
-    {
-        case IVYTOWN:
-        case JAKETOWN:
-            PCU_MSR_PMON_BOX_FILTER_ADDR = JKTIVT_PCU_MSR_PMON_BOX_FILTER_ADDR;
-            PCU_MSR_PMON_CTLX_ADDR[0] = JKTIVT_PCU_MSR_PMON_CTL0_ADDR;
-            PCU_MSR_PMON_CTLX_ADDR[1] = JKTIVT_PCU_MSR_PMON_CTL1_ADDR;
-            PCU_MSR_PMON_CTLX_ADDR[2] = JKTIVT_PCU_MSR_PMON_CTL2_ADDR;
-            PCU_MSR_PMON_CTLX_ADDR[3] = JKTIVT_PCU_MSR_PMON_CTL3_ADDR;
-            break;
-        case HASWELLX:
-        case BDX_DE:
-        case BDX:
-        case KNL:
-        case SKX:
-            PCU_MSR_PMON_BOX_FILTER_ADDR = HSX_PCU_MSR_PMON_BOX_FILTER_ADDR;
-            PCU_MSR_PMON_CTLX_ADDR[0] = HSX_PCU_MSR_PMON_CTL0_ADDR;
-            PCU_MSR_PMON_CTLX_ADDR[1] = HSX_PCU_MSR_PMON_CTL1_ADDR;
-            PCU_MSR_PMON_CTLX_ADDR[2] = HSX_PCU_MSR_PMON_CTL2_ADDR;
-            PCU_MSR_PMON_CTLX_ADDR[3] = HSX_PCU_MSR_PMON_CTL3_ADDR;
-            break;
-        default:
-            std::cerr << "Error: unsupported uncore. cpu model is "<< cpu_model << std::endl;
-            return PCM::UnknownError;
-    }
-
     for (int i = 0; (i < (int)server_pcicfg_uncore.size()) && MSR.size(); ++i)
     {
       server_pcicfg_uncore[i]->program_power_metrics(mc_profile);
@@ -3467,41 +3457,42 @@ PCM::ErrorCode PCM::programServerUncorePowerMetrics(int mc_profile, int pcu_prof
       TemporalThreadAffinity tempThreadAffinity(refCore); // speedup trick for Linux
 
        // freeze enable
-      MSR[refCore]->write(PCU_MSR_PMON_BOX_CTL_ADDR, UNC_PMON_UNIT_CTL_FRZ_EN);
+      *pcuPMUs[i].unitControl = UNC_PMON_UNIT_CTL_FRZ_EN;
         // freeze
-      MSR[refCore]->write(PCU_MSR_PMON_BOX_CTL_ADDR, UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ);
+      *pcuPMUs[i].unitControl = UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ;
 
 #ifdef PCM_UNCORE_PMON_BOX_CHECK_STATUS
-      uint64 val = 0;
-      MSR[refCore]->read(PCU_MSR_PMON_BOX_CTL_ADDR,&val);
+      uint64 val = *pcuPMUs[i].unitControl;
       if ((val & UNC_PMON_UNIT_CTL_VALID_BITS_MASK) != (UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ))
             std::cerr << "ERROR: PCU counter programming seems not to work. PCU_MSR_PMON_BOX_CTL=0x" << std::hex << val << " needs to be =0x"<< (UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ) << std::endl;
 #endif
 
-      if(freq_bands == NULL)
-          MSR[refCore]->write(PCU_MSR_PMON_BOX_FILTER_ADDR,
-                PCU_MSR_PMON_BOX_FILTER_BAND_0(10) + // 1000 MHz
-                PCU_MSR_PMON_BOX_FILTER_BAND_1(20) + // 2000 MHz
-                PCU_MSR_PMON_BOX_FILTER_BAND_2(30)   // 3000 MHz
-            );
+      if (freq_bands == NULL)
+      {
+          *pcuPMUs[i].filter[0] =
+              PCU_MSR_PMON_BOX_FILTER_BAND_0(10) + // 1000 MHz
+              PCU_MSR_PMON_BOX_FILTER_BAND_1(20) + // 2000 MHz
+              PCU_MSR_PMON_BOX_FILTER_BAND_2(30);  // 3000 MHz
+      }
       else
-          MSR[refCore]->write(PCU_MSR_PMON_BOX_FILTER_ADDR,
-                PCU_MSR_PMON_BOX_FILTER_BAND_0(freq_bands[0]) +
-                PCU_MSR_PMON_BOX_FILTER_BAND_1(freq_bands[1]) +
-                PCU_MSR_PMON_BOX_FILTER_BAND_2(freq_bands[2])
-            );
+      {
+          *pcuPMUs[i].filter[0] =
+              PCU_MSR_PMON_BOX_FILTER_BAND_0(freq_bands[0]) +
+              PCU_MSR_PMON_BOX_FILTER_BAND_1(freq_bands[1]) +
+              PCU_MSR_PMON_BOX_FILTER_BAND_2(freq_bands[2]);
+      }
 
       for(int ctr = 0; ctr < 4; ++ctr)
       {
-          MSR[refCore]->write(PCU_MSR_PMON_CTLX_ADDR[ctr], PCU_MSR_PMON_CTL_EN);
-          MSR[refCore]->write(PCU_MSR_PMON_CTLX_ADDR[ctr], PCU_MSR_PMON_CTL_EN + PCUCntConf[ctr]);
+          *pcuPMUs[i].counterControl[ctr] = PCU_MSR_PMON_CTL_EN;
+          *pcuPMUs[i].counterControl[ctr] = PCU_MSR_PMON_CTL_EN + PCUCntConf[ctr];
       }
 
       // reset counter values
-      MSR[refCore]->write(PCU_MSR_PMON_BOX_CTL_ADDR, UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ + UNC_PMON_UNIT_CTL_RST_COUNTERS);
+      *pcuPMUs[i].unitControl = UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ + UNC_PMON_UNIT_CTL_RST_COUNTERS;
 
       // unfreeze counters
-      MSR[refCore]->write(PCU_MSR_PMON_BOX_CTL_ADDR, UNC_PMON_UNIT_CTL_FRZ_EN);
+      *pcuPMUs[i].unitControl = UNC_PMON_UNIT_CTL_FRZ_EN;
 
     }
     return PCM::Success;
@@ -3512,7 +3503,7 @@ void PCM::freezeServerUncoreCounters()
     for (int i = 0; (i < (int)server_pcicfg_uncore.size()) && MSR.size(); ++i)
     {
         server_pcicfg_uncore[i]->freezeCounters();
-        MSR[socketRefCore[i]]->write(PCU_MSR_PMON_BOX_CTL_ADDR, UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ);
+        *pcuPMUs[i].unitControl = UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ;
 
         if(IIOEventsAvailable())
             for (int unit = 0; unit< IIO_STACK_COUNT; ++unit)
@@ -3524,7 +3515,7 @@ void PCM::unfreezeServerUncoreCounters()
     for (int i = 0; (i < (int)server_pcicfg_uncore.size()) && MSR.size(); ++i)
     {
         server_pcicfg_uncore[i]->unfreezeCounters();
-        MSR[socketRefCore[i]]->write(PCU_MSR_PMON_BOX_CTL_ADDR, UNC_PMON_UNIT_CTL_FRZ_EN);
+        *pcuPMUs[i].unitControl = UNC_PMON_UNIT_CTL_FRZ_EN;
 
         if (IIOEventsAvailable())
             for (int unit = 0; unit< IIO_STACK_COUNT; ++unit)
@@ -4038,8 +4029,8 @@ ServerUncorePowerState PCM::getServerUncorePowerState(uint32 socket)
     {
         uint32 refCore = socketRefCore[socket];
         TemporalThreadAffinity tempThreadAffinity(refCore);
-        for(int i=0; i<4; ++i)
-            MSR[refCore]->read(PCU_MSR_PMON_CTRX_ADDR[i],&(result.PCUCounter[i]));
+        for (int i = 0; i < 4; ++i)
+            result.PCUCounter[i] = *pcuPMUs[socket].counterValue[i];
         // std::cout<< "values read: " << result.PCUCounter[0]<<" "<<result.PCUCounter[1] << " " << result.PCUCounter[2] << " " << result.PCUCounter[3] << std::endl;
         uint64 val=0;
         //MSR[refCore]->read(MSR_PKG_ENERGY_STATUS,&val);
