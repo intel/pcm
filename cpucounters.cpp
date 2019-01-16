@@ -2898,6 +2898,35 @@ void PCM::cleanupPMU()
 #endif
 }
 
+void PCM::cleanupUncorePMUs()
+{
+    for (auto & sPMUs : iioPMUs)
+    {
+        for (auto & pmu : sPMUs)
+        {
+            pmu.second.cleanup();
+        }
+    }
+    for (auto & sCBOPMUs : cboPMUs)
+    {
+        for (auto & pmu : sCBOPMUs)
+        {
+            pmu.cleanup();
+        }
+    }
+    for (auto & pmu : pcuPMUs)
+    {
+        pmu.cleanup();
+    }
+    for (auto & uncore : server_pcicfg_uncore)
+    {
+        uncore->cleanupPMUs();
+    }
+#ifndef PCM_SILENT
+    std::cerr << " Zeroed uncore PMU registers" << std::endl;
+#endif
+}
+
 void PCM::resetPMU()
 {
     for (int i = 0; i < (int)num_cores; ++i)
@@ -2995,6 +3024,7 @@ void PCM::cleanup()
     if (decrementInstanceSemaphore())
         cleanupPMU();
 
+    cleanupUncorePMUs();
     freeRMID();
 }
 
@@ -4854,6 +4884,26 @@ void ServerPCICFGUncore::cleanupQPIHandles()
             cleanupQPIHandles();
             return;
         }
+    }
+}
+
+void ServerPCICFGUncore::cleanupPMUs()
+{
+    for (auto & pmu : xpiPMUs)
+    {
+        pmu.cleanup();
+    }
+    for (auto & pmu : imcPMUs)
+    {
+        pmu.cleanup();
+    }
+    for (auto & pmu : edcPMUs)
+    {
+        pmu.cleanup();
+    }
+    for (auto & pmu : m2mPMUs)
+    {
+        pmu.cleanup();
     }
 }
 

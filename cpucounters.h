@@ -266,6 +266,15 @@ public:
     }
     UncorePMU() {}
     virtual ~UncorePMU() {}
+    void cleanup()
+    {
+        for (int i = 0; i < 4; ++i)
+        {
+            if (counterControl[i].get()) *counterControl[i] = 0;
+        }
+        if (unitControl.get()) *unitControl = 0;
+        if (fixedCounterControl.get()) *fixedCounterControl = 0;
+    }
 };
 
 //! Object to access uncore counters in a socket/processor with microarchitecture codename SandyBridge-EP (Jaketown) or Ivytown-EP or Ivytown-EX
@@ -302,6 +311,7 @@ class ServerPCICFGUncore
     void doMemTest(const MemTestParam & param);
     void cleanupMemTest(const MemTestParam & param);
     void cleanupQPIHandles();
+    void cleanupPMUs();
     void writeAllUnitControl(const uint32 value);
 
 public:
@@ -801,6 +811,8 @@ private:
     void programCboOpcodeFilter(const uint32 opc0, UncorePMU & pmu, const uint32 nc_ = 0, const uint32 opc1 = 0);
     void programLLCReadMissLatencyEvents();
     uint64 getCBOCounterState(const uint32 socket, const uint32 ctr_);
+
+    void cleanupUncorePMUs();
 
 	bool isCLX() const // Cascade Lake-SP
 	{
