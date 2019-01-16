@@ -1476,19 +1476,33 @@ void PCM::initUncoreObjects()
     }
     if (hasPCICFGUncore() && MSR.size())
     {
-        CBoCounters.resize(num_sockets);
+        cboPMUs.resize(num_sockets);
         for (uint32 s = 0; s < (uint32)num_sockets; ++s)
         {
-            CBoCounters[s].resize(getMaxNumOfCBoxes());
+            auto & handle = MSR[socketRefCore[s]];
             for (uint32 cbo = 0; cbo < getMaxNumOfCBoxes(); ++cbo)
             {
-                CBoCounters[s][cbo].resize(4);
-                for (uint32 ctr = 0; ctr < 4; ++ctr)
-                {
-                    auto p = std::make_shared<CounterWidthExtender>(
-                        new CounterWidthExtender::MsrHandleCounter(MSR[socketRefCore[s]], CX_MSR_PMON_CTRY(cbo, ctr)), 48, 5555);
-                    CBoCounters[s][cbo][ctr] = p;
-                }
+                cboPMUs[s].push_back(
+                    UncorePMU(
+                        std::make_shared<MSRRegister>(handle, CX_MSR_PMON_BOX_CTL(cbo)),
+                        std::make_shared<MSRRegister>(handle, CX_MSR_PMON_CTLY(cbo, 0)),
+                        std::make_shared<MSRRegister>(handle, CX_MSR_PMON_CTLY(cbo, 1)),
+                        std::make_shared<MSRRegister>(handle, CX_MSR_PMON_CTLY(cbo, 2)),
+                        std::make_shared<MSRRegister>(handle, CX_MSR_PMON_CTLY(cbo, 3)),
+                        std::make_shared<CounterWidthExtenderRegister>(
+                            std::make_shared<CounterWidthExtender>(new CounterWidthExtender::MsrHandleCounter(MSR[socketRefCore[s]], CX_MSR_PMON_CTRY(cbo, 0)), 48, 5555)),
+                        std::make_shared<CounterWidthExtenderRegister>(
+                            std::make_shared<CounterWidthExtender>(new CounterWidthExtender::MsrHandleCounter(MSR[socketRefCore[s]], CX_MSR_PMON_CTRY(cbo, 1)), 48, 5555)),
+                        std::make_shared<CounterWidthExtenderRegister>(
+                            std::make_shared<CounterWidthExtender>(new CounterWidthExtender::MsrHandleCounter(MSR[socketRefCore[s]], CX_MSR_PMON_CTRY(cbo, 2)), 48, 5555)),
+                        std::make_shared<CounterWidthExtenderRegister>(
+                            std::make_shared<CounterWidthExtender>(new CounterWidthExtender::MsrHandleCounter(MSR[socketRefCore[s]], CX_MSR_PMON_CTRY(cbo, 3)), 48, 5555)),
+                        std::shared_ptr<MSRRegister>(),
+                        std::shared_ptr<MSRRegister>(),
+                        std::make_shared<MSRRegister>(handle, CX_MSR_PMON_BOX_FILTER(cbo)),
+                        std::make_shared<MSRRegister>(handle, CX_MSR_PMON_BOX_FILTER1(cbo))
+                    )
+                );
             }
         }
     }
@@ -5531,24 +5545,24 @@ uint32 PCM::getMaxNumOfCBoxes() const
     return 0;
 }
 
-void PCM::programCboOpcodeFilter(const uint32 opc0, const uint32 cbo, std::shared_ptr<SafeMsrHandle> msr, const uint32 nc_, const uint32 opc1)
+void PCM::programCboOpcodeFilter(const uint32 opc0, UncorePMU & pmu, const uint32 nc_, const uint32 opc1)
 {
     if(JAKETOWN == cpu_model)
     {
-        msr->write(CX_MSR_PMON_BOX_FILTER(cbo), JKT_CBO_MSR_PMON_BOX_FILTER_OPC(opc0));
+        *pmu.filter[0] = JKT_CBO_MSR_PMON_BOX_FILTER_OPC(opc0);
 
     } else if(IVYTOWN == cpu_model || HASWELLX == cpu_model || BDX_DE == cpu_model || BDX == cpu_model)
     {
-        msr->write(CX_MSR_PMON_BOX_FILTER1(cbo), IVTHSX_CBO_MSR_PMON_BOX_FILTER1_OPC(opc0));
+        *pmu.filter[1] = IVTHSX_CBO_MSR_PMON_BOX_FILTER1_OPC(opc0);
     } else if(SKX == cpu_model)
     {
-        msr->write(CX_MSR_PMON_BOX_FILTER1(cbo), SKX_CHA_MSR_PMON_BOX_FILTER1_OPC0(opc0) +
+        *pmu.filter[1] = SKX_CHA_MSR_PMON_BOX_FILTER1_OPC0(opc0) +
                 SKX_CHA_MSR_PMON_BOX_FILTER1_OPC1(opc1) +
                 SKX_CHA_MSR_PMON_BOX_FILTER1_REM(1) +
                 SKX_CHA_MSR_PMON_BOX_FILTER1_LOC(1) +
                 SKX_CHA_MSR_PMON_BOX_FILTER1_NM(1) +
                 SKX_CHA_MSR_PMON_BOX_FILTER1_NOT_NM(1) +
-                (nc_?SKX_CHA_MSR_PMON_BOX_FILTER1_NC(1):0ULL));
+                (nc_?SKX_CHA_MSR_PMON_BOX_FILTER1_NC(1):0ULL);
     }
 }
 
@@ -5602,6 +5616,43 @@ void PCM::programPCIeMissCounters(const PCM::PCIeEventCode event_, const uint32 
 
 void PCM::programPCIeCounters(const PCM::PCIeEventCode event_, const uint32 tid_, const uint32 miss_, const uint32 q_, const uint32 nc_)
 {
+    const uint32 opCode = (uint32)event_;
+
+    uint64 event0 = 0;
+    // TOR_INSERTS.OPCODE event
+    if (SKX == cpu_model) {
+        uint64 umask = 0;
+        switch (q_)
+        {
+        case PRQ:
+            umask |= (uint64)(SKX_CHA_TOR_INSERTS_UMASK_PRQ(1));
+            break;
+        case IRQ:
+            umask |= (uint64)(SKX_CHA_TOR_INSERTS_UMASK_IRQ(1));
+            break;
+        }
+        switch (miss_)
+        {
+        case 0:
+            umask |= (uint64)(SKX_CHA_TOR_INSERTS_UMASK_HIT(1));
+            umask |= (uint64)(SKX_CHA_TOR_INSERTS_UMASK_MISS(1));
+            break;
+        case 1:
+            umask |= (uint64)(SKX_CHA_TOR_INSERTS_UMASK_MISS(1));
+            break;
+        }
+
+        event0 = CBO_MSR_PMON_CTL_EVENT(0x35) + CBO_MSR_PMON_CTL_UMASK(umask);
+    }
+    else
+        event0 = CBO_MSR_PMON_CTL_EVENT(0x35) + (CBO_MSR_PMON_CTL_UMASK(1) | (miss_ ? CBO_MSR_PMON_CTL_UMASK(0x3) : 0ULL)) + (tid_ ? CBO_MSR_PMON_CTL_TID_EN : 0ULL);
+
+    uint64 events[4] = { event0, 0, 0, 0 };
+    programCbo(events, opCode, nc_, tid_);
+}
+
+void PCM::programCbo(const uint64 * events, const uint32 opCode, const uint32 nc_, const uint32 tid_)
+{
     for (int32 i = 0; (i < num_sockets) && MSR.size(); ++i)
     {
         uint32 refCore = socketRefCore[i];
@@ -5610,13 +5661,12 @@ void PCM::programPCIeCounters(const PCM::PCIeEventCode event_, const uint32 tid_
         for(uint32 cbo = 0; cbo < getMaxNumOfCBoxes(); ++cbo)
         {
             // freeze enable
-            MSR[refCore]->write(CX_MSR_PMON_BOX_CTL(cbo), UNC_PMON_UNIT_CTL_FRZ_EN);
+            *cboPMUs[i][cbo].unitControl = UNC_PMON_UNIT_CTL_FRZ_EN;
             // freeze
-            MSR[refCore]->write(CX_MSR_PMON_BOX_CTL(cbo), UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ);
+            *cboPMUs[i][cbo].unitControl = UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ;
 
 #ifdef PCM_UNCORE_PMON_BOX_CHECK_STATUS
-            uint64 val = 0;
-            MSR[refCore]->read(CX_MSR_PMON_BOX_CTL(cbo), &val);
+            uint64 val = *cboPMUs[i][cbo].unitControl;
             if ((val & UNC_PMON_UNIT_CTL_VALID_BITS_MASK) != (UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ))
             {
                 std::cerr << "ERROR: CBO counter programming seems not to work. ";
@@ -5624,46 +5674,27 @@ void PCM::programPCIeCounters(const PCM::PCIeEventCode event_, const uint32 tid_
             }
 #endif
 
-            programCboOpcodeFilter((uint32)event_, cbo, MSR[refCore], nc_);
+            programCboOpcodeFilter(opCode, cboPMUs[i][cbo], nc_);
 
             if((HASWELLX == cpu_model || BDX_DE == cpu_model || BDX == cpu_model) && tid_ != 0)
-                MSR[refCore]->write(CX_MSR_PMON_BOX_FILTER(cbo), tid_);
+                *cboPMUs[i][cbo].filter[0] = tid_;
 
-            MSR[refCore]->write(CX_MSR_PMON_CTLY(cbo, 0), CBO_MSR_PMON_CTL_EN);
-            // TOR_INSERTS.OPCODE event
-            if(SKX == cpu_model) {
-                uint64 umask = 0;
-                switch(q_)
-                {
-                    case PRQ:
-                        umask |= (uint64)(SKX_CHA_TOR_INSERTS_UMASK_PRQ(1));
-                        break;
-                    case IRQ:
-                        umask |= (uint64)(SKX_CHA_TOR_INSERTS_UMASK_IRQ(1));
-                        break;
-                }
-                switch(miss_)
-                {
-                    case 0:
-                        umask |= (uint64)(SKX_CHA_TOR_INSERTS_UMASK_HIT(1));
-                        umask |= (uint64)(SKX_CHA_TOR_INSERTS_UMASK_MISS(1));
-                        break;
-                    case 1:
-                        umask |= (uint64)(SKX_CHA_TOR_INSERTS_UMASK_MISS(1));
-                        break;
-                }
-
-                MSR[refCore]->write(CX_MSR_PMON_CTLY(cbo, 0), CBO_MSR_PMON_CTL_EN + CBO_MSR_PMON_CTL_EVENT(0x35) + CBO_MSR_PMON_CTL_UMASK(umask));
-        }
-            else
-                MSR[refCore]->write(CX_MSR_PMON_CTLY(cbo, 0), CBO_MSR_PMON_CTL_EN + CBO_MSR_PMON_CTL_EVENT(0x35) + (CBO_MSR_PMON_CTL_UMASK(1) | (miss_?CBO_MSR_PMON_CTL_UMASK(0x3):0ULL)) + (tid_?CBO_MSR_PMON_CTL_TID_EN:0ULL));
+            for (int c = 0; c < 4; ++c)
+            {
+                *cboPMUs[i][cbo].counterControl[c] = CBO_MSR_PMON_CTL_EN;
+                *cboPMUs[i][cbo].counterControl[c] = CBO_MSR_PMON_CTL_EN + events[c];
+            }
 
             // reset counter values
-            MSR[refCore]->write(CX_MSR_PMON_BOX_CTL(cbo), UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ + UNC_PMON_UNIT_CTL_RST_COUNTERS);
+            *cboPMUs[i][cbo].unitControl = UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ + UNC_PMON_UNIT_CTL_RST_COUNTERS;
 
             // unfreeze counters
-            MSR[refCore]->write(CX_MSR_PMON_BOX_CTL(cbo), UNC_PMON_UNIT_CTL_FRZ_EN);
-            CBoCounters[i][cbo][0]->reset();
+            *cboPMUs[i][cbo].unitControl = UNC_PMON_UNIT_CTL_FRZ_EN;
+
+            for (int c = 0; c < 4; ++c)
+            {
+                *cboPMUs[i][cbo].counterValue[c] = 0;
+            }
         }
     }
 }
@@ -5675,9 +5706,9 @@ uint64 PCM::getCBOCounterState(const uint32 socket_, const uint32 ctr_)
     const uint32 refCore = socketRefCore[socket_];
     TemporalThreadAffinity tempThreadAffinity(refCore); // speedup trick for Linux
 
-    for(uint32 cbo=0; cbo < getMaxNumOfCBoxes(); ++cbo)
+    for(auto & pmu: cboPMUs[socket_])
     {
-        result += CBoCounters[socket_][cbo][ctr_]->read();
+        result += *pmu.counterValue[ctr_];
     }
     return result;
 }
@@ -5700,69 +5731,32 @@ PCIeCounterState PCM::getPCIeCounterState(const uint32 socket_)
 
 void PCM::programLLCReadMissLatencyEvents()
 {
-    const bool supported = LLCReadMissLatencyMetricsAvailable();
-    for (int32 i = 0; supported && (i < num_sockets) && MSR.size(); ++i)
+    if (LLCReadMissLatencyMetricsAvailable() == false)
     {
-        uint32 refCore = socketRefCore[i];
-        TemporalThreadAffinity tempThreadAffinity(refCore); // speedup trick for Linux
+        return;
+    }
+    uint64 umask = 0;
+    if (SKX == cpu_model)
+    {
+        umask |= (uint64)(SKX_CHA_TOR_INSERTS_UMASK_IRQ(1));
+        umask |= (uint64)(SKX_CHA_TOR_INSERTS_UMASK_MISS(1));
+    }
+    else
+    {
+        umask |= 3ULL; // MISS_OPCODE
+    }
+    uint64 events[4] = {
+            CBO_MSR_PMON_CTL_EVENT(0x36) + CBO_MSR_PMON_CTL_UMASK(umask), // TOR_OCCUPANCY (must be on counter 0)
+            CBO_MSR_PMON_CTL_EVENT(0x35) + CBO_MSR_PMON_CTL_UMASK(umask), // TOR_INSERTS
+            0,
+            0
+    };
+    const uint32 opCode = (SKX == cpu_model) ? 0x202 : 0x182;
+    programCbo(events, opCode);
 
-        for(uint32 cbo = 0; cbo < getMaxNumOfCBoxes(); ++cbo)
-        {
-            // freeze enable
-            MSR[refCore]->write(CX_MSR_PMON_BOX_CTL(cbo), UNC_PMON_UNIT_CTL_FRZ_EN);
-            // freeze
-            MSR[refCore]->write(CX_MSR_PMON_BOX_CTL(cbo), UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ);
-
-#ifdef PCM_UNCORE_PMON_BOX_CHECK_STATUS
-            uint64 val = 0;
-            MSR[refCore]->read(CX_MSR_PMON_BOX_CTL(cbo), &val);
-            if ((val & UNC_PMON_UNIT_CTL_VALID_BITS_MASK) != (UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ))
-            {
-                std::cerr << "ERROR: CBO counter programming seems not to work. ";
-                std::cerr << "C" << std::dec << cbo << "_MSR_PMON_BOX_CTL=0x" << std::hex << val << std::endl;
-            }
-#endif
-
-            if (SKX == cpu_model)
-            {
-                programCboOpcodeFilter(0x202, cbo, MSR[refCore] /* ,0 ,0x25A */);
-            }
-            else
-            {
-                programCboOpcodeFilter(0x182, cbo, MSR[refCore]);
-            }
-
-            uint64 umask = 0;
-            if (SKX == cpu_model)
-            {
-                 umask |= (uint64)(SKX_CHA_TOR_INSERTS_UMASK_IRQ(1));
-                 umask |= (uint64)(SKX_CHA_TOR_INSERTS_UMASK_MISS(1));
-            }
-            else
-            {
-                 umask |= 3ULL; // MISS_OPCODE
-            }
-            uint64 events[2] = {
-                    0x36, // TOR_OCCUPANCY (must be on counter 0)
-                    0x35  // TOR_INSERTS
-                };
-
-            for (int i=0; i < 2; ++i)
-            {
-                MSR[refCore]->write(CX_MSR_PMON_CTLY(cbo, i), CBO_MSR_PMON_CTL_EN);
-
-                MSR[refCore]->write(CX_MSR_PMON_CTLY(cbo, i), CBO_MSR_PMON_CTL_EN + CBO_MSR_PMON_CTL_EVENT(events[i]) + CBO_MSR_PMON_CTL_UMASK(umask));
-            }
-
-            // reset counter values
-            MSR[refCore]->write(CX_MSR_PMON_BOX_CTL(cbo), UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ + UNC_PMON_UNIT_CTL_RST_COUNTERS);
-
-            // unfreeze counters
-            MSR[refCore]->write(CX_MSR_PMON_BOX_CTL(cbo), UNC_PMON_UNIT_CTL_FRZ_EN);
-            CBoCounters[i][cbo][0]->reset();
-            CBoCounters[i][cbo][1]->reset();
-        }
-        MSR[refCore]->write(UCLK_FIXED_CTL_ADDR, UCLK_FIXED_CTL_EN);
+    for (int32 i = 0; (i < num_sockets) && MSR.size(); ++i)
+    {
+        MSR[socketRefCore[i]]->write(UCLK_FIXED_CTL_ADDR, UCLK_FIXED_CTL_EN);
     }
 }
 

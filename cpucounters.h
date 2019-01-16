@@ -205,6 +205,32 @@ public:
     }
 };
 
+class CounterWidthExtenderRegister : public HWRegister
+{
+    std::shared_ptr<CounterWidthExtender> handle;
+public:
+    CounterWidthExtenderRegister(const std::shared_ptr<CounterWidthExtender> & handle_) :
+        handle(handle_)
+    {
+    }
+    void operator = (uint64 val) override
+    {
+        if (val == 0)
+        {
+            handle->reset();
+        }
+        else
+        {
+            std::cerr << "ERROR: writing non-zero values to CounterWidthExtenderRegister is not supported" << std::endl;
+            throw std::exception();
+        }
+    }
+    operator uint64 () override
+    {
+        return handle->read();;
+    }
+};
+
 class UncorePMU
 {
     typedef std::shared_ptr<HWRegister> HWRegisterPtr;
@@ -485,7 +511,7 @@ class PCM_API PCM
     double joulesPerEnergyUnit;
     std::vector<std::shared_ptr<CounterWidthExtender> > energy_status;
     std::vector<std::shared_ptr<CounterWidthExtender> > dram_energy_status;
-    std::vector<std::vector<std::vector<std::shared_ptr<CounterWidthExtender> > > > CBoCounters;
+    std::vector<std::vector<UncorePMU> > cboPMUs;
 
     std::vector<std::shared_ptr<CounterWidthExtender> > memory_bw_local;
     std::vector<std::shared_ptr<CounterWidthExtender> > memory_bw_total;
@@ -775,7 +801,8 @@ private:
     uint64 CX_MSR_PMON_CTLY(uint32 Cbo, uint32 Ctl) const;
     uint64 CX_MSR_PMON_BOX_CTL(uint32 Cbo) const;
     uint32 getMaxNumOfCBoxes() const;
-    void programCboOpcodeFilter(const uint32 opc0, const uint32 cbo, std::shared_ptr<SafeMsrHandle> msr, const uint32 nc_ = 0, const uint32 opc1 = 0);
+    void programCbo(const uint64 * events, const uint32 opCode, const uint32 nc_ = 0, const uint32 tid_ = 0);
+    void programCboOpcodeFilter(const uint32 opc0, UncorePMU & pmu, const uint32 nc_ = 0, const uint32 opc1 = 0);
     void programLLCReadMissLatencyEvents();
     uint64 getCBOCounterState(const uint32 socket, const uint32 ctr_);
 
