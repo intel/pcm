@@ -319,6 +319,15 @@ void discover_pci_tree(const vector<uint32_t> & busno, uint8_t socket_id, vector
     }
 }
 
+std::string dos2unix(std::string in)
+{
+    if (in.length() > 0 && int(in[in.length() - 1]) == 13)
+    {
+        in.erase(in.length() - 1);
+    }
+    return in;
+}
+
 vector<struct counter> load_events(const char* fn)
 {
     vector<struct counter> v;
@@ -353,7 +362,7 @@ vector<struct counter> load_events(const char* fn)
             //cout << "Key:" << key << " Value:" << value << " opcodeFieldMap[key]:" << opcodeFieldMap[key] << endl;
             switch(opcodeFieldMap[key]) {
                 case PCM::H_EVENT_NAME:
-                    h_name = value;
+                    h_name = dos2unix(value);
                     ctr.h_event_name = h_name;
                     if (nameMap.find(h_name) == nameMap.end()) {
                         /* It's a new horizontal event name */
@@ -365,7 +374,7 @@ vector<struct counter> load_events(const char* fn)
                     break;
                 case PCM::V_EVENT_NAME:
                     {
-                        v_name = value;
+                        v_name = dos2unix(value);
                         ctr.v_event_name = v_name;
                         //XXX: If h_name comes after v_name, we'll have a problem.
                         //XXX: It's very weird, I forgot to assign nameMap[h_name] = nameMap_value earlier (:298), but this part still works?
