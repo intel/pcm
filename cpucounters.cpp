@@ -1460,18 +1460,27 @@ void PCM::initUncoreObjects()
     IIO_units.push_back((int32)IIO_PCIe2);
     IIO_units.push_back((int32)IIO_MCP0);
     IIO_units.push_back((int32)IIO_MCP1);
-    if (cpu_model == SKX)
+    if (IIOEventsAvailable())
     {
-        for (std::vector<int32>::const_iterator iunit = IIO_units.begin(); iunit != IIO_units.end(); ++iunit)
+        iioPMUs.resize(num_sockets);
+        for (uint32 s = 0; s < (uint32)num_sockets; ++s)
         {
-            const int32 unit = *iunit;
-            IIO_UNIT_STATUS_ADDR[unit]  = SKX_IIO_CBDMA_UNIT_STATUS + SKX_IIO_PM_REG_STEP*unit;
-            IIO_UNIT_CTL_ADDR[unit]     = SKX_IIO_CBDMA_UNIT_CTL + SKX_IIO_PM_REG_STEP*unit;
-            for(int32 c = 0; c < 4; ++c)
-                IIO_CTR_ADDR[unit].push_back(SKX_IIO_CBDMA_CTR0 + SKX_IIO_PM_REG_STEP*unit + c);
-            IIO_CLK_ADDR[unit]          = SKX_IIO_CBDMA_CLK + SKX_IIO_PM_REG_STEP*unit;
-            for (int32 c = 0; c < 4; ++c)
-                IIO_CTL_ADDR[unit].push_back(SKX_IIO_CBDMA_CTL0 + SKX_IIO_PM_REG_STEP*unit + c);
+            auto & handle = MSR[socketRefCore[s]];
+            for (std::vector<int32>::const_iterator iunit = IIO_units.begin(); iunit != IIO_units.end(); ++iunit)
+            {
+                const int32 unit = *iunit;
+                iioPMUs[s][unit] = UncorePMU(
+                    std::make_shared<MSRRegister>(handle, SKX_IIO_CBDMA_UNIT_CTL + SKX_IIO_PM_REG_STEP * unit),
+                    std::make_shared<MSRRegister>(handle, SKX_IIO_CBDMA_CTL0 + SKX_IIO_PM_REG_STEP * unit + 0),
+                    std::make_shared<MSRRegister>(handle, SKX_IIO_CBDMA_CTL0 + SKX_IIO_PM_REG_STEP * unit + 1),
+                    std::make_shared<MSRRegister>(handle, SKX_IIO_CBDMA_CTL0 + SKX_IIO_PM_REG_STEP * unit + 2),
+                    std::make_shared<MSRRegister>(handle, SKX_IIO_CBDMA_CTL0 + SKX_IIO_PM_REG_STEP * unit + 3),
+                    std::make_shared<MSRRegister>(handle, SKX_IIO_CBDMA_CTR0 + SKX_IIO_PM_REG_STEP * unit + 0),
+                    std::make_shared<MSRRegister>(handle, SKX_IIO_CBDMA_CTR0 + SKX_IIO_PM_REG_STEP * unit + 1),
+                    std::make_shared<MSRRegister>(handle, SKX_IIO_CBDMA_CTR0 + SKX_IIO_PM_REG_STEP * unit + 2),
+                    std::make_shared<MSRRegister>(handle, SKX_IIO_CBDMA_CTR0 + SKX_IIO_PM_REG_STEP * unit + 3)
+                );
+            }
         }
     }
     if (hasPCICFGUncore() && MSR.size())
@@ -3519,9 +3528,13 @@ void PCM::freezeServerUncoreCounters()
         server_pcicfg_uncore[i]->freezeCounters();
         *pcuPMUs[i].unitControl = UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ;
 
-        if(IIOEventsAvailable())
-            for (int unit = 0; unit< IIO_STACK_COUNT; ++unit)
-                MSR[socketRefCore[i]]->write(IIO_UNIT_CTL_ADDR[unit], UNC_PMON_UNIT_CTL_RSV + UNC_PMON_UNIT_CTL_FRZ);
+        if (IIOEventsAvailable())
+        {
+            for (auto & pmu : iioPMUs[i])
+            {
+                *pmu.second.unitControl = UNC_PMON_UNIT_CTL_RSV + UNC_PMON_UNIT_CTL_FRZ;
+            }
+        }
     }
 }
 void PCM::unfreezeServerUncoreCounters()
@@ -3532,8 +3545,12 @@ void PCM::unfreezeServerUncoreCounters()
         *pcuPMUs[i].unitControl = UNC_PMON_UNIT_CTL_FRZ_EN;
 
         if (IIOEventsAvailable())
-            for (int unit = 0; unit< IIO_STACK_COUNT; ++unit)
-                MSR[socketRefCore[i]]->write(IIO_UNIT_CTL_ADDR[unit], UNC_PMON_UNIT_CTL_RSV);
+        {
+            for (auto & pmu : iioPMUs[i])
+            {
+                *pmu.second.unitControl = UNC_PMON_UNIT_CTL_RSV;
+            }
+        }
     }
 }
 void UncoreCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
@@ -5568,6 +5585,10 @@ void PCM::programCboOpcodeFilter(const uint32 opc0, UncorePMU & pmu, const uint3
 
 void PCM::programIIOCounters(IIOPMUCNTCTLRegister rawEvents[4], int IIOStack)
 {
+    if (IIOEventsAvailable() == false)
+    {
+        return;
+    }
     std::vector<int32> IIO_units;
     if (IIOStack == -1)
     {
@@ -5586,24 +5607,23 @@ void PCM::programIIOCounters(IIOPMUCNTCTLRegister rawEvents[4], int IIOStack)
         uint32 refCore = socketRefCore[i];
         TemporalThreadAffinity tempThreadAffinity(refCore); // speedup trick for Linux
 
-        for (std::vector<int32>::const_iterator iunit = IIO_units.begin(); iunit != IIO_units.end(); ++iunit)
+        for (auto & pmu: iioPMUs[i])
         {
-            const int32 unit = *iunit;
-            MSR[refCore]->write(IIO_UNIT_CTL_ADDR[unit], UNC_PMON_UNIT_CTL_RSV);
+            *pmu.second.unitControl = UNC_PMON_UNIT_CTL_RSV;
             // freeze
-            MSR[refCore]->write(IIO_UNIT_CTL_ADDR[unit], UNC_PMON_UNIT_CTL_RSV + UNC_PMON_UNIT_CTL_FRZ);
+            *pmu.second.unitControl = UNC_PMON_UNIT_CTL_RSV + UNC_PMON_UNIT_CTL_FRZ;
 
             for (int c = 0; c < 4; ++c)
             {
-                MSR[refCore]->write(IIO_CTL_ADDR[unit][c], IIO_MSR_PMON_CTL_EN);
-                MSR[refCore]->write(IIO_CTL_ADDR[unit][c], IIO_MSR_PMON_CTL_EN | rawEvents[c].value);
+                *pmu.second.counterControl[c] = IIO_MSR_PMON_CTL_EN;
+                *pmu.second.counterControl[c] = IIO_MSR_PMON_CTL_EN | rawEvents[c].value;
             }
 
             // reset counter values
-            MSR[refCore]->write(IIO_UNIT_CTL_ADDR[unit], UNC_PMON_UNIT_CTL_RSV + UNC_PMON_UNIT_CTL_FRZ + UNC_PMON_UNIT_CTL_RST_COUNTERS);
+            *pmu.second.unitControl = UNC_PMON_UNIT_CTL_RSV + UNC_PMON_UNIT_CTL_FRZ + UNC_PMON_UNIT_CTL_RST_COUNTERS;
 
             // unfreeze counters
-            MSR[refCore]->write(IIO_UNIT_CTL_ADDR[unit], UNC_PMON_UNIT_CTL_RSV);
+            *pmu.second.unitControl = UNC_PMON_UNIT_CTL_RSV;
 
         }
     }
@@ -5784,10 +5804,11 @@ CounterWidthExtender::~CounterWidthExtender()
 IIOCounterState PCM::getIIOCounterState(int socket, int IIOStack, int counter)
 {
     IIOCounterState result;
-    uint32 refCore = socketRefCore[socket];
-
-    MSR[refCore]->read(IIO_CTR_ADDR[IIOStack][counter], &result.data);
-
+    result.data = 0;
+    if (socket < (int)iioPMUs.size() && iioPMUs[socket].count(IIOStack) > 0)
+    {
+        result.data = *iioPMUs[socket][IIOStack].counterValue[counter];
+    }
     return result;
 }
 
@@ -5797,7 +5818,7 @@ void PCM::getIIOCounterStates(int socket, int IIOStack, IIOCounterState * result
     TemporalThreadAffinity tempThreadAffinity(refCore); // speedup trick for Linux
 
     for (int c = 0; c < 4; ++c) {
-        MSR[refCore]->read(IIO_CTR_ADDR[IIOStack][c], &(result[c].data));
+        result[c] = getIIOCounterState(socket, IIOStack, c);
     }
 }
 

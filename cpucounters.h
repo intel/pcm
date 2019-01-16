@@ -503,11 +503,7 @@ class PCM_API PCM
     std::vector<std::shared_ptr<SafeMsrHandle> > MSR;
     std::vector<std::shared_ptr<ServerPCICFGUncore> > server_pcicfg_uncore;
     std::vector<UncorePMU> pcuPMUs;
-    std::map<int32, uint32>    IIO_UNIT_STATUS_ADDR;
-    std::map<int32, uint32>    IIO_UNIT_CTL_ADDR;
-    std::map<int32, std::vector<uint32> > IIO_CTR_ADDR;
-    std::map<int32, uint32>    IIO_CLK_ADDR;
-    std::map<int32, std::vector<uint32> > IIO_CTL_ADDR;
+    std::vector<std::map<int32, UncorePMU> > iioPMUs;
     double joulesPerEnergyUnit;
     std::vector<std::shared_ptr<CounterWidthExtender> > energy_status;
     std::vector<std::shared_ptr<CounterWidthExtender> > dram_energy_status;
