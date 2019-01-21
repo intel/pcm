@@ -1263,6 +1263,11 @@ public:
     //! \return max number of instructions per cycle
     uint32 getMaxIPC() const
     {
+        switch (original_cpu_model)
+        {
+        case ATOM_DENVERTON:
+            return 3;
+        }
         switch (cpu_model)
         {
         case NEHALEM_EP:
