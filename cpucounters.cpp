@@ -4303,7 +4303,7 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
    , UPIbus(-1)
    , M2Mbus(-1)
    , groupnr(0)
-   , cpu_model(pcm->getCPUModel())
+   , cpu_model(pcm->getOriginalCPUModel())
    , qpi_speed(0)
 {
     std::vector<std::vector< std::pair<uint32, uint32> > > MCRegisterLocation; // MCRegisterLocation[controller]: (device, function)
@@ -4706,7 +4706,6 @@ ServerPCICFGUncore::~ServerPCICFGUncore()
 void ServerPCICFGUncore::programServerUncoreMemoryMetrics(int rankA, int rankB, bool PMM)
 {
     PCM * pcm = PCM::getInstance();
-    const uint32 cpu_model = pcm->getCPUModel();
     uint32 MCCntConfig[4] = {0,0,0,0};
     uint32 EDCCntConfig[4] = {0,0,0,0};
     if(rankA < 0 && rankB < 0)
@@ -4781,7 +4780,6 @@ void ServerPCICFGUncore::programServerUncoreMemoryMetrics(int rankA, int rankB, 
 void ServerPCICFGUncore::program()
 {
     PCM * pcm = PCM::getInstance();
-    const uint32 cpu_model = pcm->getCPUModel();
     uint32 MCCntConfig[4] = {0, 0, 0, 0};
     uint32 EDCCntConfig[4] = {0, 0, 0, 0};
     switch(cpu_model)
@@ -5066,7 +5064,7 @@ void ServerPCICFGUncore::program_power_metrics(int mc_profile)
 
 void ServerPCICFGUncore::programIMC(const uint32 * MCCntConfig)
 {
-    const uint32 extraIMC = (PCM::getInstance()->getCPUModel() == PCM::SKX)?UNC_PMON_UNIT_CTL_RSV:UNC_PMON_UNIT_CTL_FRZ_EN;
+    const uint32 extraIMC = (cpu_model == PCM::SKX)?UNC_PMON_UNIT_CTL_RSV:UNC_PMON_UNIT_CTL_FRZ_EN;
 
     for (uint32 i = 0; i < (uint32)imcPMUs.size(); ++i)
     {
@@ -5149,7 +5147,6 @@ void ServerPCICFGUncore::programM2M()
 {
 #if 0
     PCM * pcm = PCM::getInstance();
-    const uint32 cpu_model = pcm->getCPUModel();
     if (cpu_model == PCM::SKX)
 #endif
     {
@@ -5184,7 +5181,6 @@ void ServerPCICFGUncore::programM2M()
 
 void ServerPCICFGUncore::freezeCounters()
 {
-    const uint32 cpu_model = PCM::getInstance()->getCPUModel();
     writeAllUnitControl(UNC_PMON_UNIT_CTL_FRZ + ((cpu_model == PCM::SKX) ? UNC_PMON_UNIT_CTL_RSV : UNC_PMON_UNIT_CTL_FRZ_EN));
 }
 
@@ -5210,7 +5206,7 @@ void ServerPCICFGUncore::writeAllUnitControl(const uint32 value)
 
 void ServerPCICFGUncore::unfreezeCounters()
 {
-    writeAllUnitControl((PCM::getInstance()->getCPUModel() == PCM::SKX) ? UNC_PMON_UNIT_CTL_RSV : UNC_PMON_UNIT_CTL_FRZ_EN);
+    writeAllUnitControl((cpu_model == PCM::SKX) ? UNC_PMON_UNIT_CTL_RSV : UNC_PMON_UNIT_CTL_FRZ_EN);
 }
 
 uint64 ServerPCICFGUncore::getQPIClocks(uint32 port)
