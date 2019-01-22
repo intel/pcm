@@ -3506,6 +3506,11 @@ PCM::ErrorCode PCM::programServerUncorePowerMetrics(int mc_profile, int pcu_prof
     {
       server_pcicfg_uncore[i]->program_power_metrics(mc_profile);
 
+      if (i >= (int)pcuPMUs.size())
+      {
+          continue;
+      }
+
       uint32 refCore = socketRefCore[i];
       TemporalThreadAffinity tempThreadAffinity(refCore); // speedup trick for Linux
 
@@ -4090,7 +4095,7 @@ ServerUncorePowerState PCM::getServerUncorePowerState(uint32 socket)
     {
         uint32 refCore = socketRefCore[socket];
         TemporalThreadAffinity tempThreadAffinity(refCore);
-        for (int i = 0; i < 4; ++i)
+        for (int i = 0; i < 4 && socket < pcuPMUs.size(); ++i)
             result.PCUCounter[i] = *pcuPMUs[socket].counterValue[i];
         // std::cout<< "values read: " << result.PCUCounter[0]<<" "<<result.PCUCounter[1] << " " << result.PCUCounter[2] << " " << result.PCUCounter[3] << std::endl;
         uint64 val=0;
