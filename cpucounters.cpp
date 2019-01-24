@@ -1852,6 +1852,12 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
 
 #ifdef PCM_USE_PERF
     std::cerr << "Trying to use Linux perf events..." << std::endl;
+    const char * no_perf_env = std::getenv("PCM_NO_PERF");
+    if (no_perf_env != NULL && std::string(no_perf_env) == std::string("1"))
+    {
+        canUsePerf = false;
+        std::cout << "Usage of Linux perf events is disabled through PCM_NO_PERF environment variable. Using direct PMU programming..." << std::endl;
+    }
     if(num_online_cores < num_cores)
     {
         canUsePerf = false;
