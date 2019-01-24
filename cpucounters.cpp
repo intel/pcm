@@ -5664,24 +5664,24 @@ void PCM::programIIOCounters(IIOPMUCNTCTLRegister rawEvents[4], int IIOStack)
         uint32 refCore = socketRefCore[i];
         TemporalThreadAffinity tempThreadAffinity(refCore); // speedup trick for Linux
 
-        for (auto & pmu: iioPMUs[i])
+        for (const auto & unit: IIO_units)
         {
-            *pmu.second.unitControl = UNC_PMON_UNIT_CTL_RSV;
+            auto & pmu = iioPMUs[i][unit];
+            *pmu.unitControl = UNC_PMON_UNIT_CTL_RSV;
             // freeze
-            *pmu.second.unitControl = UNC_PMON_UNIT_CTL_RSV + UNC_PMON_UNIT_CTL_FRZ;
+            *pmu.unitControl = UNC_PMON_UNIT_CTL_RSV + UNC_PMON_UNIT_CTL_FRZ;
 
             for (int c = 0; c < 4; ++c)
             {
-                *pmu.second.counterControl[c] = IIO_MSR_PMON_CTL_EN;
-                *pmu.second.counterControl[c] = IIO_MSR_PMON_CTL_EN | rawEvents[c].value;
+                *pmu.counterControl[c] = IIO_MSR_PMON_CTL_EN;
+                *pmu.counterControl[c] = IIO_MSR_PMON_CTL_EN | rawEvents[c].value;
             }
 
             // reset counter values
-            *pmu.second.unitControl = UNC_PMON_UNIT_CTL_RSV + UNC_PMON_UNIT_CTL_FRZ + UNC_PMON_UNIT_CTL_RST_COUNTERS;
+            *pmu.unitControl = UNC_PMON_UNIT_CTL_RSV + UNC_PMON_UNIT_CTL_FRZ + UNC_PMON_UNIT_CTL_RST_COUNTERS;
 
             // unfreeze counters
-            *pmu.second.unitControl = UNC_PMON_UNIT_CTL_RSV;
-
+            *pmu.unitControl = UNC_PMON_UNIT_CTL_RSV;
         }
     }
 }
