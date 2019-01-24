@@ -2758,7 +2758,7 @@ bool PCM::PMUinUse()
             {
                 if (value & (1ULL << j))
                 {
-                    std::cerr << "WARNING: Custom counter " << j << " is in use. MSR_PERF_GLOBAL_INUSE on core " << i << ": " << value << std::endl;
+                    std::cerr << "WARNING: Custom counter " << j << " is in use. MSR_PERF_GLOBAL_INUSE on core " << i << ": 0x" << std::hex << value << std::dec << std::endl;
                     /*
                     Testing MSR_PERF_GLOBAL_INUSE mechanism for a moment. At a later point in time will report BUSY.
                     return true;
