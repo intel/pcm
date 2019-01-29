@@ -291,6 +291,9 @@ class ServerPCICFGUncore
     std::vector<uint64> qpi_speed;
     std::vector<uint32> num_imc_channels; // number of memory channels in each memory controller
     std::vector<std::pair<uint32, uint32> > XPIRegisterLocation; // (device, function)
+    std::vector<std::vector< std::pair<uint32, uint32> > > MCRegisterLocation; // MCRegisterLocation[controller]: (device, function)
+    std::vector<std::pair<uint32, uint32> > EDCRegisterLocation; // EDCRegisterLocation: (device, function)
+    std::vector<std::pair<uint32, uint32> > M2MRegisterLocation; // M2MRegisterLocation: (device, function)
 
     static PCM_Util::Mutex socket2busMutex;
     static std::vector<std::pair<uint32, uint32> > socket2iMCbus;
@@ -313,6 +316,10 @@ class ServerPCICFGUncore
     void cleanupQPIHandles();
     void cleanupPMUs();
     void writeAllUnitControl(const uint32 value);
+    void initDirect(uint32 socket_, const PCM * pcm);
+    void initPerf(uint32 socket_, const PCM * pcm);
+    void initBuses(uint32 socket_, const PCM * pcm);
+    void initRegisterLocations();
 
 public:
     //! \brief Initialize access data structures
@@ -453,6 +460,8 @@ public:
 typedef SimpleCounterState PCIeCounterState;
 typedef SimpleCounterState IIOCounterState;
 
+class PerfVirtualControlRegister;
+
 #ifndef HACK_TO_REMOVE_DUPLICATE_ERROR
 template class PCM_API std::allocator<TopologyEntry>;
 template class PCM_API std::vector<TopologyEntry>;
@@ -472,6 +481,7 @@ class PCM_API PCM
 {
     friend class BasicCounterState;
     friend class UncoreCounterState;
+    friend class PerfVirtualControlRegister;
     PCM();     // forbidden to call directly because it is a singleton
 
     int32 cpu_family;
@@ -514,6 +524,7 @@ class PCM_API PCM
     std::vector<std::shared_ptr<ServerPCICFGUncore> > server_pcicfg_uncore;
     std::vector<UncorePMU> pcuPMUs;
     std::vector<std::map<int32, UncorePMU> > iioPMUs;
+    std::vector<UncorePMU> uboxPMUs;
     double joulesPerEnergyUnit;
     std::vector<std::shared_ptr<CounterWidthExtender> > energy_status;
     std::vector<std::shared_ptr<CounterWidthExtender> > dram_energy_status;
@@ -819,7 +830,16 @@ private:
 		return (PCM::SKX == cpu_model) && (cpu_stepping > 4);
 	}
 
+    void initUncorePMUsDirect();
+    void initUncorePMUsPerf();
+
 public:
+    //! check if in secure boot mode
+    bool isSecureBoot() const;
+
+    //! true if Linux perf for uncore PMU programming should AND can be used internally
+    bool useLinuxPerfForUncore() const;
+
     /*!
              \brief checks if QOS monitoring support present
 

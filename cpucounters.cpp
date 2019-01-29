@@ -512,6 +512,7 @@ bool PCM::detectModel()
 
 bool PCM::QOSMetricAvailable() const
 {
+    if (isSecureBoot()) return false; // TODO: use perf rdt driver
     PCM_CPUID_INFO cpuinfo;
     pcm_cpuid(0x7,0,cpuinfo);
     return (cpuinfo.reg.ebx & (1<<12))?true:false;
@@ -519,6 +520,7 @@ bool PCM::QOSMetricAvailable() const
 
 bool PCM::L3QOSMetricAvailable() const
 {
+    if (isSecureBoot()) return false; // TODO:: use perf rdt driver
     PCM_CPUID_INFO cpuinfo;
     pcm_cpuid(0xf,0,cpuinfo);
     return (cpuinfo.reg.edx & (1<<1))?true:false;
@@ -729,18 +731,18 @@ void PCM::initCStateSupportTables()
 
 
 #ifdef __linux__
-std::string readSysFS(const char * path)
+std::string readSysFS(const char * path, bool silent = false)
 {
     FILE * f = fopen(path, "r");
     if (!f)
     {
-        std::cerr << "Can not open "<< path <<" file." << std::endl;
+        if (silent == false) std::cerr << "Can not open "<< path <<" file." << std::endl;
         return std::string();
     }
     char buffer[1024];
     if(NULL == fgets(buffer, 1024, f))
     {
-        std::cerr << "Can not read "<< path << "." << std::endl;
+        if (silent == false) std::cerr << "Can not read "<< path << "." << std::endl;
         return std::string();
     }
     fclose(f);
@@ -1404,9 +1406,37 @@ void PCM::initUncoreObjects()
            #endif
        }
     }
+
+    if (useLinuxPerfForUncore())
+    {
+        initUncorePMUsPerf();
+    }
+    else
+    {
+        initUncorePMUsDirect();
+    }
+}
+
+void PCM::initUncorePMUsDirect()
+{
     for (uint32 s = 0; s < (uint32)num_sockets; ++s)
     {
         auto & handle = MSR[socketRefCore[s]];
+        uboxPMUs.push_back(
+            UncorePMU(
+                std::shared_ptr<MSRRegister>(),
+                std::make_shared<MSRRegister>(handle, UBOX_MSR_PMON_CTL0_ADDR),
+                std::make_shared<MSRRegister>(handle, UBOX_MSR_PMON_CTL1_ADDR),
+                std::shared_ptr<MSRRegister>(),
+                std::shared_ptr<MSRRegister>(),
+                std::make_shared<MSRRegister>(handle, UBOX_MSR_PMON_CTR0_ADDR),
+                std::make_shared<MSRRegister>(handle, UBOX_MSR_PMON_CTR1_ADDR),
+                std::shared_ptr<MSRRegister>(),
+                std::shared_ptr<MSRRegister>(),
+                std::make_shared<MSRRegister>(handle, UCLK_FIXED_CTL_ADDR),
+                std::make_shared<MSRRegister>(handle, UCLK_FIXED_CTR_ADDR)
+            )
+        );
         switch (cpu_model)
         {
         case IVYTOWN:
@@ -1514,6 +1544,32 @@ void PCM::initUncoreObjects()
             }
         }
     }
+}
+
+#ifdef PCM_USE_PERF
+std::vector<int> enumeratePerfPMUs(const std::string & type, int max_id);
+void populatePerfPMUs(unsigned socket_, const std::vector<int> & ids, std::vector<UncorePMU> & pmus, bool fixed);
+#endif
+
+void PCM::initUncorePMUsPerf()
+{
+#ifdef PCM_USE_PERF
+    iioPMUs.resize(num_sockets);
+    cboPMUs.resize(num_sockets);
+    for (uint32 s = 0; s < (uint32)num_sockets; ++s)
+    {
+        populatePerfPMUs(s, enumeratePerfPMUs("pcu", 100), pcuPMUs, false);
+        populatePerfPMUs(s, enumeratePerfPMUs("ubox", 100), uboxPMUs, true);
+        populatePerfPMUs(s, enumeratePerfPMUs("cbox", 100), cboPMUs[s], false);
+        populatePerfPMUs(s, enumeratePerfPMUs("cha", 200), cboPMUs[s], false);
+        std::vector<UncorePMU> iioPMUVector;
+        populatePerfPMUs(s, enumeratePerfPMUs("iio", 100), iioPMUVector, false);
+        for (size_t i = 0; i < iioPMUVector.size(); ++i)
+        {
+            iioPMUs[s][i] = iioPMUVector[i];
+        }
+    }
+#endif
 }
 
 #ifdef __linux__
@@ -1805,7 +1861,7 @@ bool PCM::good()
 }
 
 #ifdef PCM_USE_PERF
-perf_event_attr PCM_init_perf_event_attr()
+perf_event_attr PCM_init_perf_event_attr(bool group = true)
 {
     perf_event_attr e;
     bzero(&e,sizeof(perf_event_attr));
@@ -1814,7 +1870,7 @@ perf_event_attr PCM_init_perf_event_attr()
     e.config = -1; // must be set up later
     e.sample_period = 0;
     e.sample_type = 0;
-    e.read_format = PERF_FORMAT_GROUP; /* PERF_FORMAT_TOTAL_TIME_ENABLED | PERF_FORMAT_TOTAL_TIME_RUNNING |
+    e.read_format = group ? PERF_FORMAT_GROUP : 0; /* PERF_FORMAT_TOTAL_TIME_ENABLED | PERF_FORMAT_TOTAL_TIME_RUNNING |
                           PERF_FORMAT_ID | PERF_FORMAT_GROUP ; */
     e.disabled = 0;
     e.inherit = 0;
@@ -4308,6 +4364,60 @@ PciHandleType * ServerPCICFGUncore::createIntelPerfMonDevice(uint32 groupnr_, in
     return NULL;
 }
 
+bool PCM::isSecureBoot() const
+{
+    static int flag = -1;
+    if (MSR.size() > 0 && flag == -1)
+    {
+        // std::cerr << "DEBUG: checking MSR in isSecureBoot" << std::endl;
+        uint64 val = 0;
+        if (MSR[0]->read(IA32_PERFEVTSEL0_ADDR, &val) != sizeof(val))
+        {
+            flag = 0; // some problem with MSR read, not secure boot
+        }
+        // read works
+        if (MSR[0]->write(IA32_PERFEVTSEL0_ADDR, val) != sizeof(val)/* && errno == 1 */) // errno works only on windows
+        { // write does not work -> secure boot
+            flag = 1;
+        }
+        else
+        {
+            flag = 0; // can write MSR -> no secure boot
+        }
+    }
+    return flag == 1;
+}
+
+bool PCM::useLinuxPerfForUncore() const
+{
+    static bool printed = false;
+    bool secureBoot = isSecureBoot();
+#ifdef PCM_USE_PERF
+    const char * perf_env = std::getenv("PCM_USE_UNCORE_PERF");
+    if (perf_env != NULL && std::string(perf_env) == std::string("1"))
+    {
+        if (!printed) std::cout << "INFO: using Linux perf interface to program uncore PMUs because env variable PCM_USE_UNCORE_PERF=1" << std::endl;
+        printed = true;
+        return true;
+    }
+    if (secureBoot)
+    {
+        if (!printed) std::cout << "Secure Boot detected. Using Linux perf for uncore PMU programming." << std::endl;
+        printed = true;
+        return true;
+    }
+    else
+#endif
+    {
+        if (secureBoot)
+        {
+            if (!printed) std::cerr << "ERROR: Secure Boot detected. Recompile PCM with -DPCM_USE_PERF or disable Secure Boot." << std::endl;
+            printed = true;
+        }
+    }
+    return false;
+}
+
 ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
      iMCbus(-1)
    , UPIbus(-1)
@@ -4316,8 +4426,26 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
    , cpu_model(pcm->getOriginalCPUModel())
    , qpi_speed(0)
 {
-    std::vector<std::vector< std::pair<uint32, uint32> > > MCRegisterLocation; // MCRegisterLocation[controller]: (device, function)
+    initRegisterLocations();
+    initBuses(socket_, pcm);
 
+    if (pcm->useLinuxPerfForUncore())
+    {
+        initPerf(socket_, pcm);
+    }
+    else
+    {
+        initDirect(socket_, pcm);
+    }
+
+    std::cerr << "Socket " << socket_ << ": " <<
+        getNumMC() << " memory controllers detected with total number of " << getNumMCChannels() << " channels. " <<
+        getNumQPIPorts() << " QPI ports detected." <<
+        " " << m2mPMUs.size() << " M2M (mesh to memory) blocks detected." << std::endl;
+}
+
+void ServerPCICFGUncore::initRegisterLocations()
+{
 #define PCM_PCICFG_MC_INIT(controller, channel, arch) \
     MCRegisterLocation.resize(controller + 1); \
     MCRegisterLocation[controller].resize(channel + 1); \
@@ -4328,13 +4456,9 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
     XPIRegisterLocation.resize(port + 1); \
     XPIRegisterLocation[port] = std::make_pair(arch##_QPI_PORT##port##_REGISTER_DEV_ADDR, arch##_QPI_PORT##port##_REGISTER_FUNC_ADDR);
 
-    std::vector<std::pair<uint32, uint32> > EDCRegisterLocation; // EDCRegisterLocation: (device, function)
-
 #define PCM_PCICFG_EDC_INIT(controller, clock, arch) \
     EDCRegisterLocation.resize(controller + 1); \
     EDCRegisterLocation[controller] = std::make_pair(arch##_EDC##controller##_##clock##_REGISTER_DEV_ADDR, arch##_EDC##controller##_##clock##_REGISTER_FUNC_ADDR);
-
-    std::vector<std::pair<uint32, uint32> > M2MRegisterLocation; // M2MRegisterLocation: (device, function)
 
 #define PCM_PCICFG_M2M_INIT(x, arch) \
     M2MRegisterLocation.resize(x + 1); \
@@ -4418,7 +4542,10 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
 #undef PCM_PCICFG_QPI_INIT
 #undef PCM_PCICFG_EDC_INIT
 #undef PCM_PCICFG_M2M_INIT
+}
 
+void ServerPCICFGUncore::initBuses(uint32 socket_, const PCM * pcm)
+{
     const uint32 total_sockets_ = pcm->getNumSockets();
 
     if (M2MRegisterLocation.size())
@@ -4462,6 +4589,46 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
         throw std::exception();
     }
 
+    if (total_sockets_ == 1) {
+        /*
+         * For single socket systems, do not worry at all about QPI ports.  This
+         *  eliminates QPI LL programming error messages on single socket systems
+         *  with BIOS that hides QPI performance counting PCI functions.  It also
+         *  eliminates register programming that is not needed since no QPI traffic
+         *  is possible with single socket systems.
+         */
+        return;
+    }
+
+#ifdef PCM_NOQPI
+    return;
+#endif
+
+    if(cpu_model == PCM::SKX)
+    {
+        initSocket2Bus(socket2UPIbus, XPIRegisterLocation[0].first, XPIRegisterLocation[0].second, UPI_DEV_IDS, (uint32)sizeof(UPI_DEV_IDS) / sizeof(UPI_DEV_IDS[0]));
+        if(total_sockets_ == socket2UPIbus.size())
+        {
+            UPIbus = socket2UPIbus[socket_].second;
+            if(groupnr != socket2UPIbus[socket_].first)
+            {
+                UPIbus = -1;
+                std::cerr << "PCM error: mismatching PCICFG group number for UPI and IMC perfmon devices." << std::endl;
+            }
+        }
+        else
+        {
+            std::cerr << "PCM error: Did not find UPI perfmon device on every socket in a multisocket system." << std::endl;
+        }
+    }
+    else
+    {
+        UPIbus = iMCbus;
+    }
+}
+
+void ServerPCICFGUncore::initDirect(uint32 socket_, const PCM * pcm)
+{
     {
         std::vector<std::shared_ptr<PciHandleType> > imcHandles;
 
@@ -4582,7 +4749,7 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
         }
     }
 
-    if (total_sockets_ == 1) {
+    if (pcm->getNumSockets() == 1) {
         /*
          * For single socket systems, do not worry at all about QPI ports.  This
          *  eliminates QPI LL programming error messages on single socket systems
@@ -4591,8 +4758,6 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
          *  is possible with single socket systems.
          */
         xpiPMUs.clear();
-        std::cerr << "On the socket detected " << getNumMC() << " memory controllers with total number of " << imcPMUs.size() << " channels. " <<
-                   m2mPMUs.size() << " M2M (mesh to memory) blocks detected."<< std::endl;
         return;
     }
 
@@ -4601,32 +4766,9 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
     std::cerr << getNumMC() <<" memory controllers detected with total number of "<< imcPMUs.size() <<" channels. " <<
                  m2mPMUs.size() << " M2M (mesh to memory) blocks detected."<< std::endl;
     return;
-#else
+#endif
 
     std::vector<std::shared_ptr<PciHandleType> > qpiLLHandles;
-
-    if(cpu_model == PCM::SKX)
-    {
-        initSocket2Bus(socket2UPIbus, XPIRegisterLocation[0].first, XPIRegisterLocation[0].second, UPI_DEV_IDS, (uint32)sizeof(UPI_DEV_IDS) / sizeof(UPI_DEV_IDS[0]));
-        if(total_sockets_ == socket2UPIbus.size())
-        {
-            UPIbus = socket2UPIbus[socket_].second;
-            if(groupnr != socket2UPIbus[socket_].first)
-            {
-                UPIbus = -1;
-                std::cerr << "PCM error: mismatching PCICFG group number for UPI and IMC perfmon devices." << std::endl;
-            }
-        }
-        else
-        {
-            std::cerr << "PCM error: Did not find UPI perfmon device on every socket in a multisocket system." << std::endl;
-        }
-    }
-    else
-    {
-        UPIbus = iMCbus;
-    }
-
     auto xPI = pcm->xPI();
     try
     {
@@ -4691,12 +4833,209 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
             );
         }
     }
+}
 
+
+#ifdef PCM_USE_PERF
+class PerfVirtualDummyUnitControlRegister : public HWRegister
+{
+    uint64 lastValue;
+public:
+    PerfVirtualDummyUnitControlRegister() : lastValue(0) {}
+    void operator = (uint64 val) override
+    {
+        lastValue = val;
+    }
+    operator uint64 () override
+    {
+        return lastValue;
+    }
+};
+
+class PerfVirtualFilterRegister : public HWRegister
+{
+    uint64 lastValue;
+    void printError()
+    {
+        static bool printed = false;
+        if (!printed) std::cerr << "ERROR: perf uncore interface does not support filter registers yet." << std::endl;
+        printed = true;
+    }
+public:
+    PerfVirtualFilterRegister() : lastValue(0) {}
+    void operator = (uint64 val) override
+    {
+        printError();
+        lastValue = val;
+    }
+    operator uint64 () override
+    {
+        printError();
+        return lastValue;
+    }
+};
+
+class PerfVirtualControlRegister : public HWRegister
+{
+    friend class PerfVirtualCounterRegister;
+    int fd;
+    int socket;
+    int pmuID;
+    perf_event_attr event;
+    bool fixed;
+    void close()
+    {
+        if (fd >= 0)
+        {
+            ::close(fd);
+            fd = -1;
+        }
+    }
+public:
+    PerfVirtualControlRegister(int socket_, int pmuID_, bool fixed_ = false) :
+        fd(-1),
+        socket(socket_),
+        pmuID(pmuID_),
+        fixed(fixed_)
+    {
+        event = PCM_init_perf_event_attr(false);
+        event.type = pmuID;
+    }
+    void operator = (uint64 val) override
+    {
+        close();
+        event.config = fixed ? 0xff : val;
+        const auto core = PCM::getInstance()->socketRefCore[socket];
+        if ((fd = syscall(SYS_perf_event_open, &event, -1, core, -1, 0)) <= 0)
+        {
+            std::cerr << "Linux Perf: Error on programming PMU " << pmuID << ":  " << strerror(errno) << std::endl;
+            std::cerr << "config: 0x" << std::hex << event.config << " config1: 0x" << event.config1 << " config2: 0x" << event.config2 << std::dec << std::endl;
+            if (errno == 24) std::cerr << "try executing 'ulimit -n 10000' to increase the limit on the number of open files." << std::endl;
+            return;
+        }
+    }
+    operator uint64 () override
+    {
+        return event.config;
+    }
+    ~PerfVirtualControlRegister()
+    {
+        close();
+    }
+    int getFD() const { return fd; }
+    int getPMUID() const { return pmuID; }
+};
+
+class PerfVirtualCounterRegister : public HWRegister
+{
+    std::shared_ptr<PerfVirtualControlRegister> controlReg;
+public:
+    PerfVirtualCounterRegister(const std::shared_ptr<PerfVirtualControlRegister> & controlReg_) : controlReg(controlReg_)
+    {
+    }
+    void operator = (uint64 /* val */) override
+    {
+        // no-op
+    }
+    operator uint64 () override
+    {
+        uint64 result = 0;
+        if (controlReg.get() && (controlReg->getFD() >= 0))
+        {
+            int status = ::read(controlReg->getFD(), &result, sizeof(result));
+            if (status != sizeof(result))
+            {
+                std::cerr << "PCM Error: failed to read from Linux perf handle " << controlReg->getFD() << " PMU " << controlReg->getPMUID() << std::endl;
+            }
+        }
+        return result;
+    }
+};
+
+std::vector<int> enumeratePerfPMUs(const std::string & type, int max_id)
+{
+    auto getPerfPMUID = [](const std::string & type, int num)
+    {
+        int id = -1;
+        std::ostringstream pmuIDPath(std::ostringstream::out);
+        pmuIDPath << std::string("/sys/bus/event_source/devices/uncore_") << type;
+        if (num != -1)
+        {
+            pmuIDPath << "_" << num;
+        }
+        pmuIDPath << "/type";
+        const std::string pmuIDStr = readSysFS(pmuIDPath.str().c_str(), true);
+        if (pmuIDStr.size())
+        {
+            id = std::atoi(pmuIDStr.c_str());
+        }
+        return id;
+    };
+    std::vector<int> ids;
+    for (int i = -1; i < max_id; ++i)
+    {
+        int pmuID = getPerfPMUID(type, i);
+        if (pmuID > 0)
+        {
+            // std::cout << "DEBUG: " << type << " pmu id "<< pmuID << " found" << std::endl;
+            ids.push_back(pmuID);
+        }
+    }
+    return ids;
+}
+
+void populatePerfPMUs(unsigned socket_, const std::vector<int> & ids, std::vector<UncorePMU> & pmus, bool fixed)
+{
+    for (const auto & id : ids)
+    {
+        std::shared_ptr<PerfVirtualControlRegister> controlReg0 = std::make_shared<PerfVirtualControlRegister>(socket_, id);
+        std::shared_ptr<PerfVirtualControlRegister> controlReg1 = std::make_shared<PerfVirtualControlRegister>(socket_, id);
+        std::shared_ptr<PerfVirtualControlRegister> controlReg2 = std::make_shared<PerfVirtualControlRegister>(socket_, id);
+        std::shared_ptr<PerfVirtualControlRegister> controlReg3 = std::make_shared<PerfVirtualControlRegister>(socket_, id);
+        std::shared_ptr<PerfVirtualCounterRegister> counterReg0 = std::make_shared<PerfVirtualCounterRegister>(controlReg0);
+        std::shared_ptr<PerfVirtualCounterRegister> counterReg1 = std::make_shared<PerfVirtualCounterRegister>(controlReg1);
+        std::shared_ptr<PerfVirtualCounterRegister> counterReg2 = std::make_shared<PerfVirtualCounterRegister>(controlReg2);
+        std::shared_ptr<PerfVirtualCounterRegister> counterReg3 = std::make_shared<PerfVirtualCounterRegister>(controlReg3);
+        std::shared_ptr<PerfVirtualControlRegister> fixedControlReg = std::make_shared<PerfVirtualControlRegister>(socket_, id, true);
+        std::shared_ptr<PerfVirtualCounterRegister> fixedCounterReg = std::make_shared<PerfVirtualCounterRegister>(fixedControlReg);
+        pmus.push_back(
+            UncorePMU(
+                std::make_shared<PerfVirtualDummyUnitControlRegister>(),
+                controlReg0,
+                controlReg1,
+                controlReg2,
+                controlReg3,
+                counterReg0,
+                counterReg1,
+                counterReg2,
+                counterReg3,
+                fixed ? fixedControlReg : std::shared_ptr<HWRegister>(),
+                fixed ? fixedCounterReg : std::shared_ptr<HWRegister>(),
+                std::make_shared<PerfVirtualFilterRegister>(),
+                std::make_shared<PerfVirtualFilterRegister>()
+            )
+        );
+    }
+}
 #endif
-    std::cerr << "Socket "<<socket_<<": "<<
-        getNumMC() <<" memory controllers detected with total number of "<< getNumMCChannels() <<" channels. "<<
-        getNumQPIPorts()<< " QPI ports detected."<<
-         " "<<m2mPMUs.size() << " M2M (mesh to memory) blocks detected."<< std::endl;
+
+void ServerPCICFGUncore::initPerf(uint32 socket_, const PCM * pcm)
+{
+#ifdef PCM_USE_PERF
+    auto imcIDs = enumeratePerfPMUs("imc", 100);
+    auto m2mIDs = enumeratePerfPMUs("m2m", 100);
+    auto haIDs = enumeratePerfPMUs("ha", 100);
+    auto numMemControllers = std::max(m2mIDs.size(), haIDs.size());
+    for (size_t i = 0; i < numMemControllers; ++i)
+    {
+        const int channelsPerController = imcIDs.size() / numMemControllers;
+        num_imc_channels.push_back(channelsPerController);
+    }
+    populatePerfPMUs(socket_, imcIDs, imcPMUs, true);
+    populatePerfPMUs(socket_, m2mIDs, m2mPMUs, false);
+    populatePerfPMUs(socket_, enumeratePerfPMUs("qpi", 100), xpiPMUs, false);
+    populatePerfPMUs(socket_, enumeratePerfPMUs("upi", 100), xpiPMUs, false);
+#endif
 }
 
 size_t ServerPCICFGUncore::getNumMCChannels(const uint32 controller) const
@@ -4848,7 +5187,7 @@ void ServerPCICFGUncore::programXPI(const uint32 * event)
 
         // freeze enable
         *xpiPMUs[i].unitControl = extra;
-        if (extra != *xpiPMUs[i].unitControl)
+        if ((extra & UNC_PMON_UNIT_CTL_VALID_BITS_MASK) != (*xpiPMUs[i].unitControl & UNC_PMON_UNIT_CTL_VALID_BITS_MASK))
         {
             std::cout << "Link " << (i + 1) << " is disabled" << std::endl;
             xpiPMUs[i].unitControl = NULL;
@@ -5448,7 +5787,7 @@ uint64 ServerPCICFGUncore::computeQPISpeed(const uint32 core_nr, const int cpumo
         auto getSpeed = [&] (size_t i) {
            if (i == 1) return 0ULL; // link 1 should have the same speed as link 0, skip it
            uint64 result = 0;
-           if(cpumodel != PCM::SKX)
+           if(cpumodel != PCM::SKX && i < XPIRegisterLocation.size())
            {
                PciHandleType reg(groupnr,UPIbus, XPIRegisterLocation[i].first, QPI_PORT0_MISC_REGISTER_FUNC_ADDR);
                uint32 value = 0;
@@ -5665,6 +6004,11 @@ void PCM::programIIOCounters(IIOPMUCNTCTLRegister rawEvents[4], int IIOStack)
 
         for (const auto & unit: IIO_units)
         {
+            if (iioPMUs[i].count(unit) == 0)
+            {
+                std::cerr << "IIO PMU unit (stack) " << unit << " is not found " << std::endl;
+                continue;
+            }
             auto & pmu = iioPMUs[i][unit];
             *pmu.unitControl = UNC_PMON_UNIT_CTL_RSV;
             // freeze
@@ -5792,9 +6136,10 @@ uint64 PCM::getCBOCounterState(const uint32 socket_, const uint32 ctr_)
 uint64 PCM::getUncoreClocks(const uint32 socket_)
 {
     uint64 result = 0;
-    const uint32 refCore = socketRefCore[socket_];
-    TemporalThreadAffinity tempThreadAffinity(refCore); // speedup trick for Linux
-    MSR[refCore]->read(UCLK_FIXED_CTR_ADDR, &result);
+    if (socket_ < uboxPMUs.size())
+    {
+        result = *uboxPMUs[socket_].fixedCounterValue;
+    }
     return result;
 }
 
@@ -5830,9 +6175,9 @@ void PCM::programLLCReadMissLatencyEvents()
     const uint32 opCode = (SKX == cpu_model) ? 0x202 : 0x182;
     programCbo(events, opCode);
 
-    for (int32 i = 0; (i < num_sockets) && MSR.size(); ++i)
+    for (auto & pmu : uboxPMUs)
     {
-        MSR[socketRefCore[i]]->write(UCLK_FIXED_CTL_ADDR, UCLK_FIXED_CTL_EN);
+        *pmu.fixedCounterControl = UCLK_FIXED_CTL_EN;
     }
 }
 
