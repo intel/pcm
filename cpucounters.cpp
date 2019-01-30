@@ -736,17 +736,36 @@ std::string readSysFS(const char * path, bool silent = false)
     FILE * f = fopen(path, "r");
     if (!f)
     {
-        if (silent == false) std::cerr << "Can not open "<< path <<" file." << std::endl;
+        if (silent == false) std::cerr << "ERROR: Can not open "<< path <<" file." << std::endl;
         return std::string();
     }
     char buffer[1024];
     if(NULL == fgets(buffer, 1024, f))
     {
-        if (silent == false) std::cerr << "Can not read "<< path << "." << std::endl;
+        if (silent == false) std::cerr << "ERROR: Can not read from "<< path << "." << std::endl;
+        fclose(f);
         return std::string();
     }
     fclose(f);
     return std::string(buffer);
+}
+
+bool writeSysFS(const char * path, const std::string & value, bool silent = false)
+{
+    FILE * f = fopen(path, "w");
+    if (!f)
+    {
+        if (silent == false) std::cerr << "ERROR: Can not open " << path << " file." << std::endl;
+        return false;
+    }
+    if (fputs(value.c_str(), f) < 0)
+    {
+        if (silent == false) std::cerr << "ERROR: Can not write to " << path << "." << std::endl;
+        fclose(f);
+        return false;
+    }
+    fclose(f);
+    return true;
 }
 
 int readMaxFromSysFS(const char * path)
@@ -1574,35 +1593,30 @@ void PCM::initUncorePMUsPerf()
 
 #ifdef __linux__
 
+#define PCM_NMI_WATCHDOG_PATH "/proc/sys/kernel/nmi_watchdog"
+
 bool isNMIWatchdogEnabled()
 {
-    FILE * f = fopen("/proc/sys/kernel/nmi_watchdog", "r");
-    if (!f)
+    const auto watchdog = readSysFS(PCM_NMI_WATCHDOG_PATH);
+    if (watchdog.length() == 0)
     {
         return false;
     }
 
-    char buffer[1024];
-    if(NULL == fgets(buffer, 1024, f))
-    {
-        std::cerr << "Can not read /proc/sys/kernel/nmi_watchdog ." << std::endl;
-        fclose(f);
-        return true;
-    }
-    int enabled = 1;
-    pcm_sscanf(buffer) >> enabled;
-    fclose(f);
-
-    if(enabled == 1)
-    {
-       std::cerr << "Error: NMI watchdog is enabled. This consumes one hw-PMU counter" << std::endl;
-       std::cerr << " to disable NMI watchdog please run under root: echo 0 > /proc/sys/kernel/nmi_watchdog"<< std::endl;
-       std::cerr << " or to disable it permanently: echo 'kernel.nmi_watchdog=0' >> /etc/sysctl.conf "<< std::endl;
-    }
-
-    return (enabled == 1);
+    return (std::atoi(watchdog.c_str()) == 1);
 }
 
+void disableNMIWatchdog()
+{
+    std::cout << "Disabling NMI watchdog since it consumes one hw-PMU counter." << std::endl;
+    writeSysFS(PCM_NMI_WATCHDOG_PATH, "0");
+}
+
+void enableNMIWatchdog()
+{
+    std::cout << " Re-enabling NMI watchdog." << std::endl;
+    writeSysFS(PCM_NMI_WATCHDOG_PATH, "1");
+}
 #endif
 
 class CoreTaskQueue
@@ -1692,7 +1706,8 @@ PCM::PCM() :
     canUsePerf(false),
     outfile(NULL),
     backup_ofile(NULL),
-    run_state(1)
+    run_state(1),
+    needToRestoreNMIWatchdog(false)
 {
 #ifdef _MSC_VER
     TCHAR driverPath[1040]; // length for current directory + "\\msr.sys"
@@ -1713,10 +1728,6 @@ PCM::PCM() :
 
     if(!checkModel()) return;
 
-#ifdef __linux__
-    if (isNMIWatchdogEnabled()) return;
-#endif
-
     initCStateSupportTables();
 
     if(!discoverSystemTopology()) return;
@@ -1728,6 +1739,14 @@ PCM::PCM() :
     if(!initMSR()) return;
 
     if(!detectNominalFrequency()) return;
+
+#ifdef __linux__
+    if (isNMIWatchdogEnabled())
+    {
+        disableNMIWatchdog();
+        needToRestoreNMIWatchdog = true;
+    }
+#endif
 
     initEnergyMonitoring();
 
@@ -3087,6 +3106,13 @@ void PCM::cleanup()
 
     cleanupUncorePMUs();
     freeRMID();
+#ifdef __linux__
+    if (needToRestoreNMIWatchdog)
+    {
+        enableNMIWatchdog();
+        needToRestoreNMIWatchdog = false;
+    }
+#endif
 }
 
 // hle is only available when cpuid has this:
