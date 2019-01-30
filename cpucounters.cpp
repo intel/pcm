@@ -1548,7 +1548,7 @@ void PCM::initUncorePMUsDirect()
 
 #ifdef PCM_USE_PERF
 std::vector<int> enumeratePerfPMUs(const std::string & type, int max_id);
-void populatePerfPMUs(unsigned socket_, const std::vector<int> & ids, std::vector<UncorePMU> & pmus, bool fixed);
+void populatePerfPMUs(unsigned socket_, const std::vector<int> & ids, std::vector<UncorePMU> & pmus, bool fixed, bool filter0 = false, bool filter1 = false);
 #endif
 
 void PCM::initUncorePMUsPerf()
@@ -1558,10 +1558,10 @@ void PCM::initUncorePMUsPerf()
     cboPMUs.resize(num_sockets);
     for (uint32 s = 0; s < (uint32)num_sockets; ++s)
     {
-        populatePerfPMUs(s, enumeratePerfPMUs("pcu", 100), pcuPMUs, false);
+        populatePerfPMUs(s, enumeratePerfPMUs("pcu", 100), pcuPMUs, false, true);
         populatePerfPMUs(s, enumeratePerfPMUs("ubox", 100), uboxPMUs, true);
-        populatePerfPMUs(s, enumeratePerfPMUs("cbox", 100), cboPMUs[s], false);
-        populatePerfPMUs(s, enumeratePerfPMUs("cha", 200), cboPMUs[s], false);
+        populatePerfPMUs(s, enumeratePerfPMUs("cbox", 100), cboPMUs[s], false, true, true);
+        populatePerfPMUs(s, enumeratePerfPMUs("cha", 200), cboPMUs[s], false, true, true);
         std::vector<UncorePMU> iioPMUVector;
         populatePerfPMUs(s, enumeratePerfPMUs("iio", 100), iioPMUVector, false);
         for (size_t i = 0; i < iioPMUVector.size(); ++i)
@@ -4852,32 +4852,12 @@ public:
     }
 };
 
-class PerfVirtualFilterRegister : public HWRegister
-{
-    uint64 lastValue;
-    void printError()
-    {
-        static bool printed = false;
-        if (!printed) std::cerr << "ERROR: perf uncore interface does not support filter registers yet." << std::endl;
-        printed = true;
-    }
-public:
-    PerfVirtualFilterRegister() : lastValue(0) {}
-    void operator = (uint64 val) override
-    {
-        printError();
-        lastValue = val;
-    }
-    operator uint64 () override
-    {
-        printError();
-        return lastValue;
-    }
-};
+class PerfVirtualFilterRegister;
 
 class PerfVirtualControlRegister : public HWRegister
 {
     friend class PerfVirtualCounterRegister;
+    friend class PerfVirtualFilterRegister;
     int fd;
     int socket;
     int pmuID;
@@ -4952,6 +4932,38 @@ public:
     }
 };
 
+class PerfVirtualFilterRegister : public HWRegister
+{
+    uint64 lastValue;
+    std::array<std::shared_ptr<PerfVirtualControlRegister>, 4> controlRegs;
+    int filterNr;
+public:
+    PerfVirtualFilterRegister(std::array<std::shared_ptr<PerfVirtualControlRegister>, 4> & controlRegs_, int filterNr_) :
+            lastValue(0),
+            controlRegs(controlRegs_),
+            filterNr(filterNr_)
+    {
+    }
+    void operator = (uint64 val) override
+    {
+        lastValue = val;
+        for (auto & ctl: controlRegs)
+        {
+            union {
+                uint64 config1;
+                uint32 config1HL[2];
+            } cvt;
+            cvt.config1 = ctl->event.config1;
+	    cvt.config1HL[filterNr] = val;
+	    ctl->event.config1 = cvt.config1;
+        }
+    }
+    operator uint64 () override
+    {
+        return lastValue;
+    }
+};
+
 std::vector<int> enumeratePerfPMUs(const std::string & type, int max_id)
 {
     auto getPerfPMUID = [](const std::string & type, int num)
@@ -4984,35 +4996,39 @@ std::vector<int> enumeratePerfPMUs(const std::string & type, int max_id)
     return ids;
 }
 
-void populatePerfPMUs(unsigned socket_, const std::vector<int> & ids, std::vector<UncorePMU> & pmus, bool fixed)
+void populatePerfPMUs(unsigned socket_, const std::vector<int> & ids, std::vector<UncorePMU> & pmus, bool fixed, bool filter0, bool filter1)
 {
     for (const auto & id : ids)
     {
-        std::shared_ptr<PerfVirtualControlRegister> controlReg0 = std::make_shared<PerfVirtualControlRegister>(socket_, id);
-        std::shared_ptr<PerfVirtualControlRegister> controlReg1 = std::make_shared<PerfVirtualControlRegister>(socket_, id);
-        std::shared_ptr<PerfVirtualControlRegister> controlReg2 = std::make_shared<PerfVirtualControlRegister>(socket_, id);
-        std::shared_ptr<PerfVirtualControlRegister> controlReg3 = std::make_shared<PerfVirtualControlRegister>(socket_, id);
-        std::shared_ptr<PerfVirtualCounterRegister> counterReg0 = std::make_shared<PerfVirtualCounterRegister>(controlReg0);
-        std::shared_ptr<PerfVirtualCounterRegister> counterReg1 = std::make_shared<PerfVirtualCounterRegister>(controlReg1);
-        std::shared_ptr<PerfVirtualCounterRegister> counterReg2 = std::make_shared<PerfVirtualCounterRegister>(controlReg2);
-        std::shared_ptr<PerfVirtualCounterRegister> counterReg3 = std::make_shared<PerfVirtualCounterRegister>(controlReg3);
+        std::array<std::shared_ptr<PerfVirtualControlRegister>, 4> controlRegs = {
+            std::make_shared<PerfVirtualControlRegister>(socket_, id),
+                    std::make_shared<PerfVirtualControlRegister>(socket_, id),
+                    std::make_shared<PerfVirtualControlRegister>(socket_, id),
+                    std::make_shared<PerfVirtualControlRegister>(socket_, id)
+        };
+        std::shared_ptr<PerfVirtualCounterRegister> counterReg0 = std::make_shared<PerfVirtualCounterRegister>(controlRegs[0]);
+        std::shared_ptr<PerfVirtualCounterRegister> counterReg1 = std::make_shared<PerfVirtualCounterRegister>(controlRegs[1]);
+        std::shared_ptr<PerfVirtualCounterRegister> counterReg2 = std::make_shared<PerfVirtualCounterRegister>(controlRegs[2]);
+        std::shared_ptr<PerfVirtualCounterRegister> counterReg3 = std::make_shared<PerfVirtualCounterRegister>(controlRegs[3]);
         std::shared_ptr<PerfVirtualControlRegister> fixedControlReg = std::make_shared<PerfVirtualControlRegister>(socket_, id, true);
         std::shared_ptr<PerfVirtualCounterRegister> fixedCounterReg = std::make_shared<PerfVirtualCounterRegister>(fixedControlReg);
+        std::shared_ptr<PerfVirtualFilterRegister> filterReg0 = std::make_shared<PerfVirtualFilterRegister>(controlRegs, 0);
+        std::shared_ptr<PerfVirtualFilterRegister> filterReg1 = std::make_shared<PerfVirtualFilterRegister>(controlRegs, 1);
         pmus.push_back(
             UncorePMU(
                 std::make_shared<PerfVirtualDummyUnitControlRegister>(),
-                controlReg0,
-                controlReg1,
-                controlReg2,
-                controlReg3,
+                controlRegs[0],
+                controlRegs[1],
+                controlRegs[2],
+                controlRegs[3],
                 counterReg0,
                 counterReg1,
                 counterReg2,
                 counterReg3,
                 fixed ? fixedControlReg : std::shared_ptr<HWRegister>(),
                 fixed ? fixedCounterReg : std::shared_ptr<HWRegister>(),
-                std::make_shared<PerfVirtualFilterRegister>(),
-                std::make_shared<PerfVirtualFilterRegister>()
+                filter0 ? filterReg0 : std::shared_ptr<HWRegister>(),
+                filter1 ? filterReg1 : std::shared_ptr<HWRegister>()
             )
         );
     }
