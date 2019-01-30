@@ -746,6 +746,8 @@ private:
     std::streambuf * backup_ofile; // backup of original output = cout
     int run_state;                 // either running (1) or sleeping (0)
 
+    bool needToRestoreNMIWatchdog;
+
     std::vector<std::vector<EventSelectRegister> > lastProgrammedCustomCounters;
     uint32 checkCustomCoreProgramming(std::shared_ptr<SafeMsrHandle> msr);
     void reservePMU();
