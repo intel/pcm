@@ -39,6 +39,11 @@ endif
 # All Target
 all: daemon
 
+# rely on Linux perf support (user needs CAP_SYS_ADMIN privileges), comment out to disable
+ifneq ($(wildcard /usr/include/linux/perf_event.h),)
+CXXFLAGS += -DPCM_USE_PERF
+endif
+
 # Tool invocations
 daemon: pre-build $(OBJS)
 	@echo 'Building target: $@'
@@ -54,7 +59,7 @@ clean:
 
 pre-build:
 	-@echo 'Build PCM'
-	-g++ -c ../../../*.cpp -std=c++0x
+	-g++ ${CXXFLAGS} -c ../../../*.cpp -std=c++0x
 	-@echo ' '
 
 .PHONY: all clean dependents
