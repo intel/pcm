@@ -93,9 +93,12 @@ MMIORange::MMIORange(uint64 baseAddr_, uint64 /* size_ */, bool readonly_) : sta
 
 #include "PCIDriverInterface.h"
 
-MMIORange::MMIORange(uint64 physical_address, uint64 size_, bool readonly_) : mmapAddr(NULL), readonly(readonly_)
+MMIORange::MMIORange(uint64 physical_address, uint64 size_, bool readonly_) :
+    mmapAddr(NULL),
+    size(size_),
+    readonly(readonly_)
 {
-    if (size_ > 4096)
+    if (size > 4096)
     {
         std::cerr << "PCM Error: the driver does not support mapping of regions > 4KB" << std::endl;
         return;
