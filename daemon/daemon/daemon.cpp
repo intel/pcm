@@ -374,7 +374,7 @@ namespace PCMDaemon {
 		}
 
 		//Clear out shared memory
-		*sharedPCMState_ = {};
+		std::memset(sharedPCMState_, 0, sizeof(SharedPCMState));
 	}
 
 	gid_t Daemon::resolveGroupName(const std::string& groupName)
