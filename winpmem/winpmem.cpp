@@ -45,35 +45,6 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 extern PCM_API void restrictDriverAccess(LPCWSTR path);
 
-// Roman Dementiev (Intel): added function to read 32-bit word from physical memory
-unsigned int WinPmem::read32(__int64 start)
-{
-  LARGE_INTEGER large_start;
-
-  DWORD bytes_read = 0;
-  large_start.QuadPart = start;
-
-  if(0xFFFFFFFF == SetFilePointer(fd_, (LONG)large_start.LowPart,
-                                    &large_start.HighPart, FILE_BEGIN))
-  {
-      LogError(TEXT("Failed to seek in the pmem device.\n"));
-      goto error;
-  }
-
-  unsigned int result = 0;
-
-  if(!ReadFile(fd_, &result, (DWORD)sizeof(unsigned int), &bytes_read, NULL))
-  {
-      LogError(TEXT("Failed to Read memory."));
-      goto error;
-  }
-
-  return result;
-
- error:
-  return 0;
-};
-
 int WinPmem::set_acquisition_mode(__int32 mode) {
   DWORD size;
   // Set the acquisition mode.
@@ -84,6 +55,18 @@ int WinPmem::set_acquisition_mode(__int32 mode) {
   };
 
   return 1;
+};
+
+int WinPmem::toggle_write_mode() {
+    DWORD size;
+    // Set the acquisition mode.
+    if (!DeviceIoControl(fd_, PMEM_WRITE_ENABLE, NULL, 0, NULL, 0,
+        &size, NULL)) {
+        LogError(TEXT("INFO: winpmem driver does not support write mode.\n"));
+        return -1;
+    };
+
+    return 1;
 };
 
 WinPmem::WinPmem():

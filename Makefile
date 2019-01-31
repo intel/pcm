@@ -49,7 +49,7 @@ LIB= -lpthread -lc++
 CXXFLAGS += -std=c++11
 endif
 
-COMMON_OBJS = msr.o cpucounters.o pci.o client_bw.o utils.o
+COMMON_OBJS = msr.o cpucounters.o pci.o mmio.o client_bw.o utils.o
 EXE_OBJS = $(EXE:.x=.o)
 OBJS = $(COMMON_OBJS) $(EXE_OBJS)
 
@@ -79,6 +79,9 @@ libPCM.a: $(COMMON_OBJS)
 	@sed -e 's/.*://' -e 's/\\$$//' < $*.d.tmp | fmt -1 | \
 	  sed -e 's/^ *//' -e 's/$$/:/' >> $*.d
 	@rm -f $*.d.tmp
+
+memoptest.x: memoptest.cpp
+	g++ -Wall -g -O0 -std=c++11    memoptest.cpp   -o memoptest.x
 
 nice:
 	uncrustify --replace -c ~/uncrustify.cfg *.cpp *.h WinMSRDriver/Win7/*.h WinMSRDriver/Win7/*.c WinMSRDriver/WinXP/*.h WinMSRDriver/WinXP/*.c  PCM_Win/*.h PCM_Win/*.cpp  

@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2012-2013, Intel Corporation
+Copyright (c) 2012-2019, Intel Corporation
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -21,48 +21,18 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 */
 
-#include "types.h"
-
-#ifdef _MSC_VER
-#include "windows.h"
-#include "winpmem\winpmem.h"
-#else
-#include <unistd.h>
-#endif
-
-#include "mutex.h"
 #include <memory>
-
-#define PCM_CLIENT_IMC_BAR_OFFSET       (0x0048)
-#define PCM_CLIENT_IMC_DRAM_IO_REQESTS  (0x5048)
-#define PCM_CLIENT_IMC_DRAM_DATA_READS  (0x5050)
-#define PCM_CLIENT_IMC_DRAM_DATA_WRITES (0x5054)
-#define PCM_CLIENT_IMC_MMAP_SIZE        (0x6000)
-
+#include "mmio.h"
 
 class ClientBW
 {
-#if defined(__linux__) || defined(__FreeBSD__) || defined(__DragonFly__)
-    int32 fd;
-    char * mmapAddr;
-#endif
-#ifdef __APPLE__
-    char * mmapAddr;
-#endif
-#ifdef _MSC_VER
-    std::shared_ptr<WinPmem> pmem;
-    uint64 startAddr;
-    PCM_Util::Mutex mutex;
-#endif
-
+    std::shared_ptr<MMIORange> mmioRange;
 public:
     ClientBW();
 
     uint64 getImcReads();
     uint64 getImcWrites();
     uint64 getIoRequests();
-
-    ~ClientBW();
 };
 
 

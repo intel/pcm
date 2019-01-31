@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2009-2013, Intel Corporation
+Copyright (c) 2009-2018, Intel Corporation
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -698,6 +698,10 @@ struct BecktonUncorePMUCNTCTLRegister
 
 #define UCLK_FIXED_CTR_ADDR (0x704)
 #define UCLK_FIXED_CTL_ADDR (0x703)
+#define UBOX_MSR_PMON_CTL0_ADDR (0x705)
+#define UBOX_MSR_PMON_CTL1_ADDR (0x706)
+#define UBOX_MSR_PMON_CTR0_ADDR (0x709)
+#define UBOX_MSR_PMON_CTR1_ADDR (0x70a)
 
 #define JKTIVT_PCU_MSR_PMON_CTR3_ADDR (0x0C39)
 #define JKTIVT_PCU_MSR_PMON_CTR2_ADDR (0x0C38)
@@ -925,6 +929,9 @@ struct IIOPMUCNTCTLRegister
 #define MSR_CORE_C7_RESIDENCY   (0x3FE)
 
 #define MSR_PERF_GLOBAL_INUSE   (0x392)
+
+#define MSR_IA32_SPEC_CTRL         (0x48)
+#define MSR_IA32_ARCH_CAPABILITIES (0x10A)
 
 #ifdef _MSC_VER
 #include <windows.h>

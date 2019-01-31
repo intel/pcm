@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2009-2012, Intel Corporation
+Copyright (c) 2009-2018, Intel Corporation
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -375,7 +375,11 @@ PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 functi
 //    std::cout << "PciHandle: Opening "<<path.str()<<std::endl;
 
     int handle = ::open(path.str().c_str(), O_RDWR);
-    if (handle < 0) throw std::exception();
+    if (handle < 0)
+    {
+       if (errno == 24) std::cerr << "ERROR: try executing 'ulimit -n 100000' to increase the limit on the number of open files." << std::endl;
+       throw std::exception();
+    }
     fd = handle;
 
     // std::cout << "DEBUG: Opened "<< path.str().c_str() << " on handle "<< fd << std::endl;
@@ -397,7 +401,11 @@ bool PciHandle::exists(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 func
 
     int handle = ::open(path.str().c_str(), O_RDWR);
 
-    if (handle < 0) return false;
+    if (handle < 0)
+    {
+        if (errno == 24) std::cerr << "ERROR: try executing 'ulimit -n 100000' to increase the limit on the number of open files." << std::endl;
+        return false;
+    }
 
     ::close(handle);
 

@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2009-2017, Intel Corporation
+Copyright (c) 2009-2019, Intel Corporation
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -90,6 +90,193 @@ struct PCM_API TopologyEntry // decribes a core
     TopologyEntry() : os_id(-1), thread_id (-1), core_id(-1), tile_id(-1), socket(-1) { }
 };
 
+class HWRegister
+{
+public:
+    virtual void operator = (uint64 val) = 0; // write operation
+    virtual operator uint64 () = 0; //read operation
+    virtual ~HWRegister() {}
+};
+
+class PCICFGRegister64 : public HWRegister
+{
+    std::shared_ptr<PciHandleType> handle;
+    size_t offset;
+public:
+    PCICFGRegister64(const std::shared_ptr<PciHandleType> & handle_, size_t offset_) :
+        handle(handle_),
+        offset(offset_)
+    {
+    }
+    void operator = (uint64 val) override
+    {
+        std::cerr << "PCICFGRegister64 write operation is not supported" << std::endl;
+        throw std::exception();
+    }
+    operator uint64 ()  override
+    {
+        uint64 result = 0;
+        handle->read64(offset, &result);
+        return result;
+    }
+};
+
+class PCICFGRegister32 : public HWRegister
+{
+    std::shared_ptr<PciHandleType> handle;
+    size_t offset;
+public:
+    PCICFGRegister32(const std::shared_ptr<PciHandleType> & handle_, size_t offset_) :
+        handle(handle_),
+        offset(offset_)
+    {
+    }
+    void operator = (uint64 val) override
+    {
+        handle->write32(offset, (uint32)val);
+    }
+    operator uint64 () override
+    {
+        uint32 result = 0;
+        handle->read32(offset, &result);
+        return result;
+    }
+};
+
+class MMIORegister64 : public HWRegister
+{
+    std::shared_ptr<MMIORange> handle;
+    size_t offset;
+public:
+    MMIORegister64(const std::shared_ptr<MMIORange> & handle_, size_t offset_) :
+        handle(handle_),
+        offset(offset_)
+    {
+    }
+    void operator = (uint64 val) override
+    {
+        handle->write64(offset, val);
+    }
+    operator uint64 () override
+    {
+        return handle->read64(offset);
+    }
+};
+
+class MMIORegister32 : public HWRegister
+{
+    std::shared_ptr<MMIORange> handle;
+    size_t offset;
+public:
+    MMIORegister32(const std::shared_ptr<MMIORange> & handle_, size_t offset_) :
+        handle(handle_),
+        offset(offset_)
+    {
+    }
+    void operator = (uint64 val) override
+    {
+        handle->write32(offset, (uint32)val);
+    }
+    operator uint64 () override
+    {
+        return (uint64)handle->read32(offset);
+    }
+};
+
+class MSRRegister : public HWRegister
+{
+    std::shared_ptr<SafeMsrHandle> handle;
+    size_t offset;
+public:
+    MSRRegister(const std::shared_ptr<SafeMsrHandle> & handle_, size_t offset_) :
+        handle(handle_),
+        offset(offset_)
+    {
+    }
+    void operator = (uint64 val) override
+    {
+        handle->write(offset, val);
+    }
+    operator uint64 () override
+    {
+        uint64 value = 0;
+        handle->read(offset, &value);
+        return value;
+    }
+};
+
+class CounterWidthExtenderRegister : public HWRegister
+{
+    std::shared_ptr<CounterWidthExtender> handle;
+public:
+    CounterWidthExtenderRegister(const std::shared_ptr<CounterWidthExtender> & handle_) :
+        handle(handle_)
+    {
+    }
+    void operator = (uint64 val) override
+    {
+        if (val == 0)
+        {
+            handle->reset();
+        }
+        else
+        {
+            std::cerr << "ERROR: writing non-zero values to CounterWidthExtenderRegister is not supported" << std::endl;
+            throw std::exception();
+        }
+    }
+    operator uint64 () override
+    {
+        return handle->read();;
+    }
+};
+
+class UncorePMU
+{
+    typedef std::shared_ptr<HWRegister> HWRegisterPtr;
+public:
+    HWRegisterPtr unitControl;
+    HWRegisterPtr counterControl[4];
+    HWRegisterPtr counterValue[4];
+    HWRegisterPtr fixedCounterControl;
+    HWRegisterPtr fixedCounterValue;
+    HWRegisterPtr filter[2];
+
+    UncorePMU(const HWRegisterPtr & unitControl_,
+        const HWRegisterPtr & counterControl0,
+        const HWRegisterPtr & counterControl1,
+        const HWRegisterPtr & counterControl2,
+        const HWRegisterPtr & counterControl3,
+        const HWRegisterPtr & counterValue0,
+        const HWRegisterPtr & counterValue1,
+        const HWRegisterPtr & counterValue2,
+        const HWRegisterPtr & counterValue3,
+        const HWRegisterPtr & fixedCounterControl_ = HWRegisterPtr(),
+        const HWRegisterPtr & fixedCounterValue_ = HWRegisterPtr(),
+        const HWRegisterPtr & filter0 = HWRegisterPtr(),
+        const HWRegisterPtr & filter1 = HWRegisterPtr()
+    ) :
+        unitControl(unitControl_),
+        counterControl{ counterControl0, counterControl1, counterControl2, counterControl3 },
+        counterValue{ counterValue0, counterValue1, counterValue2, counterValue3 },
+        fixedCounterControl(fixedCounterControl_),
+        fixedCounterValue(fixedCounterValue_),
+        filter{ filter0 , filter1 }
+    {
+    }
+    UncorePMU() {}
+    virtual ~UncorePMU() {}
+    void cleanup()
+    {
+        for (int i = 0; i < 4; ++i)
+        {
+            if (counterControl[i].get()) *counterControl[i] = 0;
+        }
+        if (unitControl.get()) *unitControl = 0;
+        if (fixedCounterControl.get()) *fixedCounterControl = 0;
+    }
+};
+
 //! Object to access uncore counters in a socket/processor with microarchitecture codename SandyBridge-EP (Jaketown) or Ivytown-EP or Ivytown-EX
 class ServerPCICFGUncore
 {
@@ -97,24 +284,16 @@ class ServerPCICFGUncore
     int32 iMCbus,UPIbus,M2Mbus;
     uint32 groupnr;
     int32 cpu_model;
-    std::vector<std::shared_ptr<PciHandleType> > imcHandles;
-    std::vector<std::shared_ptr<PciHandleType> > edcHandles;
-    std::vector<std::shared_ptr<PciHandleType> > qpiLLHandles;
-    std::vector<std::shared_ptr<PciHandleType> > m2mHandles;
+    std::vector<UncorePMU> imcPMUs;
+    std::vector<UncorePMU> edcPMUs;
+    std::vector<UncorePMU> xpiPMUs;
+    std::vector<UncorePMU> m2mPMUs;
     std::vector<uint64> qpi_speed;
-    uint32 num_imc;
-    uint32 num_imc_channels1; // number of memory channels in the first memory controller
-    uint32 MCX_CHY_REGISTER_DEV_ADDR[2][4];
-    uint32 MCX_CHY_REGISTER_FUNC_ADDR[2][4];
-    uint32 EDCX_ECLK_REGISTER_DEV_ADDR[8];
-    uint32 EDCX_ECLK_REGISTER_FUNC_ADDR[8];
-    uint32 QPI_PORTX_REGISTER_DEV_ADDR[3];
-    uint32 QPI_PORTX_REGISTER_FUNC_ADDR[3];
-    uint32 M2M_REGISTER_DEV_ADDR[2];
-    uint32 M2M_REGISTER_FUNC_ADDR[2];
-    uint32 LINK_PCI_PMON_BOX_CTL_ADDR;
-    uint32 LINK_PCI_PMON_CTL_ADDR[4];
-    uint32 LINK_PCI_PMON_CTR_ADDR[4];
+    std::vector<uint32> num_imc_channels; // number of memory channels in each memory controller
+    std::vector<std::pair<uint32, uint32> > XPIRegisterLocation; // (device, function)
+    std::vector<std::vector< std::pair<uint32, uint32> > > MCRegisterLocation; // MCRegisterLocation[controller]: (device, function)
+    std::vector<std::pair<uint32, uint32> > EDCRegisterLocation; // EDCRegisterLocation: (device, function)
+    std::vector<std::pair<uint32, uint32> > M2MRegisterLocation; // M2MRegisterLocation: (device, function)
 
     static PCM_Util::Mutex socket2busMutex;
     static std::vector<std::pair<uint32, uint32> > socket2iMCbus;
@@ -129,11 +308,18 @@ class ServerPCICFGUncore
     void programIMC(const uint32 * MCCntConfig);
     void programEDC(const uint32 * EDCCntConfig);
     void programM2M();
+    void programXPI(const uint32 * XPICntConfig);
     typedef std::pair<size_t, std::vector<uint64 *> > MemTestParam;
     void initMemTest(MemTestParam & param);
     void doMemTest(const MemTestParam & param);
     void cleanupMemTest(const MemTestParam & param);
     void cleanupQPIHandles();
+    void cleanupPMUs();
+    void writeAllUnitControl(const uint32 value);
+    void initDirect(uint32 socket_, const PCM * pcm);
+    void initPerf(uint32 socket_, const PCM * pcm);
+    void initBuses(uint32 socket_, const PCM * pcm);
+    void initRegisterLocations();
 
 public:
     //! \brief Initialize access data structures
@@ -233,7 +419,7 @@ public:
     void enableJKTWorkaround(bool enable);
 
     //! \brief Returns the number of detected QPI ports
-    size_t getNumQPIPorts() const { return (size_t)qpiLLHandles.size(); }
+    size_t getNumQPIPorts() const { return xpiPMUs.size(); }
 
     //! \brief Returns the speed of the QPI link
     uint64 getQPILinkSpeed(const uint32 linkNr) const
@@ -245,17 +431,17 @@ public:
     void reportQPISpeed() const;
 
     //! \brief Returns the number of detected integrated memory controllers
-    uint32 getNumMC() const { return num_imc; }
+    uint32 getNumMC() const { return (uint32)num_imc_channels.size(); }
 
     //! \brief Returns the total number of detected memory channels on all integrated memory controllers
-    size_t getNumMCChannels() const { return (size_t)imcHandles.size(); }
+    size_t getNumMCChannels() const { return (size_t)imcPMUs.size(); }
 
     //! \brief Returns the total number of detected memory channels on given integrated memory controller
     //! \param controller controller number
     size_t getNumMCChannels(const uint32 controller) const;
 
     //! \brief Returns the total number of detected memory channels on all embedded DRAM controllers (EDC)
-    size_t getNumEDCChannels() const { return (size_t)edcHandles.size(); }
+    size_t getNumEDCChannels() const { return edcPMUs.size(); }
 };
 
 class SimpleCounterState
@@ -273,6 +459,8 @@ public:
 
 typedef SimpleCounterState PCIeCounterState;
 typedef SimpleCounterState IIOCounterState;
+
+class PerfVirtualControlRegister;
 
 #ifndef HACK_TO_REMOVE_DUPLICATE_ERROR
 template class PCM_API std::allocator<TopologyEntry>;
@@ -293,6 +481,7 @@ class PCM_API PCM
 {
     friend class BasicCounterState;
     friend class UncoreCounterState;
+    friend class PerfVirtualControlRegister;
     PCM();     // forbidden to call directly because it is a singleton
 
     int32 cpu_family;
@@ -333,16 +522,13 @@ class PCM_API PCM
     bool programmed_pmu;
     std::vector<std::shared_ptr<SafeMsrHandle> > MSR;
     std::vector<std::shared_ptr<ServerPCICFGUncore> > server_pcicfg_uncore;
-    uint64 PCU_MSR_PMON_BOX_CTL_ADDR, PCU_MSR_PMON_CTRX_ADDR[4];
-    std::map<int32, uint32>    IIO_UNIT_STATUS_ADDR;
-    std::map<int32, uint32>    IIO_UNIT_CTL_ADDR;
-    std::map<int32, std::vector<uint32> > IIO_CTR_ADDR;
-    std::map<int32, uint32>    IIO_CLK_ADDR;
-    std::map<int32, std::vector<uint32> > IIO_CTL_ADDR;
+    std::vector<UncorePMU> pcuPMUs;
+    std::vector<std::map<int32, UncorePMU> > iioPMUs;
+    std::vector<UncorePMU> uboxPMUs;
     double joulesPerEnergyUnit;
     std::vector<std::shared_ptr<CounterWidthExtender> > energy_status;
     std::vector<std::shared_ptr<CounterWidthExtender> > dram_energy_status;
-    std::vector<std::vector<std::vector<std::shared_ptr<CounterWidthExtender> > > > CBoCounters;
+    std::vector<std::vector<UncorePMU> > cboPMUs;
 
     std::vector<std::shared_ptr<CounterWidthExtender> > memory_bw_local;
     std::vector<std::shared_ptr<CounterWidthExtender> > memory_bw_total;
@@ -560,6 +746,8 @@ private:
     std::streambuf * backup_ofile; // backup of original output = cout
     int run_state;                 // either running (1) or sleeping (0)
 
+    bool needToRestoreNMIWatchdog;
+
     std::vector<std::vector<EventSelectRegister> > lastProgrammedCustomCounters;
     uint32 checkCustomCoreProgramming(std::shared_ptr<SafeMsrHandle> msr);
     void reservePMU();
@@ -594,6 +782,7 @@ private:
     void printSystemTopology() const;
     bool initMSR();
     bool detectNominalFrequency();
+    void showSpecControlMSRs();
     void initEnergyMonitoring();
     void initUncoreObjects();
     /*!
@@ -632,16 +821,28 @@ private:
     uint64 CX_MSR_PMON_CTLY(uint32 Cbo, uint32 Ctl) const;
     uint64 CX_MSR_PMON_BOX_CTL(uint32 Cbo) const;
     uint32 getMaxNumOfCBoxes() const;
-    void programCboOpcodeFilter(const uint32 opc0, const uint32 cbo, std::shared_ptr<SafeMsrHandle> msr, const uint32 nc_ = 0, const uint32 opc1 = 0);
+    void programCbo(const uint64 * events, const uint32 opCode, const uint32 nc_ = 0, const uint32 tid_ = 0);
+    void programCboOpcodeFilter(const uint32 opc0, UncorePMU & pmu, const uint32 nc_ = 0, const uint32 opc1 = 0);
     void programLLCReadMissLatencyEvents();
     uint64 getCBOCounterState(const uint32 socket, const uint32 ctr_);
+
+    void cleanupUncorePMUs();
 
 	bool isCLX() const // Cascade Lake-SP
 	{
 		return (PCM::SKX == cpu_model) && (cpu_stepping > 4);
 	}
 
+    void initUncorePMUsDirect();
+    void initUncorePMUsPerf();
+
 public:
+    //! check if in secure boot mode
+    bool isSecureBoot() const;
+
+    //! true if Linux perf for uncore PMU programming should AND can be used internally
+    bool useLinuxPerfForUncore() const;
+
     /*!
              \brief checks if QOS monitoring support present
 
@@ -1085,6 +1286,11 @@ public:
     //! \return max number of instructions per cycle
     uint32 getMaxIPC() const
     {
+        switch (original_cpu_model)
+        {
+        case ATOM_DENVERTON:
+            return 3;
+        }
         switch (cpu_model)
         {
         case NEHALEM_EP:

@@ -1,6 +1,6 @@
 /*
 
-   Copyright (c) 2009-2017, Intel Corporation
+   Copyright (c) 2009-2018, Intel Corporation
    All rights reserved.
 
    Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -411,6 +411,8 @@ void display_bandwidth(PCM *m, memdata_t *md, uint32 no_columns, const bool show
                 skt += 1;
             }
         }
+    }
+    {
         cout << "\
             \r|---------------------------------------||---------------------------------------|\n";
 	if(md->PMM)
