@@ -1572,8 +1572,9 @@ public:
         return (
             cpu_model == PCM::HASWELLX
             || cpu_model == PCM::BDX
-	    || cpu_model == PCM::SKX
-        );
+            || cpu_model == PCM::SKX
+            || cpu_model == PCM::SKL
+            );
     }
 
     bool PMMTrafficMetricsAvailable() const

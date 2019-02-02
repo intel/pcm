@@ -135,10 +135,10 @@ void store_latency_uncore(PCM *m, bool ddr, int delay_ms)
         uncore_event[ddr].skt[i].woccupancy = 0;
         for (size_t channel = 0; channel < m->getMCChannelsPerSocket(); ++channel)
         {
-            uncore_event[ddr].skt[i].rinsert += (double)getMCCounter(channel, RPQ_INS, BeforeState[i], AfterState[i]);
-            uncore_event[ddr].skt[i].roccupancy += (double)getMCCounter(channel, RPQ_OCC, BeforeState[i], AfterState[i]);
-            uncore_event[ddr].skt[i].winsert += (double)getMCCounter(channel, WPQ_INS, BeforeState[i], AfterState[i]);
-            uncore_event[ddr].skt[i].woccupancy += (double)getMCCounter(channel, WPQ_OCC, BeforeState[i], AfterState[i]);
+            uncore_event[ddr].skt[i].rinsert += (double)getMCCounter((uint32)channel, RPQ_INS, BeforeState[i], AfterState[i]);
+            uncore_event[ddr].skt[i].roccupancy += (double)getMCCounter((uint32)channel, RPQ_OCC, BeforeState[i], AfterState[i]);
+            uncore_event[ddr].skt[i].winsert += (double)getMCCounter((uint32)channel, WPQ_INS, BeforeState[i], AfterState[i]);
+            uncore_event[ddr].skt[i].woccupancy += (double)getMCCounter((uint32)channel, WPQ_OCC, BeforeState[i], AfterState[i]);
         }
         if (uncore_event[ddr].skt[i].rinsert == 0.)
         {
@@ -324,9 +324,12 @@ void print_all_stats(PCM *m, bool enable_pmm, bool enable_verbose)
 
     print_core_stats(m, core_size_per_socket, sk_th);
 
-    print_ddr(m, enable_pmm);
-    if (enable_verbose)
-        print_verbose(m, enable_pmm);
+    if (m->hasPCICFGUncore())
+    {
+        print_ddr(m, enable_pmm);
+        if (enable_verbose)
+            print_verbose(m, enable_pmm);
+    }
 }
 
 EventSelectRegister build_core_register(uint64 reg_used, uint64 value, uint64 usr, uint64 os, uint64 enable, uint64 umask, uint64 event_select, uint64 edge)
@@ -386,14 +389,14 @@ void build_registers(PCM *m, PCM::ExtendedCustomCoreEventDescription conf, bool 
 //Check if Online Cores = Available Cores. This version only supports available cores = online cores
     if (m->getNumCores() != m->getNumOnlineCores())
     {
-    cout << "Number of online cores should be equal to number of available cores" << endl;
+        cout << "Number of online cores should be equal to number of available cores" << endl;
         exit(EXIT_FAILURE);
     }
 
-//Check for Maximum Custom Core Events
+    //Check for Maximum Custom Core Events
     if (m->getMaxCustomCoreEvents() < 2)
     {
-	cout << "System should support a minimum of 2 Custom Core Events to run pcm-latency" << endl;
+        cout << "System should support a minimum of 2 Custom Core Events to run pcm-latency" << endl;
         exit(EXIT_FAILURE);
     }
 //Creating conf
