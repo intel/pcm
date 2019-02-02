@@ -54,7 +54,7 @@ using namespace std;
 #define MAX_CORES 4096
 
 EventSelectRegister regs[2];
-const uint8_t max_sockets = 8;
+const uint8_t max_sockets = 64;
 
 struct socket_info_uncore
 {
@@ -126,25 +126,32 @@ void store_latency_uncore(PCM *m, bool ddr, int delay_ms)
 {
     for (unsigned int i=0; i<m->getNumSockets(); i++)
     {
-	uncore_event[ddr].skt[i].socket_id = i;
+        uncore_event[ddr].skt[i].socket_id = i;
         const double delay_seconds = double(delay_ms) / 1000.;
         DRAMSpeed = double(getDRAMClocks(0, BeforeState[i], AfterState[i]))/(double(1e9) * delay_seconds);
-        if (getMCCounter(i,1,BeforeState[i], AfterState[i]) == 0)
+        uncore_event[ddr].skt[i].rinsert = 0;
+        uncore_event[ddr].skt[i].roccupancy = 0;
+        uncore_event[ddr].skt[i].winsert = 0;
+        uncore_event[ddr].skt[i].woccupancy = 0;
+        for (size_t channel = 0; channel < m->getMCChannelsPerSocket(); ++channel)
+        {
+            uncore_event[ddr].skt[i].rinsert += (double)getMCCounter(channel, RPQ_INS, BeforeState[i], AfterState[i]);
+            uncore_event[ddr].skt[i].roccupancy += (double)getMCCounter(channel, RPQ_OCC, BeforeState[i], AfterState[i]);
+            uncore_event[ddr].skt[i].winsert += (double)getMCCounter(channel, WPQ_INS, BeforeState[i], AfterState[i]);
+            uncore_event[ddr].skt[i].woccupancy += (double)getMCCounter(channel, WPQ_OCC, BeforeState[i], AfterState[i]);
+        }
+        if (uncore_event[ddr].skt[i].rinsert == 0.)
         {
             uncore_event[ddr].skt[i].rlatency = 0;
         } else {
-            uncore_event[ddr].skt[i].rinsert = (double)getMCCounter(i,RPQ_INS,BeforeState[i], AfterState[i]);
-            uncore_event[ddr].skt[i].roccupancy = (double)getMCCounter(i,RPQ_OCC,BeforeState[i], AfterState[i]);
-            uncore_event[ddr].skt[i].rlatency = (double)getMCCounter(i,RPQ_OCC,BeforeState[i], AfterState[i])/getMCCounter(i,RPQ_INS,BeforeState[i], AfterState[i]);
+            uncore_event[ddr].skt[i].rlatency = uncore_event[ddr].skt[i].roccupancy / uncore_event[ddr].skt[i].rinsert;
         }
 
-        if (getMCCounter(i,3,BeforeState[i], AfterState[i]) == 0)
+        if (uncore_event[ddr].skt[i].winsert == 0.)
         {
             uncore_event[ddr].skt[i].wlatency = 0;
         } else {
-            uncore_event[ddr].skt[i].wlatency = (double)getMCCounter(i,WPQ_OCC,BeforeState[i], AfterState[i])/getMCCounter(i,WPQ_INS,BeforeState[i], AfterState[i]);
-            uncore_event[ddr].skt[i].winsert = (double)getMCCounter(i,WPQ_INS,BeforeState[i], AfterState[i]);
-            uncore_event[ddr].skt[i].woccupancy = (double)getMCCounter(i,WPQ_OCC,BeforeState[i], AfterState[i]);
+            uncore_event[ddr].skt[i].wlatency = uncore_event[ddr].skt[i].woccupancy / uncore_event[ddr].skt[i].winsert;
         }
 
         swap(BeforeState[i], AfterState[i]);
@@ -309,7 +316,7 @@ void print_all_stats(PCM *m, bool enable_pmm, bool enable_verbose)
                 tmp_core.push_back(tmp);
                 }
             }
-            core_size_per_socket = tmp_core.size();
+            core_size_per_socket = (unsigned int)tmp_core.size();
             tmp_thread.push_back(tmp_core);
         }
         sk_th.push_back(tmp_thread);
