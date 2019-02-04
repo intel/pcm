@@ -58,9 +58,9 @@
 using namespace std;
 
 const uint32 max_sockets = 256;
-const uint32 max_imc_channels = 8;
-const uint32 max_edc_channels = 8;
-const uint32 max_imc_controllers = 2;
+const uint32 max_imc_channels = ServerUncorePowerState::maxChannels;
+const uint32 max_edc_channels = ServerUncorePowerState::maxChannels;
+const uint32 max_imc_controllers = ServerUncorePowerState::maxControllers;
 
 typedef struct memdata {
     float iMC_Rd_socket_chan[max_sockets][max_imc_channels];
