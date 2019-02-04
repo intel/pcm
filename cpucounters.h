@@ -783,6 +783,7 @@ private:
     void printSystemTopology() const;
     bool initMSR();
     bool detectNominalFrequency();
+    void showSpecControlMSRs();
     void initEnergyMonitoring();
     void initUncoreObjects();
     /*!
