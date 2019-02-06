@@ -395,7 +395,7 @@ namespace PCMDaemon {
 		memcpy (sharedPCMState_->version, VERSION, sizeof(VERSION));
 		sharedPCMState_->version[sizeof(VERSION)] = '\0';
 
-		uint64 rdtscNow = RDTSC();
+        sharedPCMState_->lastUpdateTscBegin = RDTSC();
 
 		updatePCMState(&systemStatesAfter_, &socketStatesAfter_, &coreStatesAfter_);
 
@@ -415,12 +415,13 @@ namespace PCMDaemon {
 			getPCMQPI();
 		}
 
-		sharedPCMState_->cyclesToGetPCMState = RDTSC() - rdtscNow;
+		const auto lastUpdateTscEnd = RDTSC();
+		sharedPCMState_->cyclesToGetPCMState = lastUpdateTscEnd - sharedPCMState_->lastUpdateTscBegin;
 		sharedPCMState_->timestamp = getTimestamp();
 
 		// As the client polls this timestamp (lastUpdateTsc)
 		// All the data has to be in shm before
-		sharedPCMState_->lastUpdateTsc = rdtscNow;
+		sharedPCMState_->lastUpdateTscEnd = lastUpdateTscEnd;
 		if(mode_ == Mode::DIFFERENCE)
 		{
 			swapPCMBeforeAfterState();
