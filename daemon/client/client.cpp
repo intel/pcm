@@ -55,7 +55,7 @@ namespace PCMDaemon {
 
 		//Set last updated timestamp to avoid a detected change
 		//when the client starts
-		lastUpdatedClientTsc_ = sharedPCMState_->lastUpdateTsc;
+		lastUpdatedClientTsc_ = sharedPCMState_->lastUpdateTscEnd;
 	}
 
 	PCMDaemon::SharedPCMState& Client::read()
@@ -75,7 +75,7 @@ namespace PCMDaemon {
 			// Check client version matches daemon version
 			if(strlen(sharedPCMState_->version) > 0 && strcmp(sharedPCMState_->version, VERSION) != 0)
 			{
-				std::cout << sharedPCMState_->lastUpdateTsc << " " << lastUpdatedClientTsc_ << std::endl;
+				std::cout << sharedPCMState_->lastUpdateTscEnd << " " << lastUpdatedClientTsc_ << std::endl;
 				std::stringstream ss;
 				ss << "Out of date PCM daemon client. Client version: " << VERSION << " Daemon version: " << sharedPCMState_->version;
 
@@ -85,7 +85,7 @@ namespace PCMDaemon {
 			if(countersHaveUpdated())
 			{
 				//There is new data
-				lastUpdatedClientTsc_ = sharedPCMState_->lastUpdateTsc;
+				lastUpdatedClientTsc_ = sharedPCMState_->lastUpdateTscEnd;
 
 				return *sharedPCMState_;
 			}
@@ -99,7 +99,7 @@ namespace PCMDaemon {
 
 	bool Client::countersHaveUpdated()
 	{
-		return lastUpdatedClientTsc_ != sharedPCMState_->lastUpdateTsc;
+		return lastUpdatedClientTsc_ != sharedPCMState_->lastUpdateTscEnd;
 	}
 
 	void Client::setupSharedMemory()

@@ -54,7 +54,7 @@ using namespace std;
 #define MAX_CORES 4096
 
 EventSelectRegister regs[2];
-const uint8_t max_sockets = 8;
+const uint8_t max_sockets = 64;
 
 struct socket_info_uncore
 {
@@ -75,6 +75,7 @@ struct core_info
     double latency;
     double occ_rd;
     double insert_rd;
+    core_info() : core_id(0), socket(0), thread(0), latency(0.), occ_rd(0.), insert_rd(0.) {}
 };
 
 struct socket_info_pci
@@ -93,6 +94,7 @@ struct res_core
 {
     string name;
     vector<struct core_info> core;
+    vector<struct core_info> socket;
 } core_latency[10];
 
 double DRAMSpeed;
@@ -107,7 +109,6 @@ std::vector<SocketCounterState> DummySocketStates;
 
 void collect_beforestate_uncore(PCM *m)
 {
-
     for (unsigned int i=0; i<m->getNumSockets(); i++)
     {
         BeforeState[i] = m->getServerUncorePowerState(i);
@@ -126,25 +127,32 @@ void store_latency_uncore(PCM *m, bool ddr, int delay_ms)
 {
     for (unsigned int i=0; i<m->getNumSockets(); i++)
     {
-	uncore_event[ddr].skt[i].socket_id = i;
+        uncore_event[ddr].skt[i].socket_id = i;
         const double delay_seconds = double(delay_ms) / 1000.;
         DRAMSpeed = double(getDRAMClocks(0, BeforeState[i], AfterState[i]))/(double(1e9) * delay_seconds);
-        if (getMCCounter(i,1,BeforeState[i], AfterState[i]) == 0)
+        uncore_event[ddr].skt[i].rinsert = 0;
+        uncore_event[ddr].skt[i].roccupancy = 0;
+        uncore_event[ddr].skt[i].winsert = 0;
+        uncore_event[ddr].skt[i].woccupancy = 0;
+        for (size_t channel = 0; channel < m->getMCChannelsPerSocket(); ++channel)
+        {
+            uncore_event[ddr].skt[i].rinsert += (double)getMCCounter((uint32)channel, RPQ_INS, BeforeState[i], AfterState[i]);
+            uncore_event[ddr].skt[i].roccupancy += (double)getMCCounter((uint32)channel, RPQ_OCC, BeforeState[i], AfterState[i]);
+            uncore_event[ddr].skt[i].winsert += (double)getMCCounter((uint32)channel, WPQ_INS, BeforeState[i], AfterState[i]);
+            uncore_event[ddr].skt[i].woccupancy += (double)getMCCounter((uint32)channel, WPQ_OCC, BeforeState[i], AfterState[i]);
+        }
+        if (uncore_event[ddr].skt[i].rinsert == 0.)
         {
             uncore_event[ddr].skt[i].rlatency = 0;
         } else {
-            uncore_event[ddr].skt[i].rinsert = (double)getMCCounter(i,RPQ_INS,BeforeState[i], AfterState[i]);
-            uncore_event[ddr].skt[i].roccupancy = (double)getMCCounter(i,RPQ_OCC,BeforeState[i], AfterState[i]);
-            uncore_event[ddr].skt[i].rlatency = (double)getMCCounter(i,RPQ_OCC,BeforeState[i], AfterState[i])/getMCCounter(i,RPQ_INS,BeforeState[i], AfterState[i]);
+            uncore_event[ddr].skt[i].rlatency = uncore_event[ddr].skt[i].roccupancy / uncore_event[ddr].skt[i].rinsert;
         }
 
-        if (getMCCounter(i,3,BeforeState[i], AfterState[i]) == 0)
+        if (uncore_event[ddr].skt[i].winsert == 0.)
         {
             uncore_event[ddr].skt[i].wlatency = 0;
         } else {
-            uncore_event[ddr].skt[i].wlatency = (double)getMCCounter(i,WPQ_OCC,BeforeState[i], AfterState[i])/getMCCounter(i,WPQ_INS,BeforeState[i], AfterState[i]);
-            uncore_event[ddr].skt[i].winsert = (double)getMCCounter(i,WPQ_INS,BeforeState[i], AfterState[i]);
-            uncore_event[ddr].skt[i].woccupancy = (double)getMCCounter(i,WPQ_OCC,BeforeState[i], AfterState[i]);
+            uncore_event[ddr].skt[i].wlatency = uncore_event[ddr].skt[i].woccupancy / uncore_event[ddr].skt[i].winsert;
         }
 
         swap(BeforeState[i], AfterState[i]);
@@ -169,10 +177,15 @@ void store_latency_core(PCM *m)
     {
          core_event[k].core.resize(MAX_CORES);
     }
-
+    for (auto & s : core_latency[L1].socket)
+    {
+        s.occ_rd = 0;
+        s.insert_rd = 0;
+    }
     for (unsigned int i=0; i<m->getNumCores(); i++)
     {
-	double frequency = (((double)getCycles(BeforeState_core[i], AfterState_core[i])/(double)getRefCycles(BeforeState_core[i], AfterState_core[i])) * (double)m->getNominalFrequency())/1000000000;
+        const double frequency = (((double)getCycles(BeforeState_core[i], AfterState_core[i]) /
+            (double)getRefCycles(BeforeState_core[i], AfterState_core[i])) * (double)m->getNominalFrequency()) / 1000000000;
         for(int j=0; j<2; j++)// 2 events
         {
             core_event[j].core[i].core_id = i;
@@ -183,6 +196,13 @@ void store_latency_core(PCM *m)
         core_latency[L1].core[i].latency = ((core_event[FB_OCC_RD].core[i].latency/core_event[FB_INS_RD].core[i].latency)+extra_clocks_for_L1_miss)/frequency;
         core_latency[L1].core[i].occ_rd = (core_event[FB_OCC_RD].core[i].latency);
         core_latency[L1].core[i].insert_rd = (core_event[FB_INS_RD].core[i].latency);
+        const auto s = m->getSocketId(i);
+        core_latency[L1].socket[s].occ_rd += (core_latency[L1].core[i].occ_rd + extra_clocks_for_L1_miss * core_latency[L1].core[i].insert_rd) / frequency;
+        core_latency[L1].socket[s].insert_rd += core_latency[L1].core[i].insert_rd;
+    }
+    for (auto & s : core_latency[L1].socket)
+    {
+        s.latency = s.occ_rd / s.insert_rd;
     }
     swap(BeforeState_core, AfterState_core);
     swap(SysBeforeState, SysAfterState);
@@ -260,8 +280,12 @@ void print_ddr(PCM *m, int ddr_ip)
 
 void print_core_stats(PCM *m, unsigned int core_size_per_socket, vector<vector<vector<struct core_info >>> &sk_th)
 {
-    cout <<endl << endl;
-    cout << "L1 Cache Miss Latency(ns) [Adding 5 clocks for L1 Miss]" << endl << endl;;
+    auto printHeader = []()
+    {
+        cout << endl << endl;
+        cout << "L1 Cache Miss Latency(ns) [Adding 5 clocks for L1 Miss]" << endl << endl;;
+    };
+    printHeader();
     for (unsigned int sid=0; sid<m->getNumSockets(); sid++)
     {
         for (unsigned int tid=0; tid< m->getThreadsPerCore(); tid++)
@@ -270,7 +294,7 @@ void print_core_stats(PCM *m, unsigned int core_size_per_socket, vector<vector<v
         }
     }
 
-    cout << endl << "-----------------------------------------------------------------------------"<< endl;
+    cout << endl << "-----------------------------------------------------------------------------" << endl;
 
     for (unsigned int cid=0; cid<core_size_per_socket; cid++)
     {
@@ -284,6 +308,13 @@ void print_core_stats(PCM *m, unsigned int core_size_per_socket, vector<vector<v
         cout << endl;
     }
     cout << endl;
+
+    printHeader();
+
+    for (unsigned int s = 0; s < m->getNumSockets(); ++s)
+    {
+        cout << "Socket" << s << ": " << core_latency[L1].socket[s].latency << endl;
+    }
 }
 
 void print_all_stats(PCM *m, bool enable_pmm, bool enable_verbose)
@@ -309,7 +340,7 @@ void print_all_stats(PCM *m, bool enable_pmm, bool enable_verbose)
                 tmp_core.push_back(tmp);
                 }
             }
-            core_size_per_socket = tmp_core.size();
+            core_size_per_socket = (unsigned int)tmp_core.size();
             tmp_thread.push_back(tmp_core);
         }
         sk_th.push_back(tmp_thread);
@@ -317,9 +348,12 @@ void print_all_stats(PCM *m, bool enable_pmm, bool enable_verbose)
 
     print_core_stats(m, core_size_per_socket, sk_th);
 
-    print_ddr(m, enable_pmm);
-    if (enable_verbose)
-        print_verbose(m, enable_pmm);
+    if (m->hasPCICFGUncore())
+    {
+        print_ddr(m, enable_pmm);
+        if (enable_verbose)
+            print_verbose(m, enable_pmm);
+    }
 }
 
 EventSelectRegister build_core_register(uint64 reg_used, uint64 value, uint64 usr, uint64 os, uint64 enable, uint64 umask, uint64 event_select, uint64 edge)
@@ -379,14 +413,14 @@ void build_registers(PCM *m, PCM::ExtendedCustomCoreEventDescription conf, bool 
 //Check if Online Cores = Available Cores. This version only supports available cores = online cores
     if (m->getNumCores() != m->getNumOnlineCores())
     {
-    cout << "Number of online cores should be equal to number of available cores" << endl;
+        cout << "Number of online cores should be equal to number of available cores" << endl;
         exit(EXIT_FAILURE);
     }
 
-//Check for Maximum Custom Core Events
+    //Check for Maximum Custom Core Events
     if (m->getMaxCustomCoreEvents() < 2)
     {
-	cout << "System should support a minimum of 2 Custom Core Events to run pcm-latency" << endl;
+        cout << "System should support a minimum of 2 Custom Core Events to run pcm-latency" << endl;
         exit(EXIT_FAILURE);
     }
 //Creating conf
@@ -405,6 +439,7 @@ void build_registers(PCM *m, PCM::ExtendedCustomCoreEventDescription conf, bool 
     {
         uncore_event[i].skt.resize(m->getNumSockets());
         core_latency[i].core.resize(m->getNumCores());
+        core_latency[i].socket.resize(m->getNumSockets());
     }
 
 //Program Core and Uncore
