@@ -794,27 +794,56 @@ bool PCM::discoverSystemTopology()
     socketIdMap_type socketIdMap;
 
     PCM_CPUID_INFO cpuid_args;
-    pcm_cpuid(1, cpuid_args);
+    // init constants for CPU topology leaf 0xB
+    // adapted from Topology Enumeration Reference code for Intel 64 Architecture
+    // https://software.intel.com/en-us/articles/intel-64-architecture-processor-topology-enumeration
+    int wasCoreReported = 0, wasThreadReported = 0;
+    int subleaf = 0, levelType, levelShift;
+    //uint32 coreSelectMask = 0, smtSelectMask = 0;
+    uint32 smtMaskWidth = 0;
+    //uint32 pkgSelectMask = (-1), pkgSelectMaskShift = 0;
+    uint32 corePlusSMTMaskWidth = 0;
+    uint32 coreMaskWidth = 0;
 
-    int apic_ids_per_package = extract_bits_ui(cpuid_args.array[1], 16, 23);
-    int apic_ids_per_core;
-
-    if (apic_ids_per_package == 0)
     {
-        std::cout << "apic_ids_per_package == 0" << std::endl;
-        return false;
+        TemporalThreadAffinity aff0(0);
+        do
+        {
+            pcm_cpuid(0xb, subleaf, cpuid_args);
+            if (cpuid_args.array[1] == 0)
+            { // if EBX ==0 then this subleaf is not valid, we can exit the loop
+                break;
+            }
+            levelType = extract_bits_ui(cpuid_args.array[2], 8, 15);
+            levelShift = extract_bits_ui(cpuid_args.array[0], 0, 4);
+            switch (levelType)
+            {
+            case 1: //level type is SMT, so levelShift is the SMT_Mask_Width
+                smtMaskWidth = levelShift;
+                wasThreadReported = 1;
+                break;
+            case 2: //level type is Core, so levelShift is the CorePlusSMT_Mask_Width
+                corePlusSMTMaskWidth = levelShift;
+                wasCoreReported = 1;
+                break;
+            default:
+                break;
+            }
+            subleaf++;
+        } while (1);
     }
 
-    pcm_cpuid(0xb, 0x0, cpuid_args);
-
-    if (extract_bits_ui(cpuid_args.array[2], 8, 15) == 0x1)
-        apic_ids_per_core = extract_bits_ui(cpuid_args.array[1], 0, 15);
-    else
-        apic_ids_per_core = 1;
-
-    if (apic_ids_per_core == 0)
+    if (wasThreadReported && wasCoreReported)
     {
-        std::cout << "apic_ids_per_core == 0" << std::endl;
+        coreMaskWidth = corePlusSMTMaskWidth - smtMaskWidth;
+    }
+    else if (!wasCoreReported && wasThreadReported)
+    {
+        coreMaskWidth = smtMaskWidth;
+    }
+    else
+    {
+        std::cerr << "ERROR: Major problem? No leaf 0 under cpuid function 11." << std::endl;
         return false;
     }
 
@@ -837,6 +866,14 @@ bool PCM::discoverSystemTopology()
     std::cerr << "DEBUG: Number of threads sharing L2 cache = " << threadsSharingL2
               << " [the most significant bit = " << l2CacheMaskShift << "]" << std::endl;
 #endif
+
+    auto populateEntry = [&smtMaskWidth, &coreMaskWidth, &l2CacheMaskShift](TopologyEntry & entry, const int apic_id)
+    {
+        entry.thread_id = extract_bits_ui(apic_id, 0, smtMaskWidth - 1);
+        entry.core_id = extract_bits_ui(apic_id, smtMaskWidth, smtMaskWidth + coreMaskWidth - 1);
+        entry.socket = extract_bits_ui(apic_id, smtMaskWidth + coreMaskWidth, 31);
+        entry.tile_id = extract_bits_ui(apic_id, l2CacheMaskShift, 31);
+    };
 
 #ifdef _MSC_VER
 // version for Windows 7 and later version
@@ -897,8 +934,8 @@ bool PCM::discoverSystemTopology()
 
         TopologyEntry entry;
         entry.os_id = i;
-        entry.socket = apic_id / apic_ids_per_package;
-        entry.core_id = (apic_id % apic_ids_per_package) / apic_ids_per_core;
+
+        populateEntry(entry, apic_id);
 
         topology.push_back(entry);
         socketIdMap[entry.socket] = 0;
@@ -912,58 +949,6 @@ bool PCM::discoverSystemTopology()
     TopologyEntry entry;
 
 #ifdef __linux__
-    // init constants for CPU topology leaf 0xB
-    // adapted from Topology Enumeration Reference code for Intel 64 Architecture
-    // https://software.intel.com/en-us/articles/intel-64-architecture-processor-topology-enumeration
-    int wasCoreReported = 0, wasThreadReported = 0;
-    int subleaf = 0, levelType, levelShift;
-    //uint32 coreSelectMask = 0, smtSelectMask = 0;
-    uint32 smtMaskWidth = 0;
-    //uint32 pkgSelectMask = (-1), pkgSelectMaskShift = 0;
-    uint32 corePlusSMTMaskWidth = 0;
-    uint32 coreMaskWidth = 0;
-
-    // This code needs to run affinitized to a single core, how do we make sure of that?
-    do
-    {
-        pcm_cpuid(0xb, subleaf, cpuid_args);
-        if (cpuid_args.array[1] == 0)
-        { // if EBX ==0 then this subleaf is not valid, we can exit the loop
-            break;
-        }
-        levelType = extract_bits_ui(cpuid_args.array[2], 8, 15);
-        levelShift = extract_bits_ui(cpuid_args.array[0], 0, 4);
-        switch (levelType)
-        {
-            case 1: //level type is SMT, so levelShift is the SMT_Mask_Width
-                smtMaskWidth = levelShift;
-                wasThreadReported = 1;
-                break;
-            case 2: //level type is Core, so levelShift is the CorePlusSMT_Mask_Width
-                corePlusSMTMaskWidth = levelShift;
-                wasCoreReported = 1;
-                break;
-            default:
-                break;
-        }
-        subleaf++;
-    } while (1);
-
-    if(wasThreadReported && wasCoreReported)
-    {
-        coreMaskWidth = corePlusSMTMaskWidth - smtMaskWidth;
-    }
-    else if (!wasCoreReported && wasThreadReported)
-    {
-        coreMaskWidth = smtMaskWidth;
-    }
-    else
-    {
-        std::cerr << "ERROR: Major problem? No leaf 0 under cpuid function 11." << std::endl;
-        return false;
-    }
-
-
     num_cores = readMaxFromSysFS("/sys/devices/system/cpu/present");
     if(num_cores == -1)
     {
@@ -995,10 +980,7 @@ bool PCM::discoverSystemTopology()
             pcm_cpuid(0xb, 0x0, cpuid_args);
             int apic_id = cpuid_args.array[3];
 
-            entry.thread_id = extract_bits_ui(apic_id, 0, smtMaskWidth-1);
-            entry.core_id = extract_bits_ui(apic_id, smtMaskWidth, smtMaskWidth+coreMaskWidth-1);
-            entry.socket = extract_bits_ui(apic_id, smtMaskWidth+coreMaskWidth, 31);
-            entry.tile_id = extract_bits_ui(apic_id, l2CacheMaskShift, 31);
+            populateEntry(entry, apic_id);
 
             topology[entry.os_id] = entry;
             socketIdMap[entry.socket] = 0;
@@ -1096,8 +1078,8 @@ bool PCM::discoverSystemTopology()
         apic_id = cpuid_args_freebsd.data[3];
 
         entry.os_id = i;
-        entry.socket = apic_id / apic_ids_per_package;
-        entry.core_id = (apic_id % apic_ids_per_package) / apic_ids_per_core;
+
+        populateEntry(entry, apic_id);
 
         if (entry.socket == 0 && entry.core_id == 0) ++threads_per_core;
 
@@ -4187,26 +4169,34 @@ ServerUncorePowerState PCM::getServerUncorePowerState(uint32 socket)
         server_pcicfg_uncore[socket]->freezeCounters();
         for(uint32 port=0;port < (uint32)server_pcicfg_uncore[socket]->getNumQPIPorts();++port)
         {
+            assert(port < result.QPIClocks.size());
             result.QPIClocks[port] = server_pcicfg_uncore[socket]->getQPIClocks(port);
+            assert(port < result.QPIL0pTxCycles.size());
             result.QPIL0pTxCycles[port] = server_pcicfg_uncore[socket]->getQPIL0pTxCycles(port);
+            assert(port < result.QPIL1Cycles.size());
             result.QPIL1Cycles[port] = server_pcicfg_uncore[socket]->getQPIL1Cycles(port);
         }
         for (uint32 channel = 0; channel < (uint32)server_pcicfg_uncore[socket]->getNumMCChannels(); ++channel)
         {
+            assert(channel < result.DRAMClocks.size());
             result.DRAMClocks[channel] = server_pcicfg_uncore[socket]->getDRAMClocks(channel);
-            for(uint32 cnt=0;cnt<4;++cnt)
-                result.MCCounter[channel][cnt] = server_pcicfg_uncore[socket]->getMCCounter(channel,cnt);
+            assert(channel < result.MCCounter.size());
+            for (uint32 cnt = 0; cnt < ServerUncorePowerState::maxCounters; ++cnt)
+                result.MCCounter[channel][cnt] = server_pcicfg_uncore[socket]->getMCCounter(channel, cnt);
         }
         for (uint32 channel = 0; channel < (uint32)server_pcicfg_uncore[socket]->getNumEDCChannels(); ++channel)
         {
+            assert(channel < result.MCDRAMClocks.size());
             result.MCDRAMClocks[channel] = server_pcicfg_uncore[socket]->getMCDRAMClocks(channel);
-            for(uint32 cnt=0;cnt<4;++cnt)
-                result.EDCCounter[channel][cnt] = server_pcicfg_uncore[socket]->getEDCCounter(channel,cnt);
+            assert(channel < result.EDCCounter.size());
+            for (uint32 cnt = 0; cnt < ServerUncorePowerState::maxCounters; ++cnt)
+                result.EDCCounter[channel][cnt] = server_pcicfg_uncore[socket]->getEDCCounter(channel, cnt);
         }
     for (uint32 controller = 0; controller < (uint32)server_pcicfg_uncore[socket]->getNumMC(); ++controller)
     {
-      for(uint32 cnt=0;cnt<4;++cnt)
-            result.M2MCounter[controller][cnt] = server_pcicfg_uncore[socket]->getM2MCounter(controller,cnt);
+      assert(controller < result.M2MCounter.size());
+      for (uint32 cnt = 0; cnt < ServerUncorePowerState::maxCounters; ++cnt)
+          result.M2MCounter[controller][cnt] = server_pcicfg_uncore[socket]->getM2MCounter(controller, cnt);
     }
         server_pcicfg_uncore[socket]->unfreezeCounters();
     }
@@ -4214,7 +4204,7 @@ ServerUncorePowerState PCM::getServerUncorePowerState(uint32 socket)
     {
         uint32 refCore = socketRefCore[socket];
         TemporalThreadAffinity tempThreadAffinity(refCore);
-        for (int i = 0; i < 4 && socket < pcuPMUs.size(); ++i)
+        for (int i = 0; i < ServerUncorePowerState::maxCounters && socket < pcuPMUs.size(); ++i)
             result.PCUCounter[i] = *pcuPMUs[socket].counterValue[i];
         // std::cout<< "values read: " << result.PCUCounter[0]<<" "<<result.PCUCounter[1] << " " << result.PCUCounter[2] << " " << result.PCUCounter[3] << std::endl;
         uint64 val=0;

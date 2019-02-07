@@ -43,7 +43,7 @@ int main(int argc, char *argv[])
 
 // 		Display internal metrics
 		printTitle("Last updated TSC");
-		std::cout << state.lastUpdateTsc << std::endl;
+		std::cout << state.lastUpdateTscEnd << std::endl;
 
 		printTitle("Timestamp");
 		std::cout << state.timestamp << std::endl;

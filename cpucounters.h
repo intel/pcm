@@ -36,6 +36,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include "exceptions/unsupported_processor_exception.hpp"
 
 #include <vector>
+#include <array>
 #include <limits>
 #include <string>
 #include <memory>
@@ -1573,8 +1574,9 @@ public:
         return (
             cpu_model == PCM::HASWELLX
             || cpu_model == PCM::BDX
-	    || cpu_model == PCM::SKX
-        );
+            || cpu_model == PCM::SKX
+            || cpu_model == PCM::SKL
+            );
     }
 
     bool PMMTrafficMetricsAvailable() const
@@ -2215,13 +2217,21 @@ public:
 //!
 class ServerUncorePowerState : public UncoreCounterState
 {
-    uint64 QPIClocks[3], QPIL0pTxCycles[3], QPIL1Cycles[3];
-    uint64 DRAMClocks[8];
-    uint64 MCDRAMClocks[16];
-    uint64 MCCounter[8][4]; // channel X counter
-    uint64 M2MCounter[2][4]; // M2M/iMC boxes x counter
-    uint64 EDCCounter[8][4]; // EDC controller X counter
-    uint64 PCUCounter[4];
+public:
+    enum {
+        maxControllers = 2,
+        maxChannels = 8,
+        maxXPILinks = 3,
+        maxCounters = 4
+    };
+private:
+    std::array<uint64, maxXPILinks> QPIClocks, QPIL0pTxCycles, QPIL1Cycles;
+    std::array<uint64, maxChannels> DRAMClocks;
+    std::array<uint64, maxChannels> MCDRAMClocks;
+    std::array<std::array<uint64, maxCounters>, maxChannels> MCCounter; // channel X counter
+    std::array<std::array<uint64, maxCounters>, maxControllers> M2MCounter; // M2M/iMC boxes x counter
+    std::array<std::array<uint64, maxCounters>, maxChannels> EDCCounter; // EDC controller X counter
+    std::array<uint64, maxCounters> PCUCounter;
     int32 PackageThermalHeadroom;
     uint64 InvariantTSC;    // invariant time stamp counter
     friend class PCM;
@@ -2254,22 +2264,16 @@ public:
     //! Returns current thermal headroom below TjMax
     int32 getPackageThermalHeadroom() const { return PackageThermalHeadroom; }
     ServerUncorePowerState() :
+        QPIClocks{}, QPIL0pTxCycles{}, QPIL1Cycles{},
+        DRAMClocks{},
+        MCDRAMClocks{},
+        MCCounter{},
+        M2MCounter{},
+        EDCCounter{},
+        PCUCounter{},
         PackageThermalHeadroom(0),
         InvariantTSC(0)
     {
-        memset(&(QPIClocks[0]), 0, 3 * sizeof(uint64));
-        memset(&(QPIL0pTxCycles[0]), 0, 3 * sizeof(uint64));
-        memset(&(QPIL1Cycles[0]), 0, 3 * sizeof(uint64));
-        memset(&(DRAMClocks[0]), 0, 8 * sizeof(uint64));
-        memset(&(MCDRAMClocks[0]), 0, 16 * sizeof(uint64));
-        memset(&(PCUCounter[0]), 0, 4 * sizeof(uint64));
-        for (int i = 0; i < 8; ++i) {
-            memset(&(MCCounter[i][0]), 0, 4 * sizeof(uint64));
-            memset(&(EDCCounter[i][0]), 0, 4 * sizeof(uint64));
-        }
-        for (int i = 0; i < 2; ++i) {
-            memset(&(M2MCounter[i][0]), 0, 4 * sizeof(uint64));
-        }
     }
 };
 
