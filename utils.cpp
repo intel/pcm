@@ -440,3 +440,41 @@ void MySystem(char * sysCmd, char ** sysArgv)
     }
 #endif
 }
+
+void drawStackedBar(const std::string & label, std::vector<StackedBarItem> & h, const int width)
+{
+    int real_width = 0;
+    auto scale = [&width](double fraction)
+    {
+        return int(round(fraction * double(width)));
+    };
+    for (const auto & i : h)
+    {
+        real_width += scale(i.fraction);
+    }
+    auto drawBar = [](const int nempty, const char first, const int width, const char last)
+    {
+        for (int c = 0; c < nempty; ++c)
+        {
+            std::cout << ' ';
+        }
+        std::cout << first;
+        for (int c = 0; c < width; ++c)
+        {
+            std::cout << char(196);
+        }
+        std::cout << last << '\n';
+    };
+    drawBar((int)label.length(), char(218), real_width, char(191));
+    std::cout << label << '|';
+    for (const auto & i : h)
+    {
+        const int c_width = scale(i.fraction);
+        for (int c = 0; c < c_width; ++c)
+        {
+            std::cout << i.fill;
+        }
+    }
+    std::cout << "|\n";
+    drawBar((int)label.length(), char(192), real_width, char(217));
+}

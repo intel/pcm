@@ -21,14 +21,15 @@ CT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
         \brief Some common utility routines
   */
 
-#ifndef PCM_UTILS_HEADER
-#define PCM_UTILS_HEADER
+#pragma once
 
 #include <cstdio>
 #include <cstring>
 #include <fstream>
 #include <time.h>
 #include "types.h"
+#include <vector>
+#include <math.h>
 
 #ifndef _MSC_VER
 #include <csignal>
@@ -226,4 +227,14 @@ inline tm pcm_localtime()
     return result;
 }
 
-#endif
+struct StackedBarItem {
+    double fraction;
+    std::string label; // not used currently
+    char fill;
+    StackedBarItem() {}
+    StackedBarItem(double fraction_,
+        const std::string & label_,
+        char fill_) : fraction(fraction_), label(label_), fill(fill_) {}
+};
+
+void drawStackedBar(const std::string & label, std::vector<StackedBarItem> & h, const int width = 80);
