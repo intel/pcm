@@ -573,6 +573,10 @@ public:
     //! \brief Returns true if the specified package C-state residency metric is supported
     bool isPackageCStateResidencySupported(int state)
     {
+        if (state == 0)
+        {
+            return true;
+        }
         return (pkgCStateMsr != NULL && state <= ((int)MAX_C_STATE) && pkgCStateMsr[state] != 0);
     }
 
@@ -2885,7 +2889,21 @@ inline double getCoreCStateResidency(int state, const CounterStateType & before,
 template <class CounterStateType>
 inline double getPackageCStateResidency(int state, const CounterStateType & before, const CounterStateType & after)
 {
-    return double(after.UncoreCounterState::CStateResidency[state] - before.UncoreCounterState::CStateResidency[state]) / double(getInvariantTSC(before, after));
+    const double tsc = double(getInvariantTSC(before, after));
+    if (state == 0)
+    {
+        PCM * m = PCM::getInstance();
+        double result = 1.0;
+        for (int i = 1; i <= PCM::MAX_C_STATE; ++i)
+            if (m->isPackageCStateResidencySupported(state))
+                result -= (after.UncoreCounterState::CStateResidency[i] - before.UncoreCounterState::CStateResidency[i]) / tsc;
+
+        if (result < 0.) result = 0.;       // fix counter dissynchronization
+        else if (result > 1.) result = 1.;  // fix counter dissynchronization
+
+        return result;
+    }
+    return double(after.UncoreCounterState::CStateResidency[state] - before.UncoreCounterState::CStateResidency[state]) / tsc;
 }
 
 
