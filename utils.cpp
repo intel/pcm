@@ -466,7 +466,7 @@ void drawStackedBar(const std::string & label, std::vector<StackedBarItem> & h, 
         std::cout << last << '\n';
     };
     drawBar((int)label.length(), char(218), real_width, char(191));
-    std::cout << label << '|';
+    std::cout << label << char(179);
     for (const auto & i : h)
     {
         const int c_width = scale(i.fraction);
@@ -475,6 +475,6 @@ void drawStackedBar(const std::string & label, std::vector<StackedBarItem> & h, 
             std::cout << i.fill;
         }
     }
-    std::cout << "|\n";
+    std::cout << char(179) << "\n";
     drawBar((int)label.length(), char(192), real_width, char(217));
 }
