@@ -441,6 +441,37 @@ void MySystem(char * sysCmd, char ** sysArgv)
 #endif
 }
 
+#ifdef _MSC_VER
+#define HORIZONTAL     char(196)
+#define VERTICAL       char(179)
+#define DOWN_AND_RIGHT char(218)
+#define DOWN_AND_LEFT  char(191)
+#define UP_AND_RIGHT   char(192)
+#define UP_AND_LEFT    char(217)
+#else
+#define HORIZONTAL     u8"\u2500"
+#define VERTICAL       u8"\u2502"
+#define DOWN_AND_RIGHT u8"\u250C"
+#define DOWN_AND_LEFT  u8"\u2510"
+#define UP_AND_RIGHT   u8"\u2514"
+#define UP_AND_LEFT    u8"\u2518"
+#endif
+
+template <class T>
+void drawBar(const int nempty, const T & first, const int width, const T & last)
+{
+    for (int c = 0; c < nempty; ++c)
+    {
+        std::cout << ' ';
+    }
+    std::cout << first;
+    for (int c = 0; c < width; ++c)
+    {
+        std::cout << HORIZONTAL;
+    }
+    std::cout << last << '\n';
+}
+
 void drawStackedBar(const std::string & label, std::vector<StackedBarItem> & h, const int width)
 {
     int real_width = 0;
@@ -452,21 +483,8 @@ void drawStackedBar(const std::string & label, std::vector<StackedBarItem> & h, 
     {
         real_width += scale(i.fraction);
     }
-    auto drawBar = [](const int nempty, const char first, const int width, const char last)
-    {
-        for (int c = 0; c < nempty; ++c)
-        {
-            std::cout << ' ';
-        }
-        std::cout << first;
-        for (int c = 0; c < width; ++c)
-        {
-            std::cout << char(196);
-        }
-        std::cout << last << '\n';
-    };
-    drawBar((int)label.length(), char(218), real_width, char(191));
-    std::cout << label << char(179);
+    drawBar((int)label.length(), DOWN_AND_RIGHT, real_width, DOWN_AND_LEFT);
+    std::cout << label << VERTICAL;
     for (const auto & i : h)
     {
         const int c_width = scale(i.fraction);
@@ -475,6 +493,6 @@ void drawStackedBar(const std::string & label, std::vector<StackedBarItem> & h, 
             std::cout << i.fill;
         }
     }
-    std::cout << char(179) << "\n";
-    drawBar((int)label.length(), char(192), real_width, char(217));
+    std::cout << VERTICAL << "\n";
+    drawBar((int)label.length(), UP_AND_RIGHT, real_width, UP_AND_LEFT);
 }
