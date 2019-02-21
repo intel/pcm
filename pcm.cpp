@@ -302,8 +302,8 @@ void print_output(PCM * m,
         }
         cout << "\n";
 
-        drawStackedBar("Core    C-state distribution", CoreCStateStackedBar, 80);
-        drawStackedBar("Package C-state distribution", PackageCStateStackedBar, 80);
+        drawStackedBar(" Core    C-state distribution", CoreCStateStackedBar, 80);
+        drawStackedBar(" Package C-state distribution", PackageCStateStackedBar, 80);
 
         if (m->getNumCores() == m->getNumOnlineCores())
         {
