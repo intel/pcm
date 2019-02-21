@@ -483,6 +483,11 @@ void drawStackedBar(const std::string & label, std::vector<StackedBarItem> & h, 
     {
         real_width += scale(i.fraction);
     }
+    if (real_width > 2*width)
+    {
+        std::cout << "ERROR: sum of fractions > 2 ("<< real_width << " > " << width << ")" << std::endl;
+        return;
+    }
     drawBar((int)label.length(), DOWN_AND_RIGHT, real_width, DOWN_AND_LEFT);
     std::cout << label << VERTICAL;
     for (const auto & i : h)
