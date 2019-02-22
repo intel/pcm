@@ -44,6 +44,7 @@ void print_usage(const char * progname)
     std::cout << "   -w value : write the value before reading \n";
     std::cout << "   -c core  : perform msr read/write on specified core (default is 0)\n";
     std::cout << "   -d       : output all numbers in dec (default is hex)\n";
+    std::cout << "   -a       : perform msr read/write operations on all cores\n";
     std::cout << "\n";
 }
 
@@ -60,7 +61,7 @@ int main(int argc, char * argv[])
     bool dec = false;
 
     int my_opt = -1;
-    while ((my_opt = getopt(argc, argv, "w:c:d")) != -1)
+    while ((my_opt = getopt(argc, argv, "w:c:d:a")) != -1)
     {
         switch (my_opt)
         {
@@ -73,6 +74,9 @@ int main(int argc, char * argv[])
             break;
         case 'd':
             dec = true;
+            break;
+        case 'a':
+            core = -1;
             break;
         default:
             print_usage(argv[0]);
@@ -106,30 +110,49 @@ int main(int argc, char * argv[])
         return -1;
     }
     #endif
-    try {
-        MsrHandle h(core);
-        if (!dec) std::cout << std::hex << std::showbase;
-        if (write)
-        {
-            std::cout << " Writing " << value << " to MSR " << msr << " on core " << core << std::endl;
-            if(h.write(msr, value) != 8)
+    auto doOne = [&dec, &write, &value, &msr](int core)
+    {
+        try {
+            MsrHandle h(core);
+            if (!dec) std::cout << std::hex << std::showbase;
+            if (write)
             {
-                std::cout << " Write error!" << std::endl;
+                std::cout << " Writing " << value << " to MSR " << msr << " on core " << core << std::endl;
+                if (h.write(msr, value) != 8)
+                {
+                    std::cout << " Write error!" << std::endl;
+                }
+            }
+            value = 0;
+            if (h.read(msr, &value) == 8)
+            {
+                std::cout << " Read value " << value << " from MSR " << msr << " on core " << core << "\n" << std::endl;
+            }
+            else
+            {
+                std::cout << " Read error!" << std::endl;
             }
         }
-        value = 0;
-        if(h.read(msr, &value) == 8)
+        catch (std::exception & e)
         {
-            std::cout << " Read value " << value << " from MSR " << msr << " on core " << core << "\n" << std::endl;
+            std::cerr << "Error accessing MSRs: " << e.what() << std::endl;
+            std::cerr << "Please check if the program can access MSR drivers." << std::endl;
         }
-        else
-        {
-            std::cout << " Read error!" << std::endl;
-        }
-    }
-    catch (std::exception & e)
+    };
+    if (core >= 0)
     {
-        std::cerr << "Error accessing MSRs: " << e.what() << std::endl;
-        std::cerr << "Please check if the program can access MSR drivers." << std::endl;
+        doOne(core);
+    }
+    else
+    {
+        set_signal_handlers();
+        auto m = PCM::getInstance();
+        for (uint32 i = 0; i < m->getNumCores(); ++i)
+        {
+            if (m->isCoreOnline(i))
+            {
+                doOne(i);
+            }
+        }
     }
 }
