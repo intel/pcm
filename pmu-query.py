@@ -5,6 +5,7 @@ import subprocess
 import sys
 import platform
 import getopt
+import re
 
 all_flag = False
 download_flag = False
@@ -48,7 +49,7 @@ if filename == None:
     (output, err) = p.communicate()
     p_status = p.wait()
     for model in map_file:
-        if model['Family-model'] in output:
+        if re.search(model['Family-model'], output):
             if(model['EventType'] == 'core'):
                 core_path = model['Filename']
             elif(model['EventType'] == 'offcore'):

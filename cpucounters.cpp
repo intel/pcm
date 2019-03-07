@@ -2681,9 +2681,9 @@ std::string PCM::getCPUFamilyModelString()
     char buffer[sizeof(int)*4*3+6];
     memset(buffer,0,sizeof(buffer));
 #ifdef _MSC_VER
-    sprintf_s(buffer,sizeof(buffer),"GenuineIntel-%d-%2X",this->cpu_family,this->original_cpu_model);
+    sprintf_s(buffer,sizeof(buffer),"GenuineIntel-%d-%2X-%X",this->cpu_family,this->original_cpu_model,this->cpu_stepping);
 #else
-    snprintf(buffer,sizeof(buffer),"GenuineIntel-%d-%2X",this->cpu_family,this->original_cpu_model);
+    snprintf(buffer,sizeof(buffer),"GenuineIntel-%d-%2X-%X",this->cpu_family,this->original_cpu_model,this->cpu_stepping);
 #endif
     std::string result(buffer);
     return result;
