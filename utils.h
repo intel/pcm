@@ -168,7 +168,7 @@ class ThreadGroupTempAffinity
     ThreadGroupTempAffinity & operator = (const ThreadGroupTempAffinity &); // forbidden
 
 public:
-    ThreadGroupTempAffinity(uint32 core_id);
+    ThreadGroupTempAffinity(uint32 core_id, bool checkStatus = true);
     ~ThreadGroupTempAffinity();
 };
 #endif

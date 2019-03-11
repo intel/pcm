@@ -214,14 +214,19 @@ class TemporalThreadAffinity  // speedup trick for Linux, FreeBSD, DragonFlyBSD,
     cpu_set_t old_affinity;
 
 public:
-    TemporalThreadAffinity(uint32 core_id)
+    TemporalThreadAffinity(uint32 core_id, bool checkStatus = true)
     {
         pthread_getaffinity_np(pthread_self(), sizeof(cpu_set_t), &old_affinity);
 
         cpu_set_t new_affinity;
         CPU_ZERO(&new_affinity);
         CPU_SET(core_id, &new_affinity);
-        pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &new_affinity);
+        const auto res = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &new_affinity);
+        if (res != 0 && checkStatus)
+        {
+            std::cerr << "ERROR: pthread_setaffinity_np for core " << core_id << " failed with code " << res << std::endl;
+            throw std::exception();
+        }
     }
     ~TemporalThreadAffinity()
     {
@@ -231,7 +236,7 @@ public:
 #elif defined(_MSC_VER)
     ThreadGroupTempAffinity affinity;
 public:
-    TemporalThreadAffinity(uint32 core) : affinity(core) {}
+    TemporalThreadAffinity(uint32 core, bool checkStatus = true) : affinity(core, checkStatus) {}
     bool supported() const { return true; }
 #else // not implemented for os x
 public:
@@ -1621,7 +1626,7 @@ class CoreTaskQueue
 public:
     CoreTaskQueue(int32 core) :
         worker([&]() {
-            TemporalThreadAffinity tempThreadAffinity(core);
+            TemporalThreadAffinity tempThreadAffinity(core, false);
             std::unique_lock<std::mutex> lock(m);
             while (1) {
                 while (wQueue.empty()) {
@@ -2243,7 +2248,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
     // Version for linux/windows/freebsd/dragonflybsd
     for (int i = 0; i < (int)num_cores; ++i)
     {
-        TemporalThreadAffinity tempThreadAffinity(i); // speedup trick for Linux
+        TemporalThreadAffinity tempThreadAffinity(i, false); // speedup trick for Linux
 
         const auto status = programCoreCounters(i, mode_, pExtDesc, lastProgrammedCustomCounters[i]);
         if (status != PCM::Success)

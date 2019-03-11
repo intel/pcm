@@ -67,7 +67,7 @@ void print_cpu_details()
 
 #ifdef _MSC_VER
 
-ThreadGroupTempAffinity::ThreadGroupTempAffinity(uint32 core_id)
+ThreadGroupTempAffinity::ThreadGroupTempAffinity(uint32 core_id, bool checkStatus)
 {
     GROUP_AFFINITY NewGroupAffinity;
     memset(&NewGroupAffinity, 0, sizeof(GROUP_AFFINITY));
@@ -80,7 +80,12 @@ ThreadGroupTempAffinity::ThreadGroupTempAffinity(uint32 core_id)
         ++NewGroupAffinity.Group;
     }
     NewGroupAffinity.Mask = 1ULL << core_id;
-    SetThreadGroupAffinity(GetCurrentThread(), &NewGroupAffinity, &PreviousGroupAffinity);
+    const auto res = SetThreadGroupAffinity(GetCurrentThread(), &NewGroupAffinity, &PreviousGroupAffinity);
+    if (res == FALSE && checkStatus)
+    {
+        std::cerr << "ERROR: SetThreadGroupAffinity for core " << core_id << " failed with error " << GetLastError() << std::endl;
+        throw std::exception();
+    }
 }
 ThreadGroupTempAffinity::~ThreadGroupTempAffinity()
 {
