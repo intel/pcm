@@ -1175,7 +1175,7 @@ bool PCM::discoverSystemTopology()
                 ++threads_per_core;
         }
     }
-    if(num_phys_cores_per_socket == 0) num_phys_cores_per_socket = num_cores / num_sockets / threads_per_core;
+    if(num_phys_cores_per_socket == 0 && num_cores == num_online_cores) num_phys_cores_per_socket = num_cores / num_sockets / threads_per_core;
     if(num_online_cores == 0) num_online_cores = num_cores;
 
     int32 i = 0;
@@ -1231,7 +1231,10 @@ void PCM::printSystemTopology() const
         std::cerr << std::endl;
     }
     std::cerr << "Num sockets: " << num_sockets << std::endl;
-    std::cerr << "Physical cores per socket: " << num_phys_cores_per_socket << std::endl;
+    if (num_phys_cores_per_socket > 0)
+    {
+        std::cerr << "Physical cores per socket: " << num_phys_cores_per_socket << std::endl;
+    }
     std::cerr << "Core PMU (perfmon) version: " << perfmon_version << std::endl;
     std::cerr << "Number of core PMU generic (programmable) counters: " << core_gen_counter_num_max << std::endl;
     std::cerr << "Width of generic (programmable) counters: " << core_gen_counter_width << " bits" << std::endl;
