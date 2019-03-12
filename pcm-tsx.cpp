@@ -119,6 +119,8 @@ void print_usage(const string progname)
 #define N_HLE_POS               (3)
 #define N_RTM_POS               (0)
 
+bool supportNHLECountBasicStat = true;
+
 template <class StateType>
 void print_basic_stats(const StateType & BeforeState, const StateType & AfterState, bool csv)
 {
@@ -138,7 +140,10 @@ void print_basic_stats(const StateType & BeforeState, const StateType & AfterSta
         cout << TXcycles << "," << std::setw(5) << 100. * double(TXcycles) / double(cycles) << "%,";
         cout << Abr_cycles << "," << std::setw(5) << 100. * double(Abr_cycles) / double(cycles) << "%,";
         cout << nRTM << ",";
-        cout << nHLE << ",";
+        if (supportNHLECountBasicStat)
+        {
+            cout << nHLE << ",";
+        }
     }
     else
     {
@@ -148,7 +153,10 @@ void print_basic_stats(const StateType & BeforeState, const StateType & AfterSta
         cout << unit_format(TXcycles) << " (" << std::setw(5) << 100. * double(TXcycles) / double(cycles) << "%)       ";
         cout << unit_format(Abr_cycles) << " (" << std::setw(5) << 100. * double(Abr_cycles) / double(cycles) << "%) ";
         cout << unit_format(nRTM) << "   ";
-        cout << unit_format(nHLE) << "    ";
+        if (supportNHLECountBasicStat)
+        {
+            cout << unit_format(nHLE) << "    ";
+        }
     }
 
     if (nRTM + nHLE)
@@ -303,6 +311,11 @@ int main(int argc, char * argv[])
     if (events.empty())
     {
         conf.nGPCounters = 4;
+        if (m->getMaxCustomCoreEvents() == 3)
+        {
+            conf.nGPCounters = 3;
+            supportNHLECountBasicStat = false;
+        }
         regs[N_RTM_POS].fields.event_select = 0xc9;
         regs[N_RTM_POS].fields.umask = 0x01;
         regs[N_HLE_POS].fields.event_select = 0xc8;
@@ -430,10 +443,22 @@ int main(int argc, char * argv[])
 
         if (events.empty())
         {
-            if (csv)
-                cout << "Core,IPC,Instructions,Cycles,Transactional Cycles,Transactional Cycles %,Aborted Cycles,Aborted Cycles %,#RTM,#HLE,Cycles/Transaction \n";
-            else
-                cout << "Core | IPC  | Instructions | Cycles  | Transactional Cycles | Aborted Cycles  | #RTM  | #HLE  | Cycles/Transaction \n";
+            if (csv) {
+                cout << "Core,IPC,Instructions,Cycles,Transactional Cycles,Transactional Cycles %,Aborted Cycles,Aborted Cycles %,#RTM,";
+                if (supportNHLECountBasicStat)
+                {
+                    cout << "#HLE,";
+                }
+                cout << "Cycles/Transaction \n";
+            }
+            else {
+                cout << "Core | IPC  | Instructions | Cycles  | Transactional Cycles | Aborted Cycles  | #RTM  |";
+                if (supportNHLECountBasicStat)
+                {
+                    cout << " #HLE  |";
+                }
+                cout << " Cycles/Transaction \n";
+            }
         }
         else
         {
