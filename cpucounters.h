@@ -558,6 +558,8 @@ class PCM_API PCM
     bool CyclesLostDueL3CacheMissesAvailable;
     bool CyclesLostDueL2CacheMissesAvailable;
 
+    bool forceRTMAbortMode;
+
 public:
     enum { MAX_C_STATE = 10 }; // max C-state on Intel architecture
 
@@ -1460,6 +1462,19 @@ public:
     //! \brief Get Brand string of processor
     static std::string getCPUBrandString();
     std::string getCPUFamilyModelString();
+
+
+    //! \brief Enables "force all RTM transaction abort" mode also enabling 4+ programmable counters on Skylake generation processors
+    void enableForceRTMAbortMode();
+
+    //! \brief queries status of "force all RTM transaction abort" mode
+    bool isForceRTMAbortModeEnabled() const;
+
+    //! \brief Disables "force all RTM transaction abort" mode restricting the number of programmable counters on Skylake generation processors to 3
+    void disableForceRTMAbortMode();
+
+    //! \brief queries availability of "force all RTM transaction abort" mode
+    bool isForceRTMAbortModeAvailable() const;
 
     //! \brief Get microcode level (returns -1 if retrieval not supported due to some restrictions)
     int64 getCPUMicrocodeLevel() const { return cpu_microcode_level; }
