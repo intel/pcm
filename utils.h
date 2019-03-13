@@ -226,4 +226,9 @@ inline tm pcm_localtime()
     return result;
 }
 
+class PCM;
+bool CheckAndForceRTMAbortMode(const char * argv, PCM * m);
+
+void print_help_force_rtm_abort_mode(const int alignment);
+
 #endif

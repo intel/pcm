@@ -264,6 +264,11 @@ int main(int argc, char * argv[])
                 events.push_back(cur_event);
                 continue;
             }
+            else
+            if (CheckAndForceRTMAbortMode(*argv, m)) // for pcm-tsx this option is enabled for testing only, not exposed in the help
+            {
+                continue;
+            }
             else if ((strncmp(*argv, "-F", 2) == 0) ||
                      (strncmp(*argv, "-f", 2) == 0) ||
                      (strncmp(*argv, "-force", 6) == 0))

@@ -440,6 +440,26 @@ void PCM::readCoreCounterConfig()
             core_fixed_counter_num_max = extract_bits_ui(cpuinfo.array[3], 0, 4);
             core_fixed_counter_width = extract_bits_ui(cpuinfo.array[3], 5, 12);
         }
+        if (isForceRTMAbortModeAvailable() && MSR.size())
+        {
+            uint64 TSXForceAbort = 0;
+            if (MSR[0]->read(MSR_TSX_FORCE_ABORT, &TSXForceAbort) == sizeof(uint64))
+            {
+                TSXForceAbort &= 1;
+                /*
+                    TSXForceAbort is 0 (default mode) => the number of useful gen counters is 3
+                    TSXForceAbort is 1                => the number of gen counters is unchanged
+                */
+                if (TSXForceAbort == 0)
+                {
+                    core_gen_counter_num_max = 3;
+                }
+            }
+            else
+            {
+                std::cerr << "PCM Error: reading MSR_TSX_FORCE_ABORT failed. " << std::endl;
+            }
+        }
     }
 }
 
@@ -1689,6 +1709,7 @@ PCM::PCM() :
     L3CacheHitsAvailable(false),
     CyclesLostDueL3CacheMissesAvailable(false),
     CyclesLostDueL2CacheMissesAvailable(false),
+    forceRTMAbortMode(false),
     mode(INVALID_MODE),
     numInstancesSemaphore(NULL),
     canUsePerf(false),
@@ -1720,11 +1741,13 @@ PCM::PCM() :
 
     if(!discoverSystemTopology()) return;
 
+    if(!initMSR()) return;
+
+    readCoreCounterConfig();
+
 #ifndef PCM_SILENT
     printSystemTopology();
 #endif
-
-    if(!initMSR()) return;
 
     if(!detectNominalFrequency()) return;
 
@@ -2699,6 +2722,69 @@ std::string PCM::getCPUFamilyModelString()
     return result;
 }
 
+void PCM::enableForceRTMAbortMode()
+{
+    std::cout << "enableForceRTMAbortMode(): forceRTMAbortMode=" << forceRTMAbortMode << std::endl;
+    if (!forceRTMAbortMode)
+    {
+        if (isForceRTMAbortModeAvailable() && (core_gen_counter_num_max < 4))
+        {
+            for (auto m : MSR)
+            {
+                const auto res = m->write(MSR_TSX_FORCE_ABORT, 1);
+                if (res != sizeof(uint64))
+                {
+                    std::cerr << "Warning: writing 1 to MSR_TSX_FORCE_ABORT failed with error "
+                        << res << " on core "<< m->getCoreId() << std::endl;
+                }
+            }
+            readCoreCounterConfig(); // re-read core_gen_counter_num_max from CPUID
+            std::cout << "The number of custom counters is now "<< core_gen_counter_num_max << std::endl;
+            if (core_gen_counter_num_max < 4)
+            {
+                std::cerr << "PCM Warning: the number of custom counters did not increase (" << core_gen_counter_num_max << ")" << std::endl;
+            }
+            forceRTMAbortMode = true;
+        }
+    }
+}
+
+bool PCM::isForceRTMAbortModeEnabled() const
+{
+    return forceRTMAbortMode;
+}
+
+void PCM::disableForceRTMAbortMode()
+{
+    std::cout << "disableForceRTMAbortMode(): forceRTMAbortMode=" << forceRTMAbortMode << std::endl;
+    if (forceRTMAbortMode)
+    {
+        for (auto m : MSR)
+        {
+            const auto res = m->write(MSR_TSX_FORCE_ABORT, 0);
+            if (res != sizeof(uint64))
+            {
+                std::cerr << "Warning: writing 0 to MSR_TSX_FORCE_ABORT failed with error "
+                    << res << " on core " << m->getCoreId() << std::endl;
+            }
+        }
+        readCoreCounterConfig(); // re-read core_gen_counter_num_max from CPUID
+        std::cout << "The number of custom counters is now " << core_gen_counter_num_max << std::endl;
+        if (core_gen_counter_num_max != 3)
+        {
+            std::cerr << "PCM Warning: the number of custom counters is not 3 (" << core_gen_counter_num_max << ")" << std::endl;
+        }
+        forceRTMAbortMode = false;
+    }
+}
+
+bool PCM::isForceRTMAbortModeAvailable() const
+{
+    PCM_CPUID_INFO info;
+    pcm_cpuid(7, 0, info); // leaf 7, subleaf 0
+    return (info.reg.edx & (0x1 << 13)) ? true : false;
+}
+
 uint64 get_frequency_from_cpuid() // from Pat Fay (Intel)
 {
     double speed=0;
@@ -3127,6 +3213,8 @@ void PCM::cleanup()
 
     if (decrementInstanceSemaphore())
         cleanupPMU();
+
+    disableForceRTMAbortMode();
 
     cleanupUncorePMUs();
     freeRMID();
