@@ -135,6 +135,7 @@ void print_usage(const string progname)
 		<< "                                            to a file, in case filename is provided" << endl;
 	cerr << "  [-e event1] [-e event2] [-e event3] .. => optional list of custom events to monitor (up to 4)." << endl;
 	cerr << "  -yc   | --yescores  | /yc              => enable specific cores to output" << endl;
+    print_help_force_rtm_abort_mode(41);
 	cerr << " Examples:" << endl;
 	cerr << "  " << progname << " 1                   => print counters every second without core and socket output" << endl;
 	cerr << "  " << progname << " 0.5 -csv=test.log   => twice a second save counter values to test.log in CSV format" << endl;
@@ -410,6 +411,11 @@ int main(int argc, char * argv[])
 
 			continue;
 		}
+        else
+        if (CheckAndForceRTMAbortMode(*argv, m))
+        {
+            continue;
+        }
 		else if (strncmp(*argv, "--", 2) == 0)
 		{
 			argv++;

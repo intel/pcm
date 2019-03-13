@@ -95,6 +95,7 @@ void print_help(const string prog_name)
     cerr << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or" << endl
         << "                                        to a file, in case filename is provided" << endl;
     cerr << "  -i[=number] | /i[=number]          => allow to determine number of iterations" << endl;
+    print_help_force_rtm_abort_mode(37);
     cerr << " Examples:" << endl;
     cerr << "  " << prog_name << " 1 -nc -ns          => print counters every second without core and socket output" << endl;
     cerr << "  " << prog_name << " 1 -i=10            => print counters every second 10 times and exit" << endl;
@@ -1160,6 +1161,11 @@ int main(int argc, char * argv[])
             strncmp(*argv, "/reset", 6) == 0)
         {
             reset_pmu = true;
+            continue;
+        }
+        else
+        if (CheckAndForceRTMAbortMode(*argv, m))
+        {
             continue;
         }
         else

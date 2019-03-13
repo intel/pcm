@@ -506,3 +506,28 @@ void drawStackedBar(const std::string & label, std::vector<StackedBarItem> & h, 
     std::cout << VERTICAL << "\n";
     drawBar((int)label.length(), UP_AND_RIGHT, real_width, UP_AND_LEFT);
 }
+
+
+bool CheckAndForceRTMAbortMode(const char * arg, PCM * m)
+{
+    if (strncmp(arg, "-force-rtm-abort-mode", 21) == 0)
+    {
+        m->enableForceRTMAbortMode();
+        return true;
+    }
+    return false;
+}
+
+void print_help_force_rtm_abort_mode(const int alignment)
+{
+    const auto m = PCM::getInstance();
+    if (m->isForceRTMAbortModeAvailable() && (m->getMaxCustomCoreEvents() < 4))
+    {
+        std::cerr << "  -force-rtm-abort-mode";
+        for (int i = 0; i < (alignment - 23); ++i)
+        {
+            std::cerr << " ";
+        }
+        std::cerr << "=> force RTM transaction abort mode to enable more programmable counters" << std::endl;
+    }
+}

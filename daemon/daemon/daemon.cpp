@@ -145,6 +145,11 @@ namespace PCMDaemon {
 			regs[3].fields.event_select = ARCH_LLC_REFERENCE_EVTNR;
 			regs[3].fields.umask = ARCH_LLC_REFERENCE_UMASK;
 
+            if (pcmInstance_->getMaxCustomCoreEvents() == 3)
+            {
+                conf.nGPCounters = 2; // drop LLC metrics
+            }
+
 		    status = pcmInstance_->program(PCM::EXT_CUSTOM_CORE_EVENTS, &conf);
 		}
 		else
