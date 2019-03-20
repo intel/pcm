@@ -631,8 +631,14 @@ void PCM::initRMID()
                 MSR[core]->unlock();
 
         /* Initializing the memory bandwidth counters */
-        memory_bw_local.push_back(std::make_shared<CounterWidthExtender>(new CounterWidthExtender::MBLCounter(MSR[core]), 24, 500));
-        memory_bw_total.push_back(std::make_shared<CounterWidthExtender>(new CounterWidthExtender::MBTCounter(MSR[core]), 24, 500));
+        if (CoreLocalMemoryBWMetricAvailable())
+        {
+            memory_bw_local.push_back(std::make_shared<CounterWidthExtender>(new CounterWidthExtender::MBLCounter(MSR[core]), 24, 500));
+            if (CoreRemoteMemoryBWMetricAvailable())
+            {
+                memory_bw_total.push_back(std::make_shared<CounterWidthExtender>(new CounterWidthExtender::MBTCounter(MSR[core]), 24, 500));
+            }
+        }
         rmid[topology[core].socket] --;
     }
     /* Get The scaling factor by running CPUID.0xF.0x1 instruction */
