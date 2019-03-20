@@ -89,7 +89,7 @@ void print_events()
     cerr << "     PCIeNSWr  - PCIe Non-snoop write transfer (partial cache line)\n";
     cerr << "     PCIeNSWrF - PCIe Non-snoop write transfer (full cache line)\n";
     cerr << "     ItoM      - PCIe write full cache line\n";
-    cerr << "     RFO       - PCIe parial Write\n";
+    cerr << "     RFO       - PCIe partial Write\n";
     cerr << "   CPU MMIO events (CPU reading/writing to PCIe devices):\n";
     cerr << "     PRd       - MMIO Read [Haswell Server only] (Partial Cache Line)\n";
     cerr << "     WiL       - MMIO Write (Full/Partial)\n\n";
