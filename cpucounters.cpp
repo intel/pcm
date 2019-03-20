@@ -2732,7 +2732,7 @@ std::string PCM::getCPUFamilyModelString()
 
 void PCM::enableForceRTMAbortMode()
 {
-    std::cout << "enableForceRTMAbortMode(): forceRTMAbortMode=" << forceRTMAbortMode << std::endl;
+    // std::cout << "enableForceRTMAbortMode(): forceRTMAbortMode=" << forceRTMAbortMode << std::endl;
     if (!forceRTMAbortMode)
     {
         if (isForceRTMAbortModeAvailable() && (core_gen_counter_num_max < 4))
@@ -2764,7 +2764,7 @@ bool PCM::isForceRTMAbortModeEnabled() const
 
 void PCM::disableForceRTMAbortMode()
 {
-    std::cout << "disableForceRTMAbortMode(): forceRTMAbortMode=" << forceRTMAbortMode << std::endl;
+    // std::cout << "disableForceRTMAbortMode(): forceRTMAbortMode=" << forceRTMAbortMode << std::endl;
     if (forceRTMAbortMode)
     {
         for (auto m : MSR)
