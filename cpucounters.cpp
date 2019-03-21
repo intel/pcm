@@ -636,10 +636,10 @@ void PCM::initRMID()
         /* Initializing the memory bandwidth counters */
         if (CoreLocalMemoryBWMetricAvailable())
         {
-            memory_bw_local.push_back(std::make_shared<CounterWidthExtender>(new CounterWidthExtender::MBLCounter(MSR[core]), 24, 500));
+            memory_bw_local.push_back(std::make_shared<CounterWidthExtender>(new CounterWidthExtender::MBLCounter(MSR[core]), 24, 1000));
             if (CoreRemoteMemoryBWMetricAvailable())
             {
-                memory_bw_total.push_back(std::make_shared<CounterWidthExtender>(new CounterWidthExtender::MBTCounter(MSR[core]), 24, 500));
+                memory_bw_total.push_back(std::make_shared<CounterWidthExtender>(new CounterWidthExtender::MBTCounter(MSR[core]), 24, 1000));
             }
         }
         rmid[topology[core].socket] --;
