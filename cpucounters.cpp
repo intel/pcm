@@ -2293,8 +2293,6 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
         }
     }
 
-    reservePMU();
-
     if(canUsePerf)
     {
         std::cerr << "Successfully programmed on-core PMU using Linux perf"<<std::endl;
@@ -2905,29 +2903,6 @@ uint32 PCM::checkCustomCoreProgramming(std::shared_ptr<SafeMsrHandle> msr)
     return corruptedCountersMask;
 }
 
-void PCM::reservePMU()
-{
-    if (perfmon_version >= 4 && canUsePerf == false)
-    {
-        const uint64 value = (7ULL << 32ULL) + ((1ULL << core_gen_counter_num_used) - 1ULL);
-        for (auto msr : MSR)
-        {
-            msr->write(MSR_PERF_GLOBAL_INUSE, value);
-        }
-    }
-}
-
-void PCM::unreservePMU()
-{
-    if (perfmon_version >= 4 && canUsePerf == false)
-    {
-        for (auto msr : MSR)
-        {
-            msr->write(MSR_PERF_GLOBAL_INUSE, 0ULL);
-        }
-    }
-}
-
 bool PCM::PMUinUse()
 {
     // follow the "Performance Monitoring Unit Sharing Guide" by P. Irelan and Sh. Kuo
@@ -3080,8 +3055,6 @@ void PCM::cleanupPMU()
 
     if(cpu_model == JAKETOWN)
         enableJKTWorkaround(false);
-
-    unreservePMU();
 
 #ifndef PCM_SILENT
     std::cerr << " Zeroed PMU registers" << std::endl;

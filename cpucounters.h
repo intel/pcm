@@ -753,8 +753,6 @@ private:
 
     std::vector<std::vector<EventSelectRegister> > lastProgrammedCustomCounters;
     uint32 checkCustomCoreProgramming(std::shared_ptr<SafeMsrHandle> msr);
-    void reservePMU();
-    void unreservePMU();
     ErrorCode programCoreCounters(int core, const PCM::ProgramMode mode, const ExtendedCustomCoreEventDescription * pExtDesc,
         std::vector<EventSelectRegister> & programmedCustomCounters);
 
