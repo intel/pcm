@@ -28,3 +28,6 @@ Release64
 html/
 latex/
 *.swp
+.vs/
+.idea/
+cmake-build-debug/
