@@ -30,4 +30,3 @@ latex/
 *.swp
 .vs/
 .idea/
-cmake-build-debug/
