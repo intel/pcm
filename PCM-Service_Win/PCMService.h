@@ -22,39 +22,6 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <stdexcept>
 #pragma managed
 
-#pragma region All the things which should one day be config
-#define SERVICE_NAME "PCMService"
-
-#define COUNTERS_CORE "PCM Core Counters"
-#define COUNTERS_SOCKET "PCM Socket Counters"
-#define COUNTERS_QPI "PCM QPI Counters"
-
-#define METRIC_CORE_CLOCKTICK "Clockticks"
-#define METRIC_CORE_RETRIES "Instructions Retired"
-#define METRIC_CORE_MISSL2 "L2 Cache Misses"
-#define METRIC_CORE_MISSL3 "L3 Cache Misses"
-#define METRIC_CORE_IPC "Instructions Per Clocktick (IPC)"
-#define METRIC_CORE_BASEIPC "Base ticks IPC"
-#define METRIC_CORE_FREQREL "Relative Frequency (%)"
-#define METRIC_CORE_FREQNOM "Nominal Frequency"
-#define METRIC_CORE_HEADROOM "Thermal Headroom below TjMax"
-#define METRIC_CORE_RESC0 "core C0-state residency (%)"
-#define METRIC_CORE_RESC3 "core C3-state residency (%)"
-#define METRIC_CORE_RESC6 "core C6-state residency (%)"
-#define METRIC_CORE_RESC7 "core C7-state residency (%)"
-
-#define METRIC_SOCKET_BANDREAD "Memory Read Bandwidth"
-#define METRIC_SOCKET_BANDWRITE "Memory Write Bandwidth"
-#define METRIC_SOCKET_ENERGYPACK "Package/Socket Consumed Energy"
-#define METRIC_SOCKET_ENERGYDRAM "DRAM/Memory Consumed Energy"
-#define METRIC_SOCKET_RESC2 "package C2-state residency (%)"
-#define METRIC_SOCKET_RESC3 "package C3-state residency (%)"
-#define METRIC_SOCKET_RESC6 "package C6-state residency (%)"
-#define METRIC_SOCKET_RESC7 "package C7-state residency (%)"
-
-#define METRIC_QPI_BAND "QPI Link Bandwidth"
-#pragma endregion
-
 using namespace System;
 using namespace System::Collections;
 using namespace System::ServiceProcess;
@@ -63,10 +30,41 @@ using namespace System::Diagnostics;
 using namespace System::Threading;
 using namespace System::Runtime::InteropServices;
 
+#define SERVICE_NAME "PCMService"
+
 namespace PCMServiceNS {
 
     ref class MeasureThread
     {
+    private:
+        String^ CountersCore = gcnew String("PCM Core Counters");
+        String^ CountersSocket = gcnew String("PCM Socket Counters");
+        String^ CountersQpi = gcnew String("PCM QPI Counters");
+
+        String^ MetricCoreClocktick = gcnew String("Clockticks");
+        String^ MetricCoreRetries = gcnew String("Instructions Retired");
+        String^ MetricCoreMissL2 = gcnew String("L2 Cache Misses");
+        String^ MetricCoreMissL3 = gcnew String("L3 Cache Misses");
+        String^ MetircCoreIpc = gcnew String("Instructions Per Clocktick (IPC)");
+        String^ MetricCoreBaseIpc = gcnew String("Base ticks IPC");
+        String^ MetricCoreFreqRel = gcnew String("Relative Frequency (%)");
+        String^ MetricCoreFreqNom = gcnew String("Nominal Frequency");
+        String^ MetricCoreHeadroom = gcnew String("Thermal Headroom below TjMax");
+        String^ MetricCoreResC0 = gcnew String("core C0-state residency (%)");
+        String^ MetricCoreResC3 = gcnew String("core C3-state residency (%)");
+        String^ MetricCoreResC6 = gcnew String("core C6-state residency (%)");
+        String^ MetricCoreResC7 = gcnew String("core C7-state residency (%)");
+
+        String^ MetricSocketBandRead = gcnew String("Memory Read Bandwidth");
+        String^ MetricSocketBandWrite = gcnew String("Memory Write Bandwidth");
+        String^ MetricSocketEnergyPack = gcnew String("Package/Socket Consumed Energy");
+        String^ MetricSocketEnergyDram = gcnew String("DRAM/Memory Consumed Energy");
+        String^ MetricSocketResC2 = gcnew String("package C2-state residency (%)");
+        String^ MetricSocketResC3 = gcnew String("package C3-state residency (%)");
+        String^ MetricSocketResC6 = gcnew String("package C6-state residency (%)");
+        String^ MetricSocketResC7 = gcnew String("package C7-state residency (%)");
+
+        String^ MetricQpiBand = gcnew String("QPI Link Bandwidth");
     public:
         MeasureThread( System::Diagnostics::EventLog^ log ) : log_(log)
         {
@@ -87,17 +85,17 @@ namespace PCMServiceNS {
 
             // This here will only create the necessary registry entries, the actual counters are created later.
             // New unified category
-            if ( PerformanceCounterCategory::Exists(COUNTERS_CORE) )
+            if ( PerformanceCounterCategory::Exists(CountersCore) )
             {
-                PerformanceCounterCategory::Delete(COUNTERS_CORE);
+                PerformanceCounterCategory::Delete(CountersCore);
             }
-            if ( PerformanceCounterCategory::Exists(COUNTERS_SOCKET) )
+            if ( PerformanceCounterCategory::Exists(CountersSocket) )
             {
-                PerformanceCounterCategory::Delete(COUNTERS_SOCKET);
+                PerformanceCounterCategory::Delete(CountersSocket);
             }
-            if ( PerformanceCounterCategory::Exists(COUNTERS_QPI) )
+            if ( PerformanceCounterCategory::Exists(CountersQpi) )
             {
-                PerformanceCounterCategory::Delete(COUNTERS_QPI);
+                PerformanceCounterCategory::Delete(CountersQpi);
             }
             log_->WriteEntry(SERVICE_NAME, "Old categories deleted." );
             // First create the collection, then add counters to it so we add them all at once
@@ -108,57 +106,57 @@ namespace PCMServiceNS {
             // CounterCreationData^ counter = gcnew CounterCreationData( "counter", "helptext for counter", PerformanceCounterType::NumberOfItems64 );
             // counterCollection->Add( counter );
             CounterCreationData^ counter;
-            counter = gcnew CounterCreationData(METRIC_CORE_CLOCKTICK, "Displays the number of clockticks elapsed since previous measurement.", PerformanceCounterType::CounterDelta64 );
+            counter = gcnew CounterCreationData(MetricCoreClocktick, "Displays the number of clockticks elapsed since previous measurement.", PerformanceCounterType::CounterDelta64 );
             counterCollection->Add( counter );
-            counter = gcnew CounterCreationData(METRIC_CORE_RETRIES, "Displays the number of instructions retired since previous measurement.", PerformanceCounterType::CounterDelta64 );
+            counter = gcnew CounterCreationData(MetricCoreRetries, "Displays the number of instructions retired since previous measurement.", PerformanceCounterType::CounterDelta64 );
             counterCollection->Add( counter );
-            counter = gcnew CounterCreationData(METRIC_CORE_MISSL2, "Displays the L2 Cache Misses caused by this core.", PerformanceCounterType::CounterDelta64 );
+            counter = gcnew CounterCreationData(MetricCoreMissL2, "Displays the L2 Cache Misses caused by this core.", PerformanceCounterType::CounterDelta64 );
             counterCollection->Add( counter );
-            counter = gcnew CounterCreationData(METRIC_CORE_MISSL3, "Displays the L3 Cache Misses caused by this core.", PerformanceCounterType::CounterDelta64 );
+            counter = gcnew CounterCreationData(MetricCoreMissL3, "Displays the L3 Cache Misses caused by this core.", PerformanceCounterType::CounterDelta64 );
             counterCollection->Add( counter );
-            counter = gcnew CounterCreationData(METRIC_CORE_IPC, "Displays the instructions per clocktick executed for this core.", PerformanceCounterType::AverageCount64 );
+            counter = gcnew CounterCreationData(MetircCoreIpc, "Displays the instructions per clocktick executed for this core.", PerformanceCounterType::AverageCount64 );
             counterCollection->Add( counter );
-            counter = gcnew CounterCreationData(METRIC_CORE_BASEIPC, "Not visible", PerformanceCounterType::AverageBase );
+            counter = gcnew CounterCreationData(MetricCoreBaseIpc, "Not visible", PerformanceCounterType::AverageBase );
             counterCollection->Add( counter );
-            counter = gcnew CounterCreationData(METRIC_CORE_FREQREL, "Displays the current frequency of the core to its rated frequency in percent.", PerformanceCounterType::SampleFraction );
+            counter = gcnew CounterCreationData(MetricCoreFreqRel, "Displays the current frequency of the core to its rated frequency in percent.", PerformanceCounterType::SampleFraction );
             counterCollection->Add( counter );
-            counter = gcnew CounterCreationData(METRIC_CORE_FREQNOM, "Not visible", PerformanceCounterType::SampleBase );
+            counter = gcnew CounterCreationData(MetricCoreFreqNom, "Not visible", PerformanceCounterType::SampleBase );
             counterCollection->Add( counter );
-            counter = gcnew CounterCreationData(METRIC_CORE_HEADROOM, "Displays temperature reading in 1 degree Celsius relative to the TjMax temperature. 0 corresponds to the max temperature.", PerformanceCounterType::NumberOfItems64 );
+            counter = gcnew CounterCreationData(MetricCoreHeadroom, "Displays temperature reading in 1 degree Celsius relative to the TjMax temperature. 0 corresponds to the max temperature.", PerformanceCounterType::NumberOfItems64 );
             counterCollection->Add( counter );
-            counter = gcnew CounterCreationData(METRIC_CORE_RESC0, "Displays the residency of core or socket in core C0-state in percent.", PerformanceCounterType::NumberOfItems64 );
+            counter = gcnew CounterCreationData(MetricCoreResC0, "Displays the residency of core or socket in core C0-state in percent.", PerformanceCounterType::NumberOfItems64 );
             counterCollection->Add( counter );
-            counter = gcnew CounterCreationData(METRIC_CORE_RESC3, "Displays the residency of core or socket in core C3-state in percent.", PerformanceCounterType::NumberOfItems64 );
+            counter = gcnew CounterCreationData(MetricCoreResC3, "Displays the residency of core or socket in core C3-state in percent.", PerformanceCounterType::NumberOfItems64 );
             counterCollection->Add( counter );
-            counter = gcnew CounterCreationData(METRIC_CORE_RESC6, "Displays the residency of core or socket in core C6-state in percent.", PerformanceCounterType::NumberOfItems64 );
+            counter = gcnew CounterCreationData(MetricCoreResC6, "Displays the residency of core or socket in core C6-state in percent.", PerformanceCounterType::NumberOfItems64 );
             counterCollection->Add( counter );
-            counter = gcnew CounterCreationData(METRIC_CORE_RESC7, "Displays the residency of core or socket in core C7-state in percent.", PerformanceCounterType::NumberOfItems64 );
+            counter = gcnew CounterCreationData(MetricCoreResC7, "Displays the residency of core or socket in core C7-state in percent.", PerformanceCounterType::NumberOfItems64 );
             counterCollection->Add( counter );
-            PerformanceCounterCategory::Create(COUNTERS_CORE, "Processor Counter Monitor", PerformanceCounterCategoryType::MultiInstance, counterCollection );
+            PerformanceCounterCategory::Create(CountersCore, "Processor Counter Monitor", PerformanceCounterCategoryType::MultiInstance, counterCollection );
 
             counterCollection->Clear();
-            counter = gcnew CounterCreationData(METRIC_SOCKET_BANDREAD, "Displays the memory read bandwidth in bytes/s of this socket.", PerformanceCounterType::NumberOfItems64 );
+            counter = gcnew CounterCreationData(MetricSocketBandRead, "Displays the memory read bandwidth in bytes/s of this socket.", PerformanceCounterType::NumberOfItems64 );
             counterCollection->Add( counter );
-            counter = gcnew CounterCreationData(METRIC_SOCKET_BANDWRITE, "Displays the memory write bandwidth in bytes/s of this socket.", PerformanceCounterType::NumberOfItems64 );
+            counter = gcnew CounterCreationData(MetricSocketBandWrite, "Displays the memory write bandwidth in bytes/s of this socket.", PerformanceCounterType::NumberOfItems64 );
             counterCollection->Add( counter );
-            counter = gcnew CounterCreationData(METRIC_SOCKET_ENERGYPACK, "Displays the energy in Joules consumed by this socket.", PerformanceCounterType::NumberOfItems64 );
+            counter = gcnew CounterCreationData(MetricSocketEnergyPack, "Displays the energy in Joules consumed by this socket.", PerformanceCounterType::NumberOfItems64 );
             counterCollection->Add( counter );
-            counter = gcnew CounterCreationData(METRIC_SOCKET_ENERGYDRAM, "Displays the energy in Joules consumed by DRAM memory attached to the memory controller of this socket.", PerformanceCounterType::NumberOfItems64 );
+            counter = gcnew CounterCreationData(MetricSocketEnergyDram, "Displays the energy in Joules consumed by DRAM memory attached to the memory controller of this socket.", PerformanceCounterType::NumberOfItems64 );
             counterCollection->Add( counter );
-            counter = gcnew CounterCreationData(METRIC_SOCKET_RESC2, "Displays the residency of socket in package C2-state in percent.", PerformanceCounterType::NumberOfItems64 );
+            counter = gcnew CounterCreationData(MetricSocketResC2, "Displays the residency of socket in package C2-state in percent.", PerformanceCounterType::NumberOfItems64 );
             counterCollection->Add( counter );
-            counter = gcnew CounterCreationData(METRIC_SOCKET_RESC3, "Displays the residency of socket in package C3-state in percent.", PerformanceCounterType::NumberOfItems64 );
+            counter = gcnew CounterCreationData(MetricSocketResC3, "Displays the residency of socket in package C3-state in percent.", PerformanceCounterType::NumberOfItems64 );
             counterCollection->Add( counter );
-            counter = gcnew CounterCreationData(METRIC_SOCKET_RESC6, "Displays the residency of socket in package C6-state in percent.", PerformanceCounterType::NumberOfItems64 );
+            counter = gcnew CounterCreationData(MetricSocketResC6, "Displays the residency of socket in package C6-state in percent.", PerformanceCounterType::NumberOfItems64 );
             counterCollection->Add( counter );
-            counter = gcnew CounterCreationData(METRIC_SOCKET_RESC7, "Displays the residency of socket in package C7-state in percent.", PerformanceCounterType::NumberOfItems64 );
+            counter = gcnew CounterCreationData(MetricSocketResC7, "Displays the residency of socket in package C7-state in percent.", PerformanceCounterType::NumberOfItems64 );
             counterCollection->Add( counter );
-            PerformanceCounterCategory::Create(COUNTERS_SOCKET, "Processor Counter Monitor", PerformanceCounterCategoryType::MultiInstance, counterCollection );
+            PerformanceCounterCategory::Create(CountersSocket, "Processor Counter Monitor", PerformanceCounterCategoryType::MultiInstance, counterCollection );
 
             counterCollection->Clear();
-            counter = gcnew CounterCreationData(METRIC_QPI_BAND, "Displays the incoming bandwidth in bytes/s of this QPI link.", PerformanceCounterType::CounterDelta64 );
+            counter = gcnew CounterCreationData(MetricQpiBand, "Displays the incoming bandwidth in bytes/s of this QPI link.", PerformanceCounterType::CounterDelta64 );
             counterCollection->Add( counter );
-            PerformanceCounterCategory::Create(COUNTERS_QPI, "Processor Counter Monitor", PerformanceCounterCategoryType::MultiInstance, counterCollection );
+            PerformanceCounterCategory::Create(CountersQpi, "Processor Counter Monitor", PerformanceCounterCategoryType::MultiInstance, counterCollection );
 
             log_->WriteEntry(SERVICE_NAME, "New categories added." );
 
@@ -170,79 +168,85 @@ namespace PCMServiceNS {
             for ( unsigned int i = 0; i < m_->getNumCores(); ++i )
             {
                 s = UInt32(i).ToString(); // For core counters we use just the number of the core
-                ticksHash_.Add(s, gcnew PerformanceCounter(COUNTERS_CORE, METRIC_CORE_CLOCKTICK, s, false));
-                instRetHash_.Add(s, gcnew PerformanceCounter(COUNTERS_CORE, METRIC_CORE_RETRIES, s, false));
-                ipcHash_.Add(s, gcnew PerformanceCounter(COUNTERS_CORE, METRIC_CORE_IPC, s, false));
-                baseTicksForIpcHash_.Add(s, gcnew PerformanceCounter(COUNTERS_CORE, METRIC_CORE_BASEIPC, s, false));
-                relFreqHash_.Add(s, gcnew PerformanceCounter(COUNTERS_CORE, METRIC_CORE_FREQREL, s, false));
-                baseTicksForRelFreqHash_.Add(s, gcnew PerformanceCounter(COUNTERS_CORE, METRIC_CORE_FREQNOM, s, false));
-                l2CacheMissHash_.Add(s, gcnew PerformanceCounter(COUNTERS_CORE, METRIC_CORE_MISSL2, s, false));
-                l3CacheMissHash_.Add(s, gcnew PerformanceCounter(COUNTERS_CORE, METRIC_CORE_MISSL3, s, false));
-                thermalHeadroomHash_.Add(s, gcnew PerformanceCounter(COUNTERS_CORE, METRIC_CORE_HEADROOM, s, false));
-                CoreC0StateResidencyHash_.Add(s, gcnew PerformanceCounter(COUNTERS_CORE, METRIC_CORE_RESC0, s, false));
-                CoreC3StateResidencyHash_.Add(s, gcnew PerformanceCounter(COUNTERS_CORE, METRIC_CORE_RESC3, s, false));
-                CoreC6StateResidencyHash_.Add(s, gcnew PerformanceCounter(COUNTERS_CORE, METRIC_CORE_RESC6, s, false));
-                CoreC7StateResidencyHash_.Add(s, gcnew PerformanceCounter(COUNTERS_CORE, METRIC_CORE_RESC7, s, false));
+                ticksHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreClocktick, s, false));
+                instRetHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreRetries, s, false));
+                ipcHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetircCoreIpc, s, false));
+                baseTicksForIpcHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreBaseIpc, s, false));
+                relFreqHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreFreqRel, s, false));
+                baseTicksForRelFreqHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreFreqNom, s, false));
+                l2CacheMissHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreMissL2, s, false));
+                l3CacheMissHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreMissL3, s, false));
+                thermalHeadroomHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreHeadroom, s, false));
+                CoreC0StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreResC0, s, false));
+                CoreC3StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreResC3, s, false));
+                CoreC6StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreResC6, s, false));
+                CoreC7StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreResC7, s, false));
             }
 
             // Create socket instances of the common core counters, names are Socket+number
             for ( unsigned int i=0; i<m_->getNumSockets(); ++i )
             {
-                s = "Socket"+UInt32(i).ToString();
-                ticksHash_.Add(s, gcnew PerformanceCounter(COUNTERS_CORE, METRIC_CORE_CLOCKTICK, s, false));
-                instRetHash_.Add(s, gcnew PerformanceCounter(COUNTERS_CORE, METRIC_CORE_RETRIES, s, false));
-                ipcHash_.Add(s, gcnew PerformanceCounter(COUNTERS_CORE, METRIC_CORE_IPC, s, false));
-                baseTicksForIpcHash_.Add(s, gcnew PerformanceCounter(COUNTERS_CORE, METRIC_CORE_BASEIPC, s, false));
-                relFreqHash_.Add(s, gcnew PerformanceCounter(COUNTERS_CORE, METRIC_CORE_FREQREL, s, false));
-                baseTicksForRelFreqHash_.Add(s, gcnew PerformanceCounter(COUNTERS_CORE, METRIC_CORE_FREQNOM, s, false));
-                l2CacheMissHash_.Add(s, gcnew PerformanceCounter(COUNTERS_CORE, METRIC_CORE_MISSL2, s, false));
-                l3CacheMissHash_.Add(s, gcnew PerformanceCounter(COUNTERS_CORE, METRIC_CORE_MISSL3, s, false));
-                thermalHeadroomHash_.Add(s, gcnew PerformanceCounter(COUNTERS_CORE, METRIC_CORE_HEADROOM, s, false));
-                CoreC0StateResidencyHash_.Add(s, gcnew PerformanceCounter(COUNTERS_CORE, METRIC_CORE_RESC0, s, false));
-                CoreC3StateResidencyHash_.Add(s, gcnew PerformanceCounter(COUNTERS_CORE, METRIC_CORE_RESC3, s, false));
-                CoreC6StateResidencyHash_.Add(s, gcnew PerformanceCounter(COUNTERS_CORE, METRIC_CORE_RESC6, s, false));
-                CoreC7StateResidencyHash_.Add(s, gcnew PerformanceCounter(COUNTERS_CORE, METRIC_CORE_RESC7, s, false));
-                mrbHash_.Add(s, gcnew PerformanceCounter(COUNTERS_SOCKET, METRIC_SOCKET_BANDREAD, s, false));
-                mwbHash_.Add(s, gcnew PerformanceCounter(COUNTERS_SOCKET, METRIC_SOCKET_BANDWRITE, s, false));
-                packageEnergyHash_.Add(s, gcnew PerformanceCounter(COUNTERS_SOCKET, METRIC_SOCKET_ENERGYPACK, s, false));
-                DRAMEnergyHash_.Add(s, gcnew PerformanceCounter(COUNTERS_SOCKET, METRIC_SOCKET_ENERGYDRAM, s, false));
-                PackageC2StateResidencyHash_.Add(s, gcnew PerformanceCounter(COUNTERS_SOCKET, METRIC_SOCKET_RESC2, s, false));
-                PackageC3StateResidencyHash_.Add(s, gcnew PerformanceCounter(COUNTERS_SOCKET, METRIC_SOCKET_RESC3, s, false));
-                PackageC6StateResidencyHash_.Add(s, gcnew PerformanceCounter(COUNTERS_SOCKET, METRIC_SOCKET_RESC6, s, false));
-                PackageC7StateResidencyHash_.Add(s, gcnew PerformanceCounter(COUNTERS_SOCKET, METRIC_SOCKET_RESC7, s, false));
-                qpiHash_.Add(s, gcnew PerformanceCounter(COUNTERS_QPI, METRIC_QPI_BAND, s, false)); // Socket aggregate
+                s = "Socket" + UInt32(i).ToString();
+
+                ticksHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreClocktick, s, false));
+                instRetHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreRetries, s, false));
+                ipcHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetircCoreIpc, s, false));
+                baseTicksForIpcHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreBaseIpc, s, false));
+                relFreqHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreFreqRel, s, false));
+                baseTicksForRelFreqHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreFreqNom, s, false));
+                l2CacheMissHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreMissL2, s, false));
+                l3CacheMissHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreMissL3, s, false));
+                thermalHeadroomHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreHeadroom, s, false));
+                CoreC0StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreResC0, s, false));
+                CoreC3StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreResC3, s, false));
+                CoreC6StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreResC6, s, false));
+                CoreC7StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreResC7, s, false));
+                
+                mrbHash_.Add(s, gcnew PerformanceCounter(CountersSocket, MetricSocketBandRead, s, false));
+                mwbHash_.Add(s, gcnew PerformanceCounter(CountersSocket, MetricSocketBandWrite, s, false));
+                packageEnergyHash_.Add(s, gcnew PerformanceCounter(CountersSocket, MetricSocketEnergyPack, s, false));
+                DRAMEnergyHash_.Add(s, gcnew PerformanceCounter(CountersSocket, MetricSocketEnergyDram, s, false));
+                PackageC2StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersSocket, MetricSocketResC2, s, false));
+                PackageC3StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersSocket, MetricSocketResC3, s, false));
+                PackageC6StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersSocket, MetricSocketResC6, s, false));
+                PackageC7StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersSocket, MetricSocketResC7, s, false));
+
+                qpiHash_.Add(s, gcnew PerformanceCounter(CountersQpi, MetricQpiBand, s, false)); // Socket aggregate
                 String^ t;
                 for ( unsigned int j=0; j<m_->getQPILinksPerSocket(); ++j )
                 {
                     t = s + "_Link" + UInt32(j).ToString();
-                    qpiHash_.Add( t, gcnew PerformanceCounter(COUNTERS_QPI, METRIC_QPI_BAND, t, false ) );
+                    qpiHash_.Add( t, gcnew PerformanceCounter(CountersQpi, MetricQpiBand, t, false ) );
                 }
             }
 
             // Create #system instances of the system specific performance counters, just kidding, there is only one system so 1 instance
             s = "Total_";
-            ticksHash_.Add(s, gcnew PerformanceCounter(COUNTERS_CORE, METRIC_CORE_CLOCKTICK, s, false));
-            instRetHash_.Add(s, gcnew PerformanceCounter(COUNTERS_CORE, METRIC_CORE_RETRIES, s, false));
-            ipcHash_.Add(s, gcnew PerformanceCounter(COUNTERS_CORE, METRIC_CORE_IPC, s, false));
-            baseTicksForIpcHash_.Add(s, gcnew PerformanceCounter(COUNTERS_CORE, METRIC_CORE_BASEIPC, s, false));
-            relFreqHash_.Add(s, gcnew PerformanceCounter(COUNTERS_CORE, METRIC_CORE_FREQREL, s, false));
-            baseTicksForRelFreqHash_.Add(s, gcnew PerformanceCounter(COUNTERS_CORE, METRIC_CORE_FREQNOM, s, false));
-            l2CacheMissHash_.Add(s, gcnew PerformanceCounter(COUNTERS_CORE, METRIC_CORE_MISSL2, s, false));
-            l3CacheMissHash_.Add(s, gcnew PerformanceCounter(COUNTERS_CORE, METRIC_CORE_MISSL3, s, false));
-            thermalHeadroomHash_.Add(s, gcnew PerformanceCounter(COUNTERS_CORE, METRIC_CORE_HEADROOM, s, false));
-            CoreC0StateResidencyHash_.Add(s, gcnew PerformanceCounter(COUNTERS_CORE, METRIC_CORE_RESC0, s, false));
-            CoreC3StateResidencyHash_.Add(s, gcnew PerformanceCounter(COUNTERS_CORE, METRIC_CORE_RESC3, s, false));
-            CoreC6StateResidencyHash_.Add(s, gcnew PerformanceCounter(COUNTERS_CORE, METRIC_CORE_RESC6, s, false));
-            CoreC7StateResidencyHash_.Add(s, gcnew PerformanceCounter(COUNTERS_CORE, METRIC_CORE_RESC7, s, false));
-            mrbHash_.Add(s, gcnew PerformanceCounter(COUNTERS_SOCKET, METRIC_SOCKET_BANDREAD, s, false));
-            mwbHash_.Add(s, gcnew PerformanceCounter(COUNTERS_SOCKET, METRIC_SOCKET_BANDWRITE, s, false));
-            packageEnergyHash_.Add(s, gcnew PerformanceCounter(COUNTERS_SOCKET, METRIC_SOCKET_ENERGYPACK, s, false));
-            DRAMEnergyHash_.Add(s, gcnew PerformanceCounter(COUNTERS_SOCKET, METRIC_SOCKET_ENERGYDRAM, s, false));
-            PackageC2StateResidencyHash_.Add(s, gcnew PerformanceCounter(COUNTERS_SOCKET, METRIC_SOCKET_RESC2, s, false));
-            PackageC3StateResidencyHash_.Add(s, gcnew PerformanceCounter(COUNTERS_SOCKET, METRIC_SOCKET_RESC3, s, false));
-            PackageC6StateResidencyHash_.Add(s, gcnew PerformanceCounter(COUNTERS_SOCKET, METRIC_SOCKET_RESC6, s, false));
-            PackageC7StateResidencyHash_.Add(s, gcnew PerformanceCounter(COUNTERS_SOCKET, METRIC_SOCKET_RESC7, s, false));
-            qpiHash_.Add(s, gcnew PerformanceCounter(COUNTERS_QPI, METRIC_QPI_BAND, s, false));
+
+            ticksHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreClocktick, s, false));
+            instRetHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreRetries, s, false));
+            ipcHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetircCoreIpc, s, false));
+            baseTicksForIpcHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreBaseIpc, s, false));
+            relFreqHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreFreqRel, s, false));
+            baseTicksForRelFreqHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreFreqNom, s, false));
+            l2CacheMissHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreMissL2, s, false));
+            l3CacheMissHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreMissL3, s, false));
+            thermalHeadroomHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreHeadroom, s, false));
+            CoreC0StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreResC0, s, false));
+            CoreC3StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreResC3, s, false));
+            CoreC6StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreResC6, s, false));
+            CoreC7StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreResC7, s, false));
+
+            mrbHash_.Add(s, gcnew PerformanceCounter(CountersSocket, MetricSocketBandRead, s, false));
+            mwbHash_.Add(s, gcnew PerformanceCounter(CountersSocket, MetricSocketBandWrite, s, false));
+            packageEnergyHash_.Add(s, gcnew PerformanceCounter(CountersSocket, MetricSocketEnergyPack, s, false));
+            DRAMEnergyHash_.Add(s, gcnew PerformanceCounter(CountersSocket, MetricSocketEnergyDram, s, false));
+            PackageC2StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersSocket, MetricSocketResC2, s, false));
+            PackageC3StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersSocket, MetricSocketResC3, s, false));
+            PackageC6StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersSocket, MetricSocketResC6, s, false));
+            PackageC7StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersSocket, MetricSocketResC7, s, false));
+
+            qpiHash_.Add(s, gcnew PerformanceCounter(CountersQpi, MetricQpiBand, s, false));
 
             log_->WriteEntry(SERVICE_NAME, "All instances of the performance counter categories have been created." );
         }
