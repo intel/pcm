@@ -28,3 +28,6 @@ Release64
 html/
 latex/
 *.swp
+*.vcxproj.user
+.vs/
+.idea/
