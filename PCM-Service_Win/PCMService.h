@@ -389,34 +389,34 @@ namespace PCMServiceNS {
         PCM* m_;
 
         // Counter variable names
-        String^ CountersCore = gcnew String("PCM Core Counters");
-        String^ CountersSocket = gcnew String("PCM Socket Counters");
-        String^ CountersQpi = gcnew String("PCM QPI Counters");
+        initonly String^ CountersCore = gcnew String("PCM Core Counters");
+        initonly String^ CountersSocket = gcnew String("PCM Socket Counters");
+        initonly String^ CountersQpi = gcnew String("PCM QPI Counters");
 
-        String^ MetricCoreClocktick = gcnew String("Clockticks");
-        String^ MetricCoreRetries = gcnew String("Instructions Retired");
-        String^ MetricCoreMissL2 = gcnew String("L2 Cache Misses");
-        String^ MetricCoreMissL3 = gcnew String("L3 Cache Misses");
-        String^ MetircCoreIpc = gcnew String("Instructions Per Clocktick (IPC)");
-        String^ MetricCoreBaseIpc = gcnew String("Base ticks IPC");
-        String^ MetricCoreFreqRel = gcnew String("Relative Frequency (%)");
-        String^ MetricCoreFreqNom = gcnew String("Nominal Frequency");
-        String^ MetricCoreHeadroom = gcnew String("Thermal Headroom below TjMax");
-        String^ MetricCoreResC0 = gcnew String("core C0-state residency (%)");
-        String^ MetricCoreResC3 = gcnew String("core C3-state residency (%)");
-        String^ MetricCoreResC6 = gcnew String("core C6-state residency (%)");
-        String^ MetricCoreResC7 = gcnew String("core C7-state residency (%)");
+        initonly String^ MetricCoreClocktick = gcnew String("Clockticks");
+        initonly String^ MetricCoreRetries = gcnew String("Instructions Retired");
+        initonly String^ MetricCoreMissL2 = gcnew String("L2 Cache Misses");
+        initonly String^ MetricCoreMissL3 = gcnew String("L3 Cache Misses");
+        initonly String^ MetircCoreIpc = gcnew String("Instructions Per Clocktick (IPC)");
+        initonly String^ MetricCoreBaseIpc = gcnew String("Base ticks IPC");
+        initonly String^ MetricCoreFreqRel = gcnew String("Relative Frequency (%)");
+        initonly String^ MetricCoreFreqNom = gcnew String("Nominal Frequency");
+        initonly String^ MetricCoreHeadroom = gcnew String("Thermal Headroom below TjMax");
+        initonly String^ MetricCoreResC0 = gcnew String("core C0-state residency (%)");
+        initonly String^ MetricCoreResC3 = gcnew String("core C3-state residency (%)");
+        initonly String^ MetricCoreResC6 = gcnew String("core C6-state residency (%)");
+        initonly String^ MetricCoreResC7 = gcnew String("core C7-state residency (%)");
 
-        String^ MetricSocketBandRead = gcnew String("Memory Read Bandwidth");
-        String^ MetricSocketBandWrite = gcnew String("Memory Write Bandwidth");
-        String^ MetricSocketEnergyPack = gcnew String("Package/Socket Consumed Energy");
-        String^ MetricSocketEnergyDram = gcnew String("DRAM/Memory Consumed Energy");
-        String^ MetricSocketResC2 = gcnew String("package C2-state residency (%)");
-        String^ MetricSocketResC3 = gcnew String("package C3-state residency (%)");
-        String^ MetricSocketResC6 = gcnew String("package C6-state residency (%)");
-        String^ MetricSocketResC7 = gcnew String("package C7-state residency (%)");
+        initonly String^ MetricSocketBandRead = gcnew String("Memory Read Bandwidth");
+        initonly String^ MetricSocketBandWrite = gcnew String("Memory Write Bandwidth");
+        initonly String^ MetricSocketEnergyPack = gcnew String("Package/Socket Consumed Energy");
+        initonly String^ MetricSocketEnergyDram = gcnew String("DRAM/Memory Consumed Energy");
+        initonly String^ MetricSocketResC2 = gcnew String("package C2-state residency (%)");
+        initonly String^ MetricSocketResC3 = gcnew String("package C3-state residency (%)");
+        initonly String^ MetricSocketResC6 = gcnew String("package C6-state residency (%)");
+        initonly String^ MetricSocketResC7 = gcnew String("package C7-state residency (%)");
 
-        String^ MetricQpiBand = gcnew String("QPI Link Bandwidth");
+        initonly String^ MetricQpiBand = gcnew String("QPI Link Bandwidth");
     };
 
     /// <summary>
