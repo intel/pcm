@@ -85,7 +85,7 @@ namespace PCMServiceNS {
             counterCollection->Add( counter );
             counter = gcnew CounterCreationData(MetricCoreMissL3, "Displays the L3 Cache Misses caused by this core.", PerformanceCounterType::CounterDelta64 );
             counterCollection->Add( counter );
-            counter = gcnew CounterCreationData(MetircCoreIpc, "Displays the instructions per clocktick executed for this core.", PerformanceCounterType::AverageCount64 );
+            counter = gcnew CounterCreationData(MetricCoreIpc, "Displays the instructions per clocktick executed for this core.", PerformanceCounterType::AverageCount64 );
             counterCollection->Add( counter );
             counter = gcnew CounterCreationData(MetricCoreBaseIpc, "Not visible", PerformanceCounterType::AverageBase );
             counterCollection->Add( counter );
@@ -141,7 +141,7 @@ namespace PCMServiceNS {
                 s = UInt32(i).ToString(); // For core counters we use just the number of the core
                 ticksHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreClocktick, s, false));
                 instRetHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreRetries, s, false));
-                ipcHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetircCoreIpc, s, false));
+                ipcHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreIpc, s, false));
                 baseTicksForIpcHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreBaseIpc, s, false));
                 relFreqHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreFreqRel, s, false));
                 baseTicksForRelFreqHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreFreqNom, s, false));
@@ -161,7 +161,7 @@ namespace PCMServiceNS {
 
                 ticksHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreClocktick, s, false));
                 instRetHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreRetries, s, false));
-                ipcHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetircCoreIpc, s, false));
+                ipcHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreIpc, s, false));
                 baseTicksForIpcHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreBaseIpc, s, false));
                 relFreqHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreFreqRel, s, false));
                 baseTicksForRelFreqHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreFreqNom, s, false));
@@ -196,7 +196,7 @@ namespace PCMServiceNS {
 
             ticksHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreClocktick, s, false));
             instRetHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreRetries, s, false));
-            ipcHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetircCoreIpc, s, false));
+            ipcHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreIpc, s, false));
             baseTicksForIpcHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreBaseIpc, s, false));
             relFreqHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreFreqRel, s, false));
             baseTicksForRelFreqHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreFreqNom, s, false));
@@ -397,7 +397,7 @@ namespace PCMServiceNS {
         initonly String^ MetricCoreRetries = gcnew String("Instructions Retired");
         initonly String^ MetricCoreMissL2 = gcnew String("L2 Cache Misses");
         initonly String^ MetricCoreMissL3 = gcnew String("L3 Cache Misses");
-        initonly String^ MetircCoreIpc = gcnew String("Instructions Per Clocktick (IPC)");
+        initonly String^ MetricCoreIpc = gcnew String("Instructions Per Clocktick (IPC)");
         initonly String^ MetricCoreBaseIpc = gcnew String("Base ticks IPC");
         initonly String^ MetricCoreFreqRel = gcnew String("Relative Frequency (%)");
         initonly String^ MetricCoreFreqNom = gcnew String("Nominal Frequency");
