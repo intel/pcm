@@ -51,12 +51,12 @@ public:
         hSCManager = OpenSCManager(NULL, NULL, SC_MANAGER_CREATE_SERVICE);
         if (hSCManager)
         {
-            hService = CreateService(hSCManager, L"PCM Test MSR", L"PCM Test MSR Driver", SERVICE_START | DELETE | SERVICE_STOP,
+            hService = CreateService(hSCManager, DriverName, L"PCM Test MSR Driver", SERVICE_START | DELETE | SERVICE_STOP,
                                      SERVICE_KERNEL_DRIVER, SERVICE_DEMAND_START, SERVICE_ERROR_IGNORE, driverPath, NULL, NULL, NULL, NULL, NULL);
 
             if (!hService)
             {
-                hService = OpenService(hSCManager, L"PCM Test MSR", SERVICE_START | DELETE | SERVICE_STOP);
+                hService = OpenService(hSCManager, DriverName, SERVICE_START | DELETE | SERVICE_STOP);
             }
 
             if (hService)
@@ -99,16 +99,16 @@ public:
         }
 
 
-		std::cerr << "Trying to load winring0.dll/winring0.sys driver..." << std::endl;
-		if(PCM::initWinRing0Lib())
-		{
-			std::cerr << "Using winring0.dll/winring0.sys driver.\n" << std::endl;
-			return true;
-		}
-		else
-		{
-			std::cerr << "Failed to load winring0.dll/winring0.sys driver.\n" << std::endl;
-		}
+        std::cerr << "Trying to load winring0.dll/winring0.sys driver..." << std::endl;
+        if(PCM::initWinRing0Lib())
+        {
+            std::cerr << "Using winring0.dll/winring0.sys driver.\n" << std::endl;
+            return true;
+        }
+        else
+        {
+            std::cerr << "Failed to load winring0.dll/winring0.sys driver.\n" << std::endl;
+        }
 
         return false;
     }
@@ -119,7 +119,7 @@ public:
         hSCManager = OpenSCManager(NULL, NULL, SC_MANAGER_CREATE_SERVICE);
         if (hSCManager)
         {
-            hService = OpenService(hSCManager, L"PCM Test MSR", SERVICE_START | DELETE | SERVICE_STOP);
+            hService = OpenService(hSCManager, DriverName, SERVICE_START | DELETE | SERVICE_STOP);
             if (hService)
             {
                 ControlService(hService, SERVICE_CONTROL_STOP, &ss);
@@ -146,7 +146,7 @@ public:
         hSCManager = OpenSCManager(NULL, NULL, SC_MANAGER_CREATE_SERVICE);
         if (hSCManager)
         {
-            hService = OpenService(hSCManager, L"PCM Test MSR", SERVICE_START | DELETE | SERVICE_STOP);
+            hService = OpenService(hSCManager, DriverName, SERVICE_START | DELETE | SERVICE_STOP);
             if (hService)
             {
                 ControlService(hService, SERVICE_CONTROL_STOP, &ss);
@@ -164,6 +164,9 @@ public:
             std::wcerr << std::endl;
         }
     }
+
+private:
+    const LPCWSTR DriverName = L"PCM Test MSR";
 };
 
 #endif
