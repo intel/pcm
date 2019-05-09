@@ -98,7 +98,7 @@ public:
             std::wcerr << std::endl;
         }
 
-
+        #ifndef NO_WINRING
         std::cerr << "Trying to load winring0.dll/winring0.sys driver..." << std::endl;
         if(PCM::initWinRing0Lib())
         {
@@ -109,6 +109,7 @@ public:
         {
             std::cerr << "Failed to load winring0.dll/winring0.sys driver.\n" << std::endl;
         }
+        #endif // NO_WINRING
 
         return false;
     }
