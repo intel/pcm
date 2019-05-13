@@ -36,25 +36,25 @@ namespace PCMServiceNS {
         static initonly String^ ServiceName = gcnew String(L"PCMService");
     };
 
-	ref struct CollectionInformation {
-		CollectionInformation()
-		{
-			core = true;
-			socket = true;
-			qpi = true;
-		}
+    ref struct CollectionInformation {
+        CollectionInformation()
+        {
+            core = true;
+            socket = true;
+            qpi = true;
+        }
 
-		CollectionInformation(const CollectionInformation^ &copyable)
-		{
-			core = copyable->core;
-			socket = copyable->socket;
-			qpi = copyable->qpi;
-		}
+        CollectionInformation(const CollectionInformation^ &copyable)
+        {
+            core = copyable->core;
+            socket = copyable->socket;
+            qpi = copyable->qpi;
+        }
 
-		bool core;
-		bool socket;
-		bool qpi;
-	};
+        bool core;
+        bool socket;
+        bool qpi;
+    };
 
     ref class MeasureThread
     {
@@ -171,9 +171,9 @@ namespace PCMServiceNS {
             String^ s; // Used for creating the instance name and the string to search for in the hashtable
             for ( unsigned int i = 0; i < m_->getNumCores(); ++i )
             {
-				s = UInt32(i).ToString(); // For core counters we use just the number of the core
-				if (collectionInformation_->core)
-				{
+                s = UInt32(i).ToString(); // For core counters we use just the number of the core
+                if (collectionInformation_->core)
+                {
                     ticksHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreClocktick, s, false));
                     instRetHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreRetired, s, false));
                     l2CacheMissHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreMissL2, s, false));
@@ -391,10 +391,10 @@ namespace PCMServiceNS {
                     // Set core performance counters
                     for ( unsigned int i = 0; i < numCores; ++i )
                     {
-						s = UInt32(i).ToString();
-						CoreCounterState coreState = getCoreCounterState(i);
-						if (collectionInformation_->core)
-						{
+                        s = UInt32(i).ToString();
+                        CoreCounterState coreState = getCoreCounterState(i);
+                        if (collectionInformation_->core)
+                        {
                             __int64 ticks    = getCycles(coreState);
                             __int64 refTicks = m_->getNominalFrequency();
                             __int64 instr    = getInstructionsRetired(coreState);
@@ -412,7 +412,7 @@ namespace PCMServiceNS {
                             ((PerformanceCounter^)CoreC6StateResidencyHash_[s])->RawValue = __int64(100.*getCoreCStateResidency(6,oldCoreStates[i], coreState));
                             ((PerformanceCounter^)CoreC7StateResidencyHash_[s])->RawValue = __int64(100.*getCoreCStateResidency(7,oldCoreStates[i], coreState));
                         }
-						oldCoreStates[i] = coreState;
+                        oldCoreStates[i] = coreState;
                     }
                 }
             }
@@ -496,7 +496,7 @@ namespace PCMServiceNS {
 
         // Configuration values
         const int sampleRate_;
-		const CollectionInformation^ collectionInformation_;
+        const CollectionInformation^ collectionInformation_;
     };
 
     /// <summary>
@@ -560,7 +560,7 @@ namespace PCMServiceNS {
         {
             // Default values for configuration
             int sampleRate = 1000;
-			CollectionInformation^ collectionInformation = gcnew CollectionInformation();
+            CollectionInformation^ collectionInformation = gcnew CollectionInformation();
 
             // Read configuration values from registry
             HKEY hkey;
@@ -570,25 +570,25 @@ namespace PCMServiceNS {
                 DWORD lenDWORD = 32;
 
                 DWORD sampleRateRead(0);
-                if (ERROR_SUCCESS == RegQueryValueEx(hkey, L"sampleRate", NULL, NULL, reinterpret_cast<LPBYTE>(&sampleRateRead), &lenDWORD))
+                if (ERROR_SUCCESS == RegQueryValueEx(hkey, L"SampleRate", NULL, NULL, reinterpret_cast<LPBYTE>(&sampleRateRead), &lenDWORD))
                 {
                     sampleRate = (int)sampleRateRead;
                 }
 
                 DWORD collectCoreRead(0);
-                if (ERROR_SUCCESS == RegQueryValueEx(hkey, L"collectCore", NULL, NULL, reinterpret_cast<LPBYTE>(&collectCoreRead), &lenDWORD)) {
-					collectionInformation->core = (int)collectCoreRead > 0;
+                if (ERROR_SUCCESS == RegQueryValueEx(hkey, L"CollectCore", NULL, NULL, reinterpret_cast<LPBYTE>(&collectCoreRead), &lenDWORD)) {
+                    collectionInformation->core = (int)collectCoreRead > 0;
                 }
 
-				DWORD collectSocketRead(0);
-				if (ERROR_SUCCESS == RegQueryValueEx(hkey, L"collectSocket", NULL, NULL, reinterpret_cast<LPBYTE>(&collectSocketRead), &lenDWORD)) {
-					collectionInformation->socket = (int)collectSocketRead > 0;
-				}
+                DWORD collectSocketRead(0);
+                if (ERROR_SUCCESS == RegQueryValueEx(hkey, L"CollectSocket", NULL, NULL, reinterpret_cast<LPBYTE>(&collectSocketRead), &lenDWORD)) {
+                    collectionInformation->socket = (int)collectSocketRead > 0;
+                }
 
-				DWORD collectQpiRead(0);
-				if (ERROR_SUCCESS == RegQueryValueEx(hkey, L"collectQpi", NULL, NULL, reinterpret_cast<LPBYTE>(&collectQpiRead), &lenDWORD)) {
-					collectionInformation->qpi = (int)collectQpiRead > 0;
-				}
+                DWORD collectQpiRead(0);
+                if (ERROR_SUCCESS == RegQueryValueEx(hkey, L"CollectQpi", NULL, NULL, reinterpret_cast<LPBYTE>(&collectQpiRead), &lenDWORD)) {
+                    collectionInformation->qpi = (int)collectQpiRead > 0;
+                }
 
                 RegCloseKey(hkey);
             }
