@@ -27,7 +27,7 @@ using namespace System::Text;
 using namespace System::Security::Policy;
 using namespace System::Reflection;
 
-//To install/uninstall the service, type: "PMU Service.exe -Install [-u]"
+//To install/uninstall the service, type: "PCM-Service.exe [-Install/-Uninstall]"
 int _tmain(int argc, _TCHAR* argv[])
 {
 	if (argc >= 2)
