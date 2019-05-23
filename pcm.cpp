@@ -1166,14 +1166,11 @@ int main(int argc, char * argv[])
         else
         if (strncmp(*argv, "--installDriver", 15) == 0)
         {
-            TCHAR driverPath[1040]; // length for current directory + "\\msr.sys"
-            GetCurrentDirectory(1024, driverPath);
-            wcscat_s(driverPath, 1040, L"\\msr.sys");
-            Driver tmpDrvObject;
-            if (!tmpDrvObject.start(driverPath))
+            Driver tmpDrvObject = Driver(Driver::msrLocalPath());
+            if (!tmpDrvObject.start())
             {
-                cerr << "Can not access CPU counters" << endl;
-                cerr << "You must have signed msr.sys driver in your current directory and have administrator rights to run this program" << endl;
+                wcerr << "Can not access CPU counters" << endl;
+                wcerr << "You must have a signed  driver at " << tmpDrvObject.DriverPath() << " and have administrator rights to run this program" << endl;
                 exit(EXIT_FAILURE);
             }
             exit(EXIT_SUCCESS);
