@@ -1659,6 +1659,20 @@ public:
                ;
     }
 
+    bool supportsInTx() const
+    {
+        return    PCM::HASWELL == cpu_model
+               || PCM::HASWELLX == cpu_model
+               || PCM::BROADWELL == cpu_model
+               || PCM::BROADWELL_XEON_E3 == cpu_model
+               || PCM::BDX_DE == cpu_model
+               || PCM::BDX == cpu_model
+               || PCM::KBL == cpu_model
+               || PCM::SKL == cpu_model
+               || PCM::SKX == cpu_model
+               ;
+    }
+
     static double getBytesPerFlit(int32 cpu_model_)
     {
         if(cpu_model_ == PCM::SKX)

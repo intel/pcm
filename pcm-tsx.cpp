@@ -323,13 +323,22 @@ int main(int argc, char * argv[])
         }
         regs[N_RTM_POS].fields.event_select = 0xc9;
         regs[N_RTM_POS].fields.umask = 0x01;
+
         regs[N_HLE_POS].fields.event_select = 0xc8;
         regs[N_HLE_POS].fields.umask = 0x01;
+
         regs[TX_CYCLES_COMMITED_POS].fields.event_select = 0x3c;
-        regs[TX_CYCLES_COMMITED_POS].fields.in_tx = 1;
-        regs[TX_CYCLES_COMMITED_POS].fields.in_txcp = 1;
+        if (m->supportsInTx())
+        {
+            regs[TX_CYCLES_COMMITED_POS].fields.in_tx = 1;
+            regs[TX_CYCLES_COMMITED_POS].fields.in_txcp = 1;
+        }
+
         regs[TX_CYCLES_POS].fields.event_select = 0x3c;
-        regs[TX_CYCLES_POS].fields.in_tx = 1;
+        if (m->supportsInTx())
+        {
+            regs[TX_CYCLES_POS].fields.in_tx = 1;
+        }
     }
     else
     {
