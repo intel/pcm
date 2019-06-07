@@ -17,8 +17,10 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 */
 
 #include "msr.h"
+#include "whitelist.h"
 #include "ntdef.h"
 #include <wdm.h>
+#include <wdmguid.h>
 
 
 /*!     \file msrmain.cpp
@@ -27,6 +29,14 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 #define NT_DEVICE_NAME L"\\Driver\\RDMSR"
 #define DOS_DEVICE_NAME L"\\DosDevices\\RDMSR"
+
+#define DbgPrintInfo(...) DbgPrinter(DPFLTR_INFO_LEVEL, __VA_ARGS__)
+#define DbgPrintWarn(...) DbgPrinter(DPFLTR_WARNING_LEVEL, __VA_ARGS__)
+#ifdef DEBUG_OUTPUT
+#define DbgPrinter(level, ...) DbgPrintEx(DPFLTR_IHVDRIVER_ID, level, __VA_ARGS__)
+#else
+#define DbgPrinter(level, ...)
+#endif
 
 
 DRIVER_INITIALIZE DriverEntry;
@@ -81,8 +91,9 @@ DriverEntry(
     DriverObject->MajorFunction[IRP_MJ_CREATE] = dummyFunction;
     DriverObject->MajorFunction[IRP_MJ_DEVICE_CONTROL] = deviceControl;
 
-
     IoCreateSymbolicLink(&dosDeviceName, &UnicodeString);
+
+    DbgPrintInfo("MSR driver loaded");
 
     return status;
 }
@@ -96,7 +107,6 @@ NTSTATUS dummyFunction(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 
     Irp->IoStatus.Status = STATUS_SUCCESS;
     Irp->IoStatus.Information = 0;
-
 
     IoCompleteRequest(Irp, IO_NO_INCREMENT);
 
@@ -119,6 +129,8 @@ VOID MSRUnload(PDRIVER_OBJECT DriverObject)
     {
         IoDeleteDevice(deviceObject);
     }
+
+    DbgPrintInfo("MSR driver unloaded");
 }
 
 
@@ -162,9 +174,22 @@ NTSTATUS deviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
                     status = STATUS_INVALID_PARAMETER;
                     break;
                 }
+                if (!AllowMSRAccess(input_msr_req->msr_address))
+                {
+                    DbgPrintWarn("Forbidden MSR write to %x", input_msr_req->msr_address);
+                    status = STATUS_ACCESS_DENIED;
+                    break;
+                }
+
                 memset(&new_affinity, 0, sizeof(GROUP_AFFINITY));
                 memset(&old_affinity, 0, sizeof(GROUP_AFFINITY));
-                KeGetProcessorNumberFromIndex(input_msr_req->core_id, &ProcNumber);
+                NTSTATUS keResultWrite = KeGetProcessorNumberFromIndex(input_msr_req->core_id, &ProcNumber);
+                if (STATUS_SUCCESS != keResultWrite)
+                {
+                    status = keResultWrite;
+                    break;
+                }
+
                 new_affinity.Group = ProcNumber.Group;
                 new_affinity.Mask = 1ULL << (ProcNumber.Number);
                 KeSetSystemGroupAffinityThread(&new_affinity, &old_affinity);
@@ -178,9 +203,22 @@ NTSTATUS deviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
                     status = STATUS_INVALID_PARAMETER;
                     break;
                 }
+                if (!AllowMSRAccess(input_msr_req->msr_address))
+                {
+                    DbgPrintWarn("Forbidden MSR read from %x", input_msr_req->msr_address);
+                    status = STATUS_ACCESS_DENIED;
+                    break;
+                }
+
                 memset(&new_affinity, 0, sizeof(GROUP_AFFINITY));
                 memset(&old_affinity, 0, sizeof(GROUP_AFFINITY));
-                KeGetProcessorNumberFromIndex(input_msr_req->core_id, &ProcNumber);
+                NTSTATUS keResultRead = KeGetProcessorNumberFromIndex(input_msr_req->core_id, &ProcNumber);
+                if (STATUS_SUCCESS != keResultRead)
+                {
+                    status = keResultRead;
+                    break;
+                }
+
                 new_affinity.Group = ProcNumber.Group;
                 new_affinity.Mask = 1ULL << (ProcNumber.Number);
                 KeSetSystemGroupAffinityThread(&new_affinity, &old_affinity);
@@ -194,6 +232,13 @@ NTSTATUS deviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
                     status = STATUS_INVALID_PARAMETER;
                     break;
                 }
+                if (!AllowPCICFGAccess(input_pcicfg_req->dev, input_pcicfg_req->reg))
+                {
+                    DbgPrintWarn("Forbidden PCICFG write to %d at %x", input_pcicfg_req->dev, input_pcicfg_req->reg);
+                    status = STATUS_ACCESS_DENIED;
+                    break;
+                }
+
                 slot.u.AsULONG = 0;
                 slot.u.bits.DeviceNumber = input_pcicfg_req->dev;
                 slot.u.bits.FunctionNumber = input_pcicfg_req->func;
@@ -212,6 +257,13 @@ NTSTATUS deviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
                     status = STATUS_INVALID_PARAMETER;
                     break;
                 }
+                if (!AllowPCICFGAccess(input_pcicfg_req->dev, input_pcicfg_req->reg))
+                {
+                    DbgPrintWarn("Forbidden PCICFG read from %d at %x", input_pcicfg_req->dev, input_pcicfg_req->reg);
+                    status = STATUS_ACCESS_DENIED;
+                    break;
+                }
+
                 slot.u.AsULONG = 0;
                 slot.u.bits.DeviceNumber = input_pcicfg_req->dev;
                 slot.u.bits.FunctionNumber = input_pcicfg_req->func;
@@ -227,13 +279,18 @@ NTSTATUS deviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 
             default:
                 status = STATUS_INVALID_DEVICE_REQUEST;
+                DbgPrintWarn("Invalid request received");
             }
         }
         else
+        {
             status = STATUS_INVALID_PARAMETER;
+        }
     }
     else
+    {
         status = STATUS_INVALID_DEVICE_REQUEST;
+    }
 
 
     Irp->IoStatus.Status = status;
