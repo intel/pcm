@@ -529,9 +529,9 @@ bool PCM::detectModel()
 
     pcm_cpuid(7, 0, cpuinfo);
 
-    std::cout << "IBRS and IBPB supported  : " << ((cpuinfo.reg.edx & (1 << 26)) ? "yes" : "no") << std::endl;
-    std::cout << "STIBP supported          : " << ((cpuinfo.reg.edx & (1 << 27)) ? "yes" : "no") << std::endl;
-    std::cout << "Spec arch caps supported : " << ((cpuinfo.reg.edx & (1 << 29)) ? "yes" : "no") << std::endl;
+    std::cerr << "IBRS and IBPB supported  : " << ((cpuinfo.reg.edx & (1 << 26)) ? "yes" : "no") << std::endl;
+    std::cerr << "STIBP supported          : " << ((cpuinfo.reg.edx & (1 << 27)) ? "yes" : "no") << std::endl;
+    std::cerr << "Spec arch caps supported : " << ((cpuinfo.reg.edx & (1 << 29)) ? "yes" : "no") << std::endl;
 
     return true;
 }
@@ -1616,13 +1616,13 @@ bool isNMIWatchdogEnabled()
 
 void disableNMIWatchdog()
 {
-    std::cout << "Disabling NMI watchdog since it consumes one hw-PMU counter." << std::endl;
+    std::cerr << "Disabling NMI watchdog since it consumes one hw-PMU counter." << std::endl;
     writeSysFS(PCM_NMI_WATCHDOG_PATH, "0");
 }
 
 void enableNMIWatchdog()
 {
-    std::cout << " Re-enabling NMI watchdog." << std::endl;
+    std::cerr << " Re-enabling NMI watchdog." << std::endl;
     writeSysFS(PCM_NMI_WATCHDOG_PATH, "1");
 }
 #endif
@@ -1817,15 +1817,15 @@ void PCM::showSpecControlMSRs()
         {
             uint64 val64 = 0;
             MSR[0]->read(MSR_IA32_SPEC_CTRL, &val64);
-            std::cout << "IBRS enabled in the kernel   : " << ((val64 & 1) ? "yes" : "no") << std::endl;
-            std::cout << "STIBP enabled in the kernel  : " << ((val64 & 2) ? "yes" : "no") << std::endl;
+            std::cerr << "IBRS enabled in the kernel   : " << ((val64 & 1) ? "yes" : "no") << std::endl;
+            std::cerr << "STIBP enabled in the kernel  : " << ((val64 & 2) ? "yes" : "no") << std::endl;
         }
         if (cpuinfo.reg.edx & (1 << 29))
         {
             uint64 val64 = 0;
             MSR[0]->read(MSR_IA32_ARCH_CAPABILITIES, &val64);
-            std::cout << "The processor is not susceptible to Rogue Data Cache Load: " << ((val64 & 1) ? "yes" : "no") << std::endl;
-            std::cout << "The processor supports enhanced IBRS                     : " << ((val64 & 2) ? "yes" : "no") << std::endl;
+            std::cerr << "The processor is not susceptible to Rogue Data Cache Load: " << ((val64 & 1) ? "yes" : "no") << std::endl;
+            std::cerr << "The processor supports enhanced IBRS                     : " << ((val64 & 2) ? "yes" : "no") << std::endl;
         }
     }
 }
@@ -1967,7 +1967,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
     if (no_perf_env != NULL && std::string(no_perf_env) == std::string("1"))
     {
         canUsePerf = false;
-        std::cout << "Usage of Linux perf events is disabled through PCM_NO_PERF environment variable. Using direct PMU programming..." << std::endl;
+        std::cerr << "Usage of Linux perf events is disabled through PCM_NO_PERF environment variable. Using direct PMU programming..." << std::endl;
     }
     if(num_online_cores < num_cores)
     {
@@ -2737,7 +2737,7 @@ void PCM::enableForceRTMAbortMode()
                 }
             }
             readCoreCounterConfig(); // re-read core_gen_counter_num_max from CPUID
-            std::cout << "The number of custom counters is now "<< core_gen_counter_num_max << std::endl;
+            std::cerr << "The number of custom counters is now "<< core_gen_counter_num_max << std::endl;
             if (core_gen_counter_num_max < 4)
             {
                 std::cerr << "PCM Warning: the number of custom counters did not increase (" << core_gen_counter_num_max << ")" << std::endl;
@@ -2767,7 +2767,7 @@ void PCM::disableForceRTMAbortMode()
             }
         }
         readCoreCounterConfig(); // re-read core_gen_counter_num_max from CPUID
-        std::cout << "The number of custom counters is now " << core_gen_counter_num_max << std::endl;
+        std::cerr << "The number of custom counters is now " << core_gen_counter_num_max << std::endl;
         if (core_gen_counter_num_max != 3)
         {
             std::cerr << "PCM Warning: the number of custom counters is not 3 (" << core_gen_counter_num_max << ")" << std::endl;
