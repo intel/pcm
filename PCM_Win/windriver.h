@@ -98,7 +98,7 @@ public:
             std::wcerr << std::endl;
         }
 
-
+        #ifndef NO_WINRING // In cases where loading the WinRing0 driver is not desirable as a fallback to MSR.sys, add -DNO_WINRING to compile command to remove ability to load driver (will also remove initWinRing0Lib function)
         std::cerr << "Trying to load winring0.dll/winring0.sys driver..." << std::endl;
         if(PCM::initWinRing0Lib())
         {
@@ -109,6 +109,7 @@ public:
         {
             std::cerr << "Failed to load winring0.dll/winring0.sys driver.\n" << std::endl;
         }
+        #endif // NO_WINRING
 
         return false;
     }

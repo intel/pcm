@@ -104,6 +104,7 @@ int convertUnknownToInt(size_t size, char* value);
 
 HMODULE hOpenLibSys = NULL;
 
+#ifndef NO_WINRING
 bool PCM::initWinRing0Lib()
 {
     const BOOL result = InitOpenLibSys(&hOpenLibSys);
@@ -122,6 +123,7 @@ bool PCM::initWinRing0Lib()
 
     return true;
 }
+#endif // NO_WINRING
 
 class InstanceLock
 {
