@@ -27,10 +27,10 @@ bool AllowMSRAccess(ULONG64 msrAddress)
         0x1D9 == msrAddress) return true;
 
     return false;
-    }
+}
 
-    bool AllowPCICFGAccess(UINT32 device, UINT32 offset)
-    {
+bool AllowPCICFGAccess(UINT32 device, UINT32 offset)
+{
     // Check for special cases first
     if ((device == 0 && offset == 0x48) ||
         (device == 5 && offset == 0x108) ||
