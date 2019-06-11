@@ -1725,7 +1725,7 @@ PCM::PCM() :
     if (!drv.start())
     {
         std::wcerr << "Cannot access CPU counters" << std::endl;
-        std::wcerr << "You must have a signed  driver at " << drv.DriverPath() << " and have administrator rights to run this program" << std::endl;
+        std::wcerr << "You must have a signed  driver at " << drv.driverPath() << " and have administrator rights to run this program" << std::endl;
         return;
     }
 #endif

@@ -488,7 +488,7 @@ namespace PCMServiceNS {
             drv_ = new Driver;
             if (!drv_->start())
             {
-                String^ s = gcnew String((L"Cannot open the driver.\nYou must have a signed driver at " + drv_->DriverPath() + L" and have administrator rights to run this program.\n\n").c_str());
+                String^ s = gcnew String((L"Cannot open the driver.\nYou must have a signed driver at " + drv_->driverPath() + L" and have administrator rights to run this program.\n\n").c_str());
                 EventLog->WriteEntry(Globals::ServiceName, s, EventLogEntryType::Error);
                 SetServiceFail(ERROR_FILE_NOT_FOUND);
                 throw gcnew Exception(s);

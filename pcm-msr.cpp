@@ -98,7 +98,7 @@ int main(int argc, char * argv[])
     if (!drv.start())
     {
         std::wcerr << "Can not load MSR driver." << std::endl;
-        std::wcerr << "You must have a signed  driver at " << drv.DriverPath() << " and have administrator rights to run this program" << std::endl;
+        std::wcerr << "You must have a signed  driver at " << drv.driverPath() << " and have administrator rights to run this program" << std::endl;
         return -1;
     }
     #endif

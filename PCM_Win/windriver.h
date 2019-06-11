@@ -55,7 +55,7 @@ public:
             gcdReturn = GetCurrentDirectory(driverPathLen, &driverPath[0]);
         } while (0 != gcdReturn && driverPathLen < gcdReturn);
 
-        RemoveNullTerminator(driverPath);
+        removeNullTerminator(driverPath);
 
         return driverPath + L"\\msr.sys";
     }
@@ -71,13 +71,13 @@ public:
     }
 
     Driver(const std::wstring& driverPath, const std::wstring& driverName, const std::wstring& driverDescription) :
-        driverPath_(SetConfigValue(L"DriverPath", driverPath)),
-        driverName_(SetConfigValue(L"DriverName", driverName)),
-        driverDescription_(SetConfigValue(L"DriverDescription", driverDescription))
+        driverPath_(setConfigValue(L"DriverPath", driverPath)),
+        driverName_(setConfigValue(L"DriverName", driverName)),
+        driverDescription_(setConfigValue(L"DriverDescription", driverDescription))
     {
     }
 
-    const std::wstring& DriverPath() const
+    const std::wstring& driverPath() const
     {
         return driverPath_;
     }
@@ -213,7 +213,7 @@ public:
 
 private:
 
-    std::wstring SetConfigValue(const LPCWSTR key, const std::wstring& defaultValue)
+    static std::wstring setConfigValue(const LPCWSTR key, const std::wstring& defaultValue)
     {
         static_assert(std::is_same<WCHAR, wchar_t>::value, "WCHAR expected to be wchar_t");
 
@@ -221,23 +221,23 @@ private:
         DWORD regLen = 1 * sizeof(WCHAR);
         DWORD regRes = ERROR_FILE_NOT_FOUND; // Safe error to start with in case key doesn't exist
 
-        HKEY hkey;
-        if (ERROR_SUCCESS == RegOpenKeyEx(HKEY_LOCAL_MACHINE, L"SOFTWARE\\pcm", NULL, KEY_READ, &hkey))
+        HKEY hKey;
+        if (ERROR_SUCCESS == RegOpenKeyEx(HKEY_LOCAL_MACHINE, L"SOFTWARE\\pcm", NULL, KEY_READ, &hKey))
         {
             do {
                 regRead.resize(regLen / sizeof(WCHAR));
-                regRes = RegQueryValueEx(hkey, key, NULL, NULL, (LPBYTE)&regRead[0], &regLen);
+                regRes = RegQueryValueEx(hKey, key, NULL, NULL, (LPBYTE)&regRead[0], &regLen);
             } while (ERROR_MORE_DATA == regRes);
 
-            RegCloseKey(hkey);
+            RegCloseKey(hKey);
         }
 
-        RemoveNullTerminator(regRead);
+        removeNullTerminator(regRead);
             
         return ERROR_SUCCESS == regRes ? regRead : defaultValue;
     }
 
-    static void RemoveNullTerminator(std::wstring& s)
+    static void removeNullTerminator(std::wstring& s)
     {
         if (!s.empty() && s.back() == '\0')
         {

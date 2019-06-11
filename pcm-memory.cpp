@@ -909,7 +909,7 @@ int main(int argc, char * argv[])
             if (!tmpDrvObject.start())
             {
                 wcerr << "Can not access CPU counters" << endl;
-                wcerr << "You must have a signed  driver at " << tmpDrvObject.DriverPath() << " and have administrator rights to run this program" << endl;
+                wcerr << "You must have a signed  driver at " << tmpDrvObject.driverPath() << " and have administrator rights to run this program" << endl;
                 exit(EXIT_FAILURE);
             }
             exit(EXIT_SUCCESS);
