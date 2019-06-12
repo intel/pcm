@@ -30,10 +30,17 @@ using namespace System::Diagnostics;
 using namespace System::Threading;
 using namespace System::Runtime::InteropServices;
 
+// Latency Registers
+#define READ_OCC 0
+#define READ_INS 1
+#define WRIT_OCC 2
+#define WRIT_INS 3
+
 namespace PCMServiceNS {
     ref struct Globals
     {
         static initonly String^ ServiceName = gcnew String(L"PCMService");
+        static initonly String^ ProductName = gcnew String(L"Processor Counter Monitor");
     };
 
     ref struct CollectionInformation {
@@ -42,6 +49,7 @@ namespace PCMServiceNS {
             core = true;
             socket = true;
             qpi = true;
+            latency = false;
         }
 
         CollectionInformation(const CollectionInformation^ &copyable)
@@ -49,11 +57,13 @@ namespace PCMServiceNS {
             core = copyable->core;
             socket = copyable->socket;
             qpi = copyable->qpi;
+            latency = copyable->latency;
         }
 
         bool core;
         bool socket;
         bool qpi;
+        bool latency;
     };
 
     ref class MeasureThread
@@ -90,7 +100,16 @@ namespace PCMServiceNS {
             {
                 PerformanceCounterCategory::Delete(CountersQpi);
             }
+            if (PerformanceCounterCategory::Exists(CountersLatency))
+            {
+                PerformanceCounterCategory::Delete(CountersLatency);
+            }
             log_->WriteEntry(Globals::ServiceName, "Old categories deleted.");
+
+            if (collectionInformation_->latency)
+            {
+                collectionInformation_->latency = m_->LatencyMetricsAvailable();
+            }
 
             // First create the collection, then add counters to it so we add them all at once
             CounterCreationDataCollection^ counterCollection = gcnew CounterCreationDataCollection;
@@ -129,7 +148,7 @@ namespace PCMServiceNS {
                 counterCollection->Add( counter );
                 counter = gcnew CounterCreationData(MetricCoreResC7, "Displays the residency of core or socket in core C7-state in percent.", PerformanceCounterType::NumberOfItems64);
                 counterCollection->Add( counter );
-                PerformanceCounterCategory::Create(CountersCore, "Processor Counter Monitor", PerformanceCounterCategoryType::MultiInstance, counterCollection);
+                PerformanceCounterCategory::Create(CountersCore, Globals::ProductName, PerformanceCounterCategoryType::MultiInstance, counterCollection);
             }
 
             if (collectionInformation_->socket)
@@ -151,7 +170,7 @@ namespace PCMServiceNS {
                 counterCollection->Add( counter );
                 counter = gcnew CounterCreationData(MetricSocketResC7, "Displays the residency of socket in package C7-state in percent.", PerformanceCounterType::NumberOfItems64);
                 counterCollection->Add( counter );
-                PerformanceCounterCategory::Create(CountersSocket, "Processor Counter Monitor", PerformanceCounterCategoryType::MultiInstance, counterCollection);
+                PerformanceCounterCategory::Create(CountersSocket, Globals::ProductName, PerformanceCounterCategoryType::MultiInstance, counterCollection);
             }
 
             if (collectionInformation_->qpi)
@@ -159,7 +178,21 @@ namespace PCMServiceNS {
                 counterCollection->Clear();
                 counter = gcnew CounterCreationData(MetricQpiBand, "Displays the incoming bandwidth in bytes/s of this QPI link.", PerformanceCounterType::CounterDelta64);
                 counterCollection->Add( counter );
-                PerformanceCounterCategory::Create(CountersQpi, "Processor Counter Monitor", PerformanceCounterCategoryType::MultiInstance, counterCollection);
+                PerformanceCounterCategory::Create(CountersQpi, Globals::ProductName, PerformanceCounterCategoryType::MultiInstance, counterCollection);
+            }
+
+            if (collectionInformation_->latency)
+            {
+                counterCollection->Clear();
+                counter = gcnew CounterCreationData(MetricLatencyReadInsert, "Displays the read insert latency in picoseconds", PerformanceCounterType::NumberOfItems64);
+                counterCollection->Add(counter);
+                counter = gcnew CounterCreationData(MetricLatencyReadOccupancy, "Displays the read occupancy latency in picoseconds", PerformanceCounterType::NumberOfItems64);
+                counterCollection->Add(counter);
+                counter = gcnew CounterCreationData(MetricLatencyWriteInsert, "Displays the write insert latency in picoseconds", PerformanceCounterType::NumberOfItems64);
+                counterCollection->Add(counter);
+                counter = gcnew CounterCreationData(MetricLatencyWriteOccupancy, "Displays the write occupancy latency in picoseconds", PerformanceCounterType::NumberOfItems64);
+                counterCollection->Add(counter);
+                PerformanceCounterCategory::Create(CountersLatency, Globals::ProductName, PerformanceCounterCategoryType::MultiInstance, counterCollection);
             }
 
             log_->WriteEntry(Globals::ServiceName, "New categories added.");
@@ -187,6 +220,12 @@ namespace PCMServiceNS {
                     CoreC3StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreResC3, s, false));
                     CoreC6StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreResC6, s, false));
                     CoreC7StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreResC7, s, false));
+                }
+
+                if (collectionInformation_->latency)
+                {
+                    readInsertLatencyHash_.Add(s, gcnew PerformanceCounter(CountersLatency, MetricLatencyReadInsert, s, false));
+                    readOccupancyLatencyHash_.Add(s, gcnew PerformanceCounter(CountersLatency, MetricLatencyReadOccupancy, s, false));
                 }
             }
 
@@ -232,6 +271,14 @@ namespace PCMServiceNS {
                         t = s + "_Link" + UInt32(j).ToString();
                         qpiHash_.Add(t, gcnew PerformanceCounter(CountersQpi, MetricQpiBand, t, false));
                     }
+                }
+
+                if (collectionInformation_->latency)
+                {
+                    readInsertLatencyHash_.Add(s, gcnew PerformanceCounter(CountersLatency, MetricLatencyReadInsert, s, false));
+                    readOccupancyLatencyHash_.Add(s, gcnew PerformanceCounter(CountersLatency, MetricLatencyReadOccupancy, s, false));
+                    writeInsertLatencyHash_.Add(s, gcnew PerformanceCounter(CountersLatency, MetricLatencyWriteInsert, s, false));
+                    writeOccupancyLatencyHash_.Add(s, gcnew PerformanceCounter(CountersLatency, MetricLatencyWriteOccupancy, s, false));
                 }
             }
 
@@ -282,9 +329,10 @@ namespace PCMServiceNS {
             const size_t numQpiLinks = (size_t) m_->getQPILinksPerSocket();
 
             // The structures
-            SystemCounterState  oldSystemState;
-            SocketCounterState* oldSocketStates = new SocketCounterState[numSockets];
-            CoreCounterState*   oldCoreStates   = new CoreCounterState[numCores];
+            SystemCounterState      oldSystemState;
+            SocketCounterState*     oldSocketStates      = new SocketCounterState[numSockets];
+            ServerUncorePowerState* oldUncorePowerStates = new ServerUncorePowerState[numSockets];
+            CoreCounterState*       oldCoreStates        = new CoreCounterState[numCores];
 
             try {
                 while (true)
@@ -385,7 +433,28 @@ namespace PCMServiceNS {
                                 ((PerformanceCounter^)qpiHash_[t])->RawValue = getIncomingQPILinkBytes(i, j, systemState);
                             }
                         }
+
                         oldSocketStates[i] = socketState;
+
+                        if (collectionInformation_->latency)
+                        {
+                            ServerUncorePowerState uncorePowerState = m_->getServerUncorePowerState(i);
+
+                            double rdIns = 0, rdOcc = 0, wrIns = 0, wrOcc = 0;
+                            for (size_t channel = 0; channel < m_->getMCChannelsPerSocket(); ++channel)
+                            {
+                                rdIns += (double)getMCCounter((uint32)channel, READ_INS, oldUncorePowerStates[i], uncorePowerState);
+                                rdOcc += (double)getMCCounter((uint32)channel, READ_OCC, oldUncorePowerStates[i], uncorePowerState);
+                                wrIns += (double)getMCCounter((uint32)channel, WRIT_INS, oldUncorePowerStates[i], uncorePowerState);
+                                wrOcc += (double)getMCCounter((uint32)channel, WRIT_OCC, oldUncorePowerStates[i], uncorePowerState);
+                            }
+                            ((PerformanceCounter^)readInsertLatencyHash_[s])->RawValue = __int64(rdIns);
+                            ((PerformanceCounter^)readOccupancyLatencyHash_[s])->RawValue = __int64(rdOcc);
+                            ((PerformanceCounter^)writeInsertLatencyHash_[s])->RawValue = __int64(wrIns);
+                            ((PerformanceCounter^)writeOccupancyLatencyHash_[s])->RawValue = __int64(wrOcc);
+
+                            oldUncorePowerStates[i] = uncorePowerState;
+                        }
                     }
 
                     // Set core performance counters
@@ -393,11 +462,12 @@ namespace PCMServiceNS {
                     {
                         s = UInt32(i).ToString();
                         CoreCounterState coreState = getCoreCounterState(i);
+                        __int64 ticks = getCycles(coreState);
+                        __int64 refTicks = m_->getNominalFrequency();
+                        __int64 instr = getInstructionsRetired(coreState);
+
                         if (collectionInformation_->core)
                         {
-                            __int64 ticks    = getCycles(coreState);
-                            __int64 refTicks = m_->getNominalFrequency();
-                            __int64 instr    = getInstructionsRetired(coreState);
                             ((PerformanceCounter^)instRetHash_[s])->RawValue = instr;
                             ((PerformanceCounter^)ipcHash_[s])->RawValue = instr >> 17;
                             ((PerformanceCounter^)l2CacheMissHash_[s])->IncrementBy(getL2CacheMisses(oldCoreStates[i], coreState));
@@ -412,6 +482,15 @@ namespace PCMServiceNS {
                             ((PerformanceCounter^)CoreC6StateResidencyHash_[s])->RawValue = __int64(100.*getCoreCStateResidency(6,oldCoreStates[i], coreState));
                             ((PerformanceCounter^)CoreC7StateResidencyHash_[s])->RawValue = __int64(100.*getCoreCStateResidency(7,oldCoreStates[i], coreState));
                         }
+
+                        if (collectionInformation_->latency)
+                        {
+                            const double rdIns = (double)getNumberOfCustomEvents(READ_INS, oldCoreStates[i], coreState);
+                            const double rdOcc = (double)getNumberOfCustomEvents(READ_OCC, oldCoreStates[i], coreState);
+                            ((PerformanceCounter^)readInsertLatencyHash_[s])->RawValue = __int64(rdIns);
+                            ((PerformanceCounter^)readOccupancyLatencyHash_[s])->RawValue = __int64(rdOcc);
+                        }
+
                         oldCoreStates[i] = coreState;
                     }
                 }
@@ -459,6 +538,11 @@ namespace PCMServiceNS {
         System::Collections::Hashtable PackageC3StateResidencyHash_;
         System::Collections::Hashtable PackageC6StateResidencyHash_;
         System::Collections::Hashtable PackageC7StateResidencyHash_;
+        // Latencies
+        System::Collections::Hashtable readInsertLatencyHash_;
+        System::Collections::Hashtable readOccupancyLatencyHash_;
+        System::Collections::Hashtable writeInsertLatencyHash_;
+        System::Collections::Hashtable writeOccupancyLatencyHash_;
 
         System::Diagnostics::EventLog^ log_;
 
@@ -468,6 +552,7 @@ namespace PCMServiceNS {
         initonly String^ CountersCore = gcnew String(L"PCM Core Counters");
         initonly String^ CountersSocket = gcnew String(L"PCM Socket Counters");
         initonly String^ CountersQpi = gcnew String(L"PCM QPI Counters");
+        initonly String^ CountersLatency = gcnew String(L"PCM Latency Counters");
 
         initonly String^ MetricCoreClocktick = gcnew String(L"Clockticks");
         initonly String^ MetricCoreRetired = gcnew String(L"Instructions Retired");
@@ -494,9 +579,14 @@ namespace PCMServiceNS {
 
         initonly String^ MetricQpiBand = gcnew String(L"QPI Link Bandwidth");
 
+        initonly String^ MetricLatencyReadInsert = gcnew String(L"Read Insert Latency");
+        initonly String^ MetricLatencyReadOccupancy = gcnew String(L"Read Occupancy Latency");
+        initonly String^ MetricLatencyWriteInsert = gcnew String(L"Write Insert Latency");
+        initonly String^ MetricLatencyWriteOccupancy = gcnew String(L"Write Occupancy Latency");
+
         // Configuration values
         const int sampleRate_;
-        const CollectionInformation^ collectionInformation_;
+        CollectionInformation^ collectionInformation_;
     };
 
     /// <summary>
@@ -588,6 +678,11 @@ namespace PCMServiceNS {
                 DWORD collectQpiRead(0);
                 if (ERROR_SUCCESS == RegQueryValueEx(hkey, L"CollectQpi", NULL, NULL, reinterpret_cast<LPBYTE>(&collectQpiRead), &lenDWORD)) {
                     collectionInformation->qpi = (int)collectQpiRead > 0;
+                }
+
+                DWORD collectLatencyRead(0);
+                if (ERROR_SUCCESS == RegQueryValueEx(hkey, L"CollectLatency", NULL, NULL, reinterpret_cast<LPBYTE>(&collectLatencyRead), &lenDWORD)) {
+                    collectionInformation->latency = (int)collectLatencyRead > 0;
                 }
 
                 RegCloseKey(hkey);
