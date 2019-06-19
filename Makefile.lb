@@ -13,3 +13,21 @@ install:
 
 checkin:
 	$(Q)component-tool checkin -v --repo=pcm --type=$(BUILD_TYPE) pcm
+
+clean:
+	rm -f pcm*.x
+	rm -rf dist
+
+############ rpm targets #####################
+
+dist:
+	mkdir -p dist
+
+rpm: VERSION = $(shell semver-tool version --release-string)
+rpm: HASH = $(shell ${WORKSPACE_TOP}/common/tools/version.py pcm:pcm)
+rpm: dist
+	rm -rf dist/*
+	rpmbuild -bb --clean --define="version ${VERSION}" --define="build_hash ${HASH}" --define="_builddir `pwd`" pcm.spec
+	cp -r ${HOME}/rpmbuild/RPMS/* dist/
+
+############ rpm targets #####################
