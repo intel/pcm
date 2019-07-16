@@ -151,6 +151,11 @@ void probe_pci(struct pci *p)
         p->exist = true;
         PciHandleType h(0, bdf->busno, bdf->devno, bdf->funcno);
         h.read32(0x0, &value); //VID:DID
+        if (value == ~0UL) // invalid VID::DID
+        {
+            p->exist = false;
+            return;
+        }
         p->offset_0 = value;
         h.read32(0xc, &value);
         p->header_type = (value >> 16) & 0x7f;
