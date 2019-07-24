@@ -486,7 +486,7 @@ class PCM_API PCM
     PCM();     // forbidden to call directly because it is a singleton
 
     int32 cpu_family;
-    int32 cpu_model, original_cpu_model;
+    int32 cpu_model;
     int32 cpu_stepping;
     int64 cpu_microcode_level;
     int32 max_cpuid;
@@ -829,10 +829,10 @@ private:
 
     void cleanupUncorePMUs();
 
-	bool isCLX() const // Cascade Lake-SP
-	{
-		return (PCM::SKX == cpu_model) && (cpu_stepping > 4);
-	}
+    bool isCLX() const // Cascade Lake-SP
+    {
+        return (PCM::SKX == cpu_model) && (cpu_stepping > 4);
+    }
 
     void initUncorePMUsDirect();
     void initUncorePMUsPerf();
@@ -1106,12 +1106,12 @@ public:
         NEHALEM = 30,
         ATOM = 28,
         ATOM_2 = 53,
-        ATOM_CENTERTON = 54,
-        ATOM_BAYTRAIL = 55,
-        ATOM_AVOTON = 77,
-        ATOM_CHERRYTRAIL = 76,
-        ATOM_APOLLO_LAKE = 92,
-        ATOM_DENVERTON = 95,
+        CENTERTON = 54,
+        BAYTRAIL = 55,
+        AVOTON = 77,
+        CHERRYTRAIL = 76,
+        APOLLO_LAKE = 92,
+        DENVERTON = 95,
         CLARKDALE = 37,
         WESTMERE_EP = 44,
         NEHALEM_EX = 46,
@@ -1140,10 +1140,6 @@ public:
     //! \brief Reads CPU model id
     //! \return CPU model ID
     uint32 getCPUModel() const { return (uint32)cpu_model; }
-
-    //! \brief Reads original CPU model id
-    //! \return CPU model ID
-    uint32 getOriginalCPUModel() const { return (uint32)original_cpu_model; }
 
     //! \brief Reads CPU stepping id
     //! \return CPU stepping ID
@@ -1287,13 +1283,10 @@ public:
     //! \return max number of instructions per cycle
     uint32 getMaxIPC() const
     {
-        switch (original_cpu_model)
-        {
-        case ATOM_DENVERTON:
-            return 3;
-        }
         switch (cpu_model)
         {
+        case DENVERTON:
+            return 3;
         case NEHALEM_EP:
         case WESTMERE_EP:
         case NEHALEM_EX:
@@ -1312,8 +1305,11 @@ public:
         case KBL:
         case SKX:
             return 4;
-        case ATOM:
         case KNL:
+            return 2;
+        }
+        if (isAtom())
+        {
             return 2;
         }
         return 0;
@@ -1479,6 +1475,26 @@ public:
     //! \brief Get microcode level (returns -1 if retrieval not supported due to some restrictions)
     int64 getCPUMicrocodeLevel() const { return cpu_microcode_level; }
 
+    //! \brief returns true if CPU model is Atom-based
+    static bool isAtom(const int32 cpu_model_)
+    {
+        return cpu_model_ == ATOM
+            || cpu_model_ == ATOM_2
+            || cpu_model_ == CENTERTON
+            || cpu_model_ == BAYTRAIL
+            || cpu_model_ == AVOTON
+            || cpu_model_ == CHERRYTRAIL
+            || cpu_model_ == APOLLO_LAKE
+            || cpu_model_ == DENVERTON
+            ;
+    }
+
+    //! \brief returns true if CPU is Atom-based
+    bool isAtom() const
+    {
+        return isAtom(cpu_model);
+    }
+
     bool packageEnergyMetricsAvailable() const
     {
         return (
@@ -1487,11 +1503,11 @@ public:
                  || cpu_model == PCM::SANDY_BRIDGE
                  || cpu_model == PCM::IVY_BRIDGE
                  || cpu_model == PCM::HASWELL
-                 || original_cpu_model == PCM::ATOM_AVOTON
-                 || original_cpu_model == PCM::ATOM_CHERRYTRAIL
-                 || original_cpu_model == PCM::ATOM_BAYTRAIL
-                 || original_cpu_model == PCM::ATOM_APOLLO_LAKE
-                 || original_cpu_model == PCM::ATOM_DENVERTON
+                 || cpu_model == PCM::AVOTON
+                 || cpu_model == PCM::CHERRYTRAIL
+                 || cpu_model == PCM::BAYTRAIL
+                 || cpu_model == PCM::APOLLO_LAKE
+                 || cpu_model == PCM::DENVERTON
                  || cpu_model == PCM::HASWELLX
                  || cpu_model == PCM::BROADWELL
                  || cpu_model == PCM::BDX_DE
@@ -1555,7 +1571,7 @@ public:
     bool memoryTrafficMetricsAvailable() const
     {
         return !(
-            cpu_model == PCM::ATOM
+            isAtom()
             || cpu_model == PCM::CLARKDALE
             );
     }
@@ -1744,7 +1760,7 @@ public:
 
     bool isActiveRelativeFrequencyAvailable() const
     {
-        return ATOM != cpu_model;
+        return !isAtom();
     }
 
     ~PCM();
@@ -2609,8 +2625,9 @@ double getActiveRelativeFrequency(const CounterStateType & before, const Counter
 template <class CounterStateType>
 double getCyclesLostDueL3CacheMisses(const CounterStateType & before, const CounterStateType & after) // 0.0 - 1.0
 {
-    const int cpu_model = PCM::getInstance()->getCPUModel();
-    if (cpu_model == PCM::ATOM || cpu_model == PCM::KNL) return -1;
+    auto pcm = PCM::getInstance();
+    const int cpu_model = pcm->getCPUModel();
+    if (pcm->isAtom() || cpu_model == PCM::KNL) return -1;
     int64 clocks = after.CpuClkUnhaltedThread - before.CpuClkUnhaltedThread;
     if (clocks != 0)
     {
@@ -2630,8 +2647,8 @@ double getCyclesLostDueL3CacheMisses(const CounterStateType & before, const Coun
 template <class CounterStateType>
 double getCyclesLostDueL2CacheMisses(const CounterStateType & before, const CounterStateType & after) // 0.0 - 1.0
 {
-    const int cpu_model = PCM::getInstance()->getCPUModel();
-    if (cpu_model == PCM::ATOM || cpu_model == PCM::KNL || PCM::getInstance()->useSkylakeEvents()) return -1;
+    auto pcm = PCM::getInstance();
+    if (pcm->isAtom() || pcm->getCPUModel() == PCM::KNL || pcm->useSkylakeEvents()) return -1;
     int64 clocks = after.CpuClkUnhaltedThread - before.CpuClkUnhaltedThread;
     if (clocks != 0)
     {
@@ -2652,7 +2669,8 @@ double getCyclesLostDueL2CacheMisses(const CounterStateType & before, const Coun
 template <class CounterStateType>
 double getL2CacheHitRatio(const CounterStateType & before, const CounterStateType & after) // 0.0 - 1.0
 {
-    if (PCM::getInstance()->useSkylakeEvents()) {
+    auto pcm = PCM::getInstance();
+    if (pcm->useSkylakeEvents()) {
         uint64 L2Hit = after.L2Hit - before.L2Hit;
         uint64 L2Ref = L2Hit + after.SKLL2Miss - before.SKLL2Miss;
         if (L2Ref) {
@@ -2660,8 +2678,7 @@ double getL2CacheHitRatio(const CounterStateType & before, const CounterStateTyp
         }
         return 1;
     }
-    const int cpu_model = PCM::getInstance()->getCPUModel();
-    if (cpu_model == PCM::ATOM || cpu_model == PCM::KNL)
+    if (pcm->isAtom() || pcm->getCPUModel() == PCM::KNL)
     {
         uint64 L2Miss = after.ArchLLCMiss - before.ArchLLCMiss;
         uint64 L2Ref = after.ArchLLCRef - before.ArchLLCRef;
@@ -2735,11 +2752,11 @@ uint64 getL3CacheMisses(const CounterStateType & before, const CounterStateType 
 template <class CounterStateType>
 uint64 getL2CacheMisses(const CounterStateType & before, const CounterStateType & after)
 {
-    if (PCM::getInstance()->useSkylakeEvents()) {
+    auto pcm = PCM::getInstance();
+    if (pcm->useSkylakeEvents()) {
         return after.SKLL2Miss - before.SKLL2Miss;
     }
-    const int cpu_model = PCM::getInstance()->getCPUModel();
-    if (cpu_model == PCM::ATOM || cpu_model == PCM::KNL)
+    if (pcm->isAtom() || pcm->getCPUModel() == PCM::KNL)
     {
         return after.ArchLLCMiss - before.ArchLLCMiss;
     }
@@ -2759,8 +2776,8 @@ uint64 getL2CacheMisses(const CounterStateType & before, const CounterStateType 
 template <class CounterStateType>
 uint64 getL2CacheHits(const CounterStateType & before, const CounterStateType & after)
 {
-    const int cpu_model = PCM::getInstance()->getCPUModel();
-    if (cpu_model == PCM::ATOM || cpu_model == PCM::KNL)
+    auto pcm = PCM::getInstance();
+    if (pcm->isAtom() || pcm->getCPUModel() == PCM::KNL)
     {
         uint64 L2Miss = after.ArchLLCMiss - before.ArchLLCMiss;
         uint64 L2Ref = after.ArchLLCRef - before.ArchLLCRef;

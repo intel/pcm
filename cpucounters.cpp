@@ -514,7 +514,7 @@ bool PCM::detectModel()
 
     pcm_cpuid(1, cpuinfo);
     cpu_family = (((cpuinfo.array[0]) >> 8) & 0xf) | ((cpuinfo.array[0] & 0xf00000) >> 16);
-    cpu_model = original_cpu_model = (((cpuinfo.array[0]) & 0xf0) >> 4) | ((cpuinfo.array[0] & 0xf0000) >> 12);
+    cpu_model =  (((cpuinfo.array[0]) & 0xf0) >> 4) | ((cpuinfo.array[0] & 0xf0000) >> 12);
     cpu_stepping = cpuinfo.array[0] & 0x0f;
 
     if (cpuinfo.reg.ecx & (1UL<<31UL)) {
@@ -671,16 +671,16 @@ void PCM::initCStateSupportTables()
     }
 
     // fill package C state array
-    switch(original_cpu_model)
+    switch(cpu_model)
     {
         case ATOM:
         case ATOM_2:
-        case ATOM_CENTERTON:
-        case ATOM_AVOTON:
-        case ATOM_BAYTRAIL:
-        case ATOM_CHERRYTRAIL:
-        case ATOM_APOLLO_LAKE:
-        case ATOM_DENVERTON:
+        case CENTERTON:
+        case AVOTON:
+        case BAYTRAIL:
+        case CHERRYTRAIL:
+        case APOLLO_LAKE:
+        case DENVERTON:
             PCM_CSTATE_ARRAY(pkgCStateMsr, PCM_PARAM_PROTECT({0, 0, 0x3F8, 0, 0x3F9, 0, 0x3FA, 0, 0, 0, 0 }) );
         case NEHALEM_EP:
         case NEHALEM:
@@ -718,11 +718,11 @@ void PCM::initCStateSupportTables()
     };
 
     // fill core C state array
-    switch(original_cpu_model)
+    switch(cpu_model)
     {
         case ATOM:
         case ATOM_2:
-        case ATOM_CENTERTON:
+        case CENTERTON:
             PCM_CSTATE_ARRAY(coreCStateMsr, PCM_PARAM_PROTECT({ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }) );
         case NEHALEM_EP:
         case NEHALEM:
@@ -743,11 +743,11 @@ void PCM::initCStateSupportTables()
         case BDX:
         case BROADWELL:
         case BROADWELL_XEON_E3:
-        case ATOM_BAYTRAIL:
-        case ATOM_AVOTON:
-        case ATOM_CHERRYTRAIL:
-        case ATOM_APOLLO_LAKE:
-        case ATOM_DENVERTON:
+        case BAYTRAIL:
+        case AVOTON:
+        case CHERRYTRAIL:
+        case APOLLO_LAKE:
+        case DENVERTON:
         case SKL_UY:
         case SKL:
         case KBL:
@@ -1320,9 +1320,9 @@ bool PCM::detectNominalFrequency()
                || cpu_model == IVY_BRIDGE
                || cpu_model == HASWELL
                || cpu_model == BROADWELL
-               || original_cpu_model == ATOM_AVOTON
-               || original_cpu_model == ATOM_APOLLO_LAKE
-               || original_cpu_model == ATOM_DENVERTON
+               || cpu_model == AVOTON
+               || cpu_model == APOLLO_LAKE
+               || cpu_model == DENVERTON
                || cpu_model == SKL
                || cpu_model == KBL
                || cpu_model == KNL
@@ -1356,7 +1356,7 @@ void PCM::initEnergyMonitoring()
         uint64 rapl_power_unit = 0;
         MSR[socketRefCore[0]]->read(MSR_RAPL_POWER_UNIT,&rapl_power_unit);
         uint64 energy_status_unit = extract_bits(rapl_power_unit,8,12);
-        if (original_cpu_model == PCM::ATOM_CHERRYTRAIL || original_cpu_model == PCM::ATOM_BAYTRAIL)
+        if (cpu_model == PCM::CHERRYTRAIL || cpu_model == PCM::BAYTRAIL)
             joulesPerEnergyUnit = double(1ULL << energy_status_unit)/1000000.; // (2)^energy_status_unit microJoules
         else
             joulesPerEnergyUnit = 1./double(1ULL<<energy_status_unit); // (1/2)^energy_status_unit
@@ -1670,7 +1670,6 @@ public:
 PCM::PCM() :
     cpu_family(-1),
     cpu_model(-1),
-    original_cpu_model(-1),
     cpu_stepping(-1),
     cpu_microcode_level(-1),
     max_cpuid(-1),
@@ -1851,7 +1850,7 @@ bool PCM::isCPUModelSupported(int model_)
             || model_ == NEHALEM_EX
             || model_ == WESTMERE_EP
             || model_ == WESTMERE_EX
-            || model_ == ATOM
+            || isAtom(model_)
             || model_ == CLARKDALE
             || model_ == SANDY_BRIDGE
             || model_ == JAKETOWN
@@ -1872,16 +1871,7 @@ bool PCM::isCPUModelSupported(int model_)
 bool PCM::checkModel()
 {
     if (cpu_model == NEHALEM) cpu_model = NEHALEM_EP;
-    if (   cpu_model == ATOM_2
-        || cpu_model == ATOM_CENTERTON
-        || cpu_model == ATOM_BAYTRAIL
-        || cpu_model == ATOM_AVOTON
-        || cpu_model == ATOM_CHERRYTRAIL
-        || cpu_model == ATOM_APOLLO_LAKE
-        || cpu_model == ATOM_DENVERTON
-        ) {
-        cpu_model = ATOM;
-    }
+    if (cpu_model == ATOM_2) cpu_model = ATOM;
     if (cpu_model == HASWELL_ULT || cpu_model == HASWELL_2) cpu_model = HASWELL;
     if (cpu_model == BROADWELL_XEON_E3) cpu_model = BROADWELL;
     if (cpu_model == SKL_UY) cpu_model = SKL;
@@ -2117,7 +2107,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
         CustomCoreEventDescription * pDesc = (CustomCoreEventDescription *)parameter_;
         coreEventDesc[0] = pDesc[0];
         coreEventDesc[1] = pDesc[1];
-        if (cpu_model != ATOM && cpu_model != KNL)
+        if (isAtom() == false && cpu_model != KNL)
         {
             coreEventDesc[2] = pDesc[2];
             coreEventDesc[3] = pDesc[3];
@@ -2128,18 +2118,19 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
     }
     else if (mode != EXT_CUSTOM_CORE_EVENTS)
     {
+        if (isAtom() || cpu_model == KNL)
+        {
+            coreEventDesc[0].event_number = ARCH_LLC_MISS_EVTNR;
+            coreEventDesc[0].umask_value = ARCH_LLC_MISS_UMASK;
+            coreEventDesc[1].event_number = ARCH_LLC_REFERENCE_EVTNR;
+            coreEventDesc[1].umask_value = ARCH_LLC_REFERENCE_UMASK;
+            L2CacheHitRatioAvailable = true;
+            L2CacheMissesAvailable = true;
+            L2CacheHitsAvailable = true;
+            core_gen_counter_num_used = 2;
+        }
+        else
         switch ( cpu_model ) {
-            case ATOM:
-            case KNL:
-                coreEventDesc[0].event_number = ARCH_LLC_MISS_EVTNR;
-                coreEventDesc[0].umask_value = ARCH_LLC_MISS_UMASK;
-                coreEventDesc[1].event_number = ARCH_LLC_REFERENCE_EVTNR;
-                coreEventDesc[1].umask_value = ARCH_LLC_REFERENCE_UMASK;
-                L2CacheHitRatioAvailable = true;
-                L2CacheMissesAvailable = true;
-                L2CacheHitsAvailable = true;
-                core_gen_counter_num_used = 2;
-                break;
             case SKL:
             case SKX:
             case KBL:
@@ -2470,7 +2461,7 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
         // start counting, enable all (4 programmable + 3 fixed) counters
         uint64 value = (1ULL << 0) + (1ULL << 1) + (1ULL << 2) + (1ULL << 3) + (1ULL << 32) + (1ULL << 33) + (1ULL << 34);
 
-        if (cpu_model == ATOM || cpu_model == KNL)       // KNL and Atom have 3 fixed + only 2 programmable counters
+        if (isAtom() || cpu_model == KNL)       // KNL and Atom have 3 fixed + only 2 programmable counters
             value = (1ULL << 0) + (1ULL << 1) + (1ULL << 32) + (1ULL << 33) + (1ULL << 34);
 
         MSR[i]->write(IA32_CR_PERF_GLOBAL_CTRL, value);
@@ -2717,9 +2708,9 @@ std::string PCM::getCPUFamilyModelString()
     char buffer[sizeof(int)*4*3+6];
     memset(buffer,0,sizeof(buffer));
 #ifdef _MSC_VER
-    sprintf_s(buffer,sizeof(buffer),"GenuineIntel-%d-%2X-%X",this->cpu_family,this->original_cpu_model,this->cpu_stepping);
+    sprintf_s(buffer,sizeof(buffer),"GenuineIntel-%d-%2X-%X",this->cpu_family,this->cpu_model,this->cpu_stepping);
 #else
-    snprintf(buffer,sizeof(buffer),"GenuineIntel-%d-%2X-%X",this->cpu_family,this->original_cpu_model,this->cpu_stepping);
+    snprintf(buffer,sizeof(buffer),"GenuineIntel-%d-%2X-%X",this->cpu_family,this->cpu_model,this->cpu_stepping);
 #endif
     std::string result(buffer);
     return result;
@@ -2981,6 +2972,18 @@ const char * PCM::getUArchCodename(const int32 cpu_model_param) const
 
     switch(cpu_model_)
     {
+        case CENTERTON:
+            return "Centerton";
+        case BAYTRAIL:
+            return "Baytrail";
+        case AVOTON:
+            return "Avoton";
+        case CHERRYTRAIL:
+            return "Cherrytrail";
+        case APOLLO_LAKE:
+            return "Apollo Lake";
+        case DENVERTON:
+            return "Denverton";
         case NEHALEM_EP:
         case NEHALEM:
             return "Nehalem/Nehalem-EP";
@@ -3408,8 +3411,8 @@ void BasicCounterState::readAndAggregateTSC(std::shared_ptr<SafeMsrHandle> msr)
 {
     uint64 cInvariantTSC = 0;
     PCM * m = PCM::getInstance();
-    uint32 cpu_model = m->getCPUModel();
-    if(cpu_model != PCM::ATOM ||  m->getOriginalCPUModel() == PCM::ATOM_AVOTON) msr->read(IA32_TIME_STAMP_COUNTER, &cInvariantTSC);
+    const auto cpu_model = m->getCPUModel();
+    if(m->isAtom() == false || cpu_model == PCM::AVOTON) msr->read(IA32_TIME_STAMP_COUNTER, &cInvariantTSC);
     else
     {
 #ifdef _MSC_VER
@@ -3487,11 +3490,11 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
             if (core_gen_counter_num_max > 2) msr->read(IA32_PMC2, &cL2HitM);
             if (core_gen_counter_num_max > 3) msr->read(IA32_PMC3, &cL2Hit);
             break;
-        case PCM::ATOM:
-        case PCM::KNL:
+        }
+        if (m->isAtom() || cpu_model == PCM::KNL)
+        {
             if (core_gen_counter_num_max > 0) msr->read(IA32_PMC0, &cL3Miss);         // for Atom mapped to ArchLLCMiss field
             if (core_gen_counter_num_max > 1) msr->read(IA32_PMC1, &cL3UnsharedHit);  // for Atom mapped to ArchLLCRef field
-            break;
         }
     }
 
@@ -4547,7 +4550,7 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
    , UPIbus(-1)
    , M2Mbus(-1)
    , groupnr(0)
-   , cpu_model(pcm->getOriginalCPUModel())
+   , cpu_model(pcm->getCPUModel())
    , qpi_speed(0)
 {
     initRegisterLocations();
