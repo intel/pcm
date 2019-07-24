@@ -164,7 +164,7 @@ void print_output(PCM * m,
         cout << " L3MISS: L3 (read) cache misses " << "\n";
     if (m->isL2CacheHitsAvailable())
     {
-        if (cpu_model == PCM::ATOM || cpu_model == PCM::KNL)
+        if (m->isAtom() || cpu_model == PCM::KNL)
             cout << " L2MISS: L2 (read) cache misses " << "\n";
         else
             cout << " L2MISS: L2 (read) cache misses (including other core's L2 cache *hits*) " << "\n";
@@ -245,7 +245,7 @@ void print_output(PCM * m,
     }
     if (show_socket_output)
     {
-        if (!(m->getNumSockets() == 1 && (cpu_model == PCM::ATOM || cpu_model == PCM::KNL)))
+        if (!(m->getNumSockets() == 1 && (m->isAtom() || cpu_model == PCM::KNL)))
         {
             cout << longDiv;
             for (uint32 i = 0; i < m->getNumSockets(); ++i)
@@ -1264,7 +1264,7 @@ int main(int argc, char * argv[])
     std::vector<CoreCounterState> cstates1, cstates2;
     std::vector<SocketCounterState> sktstate1, sktstate2;
     SystemCounterState sstate1, sstate2;
-    const int cpu_model = m->getCPUModel();
+    const auto cpu_model = m->getCPUModel();
     uint64 TimeAfterSleep = 0;
     PCM_UNUSED(TimeAfterSleep);
 
@@ -1340,7 +1340,7 @@ int main(int argc, char * argv[])
             cpu_model, show_core_output, show_partial_core_output, show_socket_output, show_system_output);
 
         // sanity checks
-        if (cpu_model == PCM::ATOM || cpu_model == PCM::KNL )
+        if (m->isAtom() || cpu_model == PCM::KNL)
         {
             assert(getNumberOfCustomEvents(0, sstate1, sstate2) == getL2CacheMisses(sstate1, sstate2));
             assert(getNumberOfCustomEvents(1, sstate1, sstate2) == getL2CacheMisses(sstate1, sstate2) + getL2CacheHits(sstate1, sstate2));
