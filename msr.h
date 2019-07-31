@@ -23,6 +23,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 */
 
 #include "types.h"
+#include "CommonMSRDriver/whitelist.h"
 
 #ifdef _MSC_VER
 #include "windows.h"
@@ -78,6 +79,10 @@ public:
 
     int32 read(uint64 msr_number, uint64 * value)
     {
+        if (!AllowMSRAccess(msr_number))
+            // Unknown MSR so no access
+            return (int32)sizeof(uint64);
+
         if (pHandle)
             return pHandle->read(msr_number, value);
 
@@ -88,6 +93,10 @@ public:
 
     int32 write(uint64 msr_number, uint64 value)
     {
+        if (!AllowMSRAccess(msr_number))
+            // Unknown MSR so no access
+            return (int32)sizeof(uint64);
+
         if (pHandle)
             return pHandle->write(msr_number, value);
 

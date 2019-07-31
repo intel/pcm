@@ -193,6 +193,9 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\CommonMSRDriver\whitelist.c">
+      <CompileAsManaged Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</CompileAsManaged>
+    </ClCompile>
     <ClCompile Include="AssemblyInfo.cpp" />
     <ClCompile Include="PCMInstaller.cpp" />
     <ClCompile Include="PCMService.cpp" />
@@ -203,6 +206,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\CommonMSRDriver\whitelist.h" />
     <ClInclude Include="..\PCM-Lib_Win\pcm-lib.h" />
     <ClInclude Include="PCMInstaller.h">
       <FileType>CppClass</FileType>

@@ -4,7 +4,7 @@
 
 #include "whitelist.h"
 
-bool AllowMSRAccess(ULONG64 msrAddress)
+bool AllowMSRAccess(uint64_t msrAddress)
 {
     // Test broad range first (by range size in hope of faster processing)
     if ((0xC00 <= msrAddress && 0xEFF >= msrAddress) ||
@@ -29,7 +29,7 @@ bool AllowMSRAccess(ULONG64 msrAddress)
     return false;
 }
 
-bool AllowPCICFGAccess(UINT32 device, UINT32 offset)
+bool AllowPCICFGAccess(uint32_t device, uint32_t offset)
 {
     // Check for special cases first
     if ((device == 0 && offset == 0x48) ||

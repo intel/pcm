@@ -151,11 +151,11 @@
   <ItemGroup>
     <ClInclude Include="msr.h" />
     <ClInclude Include="msrstruct.h" />
-    <ClInclude Include="whitelist.h" />
+    <ClInclude Include="..\..\CommonMSRDriver\whitelist.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="msrmain.c" />
-    <ClCompile Include="whitelist.c" />
+    <ClCompile Include="..\..\CommonMSRDriver\whitelist.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

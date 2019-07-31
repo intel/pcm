@@ -171,6 +171,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\CommonMSRDriver\whitelist.c" />
     <ClCompile Include="..\cpucounters.cpp" />
     <ClCompile Include="dllmain.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -190,7 +191,8 @@
     <ClCompile Include="..\winpmem\winpmem.cpp" />
     <ClCompile Include="..\msr.cpp" />
     <ClCompile Include="..\pci.cpp" />
-    <ClCompile Include="..\client_bw.cpp" /> <ClCompile Include="..\mmio.cpp" />
+    <ClCompile Include="..\client_bw.cpp" />
+    <ClCompile Include="..\mmio.cpp" />
     <ClCompile Include="..\utils.cpp" />
     <ClCompile Include="..\PCM_Win\restrictDriverAccess.cpp">
       <CompileAsManaged>true</CompileAsManaged>
@@ -198,11 +200,13 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\CommonMSRDriver\whitelist.h" />
     <ClInclude Include="..\cpucounters.h" />
     <ClInclude Include="pcm-lib.h" />
     <ClInclude Include="..\msr.h" />
     <ClInclude Include="..\pci.h" />
-    <ClInclude Include="..\client_bw.h" /> <ClInclude Include="..\mmio.h" />
+    <ClInclude Include="..\client_bw.h" />
+    <ClInclude Include="..\mmio.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>

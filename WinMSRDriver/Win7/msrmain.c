@@ -17,7 +17,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 */
 
 #include "msr.h"
-#include "whitelist.h"
+#include "../../CommonMSRDriver/whitelist.h"
 #include "ntdef.h"
 #include <wdm.h>
 #include <wdmguid.h>
