@@ -282,7 +282,7 @@ void discover_pci_tree(const vector<uint32_t> & busno, uint8_t socket_id, vector
             uint8_t busno = iio_skx.stacks[stack].busno;
             iio_skx.stacks[stack].stack_name = iio_stack_names[stack];
             //std::cout << "stack" << unsigned(stack) << std::hex << ":0x" << unsigned(busno) << std::dec << ",(" << unsigned(busno) << ")\n";
-            for (uint8_t part = 0; part < 3; part++) {
+            for (uint8_t part = 0; part < 4; part++) {
                 struct pci *pci = &iio_skx.stacks[stack].parts[part].root_pci_dev;
                 struct bdf *bdf = &pci->bdf;
                 bdf->busno = busno;
