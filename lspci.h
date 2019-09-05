@@ -23,12 +23,11 @@
     " copy it to the current directory."
 #endif
 
-using namespace std;
 typedef uint32_t h_id;
 typedef uint32_t v_id;
-typedef map<std::pair<h_id,v_id>,uint64_t> ctr_data;
-typedef vector<ctr_data> stack_content;
-typedef vector<stack_content> result_content;
+typedef std::map<std::pair<h_id,v_id>,uint64_t> ctr_data;
+typedef std::vector<ctr_data> stack_content;
+typedef std::vector<stack_content> result_content;
 
 struct bdf {
     uint8_t busno;
@@ -74,26 +73,26 @@ struct pci {
 };
 
 struct counter {
-    string h_event_name;
-    string v_event_name;
+  std::string h_event_name;
+  std::string v_event_name;
     IIOPMUCNTCTLRegister Opcodes;
     int idx; /* Some counters need to be placed in specific index */
     int multiplier;
     int divider;
     uint32_t h_id;
     uint32_t v_id;
-    vector<result_content> data;
+    std::vector<result_content> data;
 };
 
 struct iio_skx {
     struct {
         struct {
             struct pci root_pci_dev;   /* single device represent root port */
-            vector<struct pci> child_pci_devs; /* Contain child switch and end-point devices */
+            std::vector<struct pci> child_pci_devs; /* Contain child switch and end-point devices */
         } parts[4]; /* part 0, 1, 2, 3 */
         uint8_t busno; /* holding busno for each IIO stack */
-        string stack_name;
-        vector<uint64_t> values;
+        std::string stack_name;
+        std::vector<uint64_t> values;
     } stacks[6]; /* iio stack 0, 1, 2, 3, 4, 5 */
     uint32_t socket_id;
 };
@@ -211,7 +210,7 @@ void load_PCIDB(PCIDB & pciDB)
     if (!in.is_open())
     {
 #endif
-        std::cerr << PCI_IDS_NOT_FOUND << endl;
+        std::cerr << PCI_IDS_NOT_FOUND << std::endl;
         return;
     }
 
