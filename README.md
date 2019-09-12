@@ -26,6 +26,7 @@ PCM provides a number of command-line utilities for real-time monitoring:
 - pcm-power : monitor sleep and energy states of processor, Intel(r) Quick Path Interconnect, DRAM memory, reasons of CPU frequency throttling and other energy-related metrics
 - pcm-tsx: monitor performance metrics for Intel(r) Transactional Synchronization Extensions
 - pcm-core and pmu-query: query and monitor arbitrary processor core events
+- pcm-bw-histogram: collect memory bandwidth utilization histogram
 
 Graphical front ends:
 - pcm-sensor :  front-end for KDE KSysGuard
