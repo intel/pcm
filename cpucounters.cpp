@@ -104,6 +104,7 @@ int convertUnknownToInt(size_t size, char* value);
 
 HMODULE hOpenLibSys = NULL;
 
+#ifndef NO_WINRING
 bool PCM::initWinRing0Lib()
 {
     const BOOL result = InitOpenLibSys(&hOpenLibSys);
@@ -122,6 +123,7 @@ bool PCM::initWinRing0Lib()
 
     return true;
 }
+#endif // NO_WINRING
 
 class InstanceLock
 {
@@ -534,9 +536,9 @@ bool PCM::detectModel()
 
     pcm_cpuid(7, 0, cpuinfo);
 
-    std::cout << "IBRS and IBPB supported  : " << ((cpuinfo.reg.edx & (1 << 26)) ? "yes" : "no") << std::endl;
-    std::cout << "STIBP supported          : " << ((cpuinfo.reg.edx & (1 << 27)) ? "yes" : "no") << std::endl;
-    std::cout << "Spec arch caps supported : " << ((cpuinfo.reg.edx & (1 << 29)) ? "yes" : "no") << std::endl;
+    std::cerr << "IBRS and IBPB supported  : " << ((cpuinfo.reg.edx & (1 << 26)) ? "yes" : "no") << std::endl;
+    std::cerr << "STIBP supported          : " << ((cpuinfo.reg.edx & (1 << 27)) ? "yes" : "no") << std::endl;
+    std::cerr << "Spec arch caps supported : " << ((cpuinfo.reg.edx & (1 << 29)) ? "yes" : "no") << std::endl;
 
     return true;
 }
@@ -1630,13 +1632,13 @@ bool isNMIWatchdogEnabled()
 
 void disableNMIWatchdog()
 {
-    std::cout << "Disabling NMI watchdog since it consumes one hw-PMU counter." << std::endl;
+    std::cerr << "Disabling NMI watchdog since it consumes one hw-PMU counter." << std::endl;
     writeSysFS(PCM_NMI_WATCHDOG_PATH, "0");
 }
 
 void enableNMIWatchdog()
 {
-    std::cout << " Re-enabling NMI watchdog." << std::endl;
+    std::cerr << " Re-enabling NMI watchdog." << std::endl;
     writeSysFS(PCM_NMI_WATCHDOG_PATH, "1");
 }
 #endif
@@ -1651,7 +1653,7 @@ class CoreTaskQueue
     CoreTaskQueue(CoreTaskQueue &) = delete;
 public:
     CoreTaskQueue(int32 core) :
-        worker([&]() {
+        worker([=]() {
             TemporalThreadAffinity tempThreadAffinity(core, false);
             std::unique_lock<std::mutex> lock(m);
             while (1) {
@@ -1732,16 +1734,13 @@ PCM::PCM() :
     needToRestoreNMIWatchdog(false)
 {
 #ifdef _MSC_VER
-    TCHAR driverPath[1040]; // length for current directory + "\\msr.sys"
-    GetCurrentDirectory(1024, driverPath);
-    wcscat_s(driverPath, 1040, L"\\msr.sys");
     // WARNING: This driver code (msr.sys) is only for testing purposes, not for production use
-    Driver drv;
+    Driver drv(Driver::msrLocalPath());
     // drv.stop();     // restart driver (usually not needed)
-    if (!drv.start(driverPath))
+    if (!drv.start())
     {
-        std::cerr << "Cannot access CPU counters" << std::endl;
-        std::cerr << "You must have signed msr.sys driver in your current directory and have administrator rights to run this program" << std::endl;
+        std::wcerr << "Cannot access CPU counters" << std::endl;
+        std::wcerr << "You must have a signed  driver at " << drv.driverPath() << " and have administrator rights to run this program" << std::endl;
         return;
     }
 #endif
@@ -1830,15 +1829,15 @@ void PCM::showSpecControlMSRs()
         {
             uint64 val64 = 0;
             MSR[0]->read(MSR_IA32_SPEC_CTRL, &val64);
-            std::cout << "IBRS enabled in the kernel   : " << ((val64 & 1) ? "yes" : "no") << std::endl;
-            std::cout << "STIBP enabled in the kernel  : " << ((val64 & 2) ? "yes" : "no") << std::endl;
+            std::cerr << "IBRS enabled in the kernel   : " << ((val64 & 1) ? "yes" : "no") << std::endl;
+            std::cerr << "STIBP enabled in the kernel  : " << ((val64 & 2) ? "yes" : "no") << std::endl;
         }
         if (cpuinfo.reg.edx & (1 << 29))
         {
             uint64 val64 = 0;
             MSR[0]->read(MSR_IA32_ARCH_CAPABILITIES, &val64);
-            std::cout << "The processor is not susceptible to Rogue Data Cache Load: " << ((val64 & 1) ? "yes" : "no") << std::endl;
-            std::cout << "The processor supports enhanced IBRS                     : " << ((val64 & 2) ? "yes" : "no") << std::endl;
+            std::cerr << "The processor is not susceptible to Rogue Data Cache Load: " << ((val64 & 1) ? "yes" : "no") << std::endl;
+            std::cerr << "The processor supports enhanced IBRS                     : " << ((val64 & 2) ? "yes" : "no") << std::endl;
         }
     }
 }
@@ -1971,7 +1970,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
     if (no_perf_env != NULL && std::string(no_perf_env) == std::string("1"))
     {
         canUsePerf = false;
-        std::cout << "Usage of Linux perf events is disabled through PCM_NO_PERF environment variable. Using direct PMU programming..." << std::endl;
+        std::cerr << "Usage of Linux perf events is disabled through PCM_NO_PERF environment variable. Using direct PMU programming..." << std::endl;
     }
     if(num_online_cores < num_cores)
     {
@@ -2297,8 +2296,6 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
             programBecktonUncore(i);
         }
     }
-
-    reservePMU();
 
     if(canUsePerf)
     {
@@ -2744,7 +2741,7 @@ void PCM::enableForceRTMAbortMode()
                 }
             }
             readCoreCounterConfig(); // re-read core_gen_counter_num_max from CPUID
-            std::cout << "The number of custom counters is now "<< core_gen_counter_num_max << std::endl;
+            std::cerr << "The number of custom counters is now "<< core_gen_counter_num_max << std::endl;
             if (core_gen_counter_num_max < 4)
             {
                 std::cerr << "PCM Warning: the number of custom counters did not increase (" << core_gen_counter_num_max << ")" << std::endl;
@@ -2774,7 +2771,7 @@ void PCM::disableForceRTMAbortMode()
             }
         }
         readCoreCounterConfig(); // re-read core_gen_counter_num_max from CPUID
-        std::cout << "The number of custom counters is now " << core_gen_counter_num_max << std::endl;
+        std::cerr << "The number of custom counters is now " << core_gen_counter_num_max << std::endl;
         if (core_gen_counter_num_max != 3)
         {
             std::cerr << "PCM Warning: the number of custom counters is not 3 (" << core_gen_counter_num_max << ")" << std::endl;
@@ -2908,29 +2905,6 @@ uint32 PCM::checkCustomCoreProgramming(std::shared_ptr<SafeMsrHandle> msr)
         }
     }
     return corruptedCountersMask;
-}
-
-void PCM::reservePMU()
-{
-    if (perfmon_version >= 4 && canUsePerf == false)
-    {
-        const uint64 value = (7ULL << 32ULL) + ((1ULL << core_gen_counter_num_used) - 1ULL);
-        for (auto msr : MSR)
-        {
-            msr->write(MSR_PERF_GLOBAL_INUSE, value);
-        }
-    }
-}
-
-void PCM::unreservePMU()
-{
-    if (perfmon_version >= 4 && canUsePerf == false)
-    {
-        for (auto msr : MSR)
-        {
-            msr->write(MSR_PERF_GLOBAL_INUSE, 0ULL);
-        }
-    }
 }
 
 bool PCM::PMUinUse()
@@ -3097,8 +3071,6 @@ void PCM::cleanupPMU()
 
     if(cpu_model == JAKETOWN)
         enableJKTWorkaround(false);
-
-    unreservePMU();
 
 #ifndef PCM_SILENT
     std::cerr << " Zeroed PMU registers" << std::endl;

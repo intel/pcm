@@ -29,8 +29,6 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 #define DELAY 1 // in seconds
 
-using namespace std;
-
 
 void * UpdateCounters(void *);
 
@@ -56,7 +54,7 @@ public:
         PCM::ErrorCode status = m->program();
         if (status != PCM::Success)
         {
-            cout << "\nCan not access CPU counters. Try to run pcm.x 1 to check the PMU access status.\n" << endl;
+          std::cout << "\nCan not access CPU counters. Try to run pcm.x 1 to check the PMU access status.\n" << std::endl;
             exit(-1);
         }
 

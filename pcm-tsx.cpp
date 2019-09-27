@@ -341,6 +341,16 @@ int main(int argc, char * argv[])
         }
     }
 
+    bool rtm_support = m->supportsRTM();
+
+    if (!rtm_support) {
+        if (!force) {
+            cerr << "No RTM support detected, use -F if you still want to run this program." << endl;
+            exit(EXIT_FAILURE);
+        }
+        cerr << "No RTM support detected, but -F found as argument, running anyway." << endl;
+    }
+
     PCM::ErrorCode status = m->program(PCM::EXT_CUSTOM_CORE_EVENTS, &conf);
     switch (status)
     {
@@ -366,16 +376,6 @@ int main(int argc, char * argv[])
     }
 
     print_cpu_details();
-
-    bool rtm_support = m->supportsRTM();
-
-    if (!rtm_support) {
-        if (!force) {
-            cerr << "No RTM support detected, use -F if you still want to run this program." << endl;
-            exit(EXIT_FAILURE);
-        }
-        cerr << "No RTM support detected, but -F found as argument, running anyway." << endl;
-    }
 
     uint64 BeforeTime = 0, AfterTime = 0;
     SystemCounterState SysBeforeState, SysAfterState;

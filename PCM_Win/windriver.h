@@ -18,6 +18,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 //
 
 #include <iostream>
+#include <winreg.h>
 #include <comdef.h>
 #include "cpucounters.h"
 
@@ -39,6 +40,49 @@ class Driver
     SERVICE_STATUS ss;
 
 public:
+    static std::wstring msrLocalPath()
+    {
+        std::wstring driverPath;
+        DWORD driverPathLen = 1;
+        DWORD gcdReturn = 0;
+
+        do {
+            if (0 != gcdReturn)
+            {
+                driverPathLen = gcdReturn;
+            }
+            driverPath.resize(driverPathLen);
+            gcdReturn = GetCurrentDirectory(driverPathLen, &driverPath[0]);
+        } while (0 != gcdReturn && driverPathLen < gcdReturn);
+
+        removeNullTerminator(driverPath);
+
+        return driverPath + L"\\msr.sys";
+    }
+
+    Driver() :
+        Driver(L"c:\\windows\\system32\\msr.sys")
+    {
+    }
+
+    Driver(const std::wstring& driverPath) :
+        Driver(driverPath, L"PCM Test MSR", L"PCM Test MSR Driver")
+    {
+    }
+
+    Driver(const std::wstring& driverPath, const std::wstring& driverName, const std::wstring& driverDescription) :
+        driverPath_(setConfigValue(L"DriverPath", driverPath)),
+        driverName_(setConfigValue(L"DriverName", driverName)),
+        driverDescription_(setConfigValue(L"DriverDescription", driverDescription))
+    {
+    }
+
+    const std::wstring& driverPath() const
+    {
+        return driverPath_;
+    }
+
+
     /*! \brief Installs and loads the driver
 
         Installs the driver if not installed and then loads it.
@@ -46,24 +90,26 @@ public:
         \param driverPath full path to the driver
         \return true iff driver start up was successful
     */
-    bool start(LPCWSTR driverPath)
+    bool start()
     {
         hSCManager = OpenSCManager(NULL, NULL, SC_MANAGER_CREATE_SERVICE);
         if (hSCManager)
         {
-            hService = CreateService(hSCManager, L"PCM Test MSR", L"PCM Test MSR Driver", SERVICE_START | DELETE | SERVICE_STOP,
-                                     SERVICE_KERNEL_DRIVER, SERVICE_DEMAND_START, SERVICE_ERROR_IGNORE, driverPath, NULL, NULL, NULL, NULL, NULL);
+            hService = CreateService(hSCManager, &driverName_[0], &driverDescription_[0], SERVICE_START | DELETE | SERVICE_STOP,
+                                     SERVICE_KERNEL_DRIVER, SERVICE_DEMAND_START, SERVICE_ERROR_IGNORE, &driverPath_[0], NULL, NULL, NULL, NULL, NULL);
 
             if (!hService)
             {
-                hService = OpenService(hSCManager, L"PCM Test MSR", SERVICE_START | DELETE | SERVICE_STOP);
+                hService = OpenService(hSCManager, &driverName_[0], SERVICE_START | DELETE | SERVICE_STOP);
             }
 
             if (hService)
             {
                 if (0 != StartService(hService, 0, NULL))
                 {
-                    restrictDriverAccess(L"\\\\.\\PCM Test MSR");
+                    std::wstring convDriverName(&driverName_[0]);
+                    std::wstring driverPath = L"\\\\.\\" + convDriverName;
+                    restrictDriverAccess(driverPath.c_str());
                     return true;
                 }
                 DWORD err = GetLastError();
@@ -98,17 +144,18 @@ public:
             std::wcerr << std::endl;
         }
 
-
-		std::cerr << "Trying to load winring0.dll/winring0.sys driver..." << std::endl;
-		if(PCM::initWinRing0Lib())
-		{
-			std::cerr << "Using winring0.dll/winring0.sys driver.\n" << std::endl;
-			return true;
-		}
-		else
-		{
-			std::cerr << "Failed to load winring0.dll/winring0.sys driver.\n" << std::endl;
-		}
+        #ifndef NO_WINRING // In cases where loading the WinRing0 driver is not desirable as a fallback to MSR.sys, add -DNO_WINRING to compile command to remove ability to load driver (will also remove initWinRing0Lib function)
+        std::cerr << "Trying to load winring0.dll/winring0.sys driver..." << std::endl;
+        if(PCM::initWinRing0Lib())
+        {
+            std::cerr << "Using winring0.dll/winring0.sys driver.\n" << std::endl;
+            return true;
+        }
+        else
+        {
+            std::cerr << "Failed to load winring0.dll/winring0.sys driver.\n" << std::endl;
+        }
+        #endif // NO_WINRING
 
         return false;
     }
@@ -119,7 +166,7 @@ public:
         hSCManager = OpenSCManager(NULL, NULL, SC_MANAGER_CREATE_SERVICE);
         if (hSCManager)
         {
-            hService = OpenService(hSCManager, L"PCM Test MSR", SERVICE_START | DELETE | SERVICE_STOP);
+            hService = OpenService(hSCManager, &driverName_[0], SERVICE_START | DELETE | SERVICE_STOP);
             if (hService)
             {
                 ControlService(hService, SERVICE_CONTROL_STOP, &ss);
@@ -146,7 +193,7 @@ public:
         hSCManager = OpenSCManager(NULL, NULL, SC_MANAGER_CREATE_SERVICE);
         if (hSCManager)
         {
-            hService = OpenService(hSCManager, L"PCM Test MSR", SERVICE_START | DELETE | SERVICE_STOP);
+            hService = OpenService(hSCManager, &driverName_[0], SERVICE_START | DELETE | SERVICE_STOP);
             if (hService)
             {
                 ControlService(hService, SERVICE_CONTROL_STOP, &ss);
@@ -164,6 +211,44 @@ public:
             std::wcerr << std::endl;
         }
     }
+
+private:
+
+    static std::wstring setConfigValue(const LPCWSTR key, const std::wstring& defaultValue)
+    {
+        static_assert(std::is_same<WCHAR, wchar_t>::value, "WCHAR expected to be wchar_t");
+
+        std::wstring regRead;
+        DWORD regLen = 1 * sizeof(WCHAR);
+        DWORD regRes = ERROR_FILE_NOT_FOUND; // Safe error to start with in case key doesn't exist
+
+        HKEY hKey;
+        if (ERROR_SUCCESS == RegOpenKeyEx(HKEY_LOCAL_MACHINE, L"SOFTWARE\\pcm", NULL, KEY_READ, &hKey))
+        {
+            do {
+                regRead.resize(regLen / sizeof(WCHAR));
+                regRes = RegQueryValueEx(hKey, key, NULL, NULL, (LPBYTE)&regRead[0], &regLen);
+            } while (ERROR_MORE_DATA == regRes);
+
+            RegCloseKey(hKey);
+        }
+
+        removeNullTerminator(regRead);
+            
+        return ERROR_SUCCESS == regRes ? regRead : defaultValue;
+    }
+
+    static void removeNullTerminator(std::wstring& s)
+    {
+        if (!s.empty() && s.back() == '\0')
+        {
+            s.pop_back();
+        }
+    }
+
+    const std::wstring driverName_;
+    const std::wstring driverPath_;
+    const std::wstring driverDescription_;
 };
 
 #endif

@@ -31,7 +31,10 @@ CT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
 #include <vector>
 #include <math.h>
 
-#ifndef _MSC_VER
+#ifdef _MSC_VER
+#include <thr/xthread>
+#include <chrono>
+#else
 #include <csignal>
 #include <ctime>
 #include <cmath>
@@ -53,15 +56,8 @@ void set_post_cleanup_callback(void(*cb)(void));
 #ifdef _MSC_VER
 inline void win_usleep(int delay_us)
 {
-    uint64 t1 = 0, t2 = 0, freq = 0;
-    uint64 wait_tick;
-    QueryPerformanceFrequency((LARGE_INTEGER *)&freq);
-    wait_tick = freq * delay_us / 1000000ULL;
-    QueryPerformanceCounter((LARGE_INTEGER *)&t1);
-    do {
-        QueryPerformanceCounter((LARGE_INTEGER *)&t2);
-        _mm_pause();
-    } while ((t2 - t1) < wait_tick);
+    stdext::threads::xtime _Tgt = _To_xtime(std::chrono::microseconds(delay_us));
+    _Thrd_sleep(&_Tgt);
 }
 #endif
 

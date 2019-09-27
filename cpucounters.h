@@ -757,8 +757,6 @@ private:
 
     std::vector<std::vector<EventSelectRegister> > lastProgrammedCustomCounters;
     uint32 checkCustomCoreProgramming(std::shared_ptr<SafeMsrHandle> msr);
-    void reservePMU();
-    void unreservePMU();
     ErrorCode programCoreCounters(int core, const PCM::ProgramMode mode, const ExtendedCustomCoreEventDescription * pExtDesc,
         std::vector<EventSelectRegister> & programmedCustomCounters);
 
@@ -1375,9 +1373,11 @@ public:
     //! \brief Returns maximum power derived from electrical spec of the package domain in Watt
     int32 getPackageMaximumPower() const { return pkgMaximumPower; }
 
+    #ifndef NO_WINRING // In cases where loading the WinRing0 driver is not desirable as a fallback to MSR.sys, add -DNO_WINRING to compile command to remove ability to load driver
     //! \brief Loads and initializes Winring0 third party library for access to processor model specific and PCI configuration registers
     //! \return returns true in case of success
     static bool initWinRing0Lib();
+    #endif // NO_WINRING
 
     inline void disableJKTWorkaround() { disable_JKT_workaround = true; }
 
