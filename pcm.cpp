@@ -1266,18 +1266,13 @@ int main(int argc, char * argv[])
     else {
         m->setBlocked(false);
     }
+    // in case delay is not provided in command line => set default
+    if (delay <= 0.0) delay = PCM_DELAY_DEFAULT;
+    // cerr << "DEBUG: Delay: " << delay << " seconds. Blocked: " << m->isBlocked() << endl;
 
     if (csv_output) {
         print_csv_header(m, ycores, cpu_model, show_core_output, show_partial_core_output, show_socket_output, show_system_output);
-        if (delay <= 0.0) delay = PCM_DELAY_DEFAULT;
     }
-    else {
-        // for non-CSV mode delay < 1.0 does not make a lot of practical sense:
-        // hard to read from the screen, or
-        // in case delay is not provided in command line => set default
-        if (((delay<1.0) && (delay>0.0)) || (delay <= 0.0)) delay = PCM_DELAY_DEFAULT;
-    }
-    // cerr << "DEBUG: Delay: " << delay << " seconds. Blocked: " << m->isBlocked() << endl;
 
     m->getAllCounterStates(sstate1, sktstate1, cstates1);
 
