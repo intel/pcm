@@ -6,8 +6,6 @@
 # norootforbuild
 
 Name:            pcm
-Version:         X.Y
-Release:         0
 Summary:         Processor Counter Monitor
 Group:           Development/Tools
 License:         BSD-3-Clause
