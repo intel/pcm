@@ -16,6 +16,7 @@ Provides:        pcm
 Source:          https://github.com/opcm/pcm/archive/master.zip
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 AutoReqProv:    on
+BuildRequires:  unzip
 
 %description
 
