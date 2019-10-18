@@ -17,6 +17,8 @@ Source:          master.zip
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 AutoReqProv:    on
 BuildRequires:  unzip
+BuildRequires:  gcc
+BuildRequires:  gcc-c++
 
 %description
 
