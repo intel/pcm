@@ -10,7 +10,7 @@ Version:         X.Y
 Release:         0
 Summary:         Processor Counter Monitor
 Group:           Development/Tools
-License:         Open Source Initiative OSI - The BSD License: Licensing
+License:         BSD-3-Clause
 Url:             https://github.com/opcm/pcm/archive
 Source:          master.zip
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
