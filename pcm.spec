@@ -13,7 +13,7 @@ Group:           Development/Tools
 License:         Open Source Initiative OSI - The BSD License: Licensing
 Url:             https://github.com/opcm/pcm/ 
 Provides:        pcm
-Source:          pcm-master.zip
+Source:          master.zip
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 AutoReqProv:    on
 
