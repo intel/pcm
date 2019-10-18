@@ -37,7 +37,7 @@ There is also a utility for reading/writing Intel model specific registers (pcm-
 And finally a daemon that stores core, memory and QPI counters in shared memory that can be be accessed by non-root users.
 
 --------------------------------------------------------------------------------
-Building the PCM Tools
+Building PCM Tools
 --------------------------------------------------------------------------------
 
 - Linux: just type 'make'. You will get all the utilities (pcm.x, pcm-memory.x, etc) built in the main PCM directory.
