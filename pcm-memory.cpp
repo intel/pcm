@@ -432,7 +432,7 @@ void display_bandwidth(PCM *m, memdata_t *md, uint32 no_columns, const bool show
 void display_bandwidth_csv_header(PCM *m, memdata_t *md, const bool show_channel_output)
 {
     uint32 numSockets = m->getNumSockets();
-    cout << ";;" ; // Time
+    cout << ",," ; // Time
 
     for (uint32 skt=0; skt < numSockets; ++skt)
     {
@@ -441,21 +441,21 @@ void display_bandwidth_csv_header(PCM *m, memdata_t *md, const bool show_channel
          {
 	     if(md->iMC_Rd_socket_chan[skt][channel] < 0.0 && md->iMC_Wr_socket_chan[skt][channel] < 0.0) //If the channel read neg. value, the channel is not working; skip it.
 	        continue;
-	     cout << "SKT" << skt << ";SKT" << skt << ';';
+	     cout << "SKT" << skt << ",SKT" << skt << ',';
              if (md->PMM)
              {
-                 cout << "SKT" << skt << ";SKT" << skt << ';';
+                 cout << "SKT" << skt << ",SKT" << skt << ',';
              }
          }
       }
-      cout << "SKT"<<skt<<";"
-	   << "SKT"<<skt<<";"
-	   << "SKT"<<skt<<";";
+      cout << "SKT"<<skt<<","
+	   << "SKT"<<skt<<","
+	   << "SKT"<<skt<<",";
       if (m->getCPUModel() != PCM::KNL) {
           if (md->PMM)
-	      cout << "SKT"<<skt<<";" << "SKT"<<skt<<";";
+	      cout << "SKT"<<skt<<"," << "SKT"<<skt<<",";
           else
-              cout << "SKT"<<skt<<";";
+              cout << "SKT"<<skt<<",";
       }
 
       if (m->MCDRAMmemoryTrafficMetricsAvailable()) {
@@ -464,20 +464,20 @@ void display_bandwidth_csv_header(PCM *m, memdata_t *md, const bool show_channel
              {
 	         if(md->EDC_Rd_socket_chan[skt][channel] < 0.0 && md->EDC_Wr_socket_chan[skt][channel] < 0.0) //If the channel read neg. value, the channel is not working; skip it.
 	             continue;
-	         cout << "SKT" << skt << ";SKT" << skt << ';';
+	         cout << "SKT" << skt << ",SKT" << skt << ',';
 	     }
 	  }
-          cout << "SKT"<<skt<<";"
-               << "SKT"<<skt<<";"
-	       << "SKT"<<skt<<";";
+          cout << "SKT"<<skt<<","
+               << "SKT"<<skt<<","
+	       << "SKT"<<skt<<",";
       }
 
     }
     if (md->PMM)
-        cout << "System;System;System;System;";
-    cout << "System;System;System\n";
+        cout << "System,System,System,System,";
+    cout << "System,System,System\n";
 
-    cout << "Date;Time;" ;
+    cout << "Date,Time," ;
     for (uint32 skt=0; skt < numSockets; ++skt)
     {
       if (show_channel_output) {
@@ -485,23 +485,23 @@ void display_bandwidth_csv_header(PCM *m, memdata_t *md, const bool show_channel
          {
 	     if(md->iMC_Rd_socket_chan[skt][channel] < 0.0 && md->iMC_Wr_socket_chan[skt][channel] < 0.0) //If the channel read neg. value, the channel is not working; skip it.
 	         continue;
-	     cout << "Ch" <<channel <<"Read;"
-	          << "Ch" <<channel <<"Write;";
+	     cout << "Ch" <<channel <<"Read,"
+	          << "Ch" <<channel <<"Write,";
              if(md->PMM)
              {
-                 cout << "Ch" <<channel <<"PMM_Read;"
-                      << "Ch" <<channel <<"PMM_Write;";
+                 cout << "Ch" <<channel <<"PMM_Read,"
+                      << "Ch" <<channel <<"PMM_Write,";
              }
 	 }
       }
       if (m->getCPUModel() == PCM::KNL)
-          cout << "DDR4 Read (MB/s); DDR4 Write (MB/s); DDR4 Memory (MB/s);";
+          cout << "DDR4 Read (MB/s), DDR4 Write (MB/s), DDR4 Memory (MB/s),";
       else
       {
           if(md->PMM)
-              cout << "Mem Read (MB/s);Mem Write (MB/s); PMM_Read; PMM_Write; Memory (MB/s);";
+              cout << "Mem Read (MB/s),Mem Write (MB/s), PMM_Read, PMM_Write; Memory (MB/s),";
           else
-              cout << "Mem Read (MB/s);Mem Write (MB/s); P. Write (T/s); Memory (MB/s);";
+              cout << "Mem Read (MB/s),Mem Write (MB/s), P. Write (T/s), Memory (MB/s),";
       }
 
       if (m->MCDRAMmemoryTrafficMetricsAvailable()) {
@@ -510,17 +510,17 @@ void display_bandwidth_csv_header(PCM *m, memdata_t *md, const bool show_channel
             {
 	         if(md->EDC_Rd_socket_chan[skt][channel] < 0.0 && md->EDC_Wr_socket_chan[skt][channel] < 0.0) //If the channel read neg. value, the channel is not working; skip it.
 	             continue;
-	         cout << "EDC_Ch" <<channel <<"Read;"
-	              << "EDC_Ch" <<channel <<"Write;";
+	         cout << "EDC_Ch" <<channel <<"Read,"
+	              << "EDC_Ch" <<channel <<"Write,";
 	       }
 	 }
-         cout << "MCDRAM Read (MB/s); MCDRAM Write (MB/s); MCDRAM (MB/s);";
+         cout << "MCDRAM Read (MB/s), MCDRAM Write (MB/s), MCDRAM (MB/s),";
       }
     }
 
     if (md->PMM)
-	cout << "DRAMRead;DRAMWrite;PMMREAD;PMMWrite;";
-    cout << "Read;Write;Memory" << endl;
+	cout << "DRAMRead,DRAMWrite,PMMREAD;PMMWrite,";
+    cout << "Read,Write,Memory" << endl;
 }
 
 void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 elapsedTime, const bool show_channel_output)
@@ -528,8 +528,8 @@ void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 elapsedTime, const bool
     uint32 numSockets = m->getNumSockets();
     tm tt = pcm_localtime();
     cout.precision(3);
-    cout << 1900+tt.tm_year << '-' << 1+tt.tm_mon << '-' << tt.tm_mday << ';'
-         << tt.tm_hour << ':' << tt.tm_min << ':' << tt.tm_sec << ';';
+    cout << 1900+tt.tm_year << '-' << 1+tt.tm_mon << '-' << tt.tm_mday << ','
+         << tt.tm_hour << ':' << tt.tm_min << ':' << tt.tm_sec << ',';
 
 
     float sysReadDRAM = 0.0, sysWriteDRAM = 0.0, sysReadPMM = 0.0, sysWritePMM = 0.0;
@@ -544,30 +544,30 @@ void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 elapsedTime, const bool
            {
 	      if(md->iMC_Rd_socket_chan[skt][channel] < 0.0 && md->iMC_Wr_socket_chan[skt][channel] < 0.0) //If the channel read neg. value, the channel is not working; skip it.
 	         continue;
-	      cout <<setw(8) << md->iMC_Rd_socket_chan[skt][channel] << ';'
-	           <<setw(8) << md->iMC_Wr_socket_chan[skt][channel] << ';';
+	      cout <<setw(8) << md->iMC_Rd_socket_chan[skt][channel] << ','
+	           <<setw(8) << md->iMC_Wr_socket_chan[skt][channel] << ',';
               if(md->PMM)
               {
-                  cout <<setw(8) << md->iMC_PMM_Rd_socket_chan[skt][channel] << ';'
-                       <<setw(8) << md->iMC_PMM_Wr_socket_chan[skt][channel] << ';';
+                  cout <<setw(8) << md->iMC_PMM_Rd_socket_chan[skt][channel] << ','
+                       <<setw(8) << md->iMC_PMM_Wr_socket_chan[skt][channel] << ',';
               }
 	   }
 	 }
-         cout <<setw(8) << md->iMC_Rd_socket[skt] <<';'
-	      <<setw(8) << md->iMC_Wr_socket[skt] <<';';
+         cout <<setw(8) << md->iMC_Rd_socket[skt] <<','
+	      <<setw(8) << md->iMC_Wr_socket[skt] <<',';
          if(md->PMM)
          {
-             cout <<setw(8) << md->iMC_PMM_Rd_socket[skt] <<';'
-                  <<setw(8) << md->iMC_PMM_Wr_socket[skt] <<';';
+             cout <<setw(8) << md->iMC_PMM_Rd_socket[skt] <<','
+                  <<setw(8) << md->iMC_PMM_Wr_socket[skt] <<',';
          }
 	 if (m->getCPUModel() != PCM::KNL)
          {
              if (!md->PMM)
              {
-                 cout <<setw(10) << dec << md->partial_write[skt] <<';';
+                 cout <<setw(10) << dec << md->partial_write[skt] <<',';
              }
          }
-         cout << setw(8) << md->iMC_Rd_socket[skt]+md->iMC_Wr_socket[skt] <<';';
+         cout << setw(8) << md->iMC_Rd_socket[skt]+md->iMC_Wr_socket[skt] <<',';
 
 	 sysReadDRAM += md->iMC_Rd_socket[skt];
          sysWriteDRAM += md->iMC_Wr_socket[skt];
@@ -580,14 +580,14 @@ void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 elapsedTime, const bool
 	       {
                   if(md->EDC_Rd_socket_chan[skt][channel] < 0.0 && md->EDC_Wr_socket_chan[skt][channel] < 0.0) //If the channel read neg. value, the channel is not working; skip it.
 	               continue;
-                  cout <<setw(8) << md->EDC_Rd_socket_chan[skt][channel] << ';'
-	               <<setw(8) << md->EDC_Wr_socket_chan[skt][channel] << ';';
+                  cout <<setw(8) << md->EDC_Rd_socket_chan[skt][channel] << ','
+	               <<setw(8) << md->EDC_Wr_socket_chan[skt][channel] << ',';
 	
 	       }
 	    }
-             cout <<setw(8) << md->EDC_Rd_socket[skt] <<';'
-	          <<setw(8) << md->EDC_Wr_socket[skt] <<';'
-                  <<setw(8) << md->EDC_Rd_socket[skt]+md->EDC_Wr_socket[skt] <<';';
+             cout <<setw(8) << md->EDC_Rd_socket[skt] <<','
+	          <<setw(8) << md->EDC_Wr_socket[skt] <<','
+                  <<setw(8) << md->EDC_Rd_socket[skt]+md->EDC_Wr_socket[skt] <<',';
 
              sysReadDRAM += md->EDC_Rd_socket[skt];
              sysWriteDRAM += md->EDC_Wr_socket[skt];
@@ -595,13 +595,13 @@ void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 elapsedTime, const bool
     }
 
     if (md->PMM)
-        cout <<setw(10) <<sysReadDRAM <<';'
-             <<setw(10) <<sysWriteDRAM <<';'
-             <<setw(10) <<sysReadPMM <<';'
-             <<setw(10) <<sysWritePMM <<';';
+        cout <<setw(10) <<sysReadDRAM <<','
+             <<setw(10) <<sysWriteDRAM <<','
+             <<setw(10) <<sysReadPMM <<','
+             <<setw(10) <<sysWritePMM <<',';
 
-    cout <<setw(10) <<sysReadDRAM+sysReadPMM <<';'
-	 <<setw(10) <<sysWriteDRAM+sysWritePMM <<';'
+    cout <<setw(10) <<sysReadDRAM+sysReadPMM <<','
+	 <<setw(10) <<sysWriteDRAM+sysWritePMM <<','
 	 <<setw(10) <<sysReadDRAM+sysReadPMM+sysWriteDRAM+sysWritePMM << endl;
 }
 
