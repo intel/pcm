@@ -920,7 +920,7 @@ void print_csv(PCM * m,
             if (m->MCDRAMmemoryTrafficMetricsAvailable())
                 cout << ',' << getBytesReadFromEDC(sktstate1[i], sktstate2[i]) / double(1e9) <<
                 ',' << getBytesWrittenToEDC(sktstate1[i], sktstate2[i]) / double(1e9);
-            cout << ',' << temp_format(sktstate2[i].getThermalHeadroom()) << ';';
+            cout << ',' << temp_format(sktstate2[i].getThermalHeadroom()) << ',';
         }
 
         if (m->getNumSockets() > 1 && (m->incomingQPITrafficMetricsAvailable())) // QPI info only for multi socket systems
