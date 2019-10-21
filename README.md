@@ -37,17 +37,23 @@ There is also a utility for reading/writing Intel model specific registers (pcm-
 And finally a daemon that stores core, memory and QPI counters in shared memory that can be be accessed by non-root users.
 
 --------------------------------------------------------------------------------
-PCM API documentation
---------------------------------------------------------------------------------
-
-PCM API documentation is embedded in the source code and can be generated into html format from source using Doxygen (www.doxygen.org).
-
---------------------------------------------------------------------------------
-Building the PCM Tools
+Building PCM Tools
 --------------------------------------------------------------------------------
 
 - Linux: just type 'make'. You will get all the utilities (pcm.x, pcm-memory.x, etc) built in the main PCM directory.
 - FreeBSD/DragonFlyBSD: just type 'gmake'. You will get all the utilities (pcm.x, pcm-memory.x, etc) built in the main PCM directory. If the 'gmake' command is not available, you need to install GNU make from ports (for example with 'pkg install gmake').
-- Windows: follow the steps in [WINDOWS_HOWTO.rtf](https://raw.githubusercontent.com/opcm/pcm/master/WINDOWS_HOWTO.rtf) (will will need to build or download additional drivers). You can also download PCM binaries as [appveyor build service](https://ci.appveyor.com/project/opcm/pcm/history) artifacts and required Visual C++ Redistributable from [www.microsoft.com](https://www.microsoft.com/en-us/download/details.aspx?id=48145).
+- Windows: follow the steps in [WINDOWS_HOWTO.rtf](https://raw.githubusercontent.com/opcm/pcm/master/WINDOWS_HOWTO.rtf) (will will need to build or download additional drivers).
 - Mac OS X: follow instructions in [MAC_HOWTO.txt](https://github.com/opcm/pcm/blob/master/MAC_HOWTO.txt)
 
+--------------------------------------------------------------------------------
+Downloading Pre-Compiled PCM Tools
+--------------------------------------------------------------------------------
+
+- Linux: precompiled RPMs (binary and source) are available [here](https://download.opensuse.org/repositories/home:/opcm/)
+- Windows: download PCM binaries as [appveyor build service](https://ci.appveyor.com/project/opcm/pcm/history) artifacts and required Visual C++ Redistributable from [www.microsoft.com](https://www.microsoft.com/en-us/download/details.aspx?id=48145). Additional drivers are needed, see [WINDOWS_HOWTO.rtf](https://raw.githubusercontent.com/opcm/pcm/master/WINDOWS_HOWTO.rtf).
+
+--------------------------------------------------------------------------------
+PCM API documentation
+--------------------------------------------------------------------------------
+
+PCM API documentation is embedded in the source code and can be generated into html format from source using Doxygen (www.doxygen.org).

@@ -47,9 +47,6 @@ void exit_cleanup(void)
     {
         post_cleanup_callback();
     }
-
-// now terminate the program immediately
-    _exit(EXIT_SUCCESS);
 }
 
 void print_cpu_details()
@@ -143,6 +140,7 @@ BOOL sigINT_handler(DWORD fdwCtrlType)
         return FALSE;
     } else {
         exit_cleanup();
+        _exit(EXIT_SUCCESS);
         return FALSE; // to prevent Warning
     }
 }
@@ -174,10 +172,12 @@ void sigINT_handler(int signum)
 
     // in case PCM is blocked just return and summary will be dumped in
     // calling function, if needed
-    if (PCM::getInstance()->isBlocked())
+    if (PCM::getInstance()->isBlocked()) {
         return;
-    else
+    } else {
         exit_cleanup();
+        _exit(EXIT_SUCCESS);
+    }
 }
 
 /**
