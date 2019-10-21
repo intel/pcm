@@ -50,7 +50,7 @@ Downloading Pre-Compiled PCM Tools
 --------------------------------------------------------------------------------
 
 - Linux: precompiled RPMs (binary and source) are available [here](https://download.opensuse.org/repositories/home:/opcm/)
-- Windows: download PCM binaries as [appveyor build service](https://ci.appveyor.com/project/opcm/pcm/history) artifacts and required Visual C++ Redistributable from [www.microsoft.com](https://www.microsoft.com/en-us/download/details.aspx?id=48145). Additional drivers are needed, see [WINDOWS_HOWTO.rtf](https://raw.githubusercontent.com/opcm/pcm/master/WINDOWS_HOWTO.rtf).
+- Windows: download PCM binaries as [appveyor build service](https://ci.appveyor.com/project/opcm/pcm/history) artifacts and required Visual C++ Redistributable from [www.microsoft.com](https://www.microsoft.com/en-us/download/details.aspx?id=48145). Additional drivers are needed, see [WINDOWS_HOWTO.md](https://raw.githubusercontent.com/opcm/pcm/master/WINDOWS_HOWTO.md).
 
 --------------------------------------------------------------------------------
 PCM API documentation
