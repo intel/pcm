@@ -50,8 +50,7 @@ install -s -m 755 pcm-tsx.x $RPM_BUILD_ROOT/usr/bin/
 install -s -m 755 pcm.x $RPM_BUILD_ROOT/usr/bin/
 install -s -m 755 daemon/client/Debug/client  $RPM_BUILD_ROOT/usr/bin/pcm-client.x
 install -s -m 755 daemon/daemon/Debug/daemon  $RPM_BUILD_ROOT/usr/bin/pcm-daemon.x
-cp pcm-bw-histogram.sh $RPM_BUILD_ROOT/usr/bin/pcm-bw-histogram.sh
-chmod 755 $RPM_BUILD_ROOT/usr/bin/pcm-bw-histogram.sh
+install -m 755 pcm-bw-histogram.sh $RPM_BUILD_ROOT/usr/bin/
 install -m 644 opCode.txt $RPM_BUILD_ROOT/usr/share/pcm/
 
 %clean
@@ -82,7 +81,8 @@ rm -rf $RPM_BUILD_ROOT
 /usr/share/pcm/opCode.txt
 
 %changelog
-* Fri Oct 21 2019 - roman.dementiev@intel.com
+* Mon Oct 21 2019 - roman.dementiev@intel.com
 	add opCode file to /usr/share/pcm
+	use "install" to copy pcm-bw-histogram.sh
 * Fri Oct 18 2019 - roman.dementiev@intel.com
 	created spec file
