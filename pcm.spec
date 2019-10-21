@@ -33,6 +33,7 @@ make -j
 %install
 rm -rf $RPM_BUILD_ROOT
 mkdir -p $RPM_BUILD_ROOT/usr/bin
+mkdir -p $RPM_BUILD_ROOT/usr/share/pcm
 
 install -s -m 755 pcm-core.x $RPM_BUILD_ROOT/usr/bin/ 
 install -s -m 755 pcm-iio.x $RPM_BUILD_ROOT/usr/bin/
@@ -51,6 +52,7 @@ install -s -m 755 daemon/client/Debug/client  $RPM_BUILD_ROOT/usr/bin/pcm-client
 install -s -m 755 daemon/daemon/Debug/daemon  $RPM_BUILD_ROOT/usr/bin/pcm-daemon.x
 cp pcm-bw-histogram.sh $RPM_BUILD_ROOT/usr/bin/pcm-bw-histogram.sh
 chmod 755 $RPM_BUILD_ROOT/usr/bin/pcm-bw-histogram.sh
+install -m 644 opCode.txt $RPM_BUILD_ROOT/usr/share/pcm/
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -77,7 +79,10 @@ rm -rf $RPM_BUILD_ROOT
 /usr/bin/pcm-client.x
 /usr/bin/pcm-daemon.x
 /usr/bin/pcm-bw-histogram.sh
+/usr/share/pcm/opCode.txt
 
 %changelog
+* Fri Oct 21 2019 - roman.dementiev@intel.com
+	add opCode file to /usr/share/pcm
 * Fri Oct 18 2019 - roman.dementiev@intel.com
 	created spec file
