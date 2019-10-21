@@ -78,6 +78,7 @@ rm -rf $RPM_BUILD_ROOT
 /usr/bin/pcm-client.x
 /usr/bin/pcm-daemon.x
 /usr/bin/pcm-bw-histogram.sh
+/usr/share/pcm
 /usr/share/pcm/opCode.txt
 
 %changelog
