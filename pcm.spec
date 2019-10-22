@@ -9,7 +9,7 @@ Name:            pcm
 Version:         0
 Release:         0
 Summary:         Processor Counter Monitor
-Group:           Development/Tools
+Group:           System/Monitoring
 License:         BSD-3-Clause
 Url:             https://github.com/opcm/pcm/archive
 Source:          master.zip
