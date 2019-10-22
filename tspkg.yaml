@@ -1,0 +1,10 @@
+name: pcm
+version: 201910
+
+build: |
+  make
+  install *.x bin/
+
+  cd pcm.so
+  make
+  install *.so lib/
