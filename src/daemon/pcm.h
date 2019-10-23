@@ -23,8 +23,8 @@
 	#include <signal.h>
 	#include <sys/time.h> // for gettimeofday()
 #endif
-#include "../../cpucounters.h"
-#include "../../utils.h"
+#include "../cpucounters.h"
+#include "../utils.h"
 #ifdef _MSC_VER
 	#include "../../freegetopt/getopt.h"
 #endif
