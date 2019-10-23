@@ -35,7 +35,7 @@ rm -rf $RPM_BUILD_ROOT
 mkdir -p $RPM_BUILD_ROOT/%{_bindir}
 mkdir -p $RPM_BUILD_ROOT/usr/share/pcm
 
-install -s -m 755 pcm-core.x $RPM_BUILD_ROOT/%{_bindir}/pcm
+install -s -m 755 pcm-core.x $RPM_BUILD_ROOT/%{_bindir}/pcm-core
 install -s -m 755 pcm-iio.x $RPM_BUILD_ROOT/%{_bindir}/pcm-iio
 install -s -m 755 pcm-latency.x $RPM_BUILD_ROOT/%{_bindir}/pcm-latency
 install -s -m 755 pcm-lspci.x $RPM_BUILD_ROOT/%{_bindir}/pcm-lspci
