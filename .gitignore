@@ -8,7 +8,6 @@
 *.htm
 *.html
 *.dll
-*.txt
 *.patch
 *.orig
 *.out
