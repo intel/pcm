@@ -32,25 +32,25 @@ make -j
 
 %install
 rm -rf $RPM_BUILD_ROOT
-mkdir -p $RPM_BUILD_ROOT/usr/bin
+mkdir -p $RPM_BUILD_ROOT/%{_bindir}
 mkdir -p $RPM_BUILD_ROOT/usr/share/pcm
 
-install -s -m 755 pcm-core.x $RPM_BUILD_ROOT/usr/bin/ 
-install -s -m 755 pcm-iio.x $RPM_BUILD_ROOT/usr/bin/
-install -s -m 755 pcm-latency.x $RPM_BUILD_ROOT/usr/bin/
-install -s -m 755 pcm-lspci.x $RPM_BUILD_ROOT/usr/bin/
-install -s -m 755 pcm-memory.x $RPM_BUILD_ROOT/usr/bin/
-install -s -m 755 pcm-msr.x $RPM_BUILD_ROOT/usr/bin/
-install -s -m 755 pcm-numa.x $RPM_BUILD_ROOT/usr/bin/
-install -s -m 755 pcm-pcicfg.x $RPM_BUILD_ROOT/usr/bin/
-install -s -m 755 pcm-pcie.x $RPM_BUILD_ROOT/usr/bin/
-install -s -m 755 pcm-power.x $RPM_BUILD_ROOT/usr/bin/
-install -s -m 755 pcm-sensor.x $RPM_BUILD_ROOT/usr/bin/
-install -s -m 755 pcm-tsx.x $RPM_BUILD_ROOT/usr/bin/
-install -s -m 755 pcm.x $RPM_BUILD_ROOT/usr/bin/
-install -s -m 755 daemon/client/Debug/client  $RPM_BUILD_ROOT/usr/bin/pcm-client.x
-install -s -m 755 daemon/daemon/Debug/daemon  $RPM_BUILD_ROOT/usr/bin/pcm-daemon.x
-install -m 755 pcm-bw-histogram.sh $RPM_BUILD_ROOT/usr/bin/
+install -s -m 755 pcm-core.x $RPM_BUILD_ROOT/%{_bindir}/pcm
+install -s -m 755 pcm-iio.x $RPM_BUILD_ROOT/%{_bindir}/pcm-iio
+install -s -m 755 pcm-latency.x $RPM_BUILD_ROOT/%{_bindir}/pcm-latency
+install -s -m 755 pcm-lspci.x $RPM_BUILD_ROOT/%{_bindir}/pcm-lspci
+install -s -m 755 pcm-memory.x $RPM_BUILD_ROOT/%{_bindir}/pcm-memory
+install -s -m 755 pcm-msr.x $RPM_BUILD_ROOT/%{_bindir}/pcm-msr
+install -s -m 755 pcm-numa.x $RPM_BUILD_ROOT/%{_bindir}/pcm-numa
+install -s -m 755 pcm-pcicfg.x $RPM_BUILD_ROOT/%{_bindir}/pcm-pcicfg
+install -s -m 755 pcm-pcie.x $RPM_BUILD_ROOT/%{_bindir}/pcm-pcie
+install -s -m 755 pcm-power.x $RPM_BUILD_ROOT/%{_bindir}/pcm-power
+install -s -m 755 pcm-sensor.x $RPM_BUILD_ROOT/%{_bindir}/pcm-sensor
+install -s -m 755 pcm-tsx.x $RPM_BUILD_ROOT/%{_bindir}/pcm-tsx
+install -s -m 755 pcm.x $RPM_BUILD_ROOT/%{_bindir}/pcm
+install -s -m 755 daemon/client/Debug/client $RPM_BUILD_ROOT/%{_bindir}/pcm-client
+install -s -m 755 daemon/daemon/Debug/daemon $RPM_BUILD_ROOT/%{_bindir}/pcm-daemon
+install -m 755 pcm-bw-histogram.sh $RPM_BUILD_ROOT/%{_bindir}/pcm-bw-histogram
 install -m 644 opCode.txt $RPM_BUILD_ROOT/usr/share/pcm/
 
 %clean
@@ -62,26 +62,28 @@ rm -rf $RPM_BUILD_ROOT
 %files
 %defattr(-,root,root,0755)
 %doc license.txt LINUX_HOWTO.txt
-/usr/bin/pcm-core.x
-/usr/bin/pcm-iio.x
-/usr/bin/pcm-latency.x
-/usr/bin/pcm-lspci.x
-/usr/bin/pcm-memory.x
-/usr/bin/pcm-msr.x
-/usr/bin/pcm-numa.x
-/usr/bin/pcm-pcicfg.x
-/usr/bin/pcm-pcie.x
-/usr/bin/pcm-power.x
-/usr/bin/pcm-sensor.x
-/usr/bin/pcm-tsx.x
-/usr/bin/pcm.x
-/usr/bin/pcm-client.x
-/usr/bin/pcm-daemon.x
-/usr/bin/pcm-bw-histogram.sh
+%{_bindir}/pcm-core
+%{_bindir}/pcm-iio
+%{_bindir}/pcm-latency
+%{_bindir}/pcm-lspci
+%{_bindir}/pcm-memory
+%{_bindir}/pcm-msr
+%{_bindir}/pcm-numa
+%{_bindir}/pcm-pcicfg
+%{_bindir}/pcm-pcie
+%{_bindir}/pcm-power
+%{_bindir}/pcm-sensor
+%{_bindir}/pcm-tsx
+%{_bindir}/pcm
+%{_bindir}/pcm-client
+%{_bindir}/pcm-daemon
+%{_bindir}/pcm-bw-histogram
 /usr/share/pcm
 /usr/share/pcm/opCode.txt
 
 %changelog
+* Wed Oct 23 2019 - roman.dementiev@intel.com
+	use %{_bindir} and drop executable suffixes
 * Mon Oct 21 2019 - roman.dementiev@intel.com
 	add opCode file to /usr/share/pcm
 	use "install" to copy pcm-bw-histogram.sh
