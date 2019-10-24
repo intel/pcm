@@ -19,6 +19,7 @@ set(common_SRCS
 )
 
 include_directories(
+	-I/usr/include
 	${PROJECT_SOURCE_DIR}/include
 )
 if(WIN32)
@@ -61,7 +62,12 @@ set(program_NAMES
 foreach(item ${program_NAMES})
 	MESSAGE("Adding target: ${item}")
 	add_executable(${item} ${item}.cpp)
+if(UNIX AND NOT APPLE)
 	target_link_libraries(${item} libpcm -lpthread -lrt)
+endif()
+if(APPLE)
+	target_link_libraries(${item} libpcm ../MacMSRDriver/build/Release/libPcmMsr.dylib)
+endif()
 	install(
 		TARGETS ${item}
 		DESTINATION ${CMAKE_INSTALL_BINDIR}
