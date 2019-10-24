@@ -17,11 +17,21 @@ set(common_SRCS
 	pci.cpp
 	utils.cpp
 )
+
 include_directories(
 	${PROJECT_SOURCE_DIR}/include
+)
+if(WIN32)
+include_directories(
 	${PROJECT_SOURCE_DIR}/include/winring0
 	${PROJECT_SOURCE_DIR}/include/winpmem
 )
+endif()
+if(APPLE)
+include_directories(
+	${PROJECT_SOURCE_DIR}/MacMSRDriver
+)
+endif()
 
 add_library(libpcm ${common_SRCS})
 install(TARGETS libpcm

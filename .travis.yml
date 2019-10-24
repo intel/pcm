@@ -12,6 +12,7 @@ script:
 os:
   - linux
   - osx
+  - windows
 
 compiler:
   - gcc
