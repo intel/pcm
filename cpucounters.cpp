@@ -6222,7 +6222,7 @@ void PCM::programPCIeCounters(const PCM::PCIeEventCode event_, const uint32 tid_
     programCbo(events, opCode, nc_, tid_);
 }
 
-void PCM::programCbo(const uint64 * events, const uint32 opCode, const uint32 nc_, const uint32 tid_, const uint32 loc, const uint32 rem)
+void PCM::programCbo(const uint64 * events, const uint32 opCode, const uint32 nc_, const uint32 llc_lookup_tid_filter, const uint32 loc, const uint32 rem)
 {
     for (int32 i = 0; (i < num_sockets) && MSR.size(); ++i)
     {
@@ -6247,8 +6247,8 @@ void PCM::programCbo(const uint64 * events, const uint32 opCode, const uint32 nc
 
             programCboOpcodeFilter(opCode, cboPMUs[i][cbo], nc_, 0, loc, rem);
 
-            if((HASWELLX == cpu_model || BDX_DE == cpu_model || BDX == cpu_model) && tid_ != 0)
-                *cboPMUs[i][cbo].filter[0] = tid_;
+            if((HASWELLX == cpu_model || BDX_DE == cpu_model || BDX == cpu_model || SKX == cpu_model) && llc_lookup_tid_filter != 0)
+                *cboPMUs[i][cbo].filter[0] = llc_lookup_tid_filter;
 
             for (int c = 0; c < 4; ++c)
             {
