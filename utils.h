@@ -31,8 +31,9 @@ CT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
 #include "types.h"
 
 #ifdef _MSC_VER
-#include <thr/xthreads.h>
 #include <chrono>
+#include <thr/xtimec.h>
+#include <thr/xthreads.h>
 #else
 #include <csignal>
 #include <ctime>
@@ -55,8 +56,13 @@ void set_post_cleanup_callback(void(*cb)(void));
 #ifdef _MSC_VER
 inline void win_usleep(int delay_us)
 {
-	xtime _Tgt = { 0, delay_us * 1000 };
-    _Thrd_sleep(&_Tgt);
+	xtime _Xt;
+	std::chrono::nanoseconds _T0 = std::chrono::system_clock::now().time_since_epoch();
+	_T0 += std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::microseconds(delay_us));
+	_Xt.sec = std::chrono::duration_cast<std::chrono::seconds>(_T0).count();
+	_T0 -= std::chrono::seconds(_Xt.sec);
+	_Xt.nsec = (long)_T0.count();
+	_Thrd_sleep(&_Xt);
 }
 #endif
 
