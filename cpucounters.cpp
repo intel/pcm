@@ -6108,7 +6108,7 @@ uint32 PCM::getMaxNumOfCBoxes() const
     return 0;
 }
 
-void PCM::programCboOpcodeFilter(const uint32 opc0, UncorePMU & pmu, const uint32 nc_, const uint32 opc1)
+void PCM::programCboOpcodeFilter(const uint32 opc0, UncorePMU & pmu, const uint32 nc_, const uint32 opc1, const uint32 loc, const uint32 rem)
 {
     if(JAKETOWN == cpu_model)
     {
@@ -6121,8 +6121,8 @@ void PCM::programCboOpcodeFilter(const uint32 opc0, UncorePMU & pmu, const uint3
     {
         *pmu.filter[1] = SKX_CHA_MSR_PMON_BOX_FILTER1_OPC0(opc0) +
                 SKX_CHA_MSR_PMON_BOX_FILTER1_OPC1(opc1) +
-                SKX_CHA_MSR_PMON_BOX_FILTER1_REM(1) +
-                SKX_CHA_MSR_PMON_BOX_FILTER1_LOC(1) +
+                (rem?SKX_CHA_MSR_PMON_BOX_FILTER1_REM(1):0ULL) +
+                (loc?SKX_CHA_MSR_PMON_BOX_FILTER1_LOC(1):0ULL) +
                 SKX_CHA_MSR_PMON_BOX_FILTER1_NM(1) +
                 SKX_CHA_MSR_PMON_BOX_FILTER1_NOT_NM(1) +
                 (nc_?SKX_CHA_MSR_PMON_BOX_FILTER1_NC(1):0ULL);
@@ -6222,7 +6222,7 @@ void PCM::programPCIeCounters(const PCM::PCIeEventCode event_, const uint32 tid_
     programCbo(events, opCode, nc_, tid_);
 }
 
-void PCM::programCbo(const uint64 * events, const uint32 opCode, const uint32 nc_, const uint32 tid_)
+void PCM::programCbo(const uint64 * events, const uint32 opCode, const uint32 nc_, const uint32 tid_, const uint32 loc, const uint32 rem)
 {
     for (int32 i = 0; (i < num_sockets) && MSR.size(); ++i)
     {
@@ -6245,7 +6245,7 @@ void PCM::programCbo(const uint64 * events, const uint32 opCode, const uint32 nc
             }
 #endif
 
-            programCboOpcodeFilter(opCode, cboPMUs[i][cbo], nc_);
+            programCboOpcodeFilter(opCode, cboPMUs[i][cbo], nc_, 0, loc, rem);
 
             if((HASWELLX == cpu_model || BDX_DE == cpu_model || BDX == cpu_model) && tid_ != 0)
                 *cboPMUs[i][cbo].filter[0] = tid_;
