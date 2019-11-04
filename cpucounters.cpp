@@ -1089,6 +1089,7 @@ bool PCM::discoverSystemTopology()
         std::cerr << "Unable to get hw.ncpu from sysctl." << std::endl;
         return false;
     }
+    num_online_cores = num_cores;
 
     if (modfind("cpuctl") == -1)
     {
@@ -1147,6 +1148,7 @@ bool PCM::discoverSystemTopology()
 
     // Using OSXs sysctl to get the number of CPUs right away
     SAFE_SYSCTLBYNAME("hw.logicalcpu", num_cores)
+    num_online_cores = num_cores;
 
 #undef SAFE_SYSCTLBYNAME
 
