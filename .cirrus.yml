@@ -3,4 +3,4 @@ freebsd_instance:
 
 task:
   install_script: pkg install -y gmake
-  script: gmake
+  script: gmake install prefix=.
