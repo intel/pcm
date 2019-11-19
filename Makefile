@@ -86,5 +86,28 @@ memoptest.x: memoptest.cpp
 nice:
 	uncrustify --replace -c ~/uncrustify.cfg *.cpp *.h WinMSRDriver/Win7/*.h WinMSRDriver/Win7/*.c WinMSRDriver/WinXP/*.h WinMSRDriver/WinXP/*.c  PCM_Win/*.h PCM_Win/*.cpp  
 
+prefix=/usr
+
+install: all
+	mkdir -p                                     ${prefix}/bin/
+	install -s -m 755 pcm-core.x                 ${prefix}/bin/pcm-core
+	install -s -m 755 pcm-iio.x                  ${prefix}/bin/pcm-iio
+	install -s -m 755 pcm-latency.x              ${prefix}/bin/pcm-latency
+	install -s -m 755 pcm-lspci.x                ${prefix}/bin/pcm-lspci
+	install -s -m 755 pcm-memory.x               ${prefix}/bin/pcm-memory
+	install -s -m 755 pcm-msr.x                  ${prefix}/bin/pcm-msr
+	install -s -m 755 pcm-numa.x                 ${prefix}/bin/pcm-numa
+	install -s -m 755 pcm-pcicfg.x               ${prefix}/bin/pcm-pcicfg
+	install -s -m 755 pcm-pcie.x                 ${prefix}/bin/pcm-pcie
+	install -s -m 755 pcm-power.x                ${prefix}/bin/pcm-power
+	install -s -m 755 pcm-sensor.x               ${prefix}/bin/pcm-sensor
+	install -s -m 755 pcm-tsx.x                  ${prefix}/bin/pcm-tsx
+	install -s -m 755 pcm.x                      ${prefix}/bin/pcm
+	install -s -m 755 daemon/client/Debug/client ${prefix}/bin/pcm-client
+	install -s -m 755 daemon/daemon/Debug/daemon ${prefix}/bin/pcm-daemon
+	install -m 755 pcm-bw-histogram.sh           ${prefix}/bin/pcm-bw-histogram
+	mkdir -p                                     ${prefix}/share/pcm/
+	install -m 644 opCode.txt                    ${prefix}/share/pcm/
+
 clean:
 	rm -rf *.x *.o *~ *.d *.a
