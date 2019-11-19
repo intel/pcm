@@ -89,7 +89,7 @@ nice:
 prefix=/usr
 
 install: all
-	mkdir                                        ${prefix}/bin/
+	mkdir -p                                     ${prefix}/bin/
 	install -s -m 755 pcm-core.x                 ${prefix}/bin/pcm-core
 	install -s -m 755 pcm-iio.x                  ${prefix}/bin/pcm-iio
 	install -s -m 755 pcm-latency.x              ${prefix}/bin/pcm-latency
