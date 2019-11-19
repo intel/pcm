@@ -103,8 +103,10 @@ install: all
 	install -s -m 755 pcm-sensor.x               ${prefix}/bin/pcm-sensor
 	install -s -m 755 pcm-tsx.x                  ${prefix}/bin/pcm-tsx
 	install -s -m 755 pcm.x                      ${prefix}/bin/pcm
+ifeq ($(UNAME), Linux)
 	install -s -m 755 daemon/client/Debug/client ${prefix}/bin/pcm-client
 	install -s -m 755 daemon/daemon/Debug/daemon ${prefix}/bin/pcm-daemon
+endif
 	install -m 755 pcm-bw-histogram.sh           ${prefix}/bin/pcm-bw-histogram
 	mkdir -p                                     ${prefix}/share/pcm/
 	install -m 644 opCode.txt                    ${prefix}/share/pcm/
