@@ -37,28 +37,28 @@ rm -rf $RPM_BUILD_ROOT
 %files
 %defattr(-,root,root,0755)
 %doc license.txt LINUX_HOWTO.txt
-%{_bindir}/pcm-core
-%{_bindir}/pcm-iio
-%{_bindir}/pcm-latency
-%{_bindir}/pcm-lspci
-%{_bindir}/pcm-memory
-%{_bindir}/pcm-msr
-%{_bindir}/pcm-numa
-%{_bindir}/pcm-pcicfg
-%{_bindir}/pcm-pcie
-%{_bindir}/pcm-power
-%{_bindir}/pcm-sensor
-%{_bindir}/pcm-tsx
-%{_bindir}/pcm
+%{_sbindir}/pcm-core
+%{_sbindir}/pcm-iio
+%{_sbindir}/pcm-latency
+%{_sbindir}/pcm-lspci
+%{_sbindir}/pcm-memory
+%{_sbindir}/pcm-msr
+%{_sbindir}/pcm-numa
+%{_sbindir}/pcm-pcicfg
+%{_sbindir}/pcm-pcie
+%{_sbindir}/pcm-power
+%{_sbindir}/pcm-sensor
+%{_sbindir}/pcm-tsx
+%{_sbindir}/pcm
 %{_bindir}/pcm-client
-%{_bindir}/pcm-daemon
-%{_bindir}/pcm-bw-histogram
+%{_sbindir}/pcm-daemon
+%{_sbindir}/pcm-bw-histogram
 %{_bindir}/../share/pcm
 %{_bindir}/../share/pcm/opCode.txt
 
 %changelog
 * Mon Nov 25 2019 - roman.dementiev@intel.com
-        call make install and use %{_bindir}
+        call make install and use %{_sbindir} or %{_bindir}
 * Mon Oct 21 2019 - roman.dementiev@intel.com
 	add opCode file to /usr/share/pcm
 	use "install" to copy pcm-bw-histogram.sh
