@@ -31,10 +31,7 @@ CT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
 #include <vector>
 #include <math.h>
 
-#ifdef _MSC_VER
-#include <thr/xthread>
-#include <chrono>
-#else
+#ifndef _MSC_VER
 #include <csignal>
 #include <ctime>
 #include <cmath>
@@ -52,14 +49,6 @@ void sigCONT_handler(int signum);
 #endif
 
 void set_post_cleanup_callback(void(*cb)(void));
-
-#ifdef _MSC_VER
-inline void win_usleep(int delay_us)
-{
-    stdext::threads::xtime _Tgt = _To_xtime(std::chrono::microseconds(delay_us));
-    _Thrd_sleep(&_Tgt);
-}
-#endif
 
 inline void MySleep(int delay)
 {
@@ -80,16 +69,6 @@ inline void MySleepMs(int delay_ms)
     sleep_intrval.tv_nsec = static_cast<long>(1000000000.0 * (::modf(delay_ms / 1000.0, &complete_seconds)));
     sleep_intrval.tv_sec = static_cast<time_t>(complete_seconds);
     ::nanosleep(&sleep_intrval, NULL);
-#endif
-}
-
-inline void MySleepUs(int delay_us)
-{
-#ifdef _MSC_VER
-    if (delay_us) win_usleep(delay_us);
-#else
-    ::usleep(delay_us);
-
 #endif
 }
 
