@@ -8,8 +8,9 @@ Processor Counter Monitor (PCM) is an application programming interface (API) an
 Current Build Status
 --------------------------------------------------------------------------------
 
-- Linux and OSX: [![Build Status](https://travis-ci.org/opcm/pcm.svg?branch=master)](https://travis-ci.org/opcm/pcm)
-- Windows: [![Build status](https://ci.appveyor.com/api/projects/status/0ytkojay9r0o6sxy?svg=true)](https://ci.appveyor.com/project/opcm/pcm)
+- Linux and OSX: [![Build Status](https://travis-ci.com/opcm/pcm.svg?branch=master)](https://travis-ci.com/opcm/pcm)
+- Windows: [![Build status](https://ci.appveyor.com/api/projects/status/github/opcm/pcm?branch=master&svg=true)](https://ci.appveyor.com/project/opcm/pcm)
+- FreeBSD: [![Build Status](https://api.cirrus-ci.com/github/opcm/pcm.svg)](https://cirrus-ci.com/github/opcm/pcm)
 
 --------------------------------------------------------------------------------
 PCM Tools
@@ -42,7 +43,7 @@ Building PCM Tools
 
 - Linux: just type 'make'. You will get all the utilities (pcm.x, pcm-memory.x, etc) built in the main PCM directory.
 - FreeBSD/DragonFlyBSD: just type 'gmake'. You will get all the utilities (pcm.x, pcm-memory.x, etc) built in the main PCM directory. If the 'gmake' command is not available, you need to install GNU make from ports (for example with 'pkg install gmake').
-- Windows: follow the steps in [WINDOWS_HOWTO.rtf](https://raw.githubusercontent.com/opcm/pcm/master/WINDOWS_HOWTO.rtf) (will will need to build or download additional drivers).
+- Windows: follow the steps in [WINDOWS_HOWTO.md](https://github.com/opcm/pcm/blob/master/WINDOWS_HOWTO.md) (will will need to build or download additional drivers).
 - Mac OS X: follow instructions in [MAC_HOWTO.txt](https://github.com/opcm/pcm/blob/master/MAC_HOWTO.txt)
 
 --------------------------------------------------------------------------------
@@ -50,7 +51,7 @@ Downloading Pre-Compiled PCM Tools
 --------------------------------------------------------------------------------
 
 - Linux: precompiled RPMs (binary and source) are available [here](https://download.opensuse.org/repositories/home:/opcm/)
-- Windows: download PCM binaries as [appveyor build service](https://ci.appveyor.com/project/opcm/pcm/history) artifacts and required Visual C++ Redistributable from [www.microsoft.com](https://www.microsoft.com/en-us/download/details.aspx?id=48145). Additional drivers are needed, see [WINDOWS_HOWTO.rtf](https://raw.githubusercontent.com/opcm/pcm/master/WINDOWS_HOWTO.rtf).
+- Windows: download PCM binaries as [appveyor build service](https://ci.appveyor.com/project/opcm/pcm/history) artifacts and required Visual C++ Redistributable from [www.microsoft.com](https://www.microsoft.com/en-us/download/details.aspx?id=48145). Additional drivers are needed, see [WINDOWS_HOWTO.md](https://github.com/opcm/pcm/blob/master/WINDOWS_HOWTO.md).
 
 --------------------------------------------------------------------------------
 PCM API documentation

@@ -1,15 +1,9 @@
-#
-# This file and all modifications and additions to the pristine
-# package are under the same license as the package itself.
-#
-
-# norootforbuild
 
 Name:            pcm
 Version:         0
 Release:         0
 Summary:         Processor Counter Monitor
-Group:           Development/Tools
+Group:           System/Monitoring
 License:         BSD-3-Clause
 Url:             https://github.com/opcm/pcm/archive
 Source:          master.zip
@@ -32,26 +26,7 @@ make -j
 
 %install
 rm -rf $RPM_BUILD_ROOT
-mkdir -p $RPM_BUILD_ROOT/usr/bin
-mkdir -p $RPM_BUILD_ROOT/usr/share/pcm
-
-install -s -m 755 pcm-core.x $RPM_BUILD_ROOT/usr/bin/ 
-install -s -m 755 pcm-iio.x $RPM_BUILD_ROOT/usr/bin/
-install -s -m 755 pcm-latency.x $RPM_BUILD_ROOT/usr/bin/
-install -s -m 755 pcm-lspci.x $RPM_BUILD_ROOT/usr/bin/
-install -s -m 755 pcm-memory.x $RPM_BUILD_ROOT/usr/bin/
-install -s -m 755 pcm-msr.x $RPM_BUILD_ROOT/usr/bin/
-install -s -m 755 pcm-numa.x $RPM_BUILD_ROOT/usr/bin/
-install -s -m 755 pcm-pcicfg.x $RPM_BUILD_ROOT/usr/bin/
-install -s -m 755 pcm-pcie.x $RPM_BUILD_ROOT/usr/bin/
-install -s -m 755 pcm-power.x $RPM_BUILD_ROOT/usr/bin/
-install -s -m 755 pcm-sensor.x $RPM_BUILD_ROOT/usr/bin/
-install -s -m 755 pcm-tsx.x $RPM_BUILD_ROOT/usr/bin/
-install -s -m 755 pcm.x $RPM_BUILD_ROOT/usr/bin/
-install -s -m 755 daemon/client/Debug/client  $RPM_BUILD_ROOT/usr/bin/pcm-client.x
-install -s -m 755 daemon/daemon/Debug/daemon  $RPM_BUILD_ROOT/usr/bin/pcm-daemon.x
-install -m 755 pcm-bw-histogram.sh $RPM_BUILD_ROOT/usr/bin/
-install -m 644 opCode.txt $RPM_BUILD_ROOT/usr/share/pcm/
+make install prefix=$RPM_BUILD_ROOT/%{_bindir}/..
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -62,26 +37,28 @@ rm -rf $RPM_BUILD_ROOT
 %files
 %defattr(-,root,root,0755)
 %doc license.txt LINUX_HOWTO.txt
-/usr/bin/pcm-core.x
-/usr/bin/pcm-iio.x
-/usr/bin/pcm-latency.x
-/usr/bin/pcm-lspci.x
-/usr/bin/pcm-memory.x
-/usr/bin/pcm-msr.x
-/usr/bin/pcm-numa.x
-/usr/bin/pcm-pcicfg.x
-/usr/bin/pcm-pcie.x
-/usr/bin/pcm-power.x
-/usr/bin/pcm-sensor.x
-/usr/bin/pcm-tsx.x
-/usr/bin/pcm.x
-/usr/bin/pcm-client.x
-/usr/bin/pcm-daemon.x
-/usr/bin/pcm-bw-histogram.sh
-/usr/share/pcm
-/usr/share/pcm/opCode.txt
+%{_sbindir}/pcm-core
+%{_sbindir}/pcm-iio
+%{_sbindir}/pcm-latency
+%{_sbindir}/pcm-lspci
+%{_sbindir}/pcm-memory
+%{_sbindir}/pcm-msr
+%{_sbindir}/pcm-numa
+%{_sbindir}/pcm-pcicfg
+%{_sbindir}/pcm-pcie
+%{_sbindir}/pcm-power
+%{_sbindir}/pcm-sensor
+%{_sbindir}/pcm-tsx
+%{_sbindir}/pcm
+%{_bindir}/pcm-client
+%{_sbindir}/pcm-daemon
+%{_sbindir}/pcm-bw-histogram
+%{_bindir}/../share/pcm
+%{_bindir}/../share/pcm/opCode.txt
 
 %changelog
+* Mon Nov 25 2019 - roman.dementiev@intel.com
+        call make install and use %{_sbindir} or %{_bindir}
 * Mon Oct 21 2019 - roman.dementiev@intel.com
 	add opCode file to /usr/share/pcm
 	use "install" to copy pcm-bw-histogram.sh
