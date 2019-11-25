@@ -26,26 +26,7 @@ make -j
 
 %install
 rm -rf $RPM_BUILD_ROOT
-mkdir -p $RPM_BUILD_ROOT/usr/bin
-mkdir -p $RPM_BUILD_ROOT/usr/share/pcm
-
-install -s -m 755 pcm-core.x $RPM_BUILD_ROOT/usr/bin/ 
-install -s -m 755 pcm-iio.x $RPM_BUILD_ROOT/usr/bin/
-install -s -m 755 pcm-latency.x $RPM_BUILD_ROOT/usr/bin/
-install -s -m 755 pcm-lspci.x $RPM_BUILD_ROOT/usr/bin/
-install -s -m 755 pcm-memory.x $RPM_BUILD_ROOT/usr/bin/
-install -s -m 755 pcm-msr.x $RPM_BUILD_ROOT/usr/bin/
-install -s -m 755 pcm-numa.x $RPM_BUILD_ROOT/usr/bin/
-install -s -m 755 pcm-pcicfg.x $RPM_BUILD_ROOT/usr/bin/
-install -s -m 755 pcm-pcie.x $RPM_BUILD_ROOT/usr/bin/
-install -s -m 755 pcm-power.x $RPM_BUILD_ROOT/usr/bin/
-install -s -m 755 pcm-sensor.x $RPM_BUILD_ROOT/usr/bin/
-install -s -m 755 pcm-tsx.x $RPM_BUILD_ROOT/usr/bin/
-install -s -m 755 pcm.x $RPM_BUILD_ROOT/usr/bin/
-install -s -m 755 daemon/client/Debug/client  $RPM_BUILD_ROOT/usr/bin/pcm-client.x
-install -s -m 755 daemon/daemon/Debug/daemon  $RPM_BUILD_ROOT/usr/bin/pcm-daemon.x
-install -m 755 pcm-bw-histogram.sh $RPM_BUILD_ROOT/usr/bin/
-install -m 644 opCode.txt $RPM_BUILD_ROOT/usr/share/pcm/
+make install prefix=$RPM_BUILD_ROOT/%{_bindir}/..
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -56,26 +37,28 @@ rm -rf $RPM_BUILD_ROOT
 %files
 %defattr(-,root,root,0755)
 %doc license.txt LINUX_HOWTO.txt
-/usr/bin/pcm-core.x
-/usr/bin/pcm-iio.x
-/usr/bin/pcm-latency.x
-/usr/bin/pcm-lspci.x
-/usr/bin/pcm-memory.x
-/usr/bin/pcm-msr.x
-/usr/bin/pcm-numa.x
-/usr/bin/pcm-pcicfg.x
-/usr/bin/pcm-pcie.x
-/usr/bin/pcm-power.x
-/usr/bin/pcm-sensor.x
-/usr/bin/pcm-tsx.x
-/usr/bin/pcm.x
-/usr/bin/pcm-client.x
-/usr/bin/pcm-daemon.x
-/usr/bin/pcm-bw-histogram.sh
-/usr/share/pcm
-/usr/share/pcm/opCode.txt
+%{_bindir}/pcm-core.x
+%{_bindir}/pcm-iio.x
+%{_bindir}/pcm-latency.x
+%{_bindir}/pcm-lspci.x
+%{_bindir}/pcm-memory.x
+%{_bindir}/pcm-msr.x
+%{_bindir}/pcm-numa.x
+%{_bindir}/pcm-pcicfg.x
+%{_bindir}/pcm-pcie.x
+%{_bindir}/pcm-power.x
+%{_bindir}/pcm-sensor.x
+%{_bindir}/pcm-tsx.x
+%{_bindir}/pcm.x
+%{_bindir}/pcm-client.x
+%{_bindir}/pcm-daemon.x
+%{_bindir}/pcm-bw-histogram.sh
+%{_bindir}/../share/pcm
+%{_bindir}/../share/pcm/opCode.txt
 
 %changelog
+* Mon Nov 25 2019 - roman.dementiev@intel.com
+        call make install and use %{_bindir}
 * Mon Oct 21 2019 - roman.dementiev@intel.com
 	add opCode file to /usr/share/pcm
 	use "install" to copy pcm-bw-histogram.sh
