@@ -243,6 +243,7 @@ public:
 #else // not implemented for os x
 public:
     TemporalThreadAffinity(uint32) { }
+    TemporalThreadAffinity(uint32, bool) {}
     bool supported() const { return false;  }
 #endif
 };
