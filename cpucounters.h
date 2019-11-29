@@ -575,6 +575,10 @@ public:
     //! \brief Returns true if the specified package C-state residency metric is supported
     bool isPackageCStateResidencySupported(int state)
     {
+        if (state == 0)
+        {
+            return true;
+        }
         return (pkgCStateMsr != NULL && state <= ((int)MAX_C_STATE) && pkgCStateMsr[state] != 0);
     }
 
@@ -822,8 +826,7 @@ private:
     uint64 CX_MSR_PMON_CTLY(uint32 Cbo, uint32 Ctl) const;
     uint64 CX_MSR_PMON_BOX_CTL(uint32 Cbo) const;
     uint32 getMaxNumOfCBoxes() const;
-    void programCbo(const uint64 * events, const uint32 opCode, const uint32 nc_ = 0, const uint32 tid_ = 0);
-    void programCboOpcodeFilter(const uint32 opc0, UncorePMU & pmu, const uint32 nc_ = 0, const uint32 opc1 = 0);
+    void programCboOpcodeFilter(const uint32 opc0, UncorePMU & pmu, const uint32 nc_, const uint32 opc1, const uint32 loc, const uint32 rem);
     void programLLCReadMissLatencyEvents();
     uint64 getCBOCounterState(const uint32 socket, const uint32 ctr_);
 
@@ -1422,6 +1425,15 @@ public:
     //! \param tid_ tid filter (PCM supports it only on Haswell server)
     void programPCIeCounters(const PCIeEventCode event_, const uint32 tid_ = 0, const uint32 miss_ = 0, const uint32 q_ = 0, const uint32 nc_ = 0);
     void programPCIeMissCounters(const PCIeEventCode event_, const uint32 tid_ = 0, const uint32 q_ = 0, const uint32 nc_ = 0);
+
+    //! \brief Program CBO (or CHA on SKX+) counters
+    //! \param events array with four raw event values
+    //! \param opCode opcode match filter
+    //! \param nc_ match non-coherent requests
+    //! \param llc_lookup_tid_filter filter for LLC lookup event filter and TID filter (core and thread ID)
+    //! \param loc match on local node target
+    //! \param rem match on remote node target
+    void programCbo(const uint64 * events, const uint32 opCode, const uint32 nc_ = 0, const uint32 llc_lookup_tid_filter = 0, const uint32 loc = 1, const uint32 rem = 1);
 
     //! \brief Get the state of PCIe counter(s)
     //! \param socket_ socket of the PCIe controller
@@ -2917,7 +2929,21 @@ inline double getCoreCStateResidency(int state, const CounterStateType & before,
 template <class CounterStateType>
 inline double getPackageCStateResidency(int state, const CounterStateType & before, const CounterStateType & after)
 {
-    return double(after.UncoreCounterState::CStateResidency[state] - before.UncoreCounterState::CStateResidency[state]) / double(getInvariantTSC(before, after));
+    const double tsc = double(getInvariantTSC(before, after));
+    if (state == 0)
+    {
+        PCM * m = PCM::getInstance();
+        double result = 1.0;
+        for (int i = 1; i <= PCM::MAX_C_STATE; ++i)
+            if (m->isPackageCStateResidencySupported(state))
+                result -= (after.UncoreCounterState::CStateResidency[i] - before.UncoreCounterState::CStateResidency[i]) / tsc;
+
+        if (result < 0.) result = 0.;       // fix counter dissynchronization
+        else if (result > 1.) result = 1.;  // fix counter dissynchronization
+
+        return result;
+    }
+    return double(after.UncoreCounterState::CStateResidency[state] - before.UncoreCounterState::CStateResidency[state]) / tsc;
 }
 
 

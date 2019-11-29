@@ -842,14 +842,14 @@ void getPCIeEvents(PCM *m, PCM::PCIeEventCode opcode, uint32 delay_ms, sample_t 
     m->programPCIeCounters(opcode, tid, 0, q, nc);
     for(i=0; i<m->getNumSockets(); ++i)
         before[i] = m->getPCIeCounterState(i);
-    MySleepUs(delay_ms*1000);
+    MySleepMs(delay_ms);
     for(i=0; i<m->getNumSockets(); ++i)
         after[i] = m->getPCIeCounterState(i);
 
     m->programPCIeMissCounters(opcode, tid, q, nc);
     for(i=0; i<m->getNumSockets(); ++i)
         before2[i] = m->getPCIeCounterState(i);
-    MySleepUs(delay_ms*1000);
+    MySleepMs(delay_ms);
     for(i=0; i<m->getNumSockets(); ++i)
         after2[i] = m->getPCIeCounterState(i);
 

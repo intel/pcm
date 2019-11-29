@@ -338,7 +338,13 @@ vector<struct counter> load_events(const char* fn)
     std::string line, item;
 
     if (!in.is_open())
-        throw std::invalid_argument("event file is not avaiable. In the future version, we will load a preset");
+    {
+        in.open(std::string("/usr/share/pcm/") + fn);
+        if (!in.is_open())
+        {
+            throw std::invalid_argument("event file is not avaiable. In the future version, we will load a preset");
+        }
+    }
 
     while (std::getline(in, line)) {
         /* Ignore anyline with # */

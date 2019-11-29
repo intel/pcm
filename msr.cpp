@@ -60,7 +60,7 @@ int32 MsrHandle::write(uint64 msr_number, uint64 value)
         req.write_value = value;
         BOOL status = DeviceIoControl(hDriver, IO_CTL_MSR_WRITE, &req, sizeof(MSR_Request), &result, sizeof(uint64), &reslength, NULL);
         assert(status && "Error in DeviceIoControl");
-        return reslength;
+        return status ? sizeof(uint64) : 0;
     }
 
     cvt_ds cvt;

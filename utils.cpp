@@ -64,7 +64,7 @@ void print_cpu_details()
 
 #ifdef _MSC_VER
 
-ThreadGroupTempAffinity::ThreadGroupTempAffinity(uint32 core_id)
+ThreadGroupTempAffinity::ThreadGroupTempAffinity(uint32 core_id, bool checkStatus)
 {
     GROUP_AFFINITY NewGroupAffinity;
     memset(&NewGroupAffinity, 0, sizeof(GROUP_AFFINITY));
@@ -77,7 +77,12 @@ ThreadGroupTempAffinity::ThreadGroupTempAffinity(uint32 core_id)
         ++NewGroupAffinity.Group;
     }
     NewGroupAffinity.Mask = 1ULL << core_id;
-    SetThreadGroupAffinity(GetCurrentThread(), &NewGroupAffinity, &PreviousGroupAffinity);
+    const auto res = SetThreadGroupAffinity(GetCurrentThread(), &NewGroupAffinity, &PreviousGroupAffinity);
+    if (res == FALSE && checkStatus)
+    {
+        std::cerr << "ERROR: SetThreadGroupAffinity for core " << core_id << " failed with error " << GetLastError() << std::endl;
+        throw std::exception();
+    }
 }
 ThreadGroupTempAffinity::~ThreadGroupTempAffinity()
 {
@@ -439,6 +444,67 @@ void MySystem(char * sysCmd, char ** sysArgv)
         }
     }
 #endif
+}
+
+#ifdef _MSC_VER
+#define HORIZONTAL     char(196)
+#define VERTICAL       char(179)
+#define DOWN_AND_RIGHT char(218)
+#define DOWN_AND_LEFT  char(191)
+#define UP_AND_RIGHT   char(192)
+#define UP_AND_LEFT    char(217)
+#else
+#define HORIZONTAL     u8"\u2500"
+#define VERTICAL       u8"\u2502"
+#define DOWN_AND_RIGHT u8"\u250C"
+#define DOWN_AND_LEFT  u8"\u2510"
+#define UP_AND_RIGHT   u8"\u2514"
+#define UP_AND_LEFT    u8"\u2518"
+#endif
+
+template <class T>
+void drawBar(const int nempty, const T & first, const int width, const T & last)
+{
+    for (int c = 0; c < nempty; ++c)
+    {
+        std::cout << ' ';
+    }
+    std::cout << first;
+    for (int c = 0; c < width; ++c)
+    {
+        std::cout << HORIZONTAL;
+    }
+    std::cout << last << '\n';
+}
+
+void drawStackedBar(const std::string & label, std::vector<StackedBarItem> & h, const int width)
+{
+    int real_width = 0;
+    auto scale = [&width](double fraction)
+    {
+        return int(round(fraction * double(width)));
+    };
+    for (const auto & i : h)
+    {
+        real_width += scale(i.fraction);
+    }
+    if (real_width > 2*width)
+    {
+        std::cout << "ERROR: sum of fractions > 2 ("<< real_width << " > " << width << ")" << std::endl;
+        return;
+    }
+    drawBar((int)label.length(), DOWN_AND_RIGHT, real_width, DOWN_AND_LEFT);
+    std::cout << label << VERTICAL;
+    for (const auto & i : h)
+    {
+        const int c_width = scale(i.fraction);
+        for (int c = 0; c < c_width; ++c)
+        {
+            std::cout << i.fill;
+        }
+    }
+    std::cout << VERTICAL << "\n";
+    drawBar((int)label.length(), UP_AND_RIGHT, real_width, UP_AND_LEFT);
 }
 
 

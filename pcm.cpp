@@ -275,17 +275,37 @@ void print_output(PCM * m,
             cout << "   " << " N/A ";
 
         cout << "     N/A\n";
-
         cout << "\n" << " Instructions retired: " << unit_format(getInstructionsRetired(sstate1, sstate2)) << " ; Active cycles: " << unit_format(getCycles(sstate1, sstate2)) << " ; Time (TSC): " << unit_format(getInvariantTSC(cstates1[0], cstates2[0])) << "ticks ; C0 (active,non-halted) core residency: " << (getCoreCStateResidency(0, sstate1, sstate2)*100.) << " %\n";
         cout << "\n";
         for (int s = 1; s <= PCM::MAX_C_STATE; ++s)
-        if (m->isCoreCStateResidencySupported(s))
-            std::cout << " C" << s << " core residency: " << (getCoreCStateResidency(s, sstate1, sstate2)*100.) << " %;";
+        {
+            if (m->isCoreCStateResidencySupported(s))
+            {
+                std::cout << " C" << s << " core residency: " << (getCoreCStateResidency(s, sstate1, sstate2)*100.) << " %;";
+            }
+        }
         cout << "\n";
+        std::vector<StackedBarItem> CoreCStateStackedBar, PackageCStateStackedBar;
         for (int s = 0; s <= PCM::MAX_C_STATE; ++s)
-        if (m->isPackageCStateResidencySupported(s))
-            std::cout << " C" << s << " package residency: " << (getPackageCStateResidency(s, sstate1, sstate2)*100.) << " %;";
+        {
+            std::ostringstream sstr(std::ostringstream::out);
+            sstr << std::hex << s;
+            const char fill = sstr.str().c_str()[0];
+            if (m->isCoreCStateResidencySupported(s))
+            {
+                CoreCStateStackedBar.push_back(StackedBarItem(getCoreCStateResidency(s, sstate1, sstate2), "", fill));
+            }
+            if (m->isPackageCStateResidencySupported(s))
+            {
+                std::cout << " C" << s << " package residency: " << (getPackageCStateResidency(s, sstate1, sstate2)*100.) << " %;";
+                PackageCStateStackedBar.push_back(StackedBarItem(getPackageCStateResidency(s, sstate1, sstate2), "", fill));
+            }
+        }
         cout << "\n";
+
+        drawStackedBar(" Core    C-state distribution", CoreCStateStackedBar, 80);
+        drawStackedBar(" Package C-state distribution", PackageCStateStackedBar, 80);
+
         if (m->getNumCores() == m->getNumOnlineCores())
         {
             cout << "\n" << " PHYSICAL CORE IPC                 : " << getCoreIPC(sstate1, sstate2) << " => corresponds to " << 100. * (getCoreIPC(sstate1, sstate2) / double(m->getMaxIPC())) << " % utilization for cores in active state";
