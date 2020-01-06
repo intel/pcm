@@ -25,6 +25,7 @@ PCM provides a number of command-line utilities for real-time monitoring:
 - **pcm-latency** : monitor L1 cache miss and DDR/PMM memory latency
 - **pcm-pcie** : monitor PCIe bandwidth per-socket
 - **pcm-iio** : monitor PCIe bandwidth per PCIe device
+![pcm-iio output](https://raw.githubusercontent.com/wiki/opcm/pcm/pcm-iio.png)
 - **pcm-numa** : monitor local and remote memory accesses
 - **pcm-power** : monitor sleep and energy states of processor, Intel(r) Quick Path Interconnect, DRAM memory, reasons of CPU frequency throttling and other energy-related metrics
 - **pcm-tsx**: monitor performance metrics for Intel(r) Transactional Synchronization Extensions
