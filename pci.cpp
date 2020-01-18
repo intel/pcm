@@ -128,8 +128,9 @@ int32 PciHandle::write32(uint64 offset, uint32 value)
         if (!status)
         {
             //std::cerr << "Error writing PCI Config space at bus "<<bus<<" dev "<< device<<" function "<< function <<" offset "<< offset << " size "<< req.bytes  << ". Windows error: "<<GetLastError()<<std::endl;
+            return 0;
         }
-        return (int32)reslength;
+        return (int32)sizeof(uint32);
     }
 
     return (WritePciConfigDwordEx(pciAddress, (DWORD)offset, value)) ? sizeof(uint32) : 0;

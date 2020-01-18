@@ -216,14 +216,19 @@ class TemporalThreadAffinity  // speedup trick for Linux, FreeBSD, DragonFlyBSD,
     cpu_set_t old_affinity;
 
 public:
-    TemporalThreadAffinity(uint32 core_id)
+    TemporalThreadAffinity(uint32 core_id, bool checkStatus = true)
     {
         pthread_getaffinity_np(pthread_self(), sizeof(cpu_set_t), &old_affinity);
 
         cpu_set_t new_affinity;
         CPU_ZERO(&new_affinity);
         CPU_SET(core_id, &new_affinity);
-        pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &new_affinity);
+        const auto res = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &new_affinity);
+        if (res != 0 && checkStatus)
+        {
+            std::cerr << "ERROR: pthread_setaffinity_np for core " << core_id << " failed with code " << res << std::endl;
+            throw std::exception();
+        }
     }
     ~TemporalThreadAffinity()
     {
@@ -233,11 +238,12 @@ public:
 #elif defined(_MSC_VER)
     ThreadGroupTempAffinity affinity;
 public:
-    TemporalThreadAffinity(uint32 core) : affinity(core) {}
+    TemporalThreadAffinity(uint32 core, bool checkStatus = true) : affinity(core, checkStatus) {}
     bool supported() const { return true; }
 #else // not implemented for os x
 public:
     TemporalThreadAffinity(uint32) { }
+    TemporalThreadAffinity(uint32, bool) {}
     bool supported() const { return false;  }
 #endif
 };
@@ -1084,6 +1090,7 @@ bool PCM::discoverSystemTopology()
         std::cerr << "Unable to get hw.ncpu from sysctl." << std::endl;
         return false;
     }
+    num_online_cores = num_cores;
 
     if (modfind("cpuctl") == -1)
     {
@@ -1142,6 +1149,7 @@ bool PCM::discoverSystemTopology()
 
     // Using OSXs sysctl to get the number of CPUs right away
     SAFE_SYSCTLBYNAME("hw.logicalcpu", num_cores)
+    num_online_cores = num_cores;
 
 #undef SAFE_SYSCTLBYNAME
 
@@ -1203,7 +1211,7 @@ bool PCM::discoverSystemTopology()
                 ++threads_per_core;
         }
     }
-    if(num_phys_cores_per_socket == 0) num_phys_cores_per_socket = num_cores / num_sockets / threads_per_core;
+    if(num_phys_cores_per_socket == 0 && num_cores == num_online_cores) num_phys_cores_per_socket = num_cores / num_sockets / threads_per_core;
     if(num_online_cores == 0) num_online_cores = num_cores;
 
     int32 i = 0;
@@ -1259,7 +1267,10 @@ void PCM::printSystemTopology() const
         std::cerr << std::endl;
     }
     std::cerr << "Num sockets: " << num_sockets << std::endl;
-    std::cerr << "Physical cores per socket: " << num_phys_cores_per_socket << std::endl;
+    if (num_phys_cores_per_socket > 0)
+    {
+        std::cerr << "Physical cores per socket: " << num_phys_cores_per_socket << std::endl;
+    }
     std::cerr << "Core PMU (perfmon) version: " << perfmon_version << std::endl;
     std::cerr << "Number of core PMU generic (programmable) counters: " << core_gen_counter_num_max << std::endl;
     std::cerr << "Width of generic (programmable) counters: " << core_gen_counter_width << " bits" << std::endl;
@@ -1646,7 +1657,7 @@ class CoreTaskQueue
 public:
     CoreTaskQueue(int32 core) :
         worker([=]() {
-            TemporalThreadAffinity tempThreadAffinity(core);
+            TemporalThreadAffinity tempThreadAffinity(core, false);
             std::unique_lock<std::mutex> lock(m);
             while (1) {
                 while (wQueue.empty()) {
@@ -2269,7 +2280,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
     // Version for linux/windows/freebsd/dragonflybsd
     for (int i = 0; i < (int)num_cores; ++i)
     {
-        TemporalThreadAffinity tempThreadAffinity(i); // speedup trick for Linux
+        TemporalThreadAffinity tempThreadAffinity(i, false); // speedup trick for Linux
 
         const auto status = programCoreCounters(i, mode_, pExtDesc, lastProgrammedCustomCounters[i]);
         if (status != PCM::Success)
@@ -6100,7 +6111,7 @@ uint32 PCM::getMaxNumOfCBoxes() const
     return 0;
 }
 
-void PCM::programCboOpcodeFilter(const uint32 opc0, UncorePMU & pmu, const uint32 nc_, const uint32 opc1)
+void PCM::programCboOpcodeFilter(const uint32 opc0, UncorePMU & pmu, const uint32 nc_, const uint32 opc1, const uint32 loc, const uint32 rem)
 {
     if(JAKETOWN == cpu_model)
     {
@@ -6113,8 +6124,8 @@ void PCM::programCboOpcodeFilter(const uint32 opc0, UncorePMU & pmu, const uint3
     {
         *pmu.filter[1] = SKX_CHA_MSR_PMON_BOX_FILTER1_OPC0(opc0) +
                 SKX_CHA_MSR_PMON_BOX_FILTER1_OPC1(opc1) +
-                SKX_CHA_MSR_PMON_BOX_FILTER1_REM(1) +
-                SKX_CHA_MSR_PMON_BOX_FILTER1_LOC(1) +
+                (rem?SKX_CHA_MSR_PMON_BOX_FILTER1_REM(1):0ULL) +
+                (loc?SKX_CHA_MSR_PMON_BOX_FILTER1_LOC(1):0ULL) +
                 SKX_CHA_MSR_PMON_BOX_FILTER1_NM(1) +
                 SKX_CHA_MSR_PMON_BOX_FILTER1_NOT_NM(1) +
                 (nc_?SKX_CHA_MSR_PMON_BOX_FILTER1_NC(1):0ULL);
@@ -6214,7 +6225,7 @@ void PCM::programPCIeCounters(const PCM::PCIeEventCode event_, const uint32 tid_
     programCbo(events, opCode, nc_, tid_);
 }
 
-void PCM::programCbo(const uint64 * events, const uint32 opCode, const uint32 nc_, const uint32 tid_)
+void PCM::programCbo(const uint64 * events, const uint32 opCode, const uint32 nc_, const uint32 llc_lookup_tid_filter, const uint32 loc, const uint32 rem)
 {
     for (int32 i = 0; (i < num_sockets) && MSR.size(); ++i)
     {
@@ -6237,10 +6248,10 @@ void PCM::programCbo(const uint64 * events, const uint32 opCode, const uint32 nc
             }
 #endif
 
-            programCboOpcodeFilter(opCode, cboPMUs[i][cbo], nc_);
+            programCboOpcodeFilter(opCode, cboPMUs[i][cbo], nc_, 0, loc, rem);
 
-            if((HASWELLX == cpu_model || BDX_DE == cpu_model || BDX == cpu_model) && tid_ != 0)
-                *cboPMUs[i][cbo].filter[0] = tid_;
+            if((HASWELLX == cpu_model || BDX_DE == cpu_model || BDX == cpu_model || SKX == cpu_model) && llc_lookup_tid_filter != 0)
+                *cboPMUs[i][cbo].filter[0] = llc_lookup_tid_filter;
 
             for (int c = 0; c < 4; ++c)
             {

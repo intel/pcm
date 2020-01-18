@@ -180,7 +180,7 @@ int main(int argc, char * argv[])
     try {
         m->setupCustomCoreEventsForNuma(conf);
     }
-    catch (UnsupportedProcessorException& e) {
+    catch (UnsupportedProcessorException& ) {
         std::cerr << "pcm-numa tool does not support your processor currently." << std::endl;
         exit(EXIT_FAILURE);
     }
