@@ -2,11 +2,18 @@ name: pcm
 version: 202001
 
 build: |
-  make
+  make clean
+
+  make -j8
   install *.x bin/
 
   install *.h include/pcm/
+  install exceptions/*.hpp include/pcm/exceptions/
+
+  install *.a lib/
 
   cd pcm.so
-  make
+  make -j8
+  cd ../
+
   install *.so lib/
