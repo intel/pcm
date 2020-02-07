@@ -335,7 +335,8 @@ public:
         PARTIAL=2,
         PMM_READ=2,
         PMM_WRITE=3,
-        NM_HIT=0  // NM :  Near Memory (DRAM cache) in Memory Mode
+        NM_HIT=0,  // NM :  Near Memory (DRAM cache) in Memory Mode
+        M2M_CLOCKTICKS=1
     };
     //! \brief Initialize access data structures
     //! \param socket_ socket id

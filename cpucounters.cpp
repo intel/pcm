@@ -5681,16 +5681,19 @@ void ServerPCICFGUncore::programM2M()
             }
 #endif
 
-            *pmu.counterControl[0] = M2M_PCI_PMON_CTL_EN;
+            *pmu.counterControl[EventPosition::NM_HIT] = M2M_PCI_PMON_CTL_EN;
             // UNC_M2M_TAG_HIT.NM_DRD_HIT_* events (CLEAN | DIRTY)
-            *pmu.counterControl[0] = M2M_PCI_PMON_CTL_EN + M2M_PCI_PMON_CTL_EVENT(0x2c) + M2M_PCI_PMON_CTL_UMASK(3);
-            *pmu.counterControl[2] = M2M_PCI_PMON_CTL_EN;
+            *pmu.counterControl[EventPosition::NM_HIT] = M2M_PCI_PMON_CTL_EN + M2M_PCI_PMON_CTL_EVENT(0x2c) + M2M_PCI_PMON_CTL_UMASK(3);
+
+            *pmu.counterControl[EventPosition::M2M_CLOCKTICKS] = M2M_PCI_PMON_CTL_EN; // CLOCKTICKS
+
+            *pmu.counterControl[EventPosition::PMM_READ] = M2M_PCI_PMON_CTL_EN;
             // UNC_M2M_IMC_READS.TO_PMM
-            *pmu.counterControl[2] = M2M_PCI_PMON_CTL_EN + M2M_PCI_PMON_CTL_EVENT(0x37) + M2M_PCI_PMON_CTL_UMASK(0x8);
-            *pmu.counterControl[3] = M2M_PCI_PMON_CTL_EN;
+            *pmu.counterControl[EventPosition::PMM_READ] = M2M_PCI_PMON_CTL_EN + M2M_PCI_PMON_CTL_EVENT(0x37) + M2M_PCI_PMON_CTL_UMASK(0x8);
+
+            *pmu.counterControl[EventPosition::PMM_WRITE] = M2M_PCI_PMON_CTL_EN;
             // UNC_M2M_IMC_WRITES.TO_PMM
-            *pmu.counterControl[3] = M2M_PCI_PMON_CTL_EN + M2M_PCI_PMON_CTL_EVENT(0x38) + M2M_PCI_PMON_CTL_UMASK(0x20);
-            *pmu.counterControl[1] = M2M_PCI_PMON_CTL_EN; // CLOCKTICKS
+            *pmu.counterControl[EventPosition::PMM_WRITE] = M2M_PCI_PMON_CTL_EN + M2M_PCI_PMON_CTL_EVENT(0x38) + M2M_PCI_PMON_CTL_UMASK(0x20);
 
             // reset counters values
             *pmu.unitControl = UNC_PMON_UNIT_CTL_RSV + UNC_PMON_UNIT_CTL_FRZ + UNC_PMON_UNIT_CTL_RST_COUNTERS;
