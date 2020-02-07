@@ -605,6 +605,24 @@ void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 elapsedTime, const bool
 	 <<setw(10) <<sysReadDRAM+sysReadPMM+sysWriteDRAM+sysWritePMM << endl;
 }
 
+uint64 getPMMReads(uint32 channel, const ServerUncorePowerState & before, const ServerUncorePowerState & after)
+{
+    #ifdef PCM_M2M_FOR_PMM_TRAFFIC
+    return getM2MCounter(channel, PMM_READ, before, after);
+    #else
+    return getMCCounter(channel, PMM_READ, before, after);
+    #endif
+}
+
+uint64 getPMMWrites(uint32 channel, const ServerUncorePowerState & before, const ServerUncorePowerState & after)
+{
+    #ifdef PCM_M2M_FOR_PMM_TRAFFIC
+    return getM2MCounter(channel, PMM_WRITE, before, after);
+    #else
+    return getMCCounter(channel, PMM_WRITE, before, after);
+    #endif
+}
+
 void calculate_bandwidth(PCM *m, const ServerUncorePowerState uncState1[], const ServerUncorePowerState uncState2[], uint64 elapsedTime, bool csv, bool & csvheader, uint32 no_columns, bool PMM, const bool show_channel_output)
 {
     //const uint32 num_imc_channels = m->getMCChannelsPerSocket();
@@ -649,7 +667,7 @@ void calculate_bandwidth(PCM *m, const ServerUncorePowerState uncState1[], const
             {
                 if(getMCCounter(channel,READ,uncState1[skt],uncState2[skt]) == 0.0 && getMCCounter(channel,WRITE,uncState1[skt],uncState2[skt]) == 0.0) //In case of JKT-EN, there are only three channels. Skip one and continue.
                 {
-                    if (!PMM || (getMCCounter(channel,PMM_READ,uncState1[skt],uncState2[skt]) == 0.0 && getMCCounter(channel,PMM_WRITE,uncState1[skt],uncState2[skt]) == 0.0))
+                    if (!PMM || (getPMMReads(channel, uncState1[skt], uncState2[skt]) == 0.0 && getPMMWrites(channel, uncState1[skt], uncState2[skt]) == 0.0))
                     {
                         md.iMC_Rd_socket_chan[skt][channel] = -1.0;
                         md.iMC_Wr_socket_chan[skt][channel] = -1.0;
@@ -665,8 +683,8 @@ void calculate_bandwidth(PCM *m, const ServerUncorePowerState uncState1[], const
 
                 if(PMM)
                 {
-                    md.iMC_PMM_Rd_socket_chan[skt][channel] = (float) (getMCCounter(channel,PMM_READ,uncState1[skt],uncState2[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0));
-                    md.iMC_PMM_Wr_socket_chan[skt][channel] = (float) (getMCCounter(channel,PMM_WRITE,uncState1[skt],uncState2[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0));
+                    md.iMC_PMM_Rd_socket_chan[skt][channel] = (float) (getPMMReads(channel, uncState1[skt], uncState2[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0));
+                    md.iMC_PMM_Wr_socket_chan[skt][channel] = (float) (getPMMWrites(channel, uncState1[skt], uncState2[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0));
 
                     md.iMC_PMM_Rd_socket[skt] += md.iMC_PMM_Rd_socket_chan[skt][channel];
                     md.iMC_PMM_Wr_socket[skt] += md.iMC_PMM_Wr_socket_chan[skt][channel];

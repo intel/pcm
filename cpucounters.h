@@ -28,6 +28,8 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #define PCM_API
 #endif
 
+// #define PCM_M2M_FOR_PMM_TRAFFIC
+
 #include "types.h"
 #include "msr.h"
 #include "pci.h"

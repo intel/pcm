@@ -5306,6 +5306,10 @@ void ServerPCICFGUncore::program()
     programIMC(MCCntConfig);
     if(cpu_model == PCM::KNL) programEDC(EDCCntConfig);
 
+#ifdef PCM_M2M_FOR_PMM_TRAFFIC
+    programM2M();
+#endif
+
     uint32 event[4];
     if(cpu_model == PCM::SKX)
     {
@@ -5451,7 +5455,11 @@ uint64 ServerPCICFGUncore::getPMMReads()
     uint64 result = 0;
     for (uint32 i = 0; i < (uint32)imcPMUs.size(); ++i)
     {
+        #ifdef PCM_M2M_FOR_PMM_TRAFFIC
+        result += getM2MCounter(i, 2);
+        #else
         result += getMCCounter(i, 2);
+        #endif
     }
     return result;
 }
@@ -5461,7 +5469,11 @@ uint64 ServerPCICFGUncore::getPMMWrites()
     uint64 result = 0;
     for (uint32 i = 0; i < (uint32)imcPMUs.size(); ++i)
     {
+        #ifdef PCM_M2M_FOR_PMM_TRAFFIC
+        result += getM2MCounter(i, 3);
+        #else
         result += getMCCounter(i, 3);
+        #endif
     }
     return result;
 }
@@ -5672,13 +5684,13 @@ void ServerPCICFGUncore::programM2M()
             *pmu.counterControl[0] = M2M_PCI_PMON_CTL_EN;
             // UNC_M2M_TAG_HIT.NM_DRD_HIT_* events (CLEAN | DIRTY)
             *pmu.counterControl[0] = M2M_PCI_PMON_CTL_EN + M2M_PCI_PMON_CTL_EVENT(0x2c) + M2M_PCI_PMON_CTL_UMASK(3);
-            *pmu.counterControl[1] = M2M_PCI_PMON_CTL_EN;
-            // UNC_M2M_IMC_READS.TO_PMM
-            *pmu.counterControl[1] = M2M_PCI_PMON_CTL_EN + M2M_PCI_PMON_CTL_EVENT(0x37) + M2M_PCI_PMON_CTL_UMASK(0x8);
             *pmu.counterControl[2] = M2M_PCI_PMON_CTL_EN;
+            // UNC_M2M_IMC_READS.TO_PMM
+            *pmu.counterControl[2] = M2M_PCI_PMON_CTL_EN + M2M_PCI_PMON_CTL_EVENT(0x37) + M2M_PCI_PMON_CTL_UMASK(0x8);
+            *pmu.counterControl[3] = M2M_PCI_PMON_CTL_EN;
             // UNC_M2M_IMC_WRITES.TO_PMM
-            *pmu.counterControl[2] = M2M_PCI_PMON_CTL_EN + M2M_PCI_PMON_CTL_EVENT(0x38) + M2M_PCI_PMON_CTL_UMASK(0x20);
-            *pmu.counterControl[3] = M2M_PCI_PMON_CTL_EN; // CLOCKTICKS
+            *pmu.counterControl[3] = M2M_PCI_PMON_CTL_EN + M2M_PCI_PMON_CTL_EVENT(0x38) + M2M_PCI_PMON_CTL_UMASK(0x20);
+            *pmu.counterControl[1] = M2M_PCI_PMON_CTL_EN; // CLOCKTICKS
 
             // reset counters values
             *pmu.unitControl = UNC_PMON_UNIT_CTL_RSV + UNC_PMON_UNIT_CTL_FRZ + UNC_PMON_UNIT_CTL_RST_COUNTERS;
