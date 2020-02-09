@@ -574,6 +574,21 @@ struct BecktonUncorePMUCNTCTLRegister
 #define KNL_EDC7_ECLK_REGISTER_DEV_ADDR (31)
 #define KNL_EDC7_ECLK_REGISTER_FUNC_ADDR (2)
 
+#define HSX_HA0_REGISTER_DEV_ADDR (18)
+#define HSX_HA0_REGISTER_FUNC_ADDR (1)
+#define HSX_HA1_REGISTER_DEV_ADDR (18)
+#define HSX_HA1_REGISTER_FUNC_ADDR (5)
+
+#define XPF_HA_PCI_PMON_BOX_CTL_ADDR    (0xF4)
+#define XPF_HA_PCI_PMON_CTL0_ADDR       (0xD8 + 4*0)
+#define XPF_HA_PCI_PMON_CTL1_ADDR       (0xD8 + 4*1)
+#define XPF_HA_PCI_PMON_CTL2_ADDR       (0xD8 + 4*2)
+#define XPF_HA_PCI_PMON_CTL3_ADDR       (0xD8 + 4*3)
+#define XPF_HA_PCI_PMON_CTR0_ADDR       (0xA0 + 8*0)
+#define XPF_HA_PCI_PMON_CTR1_ADDR       (0xA0 + 8*1)
+#define XPF_HA_PCI_PMON_CTR2_ADDR       (0xA0 + 8*2)
+#define XPF_HA_PCI_PMON_CTR3_ADDR       (0xA0 + 8*3)
+
 /**
  * XPF_ for Xeons: SNB, IVT, HSX, BDW, etc.
  * KNX_ for Xeon Phi (Knights *) processors
