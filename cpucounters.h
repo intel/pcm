@@ -323,6 +323,7 @@ class ServerPCICFGUncore
     void initPerf(uint32 socket_, const PCM * pcm);
     void initBuses(uint32 socket_, const PCM * pcm);
     void initRegisterLocations();
+    uint64 getPMUCounter(std::vector<UncorePMU> & pmu, const uint32 id, const uint32 counter);
 
 public:
     //! \brief Initialize access data structures

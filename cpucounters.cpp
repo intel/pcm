@@ -5800,6 +5800,18 @@ uint64 ServerPCICFGUncore::getMCCounter(uint32 channel, uint32 counter)
     return result;
 }
 
+uint64 ServerPCICFGUncore::getPMUCounter(std::vector<UncorePMU> & pmu, const uint32 id, const uint32 counter)
+{
+    uint64 result = 0;
+
+    if (id < (uint32)pmu.size() && counter < 4)
+    {
+        result = *(pmu[id].counterValue[counter]);
+    }
+    // std::cout << "DEBUG: ServerPCICFGUncore::getPMUCounter(" << id << ", " << counter << ") = " << result << std::endl;
+    return result;
+}
+
 uint64 ServerPCICFGUncore::getEDCCounter(uint32 channel, uint32 counter)
 {
     uint64 result = 0;
