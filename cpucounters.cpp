@@ -5445,6 +5445,10 @@ void ServerPCICFGUncore::cleanupPMUs()
     {
         pmu.cleanup();
     }
+    for (auto & pmu : haPMUs)
+    {
+        pmu.cleanup();
+    }
 }
 
 uint64 ServerPCICFGUncore::getImcReads()
@@ -5741,6 +5745,10 @@ void ServerPCICFGUncore::writeAllUnitControl(const uint32 value)
         *pmu.unitControl = value;
     }
     for (auto & pmu: m2mPMUs)
+    {
+        *pmu.unitControl = value;
+    }
+    for (auto & pmu : haPMUs)
     {
         *pmu.unitControl = value;
     }
