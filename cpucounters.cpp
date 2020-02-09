@@ -5788,18 +5788,6 @@ uint64 ServerPCICFGUncore::getMCDRAMClocks(uint32 channel)
     return result;
 }
 
-uint64 ServerPCICFGUncore::getMCCounter(uint32 channel, uint32 counter)
-{
-    uint64 result = 0;
-
-    if (channel < (uint32)imcPMUs.size() && counter < 4)
-    {
-        result = *(imcPMUs[channel].counterValue[counter]);
-    }
-    // std::cout << "DEBUG: ServerPCICFGUncore::getMCCounter(" << channel << ", " << counter << ") = " << result << std::endl;
-    return result;
-}
-
 uint64 ServerPCICFGUncore::getPMUCounter(std::vector<UncorePMU> & pmu, const uint32 id, const uint32 counter)
 {
     uint64 result = 0;
@@ -5812,41 +5800,24 @@ uint64 ServerPCICFGUncore::getPMUCounter(std::vector<UncorePMU> & pmu, const uin
     return result;
 }
 
-uint64 ServerPCICFGUncore::getEDCCounter(uint32 channel, uint32 counter)
+uint64 ServerPCICFGUncore::getMCCounter(uint32 channel, uint32 counter)
 {
-    uint64 result = 0;
-
-    if (channel < (uint32)edcPMUs.size() && counter < 4)
-    {
-        return *edcPMUs[channel].counterValue[counter];
-    }
-    // std::cout << "DEBUG: ServerPCICFGUncore::getEDCCounter(" << channel << ", " << counter << ") = " << result << std::endl;
-    return result;
+    return getPMUCounter(imcPMUs, channel, counter);
 }
 
+uint64 ServerPCICFGUncore::getEDCCounter(uint32 channel, uint32 counter)
+{
+    return getPMUCounter(edcPMUs, channel, counter);
+}
 
 uint64 ServerPCICFGUncore::getM2MCounter(uint32 box, uint32 counter)
 {
-    uint64 result = 0;
-
-    if (box < (uint32)m2mPMUs.size() && counter < 4)
-    {
-        return *m2mPMUs[box].counterValue[counter];
-    }
-//    std::cout << "DEBUG: read "<< result << " from M2M box "<< box <<" counter " << counter << std::endl;
-    return result;
+    return getPMUCounter(m2mPMUs, box, counter);
 }
 
 uint64 ServerPCICFGUncore::getQPILLCounter(uint32 port, uint32 counter)
 {
-    uint64 result = 0;
-
-    if (port < (uint32)xpiPMUs.size() && counter < 4)
-    {
-        result = *xpiPMUs[port].counterValue[counter];
-    }
-
-    return result;
+    return getPMUCounter(xpiPMUs, port, counter);
 }
 
 void ServerPCICFGUncore::enableJKTWorkaround(bool enable)
