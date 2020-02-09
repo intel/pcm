@@ -3761,6 +3761,14 @@ void PCM::freezeServerUncoreCounters()
                 *pmu.second.unitControl = UNC_PMON_UNIT_CTL_RSV + UNC_PMON_UNIT_CTL_FRZ;
             }
         }
+
+        const auto refCore = socketRefCore[i];
+        TemporalThreadAffinity tempThreadAffinity(refCore); // speedup trick for Linux
+        for (auto & pmu : cboPMUs[i])
+        {
+            // freeze enable
+            *pmu.unitControl = UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ;
+        }
     }
 }
 void PCM::unfreezeServerUncoreCounters()
@@ -3776,6 +3784,14 @@ void PCM::unfreezeServerUncoreCounters()
             {
                 *pmu.second.unitControl = UNC_PMON_UNIT_CTL_RSV;
             }
+        }
+
+        const auto refCore = socketRefCore[i];
+        TemporalThreadAffinity tempThreadAffinity(refCore); // speedup trick for Linux
+        for (auto & pmu : cboPMUs[i])
+        {
+            // freeze enable
+            *pmu.unitControl = UNC_PMON_UNIT_CTL_FRZ_EN;
         }
     }
 }
