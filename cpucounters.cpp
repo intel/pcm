@@ -4579,7 +4579,9 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
     std::cerr << "Socket " << socket_ << ": " <<
         getNumMC() << " memory controllers detected with total number of " << getNumMCChannels() << " channels. " <<
         getNumQPIPorts() << " QPI ports detected." <<
-        " " << m2mPMUs.size() << " M2M (mesh to memory) blocks detected." << std::endl;
+        " " << m2mPMUs.size() << " M2M (mesh to memory) blocks detected."
+        " " << haPMUs.size()  << " Home Agents detected."
+        << std::endl;
 }
 
 void ServerPCICFGUncore::initRegisterLocations()
@@ -4601,6 +4603,10 @@ void ServerPCICFGUncore::initRegisterLocations()
 #define PCM_PCICFG_M2M_INIT(x, arch) \
     M2MRegisterLocation.resize(x + 1); \
     M2MRegisterLocation[x] = std::make_pair(arch##_M2M_##x##_REGISTER_DEV_ADDR, arch##_M2M_##x##_REGISTER_FUNC_ADDR);
+
+#define PCM_PCICFG_HA_INIT(x, arch) \
+    HARegisterLocation.resize(x + 1); \
+    HARegisterLocation[x] = std::make_pair(arch##_HA##x##_REGISTER_DEV_ADDR, arch##_HA##x##_REGISTER_FUNC_ADDR);
 
     if(cpu_model == PCM::JAKETOWN || cpu_model == PCM::IVYTOWN)
     {
@@ -4631,6 +4637,9 @@ void ServerPCICFGUncore::initRegisterLocations()
         PCM_PCICFG_QPI_INIT(0, HSX);
         PCM_PCICFG_QPI_INIT(1, HSX);
         PCM_PCICFG_QPI_INIT(2, HSX);
+
+        PCM_PCICFG_HA_INIT(0, HSX);
+        PCM_PCICFG_HA_INIT(1, HSX);
     }
     else if(cpu_model == PCM::SKX)
     {
@@ -4680,6 +4689,7 @@ void ServerPCICFGUncore::initRegisterLocations()
 #undef PCM_PCICFG_QPI_INIT
 #undef PCM_PCICFG_EDC_INIT
 #undef PCM_PCICFG_M2M_INIT
+#undef PCM_PCICFG_HA_INIT
 }
 
 void ServerPCICFGUncore::initBuses(uint32 socket_, const PCM * pcm)
@@ -4887,6 +4897,32 @@ void ServerPCICFGUncore::initDirect(uint32 socket_, const PCM * pcm)
         }
     }
 
+    {
+        std::vector<std::shared_ptr<PciHandleType> > haHandles;
+        for (auto & reg : HARegisterLocation)
+        {
+            auto handle = createIntelPerfMonDevice(groupnr, iMCbus, reg.first, reg.second, true);
+            if (handle) haHandles.push_back(std::shared_ptr<PciHandleType>(handle));
+        }
+
+        for (auto & handle : haHandles)
+        {
+            haPMUs.push_back(
+                UncorePMU(
+                    std::make_shared<PCICFGRegister32>(handle, XPF_HA_PCI_PMON_BOX_CTL_ADDR),
+                    std::make_shared<PCICFGRegister32>(handle, XPF_HA_PCI_PMON_CTL0_ADDR),
+                    std::make_shared<PCICFGRegister32>(handle, XPF_HA_PCI_PMON_CTL1_ADDR),
+                    std::make_shared<PCICFGRegister32>(handle, XPF_HA_PCI_PMON_CTL2_ADDR),
+                    std::make_shared<PCICFGRegister32>(handle, XPF_HA_PCI_PMON_CTL3_ADDR),
+                    std::make_shared<PCICFGRegister64>(handle, XPF_HA_PCI_PMON_CTR0_ADDR),
+                    std::make_shared<PCICFGRegister64>(handle, XPF_HA_PCI_PMON_CTR1_ADDR),
+                    std::make_shared<PCICFGRegister64>(handle, XPF_HA_PCI_PMON_CTR2_ADDR),
+                    std::make_shared<PCICFGRegister64>(handle, XPF_HA_PCI_PMON_CTR3_ADDR)
+                )
+            );
+        }
+    }
+
     if (pcm->getNumSockets() == 1) {
         /*
          * For single socket systems, do not worry at all about QPI ports.  This
@@ -4901,8 +4937,10 @@ void ServerPCICFGUncore::initDirect(uint32 socket_, const PCM * pcm)
 
 #ifdef PCM_NOQPI
     xpiPMUs.clear();
-    std::cerr << getNumMC() <<" memory controllers detected with total number of "<< imcPMUs.size() <<" channels. " <<
-                 m2mPMUs.size() << " M2M (mesh to memory) blocks detected."<< std::endl;
+    std::cerr << getNumMC() << " memory controllers detected with total number of " << imcPMUs.size() << " channels. " <<
+        m2mPMUs.size() << " M2M (mesh to memory) blocks detected."
+        " " << haPMUs.size() << " Home Agents detected."
+        << std::endl;
     return;
 #endif
 
@@ -5189,6 +5227,7 @@ void ServerPCICFGUncore::initPerf(uint32 socket_, const PCM * pcm)
     populatePerfPMUs(socket_, m2mIDs, m2mPMUs, false);
     populatePerfPMUs(socket_, enumeratePerfPMUs("qpi", 100), xpiPMUs, false);
     populatePerfPMUs(socket_, enumeratePerfPMUs("upi", 100), xpiPMUs, false);
+    populatePerfPMUs(socket_, haIDs, haPMUs, false);
 #endif
 }
 

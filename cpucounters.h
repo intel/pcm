@@ -289,12 +289,14 @@ class ServerPCICFGUncore
     std::vector<UncorePMU> edcPMUs;
     std::vector<UncorePMU> xpiPMUs;
     std::vector<UncorePMU> m2mPMUs;
+    std::vector<UncorePMU> haPMUs;
     std::vector<uint64> qpi_speed;
     std::vector<uint32> num_imc_channels; // number of memory channels in each memory controller
     std::vector<std::pair<uint32, uint32> > XPIRegisterLocation; // (device, function)
     std::vector<std::vector< std::pair<uint32, uint32> > > MCRegisterLocation; // MCRegisterLocation[controller]: (device, function)
     std::vector<std::pair<uint32, uint32> > EDCRegisterLocation; // EDCRegisterLocation: (device, function)
     std::vector<std::pair<uint32, uint32> > M2MRegisterLocation; // M2MRegisterLocation: (device, function)
+    std::vector<std::pair<uint32, uint32> > HARegisterLocation;  // HARegisterLocation: (device, function)
 
     static PCM_Util::Mutex socket2busMutex;
     static std::vector<std::pair<uint32, uint32> > socket2iMCbus;
