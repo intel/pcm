@@ -88,7 +88,6 @@ int convertUnknownToInt(size_t size, char* value);
 
 #endif
 
-#undef PCM_UNCORE_PMON_BOX_CHECK_STATUS // debug only
 #undef PCM_DEBUG_TOPOLOGY // debug of topology enumeration routine
 
 // FreeBSD is much more restrictive about names for semaphores
@@ -3705,16 +3704,7 @@ PCM::ErrorCode PCM::programServerUncorePowerMetrics(int mc_profile, int pcu_prof
       uint32 refCore = socketRefCore[i];
       TemporalThreadAffinity tempThreadAffinity(refCore); // speedup trick for Linux
 
-       // freeze enable
-      *pcuPMUs[i].unitControl = UNC_PMON_UNIT_CTL_FRZ_EN;
-        // freeze
-      *pcuPMUs[i].unitControl = UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ;
-
-#ifdef PCM_UNCORE_PMON_BOX_CHECK_STATUS
-      uint64 val = *pcuPMUs[i].unitControl;
-      if ((val & UNC_PMON_UNIT_CTL_VALID_BITS_MASK) != (UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ))
-            std::cerr << "ERROR: PCU counter programming seems not to work. PCU_MSR_PMON_BOX_CTL=0x" << std::hex << val << " needs to be =0x"<< (UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ) << std::endl;
-#endif
+      pcuPMUs[i].freeze(UNC_PMON_UNIT_CTL_FRZ_EN);
 
       if (freq_bands == NULL)
       {
@@ -3737,11 +3727,7 @@ PCM::ErrorCode PCM::programServerUncorePowerMetrics(int mc_profile, int pcu_prof
           *pcuPMUs[i].counterControl[ctr] = PCU_MSR_PMON_CTL_EN + PCUCntConf[ctr];
       }
 
-      // reset counter values
-      *pcuPMUs[i].unitControl = UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ + UNC_PMON_UNIT_CTL_RST_COUNTERS;
-
-      // unfreeze counters
-      *pcuPMUs[i].unitControl = UNC_PMON_UNIT_CTL_FRZ_EN;
+      pcuPMUs[i].resetUnfreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
 
     }
     return PCM::Success;
@@ -5406,7 +5392,7 @@ void ServerPCICFGUncore::programXPI(const uint32 * event)
         *xpiPMUs[i].unitControl = extra + UNC_PMON_UNIT_CTL_FRZ;
 
 #ifdef PCM_UNCORE_PMON_BOX_CHECK_STATUS
-        uint32 val = *xpiPMUs[i].unitControl;
+        const uint64 val = *xpiPMUs[i].unitControl;
         if ((val & UNC_PMON_UNIT_CTL_VALID_BITS_MASK) != (extra + UNC_PMON_UNIT_CTL_FRZ))
         {
             std::cerr << "ERROR: QPI LL counter programming seems not to work. Q_P" << i << "_PCI_PMON_BOX_CTL=0x" << std::hex << val << std::endl;
@@ -5421,11 +5407,7 @@ void ServerPCICFGUncore::programXPI(const uint32 * event)
             *xpiPMUs[i].counterControl[cnt] = Q_P_PCI_PMON_CTL_EN + event[cnt];
         }
 
-        // reset counters values
-        *xpiPMUs[i].unitControl = extra + UNC_PMON_UNIT_CTL_FRZ + UNC_PMON_UNIT_CTL_RST_COUNTERS;
-
-        // unfreeze counters
-        *xpiPMUs[i].unitControl = extra;
+        xpiPMUs[i].resetUnfreeze(extra);
     }
     cleanupQPIHandles();
 }
@@ -5631,22 +5613,7 @@ void ServerPCICFGUncore::programIMC(const uint32 * MCCntConfig)
     for (uint32 i = 0; i < (uint32)imcPMUs.size(); ++i)
     {
         // imc PMU
-        // freeze enable
-        *imcPMUs[i].unitControl = extraIMC;
-        // freeze
-        *imcPMUs[i].unitControl = extraIMC + UNC_PMON_UNIT_CTL_FRZ;
-
-#ifdef PCM_UNCORE_PMON_BOX_CHECK_STATUS
-        uint32 val = *imcPMUs[i].unitControl;
-        if ((val & UNC_PMON_UNIT_CTL_VALID_BITS_MASK) != (extraIMC + UNC_PMON_UNIT_CTL_FRZ))
-        {
-            std::cerr << "ERROR: IMC counter programming seems not to work. MC_CH" << i << "_PCI_PMON_BOX_CTL=0x" << std::hex << val << " " << (val & UNC_PMON_UNIT_CTL_VALID_BITS_MASK) << std::endl;
-            std::cerr << "       Please see BIOS options to enable the export of performance monitoring devices." << std::endl;
-        } else {
-           std::cerr << "INFO: IMC counter programming OK: MC_CH" << i << "_PCI_PMON_BOX_CTL=0x" << std::hex << val << std::endl;
-        }
-
-#endif
+        imcPMUs[i].freeze(extraIMC);
 
         // enable fixed counter (DRAM clocks)
         *imcPMUs[i].fixedCounterControl = MC_CH_PCI_PMON_FIXED_CTL_EN;
@@ -5660,11 +5627,7 @@ void ServerPCICFGUncore::programIMC(const uint32 * MCCntConfig)
             *imcPMUs[i].counterControl[c] = MC_CH_PCI_PMON_CTL_EN + MCCntConfig[c];
         }
 
-        // reset counters values
-        *imcPMUs[i].unitControl = extraIMC + UNC_PMON_UNIT_CTL_FRZ + UNC_PMON_UNIT_CTL_RST_COUNTERS;
-
-        // unfreeze counters
-        *imcPMUs[i].unitControl = extraIMC;
+        imcPMUs[i].resetUnfreeze(extraIMC);
     }
 }
 
@@ -5672,21 +5635,7 @@ void ServerPCICFGUncore::programEDC(const uint32 * EDCCntConfig)
 {
     for (uint32 i = 0; i < (uint32)edcPMUs.size(); ++i)
     {
-        // freeze enable
-        *edcPMUs[i].unitControl = UNC_PMON_UNIT_CTL_FRZ_EN;
-        // freeze
-        *edcPMUs[i].unitControl = UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ;
-
-#ifdef PCM_UNCORE_PMON_BOX_CHECK_STATUS
-        uint32 val = *edcPMUs[i].unitControl;
-        if ((val & UNC_PMON_UNIT_CTL_VALID_BITS_MASK) != (UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ))
-        {
-            std::cerr << "ERROR: EDC counter programming seems not to work. EDC" << i << "_PCI_PMON_BOX_CTL=0x" << std::hex << val << std::endl;
-            std::cerr << "       Please see BIOS options to enable the export of performance monitoring devices." << std::endl;
-        } else {
-           std::cerr << "INFO: EDC counter programming OK. EDC" << i << "_PCI_PMON_BOX_CTL=0x" << std::hex << val << std::endl;
-        }
-#endif
+        edcPMUs[i].freeze(UNC_PMON_UNIT_CTL_FRZ_EN);
 
         // MCDRAM clocks enabled by default
         *edcPMUs[i].fixedCounterControl = EDC_CH_PCI_PMON_FIXED_CTL_EN;
@@ -5697,11 +5646,7 @@ void ServerPCICFGUncore::programEDC(const uint32 * EDCCntConfig)
             *edcPMUs[i].counterControl[c] = MC_CH_PCI_PMON_CTL_EN + EDCCntConfig[c];
         }
 
-        // reset counters values
-        *edcPMUs[i].unitControl = UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ + UNC_PMON_UNIT_CTL_RST_COUNTERS;
-
-        // unfreeze counters
-        *edcPMUs[i].unitControl = UNC_PMON_UNIT_CTL_FRZ;
+        edcPMUs[i].resetUnfreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
     }
 }
 
@@ -5710,29 +5655,14 @@ void ServerPCICFGUncore::programM2M()
     {
         for (auto & pmu : m2mPMUs)
         {
-            // freeze enable
-            *pmu.unitControl = UNC_PMON_UNIT_CTL_RSV;
-            // freeze
-            *pmu.unitControl = UNC_PMON_UNIT_CTL_RSV + UNC_PMON_UNIT_CTL_FRZ;
-
-#ifdef PCM_UNCORE_PMON_BOX_CHECK_STATUS
-            uint32 val = *pmu.unitControl;
-            if ((val & UNC_PMON_UNIT_CTL_VALID_BITS_MASK) != (extra + UNC_PMON_UNIT_CTL_FRZ))
-            {
-                std::cerr << "ERROR: M2M counter programming seems not to work. M2M_PCI_PMON_BOX_CTL=0x" << std::hex << val << std::endl;
-                std::cerr << "       Please see BIOS options to enable the export of performance monitoring devices." << std::endl;
-            }
-#endif
+            pmu.freeze(UNC_PMON_UNIT_CTL_RSV);
 
             *pmu.counterControl[0] = M2M_PCI_PMON_CTL_EN;
             // TAG_HIT.NM_DRD_HIT_* events (CLEAN | DIRTY)
             *pmu.counterControl[0] = M2M_PCI_PMON_CTL_EN + M2M_PCI_PMON_CTL_EVENT(0x2c) + M2M_PCI_PMON_CTL_UMASK(3);
             *pmu.counterControl[3] = M2M_PCI_PMON_CTL_EN; // CLOCKTICKS
 
-            // reset counters values
-            *pmu.unitControl = UNC_PMON_UNIT_CTL_RSV + UNC_PMON_UNIT_CTL_FRZ + UNC_PMON_UNIT_CTL_RST_COUNTERS;
-            // unfreeze counters
-            *pmu.unitControl = UNC_PMON_UNIT_CTL_RSV;
+            pmu.resetUnfreeze(UNC_PMON_UNIT_CTL_RSV);
         }
     }
 }
@@ -6206,9 +6136,7 @@ void PCM::programIIOCounters(IIOPMUCNTCTLRegister rawEvents[4], int IIOStack)
                 continue;
             }
             auto & pmu = iioPMUs[i][unit];
-            *pmu.unitControl = UNC_PMON_UNIT_CTL_RSV;
-            // freeze
-            *pmu.unitControl = UNC_PMON_UNIT_CTL_RSV + UNC_PMON_UNIT_CTL_FRZ;
+            pmu.freeze(UNC_PMON_UNIT_CTL_RSV);
 
             for (int c = 0; c < 4; ++c)
             {
@@ -6216,11 +6144,7 @@ void PCM::programIIOCounters(IIOPMUCNTCTLRegister rawEvents[4], int IIOStack)
                 *pmu.counterControl[c] = IIO_MSR_PMON_CTL_EN | rawEvents[c].value;
             }
 
-            // reset counter values
-            *pmu.unitControl = UNC_PMON_UNIT_CTL_RSV + UNC_PMON_UNIT_CTL_FRZ + UNC_PMON_UNIT_CTL_RST_COUNTERS;
-
-            // unfreeze counters
-            *pmu.unitControl = UNC_PMON_UNIT_CTL_RSV;
+            pmu.resetUnfreeze(UNC_PMON_UNIT_CTL_RSV);
         }
     }
 }
@@ -6276,19 +6200,7 @@ void PCM::programCbo(const uint64 * events, const uint32 opCode, const uint32 nc
 
         for(uint32 cbo = 0; cbo < getMaxNumOfCBoxes(); ++cbo)
         {
-            // freeze enable
-            *cboPMUs[i][cbo].unitControl = UNC_PMON_UNIT_CTL_FRZ_EN;
-            // freeze
-            *cboPMUs[i][cbo].unitControl = UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ;
-
-#ifdef PCM_UNCORE_PMON_BOX_CHECK_STATUS
-            uint64 val = *cboPMUs[i][cbo].unitControl;
-            if ((val & UNC_PMON_UNIT_CTL_VALID_BITS_MASK) != (UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ))
-            {
-                std::cerr << "ERROR: CBO counter programming seems not to work. ";
-                std::cerr << "C" << std::dec << cbo << "_MSR_PMON_BOX_CTL=0x" << std::hex << val << std::endl;
-            }
-#endif
+            cboPMUs[i][cbo].freeze(UNC_PMON_UNIT_CTL_FRZ_EN);
 
             programCboOpcodeFilter(opCode, cboPMUs[i][cbo], nc_, 0, loc, rem);
 
@@ -6301,11 +6213,7 @@ void PCM::programCbo(const uint64 * events, const uint32 opCode, const uint32 nc
                 *cboPMUs[i][cbo].counterControl[c] = CBO_MSR_PMON_CTL_EN + events[c];
             }
 
-            // reset counter values
-            *cboPMUs[i][cbo].unitControl = UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ + UNC_PMON_UNIT_CTL_RST_COUNTERS;
-
-            // unfreeze counters
-            *cboPMUs[i][cbo].unitControl = UNC_PMON_UNIT_CTL_FRZ_EN;
+            cboPMUs[i][cbo].resetUnfreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
 
             for (int c = 0; c < 4; ++c)
             {

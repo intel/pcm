@@ -232,6 +232,8 @@ public:
     }
 };
 
+#undef PCM_UNCORE_PMON_BOX_CHECK_STATUS // debug only
+
 class UncorePMU
 {
     typedef std::shared_ptr<HWRegister> HWRegisterPtr;
@@ -275,6 +277,27 @@ public:
         }
         if (unitControl.get()) *unitControl = 0;
         if (fixedCounterControl.get()) *fixedCounterControl = 0;
+    }
+    void freeze(const uint32 extra)
+    {
+        // freeze enable
+        *unitControl = extra;
+        // freeze
+        *unitControl = extra + UNC_PMON_UNIT_CTL_FRZ;
+
+#ifdef PCM_UNCORE_PMON_BOX_CHECK_STATUS
+        const uint64 val = *unitControl;
+        if ((val & UNC_PMON_UNIT_CTL_VALID_BITS_MASK) != (extra + UNC_PMON_UNIT_CTL_FRZ))
+            std::cerr << "ERROR: PMU counter programming seems not to work. PMON_BOX_CTL=0x" << std::hex << val << " needs to be =0x" << (UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ) << std::endl;
+#endif
+    }
+    void resetUnfreeze(const uint32 extra)
+    {
+        // reset counter values
+        *unitControl = extra + UNC_PMON_UNIT_CTL_FRZ + UNC_PMON_UNIT_CTL_RST_COUNTERS;
+
+        // unfreeze counters
+        *unitControl = extra;
     }
 };
 
