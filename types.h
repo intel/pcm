@@ -894,6 +894,15 @@ struct BecktonUncorePMUCNTCTLRegister
 #define M2M_PCI_PMON_CTL_INVERT     (1 << 23)
 #define M2M_PCI_PMON_CTL_THRESH(x)  ((x) << 24ULL)
 
+#define HA_PCI_PMON_CTL_EVENT(x)   ((x) << 0)
+#define HA_PCI_PMON_CTL_UMASK(x)   ((x) << 8)
+#define HA_PCI_PMON_CTL_RST        (1 << 17)
+#define HA_PCI_PMON_CTL_EDGE_DET   (1 << 18)
+#define HA_PCI_PMON_CTL_OV_EN      (1 << 20)
+#define HA_PCI_PMON_CTL_EN         (1 << 22)
+#define HA_PCI_PMON_CTL_INVERT     (1 << 23)
+#define HA_PCI_PMON_CTL_THRESH(x)  ((x) << 24ULL)
+
 #define UCLK_FIXED_CTL_OV_EN (1 << 20)
 #define UCLK_FIXED_CTL_EN    (1 << 22)
 

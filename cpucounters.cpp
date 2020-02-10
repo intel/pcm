@@ -5667,6 +5667,24 @@ void ServerPCICFGUncore::programM2M()
     }
 }
 
+void ServerPCICFGUncore::programHA()
+{
+    for (auto & pmu : haPMUs)
+    {
+        pmu.freeze(UNC_PMON_UNIT_CTL_RSV);
+
+        *pmu.counterControl[2] = HA_PCI_PMON_CTL_EN;
+        // HA REQUESTS READ+WRITE+REMOTE+LOCAL
+        *pmu.counterControl[2] = HA_PCI_PMON_CTL_EN + HA_PCI_PMON_CTL_EVENT(0x01) + HA_PCI_PMON_CTL_UMASK((1+2+4+8));
+
+        *pmu.counterControl[3] = HA_PCI_PMON_CTL_EN;
+        // HA REQUESTS READ+WRITE (LOCAL only)
+        *pmu.counterControl[3] = HA_PCI_PMON_CTL_EN + HA_PCI_PMON_CTL_EVENT(0x01) + HA_PCI_PMON_CTL_UMASK((1+4));
+
+        pmu.resetUnfreeze(UNC_PMON_UNIT_CTL_RSV);
+    }
+}
+
 void ServerPCICFGUncore::freezeCounters()
 {
     writeAllUnitControl(UNC_PMON_UNIT_CTL_FRZ + ((cpu_model == PCM::SKX) ? UNC_PMON_UNIT_CTL_RSV : UNC_PMON_UNIT_CTL_FRZ_EN));

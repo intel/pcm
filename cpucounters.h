@@ -334,6 +334,7 @@ class ServerPCICFGUncore
     void programIMC(const uint32 * MCCntConfig);
     void programEDC(const uint32 * EDCCntConfig);
     void programM2M();
+    void programHA();
     void programXPI(const uint32 * XPICntConfig);
     typedef std::pair<size_t, std::vector<uint64 *> > MemTestParam;
     void initMemTest(MemTestParam & param);
