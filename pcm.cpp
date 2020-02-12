@@ -403,6 +403,8 @@ void print_output(PCM * m,
         cout << "MEM (GB)->|";
         if (m->memoryTrafficMetricsAvailable())
             cout << "  READ |  WRITE |";
+        if (m->localMemoryRequestRatioMetricAvailable())
+            cout << " LOCAL |";
         if (m->PMMTrafficMetricsAvailable())
             cout << " PMM RD | PMM WR |";
         if (m->MCDRAMmemoryTrafficMetricsAvailable())
@@ -423,6 +425,8 @@ void print_output(PCM * m,
                 if (m->memoryTrafficMetricsAvailable())
                     cout << "    " << setw(5) << getBytesReadFromMC(sktstate1[i], sktstate2[i]) / double(1e9) <<
                             "    " << setw(5) << getBytesWrittenToMC(sktstate1[i], sktstate2[i]) / double(1e9);
+                if (m->localMemoryRequestRatioMetricAvailable())
+                    cout << "  " << setw(3) << int(100.* getLocalMemoryRequestRatio(sktstate1[i], sktstate2[i])) << " %";
                 if (m->PMMTrafficMetricsAvailable())
                     cout << "     " << setw(5) << getBytesReadFromPMM(sktstate1[i], sktstate2[i]) / double(1e9) <<
                             "     " << setw(5) << getBytesWrittenToPMM(sktstate1[i], sktstate2[i]) / double(1e9);
@@ -451,6 +455,8 @@ void print_output(PCM * m,
             if (m->memoryTrafficMetricsAvailable())
                 cout << "    " << setw(5) << getBytesReadFromMC(sstate1, sstate2) / double(1e9) <<
                         "    " << setw(5) << getBytesWrittenToMC(sstate1, sstate2) / double(1e9);
+            if (m->localMemoryRequestRatioMetricAvailable())
+                cout << "  " << setw(3) << int(100.* getLocalMemoryRequestRatio(sstate1, sstate2)) << " %";
             if (m->PMMTrafficMetricsAvailable())
                 cout << "     " << setw(5) << getBytesReadFromPMM(sstate1, sstate2) / double(1e9) <<
                         "     " << setw(5) << getBytesWrittenToPMM(sstate1, sstate2) / double(1e9);

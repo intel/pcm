@@ -368,6 +368,10 @@ public:
     uint64 getImcReadsForChannels(uint32 beginChannel, uint32 endChannel);
     //! \brief Get the number of integrated controller writes (in cache lines)
     uint64 getImcWrites();
+    //! \brief Get the number of requests to home agent (BDX/HSX only)
+    uint64 getHALocalRequests();
+    //! \brief Get the number of local requests to home agent (BDX/HSX only)
+    uint64 getHARequests();
 
     //! \brief Get the number of PMM memory reads (in cache lines)
     uint64 getPMMReads();
@@ -1603,6 +1607,12 @@ public:
                );
     }
 
+    bool localMemoryRequestRatioMetricAvailable() const
+    {
+        return cpu_model == PCM::HASWELLX
+            || cpu_model == PCM::BDX;
+    }
+
     bool qpiUtilizationMetricsAvailable() const
     {
         return outgoingQPITrafficMetricsAvailable();
@@ -2227,10 +2237,14 @@ class UncoreCounterState
     friend double getPackageCStateResidency(int state, const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
     friend double getLLCReadMissLatency(const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
+    friend double getLocalMemoryRequestRatio(const CounterStateType & before, const CounterStateType & after);
 
 protected:
     uint64 UncMCFullWrites;
     uint64 UncMCNormalReads;
+    uint64 UncHARequests;
+    uint64 UncHALocalRequests;
     uint64 UncPMMWrites;
     uint64 UncPMMReads;
     uint64 UncEDCFullWrites;
@@ -2248,6 +2262,8 @@ public:
     UncoreCounterState() :
         UncMCFullWrites(0),
         UncMCNormalReads(0),
+        UncHARequests(0),
+        UncHALocalRequests(0),
         UncPMMWrites(0),
         UncPMMReads(0),
         UncEDCFullWrites(0),
@@ -2267,6 +2283,8 @@ public:
     {
         UncMCFullWrites += o.UncMCFullWrites;
         UncMCNormalReads += o.UncMCNormalReads;
+        UncHARequests += o.UncHARequests;
+        UncHALocalRequests += o.UncHALocalRequests;
         UncPMMReads += o.UncPMMReads;
         UncPMMWrites += o.UncPMMWrites;
         UncEDCFullWrites += o.UncEDCFullWrites;
@@ -3309,6 +3327,21 @@ inline double getQPItoMCTrafficRatio(const SystemCounterState & before, const Sy
         memTraffic += getBytesReadFromPMM(before, after) + getBytesWrittenToPMM(before, after);
     }
     return double(totalQPI) / double(memTraffic);
+}
+
+/*! \brief Get local memory access ration measured in home agent
+
+    \param before System CPU counter state before the experiment
+    \param after System CPU counter state after the experiment
+    \return Ratio
+*/
+template <class CounterStateType>
+inline double getLocalMemoryRequestRatio(const CounterStateType & before, const CounterStateType & after)
+{
+    const auto all = after.UncHARequests - before.UncHARequests;
+    const auto local = after.UncHALocalRequests - before.UncHALocalRequests;
+    // std::cout << "DEBUG "<< 64*all/1e6 << " " << 64*local/1e6 << std::endl;
+    return double(local)/double(all);
 }
 
 //! \brief Returns the raw count of events

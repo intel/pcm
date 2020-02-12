@@ -3851,6 +3851,11 @@ void PCM::readAndAggregateUncoreMCCounters(const uint32 socket, CounterStateType
             server_pcicfg_uncore[socket]->freezeCounters();
             result.UncMCNormalReads += server_pcicfg_uncore[socket]->getImcReads();
             result.UncMCFullWrites += server_pcicfg_uncore[socket]->getImcWrites();
+            if (localMemoryRequestRatioMetricAvailable())
+            {
+                result.UncHARequests += server_pcicfg_uncore[socket]->getHARequests();
+                result.UncHALocalRequests += server_pcicfg_uncore[socket]->getHALocalRequests();
+            }
             if (PMMTrafficMetricsAvailable())
             {
                 result.UncPMMReads += server_pcicfg_uncore[socket]->getPMMReads();
@@ -5371,6 +5376,7 @@ void ServerPCICFGUncore::program()
         event[3] = Q_P_PCI_PMON_CTL_EVENT(0x14); // QPI clocks (CLOCKTICKS)
     }
     programXPI(event);
+    programHA();
 }
 
 void ServerPCICFGUncore::programXPI(const uint32 * event)
@@ -5681,15 +5687,42 @@ void ServerPCICFGUncore::programHA(const uint32 * config)
     }
 }
 
+uint64 ServerPCICFGUncore::getHARequests()
+{
+    uint64 result = 0;
+    for (auto & pmu: haPMUs)
+    {
+        result += *pmu.counterValue[2];
+    }
+    return result;
+}
+
+uint64 ServerPCICFGUncore::getHALocalRequests()
+{
+    uint64 result = 0;
+    for (auto & pmu: haPMUs)
+    {
+        result += *pmu.counterValue[3];
+    }
+    return result;
+}
+
 void ServerPCICFGUncore::programHA()
 {
     uint32 config[4];
     config[0] = 0;
     config[1] = 0;
+    #ifdef PCM_HA_REQUESTS_READS_ONLY
+    // HA REQUESTS READ: LOCAL + REMOTE
+    config[2] = HA_PCI_PMON_CTL_EVENT(0x01) + HA_PCI_PMON_CTL_UMASK((1+2));
+    // HA REQUESTS READ: LOCAL ONLY
+    config[3] = HA_PCI_PMON_CTL_EVENT(0x01) + HA_PCI_PMON_CTL_UMASK((1));
+    #else
     // HA REQUESTS READ+WRITE+REMOTE+LOCAL
     config[2] = HA_PCI_PMON_CTL_EVENT(0x01) + HA_PCI_PMON_CTL_UMASK((1+2+4+8));
     // HA REQUESTS READ+WRITE (LOCAL only)
     config[3] = HA_PCI_PMON_CTL_EVENT(0x01) + HA_PCI_PMON_CTL_UMASK((1+4));
+    #endif
     programHA(config);
 }
 
