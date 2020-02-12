@@ -5667,22 +5667,30 @@ void ServerPCICFGUncore::programM2M()
     }
 }
 
-void ServerPCICFGUncore::programHA()
+void ServerPCICFGUncore::programHA(const uint32 * config)
 {
     for (auto & pmu : haPMUs)
     {
         pmu.freeze(UNC_PMON_UNIT_CTL_RSV);
-
-        *pmu.counterControl[2] = HA_PCI_PMON_CTL_EN;
-        // HA REQUESTS READ+WRITE+REMOTE+LOCAL
-        *pmu.counterControl[2] = HA_PCI_PMON_CTL_EN + HA_PCI_PMON_CTL_EVENT(0x01) + HA_PCI_PMON_CTL_UMASK((1+2+4+8));
-
-        *pmu.counterControl[3] = HA_PCI_PMON_CTL_EN;
-        // HA REQUESTS READ+WRITE (LOCAL only)
-        *pmu.counterControl[3] = HA_PCI_PMON_CTL_EN + HA_PCI_PMON_CTL_EVENT(0x01) + HA_PCI_PMON_CTL_UMASK((1+4));
-
+        for (uint32 c = 0; c < 4; ++c)
+        {
+            *pmu.counterControl[c] = HA_PCI_PMON_CTL_EN;
+            *pmu.counterControl[c] = HA_PCI_PMON_CTL_EN + config[c];
+        }
         pmu.resetUnfreeze(UNC_PMON_UNIT_CTL_RSV);
     }
+}
+
+void ServerPCICFGUncore::programHA()
+{
+    uint32 config[4];
+    config[0] = 0;
+    config[1] = 0;
+    // HA REQUESTS READ+WRITE+REMOTE+LOCAL
+    config[2] = HA_PCI_PMON_CTL_EVENT(0x01) + HA_PCI_PMON_CTL_UMASK((1+2+4+8));
+    // HA REQUESTS READ+WRITE (LOCAL only)
+    config[3] = HA_PCI_PMON_CTL_EVENT(0x01) + HA_PCI_PMON_CTL_UMASK((1+4));
+    programHA(config);
 }
 
 void ServerPCICFGUncore::freezeCounters()
