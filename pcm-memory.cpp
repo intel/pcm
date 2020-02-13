@@ -38,17 +38,6 @@
 #include "cpucounters.h"
 #include "utils.h"
 
-//Programmable iMC counter
-#define READ 0
-#define WRITE 1
-#define READ_RANK_A 0
-#define WRITE_RANK_A 1
-#define READ_RANK_B 2
-#define WRITE_RANK_B 3
-#define PARTIAL 2
-#define PMM_READ 2
-#define PMM_WRITE 3
-#define NM_HIT 0  // NM :  Near Memory (DRAM cache) in Memory Mode
 #define PCM_DELAY_DEFAULT 1.0 // in seconds
 #define PCM_DELAY_MIN 0.015 // 15 milliseconds is practical on most modern CPUs
 #define PCM_CALIBRATION_INTERVAL 50 // calibrate clock only every 50th iteration
@@ -194,21 +183,21 @@ void printSocketChannelBW(uint32 no_columns, uint32 skt, uint32 num_imc_channels
     for (uint32 channel = 0; channel < num_imc_channels; ++channel) {
         if(rankA >= 0) {
           for (uint32 i=skt; i<(skt+no_columns); ++i) {
-              cout << "|-- Mem Ch "<<setw(2)<<channel<<" R " << setw(1) << rankA <<": Reads (MB/s): "<<setw(8)<<(float) (getMCCounter(channel,READ_RANK_A,uncState1[i],uncState2[i]) * 64 / 1000000.0 / (elapsedTime/1000.0))<<" --|";
+              cout << "|-- Mem Ch "<<setw(2)<<channel<<" R " << setw(1) << rankA <<": Reads (MB/s): "<<setw(8)<<(float) (getMCCounter(channel,ServerPCICFGUncore::EventPosition::READ_RANK_A,uncState1[i],uncState2[i]) * 64 / 1000000.0 / (elapsedTime/1000.0))<<" --|";
           }
           cout << endl;
           for (uint32 i=skt; i<(skt+no_columns); ++i) {
-              cout << "|--                Writes(MB/s): "<<setw(8)<<(float) (getMCCounter(channel,WRITE_RANK_A,uncState1[i],uncState2[i]) * 64 / 1000000.0 / (elapsedTime/1000.0))<<" --|";
+              cout << "|--                Writes(MB/s): "<<setw(8)<<(float) (getMCCounter(channel,ServerPCICFGUncore::EventPosition::WRITE_RANK_A,uncState1[i],uncState2[i]) * 64 / 1000000.0 / (elapsedTime/1000.0))<<" --|";
           }
           cout << endl;
         }
         if(rankB >= 0) {
           for (uint32 i=skt; i<(skt+no_columns); ++i) {
-              cout << "|-- Mem Ch "<<setw(2) << channel<<" R " << setw(1) << rankB <<": Reads (MB/s): "<<setw(8)<<(float) (getMCCounter(channel,READ_RANK_B,uncState1[i],uncState2[i]) * 64 / 1000000.0 / (elapsedTime/1000.0))<<" --|";
+              cout << "|-- Mem Ch "<<setw(2) << channel<<" R " << setw(1) << rankB <<": Reads (MB/s): "<<setw(8)<<(float) (getMCCounter(channel,ServerPCICFGUncore::EventPosition::READ_RANK_B,uncState1[i],uncState2[i]) * 64 / 1000000.0 / (elapsedTime/1000.0))<<" --|";
           }
           cout << endl;
           for (uint32 i=skt; i<(skt+no_columns); ++i) {
-              cout << "|--                Writes(MB/s): "<<setw(8)<<(float) (getMCCounter(channel,WRITE_RANK_B,uncState1[i],uncState2[i]) * 64 / 1000000.0 / (elapsedTime/1000.0))<<" --|";
+              cout << "|--                Writes(MB/s): "<<setw(8)<<(float) (getMCCounter(channel,ServerPCICFGUncore::EventPosition::WRITE_RANK_B,uncState1[i],uncState2[i]) * 64 / 1000000.0 / (elapsedTime/1000.0))<<" --|";
           }
           cout << endl;
         }
@@ -605,6 +594,24 @@ void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 elapsedTime, const bool
 	 <<setw(10) <<sysReadDRAM+sysReadPMM+sysWriteDRAM+sysWritePMM << endl;
 }
 
+uint64 getPMMReads(uint32 channel, const ServerUncorePowerState & before, const ServerUncorePowerState & after)
+{
+    #ifdef PCM_M2M_FOR_PMM_TRAFFIC
+    return getM2MCounter(channel, ServerPCICFGUncore::EventPosition::PMM_READ, before, after);
+    #else
+    return getMCCounter(channel, ServerPCICFGUncore::EventPosition::PMM_READ, before, after);
+    #endif
+}
+
+uint64 getPMMWrites(uint32 channel, const ServerUncorePowerState & before, const ServerUncorePowerState & after)
+{
+    #ifdef PCM_M2M_FOR_PMM_TRAFFIC
+    return getM2MCounter(channel, ServerPCICFGUncore::EventPosition::PMM_WRITE, before, after);
+    #else
+    return getMCCounter(channel, ServerPCICFGUncore::EventPosition::PMM_WRITE, before, after);
+    #endif
+}
+
 void calculate_bandwidth(PCM *m, const ServerUncorePowerState uncState1[], const ServerUncorePowerState uncState2[], uint64 elapsedTime, bool csv, bool & csvheader, uint32 no_columns, bool PMM, const bool show_channel_output)
 {
     //const uint32 num_imc_channels = m->getMCChannelsPerSocket();
@@ -631,15 +638,15 @@ void calculate_bandwidth(PCM *m, const ServerUncorePowerState uncState1[], const
 	case PCM::KNL:
             for(uint32 channel = 0; channel < max_edc_channels; ++channel)
             {
-                if(getEDCCounter(channel,READ,uncState1[skt],uncState2[skt]) == 0.0 && getEDCCounter(channel,WRITE,uncState1[skt],uncState2[skt]) == 0.0)
+                if(getEDCCounter(channel,ServerPCICFGUncore::EventPosition::READ,uncState1[skt],uncState2[skt]) == 0.0 && getEDCCounter(channel,ServerPCICFGUncore::EventPosition::WRITE,uncState1[skt],uncState2[skt]) == 0.0)
                 {
                     md.EDC_Rd_socket_chan[skt][channel] = -1.0;
                     md.EDC_Wr_socket_chan[skt][channel] = -1.0;
                     continue;
                 }
 
-                md.EDC_Rd_socket_chan[skt][channel] = (float) (getEDCCounter(channel,READ,uncState1[skt],uncState2[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0));
-                md.EDC_Wr_socket_chan[skt][channel] = (float) (getEDCCounter(channel,WRITE,uncState1[skt],uncState2[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0));
+                md.EDC_Rd_socket_chan[skt][channel] = (float) (getEDCCounter(channel,ServerPCICFGUncore::EventPosition::READ,uncState1[skt],uncState2[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0));
+                md.EDC_Wr_socket_chan[skt][channel] = (float) (getEDCCounter(channel,ServerPCICFGUncore::EventPosition::WRITE,uncState1[skt],uncState2[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0));
 
                 md.EDC_Rd_socket[skt] += md.EDC_Rd_socket_chan[skt][channel];
                 md.EDC_Wr_socket[skt] += md.EDC_Wr_socket_chan[skt][channel];
@@ -647,9 +654,9 @@ void calculate_bandwidth(PCM *m, const ServerUncorePowerState uncState1[], const
         default:
             for(uint32 channel = 0; channel < max_imc_channels; ++channel)
             {
-                if(getMCCounter(channel,READ,uncState1[skt],uncState2[skt]) == 0.0 && getMCCounter(channel,WRITE,uncState1[skt],uncState2[skt]) == 0.0) //In case of JKT-EN, there are only three channels. Skip one and continue.
+                if(getMCCounter(channel,ServerPCICFGUncore::EventPosition::READ,uncState1[skt],uncState2[skt]) == 0.0 && getMCCounter(channel,ServerPCICFGUncore::EventPosition::WRITE,uncState1[skt],uncState2[skt]) == 0.0) //In case of JKT-EN, there are only three channels. Skip one and continue.
                 {
-                    if (!PMM || (getMCCounter(channel,PMM_READ,uncState1[skt],uncState2[skt]) == 0.0 && getMCCounter(channel,PMM_WRITE,uncState1[skt],uncState2[skt]) == 0.0))
+                    if (!PMM || (getPMMReads(channel, uncState1[skt], uncState2[skt]) == 0.0 && getPMMWrites(channel, uncState1[skt], uncState2[skt]) == 0.0))
                     {
                         md.iMC_Rd_socket_chan[skt][channel] = -1.0;
                         md.iMC_Wr_socket_chan[skt][channel] = -1.0;
@@ -657,25 +664,25 @@ void calculate_bandwidth(PCM *m, const ServerUncorePowerState uncState1[], const
                     }
                 }
 
-                md.iMC_Rd_socket_chan[skt][channel] = (float) (getMCCounter(channel,READ,uncState1[skt],uncState2[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0));
-                md.iMC_Wr_socket_chan[skt][channel] = (float) (getMCCounter(channel,WRITE,uncState1[skt],uncState2[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0));
+                md.iMC_Rd_socket_chan[skt][channel] = (float) (getMCCounter(channel,ServerPCICFGUncore::EventPosition::READ,uncState1[skt],uncState2[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0));
+                md.iMC_Wr_socket_chan[skt][channel] = (float) (getMCCounter(channel,ServerPCICFGUncore::EventPosition::WRITE,uncState1[skt],uncState2[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0));
 
                 md.iMC_Rd_socket[skt] += md.iMC_Rd_socket_chan[skt][channel];
                 md.iMC_Wr_socket[skt] += md.iMC_Wr_socket_chan[skt][channel];
 
                 if(PMM)
                 {
-                    md.iMC_PMM_Rd_socket_chan[skt][channel] = (float) (getMCCounter(channel,PMM_READ,uncState1[skt],uncState2[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0));
-                    md.iMC_PMM_Wr_socket_chan[skt][channel] = (float) (getMCCounter(channel,PMM_WRITE,uncState1[skt],uncState2[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0));
+                    md.iMC_PMM_Rd_socket_chan[skt][channel] = (float) (getPMMReads(channel, uncState1[skt], uncState2[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0));
+                    md.iMC_PMM_Wr_socket_chan[skt][channel] = (float) (getPMMWrites(channel, uncState1[skt], uncState2[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0));
 
                     md.iMC_PMM_Rd_socket[skt] += md.iMC_PMM_Rd_socket_chan[skt][channel];
                     md.iMC_PMM_Wr_socket[skt] += md.iMC_PMM_Wr_socket_chan[skt][channel];
 
-                    md.M2M_NM_read_hit_rate[skt][(channel < numChannels1)?0:1] += (float)getMCCounter(channel,READ,uncState1[skt],uncState2[skt]);
+                    md.M2M_NM_read_hit_rate[skt][(channel < numChannels1)?0:1] += (float)getMCCounter(channel,ServerPCICFGUncore::EventPosition::READ,uncState1[skt],uncState2[skt]);
                 }
                 else
                 {
-                    md.partial_write[skt] += (uint64) (getMCCounter(channel,PARTIAL,uncState1[skt],uncState2[skt]) / (elapsedTime/1000.0));
+                    md.partial_write[skt] += (uint64) (getMCCounter(channel,ServerPCICFGUncore::EventPosition::PARTIAL,uncState1[skt],uncState2[skt]) / (elapsedTime/1000.0));
                 }
             }
 	}
@@ -685,7 +692,7 @@ void calculate_bandwidth(PCM *m, const ServerUncorePowerState uncState1[], const
             {
                 if(md.M2M_NM_read_hit_rate[skt][c] != 0.0)
                 {
-                    md.M2M_NM_read_hit_rate[skt][c] = ((float)getM2MCounter(c, NM_HIT, uncState1[skt],uncState2[skt]))/ md.M2M_NM_read_hit_rate[skt][c];
+                    md.M2M_NM_read_hit_rate[skt][c] = ((float)getM2MCounter(c, ServerPCICFGUncore::EventPosition::NM_HIT, uncState1[skt],uncState2[skt]))/ md.M2M_NM_read_hit_rate[skt][c];
                 }
             }
         }
@@ -739,10 +746,10 @@ void calculate_bandwidth(PCM *m, const ServerUncorePowerState uncState1[], const
                       << " R " << setw(1) << rankA
                       <<": Reads (MB/s):"
                       <<setw(8)
-                      <<(float) (getMCCounter(channel,READ_RANK_A,uncState1[skt],uncState2[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0))
+                      <<(float) (getMCCounter(channel,ServerPCICFGUncore::EventPosition::READ_RANK_A,uncState1[skt],uncState2[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0))
                       <<"  --|\n|--                Writes(MB/s):"
                       <<setw(8)
-                      <<(float) (getMCCounter(channel,WRITE_RANK_A,uncState1[skt],uncState2[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0))
+                      <<(float) (getMCCounter(channel,ServerPCICFGUncore::EventPosition::WRITE_RANK_A,uncState1[skt],uncState2[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0))
                       <<"  --|\n";
                 if(rankB >=0)
                   cout << "|-- Mem Ch "
@@ -750,10 +757,10 @@ void calculate_bandwidth(PCM *m, const ServerUncorePowerState uncState1[], const
                       << " R " << setw(1) << rankB
                       <<": Reads (MB/s):"
                       <<setw(8)
-                      <<(float) (getMCCounter(channel,READ_RANK_B,uncState1[skt],uncState2[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0))
+                      <<(float) (getMCCounter(channel,ServerPCICFGUncore::EventPosition::READ_RANK_B,uncState1[skt],uncState2[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0))
                       <<"  --|\n|--                Writes(MB/s):"
                       <<setw(8)
-                      <<(float) (getMCCounter(channel,WRITE_RANK_B,uncState1[skt],uncState2[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0))
+                      <<(float) (getMCCounter(channel,ServerPCICFGUncore::EventPosition::WRITE_RANK_B,uncState1[skt],uncState2[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0))
                       <<"  --|\n";
             }
             cout << "\

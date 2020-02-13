@@ -30,6 +30,8 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 #undef PCM_HA_REQUESTS_READS_ONLY
 
+// #define PCM_M2M_FOR_PMM_TRAFFIC
+
 #include "types.h"
 #include "msr.h"
 #include "pci.h"
@@ -353,6 +355,19 @@ class ServerPCICFGUncore
     uint64 getPMUCounter(std::vector<UncorePMU> & pmu, const uint32 id, const uint32 counter);
 
 public:
+    enum EventPosition {
+        READ=0,
+        WRITE=1,
+        READ_RANK_A=0,
+        WRITE_RANK_A=1,
+        READ_RANK_B=2,
+        WRITE_RANK_B=3,
+        PARTIAL=2,
+        PMM_READ=2,
+        PMM_WRITE=3,
+        NM_HIT=0,  // NM :  Near Memory (DRAM cache) in Memory Mode
+        M2M_CLOCKTICKS=1
+    };
     //! \brief Initialize access data structures
     //! \param socket_ socket id
     //! \param pcm pointer to PCM instance
