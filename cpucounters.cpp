@@ -3853,8 +3853,16 @@ void PCM::readAndAggregateUncoreMCCounters(const uint32 socket, CounterStateType
             result.UncMCFullWrites += server_pcicfg_uncore[socket]->getImcWrites();
             if (localMemoryRequestRatioMetricAvailable())
             {
-                result.UncHARequests += server_pcicfg_uncore[socket]->getHARequests();
-                result.UncHALocalRequests += server_pcicfg_uncore[socket]->getHALocalRequests();
+                if (hasCHA())
+                {
+                    result.UncHARequests += getCBOCounterState(socket, 2);
+                    result.UncHALocalRequests += getCBOCounterState(socket, 3);
+                }
+                else
+                {
+                    result.UncHARequests += server_pcicfg_uncore[socket]->getHARequests();
+                    result.UncHALocalRequests += server_pcicfg_uncore[socket]->getHALocalRequests();
+                }
             }
             if (PMMTrafficMetricsAvailable())
             {
@@ -6330,8 +6338,8 @@ void PCM::initLLCReadMissLatencyEvents(uint64 * events, uint32 & opCode)
         umask |= 3ULL; // MISS_OPCODE
     }
 
-    events[0] = CBO_MSR_PMON_CTL_EVENT(0x36) + CBO_MSR_PMON_CTL_UMASK(umask), // TOR_OCCUPANCY (must be on counter 0)
-    events[1] = CBO_MSR_PMON_CTL_EVENT(0x35) + CBO_MSR_PMON_CTL_UMASK(umask), // TOR_INSERTS
+    events[0] = CBO_MSR_PMON_CTL_EVENT(0x36) + CBO_MSR_PMON_CTL_UMASK(umask); // TOR_OCCUPANCY (must be on counter 0)
+    events[1] = CBO_MSR_PMON_CTL_EVENT(0x35) + CBO_MSR_PMON_CTL_UMASK(umask); // TOR_INSERTS
 
     opCode = (SKX == cpu_model) ? 0x202 : 0x182;
 }
@@ -6342,12 +6350,31 @@ void PCM::programCbo()
     uint32 opCode = 0;
 
     initLLCReadMissLatencyEvents(events, opCode);
+    initCHARequestEvents(events);
 
     programCbo(events, opCode);
 
     for (auto & pmu : uboxPMUs)
     {
         *pmu.fixedCounterControl = UCLK_FIXED_CTL_EN;
+    }
+}
+
+void PCM::initCHARequestEvents(uint64 * config)
+{
+    if (localMemoryRequestRatioMetricAvailable() && hasCHA())
+    {
+#ifdef PCM_HA_REQUESTS_READS_ONLY
+        // HA REQUESTS READ: LOCAL + REMOTE
+        config[2] = CBO_MSR_PMON_CTL_EVENT(0x50) + CBO_MSR_PMON_CTL_UMASK((1 + 2));
+        // HA REQUESTS READ: LOCAL ONLY
+        config[3] = CBO_MSR_PMON_CTL_EVENT(0x50) + CBO_MSR_PMON_CTL_UMASK((1));
+#else
+        // HA REQUESTS READ+WRITE+REMOTE+LOCAL
+        config[2] = CBO_MSR_PMON_CTL_EVENT(0x50) + CBO_MSR_PMON_CTL_UMASK((1 + 2 + 4 + 8));
+        // HA REQUESTS READ+WRITE (LOCAL only)
+        config[3] = CBO_MSR_PMON_CTL_EVENT(0x50) + CBO_MSR_PMON_CTL_UMASK((1 + 4));
+#endif
     }
 }
 

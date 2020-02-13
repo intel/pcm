@@ -28,6 +28,8 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #define PCM_API
 #endif
 
+#undef PCM_HA_REQUESTS_READS_ONLY
+
 #include "types.h"
 #include "msr.h"
 #include "pci.h"
@@ -860,6 +862,7 @@ private:
     uint32 getMaxNumOfCBoxes() const;
     void programCboOpcodeFilter(const uint32 opc0, UncorePMU & pmu, const uint32 nc_, const uint32 opc1, const uint32 loc, const uint32 rem);
     void initLLCReadMissLatencyEvents(uint64 * events, uint32 & opCode);
+    void initCHARequestEvents(uint64 * events);
     void programCbo();
     uint64 getCBOCounterState(const uint32 socket, const uint32 ctr_);
 
@@ -1611,7 +1614,9 @@ public:
     bool localMemoryRequestRatioMetricAvailable() const
     {
         return cpu_model == PCM::HASWELLX
-            || cpu_model == PCM::BDX;
+            || cpu_model == PCM::BDX
+            || cpu_model == PCM::SKX
+            ;
     }
 
     bool qpiUtilizationMetricsAvailable() const
@@ -1715,6 +1720,13 @@ public:
             return "UPI";
 
         return "QPI";
+    }
+
+    const bool hasCHA() const
+    {
+        return (
+            cpu_model == PCM::SKX
+               );
     }
 
     bool supportsHLE() const;
