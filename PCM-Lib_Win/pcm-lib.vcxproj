@@ -22,29 +22,29 @@
     <ProjectGuid>{A4206CE7-A913-42ED-B3B9-F7CF5076633B}</ProjectGuid>
     <RootNamespace>pcm.dll</RootNamespace>
     <Keyword>Win32Proj</Keyword>
-    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v140</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v140</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v140</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
     <WholeProgramOptimization>false</WholeProgramOptimization>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v140</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
@@ -190,8 +190,7 @@
     <ClCompile Include="..\winpmem\winpmem.cpp" />
     <ClCompile Include="..\msr.cpp" />
     <ClCompile Include="..\pci.cpp" />
-    <ClCompile Include="..\client_bw.cpp" />
-    <ClCompile Include="..\mmio.cpp" />
+    <ClCompile Include="..\client_bw.cpp" /> <ClCompile Include="..\mmio.cpp" />
     <ClCompile Include="..\utils.cpp" />
     <ClCompile Include="..\PCM_Win\restrictDriverAccess.cpp">
       <CompileAsManaged>true</CompileAsManaged>
@@ -203,8 +202,7 @@
     <ClInclude Include="pcm-lib.h" />
     <ClInclude Include="..\msr.h" />
     <ClInclude Include="..\pci.h" />
-    <ClInclude Include="..\client_bw.h" />
-    <ClInclude Include="..\mmio.h" />
+    <ClInclude Include="..\client_bw.h" /> <ClInclude Include="..\mmio.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
