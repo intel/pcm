@@ -28,6 +28,8 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #define PCM_API
 #endif
 
+#undef PCM_HA_REQUESTS_READS_ONLY
+
 #include "types.h"
 #include "msr.h"
 #include "pci.h"
@@ -232,6 +234,8 @@ public:
     }
 };
 
+#undef PCM_UNCORE_PMON_BOX_CHECK_STATUS // debug only
+
 class UncorePMU
 {
     typedef std::shared_ptr<HWRegister> HWRegisterPtr;
@@ -276,6 +280,27 @@ public:
         if (unitControl.get()) *unitControl = 0;
         if (fixedCounterControl.get()) *fixedCounterControl = 0;
     }
+    void freeze(const uint32 extra)
+    {
+        // freeze enable
+        *unitControl = extra;
+        // freeze
+        *unitControl = extra + UNC_PMON_UNIT_CTL_FRZ;
+
+#ifdef PCM_UNCORE_PMON_BOX_CHECK_STATUS
+        const uint64 val = *unitControl;
+        if ((val & UNC_PMON_UNIT_CTL_VALID_BITS_MASK) != (extra + UNC_PMON_UNIT_CTL_FRZ))
+            std::cerr << "ERROR: PMU counter programming seems not to work. PMON_BOX_CTL=0x" << std::hex << val << " needs to be =0x" << (UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ) << std::endl;
+#endif
+    }
+    void resetUnfreeze(const uint32 extra)
+    {
+        // reset counter values
+        *unitControl = extra + UNC_PMON_UNIT_CTL_FRZ + UNC_PMON_UNIT_CTL_RST_COUNTERS;
+
+        // unfreeze counters
+        *unitControl = extra;
+    }
 };
 
 //! Object to access uncore counters in a socket/processor with microarchitecture codename SandyBridge-EP (Jaketown) or Ivytown-EP or Ivytown-EX
@@ -289,12 +314,14 @@ class ServerPCICFGUncore
     std::vector<UncorePMU> edcPMUs;
     std::vector<UncorePMU> xpiPMUs;
     std::vector<UncorePMU> m2mPMUs;
+    std::vector<UncorePMU> haPMUs;
     std::vector<uint64> qpi_speed;
     std::vector<uint32> num_imc_channels; // number of memory channels in each memory controller
     std::vector<std::pair<uint32, uint32> > XPIRegisterLocation; // (device, function)
     std::vector<std::vector< std::pair<uint32, uint32> > > MCRegisterLocation; // MCRegisterLocation[controller]: (device, function)
     std::vector<std::pair<uint32, uint32> > EDCRegisterLocation; // EDCRegisterLocation: (device, function)
     std::vector<std::pair<uint32, uint32> > M2MRegisterLocation; // M2MRegisterLocation: (device, function)
+    std::vector<std::pair<uint32, uint32> > HARegisterLocation;  // HARegisterLocation: (device, function)
 
     static PCM_Util::Mutex socket2busMutex;
     static std::vector<std::pair<uint32, uint32> > socket2iMCbus;
@@ -309,6 +336,8 @@ class ServerPCICFGUncore
     void programIMC(const uint32 * MCCntConfig);
     void programEDC(const uint32 * EDCCntConfig);
     void programM2M();
+    void programHA(const uint32 * config);
+    void programHA();
     void programXPI(const uint32 * XPICntConfig);
     typedef std::pair<size_t, std::vector<uint64 *> > MemTestParam;
     void initMemTest(MemTestParam & param);
@@ -321,6 +350,7 @@ class ServerPCICFGUncore
     void initPerf(uint32 socket_, const PCM * pcm);
     void initBuses(uint32 socket_, const PCM * pcm);
     void initRegisterLocations();
+    uint64 getPMUCounter(std::vector<UncorePMU> & pmu, const uint32 id, const uint32 counter);
 
 public:
     //! \brief Initialize access data structures
@@ -340,6 +370,10 @@ public:
     uint64 getImcReadsForChannels(uint32 beginChannel, uint32 endChannel);
     //! \brief Get the number of integrated controller writes (in cache lines)
     uint64 getImcWrites();
+    //! \brief Get the number of requests to home agent (BDX/HSX only)
+    uint64 getHALocalRequests();
+    //! \brief Get the number of local requests to home agent (BDX/HSX only)
+    uint64 getHARequests();
 
     //! \brief Get the number of PMM memory reads (in cache lines)
     uint64 getPMMReads();
@@ -827,7 +861,9 @@ private:
     uint64 CX_MSR_PMON_BOX_CTL(uint32 Cbo) const;
     uint32 getMaxNumOfCBoxes() const;
     void programCboOpcodeFilter(const uint32 opc0, UncorePMU & pmu, const uint32 nc_, const uint32 opc1, const uint32 loc, const uint32 rem);
-    void programLLCReadMissLatencyEvents();
+    void initLLCReadMissLatencyEvents(uint64 * events, uint32 & opCode);
+    void initCHARequestEvents(uint64 * events);
+    void programCbo();
     uint64 getCBOCounterState(const uint32 socket, const uint32 ctr_);
 
     void cleanupUncorePMUs();
@@ -1575,6 +1611,14 @@ public:
                );
     }
 
+    bool localMemoryRequestRatioMetricAvailable() const
+    {
+        return cpu_model == PCM::HASWELLX
+            || cpu_model == PCM::BDX
+            || cpu_model == PCM::SKX
+            ;
+    }
+
     bool qpiUtilizationMetricsAvailable() const
     {
         return outgoingQPITrafficMetricsAvailable();
@@ -1676,6 +1720,13 @@ public:
             return "UPI";
 
         return "QPI";
+    }
+
+    const bool hasCHA() const
+    {
+        return (
+            cpu_model == PCM::SKX
+               );
     }
 
     bool supportsHLE() const;
@@ -2199,10 +2250,14 @@ class UncoreCounterState
     friend double getPackageCStateResidency(int state, const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
     friend double getLLCReadMissLatency(const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
+    friend double getLocalMemoryRequestRatio(const CounterStateType & before, const CounterStateType & after);
 
 protected:
     uint64 UncMCFullWrites;
     uint64 UncMCNormalReads;
+    uint64 UncHARequests;
+    uint64 UncHALocalRequests;
     uint64 UncPMMWrites;
     uint64 UncPMMReads;
     uint64 UncEDCFullWrites;
@@ -2220,6 +2275,8 @@ public:
     UncoreCounterState() :
         UncMCFullWrites(0),
         UncMCNormalReads(0),
+        UncHARequests(0),
+        UncHALocalRequests(0),
         UncPMMWrites(0),
         UncPMMReads(0),
         UncEDCFullWrites(0),
@@ -2239,6 +2296,8 @@ public:
     {
         UncMCFullWrites += o.UncMCFullWrites;
         UncMCNormalReads += o.UncMCNormalReads;
+        UncHARequests += o.UncHARequests;
+        UncHALocalRequests += o.UncHALocalRequests;
         UncPMMReads += o.UncPMMReads;
         UncPMMWrites += o.UncPMMWrites;
         UncEDCFullWrites += o.UncEDCFullWrites;
@@ -3281,6 +3340,21 @@ inline double getQPItoMCTrafficRatio(const SystemCounterState & before, const Sy
         memTraffic += getBytesReadFromPMM(before, after) + getBytesWrittenToPMM(before, after);
     }
     return double(totalQPI) / double(memTraffic);
+}
+
+/*! \brief Get local memory access ration measured in home agent
+
+    \param before System CPU counter state before the experiment
+    \param after System CPU counter state after the experiment
+    \return Ratio
+*/
+template <class CounterStateType>
+inline double getLocalMemoryRequestRatio(const CounterStateType & before, const CounterStateType & after)
+{
+    const auto all = after.UncHARequests - before.UncHARequests;
+    const auto local = after.UncHALocalRequests - before.UncHALocalRequests;
+    // std::cout << "DEBUG "<< 64*all/1e6 << " " << 64*local/1e6 << std::endl;
+    return double(local)/double(all);
 }
 
 //! \brief Returns the raw count of events
