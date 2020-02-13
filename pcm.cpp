@@ -179,6 +179,7 @@ void print_output(PCM * m,
         cout << " L2MPI : number of L2 (read) cache misses per instruction\n";
     if (m->memoryTrafficMetricsAvailable()) cout << " READ  : bytes read from main memory controller (in GBytes)" << "\n";
     if (m->memoryTrafficMetricsAvailable()) cout << " WRITE : bytes written to main memory controller (in GBytes)" << "\n";
+    if (m->localMemoryRequestRatioMetricAvailable()) cout << " LOCAL : ratio of local memory requests to memory controller in %" << "\n";
     if (m->LLCReadMissLatencyMetricsAvailable()) cout << "LLCRDMISSLAT: average latency of last level cache miss for reads and prefetches (in ns)" << "\n";
     if (m->PMMTrafficMetricsAvailable()) cout << " PMM RD : bytes read from PMM memory (in GBytes)" << "\n";
     if (m->PMMTrafficMetricsAvailable()) cout << " PMM WR : bytes written to PMM memory (in GBytes)" << "\n";
@@ -537,6 +538,9 @@ void print_csv_header(PCM * m,
         if (m->memoryTrafficMetricsAvailable())
             cout << ",,";
 
+        if (m->localMemoryRequestRatioMetricAvailable())
+            cout << ",";
+
         if (m->PMMTrafficMetricsAvailable())
             cout << ",,";
 
@@ -581,6 +585,8 @@ void print_csv_header(PCM * m,
                 cout << ",";
             if (m->memoryTrafficMetricsAvailable())
                 cout << ",,";
+            if (m->localMemoryRequestRatioMetricAvailable())
+                cout << ",";
             if (m->PMMTrafficMetricsAvailable())
                  cout << ",,";
             if (m->MCDRAMmemoryTrafficMetricsAvailable())
@@ -685,6 +691,9 @@ void print_csv_header(PCM * m,
         if (m->memoryTrafficMetricsAvailable())
                 cout << "READ,WRITE,";
 
+        if (m->localMemoryRequestRatioMetricAvailable())
+            cout << "LOCAL,";
+
         if (m->PMMTrafficMetricsAvailable())
             cout << "PMM_RD,PMM_WR,";
 
@@ -729,6 +738,8 @@ void print_csv_header(PCM * m,
                  cout << "RMB,";
              if (m->memoryTrafficMetricsAvailable())
                  cout << "READ,WRITE,";
+             if (m->localMemoryRequestRatioMetricAvailable())
+                 cout << "LOCAL,";
              if (m->PMMTrafficMetricsAvailable())
                  cout << "PMM_RD,PMM_WR,";
              if (m->MCDRAMmemoryTrafficMetricsAvailable())
@@ -891,6 +902,9 @@ void print_csv(PCM * m,
                 cout << getBytesReadFromMC(sstate1, sstate2) / double(1e9) <<
                 ',' << getBytesWrittenToMC(sstate1, sstate2) / double(1e9) << ',';
 
+        if (m->localMemoryRequestRatioMetricAvailable())
+            cout << int(100. * getLocalMemoryRequestRatio(sstate1, sstate2)) << ',';
+
         if (m->PMMTrafficMetricsAvailable())
             cout << getBytesReadFromPMM(sstate1, sstate2) / double(1e9) <<
             ',' << getBytesWrittenToPMM(sstate1, sstate2) / double(1e9) << ',';
@@ -940,6 +954,8 @@ void print_csv(PCM * m,
             if (m->memoryTrafficMetricsAvailable())
                 cout << ',' << getBytesReadFromMC(sktstate1[i], sktstate2[i]) / double(1e9) <<
                     ',' << getBytesWrittenToMC(sktstate1[i], sktstate2[i]) / double(1e9);
+            if (m->localMemoryRequestRatioMetricAvailable())
+                cout << ',' << int(100. * getLocalMemoryRequestRatio(sktstate1[i], sktstate2[i]));
             if (m->PMMTrafficMetricsAvailable())
                 cout << ',' << getBytesReadFromPMM(sktstate1[i], sktstate2[i]) / double(1e9) <<
                 ',' << getBytesWrittenToPMM(sktstate1[i], sktstate2[i]) / double(1e9);
