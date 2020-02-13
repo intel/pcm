@@ -3855,8 +3855,8 @@ void PCM::readAndAggregateUncoreMCCounters(const uint32 socket, CounterStateType
             {
                 if (hasCHA())
                 {
-                    result.UncHARequests += getCBOCounterState(socket, 2);
-                    result.UncHALocalRequests += getCBOCounterState(socket, 3);
+                    result.UncHARequests += getCBOCounterState(socket, EventPosition::REQUESTS_ALL);
+                    result.UncHALocalRequests += getCBOCounterState(socket, EventPosition::REQUESTS_LOCAL);
                 }
                 else
                 {
@@ -3878,8 +3878,8 @@ void PCM::readAndAggregateUncoreMCCounters(const uint32 socket, CounterStateType
         }
         if (LLCReadMissLatencyMetricsAvailable())
         {
-            result.TOROccupancyIAMiss += getCBOCounterState(socket, 0);
-            result.TORInsertsIAMiss += getCBOCounterState(socket, 1);
+            result.TOROccupancyIAMiss += getCBOCounterState(socket, EventPosition::TOR_OCCUPANCY);
+            result.TORInsertsIAMiss += getCBOCounterState(socket, EventPosition::TOR_INSERTS);
             result.UncClocks += getUncoreClocks(socket);
         }
     }
@@ -5721,7 +5721,7 @@ uint64 ServerPCICFGUncore::getHARequests()
     uint64 result = 0;
     for (auto & pmu: haPMUs)
     {
-        result += *pmu.counterValue[2];
+        result += *pmu.counterValue[PCM::EventPosition::REQUESTS_ALL];
     }
     return result;
 }
@@ -5731,28 +5731,28 @@ uint64 ServerPCICFGUncore::getHALocalRequests()
     uint64 result = 0;
     for (auto & pmu: haPMUs)
     {
-        result += *pmu.counterValue[3];
+        result += *pmu.counterValue[PCM::EventPosition::REQUESTS_LOCAL];
     }
     return result;
 }
 
 void ServerPCICFGUncore::programHA()
 {
-    uint32 config[4];
-    config[0] = 0;
-    config[1] = 0;
-    #ifdef PCM_HA_REQUESTS_READS_ONLY
-    // HA REQUESTS READ: LOCAL + REMOTE
-    config[2] = HA_PCI_PMON_CTL_EVENT(0x01) + HA_PCI_PMON_CTL_UMASK((1+2));
-    // HA REQUESTS READ: LOCAL ONLY
-    config[3] = HA_PCI_PMON_CTL_EVENT(0x01) + HA_PCI_PMON_CTL_UMASK((1));
-    #else
-    // HA REQUESTS READ+WRITE+REMOTE+LOCAL
-    config[2] = HA_PCI_PMON_CTL_EVENT(0x01) + HA_PCI_PMON_CTL_UMASK((1+2+4+8));
-    // HA REQUESTS READ+WRITE (LOCAL only)
-    config[3] = HA_PCI_PMON_CTL_EVENT(0x01) + HA_PCI_PMON_CTL_UMASK((1+4));
-    #endif
-    programHA(config);
+	uint32 config[4];
+	config[0] = 0;
+	config[1] = 0;
+#ifdef PCM_HA_REQUESTS_READS_ONLY
+	// HA REQUESTS READ: LOCAL + REMOTE
+	config[PCM::EventPosition::REQUESTS_ALL] = HA_PCI_PMON_CTL_EVENT(0x01) + HA_PCI_PMON_CTL_UMASK((1 + 2));
+	// HA REQUESTS READ: LOCAL ONLY
+	config[PCM::EventPosition::REQUESTS_LOCAL] = HA_PCI_PMON_CTL_EVENT(0x01) + HA_PCI_PMON_CTL_UMASK((1));
+#else
+	// HA REQUESTS READ+WRITE+REMOTE+LOCAL
+	config[PCM::EventPosition::REQUESTS_ALL] = HA_PCI_PMON_CTL_EVENT(0x01) + HA_PCI_PMON_CTL_UMASK((1 + 2 + 4 + 8));
+	// HA REQUESTS READ+WRITE (LOCAL only)
+	config[PCM::EventPosition::REQUESTS_LOCAL] = HA_PCI_PMON_CTL_EVENT(0x01) + HA_PCI_PMON_CTL_UMASK((1 + 4));
+#endif
+	programHA(config);
 }
 
 void ServerPCICFGUncore::freezeCounters()
@@ -6359,8 +6359,8 @@ void PCM::initLLCReadMissLatencyEvents(uint64 * events, uint32 & opCode)
         umask |= 3ULL; // MISS_OPCODE
     }
 
-    events[0] = CBO_MSR_PMON_CTL_EVENT(0x36) + CBO_MSR_PMON_CTL_UMASK(umask); // TOR_OCCUPANCY (must be on counter 0)
-    events[1] = CBO_MSR_PMON_CTL_EVENT(0x35) + CBO_MSR_PMON_CTL_UMASK(umask); // TOR_INSERTS
+    events[EventPosition::TOR_OCCUPANCY] = CBO_MSR_PMON_CTL_EVENT(0x36) + CBO_MSR_PMON_CTL_UMASK(umask); // TOR_OCCUPANCY (must be on counter 0)
+    events[EventPosition::TOR_INSERTS] = CBO_MSR_PMON_CTL_EVENT(0x35) + CBO_MSR_PMON_CTL_UMASK(umask); // TOR_INSERTS
 
     opCode = (SKX == cpu_model) ? 0x202 : 0x182;
 }
@@ -6387,14 +6387,14 @@ void PCM::initCHARequestEvents(uint64 * config)
     {
 #ifdef PCM_HA_REQUESTS_READS_ONLY
         // HA REQUESTS READ: LOCAL + REMOTE
-        config[2] = CBO_MSR_PMON_CTL_EVENT(0x50) + CBO_MSR_PMON_CTL_UMASK((1 + 2));
+        config[EventPosition::REQUESTS_ALL] = CBO_MSR_PMON_CTL_EVENT(0x50) + CBO_MSR_PMON_CTL_UMASK((1 + 2));
         // HA REQUESTS READ: LOCAL ONLY
-        config[3] = CBO_MSR_PMON_CTL_EVENT(0x50) + CBO_MSR_PMON_CTL_UMASK((1));
+        config[EventPosition::REQUESTS_LOCAL] = CBO_MSR_PMON_CTL_EVENT(0x50) + CBO_MSR_PMON_CTL_UMASK((1));
 #else
         // HA REQUESTS READ+WRITE+REMOTE+LOCAL
-        config[2] = CBO_MSR_PMON_CTL_EVENT(0x50) + CBO_MSR_PMON_CTL_UMASK((1 + 2 + 4 + 8));
+        config[EventPosition::REQUESTS_ALL] = CBO_MSR_PMON_CTL_EVENT(0x50) + CBO_MSR_PMON_CTL_UMASK((1 + 2 + 4 + 8));
         // HA REQUESTS READ+WRITE (LOCAL only)
-        config[3] = CBO_MSR_PMON_CTL_EVENT(0x50) + CBO_MSR_PMON_CTL_UMASK((1 + 4));
+        config[EventPosition::REQUESTS_LOCAL] = CBO_MSR_PMON_CTL_EVENT(0x50) + CBO_MSR_PMON_CTL_UMASK((1 + 4));
 #endif
     }
 }

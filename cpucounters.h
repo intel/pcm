@@ -892,6 +892,13 @@ private:
     void initUncorePMUsPerf();
 
 public:
+    enum EventPosition
+    {
+        TOR_OCCUPANCY = 0,
+        TOR_INSERTS = 1,
+        REQUESTS_ALL = 2,
+        REQUESTS_LOCAL = 3
+    };
     //! check if in secure boot mode
     bool isSecureBoot() const;
 
