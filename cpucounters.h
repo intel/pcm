@@ -859,7 +859,8 @@ private:
     uint64 CX_MSR_PMON_BOX_CTL(uint32 Cbo) const;
     uint32 getMaxNumOfCBoxes() const;
     void programCboOpcodeFilter(const uint32 opc0, UncorePMU & pmu, const uint32 nc_, const uint32 opc1, const uint32 loc, const uint32 rem);
-    void programLLCReadMissLatencyEvents();
+    void initLLCReadMissLatencyEvents(uint64 * events, uint32 & opCode);
+    void programCbo();
     uint64 getCBOCounterState(const uint32 socket, const uint32 ctr_);
 
     void cleanupUncorePMUs();

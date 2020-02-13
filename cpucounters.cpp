@@ -2319,7 +2319,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
         }
     }
 
-    programLLCReadMissLatencyEvents();
+    programCbo();
 
     reportQPISpeed();
 
@@ -6313,7 +6313,7 @@ PCIeCounterState PCM::getPCIeCounterState(const uint32 socket_)
     return result;
 }
 
-void PCM::programLLCReadMissLatencyEvents()
+void PCM::initLLCReadMissLatencyEvents(uint64 * events, uint32 & opCode)
 {
     if (LLCReadMissLatencyMetricsAvailable() == false)
     {
@@ -6329,13 +6329,20 @@ void PCM::programLLCReadMissLatencyEvents()
     {
         umask |= 3ULL; // MISS_OPCODE
     }
-    uint64 events[4] = {
-            CBO_MSR_PMON_CTL_EVENT(0x36) + CBO_MSR_PMON_CTL_UMASK(umask), // TOR_OCCUPANCY (must be on counter 0)
-            CBO_MSR_PMON_CTL_EVENT(0x35) + CBO_MSR_PMON_CTL_UMASK(umask), // TOR_INSERTS
-            0,
-            0
-    };
-    const uint32 opCode = (SKX == cpu_model) ? 0x202 : 0x182;
+
+    events[0] = CBO_MSR_PMON_CTL_EVENT(0x36) + CBO_MSR_PMON_CTL_UMASK(umask), // TOR_OCCUPANCY (must be on counter 0)
+    events[1] = CBO_MSR_PMON_CTL_EVENT(0x35) + CBO_MSR_PMON_CTL_UMASK(umask), // TOR_INSERTS
+
+    opCode = (SKX == cpu_model) ? 0x202 : 0x182;
+}
+
+void PCM::programCbo()
+{
+    uint64 events[4] = {0, 0, 0, 0};
+    uint32 opCode = 0;
+
+    initLLCReadMissLatencyEvents(events, opCode);
+
     programCbo(events, opCode);
 
     for (auto & pmu : uboxPMUs)
