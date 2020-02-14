@@ -3855,8 +3855,8 @@ void PCM::readAndAggregateUncoreMCCounters(const uint32 socket, CounterStateType
             {
                 if (hasCHA())
                 {
-                    result.UncHARequests += getCBOCounterState(socket, 2);
-                    result.UncHALocalRequests += getCBOCounterState(socket, 3);
+                    result.UncHARequests += getCBOCounterState(socket, EventPosition::REQUESTS_ALL);
+                    result.UncHALocalRequests += getCBOCounterState(socket, EventPosition::REQUESTS_LOCAL);
                 }
                 else
                 {
@@ -3878,8 +3878,8 @@ void PCM::readAndAggregateUncoreMCCounters(const uint32 socket, CounterStateType
         }
         if (LLCReadMissLatencyMetricsAvailable())
         {
-            result.TOROccupancyIAMiss += getCBOCounterState(socket, 0);
-            result.TORInsertsIAMiss += getCBOCounterState(socket, 1);
+            result.TOROccupancyIAMiss += getCBOCounterState(socket, EventPosition::TOR_OCCUPANCY);
+            result.TORInsertsIAMiss += getCBOCounterState(socket, EventPosition::TOR_INSERTS);
             result.UncClocks += getUncoreClocks(socket);
         }
     }
@@ -5270,20 +5270,20 @@ void ServerPCICFGUncore::programServerUncoreMemoryMetrics(int rankA, int rankB, 
         switch(cpu_model)
         {
         case PCM::KNL:
-            MCCntConfig[0] = MC_CH_PCI_PMON_CTL_EVENT(0x03) + MC_CH_PCI_PMON_CTL_UMASK(1);  // monitor reads on counter 0: CAS.RD
-            MCCntConfig[1] = MC_CH_PCI_PMON_CTL_EVENT(0x03) + MC_CH_PCI_PMON_CTL_UMASK(2);  // monitor reads on counter 1: CAS.WR
-            EDCCntConfig[0] = MC_CH_PCI_PMON_CTL_EVENT(0x01) + MC_CH_PCI_PMON_CTL_UMASK(1);  // monitor reads on counter 0: RPQ
-            EDCCntConfig[1] = MC_CH_PCI_PMON_CTL_EVENT(0x02) + MC_CH_PCI_PMON_CTL_UMASK(1);  // monitor reads on counter 1: WPQ
+            MCCntConfig[EventPosition::READ] = MC_CH_PCI_PMON_CTL_EVENT(0x03) + MC_CH_PCI_PMON_CTL_UMASK(1);  // monitor reads on counter 0: CAS.RD
+            MCCntConfig[EventPosition::WRITE] = MC_CH_PCI_PMON_CTL_EVENT(0x03) + MC_CH_PCI_PMON_CTL_UMASK(2);  // monitor reads on counter 1: CAS.WR
+            EDCCntConfig[EventPosition::READ] = MC_CH_PCI_PMON_CTL_EVENT(0x01) + MC_CH_PCI_PMON_CTL_UMASK(1);  // monitor reads on counter 0: RPQ
+            EDCCntConfig[EventPosition::WRITE] = MC_CH_PCI_PMON_CTL_EVENT(0x02) + MC_CH_PCI_PMON_CTL_UMASK(1);  // monitor reads on counter 1: WPQ
             break;
         default:
-            MCCntConfig[0] = MC_CH_PCI_PMON_CTL_EVENT(0x04) + MC_CH_PCI_PMON_CTL_UMASK(3);  // monitor reads on counter 0: CAS_COUNT.RD
-            MCCntConfig[1] = MC_CH_PCI_PMON_CTL_EVENT(0x04) + MC_CH_PCI_PMON_CTL_UMASK(12); // monitor writes on counter 1: CAS_COUNT.WR
+            MCCntConfig[EventPosition::READ] = MC_CH_PCI_PMON_CTL_EVENT(0x04) + MC_CH_PCI_PMON_CTL_UMASK(3);  // monitor reads on counter 0: CAS_COUNT.RD
+            MCCntConfig[EventPosition::WRITE] = MC_CH_PCI_PMON_CTL_EVENT(0x04) + MC_CH_PCI_PMON_CTL_UMASK(12); // monitor writes on counter 1: CAS_COUNT.WR
             if (PMM)
             {
                 if (pcm->PMMTrafficMetricsAvailable())
                 {
-                    MCCntConfig[2] = MC_CH_PCI_PMON_CTL_EVENT(0xe3); // monitor PMM_RDQ_REQUESTS on counter 2
-                    MCCntConfig[3] = MC_CH_PCI_PMON_CTL_EVENT(0xe7); // monitor PMM_WPQ_REQUESTS on counter 3
+                    MCCntConfig[EventPosition::PMM_READ] = MC_CH_PCI_PMON_CTL_EVENT(0xe3); // monitor PMM_RDQ_REQUESTS on counter 2
+                    MCCntConfig[EventPosition::PMM_WRITE] = MC_CH_PCI_PMON_CTL_EVENT(0xe7); // monitor PMM_WPQ_REQUESTS on counter 3
                 }
                 else
                 {
@@ -5293,32 +5293,32 @@ void ServerPCICFGUncore::programServerUncoreMemoryMetrics(int rankA, int rankB, 
             }
             else
             {
-                MCCntConfig[2] = MC_CH_PCI_PMON_CTL_EVENT(0x04) + MC_CH_PCI_PMON_CTL_UMASK(2);  // monitor partial writes on counter 2: CAS_COUNT.RD_UNDERFILL,
+                MCCntConfig[EventPosition::PARTIAL] = MC_CH_PCI_PMON_CTL_EVENT(0x04) + MC_CH_PCI_PMON_CTL_UMASK(2);  // monitor partial writes on counter 2: CAS_COUNT.RD_UNDERFILL,
             }
         }
     } else {
         switch(cpu_model)
         {
         case PCM::IVYTOWN:
-            MCCntConfig[0] = MC_CH_PCI_PMON_CTL_EVENT((0xb0 + rankA)) + MC_CH_PCI_PMON_CTL_UMASK(0xff); // RD_CAS_RANK(rankA) all banks
-            MCCntConfig[1] = MC_CH_PCI_PMON_CTL_EVENT((0xb8 + rankA)) + MC_CH_PCI_PMON_CTL_UMASK(0xff); // WR_CAS_RANK(rankA) all banks
-            MCCntConfig[2] = MC_CH_PCI_PMON_CTL_EVENT((0xb0 + rankB)) + MC_CH_PCI_PMON_CTL_UMASK(0xff); // RD_CAS_RANK(rankB) all banks
-            MCCntConfig[3] = MC_CH_PCI_PMON_CTL_EVENT((0xb8 + rankB)) + MC_CH_PCI_PMON_CTL_UMASK(0xff); // WR_CAS_RANK(rankB) all banks
+            MCCntConfig[EventPosition::READ_RANK_A] = MC_CH_PCI_PMON_CTL_EVENT((0xb0 + rankA)) + MC_CH_PCI_PMON_CTL_UMASK(0xff); // RD_CAS_RANK(rankA) all banks
+            MCCntConfig[EventPosition::WRITE_RANK_A] = MC_CH_PCI_PMON_CTL_EVENT((0xb8 + rankA)) + MC_CH_PCI_PMON_CTL_UMASK(0xff); // WR_CAS_RANK(rankA) all banks
+            MCCntConfig[EventPosition::READ_RANK_B] = MC_CH_PCI_PMON_CTL_EVENT((0xb0 + rankB)) + MC_CH_PCI_PMON_CTL_UMASK(0xff); // RD_CAS_RANK(rankB) all banks
+            MCCntConfig[EventPosition::WRITE_RANK_B] = MC_CH_PCI_PMON_CTL_EVENT((0xb8 + rankB)) + MC_CH_PCI_PMON_CTL_UMASK(0xff); // WR_CAS_RANK(rankB) all banks
             break;
         case PCM::HASWELLX:
         case PCM::BDX_DE:
         case PCM::BDX:
         case PCM::SKX:
-            MCCntConfig[0] = MC_CH_PCI_PMON_CTL_EVENT((0xb0 + rankA)) + MC_CH_PCI_PMON_CTL_UMASK(16); // RD_CAS_RANK(rankA) all banks
-            MCCntConfig[1] = MC_CH_PCI_PMON_CTL_EVENT((0xb8 + rankA)) + MC_CH_PCI_PMON_CTL_UMASK(16); // WR_CAS_RANK(rankA) all banks
-            MCCntConfig[2] = MC_CH_PCI_PMON_CTL_EVENT((0xb0 + rankB)) + MC_CH_PCI_PMON_CTL_UMASK(16); // RD_CAS_RANK(rankB) all banks
-            MCCntConfig[3] = MC_CH_PCI_PMON_CTL_EVENT((0xb8 + rankB)) + MC_CH_PCI_PMON_CTL_UMASK(16); // WR_CAS_RANK(rankB) all banks
+            MCCntConfig[EventPosition::READ_RANK_A] = MC_CH_PCI_PMON_CTL_EVENT((0xb0 + rankA)) + MC_CH_PCI_PMON_CTL_UMASK(16); // RD_CAS_RANK(rankA) all banks
+            MCCntConfig[EventPosition::WRITE_RANK_A] = MC_CH_PCI_PMON_CTL_EVENT((0xb8 + rankA)) + MC_CH_PCI_PMON_CTL_UMASK(16); // WR_CAS_RANK(rankA) all banks
+            MCCntConfig[EventPosition::READ_RANK_B] = MC_CH_PCI_PMON_CTL_EVENT((0xb0 + rankB)) + MC_CH_PCI_PMON_CTL_UMASK(16); // RD_CAS_RANK(rankB) all banks
+            MCCntConfig[EventPosition::WRITE_RANK_B] = MC_CH_PCI_PMON_CTL_EVENT((0xb8 + rankB)) + MC_CH_PCI_PMON_CTL_UMASK(16); // WR_CAS_RANK(rankB) all banks
             break;
         case PCM::KNL:
-            MCCntConfig[0] = MC_CH_PCI_PMON_CTL_EVENT(0x03) + MC_CH_PCI_PMON_CTL_UMASK(1);  // monitor reads on counter 0: CAS.RD
-            MCCntConfig[1] = MC_CH_PCI_PMON_CTL_EVENT(0x03) + MC_CH_PCI_PMON_CTL_UMASK(2);  // monitor reads on counter 1: CAS.WR
-            EDCCntConfig[0] = MC_CH_PCI_PMON_CTL_EVENT(0x01) + MC_CH_PCI_PMON_CTL_UMASK(1);  // monitor reads on counter 0: RPQ
-            EDCCntConfig[1] = MC_CH_PCI_PMON_CTL_EVENT(0x02) + MC_CH_PCI_PMON_CTL_UMASK(1);  // monitor reads on counter 1: WPQ
+            MCCntConfig[EventPosition::READ] = MC_CH_PCI_PMON_CTL_EVENT(0x03) + MC_CH_PCI_PMON_CTL_UMASK(1);  // monitor reads on counter 0: CAS.RD
+            MCCntConfig[EventPosition::WRITE] = MC_CH_PCI_PMON_CTL_EVENT(0x03) + MC_CH_PCI_PMON_CTL_UMASK(2);  // monitor reads on counter 1: CAS.WR
+            EDCCntConfig[EventPosition::READ] = MC_CH_PCI_PMON_CTL_EVENT(0x01) + MC_CH_PCI_PMON_CTL_UMASK(1);  // monitor reads on counter 0: RPQ
+            EDCCntConfig[EventPosition::WRITE] = MC_CH_PCI_PMON_CTL_EVENT(0x02) + MC_CH_PCI_PMON_CTL_UMASK(1);  // monitor reads on counter 1: WPQ
             break;
         default:
             std::cerr << "PCM Error: your processor "<< pcm->getCPUBrandString() << " model "<< cpu_model << " does not support the requred performance events "<< std::endl;
@@ -5342,23 +5342,27 @@ void ServerPCICFGUncore::program()
     switch(cpu_model)
     {
     case PCM::KNL:
-        MCCntConfig[0] = MC_CH_PCI_PMON_CTL_EVENT(0x03) + MC_CH_PCI_PMON_CTL_UMASK(1);  // monitor reads on counter 0: CAS_COUNT.RD
-        MCCntConfig[1] = MC_CH_PCI_PMON_CTL_EVENT(0x03) + MC_CH_PCI_PMON_CTL_UMASK(2); // monitor writes on counter 1: CAS_COUNT.WR
-        EDCCntConfig[0] = MC_CH_PCI_PMON_CTL_EVENT(0x01) + MC_CH_PCI_PMON_CTL_UMASK(1);  // monitor reads on counter 0: RPQ
-        EDCCntConfig[1] = MC_CH_PCI_PMON_CTL_EVENT(0x02) + MC_CH_PCI_PMON_CTL_UMASK(1);  // monitor reads on counter 1: WPQ
+        MCCntConfig[EventPosition::READ] = MC_CH_PCI_PMON_CTL_EVENT(0x03) + MC_CH_PCI_PMON_CTL_UMASK(1);  // monitor reads on counter 0: CAS_COUNT.RD
+        MCCntConfig[EventPosition::WRITE] = MC_CH_PCI_PMON_CTL_EVENT(0x03) + MC_CH_PCI_PMON_CTL_UMASK(2); // monitor writes on counter 1: CAS_COUNT.WR
+        EDCCntConfig[EventPosition::READ] = MC_CH_PCI_PMON_CTL_EVENT(0x01) + MC_CH_PCI_PMON_CTL_UMASK(1);  // monitor reads on counter 0: RPQ
+        EDCCntConfig[EventPosition::WRITE] = MC_CH_PCI_PMON_CTL_EVENT(0x02) + MC_CH_PCI_PMON_CTL_UMASK(1);  // monitor reads on counter 1: WPQ
         break;
     default:
-        MCCntConfig[0] = MC_CH_PCI_PMON_CTL_EVENT(0x04) + MC_CH_PCI_PMON_CTL_UMASK(3);  // monitor reads on counter 0: CAS_COUNT.RD
-        MCCntConfig[1] = MC_CH_PCI_PMON_CTL_EVENT(0x04) + MC_CH_PCI_PMON_CTL_UMASK(12); // monitor writes on counter 1: CAS_COUNT.WR
+        MCCntConfig[EventPosition::READ] = MC_CH_PCI_PMON_CTL_EVENT(0x04) + MC_CH_PCI_PMON_CTL_UMASK(3);  // monitor reads on counter 0: CAS_COUNT.RD
+        MCCntConfig[EventPosition::WRITE] = MC_CH_PCI_PMON_CTL_EVENT(0x04) + MC_CH_PCI_PMON_CTL_UMASK(12); // monitor writes on counter 1: CAS_COUNT.WR
         if (pcm->PMMTrafficMetricsAvailable())
         {
-            MCCntConfig[2] = MC_CH_PCI_PMON_CTL_EVENT(0xe3); // monitor PMM_RDQ_REQUESTS on counter 2
-            MCCntConfig[3] = MC_CH_PCI_PMON_CTL_EVENT(0xe7); // monitor PMM_WPQ_REQUESTS on counter 3
+            MCCntConfig[EventPosition::PMM_READ] = MC_CH_PCI_PMON_CTL_EVENT(0xe3); // monitor PMM_RDQ_REQUESTS on counter 2
+            MCCntConfig[EventPosition::PMM_WRITE] = MC_CH_PCI_PMON_CTL_EVENT(0xe7); // monitor PMM_WPQ_REQUESTS on counter 3
         }
     }
 
     programIMC(MCCntConfig);
     if(cpu_model == PCM::KNL) programEDC(EDCCntConfig);
+
+#ifdef PCM_M2M_FOR_PMM_TRAFFIC
+    programM2M();
+#endif
 
     uint32 event[4];
     if(cpu_model == PCM::SKX)
@@ -5485,7 +5489,7 @@ uint64 ServerPCICFGUncore::getImcReadsForChannels(uint32 beginChannel, uint32 en
     uint64 result = 0;
     for (uint32 i = beginChannel; i < endChannel && i < imcPMUs.size(); ++i)
     {
-        result += getMCCounter(i, 0);
+        result += getMCCounter(i, EventPosition::READ);
     }
     return result;
 }
@@ -5495,7 +5499,7 @@ uint64 ServerPCICFGUncore::getImcWrites()
     uint64 result = 0;
     for (uint32 i = 0; i < (uint32)imcPMUs.size(); ++i)
     {
-        result += getMCCounter(i, 1);
+        result += getMCCounter(i, EventPosition::WRITE);
     }
 
     return result;
@@ -5506,7 +5510,11 @@ uint64 ServerPCICFGUncore::getPMMReads()
     uint64 result = 0;
     for (uint32 i = 0; i < (uint32)imcPMUs.size(); ++i)
     {
-        result += getMCCounter(i, 2);
+        #ifdef PCM_M2M_FOR_PMM_TRAFFIC
+        result += getM2MCounter(i, EventPosition::PMM_READ);
+        #else
+        result += getMCCounter(i, EventPosition::PMM_READ);
+        #endif
     }
     return result;
 }
@@ -5516,7 +5524,11 @@ uint64 ServerPCICFGUncore::getPMMWrites()
     uint64 result = 0;
     for (uint32 i = 0; i < (uint32)imcPMUs.size(); ++i)
     {
-        result += getMCCounter(i, 3);
+        #ifdef PCM_M2M_FOR_PMM_TRAFFIC
+        result += getM2MCounter(i, EventPosition::PMM_WRITE);
+        #else
+        result += getMCCounter(i, EventPosition::PMM_WRITE);
+        #endif
     }
     return result;
 }
@@ -5527,7 +5539,7 @@ uint64 ServerPCICFGUncore::getEdcReads()
 
     for (auto & pmu: edcPMUs)
     {
-        result += *pmu.counterValue[0];
+        result += *pmu.counterValue[EventPosition::READ];
     }
 
     return result;
@@ -5539,7 +5551,7 @@ uint64 ServerPCICFGUncore::getEdcWrites()
 
     for (auto & pmu : edcPMUs)
     {
-        result += *pmu.counterValue[1];
+        result += *pmu.counterValue[EventPosition::WRITE];
     }
 
     return result;
@@ -5671,10 +5683,19 @@ void ServerPCICFGUncore::programM2M()
         {
             pmu.freeze(UNC_PMON_UNIT_CTL_RSV);
 
-            *pmu.counterControl[0] = M2M_PCI_PMON_CTL_EN;
-            // TAG_HIT.NM_DRD_HIT_* events (CLEAN | DIRTY)
-            *pmu.counterControl[0] = M2M_PCI_PMON_CTL_EN + M2M_PCI_PMON_CTL_EVENT(0x2c) + M2M_PCI_PMON_CTL_UMASK(3);
-            *pmu.counterControl[3] = M2M_PCI_PMON_CTL_EN; // CLOCKTICKS
+            *pmu.counterControl[EventPosition::NM_HIT] = M2M_PCI_PMON_CTL_EN;
+            // UNC_M2M_TAG_HIT.NM_DRD_HIT_* events (CLEAN | DIRTY)
+            *pmu.counterControl[EventPosition::NM_HIT] = M2M_PCI_PMON_CTL_EN + M2M_PCI_PMON_CTL_EVENT(0x2c) + M2M_PCI_PMON_CTL_UMASK(3);
+
+            *pmu.counterControl[EventPosition::M2M_CLOCKTICKS] = M2M_PCI_PMON_CTL_EN; // CLOCKTICKS
+
+            *pmu.counterControl[EventPosition::PMM_READ] = M2M_PCI_PMON_CTL_EN;
+            // UNC_M2M_IMC_READS.TO_PMM
+            *pmu.counterControl[EventPosition::PMM_READ] = M2M_PCI_PMON_CTL_EN + M2M_PCI_PMON_CTL_EVENT(0x37) + M2M_PCI_PMON_CTL_UMASK(0x8);
+
+            *pmu.counterControl[EventPosition::PMM_WRITE] = M2M_PCI_PMON_CTL_EN;
+            // UNC_M2M_IMC_WRITES.TO_PMM
+            *pmu.counterControl[EventPosition::PMM_WRITE] = M2M_PCI_PMON_CTL_EN + M2M_PCI_PMON_CTL_EVENT(0x38) + M2M_PCI_PMON_CTL_UMASK(0x20);
 
             pmu.resetUnfreeze(UNC_PMON_UNIT_CTL_RSV);
         }
@@ -5700,7 +5721,7 @@ uint64 ServerPCICFGUncore::getHARequests()
     uint64 result = 0;
     for (auto & pmu: haPMUs)
     {
-        result += *pmu.counterValue[2];
+        result += *pmu.counterValue[PCM::EventPosition::REQUESTS_ALL];
     }
     return result;
 }
@@ -5710,28 +5731,28 @@ uint64 ServerPCICFGUncore::getHALocalRequests()
     uint64 result = 0;
     for (auto & pmu: haPMUs)
     {
-        result += *pmu.counterValue[3];
+        result += *pmu.counterValue[PCM::EventPosition::REQUESTS_LOCAL];
     }
     return result;
 }
 
 void ServerPCICFGUncore::programHA()
 {
-    uint32 config[4];
-    config[0] = 0;
-    config[1] = 0;
-    #ifdef PCM_HA_REQUESTS_READS_ONLY
-    // HA REQUESTS READ: LOCAL + REMOTE
-    config[2] = HA_PCI_PMON_CTL_EVENT(0x01) + HA_PCI_PMON_CTL_UMASK((1+2));
-    // HA REQUESTS READ: LOCAL ONLY
-    config[3] = HA_PCI_PMON_CTL_EVENT(0x01) + HA_PCI_PMON_CTL_UMASK((1));
-    #else
-    // HA REQUESTS READ+WRITE+REMOTE+LOCAL
-    config[2] = HA_PCI_PMON_CTL_EVENT(0x01) + HA_PCI_PMON_CTL_UMASK((1+2+4+8));
-    // HA REQUESTS READ+WRITE (LOCAL only)
-    config[3] = HA_PCI_PMON_CTL_EVENT(0x01) + HA_PCI_PMON_CTL_UMASK((1+4));
-    #endif
-    programHA(config);
+	uint32 config[4];
+	config[0] = 0;
+	config[1] = 0;
+#ifdef PCM_HA_REQUESTS_READS_ONLY
+	// HA REQUESTS READ: LOCAL + REMOTE
+	config[PCM::EventPosition::REQUESTS_ALL] = HA_PCI_PMON_CTL_EVENT(0x01) + HA_PCI_PMON_CTL_UMASK((1 + 2));
+	// HA REQUESTS READ: LOCAL ONLY
+	config[PCM::EventPosition::REQUESTS_LOCAL] = HA_PCI_PMON_CTL_EVENT(0x01) + HA_PCI_PMON_CTL_UMASK((1));
+#else
+	// HA REQUESTS READ+WRITE+REMOTE+LOCAL
+	config[PCM::EventPosition::REQUESTS_ALL] = HA_PCI_PMON_CTL_EVENT(0x01) + HA_PCI_PMON_CTL_UMASK((1 + 2 + 4 + 8));
+	// HA REQUESTS READ+WRITE (LOCAL only)
+	config[PCM::EventPosition::REQUESTS_LOCAL] = HA_PCI_PMON_CTL_EVENT(0x01) + HA_PCI_PMON_CTL_UMASK((1 + 4));
+#endif
+	programHA(config);
 }
 
 void ServerPCICFGUncore::freezeCounters()
@@ -6338,8 +6359,8 @@ void PCM::initLLCReadMissLatencyEvents(uint64 * events, uint32 & opCode)
         umask |= 3ULL; // MISS_OPCODE
     }
 
-    events[0] = CBO_MSR_PMON_CTL_EVENT(0x36) + CBO_MSR_PMON_CTL_UMASK(umask); // TOR_OCCUPANCY (must be on counter 0)
-    events[1] = CBO_MSR_PMON_CTL_EVENT(0x35) + CBO_MSR_PMON_CTL_UMASK(umask); // TOR_INSERTS
+    events[EventPosition::TOR_OCCUPANCY] = CBO_MSR_PMON_CTL_EVENT(0x36) + CBO_MSR_PMON_CTL_UMASK(umask); // TOR_OCCUPANCY (must be on counter 0)
+    events[EventPosition::TOR_INSERTS] = CBO_MSR_PMON_CTL_EVENT(0x35) + CBO_MSR_PMON_CTL_UMASK(umask); // TOR_INSERTS
 
     opCode = (SKX == cpu_model) ? 0x202 : 0x182;
 }
@@ -6366,14 +6387,14 @@ void PCM::initCHARequestEvents(uint64 * config)
     {
 #ifdef PCM_HA_REQUESTS_READS_ONLY
         // HA REQUESTS READ: LOCAL + REMOTE
-        config[2] = CBO_MSR_PMON_CTL_EVENT(0x50) + CBO_MSR_PMON_CTL_UMASK((1 + 2));
+        config[EventPosition::REQUESTS_ALL] = CBO_MSR_PMON_CTL_EVENT(0x50) + CBO_MSR_PMON_CTL_UMASK((1 + 2));
         // HA REQUESTS READ: LOCAL ONLY
-        config[3] = CBO_MSR_PMON_CTL_EVENT(0x50) + CBO_MSR_PMON_CTL_UMASK((1));
+        config[EventPosition::REQUESTS_LOCAL] = CBO_MSR_PMON_CTL_EVENT(0x50) + CBO_MSR_PMON_CTL_UMASK((1));
 #else
         // HA REQUESTS READ+WRITE+REMOTE+LOCAL
-        config[2] = CBO_MSR_PMON_CTL_EVENT(0x50) + CBO_MSR_PMON_CTL_UMASK((1 + 2 + 4 + 8));
+        config[EventPosition::REQUESTS_ALL] = CBO_MSR_PMON_CTL_EVENT(0x50) + CBO_MSR_PMON_CTL_UMASK((1 + 2 + 4 + 8));
         // HA REQUESTS READ+WRITE (LOCAL only)
-        config[3] = CBO_MSR_PMON_CTL_EVENT(0x50) + CBO_MSR_PMON_CTL_UMASK((1 + 4));
+        config[EventPosition::REQUESTS_LOCAL] = CBO_MSR_PMON_CTL_EVENT(0x50) + CBO_MSR_PMON_CTL_UMASK((1 + 4));
 #endif
     }
 }
