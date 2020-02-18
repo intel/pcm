@@ -82,7 +82,7 @@ void print_help(const string prog_name)
     cerr << "  -h    | --help  | /h               => print this help and exit" << endl;
     cerr << "  -rank=X | /rank=X                  => monitor DIMM rank X. At most 2 out of 8 total ranks can be monitored simultaneously." << endl;
     cerr << "  -pmm                               => monitor PMM memory bandwidth (instead of partial writes)." << endl;
-    cerr << "  -mixed                             => monitor PMM mixed mode (AppDirect + Memory Mode).." << endl;
+    cerr << "  -mixed                             => monitor PMM mixed mode (AppDirect + Memory Mode)." << endl;
     cerr << "  -nc   | --nochannel | /nc          => suppress output for individual channels." << endl;
     cerr << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or" << endl
          << "                                        to a file, in case filename is provided" << endl;
@@ -207,6 +207,18 @@ void printSocketChannelBW(uint32 no_columns, uint32 skt, uint32 num_imc_channels
     }
 }
 
+float AD_BW(const memdata_t *md, const uint32 skt)
+{
+    const auto totalPMM = md->iMC_PMM_Rd_socket[skt] + md->iMC_PMM_Wr_socket[skt];
+    return std::max(totalPMM - md->iMC_PMM_MemoryMode_Miss_socket[skt], float(0.0));
+}
+
+float PMM_MM_Ratio(const memdata_t *md, const uint32 skt)
+{
+    const auto dram = md->iMC_Rd_socket[skt] + md->iMC_Wr_socket[skt];
+    return md->iMC_PMM_MemoryMode_Miss_socket[skt] / dram;
+}
+
 void printSocketBWFooter(uint32 no_columns, uint32 skt, const memdata_t *md)
 {
     for (uint32 i=skt; i<(skt+no_columns); ++i) {
@@ -230,20 +242,19 @@ void printSocketBWFooter(uint32 no_columns, uint32 skt, const memdata_t *md)
     }
     if (md->PMMMixedMode)
     {
-        for (uint32 i=skt; i<(skt+no_columns); ++i) {
-            const auto totalPMM = md->iMC_PMM_Rd_socket[i] + md->iMC_PMM_Wr_socket[i];
-            const auto AD = std::max(totalPMM - md->iMC_PMM_MemoryMode_Miss_socket[i], float(0.0));
-            cout << "|-- NODE"<<setw(2)<<i<<" PMM AD Bw(MB/s):  "<<setw(8)<<AD<<" --|";
+        for (uint32 i = skt; i < (skt + no_columns); ++i)
+        {
+            cout << "|-- NODE" << setw(2) << i << " PMM AD Bw(MB/s):  " << setw(8) << AD_BW(md, i) << " --|";
         }
         cout << endl;
-        for (uint32 i=skt; i<(skt+no_columns); ++i) {
-            cout << "|-- NODE"<<setw(2)<<i<<" PMM MM Bw(MB/s):  "<<setw(8)<<md->iMC_PMM_MemoryMode_Miss_socket[i]<<" --|";
+        for (uint32 i = skt; i < (skt + no_columns); ++i)
+        {
+            cout << "|-- NODE" << setw(2) << i << " PMM MM Bw(MB/s):  " << setw(8) << md->iMC_PMM_MemoryMode_Miss_socket[i] << " --|";
         }
         cout << endl;
-        for (uint32 i=skt; i<(skt+no_columns); ++i) {
-            const auto dram = md->iMC_Rd_socket[i] + md->iMC_Wr_socket[i];
-            const auto ratio = md->iMC_PMM_MemoryMode_Miss_socket[i]/dram;
-            cout << "|-- NODE" << setw(2) << i << " PMM MM Bw/DRAM Bw:" << setw(8) << ratio << " --|";
+        for (uint32 i = skt; i < (skt + no_columns); ++i)
+        {
+            cout << "|-- NODE" << setw(2) << i << " PMM MM Bw/DRAM Bw:" << setw(8) << PMM_MM_Ratio(md, i) << " --|";
         }
         cout << endl;
     }
@@ -432,7 +443,7 @@ void choose(const CsvOutputType outputType, H1 h1Func, H2 h2Func, D dataFunc)
 
 void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 elapsedTime, const bool show_channel_output, const CsvOutputType outputType)
 {
-    uint32 numSockets = m->getNumSockets();
+    const uint32 numSockets = m->getNumSockets();
     choose(outputType,
            []() {
                cout << ",,"; // Time
@@ -504,7 +515,7 @@ void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 elapsedTime, const bool
                         << setw(8) << md->iMC_Wr_socket[skt] << ',';
                });
 
-        if (md->PMM)
+        if (md->PMM || md->PMMMixedMode)
         {
             choose(outputType,
                    [printSKT]() {
@@ -518,9 +529,24 @@ void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 elapsedTime, const bool
                             << setw(8) << md->iMC_PMM_Wr_socket[skt] << ',';
                    });
         }
+        if (md->PMMMixedMode)
+        {
+            choose(outputType,
+                   [printSKT]() {
+                       printSKT(3);
+                   },
+                   []() {
+                       cout << "PMM_AD (MB/s), PMM_MM (MB/s), PMM_MM_Bw/DRAM_Bw,";
+                   },
+                   [&md, &skt]() {
+                       cout << setw(8) << AD_BW(md, skt) << ','
+                            << setw(8) << md->iMC_PMM_MemoryMode_Miss_socket[skt] << ','
+                            << setw(8) << PMM_MM_Ratio(md, skt) << ',';
+                   });
+        }
         if (m->getCPUModel() != PCM::KNL)
         {
-            if (md->PMM == false)
+            if (md->PMM == false && md->PMMMixedMode == false)
             {
                 choose(outputType,
                        [printSKT]() {
@@ -593,7 +619,7 @@ void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 elapsedTime, const bool
         }
     }
 
-    if (md->PMM)
+    if (md->PMM || md->PMMMixedMode)
     {
         choose(outputType,
                []() {
