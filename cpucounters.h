@@ -30,8 +30,6 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 #undef PCM_HA_REQUESTS_READS_ONLY
 
-// #define PCM_M2M_FOR_PMM_TRAFFIC
-
 #include "types.h"
 #include "msr.h"
 #include "pci.h"
@@ -365,6 +363,8 @@ public:
         PARTIAL=2,
         PMM_READ=2,
         PMM_WRITE=3,
+        PMM_MM_MISS_CLEAN=2,
+        PMM_MM_MISS_DIRTY=3,
         NM_HIT=0,  // NM :  Near Memory (DRAM cache) in Memory Mode
         M2M_CLOCKTICKS=1
     };
@@ -418,7 +418,8 @@ public:
     //! \param rankA count DIMM rank1 statistics (disables memory channel monitoring)
     //! \param rankB count DIMM rank2 statistics (disables memory channel monitoring)
     //! \param PMM monitor PMM bandwidth instead of partial writes
-    void programServerUncoreMemoryMetrics(int rankA = -1, int rankB = -1, bool PMM = false);
+    //! \param Program events for PMM mixed mode (AppDirect + MemoryMode)
+    void programServerUncoreMemoryMetrics(const int rankA = -1, const int rankB = -1, const bool PMM = false, const bool PMMMixedMode = false);
 
     //! \brief Get number of QPI LL clocks on a QPI port
     //! \param port QPI port number
@@ -1017,6 +1018,7 @@ public:
         \param rankA count DIMM rank1 statistics (disables memory channel monitoring)
         \param rankB count DIMM rank2 statistics (disables memory channel monitoring)
         \param PMM monitor PMM bandwidth instead of partial writes
+        \param Program events for PMM mixed mode (AppDirect + MemoryMode)
 
         Call this method before you start using the memory counter routines on microarchitecture codename SandyBridge-EP and later Xeon uarch
 
@@ -1025,7 +1027,7 @@ public:
         program PMUs: Intel(r) VTune(tm), Intel(r) Performance Tuning Utility (PTU). This code may make
         VTune or PTU measurements invalid. VTune or PTU measurement may make measurement with this code invalid. Please enable either usage of these routines or VTune/PTU/etc.
     */
-    ErrorCode programServerUncoreMemoryMetrics(int rankA = -1, int rankB = -1, bool PMM = false);
+    ErrorCode programServerUncoreMemoryMetrics(int rankA = -1, int rankB = -1, bool PMM = false, bool PMMMixedMode = false);
 
     //! \brief Freezes uncore event counting (works only on microarchitecture codename SandyBridge-EP and IvyTown)
     void freezeServerUncoreCounters();

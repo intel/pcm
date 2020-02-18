@@ -3581,13 +3581,13 @@ PCM::ErrorCode PCM::programServerUncoreLatencyMetrics(bool enable_pmm)
     return PCM::Success;
 }
 
-PCM::ErrorCode PCM::programServerUncoreMemoryMetrics(int rankA, int rankB, bool PMM)
+PCM::ErrorCode PCM::programServerUncoreMemoryMetrics(int rankA, int rankB, bool PMM, bool PMMMixedMode)
 {
     if(MSR.empty() || server_pcicfg_uncore.empty())  return PCM::MSRAccessDenied;
 
     for (int i = 0; (i < (int)server_pcicfg_uncore.size()) && MSR.size(); ++i)
     {
-        server_pcicfg_uncore[i]->programServerUncoreMemoryMetrics(rankA, rankB, PMM);
+        server_pcicfg_uncore[i]->programServerUncoreMemoryMetrics(rankA, rankB, PMM, PMMMixedMode);
     }
 
     return PCM::Success;
@@ -5260,7 +5260,7 @@ ServerPCICFGUncore::~ServerPCICFGUncore()
 }
 
 
-void ServerPCICFGUncore::programServerUncoreMemoryMetrics(int rankA, int rankB, bool PMM)
+void ServerPCICFGUncore::programServerUncoreMemoryMetrics(const int rankA, const int rankB, const bool PMM, const bool PMMMixedMode)
 {
     PCM * pcm = PCM::getInstance();
     uint32 MCCntConfig[4] = {0,0,0,0};
@@ -5282,8 +5282,16 @@ void ServerPCICFGUncore::programServerUncoreMemoryMetrics(int rankA, int rankB, 
             {
                 if (pcm->PMMTrafficMetricsAvailable())
                 {
-                    MCCntConfig[EventPosition::PMM_READ] = MC_CH_PCI_PMON_CTL_EVENT(0xe3); // monitor PMM_RDQ_REQUESTS on counter 2
-                    MCCntConfig[EventPosition::PMM_WRITE] = MC_CH_PCI_PMON_CTL_EVENT(0xe7); // monitor PMM_WPQ_REQUESTS on counter 3
+                    if (PMMMixedMode)
+                    {
+                        MCCntConfig[EventPosition::PMM_MM_MISS_CLEAN] = MC_CH_PCI_PMON_CTL_EVENT(0xd3) + MC_CH_PCI_PMON_CTL_UMASK(2); // monitor TAGCHK.MISS_CLEAN on counter 2
+                        MCCntConfig[EventPosition::PMM_MM_MISS_DIRTY] = MC_CH_PCI_PMON_CTL_EVENT(0xd3) + MC_CH_PCI_PMON_CTL_UMASK(4); // monitor TAGCHK.MISS_DIRTY on counter 3
+                    }
+                    else
+                    {
+                        MCCntConfig[EventPosition::PMM_READ] = MC_CH_PCI_PMON_CTL_EVENT(0xe3);  // monitor PMM_RDQ_REQUESTS on counter 2
+                        MCCntConfig[EventPosition::PMM_WRITE] = MC_CH_PCI_PMON_CTL_EVENT(0xe7); // monitor PMM_WPQ_REQUESTS on counter 3
+                    }
                 }
                 else
                 {
@@ -5360,9 +5368,7 @@ void ServerPCICFGUncore::program()
     programIMC(MCCntConfig);
     if(cpu_model == PCM::KNL) programEDC(EDCCntConfig);
 
-#ifdef PCM_M2M_FOR_PMM_TRAFFIC
     programM2M();
-#endif
 
     uint32 event[4];
     if(cpu_model == PCM::SKX)
@@ -5508,13 +5514,9 @@ uint64 ServerPCICFGUncore::getImcWrites()
 uint64 ServerPCICFGUncore::getPMMReads()
 {
     uint64 result = 0;
-    for (uint32 i = 0; i < (uint32)imcPMUs.size(); ++i)
+    for (uint32 i = 0; i < (uint32)m2mPMUs.size(); ++i)
     {
-        #ifdef PCM_M2M_FOR_PMM_TRAFFIC
         result += getM2MCounter(i, EventPosition::PMM_READ);
-        #else
-        result += getMCCounter(i, EventPosition::PMM_READ);
-        #endif
     }
     return result;
 }
@@ -5522,13 +5524,9 @@ uint64 ServerPCICFGUncore::getPMMReads()
 uint64 ServerPCICFGUncore::getPMMWrites()
 {
     uint64 result = 0;
-    for (uint32 i = 0; i < (uint32)imcPMUs.size(); ++i)
+    for (uint32 i = 0; i < (uint32)m2mPMUs.size(); ++i)
     {
-        #ifdef PCM_M2M_FOR_PMM_TRAFFIC
         result += getM2MCounter(i, EventPosition::PMM_WRITE);
-        #else
-        result += getMCCounter(i, EventPosition::PMM_WRITE);
-        #endif
     }
     return result;
 }
