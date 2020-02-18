@@ -210,7 +210,7 @@ void printSocketChannelBW(uint32 no_columns, uint32 skt, uint32 num_imc_channels
 float AD_BW(const memdata_t *md, const uint32 skt)
 {
     const auto totalPMM = md->iMC_PMM_Rd_socket[skt] + md->iMC_PMM_Wr_socket[skt];
-    return std::max(totalPMM - md->iMC_PMM_MemoryMode_Miss_socket[skt], float(0.0));
+    return (std::max)(totalPMM - md->iMC_PMM_MemoryMode_Miss_socket[skt], float(0.0));
 }
 
 float PMM_MM_Ratio(const memdata_t *md, const uint32 skt)
@@ -668,16 +668,16 @@ void calculate_bandwidth(PCM *m, const ServerUncorePowerState uncState1[], const
         md.EDC_Rd_socket[skt] = 0.0;
         md.EDC_Wr_socket[skt] = 0.0;
         md.partial_write[skt] = 0;
-        for(uint32 i=0; i < max_imc_controllers; ++i)
-        {
-            md.M2M_NM_read_hit_rate[skt][i] = 0.;
-        }
-        const uint32 numChannels1 = m->getMCChannels(skt, 0); // number of channels in the first controller
+		for (uint32 i = 0; i < max_imc_controllers; ++i)
+		{
+			md.M2M_NM_read_hit_rate[skt][i] = 0.;
+		}
+		const uint32 numChannels1 = (uint32)m->getMCChannels(skt, 0); // number of channels in the first controller
 
-        auto toBW = [&elapsedTime](const uint64 nEvents)
-        {
-            return (float)(nEvents * 64 / 1000000.0 / (elapsedTime / 1000.0));
-        };
+		auto toBW = [&elapsedTime](const uint64 nEvents)
+		{
+			return (float)(nEvents * 64 / 1000000.0 / (elapsedTime / 1000.0));
+		};
 
         switch (m->getCPUModel())
         {
