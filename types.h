@@ -574,6 +574,21 @@ struct BecktonUncorePMUCNTCTLRegister
 #define KNL_EDC7_ECLK_REGISTER_DEV_ADDR (31)
 #define KNL_EDC7_ECLK_REGISTER_FUNC_ADDR (2)
 
+#define HSX_HA0_REGISTER_DEV_ADDR (18)
+#define HSX_HA0_REGISTER_FUNC_ADDR (1)
+#define HSX_HA1_REGISTER_DEV_ADDR (18)
+#define HSX_HA1_REGISTER_FUNC_ADDR (5)
+
+#define XPF_HA_PCI_PMON_BOX_CTL_ADDR    (0xF4)
+#define XPF_HA_PCI_PMON_CTL0_ADDR       (0xD8 + 4*0)
+#define XPF_HA_PCI_PMON_CTL1_ADDR       (0xD8 + 4*1)
+#define XPF_HA_PCI_PMON_CTL2_ADDR       (0xD8 + 4*2)
+#define XPF_HA_PCI_PMON_CTL3_ADDR       (0xD8 + 4*3)
+#define XPF_HA_PCI_PMON_CTR0_ADDR       (0xA0 + 8*0)
+#define XPF_HA_PCI_PMON_CTR1_ADDR       (0xA0 + 8*1)
+#define XPF_HA_PCI_PMON_CTR2_ADDR       (0xA0 + 8*2)
+#define XPF_HA_PCI_PMON_CTR3_ADDR       (0xA0 + 8*3)
+
 /**
  * XPF_ for Xeons: SNB, IVT, HSX, BDW, etc.
  * KNX_ for Xeon Phi (Knights *) processors
@@ -878,6 +893,15 @@ struct BecktonUncorePMUCNTCTLRegister
 #define M2M_PCI_PMON_CTL_EN         (1 << 22)
 #define M2M_PCI_PMON_CTL_INVERT     (1 << 23)
 #define M2M_PCI_PMON_CTL_THRESH(x)  ((x) << 24ULL)
+
+#define HA_PCI_PMON_CTL_EVENT(x)   ((x) << 0)
+#define HA_PCI_PMON_CTL_UMASK(x)   ((x) << 8)
+#define HA_PCI_PMON_CTL_RST        (1 << 17)
+#define HA_PCI_PMON_CTL_EDGE_DET   (1 << 18)
+#define HA_PCI_PMON_CTL_OV_EN      (1 << 20)
+#define HA_PCI_PMON_CTL_EN         (1 << 22)
+#define HA_PCI_PMON_CTL_INVERT     (1 << 23)
+#define HA_PCI_PMON_CTL_THRESH(x)  ((x) << 24ULL)
 
 #define UCLK_FIXED_CTL_OV_EN (1 << 20)
 #define UCLK_FIXED_CTL_EN    (1 << 22)

@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2012-2018, Intel Corporation
+Copyright (c) 2012-2020, Intel Corporation
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -106,7 +106,7 @@ int main(int argc, char * argv[])
         return -1;
     }
     #endif
-    auto doOne = [&dec, &write, &value, &msr](int core)
+    auto doOne = [&dec, &write, &msr](int core, uint64 value)
     {
         try {
             MsrHandle h(core);
@@ -137,7 +137,7 @@ int main(int argc, char * argv[])
     };
     if (core >= 0)
     {
-        doOne(core);
+        doOne(core, value);
     }
     else
     {
@@ -147,7 +147,7 @@ int main(int argc, char * argv[])
         {
             if (m->isCoreOnline(i))
             {
-                doOne(i);
+                doOne(i, value);
             }
         }
     }
