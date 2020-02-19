@@ -10,5 +10,6 @@ verify uncore PMU register state after programming
 types.h : `#define PCM_DEBUG`
 print some debug information
 
-
+pci.h : `#define PCM_USE_PCI_MM_LINUX`
+use /dev/mem (direct memory mapped I/O) for PCICFG register access. This might be required for accessing registers in extended configuration space (beyond 4K) in pcm-pcicfg.x utility. Recent Linux kernels require to be booted with iomem=relaxed option to make this function.
 
