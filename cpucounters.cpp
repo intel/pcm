@@ -110,6 +110,7 @@ bool PCM::initWinRing0Lib()
 
     if (result == FALSE)
     {
+        CloseHandle(hOpenLibSys);
         hOpenLibSys = NULL;
         return false;
     }
