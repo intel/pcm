@@ -1203,13 +1203,14 @@ bool PCM::discoverSystemTopology()
         std::cerr << topology[i].socket << " " << topology[i].os_id << " " << topology[i].core_id << std::endl;
     }
 #endif
-    if(threads_per_core == 0)
+    if (threads_per_core == 0)
     {
         for (int i = 0; i < (int)num_cores; ++i)
         {
-            if(topology[i].socket == topology[0].socket && topology[i].core_id == topology[0].core_id)
+            if (topology[i].socket == topology[0].socket && topology[i].core_id == topology[0].core_id)
                 ++threads_per_core;
         }
+        assert(threads_per_core != 0);
     }
     if(num_phys_cores_per_socket == 0 && num_cores == num_online_cores) num_phys_cores_per_socket = num_cores / num_sockets / threads_per_core;
     if(num_online_cores == 0) num_online_cores = num_cores;
