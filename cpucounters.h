@@ -2762,35 +2762,11 @@ double getCyclesLostDueL2CacheMisses(const CounterStateType & before, const Coun
     \return value between 0 and 1
 */
 template <class CounterStateType>
-double getL2CacheHitRatio(const CounterStateType & before, const CounterStateType & after) // 0.0 - 1.0
+double getL2CacheHitRatio(const CounterStateType& before, const CounterStateType& after) // 0.0 - 1.0
 {
-    auto pcm = PCM::getInstance();
-    if (pcm->useSkylakeEvents()) {
-        uint64 L2Hit = after.L2Hit - before.L2Hit;
-        uint64 L2Ref = L2Hit + after.SKLL2Miss - before.SKLL2Miss;
-        if (L2Ref) {
-            return double(L2Hit) / double(L2Ref);
-        }
-        return 1;
-    }
-    if (pcm->isAtom() || pcm->getCPUModel() == PCM::KNL)
-    {
-        uint64 L2Miss = after.ArchLLCMiss - before.ArchLLCMiss;
-        uint64 L2Ref = after.ArchLLCRef - before.ArchLLCRef;
-        if (L2Ref) {
-            return 1. - (double(L2Miss) / double(L2Ref));
-        }
-        return 1;
-    }
-    uint64 L3Miss = after.L3Miss - before.L3Miss;
-    uint64 L3UnsharedHit = after.L3UnsharedHit - before.L3UnsharedHit;
-    uint64 L2HitM = after.L2HitM - before.L2HitM;
-    uint64 L2Hit = after.L2Hit - before.L2Hit;
-    uint64 hits = L2Hit;
-    uint64 all = L2Hit + L2HitM + L3UnsharedHit + L3Miss;
-    if (all) return double(hits) / double(all);
-
-    return 1;
+    const auto hits = getL2CacheHits(before, after);
+    const auto misses = getL2CacheMisses(before, after);
+    return double(hits) / double(hits + misses);
 }
 
 /*! \brief Computes L3 cache hit ratio
@@ -2801,26 +2777,11 @@ double getL2CacheHitRatio(const CounterStateType & before, const CounterStateTyp
     \return value between 0 and 1
 */
 template <class CounterStateType>
-double getL3CacheHitRatio(const CounterStateType & before, const CounterStateType & after) // 0.0 - 1.0
+double getL3CacheHitRatio(const CounterStateType& before, const CounterStateType& after) // 0.0 - 1.0
 {
-    if (!PCM::getInstance()->isL3CacheHitRatioAvailable()) return -1;
-    if (PCM::getInstance()->useSkylakeEvents()) {
-        uint64 L3Hit = after.SKLL3Hit - before.SKLL3Hit;
-        uint64 L3Ref = L3Hit + after.L3Miss - before.L3Miss;
-        if (L3Ref) {
-            return double(L3Hit) / double(L3Ref);
-        }
-        return 1;
-    }
-
-    uint64 L3Miss = after.L3Miss - before.L3Miss;
-    uint64 L3UnsharedHit = after.L3UnsharedHit - before.L3UnsharedHit;
-    uint64 L2HitM = after.L2HitM - before.L2HitM;
-    uint64 hits = L3UnsharedHit + L2HitM;
-    uint64 all = L2HitM + L3UnsharedHit + L3Miss;
-    if (all) return double(hits) / double(all);
-
-    return 1;
+    const auto hits = getL3CacheHits(before, after);
+    const auto misses = getL3CacheMisses(before, after);
+    return double(hits) / double(hits + misses);
 }
 
 /*! \brief Computes number of L3 cache misses
