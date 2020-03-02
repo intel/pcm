@@ -1727,8 +1727,6 @@ PCM::PCM() :
     L3CacheHitsNoSnoopAvailable(false),
     L3CacheHitsSnoopAvailable(false),
     L3CacheHitsAvailable(false),
-    CyclesLostDueL3CacheMissesAvailable(false),
-    CyclesLostDueL2CacheMissesAvailable(false),
     forceRTMAbortMode(false),
     mode(INVALID_MODE),
     numInstancesSemaphore(NULL),
