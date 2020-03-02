@@ -950,6 +950,7 @@ bool PCM::discoverSystemTopology()
         }
     }
 
+    num_online_cores = num_cores;
 
     if (num_cores != GetActiveProcessorCount(ALL_PROCESSOR_GROUPS))
     {
