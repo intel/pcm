@@ -2320,9 +2320,9 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
         {
             max_qpi_speed = (std::max)(qpi_speeds[i].get(), max_qpi_speed);
         }
-    }
 
-    programCbo();
+	programCbo();
+    }
 
     reportQPISpeed();
 

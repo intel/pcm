@@ -61,3 +61,8 @@ PCM API documentation
 --------------------------------------------------------------------------------
 
 PCM API documentation is embedded in the source code and can be generated into html format from source using Doxygen (www.doxygen.org).
+
+--------------------------------------------------------------------------------
+Custom compilation options
+--------------------------------------------------------------------------------
+The list of custom compilation options is located [here](https://github.com/opcm/pcm/blob/master/CUSTOM-COMPILE-OPTIONS.md)
