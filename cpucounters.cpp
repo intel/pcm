@@ -6282,7 +6282,7 @@ void PCM::programPCIeCounters(const PCM::PCIeEventCode event_, const uint32 tid_
 
 void PCM::programCbo(const uint64 * events, const uint32 opCode, const uint32 nc_, const uint32 llc_lookup_tid_filter, const uint32 loc, const uint32 rem)
 {
-    for (int32 i = 0; (i < num_sockets) && MSR.size(); ++i)
+    for (size_t i = 0; (i < cboPMUs.size()) && MSR.size(); ++i)
     {
         uint32 refCore = socketRefCore[i];
         TemporalThreadAffinity tempThreadAffinity(refCore); // speedup trick for Linux
