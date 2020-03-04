@@ -83,7 +83,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <sys/sysctl.h>
 #include <sys/sem.h>
 
-// convertUnknownToInt is used in the safe sysctl call to convert an unkown size to an int
+// convertUnknownToInt is used in the safe sysctl call to convert an unknown size to an int
 int convertUnknownToInt(size_t size, char* value);
 
 #endif
