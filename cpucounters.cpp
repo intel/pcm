@@ -3111,7 +3111,7 @@ void PCM::cleanupUncorePMUs()
 
 void PCM::resetPMU()
 {
-    for (int i = 0; i < (int)num_cores; ++i)
+    for (int i = 0; i < (int)MSR.size(); ++i)
     {
         // disable all counters
         MSR[i]->write(IA32_CR_PERF_GLOBAL_CTRL, 0);
