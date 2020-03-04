@@ -1768,14 +1768,6 @@ PCM::PCM() :
 
     showSpecControlMSRs();
 
-#ifdef __linux__
-    if (isNMIWatchdogEnabled())
-    {
-        disableNMIWatchdog();
-        needToRestoreNMIWatchdog = true;
-    }
-#endif
-
     initEnergyMonitoring();
 
     initUncoreObjects();
@@ -1956,6 +1948,14 @@ perf_event_attr PCM_init_perf_event_attr(bool group = true)
 
 PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter_)
 {
+#ifdef __linux__
+    if (isNMIWatchdogEnabled())
+    {
+        disableNMIWatchdog();
+        needToRestoreNMIWatchdog = true;
+    }
+#endif
+
     if(allow_multiple_instances && (EXT_CUSTOM_CORE_EVENTS == mode_ || CUSTOM_CORE_EVENTS == mode_))
     {
         allow_multiple_instances = false;
