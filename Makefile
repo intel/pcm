@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2009-2018 Intel Corporation
+# Copyright (c) 2009-2020 Intel Corporation
 # written by Roman Dementiev and Jim Harris
 #
 
