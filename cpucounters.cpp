@@ -83,7 +83,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <sys/sysctl.h>
 #include <sys/sem.h>
 
-// convertUnknownToInt is used in the safe sysctl call to convert an unkown size to an int
+// convertUnknownToInt is used in the safe sysctl call to convert an unknown size to an int
 int convertUnknownToInt(size_t size, char* value);
 
 #endif
@@ -110,6 +110,7 @@ bool PCM::initWinRing0Lib()
 
     if (result == FALSE)
     {
+        CloseHandle(hOpenLibSys);
         hOpenLibSys = NULL;
         return false;
     }
@@ -949,6 +950,7 @@ bool PCM::discoverSystemTopology()
         }
     }
 
+    num_online_cores = num_cores;
 
     if (num_cores != GetActiveProcessorCount(ALL_PROCESSOR_GROUPS))
     {
@@ -1202,13 +1204,14 @@ bool PCM::discoverSystemTopology()
         std::cerr << topology[i].socket << " " << topology[i].os_id << " " << topology[i].core_id << std::endl;
     }
 #endif
-    if(threads_per_core == 0)
+    if (threads_per_core == 0)
     {
         for (int i = 0; i < (int)num_cores; ++i)
         {
-            if(topology[i].socket == topology[0].socket && topology[i].core_id == topology[0].core_id)
+            if (topology[i].socket == topology[0].socket && topology[i].core_id == topology[0].core_id)
                 ++threads_per_core;
         }
+        assert(threads_per_core != 0);
     }
     if(num_phys_cores_per_socket == 0 && num_cores == num_online_cores) num_phys_cores_per_socket = num_cores / num_sockets / threads_per_core;
     if(num_online_cores == 0) num_online_cores = num_cores;
@@ -1724,8 +1727,6 @@ PCM::PCM() :
     L3CacheHitsNoSnoopAvailable(false),
     L3CacheHitsSnoopAvailable(false),
     L3CacheHitsAvailable(false),
-    CyclesLostDueL3CacheMissesAvailable(false),
-    CyclesLostDueL2CacheMissesAvailable(false),
     forceRTMAbortMode(false),
     mode(INVALID_MODE),
     numInstancesSemaphore(NULL),
@@ -3110,7 +3111,7 @@ void PCM::cleanupUncorePMUs()
 
 void PCM::resetPMU()
 {
-    for (int i = 0; i < (int)num_cores; ++i)
+    for (int i = 0; i < (int)MSR.size(); ++i)
     {
         // disable all counters
         MSR[i]->write(IA32_CR_PERF_GLOBAL_CTRL, 0);
@@ -6279,7 +6280,7 @@ void PCM::programPCIeCounters(const PCM::PCIeEventCode event_, const uint32 tid_
 
 void PCM::programCbo(const uint64 * events, const uint32 opCode, const uint32 nc_, const uint32 llc_lookup_tid_filter, const uint32 loc, const uint32 rem)
 {
-    for (int32 i = 0; (i < num_sockets) && MSR.size(); ++i)
+    for (size_t i = 0; (i < cboPMUs.size()) && MSR.size(); ++i)
     {
         uint32 refCore = socketRefCore[i];
         TemporalThreadAffinity tempThreadAffinity(refCore); // speedup trick for Linux

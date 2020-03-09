@@ -605,8 +605,6 @@ class PCM_API PCM
     bool L3CacheHitsNoSnoopAvailable;
     bool L3CacheHitsSnoopAvailable;
     bool L3CacheHitsAvailable;
-    bool CyclesLostDueL3CacheMissesAvailable;
-    bool CyclesLostDueL2CacheMissesAvailable;
 
     bool forceRTMAbortMode;
 
@@ -1840,8 +1838,6 @@ public:
     PCM_GENERATE_METRIC_AVAILABLE_FUNCTION(L3CacheHitsNoSnoopAvailable)
     PCM_GENERATE_METRIC_AVAILABLE_FUNCTION(L3CacheHitsSnoopAvailable)
     PCM_GENERATE_METRIC_AVAILABLE_FUNCTION(L3CacheHitsAvailable)
-    PCM_GENERATE_METRIC_AVAILABLE_FUNCTION(CyclesLostDueL3CacheMissesAvailable) // deprecated
-    PCM_GENERATE_METRIC_AVAILABLE_FUNCTION(CyclesLostDueL2CacheMissesAvailable) // deprecated
 
     #undef PCM_GEN_METRIC_AVAILABLE_FUNCTION
 
@@ -1887,10 +1883,6 @@ class BasicCounterState
     friend uint64 getL3CacheHitsSnoop(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
     friend uint64 getL3CacheHits(const CounterStateType & before, const CounterStateType & after);
-    template <class CounterStateType>
-    friend double getCyclesLostDueL3CacheMisses(const CounterStateType & before, const CounterStateType & after);
-    template <class CounterStateType>
-    friend double getCyclesLostDueL2CacheMisses(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
     friend uint64 getL3CacheOccupancy(const CounterStateType & now);
     template <class CounterStateType>
@@ -2710,50 +2702,6 @@ double getActiveRelativeFrequency(const CounterStateType & before, const Counter
     return -1;
 }
 
-/*! \brief Estimates how many core cycles were potentially lost due to L3 cache misses.
-
-    \param before CPU counter state before the experiment
-    \param after CPU counter state after the experiment
-    \warning Works only in the DEFAULT_EVENTS programming mode (see program() method)
-    \return ratio that is usually beetween 0 and 1 ; in some cases could be >1.0 due to a lower memory latency estimation
-*/
-template <class CounterStateType>
-double getCyclesLostDueL3CacheMisses(const CounterStateType & before, const CounterStateType & after) // 0.0 - 1.0
-{
-    auto pcm = PCM::getInstance();
-    const int cpu_model = pcm->getCPUModel();
-    if (pcm->isAtom() || cpu_model == PCM::KNL) return -1;
-    int64 clocks = after.CpuClkUnhaltedThread - before.CpuClkUnhaltedThread;
-    if (clocks != 0)
-    {
-        return 180. * double(after.L3Miss - before.L3Miss) / double(clocks);
-    }
-    return -1;
-}
-
-/*! \brief Estimates how many core cycles were potentially lost due to missing L2 cache but still hitting L3 cache
-
-    \param before CPU counter state before the experiment
-    \param after CPU counter state after the experiment
-    \warning Works only in the DEFAULT_EVENTS programming mode (see program() method)
-        \warning Currently not supported on Intel(R) Atom(tm) processor
-    \return ratio that is usually beetween 0 and 1 ; in some cases could be >1.0 due to a lower access latency estimation
-*/
-template <class CounterStateType>
-double getCyclesLostDueL2CacheMisses(const CounterStateType & before, const CounterStateType & after) // 0.0 - 1.0
-{
-    auto pcm = PCM::getInstance();
-    if (pcm->isAtom() || pcm->getCPUModel() == PCM::KNL || pcm->useSkylakeEvents()) return -1;
-    int64 clocks = after.CpuClkUnhaltedThread - before.CpuClkUnhaltedThread;
-    if (clocks != 0)
-    {
-        double L3UnsharedHit = (double)(after.L3UnsharedHit - before.L3UnsharedHit);
-        double L2HitM = (double)(after.L2HitM - before.L2HitM);
-        return (35. * L3UnsharedHit + 74. * L2HitM) / double(clocks);
-    }
-    return -1;
-}
-
 /*! \brief Computes L2 cache hit ratio
 
     \param before CPU counter state before the experiment
@@ -2762,35 +2710,11 @@ double getCyclesLostDueL2CacheMisses(const CounterStateType & before, const Coun
     \return value between 0 and 1
 */
 template <class CounterStateType>
-double getL2CacheHitRatio(const CounterStateType & before, const CounterStateType & after) // 0.0 - 1.0
+double getL2CacheHitRatio(const CounterStateType& before, const CounterStateType& after) // 0.0 - 1.0
 {
-    auto pcm = PCM::getInstance();
-    if (pcm->useSkylakeEvents()) {
-        uint64 L2Hit = after.L2Hit - before.L2Hit;
-        uint64 L2Ref = L2Hit + after.SKLL2Miss - before.SKLL2Miss;
-        if (L2Ref) {
-            return double(L2Hit) / double(L2Ref);
-        }
-        return 1;
-    }
-    if (pcm->isAtom() || pcm->getCPUModel() == PCM::KNL)
-    {
-        uint64 L2Miss = after.ArchLLCMiss - before.ArchLLCMiss;
-        uint64 L2Ref = after.ArchLLCRef - before.ArchLLCRef;
-        if (L2Ref) {
-            return 1. - (double(L2Miss) / double(L2Ref));
-        }
-        return 1;
-    }
-    uint64 L3Miss = after.L3Miss - before.L3Miss;
-    uint64 L3UnsharedHit = after.L3UnsharedHit - before.L3UnsharedHit;
-    uint64 L2HitM = after.L2HitM - before.L2HitM;
-    uint64 L2Hit = after.L2Hit - before.L2Hit;
-    uint64 hits = L2Hit;
-    uint64 all = L2Hit + L2HitM + L3UnsharedHit + L3Miss;
-    if (all) return double(hits) / double(all);
-
-    return 1;
+    const auto hits = getL2CacheHits(before, after);
+    const auto misses = getL2CacheMisses(before, after);
+    return double(hits) / double(hits + misses);
 }
 
 /*! \brief Computes L3 cache hit ratio
@@ -2801,26 +2725,11 @@ double getL2CacheHitRatio(const CounterStateType & before, const CounterStateTyp
     \return value between 0 and 1
 */
 template <class CounterStateType>
-double getL3CacheHitRatio(const CounterStateType & before, const CounterStateType & after) // 0.0 - 1.0
+double getL3CacheHitRatio(const CounterStateType& before, const CounterStateType& after) // 0.0 - 1.0
 {
-    if (!PCM::getInstance()->isL3CacheHitRatioAvailable()) return -1;
-    if (PCM::getInstance()->useSkylakeEvents()) {
-        uint64 L3Hit = after.SKLL3Hit - before.SKLL3Hit;
-        uint64 L3Ref = L3Hit + after.L3Miss - before.L3Miss;
-        if (L3Ref) {
-            return double(L3Hit) / double(L3Ref);
-        }
-        return 1;
-    }
-
-    uint64 L3Miss = after.L3Miss - before.L3Miss;
-    uint64 L3UnsharedHit = after.L3UnsharedHit - before.L3UnsharedHit;
-    uint64 L2HitM = after.L2HitM - before.L2HitM;
-    uint64 hits = L3UnsharedHit + L2HitM;
-    uint64 all = L2HitM + L3UnsharedHit + L3Miss;
-    if (all) return double(hits) / double(all);
-
-    return 1;
+    const auto hits = getL3CacheHits(before, after);
+    const auto misses = getL3CacheMisses(before, after);
+    return double(hits) / double(hits + misses);
 }
 
 /*! \brief Computes number of L3 cache misses
