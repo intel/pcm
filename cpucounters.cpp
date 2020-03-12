@@ -4432,16 +4432,12 @@ void ServerPCICFGUncore::initSocket2Bus(std::vector<std::pair<uint32, uint32> > 
     PCM_Util::Mutex::Scope _(socket2busMutex);
     if(!socket2bus.empty()) return;
 
-    #ifdef __linux__
-    const std::vector<MCFGRecord> & mcfg = PciHandleMM::getMCFGRecords();
-    #else
     std::vector<MCFGRecord> mcfg;
     MCFGRecord segment;
     segment.PCISegmentGroupNumber = 0;
     segment.startBusNumber = 0;
     segment.endBusNumber = 0xff;
     mcfg.push_back(segment);
-    #endif
 
     for(uint32 s = 0; s < (uint32)mcfg.size(); ++s)
     for (uint32 bus = (uint32)mcfg[s].startBusNumber; bus <= (uint32)mcfg[s].endBusNumber; ++bus)
