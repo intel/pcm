@@ -1688,6 +1688,13 @@ public:
             );
     }
 
+    bool DDRLatencyMetricsAvailable() const
+    {
+        return (
+            cpu_model == PCM::SKX
+            );
+    }
+
     bool PMMTrafficMetricsAvailable() const
     {
 		return (
