@@ -3572,7 +3572,7 @@ PCM::ErrorCode PCM::programServerUncoreLatencyMetrics(bool enable_pmm)
         DDRConfig[3] = MC_CH_PCI_PMON_CTL_EVENT(0xe7) + MC_CH_PCI_PMON_CTL_UMASK(0);  // PMM WPQ Insert
     }
 
-    if (hasPCICFGUncore())
+    if (DDRLatencyMetricsAvailable())
     {
         for (size_t i = 0; i < (size_t)server_pcicfg_uncore.size(); ++i)
         {

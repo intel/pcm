@@ -348,7 +348,7 @@ void print_all_stats(PCM *m, bool enable_pmm, bool enable_verbose)
 
     print_core_stats(m, core_size_per_socket, sk_th);
 
-    if (m->hasPCICFGUncore())
+    if (m->DDRLatencyMetricsAvailable())
     {
         print_ddr(m, enable_pmm);
         if (enable_verbose)
