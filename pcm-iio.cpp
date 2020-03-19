@@ -339,10 +339,12 @@ vector<struct counter> load_events(const char* fn)
 
     if (!in.is_open())
     {
-        in.open(std::string("/usr/share/pcm/") + fn);
+        const auto alt_fn = std::string("/usr/share/pcm/") + fn;
+        in.open(alt_fn);
         if (!in.is_open())
         {
-            throw std::invalid_argument("event file is not avaiable. In the future version, we will load a preset");
+            const auto err_msg = std::string("event file ") + fn + " or " + alt_fn + " is not avaiable. Copy it from PCM build directory.";
+            throw std::invalid_argument(err_msg);
         }
     }
 
