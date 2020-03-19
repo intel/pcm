@@ -21,7 +21,7 @@ daemon-binaries:
 
 klocwork: $(EXE)
 
-CXXFLAGS += -Wall -g -O3 -Wno-unknown-pragmas
+CXXFLAGS += -Wall -g -O3 -Wno-unknown-pragmas -fPIC
 # uncomment if your Linux kernel supports access to /dev/mem from user space
 # CXXFLAGS += -DPCM_USE_PCI_MM_LINUX
 
