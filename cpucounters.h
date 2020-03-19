@@ -767,7 +767,7 @@ public:
 
 private:
     ProgramMode mode;
-    CustomCoreEventDescription coreEventDesc[4];
+    CustomCoreEventDescription coreEventDesc[PERF_MAX_CUSTOM_COUNTERS];
 
 #ifdef _MSC_VER
     HANDLE numInstancesSemaphore;     // global semaphore that counts the number of PCM instances on the system
@@ -1940,6 +1940,11 @@ protected:
         uint64 L2Hit;
         uint64 Event3;
     };
+    uint64 Event4, Event5, Event6, Event7;
+    uint64* getEventsPtr() { return &Event0; };
+    const uint64* getEventsPtr() const { return &Event0; };
+    uint64& Event(size_t i) { return getEventsPtr()[i]; };
+    const uint64& Event(size_t i) const { return getEventsPtr()[i]; };
     uint64 InvariantTSC; // invariant time stamp counter
     uint64 CStateResidency[PCM::MAX_C_STATE + 1];
     int32 ThermalHeadroom;
@@ -1955,10 +1960,6 @@ public:
         InstRetiredAny(0),
         CpuClkUnhaltedThread(0),
         CpuClkUnhaltedRef(0),
-        L3Miss(0),
-        L3UnsharedHit(0),
-        L2HitM(0),
-        L2Hit(0),
         InvariantTSC(0),
         ThermalHeadroom(PCM_INVALID_THERMAL_HEADROOM),
         L3Occupancy(0),
@@ -1967,6 +1968,7 @@ public:
         SMICount(0)
     {
         memset(CStateResidency, 0, sizeof(CStateResidency));
+        memset(getEventsPtr(), 0, sizeof(uint64) * PERF_MAX_CUSTOM_COUNTERS);
     }
     virtual ~BasicCounterState() { }
 
@@ -1975,10 +1977,10 @@ public:
         InstRetiredAny += o.InstRetiredAny;
         CpuClkUnhaltedThread += o.CpuClkUnhaltedThread;
         CpuClkUnhaltedRef += o.CpuClkUnhaltedRef;
-        Event0 += o.Event0;
-        Event1 += o.Event1;
-        Event2 += o.Event2;
-        Event3 += o.Event3;
+        for (int i = 0; i < PERF_MAX_CUSTOM_COUNTERS; ++i)
+        {
+            Event(i) += o.Event(i);
+        }
         InvariantTSC += o.InvariantTSC;
         for (int i = 0; i <= (int)PCM::MAX_C_STATE; ++i)
             CStateResidency[i] += o.CStateResidency[i];
@@ -3055,7 +3057,7 @@ uint64 getSMICount(const CounterStateType & before, const CounterStateType & aft
 template <class CounterStateType>
 uint64 getNumberOfCustomEvents(int32 eventCounterNr, const CounterStateType & before, const CounterStateType & after)
 {
-    return ((&after.Event0)[eventCounterNr] - (&before.Event0)[eventCounterNr]);
+    return after.Event(eventCounterNr) - before.Event(eventCounterNr);
 }
 
 /*! \brief Get estimation of QPI data traffic per incoming QPI link

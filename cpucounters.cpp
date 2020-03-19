@@ -2475,6 +2475,11 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
         if (isAtom() || cpu_model == KNL)       // KNL and Atom have 3 fixed + only 2 programmable counters
             value = (1ULL << 0) + (1ULL << 1) + (1ULL << 32) + (1ULL << 33) + (1ULL << 34);
 
+        for (uint32 j = 0; j < core_gen_counter_num_used; ++j)
+        {
+            value |= (1ULL << j); // enable all custom counters (if > 4)
+        }
+
         MSR[i]->write(IA32_CR_PERF_GLOBAL_CTRL, value);
     }
     return PCM::Success;
@@ -3440,11 +3445,8 @@ void BasicCounterState::readAndAggregateTSC(std::shared_ptr<SafeMsrHandle> msr)
 void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
 {
     uint64 cInstRetiredAny = 0, cCpuClkUnhaltedThread = 0, cCpuClkUnhaltedRef = 0;
-    uint64 cL3Miss = 0;
-    uint64 cL3UnsharedHit = 0;
-    uint64 cL2HitM = 0;
-    uint64 cL2Hit = 0;
     uint64 cL3Occupancy = 0;
+    uint64 cCustomEvents[PERF_MAX_CUSTOM_COUNTERS] = {0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL };
     uint64 cCStateResidency[PCM::MAX_C_STATE + 1];
     memset(cCStateResidency, 0, sizeof(cCStateResidency));
     uint64 thermStatus = 0;
@@ -3453,7 +3455,6 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
     TemporalThreadAffinity tempThreadAffinity(core_id); // speedup trick for Linux
 
     PCM * m = PCM::getInstance();
-    const uint32 cpu_model = m->getCPUModel();
     const int32 core_gen_counter_num_max = m->getMaxCustomCoreEvents();
 
     const auto corruptedCountersMask = m->checkCustomCoreProgramming(msr);
@@ -3466,10 +3467,10 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
         cInstRetiredAny =       perfData[PCM::PERF_INST_RETIRED_ANY_POS];
         cCpuClkUnhaltedThread = perfData[PCM::PERF_CPU_CLK_UNHALTED_THREAD_POS];
         cCpuClkUnhaltedRef =    perfData[PCM::PERF_CPU_CLK_UNHALTED_REF_POS];
-        if (core_gen_counter_num_max > 0) cL3Miss =               perfData[PCM::PERF_GEN_EVENT_0_POS];
-        if (core_gen_counter_num_max > 1) cL3UnsharedHit =        perfData[PCM::PERF_GEN_EVENT_1_POS];
-        if (core_gen_counter_num_max > 2) cL2HitM =               perfData[PCM::PERF_GEN_EVENT_2_POS];
-        if (core_gen_counter_num_max > 3) cL2Hit =                perfData[PCM::PERF_GEN_EVENT_3_POS];
+        for (int i = 0; i < core_gen_counter_num_max; ++i)
+        {
+            cCustomEvents[i] = perfData[PCM::PERF_GEN_EVENT_0_POS + i];
+        }
     }
     else
 #endif
@@ -3477,42 +3478,16 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
         msr->read(INST_RETIRED_ANY_ADDR, &cInstRetiredAny);
         msr->read(CPU_CLK_UNHALTED_THREAD_ADDR, &cCpuClkUnhaltedThread);
         msr->read(CPU_CLK_UNHALTED_REF_ADDR, &cCpuClkUnhaltedRef);
-        switch (cpu_model)
+        for (int i = 0; i < core_gen_counter_num_max; ++i)
         {
-        case PCM::WESTMERE_EP:
-        case PCM::NEHALEM_EP:
-        case PCM::NEHALEM_EX:
-        case PCM::WESTMERE_EX:
-        case PCM::CLARKDALE:
-        case PCM::SANDY_BRIDGE:
-        case PCM::JAKETOWN:
-        case PCM::IVYTOWN:
-        case PCM::HASWELLX:
-        case PCM::BDX_DE:
-        case PCM::BDX:
-        case PCM::IVY_BRIDGE:
-        case PCM::HASWELL:
-        case PCM::BROADWELL:
-        case PCM::SKL:
-        case PCM::KBL:
-        case PCM::SKX:
-            if (core_gen_counter_num_max > 0) msr->read(IA32_PMC0, &cL3Miss);
-            if (core_gen_counter_num_max > 1) msr->read(IA32_PMC1, &cL3UnsharedHit);
-            if (core_gen_counter_num_max > 2) msr->read(IA32_PMC2, &cL2HitM);
-            if (core_gen_counter_num_max > 3) msr->read(IA32_PMC3, &cL2Hit);
-            break;
-        }
-        if (m->isAtom() || cpu_model == PCM::KNL)
-        {
-            if (core_gen_counter_num_max > 0) msr->read(IA32_PMC0, &cL3Miss);         // for Atom mapped to ArchLLCMiss field
-            if (core_gen_counter_num_max > 1) msr->read(IA32_PMC1, &cL3UnsharedHit);  // for Atom mapped to ArchLLCRef field
+            msr->read(IA32_PMC0 + i, &cCustomEvents[i]);
         }
     }
 
-    if (corruptedCountersMask & 1) cL3Miss = ~0ULL;
-    if (corruptedCountersMask & 2) cL3UnsharedHit = ~0ULL;
-    if (corruptedCountersMask & 4) cL2HitM = ~0ULL;
-    if (corruptedCountersMask & 8) cL2Hit = ~0ULL;
+    for (int i = 0; i < core_gen_counter_num_max; ++i)
+    {
+        if (corruptedCountersMask & (1<<i)) cCustomEvents[i] = ~0ULL;
+    }
 
     // std::cout << "DEBUG1: "<< msr->getCoreId() << " " << cInstRetiredAny<< " "<< std::endl;
     if(m->L3CacheOccupancyMetricAvailable())
@@ -3542,13 +3517,13 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
     InstRetiredAny += m->extractCoreFixedCounterValue(cInstRetiredAny);
     CpuClkUnhaltedThread += m->extractCoreFixedCounterValue(cCpuClkUnhaltedThread);
     CpuClkUnhaltedRef += m->extractCoreFixedCounterValue(cCpuClkUnhaltedRef);
-    L3Miss += m->extractCoreGenCounterValue(cL3Miss);
-    L3UnsharedHit += m->extractCoreGenCounterValue(cL3UnsharedHit);
+    for (int i = 0; i < core_gen_counter_num_max; ++i)
+    {
+        Event(i) += m->extractCoreGenCounterValue(cCustomEvents[i]);
+    }
     //std::cout << "Scaling Factor " << m->L3ScalingFactor;
     cL3Occupancy = m->extractQOSMonitoring(cL3Occupancy);
     L3Occupancy = (cL3Occupancy==PCM_INVALID_QOS_MONITORING_DATA)? PCM_INVALID_QOS_MONITORING_DATA : (uint64)((double)(cL3Occupancy * m->L3ScalingFactor) / 1024.0);
-    L2HitM += m->extractCoreGenCounterValue(cL2HitM);
-    L2Hit += m->extractCoreGenCounterValue(cL2Hit);
     for(int i=0; i <= int(PCM::MAX_C_STATE);++i)
         CStateResidency[i] += cCStateResidency[i];
     ThermalHeadroom = extractThermalHeadroom(thermStatus);

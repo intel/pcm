@@ -57,7 +57,7 @@ struct CoreEvent
 	uint64 value;
 	uint64 msr_value;
 	char * description;
-} events[4];
+} events[PERF_MAX_CUSTOM_COUNTERS];
 
 extern "C" {
 	SystemCounterState SysBeforeState, SysAfterState;
@@ -133,7 +133,8 @@ void print_usage(const string progname)
 	cerr << "  -c    | /c                             => print CPU Model name and exit (used for pmu-query.py)" << endl;
 	cerr << "  -csv[=file.csv]     | /csv[=file.csv]  => output compact CSV format to screen or" << endl
 		<< "                                            to a file, in case filename is provided" << endl;
-	cerr << "  [-e event1] [-e event2] [-e event3] .. => optional list of custom events to monitor (up to 4)." << endl;
+    cerr << "  [-e event1] [-e event2] [-e event3] .. => optional list of custom events to monitor" << endl;
+	cerr << "  event description example: cpu/umask=0x01,event=0x05,name=MISALIGN_MEM_REF.LOADS/ " << endl;
 	cerr << "  -yc   | --yescores  | /yc              => enable specific cores to output" << endl;
     print_help_force_rtm_abort_mode(41);
 	cerr << " Examples:" << endl;
@@ -166,7 +167,8 @@ void print_custom_stats(const StateType & BeforeState, const StateType & AfterSt
 		cout << double(instr)/double(txn_rate) << ",";
 		cout << double(cycles)/double(txn_rate) << ",";
 	}
-	for(int i=0;i<4;++i)
+    const auto max_ctr = PCM::getInstance()->getMaxCustomCoreEvents();
+    for (int i = 0; i < max_ctr; ++i)
 		if(!csv) {
 			cout << setw(10);
 			if(txn_rate == 1)
@@ -557,10 +559,24 @@ int main(int argc, char * argv[])
 			cout << std::dec << ")" << endl;
 		}
 		cout << endl;
-		if(csv)
-			cout << "Core,IPC,Instructions,Cycles,Event0,Event1,Event2,Event3\n";
-		else
-			cout << "Core | IPC | Instructions  |  Cycles  | Event0  | Event1  | Event2  | Event3 \n";
+        if (csv)
+        {
+            cout << "Core,IPC,Instructions,Cycles";
+            for (unsigned i = 0; i < conf.nGPCounters; ++i)
+            {
+                cout << ",Event" << i;
+            }
+            cout << "\n";
+        }
+        else
+        {
+            cout << "Core | IPC | Instructions  |  Cycles  ";
+            for (unsigned i = 0; i < conf.nGPCounters; ++i)
+            {
+                cout << "| Event" << i << "  ";
+            }
+            cout << "\n";
+        }
 
 		for(uint32 i = 0; i<ncores ; ++i)
 		{
