@@ -111,3 +111,5 @@ endif
 
 clean:
 	rm -rf *.x *.o *~ *.d *.a
+	make -C daemon/daemon/Debug clean
+	make -C daemon/client/Debug clean
