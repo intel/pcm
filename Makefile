@@ -21,7 +21,7 @@ daemon-binaries:
 
 klocwork: $(EXE)
 
-CXXFLAGS += -Wall -g -O3 -Wno-unknown-pragmas
+CXXFLAGS += -Wall -g -O3 -Wno-unknown-pragmas -std=c++11
 
 # uncomment if your Linux kernel supports access to /dev/mem from user space
 # CXXFLAGS += -DPCM_USE_PCI_MM_LINUX
@@ -33,20 +33,17 @@ endif
 
 ifeq ($(UNAME), Linux)
 LIB= -pthread -lrt
-CXXFLAGS += -std=c++11
 endif
 ifeq ($(UNAME), DragonFly)
 LIB= -pthread -lrt
-CXXFLAGS += -std=c++11
 endif
 ifeq ($(UNAME), Darwin)
-LIB= -lpthread MacMSRDriver/build/Release/libPcmMsr.dylib 
-CXXFLAGS += -I/usr/include -IMacMSRDriver -std=c++11
+LIB= -lpthread MacMSRDriver/build/Release/libPcmMsr.dylib
+CXXFLAGS += -I/usr/include -IMacMSRDriver
 endif
 ifeq ($(UNAME), FreeBSD)
 CXX=c++
 LIB= -lpthread -lc++
-CXXFLAGS += -std=c++11
 endif
 
 COMMON_OBJS = msr.o cpucounters.o pci.o mmio.o client_bw.o utils.o
