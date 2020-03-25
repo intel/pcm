@@ -93,7 +93,7 @@ double getNormalizedPCUCounter(uint32 counter, const ServerUncorePowerState & be
 double getNormalizedPCUCounter(uint32 counter, const ServerUncorePowerState & before, const ServerUncorePowerState & after, PCM * m)
 {
     const uint64 PCUClocks = (m->getPCUFrequency() * getInvariantTSC(before, after)) / m->getNominalFrequency();
-    //std::cout << "PCM Debug: PCU clocks "<< PCUClocks << std::endl;
+    //cout << "PCM Debug: PCU clocks " << PCUClocks << "\n";
     return double(getPCUCounter(counter, before, after)) / double(PCUClocks);
 }
 
@@ -102,17 +102,17 @@ int freq_band[3];
 
 void print_usage(const string progname)
 {
-    cerr << endl << " Usage: " << endl << " " << progname
-         << " --help | [delay] [options] [-- external_program [external_program_options]]" << endl;
-    cerr << "   <delay>                           => time interval to sample performance counters." << endl;
-    cerr << "                                        If not specified, or 0, with external program given" << endl;
-    cerr << "                                        will read counters only after external program finishes" << endl;
-    cerr << " Supported <options> are: " << endl;
-    cerr << "  -h    | --help  | /h               => print this help and exit" << endl;
-//    cerr << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or" << endl
-//         << "                                        to a file, in case filename is provided" << endl;
-    cerr << "  [-m imc_profile] [-p pcu_profile] [-a freq_band0] [-b freq_band1] [-c freq_band2]" << endl << endl;
-    cerr << " Where: imc_profile, pcu_profile, freq_band0, freq_band1 and freq_band2 are the following:" << endl;
+    cerr << "\n Usage: \n " << progname
+         << " --help | [delay] [options] [-- external_program [external_program_options]]\n";
+    cerr << "   <delay>                           => time interval to sample performance counters.\n";
+    cerr << "                                        If not specified, or 0, with external program given\n";
+    cerr << "                                        will read counters only after external program finishes\n";
+    cerr << " Supported <options> are: \n";
+    cerr << "  -h    | --help  | /h               => print this help and exit\n";
+//    cerr << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or\n"
+//         << "                                        to a file, in case filename is provided\n";
+    cerr << "  [-m imc_profile] [-p pcu_profile] [-a freq_band0] [-b freq_band1] [-c freq_band2]\n\n";
+    cerr << " Where: imc_profile, pcu_profile, freq_band0, freq_band1 and freq_band2 are the following:\n";
     cerr << "  <imc_profile>      - profile (counter group) for IMC PMU. Possible values are: 0,1,2,3,4,-1 \n";
     cerr << "                       profile  0 - rank 0 and rank 1 residencies (default) \n";
     cerr << "                       profile  1 - rank 2 and rank 3 residencies \n";
@@ -137,15 +137,15 @@ void print_usage(const string progname)
         default_freq_band[1] << "= " << 100 * default_freq_band[1] << "MHz)\n";
     cerr << "  <freq_band2>       - frequency minumum for band 2 for PCU frequency residency profile [in 100MHz units] (default is " <<
         default_freq_band[2] << "= " << 100 * default_freq_band[2] << "MHz)\n";
-    cerr << endl;
+    cerr << "\n";
 }
 
 int main(int argc, char * argv[])
 {
     set_signal_handlers();
 
-    std::cerr << "\n Processor Counter Monitor " << PCM_VERSION << std::endl;
-    std::cerr << "\n Power Monitoring Utility\n";
+    cerr << "\n Processor Counter Monitor " << PCM_VERSION << "\n";
+    cerr << "\n Power Monitoring Utility\n";
 
     int imc_profile = 0;
     int pcu_profile = 0;
@@ -256,7 +256,7 @@ int main(int argc, char * argv[])
                 if (is_str_stream.eof() && !is_str_stream.fail()) {
                     delay = delay_input;
                 } else {
-                    cerr << "WARNING: unknown command-line option: \"" << *argv << "\". Ignoring it." << endl;
+                    cerr << "WARNING: unknown command-line option: \"" << *argv << "\". Ignoring it.\n";
                     print_usage(program);
                     exit(EXIT_FAILURE);
                 }
@@ -269,14 +269,14 @@ int main(int argc, char * argv[])
     const int cpu_model = m->getCPUModel();
     if (!(m->hasPCICFGUncore()))
     {
-        std::cerr << "Unsupported processor model (" << cpu_model << ")." << std::endl;
+        cerr << "Unsupported processor model (" << cpu_model << ").\n";
         exit(EXIT_FAILURE);
     }
 
     if (PCM::Success != m->programServerUncorePowerMetrics(imc_profile, pcu_profile, freq_band))
     {
 #ifdef _MSC_VER
-        std::cerr << "You must have signed msr.sys driver in your current directory and have administrator rights to run this program" << std::endl;
+        cerr << "You must have signed msr.sys driver in your current directory and have administrator rights to run this program\n";
 #elif defined(__linux__)
         std::cerr << "You need to be root and loaded 'msr' Linux kernel module to execute the program. You may load the 'msr' module with 'modprobe msr'. \n";
 #endif
@@ -286,22 +286,22 @@ int main(int argc, char * argv[])
     ServerUncorePowerState * AfterState = new ServerUncorePowerState[m->getNumSockets()];
     uint64 BeforeTime = 0, AfterTime = 0;
 
-    std::cerr << std::dec << std::endl;
-    std::cerr.precision(2);
-    std::cerr << std::fixed;
-    std::cout << std::dec << std::endl;
-    std::cout.precision(2);
-    std::cout << std::fixed;
-    std::cerr << "\nMC counter group: " << imc_profile << std::endl;
-    std::cerr << "PCU counter group: " << pcu_profile << std::endl;
+    cerr << dec << "\n";
+    cerr.precision(2);
+    cerr << fixed;
+    cout << dec << "\n";
+    cout.precision(2);
+    cout << fixed;
+    cerr << "\nMC counter group: " << imc_profile << "\n";
+    cerr << "PCU counter group: " << pcu_profile << "\n";
     if (pcu_profile == 0) {
         if (cpu_model == PCM::HASWELLX || cpu_model == PCM::BDX_DE || cpu_model == PCM::SKX)
-            std::cerr << "Your processor does not support frequency band statistics" << std::endl;
+            cerr << "Your processor does not support frequency band statistics\n";
         else
-            std::cerr << "Freq bands [0/1/2]: " << freq_band[0] * 100 << " MHz; " << freq_band[1] * 100 << " MHz; " << freq_band[2] * 100 << " MHz; " << std::endl;
+            cerr << "Freq bands [0/1/2]: " << freq_band[0] * 100 << " MHz; " << freq_band[1] * 100 << " MHz; " << freq_band[2] * 100 << " MHz; \n";
     }
     if (sysCmd != NULL)
-        std::cerr << "Update every " << delay << " seconds" << std::endl;
+        cerr << "Update every " << delay << " seconds\n";
 
     if ((sysCmd != NULL) && (delay <= 0.0)) {
         // in case external command is provided in command line, and
@@ -327,7 +327,7 @@ int main(int argc, char * argv[])
 
     while ((ic <= numberOfIterations) || (numberOfIterations == 0))
     {
-        std::cout << "----------------------------------------------------------------------------------------------" << std::endl;
+        cout << "----------------------------------------------------------------------------------------------\n";
 
         if (!csv) cout << std::flush;
         int delay_ms = int(delay * 1000);
@@ -521,7 +521,7 @@ int main(int argc, char * argv[])
         std::swap(BeforeTime, AfterTime);
 
         if (m->isBlocked()) {
-            std::cout << "----------------------------------------------------------------------------------------------" << std::endl;
+            cout << "----------------------------------------------------------------------------------------------\n";
             // in case PCM was blocked after spawning child application: break monitoring loop here
             break;
         }
