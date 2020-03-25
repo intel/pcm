@@ -1041,7 +1041,7 @@ bool PCM::discoverSystemTopology()
                   << std::setw(16) << it->core_id
                   << std::setw(16) << it->tile_id
                   << std::setw(16) << it->socket
-                  << "\n" << std::flush;
+                  << "\n";
         if(std::find(core_id_by_socket[it->socket].begin(), core_id_by_socket[it->socket].end(), it->core_id)
                 == core_id_by_socket[it->socket].end())
             core_id_by_socket[it->socket].push_back(it->core_id);
