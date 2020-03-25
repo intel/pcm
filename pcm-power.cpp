@@ -251,7 +251,7 @@ int main(int argc, char * argv[])
                 // any other options positional that is a floating point number is treated as <delay>,
                 // while the other options are ignored with a warning issues to stderr
                 double delay_input;
-                std::istringstream is_str_stream(*argv);
+                istringstream is_str_stream(*argv);
                 is_str_stream >> noskipws >> delay_input;
                 if (is_str_stream.eof() && !is_str_stream.fail()) {
                     delay = delay_input;
@@ -278,7 +278,7 @@ int main(int argc, char * argv[])
 #ifdef _MSC_VER
         cerr << "You must have signed msr.sys driver in your current directory and have administrator rights to run this program\n";
 #elif defined(__linux__)
-        std::cerr << "You need to be root and loaded 'msr' Linux kernel module to execute the program. You may load the 'msr' module with 'modprobe msr'. \n";
+        cerr << "You need to be root and loaded 'msr' Linux kernel module to execute the program. You may load the 'msr' module with 'modprobe msr'. \n";
 #endif
         exit(EXIT_FAILURE);
     }
@@ -329,7 +329,7 @@ int main(int argc, char * argv[])
     {
         cout << "----------------------------------------------------------------------------------------------\n";
 
-        if (!csv) cout << std::flush;
+        if (!csv) cout << flush;
         int delay_ms = int(delay * 1000);
         int calibrated_delay_ms = delay_ms;
 #ifdef _MSC_VER
@@ -360,13 +360,13 @@ int main(int argc, char * argv[])
         for (i = 0; i < m->getNumSockets(); ++i)
             AfterState[i] = m->getServerUncorePowerState(i);
 
-        std::cout << "Time elapsed: " << AfterTime - BeforeTime << " ms\n";
-        std::cout << "Called sleep function for " << delay_ms << " ms\n";
+        cout << "Time elapsed: " << AfterTime - BeforeTime << " ms\n";
+        cout << "Called sleep function for " << delay_ms << " ms\n";
         for (uint32 socket = 0; socket < m->getNumSockets(); ++socket)
         {
             for (uint32 port = 0; port < m->getQPILinksPerSocket(); ++port)
             {
-                std::cout << "S" << socket << "P" << port
+                cout << "S" << socket << "P" << port
                           << "; QPIClocks: " << getQPIClocks(port, BeforeState[socket], AfterState[socket])
                           << "; L0p Tx Cycles: " << 100. * getNormalizedQPIL0pTxCycles(port, BeforeState[socket], AfterState[socket]) << "%"
                           << "; L1 Cycles: " << 100. * getNormalizedQPIL1Cycles(port, BeforeState[socket], AfterState[socket]) << "%"
@@ -376,8 +376,8 @@ int main(int argc, char * argv[])
             {
                 if (imc_profile <= 3 && imc_profile >= 0)
                 {
-                    std::cout << "S" << socket << "CH" << channel << "; DRAMClocks: " << getDRAMClocks(channel, BeforeState[socket], AfterState[socket])
-                              << "; Rank" << getFirstRank(imc_profile) << " CKE Off Residency: " << std::setw(3) <<
+                    cout << "S" << socket << "CH" << channel << "; DRAMClocks: " << getDRAMClocks(channel, BeforeState[socket], AfterState[socket])
+                              << "; Rank" << getFirstRank(imc_profile) << " CKE Off Residency: " << setw(3) <<
                         100. * getCKEOffResidency(channel, getFirstRank(imc_profile), BeforeState[socket], AfterState[socket]) << "%"
                               << "; Rank" << getFirstRank(imc_profile) << " CKE Off Average Cycles: " <<
                         getCKEOffAverageCycles(channel, getFirstRank(imc_profile), BeforeState[socket], AfterState[socket])
@@ -385,8 +385,8 @@ int main(int argc, char * argv[])
                         getCyclesPerTransition(channel, getFirstRank(imc_profile), BeforeState[socket], AfterState[socket])
                               << "\n";
 
-                    std::cout << "S" << socket << "CH" << channel << "; DRAMClocks: " << getDRAMClocks(channel, BeforeState[socket], AfterState[socket])
-                              << "; Rank" << getSecondRank(imc_profile) << " CKE Off Residency: " << std::setw(3) <<
+                    cout << "S" << socket << "CH" << channel << "; DRAMClocks: " << getDRAMClocks(channel, BeforeState[socket], AfterState[socket])
+                              << "; Rank" << getSecondRank(imc_profile) << " CKE Off Residency: " << setw(3) <<
                         100. * getCKEOffResidency(channel, getSecondRank(imc_profile), BeforeState[socket], AfterState[socket]) << "%"
                               << "; Rank" << getSecondRank(imc_profile) << " CKE Off Average Cycles: " <<
                         getCKEOffAverageCycles(channel, getSecondRank(imc_profile), BeforeState[socket], AfterState[socket])
@@ -395,7 +395,7 @@ int main(int argc, char * argv[])
                               << "\n";
                 } else if (imc_profile == 4)
                 {
-                    std::cout << "S" << socket << "CH" << channel
+                    cout << "S" << socket << "CH" << channel
                               << "; DRAMClocks: " << getDRAMClocks(channel, BeforeState[socket], AfterState[socket])
                               << "; Self-refresh cycles: " << getSelfRefreshCycles(channel, BeforeState[socket], AfterState[socket])
                               << "; Self-refresh transitions: " << getSelfRefreshTransitions(channel, BeforeState[socket], AfterState[socket])
@@ -408,7 +408,7 @@ int main(int argc, char * argv[])
             case 0:
                 if (cpu_model == PCM::HASWELLX || cpu_model == PCM::BDX_DE || cpu_model == PCM::SKX)
                     break;
-                std::cout << "S" << socket
+                cout << "S" << socket
                           << "; PCUClocks: " << getPCUClocks(BeforeState[socket], AfterState[socket])
                           << "; Freq band 0/1/2 cycles: " << 100. * getNormalizedPCUCounter(1, BeforeState[socket], AfterState[socket]) << "%"
                           << "; " << 100. * getNormalizedPCUCounter(2, BeforeState[socket], AfterState[socket]) << "%"
@@ -417,7 +417,7 @@ int main(int argc, char * argv[])
                 break;
 
             case 1:
-                std::cout << "S" << socket
+                cout << "S" << socket
                           << "; PCUClocks: " << getPCUClocks(BeforeState[socket], AfterState[socket])
                           << ((cpu_model == PCM::SKX)?"; core C0_1/C3/C6_7-state residency: ":"; core C0/C3/C6-state residency: ") 
                           << getNormalizedPCUCounter(1, BeforeState[socket], AfterState[socket])
@@ -427,7 +427,7 @@ int main(int argc, char * argv[])
                 break;
 
             case 2:
-                std::cout << "S" << socket
+                cout << "S" << socket
                           << "; PCUClocks: " << getPCUClocks(BeforeState[socket], AfterState[socket])
                           << "; Internal prochot cycles: " << getNormalizedPCUCounter(1, BeforeState[socket], AfterState[socket]) * 100. << " %"
                           << "; External prochot cycles:" << getNormalizedPCUCounter(2, BeforeState[socket], AfterState[socket]) * 100. << " %"
@@ -436,22 +436,22 @@ int main(int argc, char * argv[])
                 break;
 
             case 3:
-                std::cout << "S" << socket
+                cout << "S" << socket
                           << "; PCUClocks: " << getPCUClocks(BeforeState[socket], AfterState[socket])
                           << "; Thermal freq limit cycles: " << getNormalizedPCUCounter(1, BeforeState[socket], AfterState[socket]) * 100. << " %"
                           << "; Power freq limit cycles:" << getNormalizedPCUCounter(2, BeforeState[socket], AfterState[socket]) * 100. << " %";
                 if(cpu_model != PCM::SKX)
-                    std::cout << "; Clipped freq limit cycles:" << getNormalizedPCUCounter(3, BeforeState[socket], AfterState[socket]) * 100. << " %";
-                std::cout << "\n";
+                    cout << "; Clipped freq limit cycles:" << getNormalizedPCUCounter(3, BeforeState[socket], AfterState[socket]) * 100. << " %";
+                cout << "\n";
                 break;
 
             case 4:
                 if(cpu_model == PCM::SKX)
                 {
-                    std::cout << "This PCU profile is not supported on your processor\n";
+                    cout << "This PCU profile is not supported on your processor\n";
                     break;
                 }
-                std::cout << "S" << socket
+                cout << "S" << socket
                           << "; PCUClocks: " << getPCUClocks(BeforeState[socket], AfterState[socket])
                           << "; OS freq limit cycles: " << getNormalizedPCUCounter(1, BeforeState[socket], AfterState[socket]) * 100. << " %"
                           << "; Power freq limit cycles:" << getNormalizedPCUCounter(2, BeforeState[socket], AfterState[socket]) * 100. << " %"
@@ -459,36 +459,36 @@ int main(int argc, char * argv[])
                           << "\n";
                 break;
             case 5:
-                std::cout << "S" << socket
+                cout << "S" << socket
                           << "; Frequency transition count: " << getPCUCounter(1, BeforeState[socket], AfterState[socket]) << " "
                           << "; Cycles spent changing frequency: " << getNormalizedPCUCounter(2, BeforeState[socket], AfterState[socket], m) * 100. << " %";
                 if (PCM::HASWELLX == cpu_model) {
-                    std::cout << "; UFS transition count: " << getPCUCounter(3, BeforeState[socket], AfterState[socket]) << " ";
-                    std::cout << "; UFS transition cycles: " << getNormalizedPCUCounter(0, BeforeState[socket], AfterState[socket], m) * 100. << " %";
+                    cout << "; UFS transition count: " << getPCUCounter(3, BeforeState[socket], AfterState[socket]) << " ";
+                    cout << "; UFS transition cycles: " << getNormalizedPCUCounter(0, BeforeState[socket], AfterState[socket], m) * 100. << " %";
                 }
-                std::cout << "\n";
+                cout << "\n";
                 break;
             case 6:
-                std::cout << "S" << socket;
+                cout << "S" << socket;
 
                 if (cpu_model == PCM::HASWELLX || PCM::BDX_DE == cpu_model)
-                    std::cout << "; PC1e+ residency: " << getNormalizedPCUCounter(0, BeforeState[socket], AfterState[socket], m) * 100. << " %"
+                    cout << "; PC1e+ residency: " << getNormalizedPCUCounter(0, BeforeState[socket], AfterState[socket], m) * 100. << " %"
                         "; PC1e+ transition count: " << getPCUCounter(1, BeforeState[socket], AfterState[socket]) << " ";
 
                 if (cpu_model == PCM::IVYTOWN || cpu_model == PCM::HASWELLX || PCM::BDX_DE == cpu_model || PCM::SKX == cpu_model)
                 {
-                    std::cout << "; PC2 residency: " << getPackageCStateResidency(2, BeforeState[socket], AfterState[socket]) * 100. << " %";
-                    std::cout << "; PC2 transitions: " << getPCUCounter(2, BeforeState[socket], AfterState[socket]) << " ";
-                    std::cout << "; PC3 residency: " << getPackageCStateResidency(3, BeforeState[socket], AfterState[socket]) * 100. << " %";
-                    std::cout << "; PC6 residency: " << getPackageCStateResidency(6, BeforeState[socket], AfterState[socket]) * 100. << " %";
-                    std::cout << "; PC6 transitions: " << getPCUCounter(3, BeforeState[socket], AfterState[socket]) << " ";
+                    cout << "; PC2 residency: " << getPackageCStateResidency(2, BeforeState[socket], AfterState[socket]) * 100. << " %";
+                    cout << "; PC2 transitions: " << getPCUCounter(2, BeforeState[socket], AfterState[socket]) << " ";
+                    cout << "; PC3 residency: " << getPackageCStateResidency(3, BeforeState[socket], AfterState[socket]) * 100. << " %";
+                    cout << "; PC6 residency: " << getPackageCStateResidency(6, BeforeState[socket], AfterState[socket]) * 100. << " %";
+                    cout << "; PC6 transitions: " << getPCUCounter(3, BeforeState[socket], AfterState[socket]) << " ";
                 }
 
-                std::cout << "\n";
+                cout << "\n";
                 break;
             case 7:
                 if (PCM::HASWELLX == cpu_model || PCM::BDX_DE == cpu_model || PCM::BDX == cpu_model) {
-                    std::cout << "S" << socket
+                    cout << "S" << socket
                               << "; UFS_TRANSITIONS_PERF_P_LIMIT: " << getNormalizedPCUCounter(0, BeforeState[socket], AfterState[socket], m) * 100. << " %"
                               << "; UFS_TRANSITIONS_IO_P_LIMIT: " << getNormalizedPCUCounter(1, BeforeState[socket], AfterState[socket], m) * 100. << " %"
                               << "; UFS_TRANSITIONS_UP_RING_TRAFFIC: " << getNormalizedPCUCounter(2, BeforeState[socket], AfterState[socket], m) * 100. << " %"
@@ -498,27 +498,27 @@ int main(int argc, char * argv[])
                 break;
             case 8:
                 if (PCM::HASWELLX == cpu_model || PCM::BDX_DE == cpu_model || PCM::BDX == cpu_model) {
-                    std::cout << "S" << socket
+                    cout << "S" << socket
                               << "; UFS_TRANSITIONS_DOWN: " << getNormalizedPCUCounter(0, BeforeState[socket], AfterState[socket], m) * 100. << " %"
                               << "\n";
                 }
                 break;
             }
 
-            std::cout << "S" << socket
+            cout << "S" << socket
                       << "; Consumed energy units: " << getConsumedEnergy(BeforeState[socket], AfterState[socket])
                       << "; Consumed Joules: " << getConsumedJoules(BeforeState[socket], AfterState[socket])
                       << "; Watts: " << 1000. * getConsumedJoules(BeforeState[socket], AfterState[socket]) / double(AfterTime - BeforeTime)
                       << "; Thermal headroom below TjMax: " << AfterState[socket].getPackageThermalHeadroom()
                       << "\n";
-            std::cout << "S" << socket
+            cout << "S" << socket
                       << "; Consumed DRAM energy units: " << getDRAMConsumedEnergy(BeforeState[socket], AfterState[socket])
                       << "; Consumed DRAM Joules: " << getDRAMConsumedJoules(BeforeState[socket], AfterState[socket])
                       << "; DRAM Watts: " << 1000. * getDRAMConsumedJoules(BeforeState[socket], AfterState[socket]) / double(AfterTime - BeforeTime)
                       << "\n";
         }
-        std::swap(BeforeState, AfterState);
-        std::swap(BeforeTime, AfterTime);
+        swap(BeforeState, AfterState);
+        swap(BeforeTime, AfterTime);
 
         if (m->isBlocked()) {
             cout << "----------------------------------------------------------------------------------------------\n";
