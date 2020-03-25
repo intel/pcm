@@ -23,7 +23,6 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <assert.h>
 
 using std::cout;
-using std::endl;
 
 inline double my_timestamp()
 {
@@ -94,7 +93,7 @@ int main(int argc, char * argv[])
 
     int i = 0;
 
-    cout << "Elements data size: " << sizeof(T) * nelements / 1024 << " KB" << std::endl;
+    cout << "Elements data size: " << sizeof(T) * nelements / 1024 << " KB\n";
 
     for ( ; i < nelements; ++i)
     {
@@ -110,14 +109,15 @@ int main(int argc, char * argv[])
         switch (op)
         {
         case 1:
-            cout << "Writing memory" << std::endl;
+            cout << "Writing memory\n";
             break;
         case 0:
-            cout << "Reading memory" << std::endl;
+            cout << "Reading memory\n";
             break;
         default:
-            cout << "Streaming to memory" << std::endl;
+            cout << "Streaming to memory\n";
         }
+        cout << std::flush;
 
         int niter = 32;
         i = niter;
@@ -138,7 +138,7 @@ int main(int argc, char * argv[])
 
             after_ts = my_timestamp();
         }
-        cout << "Bandwidth: " << (sizeof(T) * nelements * niter) / ((after_ts - before_ts) * 1024 * 1024) << " MByte/sec" << endl;
+        cout << "Bandwidth: " << (sizeof(T) * nelements * niter) / ((after_ts - before_ts) * 1024 * 1024) << " MByte/sec\n" << std::flush;
     }
 
     delete[] vector;
