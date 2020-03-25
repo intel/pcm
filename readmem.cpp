@@ -21,7 +21,6 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <sys/time.h>
 
 using std::cout;
-using std::endl;
 
 inline double my_timestamp()
 {
@@ -59,7 +58,7 @@ int main(int argc, char * argv[])
     int i = 0;
     int delay = atoi(argv[1]);
 
-    cout << "Elements data size: " << sizeof(T) * nelements / 1024 << " KB" << std::endl;
+    cout << "Elements data size: " << sizeof(T) * nelements / 1024 << " KB\n";
 
     for ( ; i < nelements; ++i)
     {
@@ -72,7 +71,7 @@ int main(int argc, char * argv[])
     while (1)
     {
         before_ts = my_timestamp();
-        cout << "Reading memory for " << delay << " seconds" << std::endl;
+        cout << "Reading memory for " << delay << " seconds\n";
         do
         {
             Memory_intensive_task(vector);
@@ -80,7 +79,7 @@ int main(int argc, char * argv[])
         } while ((after_ts - before_ts) < delay);
 
 
-        cout << "Sleeping for " << delay << " seconds" << std::endl;
+        cout << "Sleeping for " << delay << " seconds\n";
         sleep(delay);
     }
 
