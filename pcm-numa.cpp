@@ -288,7 +288,7 @@ int main(int argc, char * argv[])
         m->getAllCounterStates(SysAfterState, DummySocketStates, AfterState);
 
         cout << "Time elapsed: " << dec << fixed << AfterTime - BeforeTime << " ms\n";
-        //cout << "Called sleep function for "<<dec<<fixed<<delay_ms<<" ms\n";
+        //cout << "Called sleep function for " << dec << fixed << delay_ms << " ms\n";
 
         if (csv)
             cout << "Core,IPC,Instructions,Cycles,Local DRAM accesses,Remote DRAM accesses \n";
