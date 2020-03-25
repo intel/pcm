@@ -630,7 +630,7 @@ void PCM::initRMID()
         MSR[core]->write(IA32_PQR_ASSOC,msr_pqr_assoc);
 
         msr_qm_evtsel = static_cast<uint64>(rmid[topology[core].socket] & ((1ULL<<10)-1ULL));
-        msr_qm_evtsel <<= 32 ;
+        msr_qm_evtsel <<= 32;
         //Write 0xC8D MSR with new RMID for each core
         //std::cout << "initRMID writing IA32_QM_EVTSEL 0x" << std::hex << msr_qm_evtsel << std::dec << "\n";
         MSR[core]->write(IA32_QM_EVTSEL,msr_qm_evtsel);
@@ -2843,7 +2843,7 @@ std::string PCM::getSupportedUarchCodenames() const
 std::string PCM::getUnsupportedMessage() const
 {
     std::ostringstream ostr;
-    ostr << "Error: unsupported processor. Only Intel(R) processors are supported (Atom(R) and microarchitecture codename "<< getSupportedUarchCodenames() <<").";
+    ostr << "Error: unsupported processor. Only Intel(R) processors are supported (Atom(R) and microarchitecture codename " << getSupportedUarchCodenames() << ").";
     return std::string(ostr.str());
 }
 
@@ -4343,7 +4343,7 @@ void print_mcfg(const char * path)
               std::cerr << "PCM Error: Cannot read " << path << " (2)\n";
               throw std::exception();
         }
-        std::cout << "Segment " <<std::dec <<  i<< " ";
+        std::cout << "Segment " << std::dec << i << " ";
         record.print();
     }
 
@@ -4465,7 +4465,7 @@ int getBusFromSocket(const uint32 socket)
     // std::cout << "socket: " << socket << "\n";
     while(cur_socket <= socket)
     {
-        // std::cout << "reading from bus 0x"<< std::hex << cur_bus << std::dec << " ";
+        // std::cout << "reading from bus 0x" << std::hex << cur_bus << std::dec << " ";
         PciHandleType h(0, cur_bus, 5, 0);
         uint32 cpubusno = 0;
         h.read32(0x108, &cpubusno); // CPUBUSNO register
