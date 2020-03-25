@@ -211,40 +211,40 @@ void store_latency_core(PCM *m)
 
 void print_verbose(PCM *m, int ddr_ip)
 {
-    cout << "L1 Cache Latency ============================= " << endl;
+    cout << "L1 Cache Latency ============================= \n";
     for (unsigned int i=0; i<m->getNumCores(); i++)
     {
-        cout << "Core: " << i << endl;
-        cout << "L1 Occupancy read: " << core_latency[0].core[i].occ_rd << endl;
-        cout << "L1 Inserts read: " << core_latency[0].core[i].insert_rd << endl;
-        cout << endl;
+        cout << "Core: " << i << "\n";
+        cout << "L1 Occupancy read: " << core_latency[0].core[i].occ_rd << "\n";
+        cout << "L1 Inserts read: " << core_latency[0].core[i].insert_rd << "\n";
+        cout << "\n";
     }
     if (ddr_ip == DDR)
     {
-        cout << "DDR Latency =================================" << endl;
-        cout << "Read Inserts Socket0: " << uncore_event[DDR].skt[0].rinsert << endl;
-        cout << "Read Occupancy Socket0: " << uncore_event[DDR].skt[0].roccupancy << endl;
-        cout << "Read Inserts Socket1: " << uncore_event[DDR].skt[1].rinsert << endl;
-        cout << "Read Occupancy Socket1: " << uncore_event[DDR].skt[1].roccupancy << endl;
-        cout << endl;
-        cout << "Write Inserts Socket0: " << uncore_event[DDR].skt[0].winsert << endl;
-        cout << "Write Occupancy Socket0: " << uncore_event[DDR].skt[0].woccupancy << endl;
-        cout << "Write Inserts Socket1: " << uncore_event[DDR].skt[1].winsert << endl;
-        cout << "Write Occupancy Socket1: " << uncore_event[DDR].skt[1].woccupancy << endl;
+        cout << "DDR Latency =================================\n";
+        cout << "Read Inserts Socket0: " << uncore_event[DDR].skt[0].rinsert << "\n";
+        cout << "Read Occupancy Socket0: " << uncore_event[DDR].skt[0].roccupancy << "\n";
+        cout << "Read Inserts Socket1: " << uncore_event[DDR].skt[1].rinsert << "\n";
+        cout << "Read Occupancy Socket1: " << uncore_event[DDR].skt[1].roccupancy << "\n";
+        cout << "\n";
+        cout << "Write Inserts Socket0: " << uncore_event[DDR].skt[0].winsert << "\n";
+        cout << "Write Occupancy Socket0: " << uncore_event[DDR].skt[0].woccupancy << "\n";
+        cout << "Write Inserts Socket1: " << uncore_event[DDR].skt[1].winsert << "\n";
+        cout << "Write Occupancy Socket1: " << uncore_event[DDR].skt[1].woccupancy << "\n";
     }
 
     if (ddr_ip == PMM)
     {
-        cout << "PMM Latency =================================" << endl;
-        cout << "Read Inserts Socket0: " << uncore_event[PMM].skt[0].rinsert << endl;
-        cout << "Read Occupancy Socket0: " << uncore_event[PMM].skt[0].roccupancy << endl;
-        cout << "Read Inserts Socket1: " << uncore_event[PMM].skt[1].rinsert << endl;
-        cout << "Read Occupancy Socket1: " << uncore_event[PMM].skt[1].roccupancy << endl;
-        cout << endl;
-        cout << "Write Inserts Socket0: " << uncore_event[PMM].skt[0].winsert << endl;
-        cout << "Write Occupancy Socket0: " << uncore_event[PMM].skt[0].woccupancy << endl;
-        cout << "Write Inserts Socket1: " << uncore_event[PMM].skt[1].winsert << endl;
-        cout << "Write Occupancy Socket1: " << uncore_event[PMM].skt[1].woccupancy << endl;
+        cout << "PMM Latency =================================\n";
+        cout << "Read Inserts Socket0: " << uncore_event[PMM].skt[0].rinsert << "\n";
+        cout << "Read Occupancy Socket0: " << uncore_event[PMM].skt[0].roccupancy << "\n";
+        cout << "Read Inserts Socket1: " << uncore_event[PMM].skt[1].rinsert << "\n";
+        cout << "Read Occupancy Socket1: " << uncore_event[PMM].skt[1].roccupancy << "\n";
+        cout << "\n";
+        cout << "Write Inserts Socket0: " << uncore_event[PMM].skt[0].winsert << "\n";
+        cout << "Write Occupancy Socket0: " << uncore_event[PMM].skt[0].woccupancy << "\n";
+        cout << "Write Inserts Socket1: " << uncore_event[PMM].skt[1].winsert << "\n";
+        cout << "Write Occupancy Socket1: " << uncore_event[PMM].skt[1].woccupancy << "\n";
     }
 }
 
@@ -254,26 +254,26 @@ void print_ddr(PCM *m, int ddr_ip)
     {
         if (m->PMMTrafficMetricsAvailable())
         {
-            cout << "PMM read Latency(ns)" << endl;
+            cout << "PMM read Latency(ns)\n";
             for (unsigned int n=0; n<m->getNumSockets(); n++)
             {
                 cout << "Socket" << n << ": " << double(uncore_event[PMM].skt[n].rlatency)/DRAMSpeed;
-                cout << endl;
+                cout << "\n";
             }
         }
         else
         {
-            cout << "PMM metrics are not supported on your processor" << endl;
+            cout << "PMM metrics are not supported on your processor\n";
         }
     }
 
     if (ddr_ip == DDR)
     {
-        cout << "DDR read Latency(ns)" << endl;
+        cout << "DDR read Latency(ns)\n";
         for (unsigned int n=0; n<m->getNumSockets(); n++)
         {
             cout << "Socket" << n << ": " << double(uncore_event[DDR].skt[n].rlatency)/DRAMSpeed;
-            cout << endl;
+            cout << "\n";
         }
     }
 }
@@ -282,8 +282,8 @@ void print_core_stats(PCM *m, unsigned int core_size_per_socket, vector<vector<v
 {
     auto printHeader = []()
     {
-        cout << endl << endl;
-        cout << "L1 Cache Miss Latency(ns) [Adding 5 clocks for L1 Miss]" << endl << endl;;
+        cout << "\n\n";
+        cout << "L1 Cache Miss Latency(ns) [Adding 5 clocks for L1 Miss]\n\n";;
     };
     printHeader();
     for (unsigned int sid=0; sid<m->getNumSockets(); sid++)
@@ -294,7 +294,7 @@ void print_core_stats(PCM *m, unsigned int core_size_per_socket, vector<vector<v
         }
     }
 
-    cout << endl << "-----------------------------------------------------------------------------" << endl;
+    cout << "\n-----------------------------------------------------------------------------\n";
 
     for (unsigned int cid=0; cid<core_size_per_socket; cid++)
     {
@@ -305,15 +305,15 @@ void print_core_stats(PCM *m, unsigned int core_size_per_socket, vector<vector<v
                 cout << "Core" << sk_th[sid][tid][cid].core_id << ": " << fixed << setprecision(2) << sk_th[sid][tid][cid].latency << "        ";
             }
         }
-        cout << endl;
+        cout << "\n";
     }
-    cout << endl;
+    cout << "\n";
 
     printHeader();
 
     for (unsigned int s = 0; s < m->getNumSockets(); ++s)
     {
-        cout << "Socket" << s << ": " << core_latency[L1].socket[s].latency << endl;
+        cout << "Socket" << s << ": " << core_latency[L1].socket[s].latency << "\n";
     }
 }
 
@@ -375,34 +375,34 @@ void check_status(PCM *m, PCM::ErrorCode status)
         case PCM::Success:
             break;
         case PCM::MSRAccessDenied:
-            cerr << "Access to Intel(r) Performance Counter Monitor has denied (no MSR or PCI CFG space access)." << endl;
+            cerr << "Access to Intel(r) Performance Counter Monitor has denied (no MSR or PCI CFG space access).\n";
             exit(EXIT_FAILURE);
         case PCM::PMUBusy:
-            cerr << "Access to Intel(r) Performance Counter Monitor has denied (Performance Monitoring Unit is occupied by other application). Try to stop the application that uses PMU." << endl;
-            cerr << "Alternatively you can try to reset PMU configuration at your own risk. Try to reset? (y/n)" << endl;
+            cerr << "Access to Intel(r) Performance Counter Monitor has denied (Performance Monitoring Unit is occupied by other application). Try to stop the application that uses PMU.\n";
+            cerr << "Alternatively you can try to reset PMU configuration at your own risk. Try to reset? (y/n)\n";
             char yn;
             std::cin >> yn;
             if ('y' == yn)
             {
                 m->resetPMU();
-                cerr << "PMU configuration has been reset. Try to rerun the program again." << endl;
+                cerr << "PMU configuration has been reset. Try to rerun the program again.\n";
             }
             exit(EXIT_FAILURE);
         default:
-            cerr << "Access to Intel(r) Performance Counter Monitor has denied (Unknown error)." << endl;
+            cerr << "Access to Intel(r) Performance Counter Monitor has denied (Unknown error).\n";
             exit(EXIT_FAILURE);
     }
     print_cpu_details();
 
     if(!(m->LatencyMetricsAvailable()))
     {
-        cerr << "Platform not Supported! Program aborted" << endl;
+        cerr << "Platform not Supported! Program aborted\n";
         exit(EXIT_FAILURE);
     }
 
     if(m->getNumSockets() > max_sockets)
     {
-        cerr << "Only systems with up to "<<(int)max_sockets<<" sockets are supported! Program aborted" << endl;
+        cerr << "Only systems with up to " <<(int)max_sockets<< " sockets are supported! Program aborted\n";
         exit(EXIT_FAILURE);
     }
 }
@@ -413,14 +413,14 @@ void build_registers(PCM *m, PCM::ExtendedCustomCoreEventDescription conf, bool 
 //Check if Online Cores = Available Cores. This version only supports available cores = online cores
     if (m->getNumCores() != m->getNumOnlineCores())
     {
-        cout << "Number of online cores should be equal to number of available cores" << endl;
+        cout << "Number of online cores should be equal to number of available cores\n";
         exit(EXIT_FAILURE);
     }
 
     //Check for Maximum Custom Core Events
     if (m->getMaxCustomCoreEvents() < 2)
     {
-        cout << "System should support a minimum of 2 Custom Core Events to run pcm-latency" << endl;
+        cout << "System should support a minimum of 2 Custom Core Events to run pcm-latency\n";
         exit(EXIT_FAILURE);
     }
 //Creating conf
@@ -469,6 +469,7 @@ void collect_data(PCM *m, bool enable_pmm, bool enable_verbose, int delay_ms)
 	store_latency_core(m);
 
         print_all_stats(m, enable_pmm, enable_verbose);
+        std::cout << std::flush;
     }
 
     delete[] BeforeState;
@@ -477,17 +478,17 @@ void collect_data(PCM *m, bool enable_pmm, bool enable_verbose, int delay_ms)
 
 void print_usage()
 {
-    cerr << endl << "Usage: " << endl;
-    cerr << " -h | --help | /h        => Print this help and exit" << endl;
-    cerr << " --PMM | -pmm            => to enable PMM (Default DDR uncore latency)" << endl;
-    cerr << " -v | --verbose          => Verbose Output" << endl;
-    cerr << endl;
+    cerr << "\nUsage: \n";
+    cerr << " -h | --help | /h        => Print this help and exit\n";
+    cerr << " --PMM | -pmm            => to enable PMM (Default DDR uncore latency)\n";
+    cerr << " -v | --verbose          => Verbose Output\n";
+    cerr << "\n";
 }
 
 int main(int argc, char * argv[])
 {
     set_signal_handlers();
-    std::cout << "\n Processor Counter Monitor " << PCM_VERSION << std::endl;
+    std::cout << "\n Processor Counter Monitor " << PCM_VERSION << "\n";
     std::cout << "\n This utility measures Latency information\n\n";
     bool enable_pmm = false;
     bool enable_verbose = false;
