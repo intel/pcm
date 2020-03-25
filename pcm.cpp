@@ -76,32 +76,32 @@ std::string l3cache_occ_format(uint64 o)
 
 void print_help(const string prog_name)
 {
-    cerr << endl << " Usage: " << endl << " " << prog_name
-        << " --help | [delay] [options] [-- external_program [external_program_options]]" << endl;
-    cerr << "   <delay>                           => time interval to sample performance counters." << endl;
-    cerr << "                                        If not specified, or 0, with external program given" << endl;
-    cerr << "                                        will read counters only after external program finishes" << endl;
-    cerr << " Supported <options> are: " << endl;
-    cerr << "  -h    | --help      | /h           => print this help and exit" << endl;
+    cerr << "\n Usage: \n " << prog_name
+        << " --help | [delay] [options] [-- external_program [external_program_options]]\n";
+    cerr << "   <delay>                           => time interval to sample performance counters.\n";
+    cerr << "                                        If not specified, or 0, with external program given\n";
+    cerr << "                                        will read counters only after external program finishes\n";
+    cerr << " Supported <options> are: \n";
+    cerr << "  -h    | --help      | /h           => print this help and exit\n";
 #ifdef _MSC_VER
-    cerr << "  --uninstallDriver   | --installDriver=> (un)install driver" << endl;
+    cerr << "  --uninstallDriver   | --installDriver=> (un)install driver\n";
 #endif
-    cerr << "  -r    | --reset     | /reset       => reset PMU configuration (at your own risk)" << endl;
-    cerr << "  -nc   | --nocores   | /nc          => hide core related output" << endl;
-    cerr << "  -yc   | --yescores  | /yc          => enable specific cores to output" << endl;
-    cerr << "  -ns   | --nosockets | /ns          => hide socket related output" << endl;
-    cerr << "  -nsys | --nosystem  | /nsys        => hide system related output" << endl;
-    cerr << "  -m    | --multiple-instances | /m  => allow multiple PCM instances running in parallel" << endl;
-    cerr << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or" << endl
-        << "                                        to a file, in case filename is provided" << endl;
-    cerr << "  -i[=number] | /i[=number]          => allow to determine number of iterations" << endl;
+    cerr << "  -r    | --reset     | /reset       => reset PMU configuration (at your own risk)\n";
+    cerr << "  -nc   | --nocores   | /nc          => hide core related output\n";
+    cerr << "  -yc   | --yescores  | /yc          => enable specific cores to output\n";
+    cerr << "  -ns   | --nosockets | /ns          => hide socket related output\n";
+    cerr << "  -nsys | --nosystem  | /nsys        => hide system related output\n";
+    cerr << "  -m    | --multiple-instances | /m  => allow multiple PCM instances running in parallel\n";
+    cerr << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or\n"
+        << "                                        to a file, in case filename is provided\n";
+    cerr << "  -i[=number] | /i[=number]          => allow to determine number of iterations\n";
     print_help_force_rtm_abort_mode(37);
-    cerr << " Examples:" << endl;
-    cerr << "  " << prog_name << " 1 -nc -ns          => print counters every second without core and socket output" << endl;
-    cerr << "  " << prog_name << " 1 -i=10            => print counters every second 10 times and exit" << endl;
-    cerr << "  " << prog_name << " 0.5 -csv=test.log  => twice a second save counter values to test.log in CSV format" << endl;
-    cerr << "  " << prog_name << " /csv 5 2>/dev/null => one sampe every 5 seconds, and discard all diagnostic output" << endl;
-    cerr << endl;
+    cerr << " Examples:\n";
+    cerr << "  " << prog_name << " 1 -nc -ns          => print counters every second without core and socket output\n";
+    cerr << "  " << prog_name << " 1 -i=10            => print counters every second 10 times and exit\n";
+    cerr << "  " << prog_name << " 0.5 -csv=test.log  => twice a second save counter values to test.log in CSV format\n";
+    cerr << "  " << prog_name << " /csv 5 2>/dev/null => one sampe every 5 seconds, and discard all diagnostic output\n";
+    cerr << "\n";
 }
 
 
@@ -224,7 +224,7 @@ void print_output(PCM * m,
     if (m->CoreRemoteMemoryBWMetricAvailable())
         cout << "   RMB  |";
 
-    cout << " TEMP" << endl << endl;
+    cout << " TEMP\n\n";
 
     if (show_core_output)
     {
@@ -884,7 +884,7 @@ void print_csv(PCM * m,
     tm tt = pcm_localtime();
     char old_fill = cout.fill('0');
     cout.precision(3);
-    cout << endl << setw(4) << 1900 + tt.tm_year << '-' << setw(2) << 1 + tt.tm_mon << '-'
+    cout << "\n" << setw(4) << 1900 + tt.tm_year << '-' << setw(2) << 1 + tt.tm_mon << '-'
         << setw(2) << tt.tm_mday << ',' << setw(2) << tt.tm_hour << ':'
         << setw(2) << tt.tm_min << ':' << setw(2) << tt.tm_sec
 #ifdef _MSC_VER
@@ -1052,11 +1052,11 @@ int main(int argc, char * argv[])
     std::cerr.rdbuf(&nullStream2);
 #endif
 
-    cerr << endl;
-    cerr << " Processor Counter Monitor " << PCM_VERSION << endl;
-    cerr << endl;
+    cerr << "\n";
+    cerr << " Processor Counter Monitor " << PCM_VERSION << "\n";
+    cerr << "\n";
     
-    cerr << endl;
+    cerr << "\n";
 
     // if delay is not specified: use either default (1 second),
     // or only read counters before or after PCM started: keep PCM blocked
@@ -1102,7 +1102,7 @@ int main(int argc, char * argv[])
             show_partial_core_output = true;
             if(*argv == NULL)
             {
-                cerr << "Error: --yescores requires additional argument." << endl;
+                cerr << "Error: --yescores requires additional argument.\n";
                 exit(EXIT_FAILURE);
             }
             std::stringstream ss(*argv);
@@ -1116,7 +1116,7 @@ int main(int argc, char * argv[])
                 core_id = atoi(s.c_str());
                 if(core_id > MAX_CORES)
                 {
-                    cerr << "Core ID:" << core_id << " exceed maximum range " << MAX_CORES << ", program abort" << endl;
+                    cerr << "Core ID:" << core_id << " exceed maximum range " << MAX_CORES << ", program abort\n";
                     exit(EXIT_FAILURE);
                 }
 
@@ -1124,8 +1124,8 @@ int main(int argc, char * argv[])
             }
             if(m->getNumCores() > MAX_CORES)
             {
-                cerr << "Error: --yescores option is enabled, but #define MAX_CORES " << MAX_CORES << " is less than  m->getNumCores() = " << m->getNumCores() << endl;
-                cerr << "There is a potential to crash the system. Please increase MAX_CORES to at least " << m->getNumCores() << " and re-enable this option." << endl;
+                cerr << "Error: --yescores option is enabled, but #define MAX_CORES " << MAX_CORES << " is less than  m->getNumCores() = " << m->getNumCores() << "\n";
+                cerr << "There is a potential to crash the system. Please increase MAX_CORES to at least " << m->getNumCores() << " and re-enable this option.\n";
                 exit(EXIT_FAILURE);
             }
             continue;
@@ -1215,7 +1215,7 @@ int main(int argc, char * argv[])
         {
             Driver tmpDrvObject;
             tmpDrvObject.uninstall();
-            cerr << "msr.sys driver has been uninstalled. You might need to reboot the system to make this effective." << endl;
+            cerr << "msr.sys driver has been uninstalled. You might need to reboot the system to make this effective.\n";
             exit(EXIT_SUCCESS);
         }
         else
@@ -1224,8 +1224,8 @@ int main(int argc, char * argv[])
             Driver tmpDrvObject = Driver(Driver::msrLocalPath());
             if (!tmpDrvObject.start())
             {
-                wcerr << "Can not access CPU counters" << endl;
-                wcerr << "You must have a signed  driver at " << tmpDrvObject.driverPath() << " and have administrator rights to run this program" << endl;
+                wcerr << "Can not access CPU counters\n";
+                wcerr << "You must have a signed  driver at " << tmpDrvObject.driverPath() << " and have administrator rights to run this program\n";
                 exit(EXIT_FAILURE);
             }
             exit(EXIT_SUCCESS);
@@ -1248,10 +1248,10 @@ int main(int argc, char * argv[])
             is_str_stream >> noskipws >> delay_input;
             if (is_str_stream.eof() && !is_str_stream.fail() && delay == -1) {
                 delay = delay_input;
-                cerr << "Delay: " << delay << endl;
+                cerr << "Delay: " << delay << "\n";
             }
             else {
-                cerr << "WARNING: unknown command-line option: \"" << *argv << "\". Ignoring it." << endl;
+                cerr << "WARNING: unknown command-line option: \"" << *argv << "\". Ignoring it.\n";
                 print_help(program);
                 exit(EXIT_FAILURE);
             }
@@ -1263,7 +1263,7 @@ int main(int argc, char * argv[])
 
     if (reset_pmu)
     {
-        cerr << "\n Resetting PMU configuration" << endl;
+        cerr << "\n Resetting PMU configuration\n";
         m->resetPMU();
     }
 
@@ -1280,14 +1280,14 @@ int main(int argc, char * argv[])
     case PCM::Success:
         break;
     case PCM::MSRAccessDenied:
-        cerr << "Access to Processor Counter Monitor has denied (no MSR or PCI CFG space access)." << endl;
+        cerr << "Access to Processor Counter Monitor has denied (no MSR or PCI CFG space access).\n";
         exit(EXIT_FAILURE);
     case PCM::PMUBusy:
-        cerr << "Access to Processor Counter Monitor has denied (Performance Monitoring Unit is occupied by other application). Try to stop the application that uses PMU." << endl;
-        cerr << "Alternatively you can try running PCM with option -r to reset PMU configuration at your own risk." << endl;
+        cerr << "Access to Processor Counter Monitor has denied (Performance Monitoring Unit is occupied by other application). Try to stop the application that uses PMU.\n";
+        cerr << "Alternatively you can try running PCM with option -r to reset PMU configuration at your own risk.\n";
         exit(EXIT_FAILURE);
     default:
-        cerr << "Access to Processor Counter Monitor has denied (Unknown error)." << endl;
+        cerr << "Access to Processor Counter Monitor has denied (Unknown error).\n";
         exit(EXIT_FAILURE);
     }
 
@@ -1310,7 +1310,7 @@ int main(int argc, char * argv[])
     }
     // in case delay is not provided in command line => set default
     if (delay <= 0.0) delay = PCM_DELAY_DEFAULT;
-    // cerr << "DEBUG: Delay: " << delay << " seconds. Blocked: " << m->isBlocked() << endl;
+    // cerr << "DEBUG: Delay: " << delay << " seconds. Blocked: " << m->isBlocked() << "\n";
 
     if (csv_output) {
         print_csv_header(m, ycores, cpu_model, show_core_output, show_partial_core_output, show_socket_output, show_system_output);
