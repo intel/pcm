@@ -177,7 +177,7 @@ void print_custom_stats(const StateType & BeforeState, const StateType & AfterSt
 				cout << double(getNumberOfCustomEvents(i, BeforeState, AfterState))/double(txn_rate);
 		}
 		else
-			cout << double(getNumberOfCustomEvents(i, BeforeState, AfterState))/double(txn_rate)<<",";
+			cout << double(getNumberOfCustomEvents(i, BeforeState, AfterState))/double(txn_rate) << ",";
 
 	cout << "\n";
 }
@@ -550,7 +550,7 @@ int main(int argc, char * argv[])
 
 		for(uint32 i=0;i<cur_event;++i)
 		{
-			cout <<"Event"<<i<<": "<<events[i].name<<" (raw 0x"<<
+			cout << "Event" << i << ": " << events[i].name << " (raw 0x" <<
 				std::hex << (uint32)events[i].value;
 
 			if(events[i].msr_value)
@@ -583,9 +583,9 @@ int main(int argc, char * argv[])
 			if(m->isCoreOnline(i) == false || (show_partial_core_output && ycores.test(i) == false))
 				continue;
 			if(csv)
-				cout <<i<<",";
+				cout << i << ",";
 			else
-				cout <<" "<< setw(3) << i << "   " << setw(2) ; 
+				cout << " " << setw(3) << i << "   " << setw(2) ;
 			print_custom_stats(BeforeState[i], AfterState[i], csv, txn_rate);
 		}
 		if(csv)
