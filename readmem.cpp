@@ -71,7 +71,7 @@ int main(int argc, char * argv[])
     while (1)
     {
         before_ts = my_timestamp();
-        cout << "Reading memory for " << delay << " seconds\n";
+        cout << "Reading memory for " << delay << " seconds\n" << flush;
         do
         {
             Memory_intensive_task(vector);
@@ -79,7 +79,7 @@ int main(int argc, char * argv[])
         } while ((after_ts - before_ts) < delay);
 
 
-        cout << "Sleeping for " << delay << " seconds\n";
+        cout << "Sleeping for " << delay << " seconds\n" << flush;
         sleep(delay);
     }
 
