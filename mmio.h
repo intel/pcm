@@ -47,12 +47,12 @@ class MMIORange
     {
         if (!writeSupported)
         {
-            std::cerr << "PCM Error: MMIORange writes are not supported by the driver" << std::endl;
+            std::cerr << "PCM Error: MMIORange writes are not supported by the driver\n";
             return;
         }
         if (readonly)
         {
-            std::cerr << "PCM Error: attempting to write to a read-only MMIORange" << std::endl;
+            std::cerr << "PCM Error: attempting to write to a read-only MMIORange\n";
             return;
         }
         mutex.lock();
