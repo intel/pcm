@@ -386,6 +386,7 @@ int main(int argc, char *argv[])
 			std::cout << std::setprecision(coutPrecision) << counters.qpi.outgoingTotal << " ";
 			std::cout << "\n";
 		}
+                std::cout << std::flush;
 	}
 
 	return 1;
