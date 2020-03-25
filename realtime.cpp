@@ -27,7 +27,6 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 */
 
 using std::cout;
-using std::endl;
 
 inline double my_timestamp()
 {
@@ -60,7 +59,7 @@ long long int all_fib = 0;
 
 void CPU_intensive_task()
 {
-    cout << "CPU task" << endl;
+    cout << "CPU task\n";
     all_fib += fib(80000000ULL + (rand() % 2));
 }
 
@@ -68,7 +67,7 @@ void CPU_intensive_task()
 template <class DS>
 void Memory_intensive_task(DS & ds)
 {
-    cout << "Mem task" << endl;
+    cout << "Mem task\n";
     std::find(ds.begin(), ds.end(), ds.size());
 }
 
@@ -97,7 +96,7 @@ void measure(DS & ds, size_t repeat, size_t nelements)
         before_sstate = getSystemCounterState();
         before_ts = my_timestamp();
 
-        cout << "Response time of getSystemCounterState(): " << 1000. * (before_ts - before1_ts) << " ms" << std::endl;
+        cout << "Response time of getSystemCounterState(): " << 1000. * (before_ts - before1_ts) << " ms\n";
     }
 #endif
 
@@ -108,33 +107,34 @@ void measure(DS & ds, size_t repeat, size_t nelements)
     after_ts = my_timestamp();
 
 
-    cout << "\nSearch runtime: " << ((after_ts - before_ts) * 1000. / repeat) << " ms " << std::endl;
-    cout << "Search runtime per element: " << ((after_ts - before_ts) * 1000000000. / repeat) / nelements << " ns " << std::endl;
+    cout << "\nSearch runtime: " << ((after_ts - before_ts) * 1000. / repeat) << " ms \n";
+    cout << "Search runtime per element: " << ((after_ts - before_ts) * 1000000000. / repeat) / nelements << " ns \n";
 
     cout << "Number of L2 cache misses per 1000 elements: "
          << (1000. * getL2CacheMisses(before_sstate, after_sstate) / repeat) / nelements <<
-        " \nL2 Cache hit ratio : " << getL2CacheHitRatio(before_sstate, after_sstate) * 100. << " %" << std::endl;
+        " \nL2 Cache hit ratio : " << getL2CacheHitRatio(before_sstate, after_sstate) * 100. << " %\n";
 
 
     cout << "Number of L3 cache misses per 1000 elements: "
          << (1000. * getL3CacheMisses(before_sstate, after_sstate) / repeat) / nelements <<
-        " \nL3 Cache hit ratio : " << getL3CacheHitRatio(before_sstate, after_sstate) * 100. << " %" << std::endl;
+        " \nL3 Cache hit ratio : " << getL3CacheHitRatio(before_sstate, after_sstate) * 100. << " %\n";
 
     cout << "Bytes written to memory controller per element: " <<
-    (double(getBytesWrittenToMC(before_sstate, after_sstate)) / repeat) / nelements << std::endl;
+    (double(getBytesWrittenToMC(before_sstate, after_sstate)) / repeat) / nelements << "\n";
 
     cout << "Bytes read from memory controller per element : " <<
-    (double(getBytesReadFromMC(before_sstate, after_sstate)) / repeat) / nelements << std::endl;
+    (double(getBytesReadFromMC(before_sstate, after_sstate)) / repeat) / nelements << "\n";
 
 
     cout << "Used memory bandwidth: " <<
-    ((getBytesReadFromMC(before_sstate, after_sstate) + getBytesWrittenToMC(before_sstate, after_sstate)) / (after_ts - before_ts)) / (1024 * 1024) << " MByte/sec" << std::endl;
+    ((getBytesReadFromMC(before_sstate, after_sstate) + getBytesWrittenToMC(before_sstate, after_sstate)) / (after_ts - before_ts)) / (1024 * 1024) << " MByte/sec\n";
 
-    cout << "Instructions retired: " << getInstructionsRetired(before_sstate, after_sstate) / 1000000 << "mln" << std::endl;
+    cout << "Instructions retired: " << getInstructionsRetired(before_sstate, after_sstate) / 1000000 << "mln\n";
 
-    cout << "CPU cycles: " << getCycles(before_sstate, after_sstate) / 1000000 << "mln" << std::endl;
+    cout << "CPU cycles: " << getCycles(before_sstate, after_sstate) / 1000000 << "mln\n";
 
-    cout << "Instructions per cycle: " << getCoreIPC(before_sstate, after_sstate) << std::endl;
+    cout << "Instructions per cycle: " << getCoreIPC(before_sstate, after_sstate) << "\n";
+    cout << flush;
 }
 
 #if 0
@@ -164,14 +164,14 @@ int main(int argc, char * argv[])
 
     if (!m->good())
     {
-        cout << "Can not access CPU counters" << endl;
-        cout << "Try to execute 'modprobe msr' as root user and then" << endl;
+        cout << "Can not access CPU counters\n";
+        cout << "Try to execute 'modprobe msr' as root user and then\n";
         cout << "you also must have read and write permissions for /dev/cpu/?/msr devices (the 'chown' command can help).";
         return -1;
     }
 
     if (m->program() != PCM::Success) {
-        cout << "Program was not successful..." << endl;
+        cout << "Program was not successful...\n";
         delete m;
         return -1;
     }
@@ -194,15 +194,15 @@ int main(int argc, char * argv[])
     unsigned long long int totalops = 200000ULL * 1000ULL * 64ULL / sizeof(T);
     int repeat = totalops / nelements, j;
 
-    cout << std::endl << std::endl << "Elements to traverse: " << totalops << std::endl;
-    cout << "Items in data structure: " << nelements << std::endl;
-    cout << "Elements data size: " << sizeof(T) * nelements / 1024 << " KB" << std::endl;
-    cout << "Test repetions: " << repeat << std::endl;
+    cout << "\n\nElements to traverse: " << totalops << "\n";
+    cout << "Items in data structure: " << nelements << "\n";
+    cout << "Elements data size: " << sizeof(T) * nelements / 1024 << " KB\n";
+    cout << "Test repetions: " << repeat << "\n";
 
-    cout << "\n*List data structure*" << endl;
+    cout << "\n*List data structure*\n";
     measure(list, repeat, nelements);
 
-    cout << "\n\n*Vector/array data structure*" << endl;
+    cout << "\n\n*Vector/array data structure*\n";
     measure(vector, repeat, nelements);
 
 #else
@@ -213,7 +213,7 @@ int main(int argc, char * argv[])
 
     int i = 0;
 
-    cout << "Elements data size: " << sizeof(T) * nelements / 1024 << " KB" << std::endl;
+    cout << "Elements data size: " << sizeof(T) * nelements / 1024 << " KB\n";
 
     for ( ; i < nelements; ++i)
     {
@@ -244,7 +244,7 @@ int main(int argc, char * argv[])
     }
     after_ts = my_timestamp();
 
-    cout << "In order scheduling, Running time: " << (after_ts - before_ts) << " seconds" << endl;
+    cout << "In order scheduling, Running time: " << (after_ts - before_ts) << " seconds\n";
 
 
     before_ts = my_timestamp();
@@ -254,7 +254,7 @@ int main(int argc, char * argv[])
         while (m_tasks + c_tasks != 0)
         {
             double band = currentMemoryBandwidth();
-            //cout << "Mem band: "<< band << " MB/sec" << endl;
+            //cout << "Mem band: " << band << " MB/sec\n";
             if (m_tasks > 0 && (band < (25 * 1024 /* MB/sec*/)
                                 || c_tasks == 0))
             {
@@ -274,7 +274,7 @@ int main(int argc, char * argv[])
 
     after_ts = my_timestamp();
 
-    cout << "CPU monitoring conscoius scheduling, Running time: " << (after_ts - before_ts) << " seconds" << endl;
+    cout << "CPU monitoring conscoius scheduling, Running time: " << (after_ts - before_ts) << " seconds\n";
 
 #endif
     m->cleanup();
