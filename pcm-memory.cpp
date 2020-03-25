@@ -104,7 +104,7 @@ void printSocketBWHeader(uint32 no_columns, uint32 skt, const bool show_channel_
     }
     cout << "\n";
     for (uint32 i=skt; i<(no_columns+skt); ++i) {
-        cout << "|--             Socket "<<setw(2)<<i<<"             --|";
+        cout << "|--             Socket " << setw(2) << i << "             --|";
     }
     cout << "\n";
     for (uint32 i=skt; i<(no_columns+skt); ++i) {
@@ -130,7 +130,7 @@ void printSocketRankBWHeader(uint32 no_columns, uint32 skt)
     }
     cout << "\n";
     for (uint32 i=skt; i<(no_columns+skt); ++i) {
-        cout << "|--               Socket "<<setw(2)<<i<<"               --|";
+        cout << "|--               Socket " << setw(2) << i << "               --|";
     }
     cout << "\n";
     for (uint32 i=skt; i<(no_columns+skt); ++i) {
@@ -160,21 +160,21 @@ void printSocketChannelBW(PCM *m, memdata_t *md, uint32 no_columns, uint32 skt)
             continue;
         }
         for (uint32 i=skt; i<(skt+no_columns); ++i) {
-            cout << "|-- Mem Ch "<<setw(2)<<channel<<": Reads (MB/s): "<<setw(8)<<md->iMC_Rd_socket_chan[i][channel]<<" --|";
+            cout << "|-- Mem Ch " << setw(2) << channel << ": Reads (MB/s): " << setw(8) << md->iMC_Rd_socket_chan[i][channel] << " --|";
         }
         cout << "\n";
         for (uint32 i=skt; i<(skt+no_columns); ++i) {
-            cout << "|--            Writes(MB/s): "<<setw(8)<<md->iMC_Wr_socket_chan[i][channel]<<" --|";
+            cout << "|--            Writes(MB/s): " << setw(8) << md->iMC_Wr_socket_chan[i][channel] << " --|";
         }
         cout << "\n";
         if(md->PMM)
         {
             for (uint32 i=skt; i<(skt+no_columns); ++i) {
-                cout << "|--      PMM Reads(MB/s)   : "<<setw(8)<<md->iMC_PMM_Rd_socket_chan[i][channel]<<" --|";
+                cout << "|--      PMM Reads(MB/s)   : " << setw(8) << md->iMC_PMM_Rd_socket_chan[i][channel] << " --|";
             }
             cout << "\n";
             for (uint32 i=skt; i<(skt+no_columns); ++i) {
-                cout << "|--      PMM Writes(MB/s)  : "<<setw(8)<<md->iMC_PMM_Wr_socket_chan[i][channel]<<" --|";
+                cout << "|--      PMM Writes(MB/s)  : " << setw(8) << md->iMC_PMM_Wr_socket_chan[i][channel] << " --|";
             }
             cout << "\n";
         }
@@ -186,21 +186,21 @@ void printSocketChannelBW(uint32 no_columns, uint32 skt, uint32 num_imc_channels
     for (uint32 channel = 0; channel < num_imc_channels; ++channel) {
         if(rankA >= 0) {
           for (uint32 i=skt; i<(skt+no_columns); ++i) {
-              cout << "|-- Mem Ch "<<setw(2)<<channel<<" R " << setw(1) << rankA <<": Reads (MB/s): "<<setw(8)<<(float) (getMCCounter(channel,ServerPCICFGUncore::EventPosition::READ_RANK_A,uncState1[i],uncState2[i]) * 64 / 1000000.0 / (elapsedTime/1000.0))<<" --|";
+              cout << "|-- Mem Ch " << setw(2) << channel << " R " << setw(1) << rankA << ": Reads (MB/s): " << setw(8) << (float) (getMCCounter(channel,ServerPCICFGUncore::EventPosition::READ_RANK_A,uncState1[i],uncState2[i]) * 64 / 1000000.0 / (elapsedTime/1000.0)) << " --|";
           }
           cout << "\n";
           for (uint32 i=skt; i<(skt+no_columns); ++i) {
-              cout << "|--                Writes(MB/s): "<<setw(8)<<(float) (getMCCounter(channel,ServerPCICFGUncore::EventPosition::WRITE_RANK_A,uncState1[i],uncState2[i]) * 64 / 1000000.0 / (elapsedTime/1000.0))<<" --|";
+              cout << "|--                Writes(MB/s): " << setw(8) << (float) (getMCCounter(channel,ServerPCICFGUncore::EventPosition::WRITE_RANK_A,uncState1[i],uncState2[i]) * 64 / 1000000.0 / (elapsedTime/1000.0)) << " --|";
           }
           cout << "\n";
         }
         if(rankB >= 0) {
           for (uint32 i=skt; i<(skt+no_columns); ++i) {
-              cout << "|-- Mem Ch "<<setw(2) << channel<<" R " << setw(1) << rankB <<": Reads (MB/s): "<<setw(8)<<(float) (getMCCounter(channel,ServerPCICFGUncore::EventPosition::READ_RANK_B,uncState1[i],uncState2[i]) * 64 / 1000000.0 / (elapsedTime/1000.0))<<" --|";
+              cout << "|-- Mem Ch " << setw(2) << channel << " R " << setw(1) << rankB << ": Reads (MB/s): " << setw(8) << (float) (getMCCounter(channel,ServerPCICFGUncore::EventPosition::READ_RANK_B,uncState1[i],uncState2[i]) * 64 / 1000000.0 / (elapsedTime/1000.0)) << " --|";
           }
           cout << "\n";
           for (uint32 i=skt; i<(skt+no_columns); ++i) {
-              cout << "|--                Writes(MB/s): "<<setw(8)<<(float) (getMCCounter(channel,ServerPCICFGUncore::EventPosition::WRITE_RANK_B,uncState1[i],uncState2[i]) * 64 / 1000000.0 / (elapsedTime/1000.0))<<" --|";
+              cout << "|--                Writes(MB/s): " << setw(8) << (float) (getMCCounter(channel,ServerPCICFGUncore::EventPosition::WRITE_RANK_B,uncState1[i],uncState2[i]) * 64 / 1000000.0 / (elapsedTime/1000.0)) << " --|";
           }
           cout << "\n";
         }
@@ -222,21 +222,21 @@ float PMM_MM_Ratio(const memdata_t *md, const uint32 skt)
 void printSocketBWFooter(uint32 no_columns, uint32 skt, const memdata_t *md)
 {
     for (uint32 i=skt; i<(skt+no_columns); ++i) {
-        cout << "|-- NODE"<<setw(2)<<i<<" Mem Read (MB/s) : "<<setw(8)<<md->iMC_Rd_socket[i]<<" --|";
+        cout << "|-- NODE" << setw(2) << i << " Mem Read (MB/s) : " << setw(8) << md->iMC_Rd_socket[i] << " --|";
     }
     cout << "\n";
     for (uint32 i=skt; i<(skt+no_columns); ++i) {
-        cout << "|-- NODE"<<setw(2)<<i<<" Mem Write(MB/s) : "<<setw(8)<<md->iMC_Wr_socket[i]<<" --|";
+        cout << "|-- NODE" << setw(2) << i << " Mem Write(MB/s) : " << setw(8) << md->iMC_Wr_socket[i] << " --|";
     }
     cout << "\n";
     if (md->PMM || md->PMMMixedMode)
     {
         for (uint32 i=skt; i<(skt+no_columns); ++i) {
-            cout << "|-- NODE"<<setw(2)<<i<<" PMM Read (MB/s):  "<<setw(8)<<md->iMC_PMM_Rd_socket[i]<<" --|";
+            cout << "|-- NODE" << setw(2) << i << " PMM Read (MB/s):  " << setw(8) << md->iMC_PMM_Rd_socket[i] << " --|";
         }
         cout << "\n";
         for (uint32 i=skt; i<(skt+no_columns); ++i) {
-            cout << "|-- NODE"<<setw(2)<<i<<" PMM Write(MB/s):  "<<setw(8)<<md->iMC_PMM_Wr_socket[i]<<" --|";
+            cout << "|-- NODE" << setw(2) << i << " PMM Write(MB/s):  " << setw(8) << md->iMC_PMM_Wr_socket[i] << " --|";
         }
         cout << "\n";
     }
@@ -263,7 +263,7 @@ void printSocketBWFooter(uint32 no_columns, uint32 skt, const memdata_t *md)
         for (uint32 ctrl = 0; ctrl < max_imc_controllers; ++ctrl)
         {
             for (uint32 i=skt; i<(skt+no_columns); ++i) {
-                cout << "|-- NODE"<<setw(2)<<i<<"."<<ctrl<<" NM read hit rate :"<<setw(6)<<md->M2M_NM_read_hit_rate[i][ctrl]<<" --|";
+                cout << "|-- NODE" << setw(2) << i << "." << ctrl << " NM read hit rate :" << setw(6) << md->M2M_NM_read_hit_rate[i][ctrl] << " --|";
             }
             cout << "\n";
         }
@@ -271,13 +271,13 @@ void printSocketBWFooter(uint32 no_columns, uint32 skt, const memdata_t *md)
     if (md->PMM == false && md->PMMMixedMode == false)
     {
         for (uint32 i=skt; i<(skt+no_columns); ++i) {
-            cout << "|-- NODE"<<setw(2)<<i<<" P. Write (T/s): "<<dec<<setw(10)<<md->partial_write[i]<<" --|";
+            cout << "|-- NODE" << setw(2) << i << " P. Write (T/s): " << dec << setw(10) << md->partial_write[i] << " --|";
         }
         cout << "\n";
     }
     for (uint32 i=skt; i<(skt+no_columns); ++i) {
-        cout << "|-- NODE"<<setw(2)<<i<<" Memory (MB/s): "<<setw(11)<<std::right<<(md->iMC_Rd_socket[i]+md->iMC_Wr_socket[i]+
-              md->iMC_PMM_Rd_socket[i]+md->iMC_PMM_Wr_socket[i])<<" --|";
+        cout << "|-- NODE" << setw(2) << i << " Memory (MB/s): " << setw(11) << right << (md->iMC_Rd_socket[i]+md->iMC_Wr_socket[i]+
+              md->iMC_PMM_Rd_socket[i]+md->iMC_PMM_Wr_socket[i]) << " --|";
     }
     cout << "\n";
     for (uint32 i=skt; i<(no_columns+skt); ++i) {
@@ -1074,7 +1074,7 @@ int main(int argc, char * argv[])
     if (csv) {
         if( delay<=0.0 ) delay = PCM_DELAY_DEFAULT;
     } else {
-        // for non-CSV mode delay < 1.0 does not make a lot of practical sense: 
+        // for non-CSV mode delay < 1.0 does not make a lot of practical sense:
         // hard to read from the screen, or
         // in case delay is not provided in command line => set default
         if( ((delay<1.0) && (delay>0.0)) || (delay<=0.0) ) delay = PCM_DELAY_DEFAULT;
@@ -1083,7 +1083,7 @@ int main(int argc, char * argv[])
     cerr << "Update every " << delay << " seconds\n";
 
     for(uint32 i=0; i<m->getNumSockets(); ++i)
-        BeforeState[i] = m->getServerUncorePowerState(i); 
+        BeforeState[i] = m->getServerUncorePowerState(i);
 
     BeforeTime = m->getTickCount();
 
@@ -1126,10 +1126,10 @@ int main(int argc, char * argv[])
         for(uint32 i=0; i<m->getNumSockets(); ++i)
             AfterState[i] = m->getServerUncorePowerState(i);
 
-	if (!csv) {
-	  //cout << "Time elapsed: "<<dec<<fixed<<AfterTime-BeforeTime<<" ms\n";
-	  //cout << "Called sleep function for "<<dec<<fixed<<delay_ms<<" ms\n";
-	}
+        if (!csv) {
+          //cout << "Time elapsed: " << dec << fixed << AfterTime-BeforeTime << " ms\n";
+          //cout << "Called sleep function for " << dec << fixed << delay_ms << " ms\n";
+        }
 
         if(rankA >= 0 || rankB >= 0)
           calculate_bandwidth_rank(m,BeforeState,AfterState,AfterTime-BeforeTime,csv,csvheader, no_columns, rankA, rankB);
@@ -1143,7 +1143,7 @@ int main(int argc, char * argv[])
         // in case PCM was blocked after spawning child application: break monitoring loop here
             break;
         }
-	++i;
+        ++i;
     }
 
     delete[] BeforeState;
