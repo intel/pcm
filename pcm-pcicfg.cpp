@@ -48,7 +48,7 @@ void print_usage(const char * progname)
 
 int main(int argc, char * argv[])
 {
-    std::cout << "\n Processor Counter Monitor " << PCM_VERSION << std::endl;
+    std::cout << "\n Processor Counter Monitor " << PCM_VERSION << "\n";
 
     std::cout << "\n PCICFG read/write utility\n\n";
 
@@ -101,8 +101,8 @@ int main(int argc, char * argv[])
     // drv.stop();     // restart driver (usually not needed)
     if (!drv.start())
     {
-        std::wcerr << "Can not load MSR driver." << std::endl;
-        std::wcerr << "You must have a signed  driver at " << drv.driverPath() << " and have administrator rights to run this program" << std::endl;
+        std::wcerr << "Can not load MSR driver.\n";
+        std::wcerr << "You must have a signed  driver at " << drv.driverPath() << " and have administrator rights to run this program\n";
         return -1;
     }
     #endif
@@ -111,16 +111,16 @@ int main(int argc, char * argv[])
         if (!dec) std::cout << std::hex << std::showbase;
         if (write)
         {
-            std::cout << " Writing " << value << " to " << group << ":"<<bus<<":"<<device<<":"<< function<<"@"<<offset  << std::endl;
+            std::cout << " Writing " << value << " to " << group << ":" << bus << ":" << device << ":" << function << "@" << offset << "\n";
             h.write32(offset, value);
         }
         value = 0;
         h.read32(offset, &value);
-        std::cout << " Read value " << value << " from " << group << ":"<<bus<<":"<<device<<":"<< function<<"@"<<offset << "\n" << std::endl;
+        std::cout << " Read value " << value << " from " << group << ":" << bus << ":" << device << ":" << function << "@" << offset << "\n\n";
     }
     catch (std::exception & e)
     {
-        std::cerr << "Error accessing registers: " << e.what() << std::endl;
-        std::cerr << "Please check if the program can access MSR/PCICFG drivers." << std::endl;
+        std::cerr << "Error accessing registers: " << e.what() << "\n";
+        std::cerr << "Please check if the program can access MSR/PCICFG drivers.\n";
     }
 }
