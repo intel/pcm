@@ -210,7 +210,7 @@ void printSocketChannelBW(uint32 no_columns, uint32 skt, uint32 num_imc_channels
 float AD_BW(const memdata_t *md, const uint32 skt)
 {
     const auto totalPMM = md->iMC_PMM_Rd_socket[skt] + md->iMC_PMM_Wr_socket[skt];
-    return (std::max)(totalPMM - md->iMC_PMM_MemoryMode_Miss_socket[skt], float(0.0));
+    return (max)(totalPMM - md->iMC_PMM_MemoryMode_Miss_socket[skt], float(0.0));
 }
 
 float PMM_MM_Ratio(const memdata_t *md, const uint32 skt)
@@ -988,7 +988,7 @@ int main(int argc, char * argv[])
             // any other options positional that is a floating point number is treated as <delay>,
             // while the other options are ignored with a warning issues to stderr
             double delay_input;
-            std::istringstream is_str_stream(*argv);
+            istringstream is_str_stream(*argv);
             is_str_stream >> noskipws >> delay_input;
             if(is_str_stream.eof() && !is_str_stream.fail()) {
                 delay = delay_input;
@@ -1041,7 +1041,7 @@ int main(int argc, char * argv[])
             cerr << "Access to Processor Counter Monitor has denied (Performance Monitoring Unit is occupied by other application). Try to stop the application that uses PMU.\n";
             cerr << "Alternatively you can try to reset PMU configuration at your own risk. Try to reset? (y/n)\n";
             char yn;
-            std::cin >> yn;
+            cin >> yn;
             if ('y' == yn)
             {
                 m->resetPMU();
@@ -1095,7 +1095,7 @@ int main(int argc, char * argv[])
 
     while ((i <= numberOfIterations) || (numberOfIterations == 0))
     {
-        if(!csv) cout << std::flush;
+        if(!csv) cout << flush;
         int delay_ms = int(delay * 1000);
         int calibrated_delay_ms = delay_ms;
 #ifdef _MSC_VER
