@@ -117,6 +117,7 @@ int main(int argc, char * argv[])
         default:
             cout << "Streaming to memory\n";
         }
+        cout << std::flush;
 
         int niter = 32;
         i = niter;
@@ -137,7 +138,7 @@ int main(int argc, char * argv[])
 
             after_ts = my_timestamp();
         }
-        cout << "Bandwidth: " << (sizeof(T) * nelements * niter) / ((after_ts - before_ts) * 1024 * 1024) << " MByte/sec\n";
+        cout << "Bandwidth: " << (sizeof(T) * nelements * niter) / ((after_ts - before_ts) * 1024 * 1024) << " MByte/sec\n" << std::flush;
     }
 
     delete[] vector;
