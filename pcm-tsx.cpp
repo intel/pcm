@@ -89,28 +89,28 @@ TSXEvent eventDefinition[] = {
 
 void print_usage(const string progname)
 {
-    cerr << endl << " Usage: " << endl << " " << progname
-         << " --help | [delay] [options] [-- external_program [external_program_options]]" << endl;
-    cerr << "   <delay>                           => time interval to sample performance counters." << endl;
-    cerr << "                                        If not specified, or 0, with external program given" << endl;
-    cerr << "                                        will read counters only after external program finishes" << endl;
-    cerr << " Supported <options> are: " << endl;
-    cerr << "  -h    | --help  | /h               => print this help and exit" << endl;
-    cerr << "  -F    | -force                     => force running this program despite lack of HW RTM support (optional)" << endl;
-    cerr << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or" << endl
-         << "                                        to a file, in case filename is provided" << endl;
+    cerr << "\n Usage: \n " << progname
+         << " --help | [delay] [options] [-- external_program [external_program_options]]\n";
+    cerr << "   <delay>                           => time interval to sample performance counters.\n";
+    cerr << "                                        If not specified, or 0, with external program given\n";
+    cerr << "                                        will read counters only after external program finishes\n";
+    cerr << " Supported <options> are: \n";
+    cerr << "  -h    | --help  | /h               => print this help and exit\n";
+    cerr << "  -F    | -force                     => force running this program despite lack of HW RTM support (optional)\n";
+    cerr << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or\n"
+         << "                                        to a file, in case filename is provided\n";
     cerr << "  [-e event1] [-e event2] [-e event3]=> optional list of custom TSX events to monitor (up to 4)."
-         << "  The list of supported events:" << endl;
+         << "  The list of supported events:\n";
     for (uint32 i = 0; i < sizeof(eventDefinition) / sizeof(TSXEvent); ++i)
     {
-        cerr << eventDefinition[i].name << "\t" << eventDefinition[i].description << endl;
+        cerr << eventDefinition[i].name << "\t" << eventDefinition[i].description << "\n";
     }
-    cerr << endl;
-    cerr << " Examples:" << endl;
-    cerr << "  " << progname << " 1                  => print counters every second without core and socket output" << endl;
-    cerr << "  " << progname << " 0.5 -csv=test.log  => twice a second save counter values to test.log in CSV format" << endl;
-    cerr << "  " << progname << " /csv 5 2>/dev/null => one sampe every 5 seconds, and discard all diagnostic output" << endl;
-    cerr << endl;
+    cerr << "\n";
+    cerr << " Examples:\n";
+    cerr << "  " << progname << " 1                  => print counters every second without core and socket output\n";
+    cerr << "  " << progname << " 0.5 -csv=test.log  => twice a second save counter values to test.log in CSV format\n";
+    cerr << "  " << progname << " /csv 5 2>/dev/null => one sampe every 5 seconds, and discard all diagnostic output\n";
+    cerr << "\n";
 }
 
 
@@ -168,7 +168,7 @@ void print_basic_stats(const StateType & BeforeState, const StateType & AfterSta
             cout << unit_format(cyclesPerTransaction) << "\n";
     }
     else
-        cout << " N/A" << "\n";
+        cout << " N/A\n";
 }
 
 template <class StateType>
@@ -205,9 +205,9 @@ int main(int argc, char * argv[])
     std::cerr.rdbuf(&nullStream2);
 #endif
 
-    cerr << endl;
-    cerr << " Processor Counter Monitor: Intel(r) Transactional Synchronization Extensions Monitoring Utility " << endl;
-    cerr << endl;
+    cerr << "\n";
+    cerr << " Processor Counter Monitor: Intel(r) Transactional Synchronization Extensions Monitoring Utility \n";
+    cerr << "\n";
 
     double delay = -1.0;
     char * sysCmd = NULL;
@@ -252,12 +252,12 @@ int main(int argc, char * argv[])
                 argv++;
                 argc--;
                 if (events.size() >= 4) {
-                    cerr << "At most 4 events are allowed" << endl;
+                    cerr << "At most 4 events are allowed\n";
                     exit(EXIT_FAILURE);
                 }
                 cur_event = findEvent(*argv);
                 if (cur_event < 0) {
-                    cerr << "Event " << *argv << " is not supported. See the list of supported events" << endl;
+                    cerr << "Event " << *argv << " is not supported. See the list of supported events\n";
                     print_usage(program);
                     exit(EXIT_FAILURE);
                 }
@@ -292,7 +292,7 @@ int main(int argc, char * argv[])
                 if (is_str_stream.eof() && !is_str_stream.fail()) {
                     delay = delay_input;
                 } else {
-                    cerr << "WARNING: unknown command-line option: \"" << *argv << "\". Ignoring it." << endl;
+                    cerr << "WARNING: unknown command-line option: \"" << *argv << "\". Ignoring it.\n";
                     print_usage(program);
                     exit(EXIT_FAILURE);
                 }
@@ -345,10 +345,10 @@ int main(int argc, char * argv[])
 
     if (!rtm_support) {
         if (!force) {
-            cerr << "No RTM support detected, use -F if you still want to run this program." << endl;
+            cerr << "No RTM support detected, use -F if you still want to run this program.\n";
             exit(EXIT_FAILURE);
         }
-        cerr << "No RTM support detected, but -F found as argument, running anyway." << endl;
+        cerr << "No RTM support detected, but -F found as argument, running anyway.\n";
     }
 
     PCM::ErrorCode status = m->program(PCM::EXT_CUSTOM_CORE_EVENTS, &conf);
@@ -357,21 +357,21 @@ int main(int argc, char * argv[])
     case PCM::Success:
         break;
     case PCM::MSRAccessDenied:
-        cerr << "Access to Processor Counter Monitor has denied (no MSR or PCI CFG space access)." << endl;
+        cerr << "Access to Processor Counter Monitor has denied (no MSR or PCI CFG space access).\n";
         exit(EXIT_FAILURE);
     case PCM::PMUBusy:
-        cerr << "Access to Processor Counter Monitor has denied (Performance Monitoring Unit is occupied by other application). Try to stop the application that uses PMU." << endl;
-        cerr << "Alternatively you can try to reset PMU configuration at your own risk. Try to reset? (y/n)" << endl;
+        cerr << "Access to Processor Counter Monitor has denied (Performance Monitoring Unit is occupied by other application). Try to stop the application that uses PMU.\n";
+        cerr << "Alternatively you can try to reset PMU configuration at your own risk. Try to reset? (y/n)\n";
         char yn;
         std::cin >> yn;
         if ('y' == yn)
         {
             m->resetPMU();
-            cerr << "PMU configuration has been reset. Try to rerun the program again." << endl;
+            cerr << "PMU configuration has been reset. Try to rerun the program again.\n";
         }
         exit(EXIT_FAILURE);
     default:
-        cerr << "Access to Processor Counter Monitor has denied (Unknown error)." << endl;
+        cerr << "Access to Processor Counter Monitor has denied (Unknown error).\n";
         exit(EXIT_FAILURE);
     }
 
@@ -400,7 +400,7 @@ int main(int argc, char * argv[])
         if (((delay < 1.0) && (delay > 0.0)) || (delay <= 0.0)) delay = PCM_DELAY_DEFAULT;
     }
 
-    cerr << "Update every " << delay << " seconds" << endl;
+    cerr << "Update every " << delay << " seconds\n";
 
     std::cout.precision(2);
     std::cout << std::fixed;
@@ -444,7 +444,7 @@ int main(int argc, char * argv[])
         m->getAllCounterStates(SysAfterState, DummySocketStates, AfterState);
 
         cout << "Time elapsed: " << dec << fixed << AfterTime - BeforeTime << " ms\n";
-        //cout << "Called sleep function for "<<dec<<fixed<<delay_ms<<" ms\n";
+        //cout << "Called sleep function for " <<dec<<fixed<<delay_ms<< " ms\n";
 
         if (events.empty())
         {
@@ -470,7 +470,7 @@ int main(int argc, char * argv[])
             for (uint32 i = 0; i < events.size(); ++i)
             {
                 cout << "Event" << i << ": " << eventDefinition[events[i]].name << " " << eventDefinition[events[i]].description << " (raw 0x" <<
-                std::hex << (uint32)eventDefinition[events[i]].umask << (uint32)eventDefinition[events[i]].event << std::dec << ")" << endl;
+                std::hex << (uint32)eventDefinition[events[i]].umask << (uint32)eventDefinition[events[i]].event << std::dec << ")\n";
             }
             cout << "\n";
             if (csv)
@@ -501,7 +501,7 @@ int main(int argc, char * argv[])
         else
             print_custom_stats(SysBeforeState, SysAfterState, csv);
 
-        std::cout << std::endl;
+        std::cout << "\n";
 
         swap(BeforeTime, AfterTime);
         swap(BeforeState, AfterState);
