@@ -215,7 +215,7 @@ void load_PCIDB(PCIDB & pciDB)
     if (!in.is_open())
     {
 #endif
-        std::cerr << PCI_IDS_NOT_FOUND << std::endl;
+        std::cerr << PCI_IDS_NOT_FOUND << "\n";
         return;
     }
 
@@ -234,7 +234,7 @@ void load_PCIDB(PCIDB & pciDB)
         if (line[0] == '\t')
         {
             int deviceID = stoi(line.substr(1,4),0,16);
-            //std::cout << vendorID << ";" << vendorName << ";" << deviceID << ";"<< line.substr(7) << endl;
+            //std::cout << vendorID << ";" << vendorName << ";" << deviceID << ";" << line.substr(7) << "\n";
             pciDB.second[vendorID][deviceID] = line.substr(7);
             continue;
         }
