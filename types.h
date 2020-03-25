@@ -363,22 +363,22 @@ struct FixedEventControlRegister
 
 inline std::ostream & operator << (std::ostream & o, const FixedEventControlRegister & reg)
 {
-    o << "os0\t\t" << reg.fields.os0 << std::endl;
-    o << "usr0\t\t" << reg.fields.usr0 << std::endl;
-    o << "any_thread0\t" << reg.fields.any_thread0 << std::endl;
-    o << "enable_pmi0\t" << reg.fields.enable_pmi0 << std::endl;
+    o << "os0\t\t" << reg.fields.os0 << "\n";
+    o << "usr0\t\t" << reg.fields.usr0 << "\n";
+    o << "any_thread0\t" << reg.fields.any_thread0 << "\n";
+    o << "enable_pmi0\t" << reg.fields.enable_pmi0 << "\n";
 
-    o << "os1\t\t" << reg.fields.os1 << std::endl;
-    o << "usr1\t\t" << reg.fields.usr1 << std::endl;
-    o << "any_thread1\t" << reg.fields.any_thread1 << std::endl;
-    o << "enable_pmi10\t" << reg.fields.enable_pmi1 << std::endl;
+    o << "os1\t\t" << reg.fields.os1 << "\n";
+    o << "usr1\t\t" << reg.fields.usr1 << "\n";
+    o << "any_thread1\t" << reg.fields.any_thread1 << "\n";
+    o << "enable_pmi10\t" << reg.fields.enable_pmi1 << "\n";
 
-    o << "os2\t\t" << reg.fields.os2 << std::endl;
-    o << "usr2\t\t" << reg.fields.usr2 << std::endl;
-    o << "any_thread2\t" << reg.fields.any_thread2 << std::endl;
-    o << "enable_pmi2\t" << reg.fields.enable_pmi2 << std::endl;
+    o << "os2\t\t" << reg.fields.os2 << "\n";
+    o << "usr2\t\t" << reg.fields.usr2 << "\n";
+    o << "any_thread2\t" << reg.fields.any_thread2 << "\n";
+    o << "enable_pmi2\t" << reg.fields.enable_pmi2 << "\n";
 
-    o << "reserved1\t" << reg.fields.reserved1 << std::endl;
+    o << "reserved1\t" << reg.fields.reserved1 << "\n";
     return o;
 }
 
@@ -984,7 +984,7 @@ struct MCFGRecord
     void print()
     {
         std::cout << "BaseAddress=" << (std::hex) << "0x" << baseAddress << " PCISegmentGroupNumber=0x" << PCISegmentGroupNumber <<
-            " startBusNumber=0x" << (unsigned)startBusNumber << " endBusNumber=0x" << (unsigned)endBusNumber << std::endl;
+            " startBusNumber=0x" << (unsigned)startBusNumber << " endBusNumber=0x" << (unsigned)endBusNumber << "\n";
     }
 };
 
@@ -1008,7 +1008,7 @@ struct MCFGHeader
 
     void print()
     {
-        std::cout << "Header: length=" << length << " nrecords=" << nrecords() << std::endl;
+        std::cout << "Header: length=" << length << " nrecords=" << nrecords() << "\n";
     }
 };
 
