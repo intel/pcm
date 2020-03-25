@@ -54,7 +54,7 @@ public:
         PCM::ErrorCode status = m->program();
         if (status != PCM::Success)
         {
-          std::cout << "\nCan not access CPU counters. Try to run pcm.x 1 to check the PMU access status.\n" << std::endl;
+            std::cerr << "\nCannot access CPU counters. Try to run pcm.x 1 to check the PMU access status.\n\n";
             exit(-1);
         }
 
