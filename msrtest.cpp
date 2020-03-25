@@ -88,5 +88,5 @@ int main()
         std::cout << "Core " << i <<
             "\t Instructions: " << (counters_after[i][0] - counters_before[i][0]) <<
             "\t Cycles: " << (counters_after[i][1] - counters_before[i][1]) <<
-            "\t IPC: " << double(counters_after[i][0] - counters_before[i][0]) / double(counters_after[i][1] - counters_before[i][1]) << std::endl;
+            "\t IPC: " << double(counters_after[i][0] - counters_before[i][0]) / double(counters_after[i][1] - counters_before[i][1]) << "\n";
 }
