@@ -68,12 +68,12 @@ void print_nameMap() {
         std::pair<h_id,std::map<string,v_id>> value = iunit->second;
         uint32_t hid = value.first;
         std::map<string,v_id> vMap = value.second;
-        cout << "H name: " << h_name << " id =" << hid << " vMap size:" << vMap.size() << endl;
+        cout << "H name: " << h_name << " id =" << hid << " vMap size:" << vMap.size() << "\n";
         for (std::map<string,v_id>::const_iterator junit = vMap.begin(); junit != vMap.end(); ++junit)
         {
             string v_name = junit->first;
             uint32_t vid = junit->second;
-            cout << "V name: " << v_name << " id =" << vid << endl;
+            cout << "V name: " << v_name << " id =" << vid << "\n";
 
         }
     }
@@ -124,7 +124,7 @@ vector<string> combine_stack_name_and_counter_names(string stack_name)
         string h_name = iunit->first;
         int h_id = (iunit->second).first;
         tmp[h_id] = h_name;
-        //cout << "h_id:" << h_id << " name:" << h_name << endl;
+        //cout << "h_id:" << h_id << " name:" << h_name << "\n";
     }
     //XXX: How to simplify and just combine tmp & v?
     for (uint32_t i = 0; i < nameMap.size(); i++) {
@@ -258,7 +258,8 @@ vector<string> build_display(vector<struct iio_skx> iio_skx_v, vector<struct cou
 void display(const vector<string> &buff)
 {
     for (std::vector<string>::const_iterator iunit = buff.begin(); iunit != buff.end(); ++iunit)
-        std::cout << *iunit << endl;
+        std::cout << *iunit << "\n";
+    std::cout << std::flush;
 }
 
 void discover_pci_tree(const vector<uint32_t> & busno, uint8_t socket_id, vector<struct iio_skx> &v_iio_skx)
@@ -367,7 +368,7 @@ vector<struct counter> load_events(const char* fn)
             istringstream iss2(value);
             iss2 >> setbase(0) >> numValue;
 
-            //cout << "Key:" << key << " Value:" << value << " opcodeFieldMap[key]:" << opcodeFieldMap[key] << endl;
+            //cout << "Key:" << key << " Value:" << value << " opcodeFieldMap[key]:" << opcodeFieldMap[key] << "\n";
             switch(opcodeFieldMap[key]) {
                 case PCM::H_EVENT_NAME:
                     h_name = dos2unix(value);
@@ -390,7 +391,7 @@ vector<struct counter> load_events(const char* fn)
                         if (v_nameMap.find(v_name) == v_nameMap.end()) {
                             v_nameMap[v_name] = (unsigned int)v_nameMap.size() - 1;
                         } else {
-                            cerr << "Detect duplicated v_name:" << v_name << endl;
+                            cerr << "Detect duplicated v_name:" << v_name << "\n";
                             exit(EXIT_FAILURE);
                         }
                         ctr.v_id = (uint32_t)v_nameMap.size() - 1;
@@ -443,15 +444,16 @@ vector<struct counter> load_events(const char* fn)
                     ctr.divider = (int)numValue;
                     break;
                 case PCM::INVALID:
-                    cerr << "Field in -o file not recognized. The key is: " << key << endl;
+                    cerr << "Field in -o file not recognized. The key is: " << key << "\n";
                     exit(EXIT_FAILURE);
                     break;
             }
         }
         v.push_back(ctr);
-        //cout << "Finish parsing: " << line << " size:" << v.size() << endl;
-        cout << line << " " << std::hex << ctr.Opcodes.value << std::dec << endl;
+        //cout << "Finish parsing: " << line << " size:" << v.size() << "\n";
+        cout << line << " " << std::hex << ctr.Opcodes.value << std::dec << "\n";
     }
+    cout << std::flush;
 
     in.close();
 
@@ -490,7 +492,7 @@ result_content get_IIO_Samples(PCM *m, vector<struct iio_skx> iio_skx_v, struct 
             uint64_t raw_result = getNumberOfEvents(before[idx], after[idx]);
             uint64_t trans_result = uint64_t (raw_result * ctr.multiplier / (double) ctr.divider * (1000 / (double) delay_ms));
             results[iio_skx.socket_id][*stack][std::pair<h_id,v_id>(ctr.h_id,ctr.v_id)] = trans_result;
-            //cout << "skt:" << iio_skx.socket_id << " stack:" << *stack << " h_id:" << ctr.h_id << " v_id:" << ctr.v_id << " res:" << raw_result << " trans:" << trans_result << endl;
+            //cout << "skt:" << iio_skx.socket_id << " stack:" << *stack << " h_id:" << ctr.h_id << " v_id:" << ctr.v_id << " res:" << raw_result << " trans:" << trans_result << "\n";
         }
     }
     delete[] before;
@@ -502,7 +504,7 @@ void collect_data(PCM *m, vector<struct iio_skx> iio_skx_v, vector<struct counte
 {
     result_content s;
     uint32_t delay_ms = (uint32_t)(PCM_DELAY_DEFAULT / ctrs.size() * 1000);
-    //cout << "delay_ms:" << delay_ms << endl;
+    //cout << "delay_ms:" << delay_ms << "\n";
     for (vector<struct counter>::iterator cunit = ctrs.begin(); cunit != ctrs.end(); ++cunit) {
         cunit->data.clear();
         s = get_IIO_Samples(m, iio_skx_v, *cunit, delay_ms);
@@ -512,8 +514,8 @@ void collect_data(PCM *m, vector<struct iio_skx> iio_skx_v, vector<struct counte
 
 int main(int argc, char * argv[])
 {
-    std::cout << "\n Processor Counter Monitor " << PCM_VERSION << std::endl;
-    std::cout << "\n This utility measure Skylake-SP IIO information\n\n";
+    std::cout << "\n Processor Counter Monitor " << PCM_VERSION << "\n";
+    std::cout << "\n This utility measures Skylake-SP IIO information\n\n";
 #define TEST_VAR 1
 #if TEST_VAR == 1
     string ev_file_name = "opCode.txt";
@@ -533,33 +535,33 @@ int main(int argc, char * argv[])
         case PCM::Success:
             break;
         case PCM::MSRAccessDenied:
-            cerr << "Access to Intel(r) Performance Counter Monitor has denied (no MSR or PCI CFG space access)." << endl;
+            cerr << "Access to Intel(r) Performance Counter Monitor has denied (no MSR or PCI CFG space access).\n";
             exit(EXIT_FAILURE);
         case PCM::PMUBusy:
-            cerr << "Access to Intel(r) Performance Counter Monitor has denied (Performance Monitoring Unit is occupied by other application). Try to stop the application that uses PMU." << endl;
-            cerr << "Alternatively you can try to reset PMU configuration at your own risk. Try to reset? (y/n)" << endl;
+            cerr << "Access to Intel(r) Performance Counter Monitor has denied (Performance Monitoring Unit is occupied by other application). Try to stop the application that uses PMU.\n";
+            cerr << "Alternatively you can try to reset PMU configuration at your own risk. Try to reset? (y/n)\n";
             char yn;
             std::cin >> yn;
             if ('y' == yn)
             {
                 m->resetPMU();
-                cerr << "PMU configuration has been reset. Try to rerun the program again." << endl;
+                cerr << "PMU configuration has been reset. Try to rerun the program again.\n";
             }
             exit(EXIT_FAILURE);
         default:
-            cerr << "Access to Intel(r) Performance Counter Monitor has denied (Unknown error)." << endl;
+            cerr << "Access to Intel(r) Performance Counter Monitor has denied (Unknown error).\n";
             exit(EXIT_FAILURE);
     }
 
     print_cpu_details();
     if(!(m->IIOEventsAvailable()))
     {
-        cerr << "Skylake Server CPU is required for this tool! Program aborted" << endl;
+        cerr << "Skylake Server CPU is required for this tool! Program aborted\n";
         exit(EXIT_FAILURE);
     }
     if(m->getNumSockets() > max_sockets)
     {
-        cerr << "Only systems with up to "<<(int)max_sockets<<" sockets are supported! Program aborted" << endl;
+        cerr << "Only systems with up to " << (int)max_sockets << " sockets are supported! Program aborted\n";
         exit(EXIT_FAILURE);
     }
 
@@ -603,7 +605,7 @@ int main(int argc, char * argv[])
             }
             break;
         default:
-            cerr << "Only systems with "<<m->getNumSockets()<<" sockets are not supported! Program aborted" << endl;
+            cerr << "Only systems with " <<m->getNumSockets()<< " sockets are not supported! Program aborted\n";
             exit(EXIT_FAILURE);
     }
     for(uint32 s=0; s < m->getNumSockets();++s) {
