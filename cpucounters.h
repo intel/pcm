@@ -113,7 +113,7 @@ public:
     }
     void operator = (uint64 val) override
     {
-        std::cerr << "PCICFGRegister64 write operation is not supported" << std::endl;
+        std::cerr << "PCICFGRegister64 write operation is not supported\n";
         throw std::exception();
     }
     operator uint64 ()  override
@@ -224,7 +224,7 @@ public:
         }
         else
         {
-            std::cerr << "ERROR: writing non-zero values to CounterWidthExtenderRegister is not supported" << std::endl;
+            std::cerr << "ERROR: writing non-zero values to CounterWidthExtenderRegister is not supported\n";
             throw std::exception();
         }
     }
@@ -290,7 +290,7 @@ public:
 #ifdef PCM_UNCORE_PMON_BOX_CHECK_STATUS
         const uint64 val = *unitControl;
         if ((val & UNC_PMON_UNIT_CTL_VALID_BITS_MASK) != (extra + UNC_PMON_UNIT_CTL_FRZ))
-            std::cerr << "ERROR: PMU counter programming seems not to work. PMON_BOX_CTL=0x" << std::hex << val << " needs to be =0x" << (UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ) << std::endl;
+            std::cerr << "ERROR: PMU counter programming seems not to work. PMON_BOX_CTL=0x" << std::hex << val << " needs to be =0x" << (UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ) << "\n";
 #endif
     }
     void resetUnfreeze(const uint32 extra)
@@ -3295,7 +3295,7 @@ inline double getLocalMemoryRequestRatio(const CounterStateType & before, const 
 {
     const auto all = after.UncHARequests - before.UncHARequests;
     const auto local = after.UncHALocalRequests - before.UncHALocalRequests;
-    // std::cout << "DEBUG "<< 64*all/1e6 << " " << 64*local/1e6 << std::endl;
+    // std::cout << "DEBUG "<< 64*all/1e6 << " " << 64*local/1e6 << "\n";
     return double(local)/double(all);
 }
 
