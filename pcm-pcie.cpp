@@ -99,26 +99,26 @@ void print_events()
 
 void print_usage(const string progname)
 {
-    cerr << endl << " Usage: " << endl << " " << progname
-         << " --help | [delay] [options] [-- external_program [external_program_options]]" << endl;
-    cerr << "   <delay>                           => time interval to sample performance counters." << endl;
-    cerr << "                                        If not specified, or 0, with external program given" << endl;
-    cerr << "                                        will read counters only after external program finishes" << endl;
-    cerr << " Supported <options> are: " << endl;
-    cerr << "  -h    | --help  | /h               => print this help and exit" << endl;
-    cerr << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or" << endl
-         << "                                        to a file, in case filename is provided" << endl;
-    cerr << "  -B                                 => Estimate PCIe B/W (in Bytes/sec) by multiplying" << endl;
-    cerr << "                                        the number of transfers by the cache line size (=64 bytes)." << endl;
-    cerr << " It overestimates the bandwidth under traffic with many partial cache line transfers." << endl;
-    cerr << endl;
+    cerr << "\n Usage: \n " << progname
+         << " --help | [delay] [options] [-- external_program [external_program_options]]\n";
+    cerr << "   <delay>                           => time interval to sample performance counters.\n";
+    cerr << "                                        If not specified, or 0, with external program given\n";
+    cerr << "                                        will read counters only after external program finishes\n";
+    cerr << " Supported <options> are: \n";
+    cerr << "  -h    | --help  | /h               => print this help and exit\n";
+    cerr << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or\n"
+         << "                                        to a file, in case filename is provided\n";
+    cerr << "  -B                                 => Estimate PCIe B/W (in Bytes/sec) by multiplying\n";
+    cerr << "                                        the number of transfers by the cache line size (=64 bytes).\n";
+    cerr << " It overestimates the bandwidth under traffic with many partial cache line transfers.\n";
+    cerr << "\n";
     print_events();
-    cerr << endl;
-    cerr << " Examples:" << endl;
-    cerr << "  " << progname << " 1                  => print counters every second without core and socket output" << endl;
-    cerr << "  " << progname << " 0.5 -csv=test.log  => twice a second save counter values to test.log in CSV format" << endl;
-    cerr << "  " << progname << " /csv 5 2>/dev/null => one sampe every 5 seconds, and discard all diagnostic output" << endl;
-    cerr << endl;
+    cerr << "\n";
+    cerr << " Examples:\n";
+    cerr << "  " << progname << " 1                  => print counters every second without core and socket output\n";
+    cerr << "  " << progname << " 0.5 -csv=test.log  => twice a second save counter values to test.log in CSV format\n";
+    cerr << "  " << progname << " /csv 5 2>/dev/null => one sampe every 5 seconds, and discard all diagnostic output\n";
+    cerr << "\n";
 }
 
 
@@ -132,10 +132,10 @@ int main(int argc, char * argv[])
     std::cerr.rdbuf(&nullStream2);
 #endif
 
-    cerr << endl;
-    cerr << " Processor Counter Monitor: PCIe Bandwidth Monitoring Utility "<< endl;
-    cerr << " This utility measures PCIe bandwidth in real-time" << endl;
-    cerr << endl;
+    cerr << "\n";
+    cerr << " Processor Counter Monitor: PCIe Bandwidth Monitoring Utility \n";
+    cerr << " This utility measures PCIe bandwidth in real-time\n";
+    cerr << "\n";
     print_events();
 
     double delay = -1.0;
@@ -221,7 +221,7 @@ int main(int argc, char * argv[])
             if (is_str_stream.eof() && !is_str_stream.fail()) {
                 delay = delay_input;
             } else {
-                cerr << "WARNING: unknown command-line option: \"" << *argv << "\". Ignoring it." << endl;
+                cerr << "WARNING: unknown command-line option: \"" << *argv << "\". Ignoring it.\n";
                 print_usage(program);
                 exit(EXIT_FAILURE);
             }
@@ -236,40 +236,40 @@ int main(int argc, char * argv[])
         case PCM::Success:
             break;
         case PCM::MSRAccessDenied:
-            cerr << "Access to Processor Counter Monitor has denied (no MSR or PCI CFG space access)." << endl;
+            cerr << "Access to Processor Counter Monitor has denied (no MSR or PCI CFG space access).\n";
             exit(EXIT_FAILURE);
         case PCM::PMUBusy:
-            cerr << "Access to Processor Counter Monitor has denied (Performance Monitoring Unit is occupied by other application). Try to stop the application that uses PMU." << endl;
-            cerr << "Alternatively you can try to reset PMU configuration at your own risk. Try to reset? (y/n)" << endl;
+            cerr << "Access to Processor Counter Monitor has denied (Performance Monitoring Unit is occupied by other application). Try to stop the application that uses PMU.\n";
+            cerr << "Alternatively you can try to reset PMU configuration at your own risk. Try to reset? (y/n)\n";
             char yn;
             std::cin >> yn;
             if ('y' == yn)
             {
                 m->resetPMU();
-                cerr << "PMU configuration has been reset. Try to rerun the program again." << endl;
+                cerr << "PMU configuration has been reset. Try to rerun the program again.\n";
             }
             exit(EXIT_FAILURE);
         default:
-            cerr << "Access to Processor Counter Monitor has denied (Unknown error)." << endl;
+            cerr << "Access to Processor Counter Monitor has denied (Unknown error).\n";
             exit(EXIT_FAILURE);
     }
 
     print_cpu_details();
     if (!(m->hasPCICFGUncore()))
     {
-        cerr << "Jaketown, Ivytown, Haswell, Broadwell-DE Server CPU is required for this tool! Program aborted" << endl;
+        cerr << "Jaketown, Ivytown, Haswell, Broadwell-DE Server CPU is required for this tool! Program aborted\n";
         exit(EXIT_FAILURE);
     }
 
     if (m->getNumSockets() > max_sockets)
     {
-        cerr << "Only systems with up to "<<max_sockets<<" sockets are supported! Program aborted" << endl;
+        cerr << "Only systems with up to " << max_sockets << " sockets are supported! Program aborted\n";
         exit(EXIT_FAILURE);
     }
 
     if (m->isSomeCoreOfflined())
     {
-        cerr << "Core offlining is not supported. Program aborted" << endl;
+        cerr << "Core offlining is not supported. Program aborted\n";
         exit(EXIT_FAILURE);
     }
 
@@ -290,7 +290,7 @@ int main(int argc, char * argv[])
         if ( ((delay<1.0) && (delay>0.0)) || (delay<=0.0) ) delay = PCM_DELAY_DEFAULT;
     }
 
-    cerr << "Update every "<<delay<<" seconds"<< endl;
+    cerr << "Update every " << delay << " seconds\n";
 
 #define NUM_SAMPLES (1)
 
@@ -298,7 +298,7 @@ int main(int argc, char * argv[])
     uint32 delay_ms = uint32(delay * 1000 / num_events / NUM_SAMPLES);
     if (delay_ms * num_events * NUM_SAMPLES < delay * 1000) ++delay_ms; //Adjust the delay_ms if it's less than delay time
     sample_t sample[max_sockets];
-    cerr << "delay_ms: " << delay_ms << endl;
+    cerr << "delay_ms: " << delay_ms << "\n";
 
     if ( sysCmd != NULL ) {
         MySystem(sysCmd, sysArgv);
@@ -309,6 +309,7 @@ int main(int argc, char * argv[])
     unsigned int ic = 1;
     while ((ic <= numberOfIterations) || (numberOfIterations == 0))
     {
+        if (!csv) cout << flush;
         MySleepMs(delay_ms);
         memset(sample,0,sizeof (sample));
         memset(&aggregate_sample,0,sizeof (aggregate_sample));
