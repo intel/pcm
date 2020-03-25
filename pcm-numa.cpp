@@ -99,8 +99,8 @@ int main(int argc, char * argv[])
 
 #ifdef PCM_FORCE_SILENT
     null_stream nullStream1, nullStream2;
-    std::cout.rdbuf(&nullStream1);
-    std::cerr.rdbuf(&nullStream2);
+    cout.rdbuf(&nullStream1);
+    cerr.rdbuf(&nullStream2);
 #endif
 
     cerr << "\n";
@@ -154,7 +154,7 @@ int main(int argc, char * argv[])
                 // any other options positional that is a floating point number is treated as <delay>,
                 // while the other options are ignored with a warning issues to stderr
                 double delay_input;
-                std::istringstream is_str_stream(*argv);
+                istringstream is_str_stream(*argv);
                 is_str_stream >> noskipws >> delay_input;
                 if (is_str_stream.eof() && !is_str_stream.fail()) {
                     delay = delay_input;
@@ -207,7 +207,7 @@ int main(int argc, char * argv[])
         cerr << "Access to Processor Counter Monitor has denied (Performance Monitoring Unit is occupied by other application). Try to stop the application that uses PMU.\n";
         cerr << "Alternatively you can try to reset PMU configuration at your own risk. Try to reset? (y/n)\n";
         char yn;
-        std::cin >> yn;
+        cin >> yn;
         if ('y' == yn)
         {
             m->resetPMU();
@@ -224,8 +224,8 @@ int main(int argc, char * argv[])
     uint64 BeforeTime = 0, AfterTime = 0;
     SystemCounterState SysBeforeState, SysAfterState;
     const uint32 ncores = m->getNumCores();
-    std::vector<CoreCounterState> BeforeState, AfterState;
-    std::vector<SocketCounterState> DummySocketStates;
+    vector<CoreCounterState> BeforeState, AfterState;
+    vector<SocketCounterState> DummySocketStates;
 
     if ((sysCmd != NULL) && (delay <= 0.0)) {
         // in case external command is provided in command line, and
@@ -246,8 +246,8 @@ int main(int argc, char * argv[])
 
     cerr << "Update every " << delay << " seconds\n";
 
-    std::cout.precision(2);
-    std::cout << std::fixed;
+    cout.precision(2);
+    cout << fixed;
 
     BeforeTime = m->getTickCount();
     m->getAllCounterStates(SysBeforeState, DummySocketStates, BeforeState);
@@ -258,7 +258,7 @@ int main(int argc, char * argv[])
 
     while (1)
     {
-        if (!csv) cout << std::flush;
+        if (!csv) cout << flush;
         int delay_ms = int(delay * 1000);
         int calibrated_delay_ms = delay_ms;
 #ifdef _MSC_VER
