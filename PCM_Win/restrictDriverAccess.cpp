@@ -23,6 +23,6 @@ void restrictDriverAccess(LPCWSTR path)
     }
     catch (...)
     {
-        std::wcerr << "Error in GetAccessControl/SetSecurityDescriptorSddlForm for " << path << " driver." << std::endl;
+        std::wcerr << "Error in GetAccessControl/SetSecurityDescriptorSddlForm for " << path << " driver.\n";
     }
 }
