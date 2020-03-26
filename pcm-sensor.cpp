@@ -37,8 +37,8 @@ int main()
 
     AsynchronCounterState counters;
 
-    cout << "CPU counter sensor " << PCM_VERSION << endl;
-    cout << "ksysguardd 1.2.0" << endl;
+    cout << "CPU counter sensor " << PCM_VERSION << "\n";
+    cout << "ksysguardd 1.2.0\n";
     cout << "ksysguardd> ";
 
     while (1)
@@ -51,70 +51,70 @@ int main()
             for (uint32 i = 0; i < counters.getNumCores(); ++i) {
                 for (uint32 a = 0; a < counters.getNumSockets(); ++a)
                     if (a == counters.getSocketId(i)) {
-                        cout << "Socket" << a << "/CPU" << i << "/Frequency\tfloat" << endl;
-                        cout << "Socket" << a << "/CPU" << i << "/IPC\tfloat" << endl;
-                        cout << "Socket" << a << "/CPU" << i << "/L2CacheHitRatio\tfloat" << endl;
-                        cout << "Socket" << a << "/CPU" << i << "/L3CacheHitRatio\tfloat" << endl;
-                        cout << "Socket" << a << "/CPU" << i << "/L2CacheMisses\tinteger" << endl;
-                        cout << "Socket" << a << "/CPU" << i << "/L3CacheMisses\tinteger" << endl;
-                        cout << "Socket" << a << "/CPU" << i << "/L3Occupancy\tfloat" << endl;
-                        cout << "Socket" << a << "/CPU" << i << "/LocalMemoryBandwidth\tfloat" << endl;
-                        cout << "Socket" << a << "/CPU" << i << "/RemoteMemoryBandwidth\tfloat" << endl;
-                        cout << "Socket" << a << "/CPU" << i << "/CoreC0StateResidency\tfloat" << endl;
-                        cout << "Socket" << a << "/CPU" << i << "/CoreC3StateResidency\tfloat" << endl;
-                        cout << "Socket" << a << "/CPU" << i << "/CoreC6StateResidency\tfloat" << endl;
-                        cout << "Socket" << a << "/CPU" << i << "/CoreC7StateResidency\tfloat" << endl;
-                        cout << "Socket" << a << "/CPU" << i << "/ThermalHeadroom\tinteger" << endl;
+                        cout << "Socket" << a << "/CPU" << i << "/Frequency\tfloat\n";
+                        cout << "Socket" << a << "/CPU" << i << "/IPC\tfloat\n";
+                        cout << "Socket" << a << "/CPU" << i << "/L2CacheHitRatio\tfloat\n";
+                        cout << "Socket" << a << "/CPU" << i << "/L3CacheHitRatio\tfloat\n";
+                        cout << "Socket" << a << "/CPU" << i << "/L2CacheMisses\tinteger\n";
+                        cout << "Socket" << a << "/CPU" << i << "/L3CacheMisses\tinteger\n";
+                        cout << "Socket" << a << "/CPU" << i << "/L3Occupancy\tfloat\n";
+                        cout << "Socket" << a << "/CPU" << i << "/LocalMemoryBandwidth\tfloat\n";
+                        cout << "Socket" << a << "/CPU" << i << "/RemoteMemoryBandwidth\tfloat\n";
+                        cout << "Socket" << a << "/CPU" << i << "/CoreC0StateResidency\tfloat\n";
+                        cout << "Socket" << a << "/CPU" << i << "/CoreC3StateResidency\tfloat\n";
+                        cout << "Socket" << a << "/CPU" << i << "/CoreC6StateResidency\tfloat\n";
+                        cout << "Socket" << a << "/CPU" << i << "/CoreC7StateResidency\tfloat\n";
+                        cout << "Socket" << a << "/CPU" << i << "/ThermalHeadroom\tinteger\n";
                     }
             }
             for (uint32 a = 0; a < counters.getNumSockets(); ++a) {
-                cout << "Socket" << a << "/BytesReadFromMC\tfloat" << endl;
-                cout << "Socket" << a << "/BytesWrittenToMC\tfloat" << endl;
-                cout << "Socket" << a << "/BytesReadFromPMM\tfloat" << endl;
-                cout << "Socket" << a << "/BytesWrittenToPMM\tfloat" << endl;
-                cout << "Socket" << a << "/Frequency\tfloat" << endl;
-                cout << "Socket" << a << "/IPC\tfloat" << endl;
-                cout << "Socket" << a << "/L2CacheHitRatio\tfloat" << endl;
-                cout << "Socket" << a << "/L3CacheHitRatio\tfloat" << endl;
-                cout << "Socket" << a << "/L2CacheMisses\tinteger" << endl;
-                cout << "Socket" << a << "/L3CacheMisses\tinteger" << endl;
-                cout << "Socket" << a << "/L3Occupancy\tfloat" << endl;
-                cout << "Socket" << a << "/LocalMemoryBandwidth\tfloat" << endl;
-                cout << "Socket" << a << "/RemoteMemoryBandwidth\tfloat" << endl;
-                cout << "Socket" << a << "/CoreC0StateResidency\tfloat" << endl;
-                cout << "Socket" << a << "/CoreC3StateResidency\tfloat" << endl;
-                cout << "Socket" << a << "/CoreC6StateResidency\tfloat" << endl;
-                cout << "Socket" << a << "/CoreC7StateResidency\tfloat" << endl;
-                cout << "Socket" << a << "/PackageC2StateResidency\tfloat" << endl;
-                cout << "Socket" << a << "/PackageC3StateResidency\tfloat" << endl;
-                cout << "Socket" << a << "/PackageC6StateResidency\tfloat" << endl;
-                cout << "Socket" << a << "/PackageC7StateResidency\tfloat" << endl;
-                cout << "Socket" << a << "/ThermalHeadroom\tinteger" << endl;
-                cout << "Socket" << a << "/CPUEnergy\tfloat" << endl;
-                cout << "Socket" << a << "/DRAMEnergy\tfloat" << endl;
+                cout << "Socket" << a << "/BytesReadFromMC\tfloat\n";
+                cout << "Socket" << a << "/BytesWrittenToMC\tfloat\n";
+                cout << "Socket" << a << "/BytesReadFromPMM\tfloat\n";
+                cout << "Socket" << a << "/BytesWrittenToPMM\tfloat\n";
+                cout << "Socket" << a << "/Frequency\tfloat\n";
+                cout << "Socket" << a << "/IPC\tfloat\n";
+                cout << "Socket" << a << "/L2CacheHitRatio\tfloat\n";
+                cout << "Socket" << a << "/L3CacheHitRatio\tfloat\n";
+                cout << "Socket" << a << "/L2CacheMisses\tinteger\n";
+                cout << "Socket" << a << "/L3CacheMisses\tinteger\n";
+                cout << "Socket" << a << "/L3Occupancy\tfloat\n";
+                cout << "Socket" << a << "/LocalMemoryBandwidth\tfloat\n";
+                cout << "Socket" << a << "/RemoteMemoryBandwidth\tfloat\n";
+                cout << "Socket" << a << "/CoreC0StateResidency\tfloat\n";
+                cout << "Socket" << a << "/CoreC3StateResidency\tfloat\n";
+                cout << "Socket" << a << "/CoreC6StateResidency\tfloat\n";
+                cout << "Socket" << a << "/CoreC7StateResidency\tfloat\n";
+                cout << "Socket" << a << "/PackageC2StateResidency\tfloat\n";
+                cout << "Socket" << a << "/PackageC3StateResidency\tfloat\n";
+                cout << "Socket" << a << "/PackageC6StateResidency\tfloat\n";
+                cout << "Socket" << a << "/PackageC7StateResidency\tfloat\n";
+                cout << "Socket" << a << "/ThermalHeadroom\tinteger\n";
+                cout << "Socket" << a << "/CPUEnergy\tfloat\n";
+                cout << "Socket" << a << "/DRAMEnergy\tfloat\n";
             }
             for (uint32 a = 0; a < counters.getNumSockets(); ++a) {
                 for (uint32 l = 0; l < counters.getQPILinksPerSocket(); ++l)
-                    cout << "Socket" << a << "/BytesIncomingToQPI" << l << "\tfloat" << endl;
+                    cout << "Socket" << a << "/BytesIncomingToQPI" << l << "\tfloat\n";
             }
 
-            cout << "QPI_Traffic\tfloat" << endl;
-            cout << "Frequency\tfloat" << endl;
-            cout << "IPC\tfloat" << endl;       //double check output
-            cout << "L2CacheHitRatio\tfloat" << endl;
-            cout << "L3CacheHitRatio\tfloat" << endl;
-            cout << "L2CacheMisses\tinteger" << endl;
-            cout << "L3CacheMisses\tinteger" << endl;
-            cout << "CoreC0StateResidency\tfloat" << endl;
-            cout << "CoreC3StateResidency\tfloat" << endl;
-            cout << "CoreC6StateResidency\tfloat" << endl;
-            cout << "CoreC7StateResidency\tfloat" << endl;
-            cout << "PackageC2StateResidency\tfloat" << endl;
-            cout << "PackageC3StateResidency\tfloat" << endl;
-            cout << "PackageC6StateResidency\tfloat" << endl;
-            cout << "PackageC7StateResidency\tfloat" << endl;
-            cout << "CPUEnergy\tfloat" << endl;
-            cout << "DRAMEnergy\tfloat" << endl;
+            cout << "QPI_Traffic\tfloat\n";
+            cout << "Frequency\tfloat\n";
+            cout << "IPC\tfloat\n";       //double check output
+            cout << "L2CacheHitRatio\tfloat\n";
+            cout << "L3CacheHitRatio\tfloat\n";
+            cout << "L2CacheMisses\tinteger\n";
+            cout << "L3CacheMisses\tinteger\n";
+            cout << "CoreC0StateResidency\tfloat\n";
+            cout << "CoreC3StateResidency\tfloat\n";
+            cout << "CoreC6StateResidency\tfloat\n";
+            cout << "CoreC7StateResidency\tfloat\n";
+            cout << "PackageC2StateResidency\tfloat\n";
+            cout << "PackageC3StateResidency\tfloat\n";
+            cout << "PackageC6StateResidency\tfloat\n";
+            cout << "PackageC7StateResidency\tfloat\n";
+            cout << "CPUEnergy\tfloat\n";
+            cout << "DRAMEnergy\tfloat\n";
         }
 
         // provide metadata
@@ -126,42 +126,42 @@ int main()
                         stringstream c;
                         c << "Socket" << a << "/CPU" << i << "/Frequency?";
                         if (s == c.str()) {
-                            cout << "FREQ. CPU" << i << "\t\t\tMHz" << endl;
+                            cout << "FREQ. CPU" << i << "\t\t\tMHz\n";
                         }
                     }
                     {
                         stringstream c;
                         c << "Socket" << a << "/CPU" << i << "/ThermalHeadroom?";
                         if (s == c.str()) {
-                            cout << "Temperature reading in 1 degree Celsius relative to the TjMax temperature (thermal headroom) for CPU" << i << "\t\t\t°C" << endl;
+                            cout << "Temperature reading in 1 degree Celsius relative to the TjMax temperature (thermal headroom) for CPU" << i << "\t\t\t°C\n";
                         }
                     }
                     {
                         stringstream c;
                         c << "Socket" << a << "/CPU" << i << "/CoreC0StateResidency?";
                         if (s == c.str()) {
-                            cout << "core C0-state residency for CPU" << i << "\t\t\t%" << endl;
+                            cout << "core C0-state residency for CPU" << i << "\t\t\t%\n";
                         }
                     }
                     {
                         stringstream c;
                         c << "Socket" << a << "/CPU" << i << "/CoreC3StateResidency?";
                         if (s == c.str()) {
-                            cout << "core C3-state residency for CPU" << i << "\t\t\t%" << endl;
+                            cout << "core C3-state residency for CPU" << i << "\t\t\t%\n";
                         }
                     }
                     {
                         stringstream c;
                         c << "Socket" << a << "/CPU" << i << "/CoreC6StateResidency?";
                         if (s == c.str()) {
-                            cout << "core C6-state residency for CPU" << i << "\t\t\t%" << endl;
+                            cout << "core C6-state residency for CPU" << i << "\t\t\t%\n";
                         }
                     }
                     {
                         stringstream c;
                         c << "Socket" << a << "/CPU" << i << "/CoreC7StateResidency?";
                         if (s == c.str()) {
-                            cout << "core C7-state residency for CPU" << i << "\t\t\t%" << endl;
+                            cout << "core C7-state residency for CPU" << i << "\t\t\t%\n";
                         }
                     }
                 }
@@ -172,8 +172,8 @@ int main()
                     stringstream c;
                     c << "Socket" << a << "/CPU" << i << "/IPC?";
                     if (s == c.str()) {
-                        cout << "IPC CPU" << i << "\t0\t\t" << endl;
-                        //cout << "CPU" << i << "\tInstructions per Cycle\t0\t1\t " << endl;
+                        cout << "IPC CPU" << i << "\t0\t\t\n";
+                        //cout << "CPU" << i << "\tInstructions per Cycle\t0\t1\t \n";
                     }
                 }
         }
@@ -183,8 +183,8 @@ int main()
                     stringstream c;
                     c << "Socket" << a << "/CPU" << i << "/L2CacheHitRatio?";
                     if (s == c.str()) {
-                        cout << "L2 Cache Hit Ratio CPU" << i << "\t0\t\t" << endl;
-                        //   cout << "CPU" << i << "\tL2 Cache Hit Ratio\t0\t1\t " << endl;
+                        cout << "L2 Cache Hit Ratio CPU" << i << "\t0\t\t\n";
+                        //   cout << "CPU" << i << "\tL2 Cache Hit Ratio\t0\t1\t \n";
                     }
                 }
         }
@@ -194,7 +194,7 @@ int main()
                     stringstream c;
                     c << "Socket" << a << "/CPU" << i << "/L3CacheHitRatio?";
                     if (s == c.str()) {
-                        cout << "L3 Cache Hit Ratio CPU" << i << "\t0\t\t " << endl;
+                        cout << "L3 Cache Hit Ratio CPU" << i << "\t0\t\t \n";
                     }
                 }
         }
@@ -204,8 +204,8 @@ int main()
                     stringstream c;
                     c << "Socket" << a << "/CPU" << i << "/L2CacheMisses?";
                     if (s == c.str()) {
-                        cout << "L2 Cache Misses CPU" << i << "\t0\t\t " << endl;
-                        //cout << "CPU" << i << "\tL2 Cache Misses\t0\t1\t " << endl;
+                        cout << "L2 Cache Misses CPU" << i << "\t0\t\t \n";
+                        //cout << "CPU" << i << "\tL2 Cache Misses\t0\t1\t \n";
                     }
                 }
         }
@@ -215,8 +215,8 @@ int main()
                     stringstream c;
                     c << "Socket" << a << "/CPU" << i << "/L3CacheMisses?";
                     if (s == c.str()) {
-                        cout << "L3 Cache Misses CPU" << i << "\t0\t\t " << endl;
-                        //cout << "CPU" << i << "\tL3 Cache Misses\t0\t1\t " << endl;
+                        cout << "L3 Cache Misses CPU" << i << "\t0\t\t \n";
+                        //cout << "CPU" << i << "\tL3 Cache Misses\t0\t1\t \n";
                     }
                 }
         }
@@ -226,8 +226,8 @@ int main()
                     stringstream c;
                     c << "Socket" << a << "/CPU" << i << "/L3Occupancy?";
                     if (s == c.str()) {
-                        cout << "L3 Cache Occupancy CPU " << i << "\t0\t\t " << endl;
-                        //cout << "CPU" << i << "\tL3 Cache Occupancy\t0\t1\t " << endl;
+                        cout << "L3 Cache Occupancy CPU " << i << "\t0\t\t \n";
+                        //cout << "CPU" << i << "\tL3 Cache Occupancy\t0\t1\t \n";
                     }
                 }
         }
@@ -237,8 +237,8 @@ int main()
                     stringstream c;
                     c << "Socket" << a << "/CPU" << i << "/LocalMemoryBandwidth?";
                     if (s == c.str()) {
-                        cout << "Local Memory Bandwidth CPU " << i << "\t0\t\t " << endl;
-                        //cout << "CPU" << i << "\tLocal Memory Bandwidth\t0\t1\t " << endl;
+                        cout << "Local Memory Bandwidth CPU " << i << "\t0\t\t \n";
+                        //cout << "CPU" << i << "\tLocal Memory Bandwidth\t0\t1\t \n";
                     }
                 }
         }
@@ -248,8 +248,8 @@ int main()
                     stringstream c;
                     c << "Socket" << a << "/CPU" << i << "/RemoteMemoryBandwidth?";
                     if (s == c.str()) {
-                        cout << "Remote Memory Bandwidth CPU " << i << "\t0\t\t " << endl;
-                        //cout << "CPU" << i << "\tRemote Memory Bandwidth\t0\t1\t " << endl;
+                        cout << "Remote Memory Bandwidth CPU " << i << "\t0\t\t \n";
+                        //cout << "CPU" << i << "\tRemote Memory Bandwidth\t0\t1\t \n";
                     }
                 }
         }
@@ -257,99 +257,99 @@ int main()
             stringstream c;
             c << "Socket" << i << "/BytesReadFromMC?";
             if (s == c.str()) {
-                cout << "read from MC Socket" << i << "\t0\t\tGB" << endl;
+                cout << "read from MC Socket" << i << "\t0\t\tGB\n";
             }
         }
         for (uint32 i = 0; i < counters.getNumSockets(); ++i) {
             stringstream c;
             c << "Socket" << i << "/BytesReadFromPMM?";
             if (s == c.str()) {
-                cout << "read from PMM memory on Socket" << i << "\t0\t\tGB" << endl;
+                cout << "read from PMM memory on Socket" << i << "\t0\t\tGB\n";
             }
         }
         for (uint32 i = 0; i < counters.getNumSockets(); ++i) {
             stringstream c;
             c << "Socket" << i << "/DRAMEnergy?";
             if (s == c.str()) {
-                cout << "Energy consumed by DRAM on socket " << i << "\t0\t\tJoule" << endl;
+                cout << "Energy consumed by DRAM on socket " << i << "\t0\t\tJoule\n";
             }
         }
         for (uint32 i = 0; i < counters.getNumSockets(); ++i) {
             stringstream c;
             c << "Socket" << i << "/CPUEnergy?";
             if (s == c.str()) {
-                cout << "Energy consumed by CPU package " << i << "\t0\t\tJoule" << endl;
+                cout << "Energy consumed by CPU package " << i << "\t0\t\tJoule\n";
             }
         }
         for (uint32 i = 0; i < counters.getNumSockets(); ++i) {
             stringstream c;
             c << "Socket" << i << "/ThermalHeadroom?";
             if (s == c.str()) {
-                cout << "Temperature reading in 1 degree Celsius relative to the TjMax temperature (thermal headroom) for CPU package " << i << "\t0\t\t°C" << endl;
+                cout << "Temperature reading in 1 degree Celsius relative to the TjMax temperature (thermal headroom) for CPU package " << i << "\t0\t\t°C\n";
             }
         }
         for (uint32 i = 0; i < counters.getNumSockets(); ++i) {
             stringstream c;
             c << "Socket" << i << "/CoreC0StateResidency?";
             if (s == c.str()) {
-                cout << "core C0-state residency for CPU package " << i << "\t0\t\t%" << endl;
+                cout << "core C0-state residency for CPU package " << i << "\t0\t\t%\n";
             }
         }
         for (uint32 i = 0; i < counters.getNumSockets(); ++i) {
             stringstream c;
             c << "Socket" << i << "/CoreC3StateResidency?";
             if (s == c.str()) {
-                cout << "core C3-state residency for CPU package " << i << "\t0\t\t%" << endl;
+                cout << "core C3-state residency for CPU package " << i << "\t0\t\t%\n";
             }
         }
         for (uint32 i = 0; i < counters.getNumSockets(); ++i) {
             stringstream c;
             c << "Socket" << i << "/CoreC6StateResidency?";
             if (s == c.str()) {
-                cout << "core C6-state residency for CPU package " << i << "\t0\t\t%" << endl;
+                cout << "core C6-state residency for CPU package " << i << "\t0\t\t%\n";
             }
         }
         for (uint32 i = 0; i < counters.getNumSockets(); ++i) {
             stringstream c;
             c << "Socket" << i << "/CoreC7StateResidency?";
             if (s == c.str()) {
-                cout << "core C7-state residency for CPU package " << i << "\t0\t\t%" << endl;
+                cout << "core C7-state residency for CPU package " << i << "\t0\t\t%\n";
             }
         }
         for (uint32 i = 0; i < counters.getNumSockets(); ++i) {
             stringstream c;
             c << "Socket" << i << "/PackageC2StateResidency?";
             if (s == c.str()) {
-                cout << "package C2-state residency for CPU package " << i << "\t0\t\t%" << endl;
+                cout << "package C2-state residency for CPU package " << i << "\t0\t\t%\n";
             }
         }
         for (uint32 i = 0; i < counters.getNumSockets(); ++i) {
             stringstream c;
             c << "Socket" << i << "/PackageC3StateResidency?";
             if (s == c.str()) {
-                cout << "package C3-state residency for CPU package " << i << "\t0\t\t%" << endl;
+                cout << "package C3-state residency for CPU package " << i << "\t0\t\t%\n";
             }
         }
         for (uint32 i = 0; i < counters.getNumSockets(); ++i) {
             stringstream c;
             c << "Socket" << i << "/PackageC6StateResidency?";
             if (s == c.str()) {
-                cout << "package C6-state residency for CPU package " << i << "\t0\t\t%" << endl;
+                cout << "package C6-state residency for CPU package " << i << "\t0\t\t%\n";
             }
         }
         for (uint32 i = 0; i < counters.getNumSockets(); ++i) {
             stringstream c;
             c << "Socket" << i << "/PackageC7StateResidency?";
             if (s == c.str()) {
-                cout << "package C7-state residency for CPU package " << i << "\t0\t\t%" << endl;
+                cout << "package C7-state residency for CPU package " << i << "\t0\t\t%\n";
             }
         }
         for (uint32 i = 0; i < counters.getNumSockets(); ++i) {
             stringstream c;
             c << "Socket" << i << "/BytesWrittenToPMM?";
             if (s == c.str()) {
-                cout << "written to PMM memory on Socket" << i << "\t0\t\tGB" << endl;
-                //cout << "CPU" << i << "\tBytes written to memory channel\t0\t1\t GB" << endl;
+                cout << "written to PMM memory on Socket" << i << "\t0\t\tGB\n";
+                //cout << "CPU" << i << "\tBytes written to memory channel\t0\t1\t GB\n";
             }
         }
 
@@ -358,8 +358,8 @@ int main()
                 stringstream c;
                 c << "Socket" << i << "/BytesIncomingToQPI" << l << "?";
                 if (s == c.str()) {
-                    //cout << "Socket" << i << "\tBytes incoming to QPI link\t" << l<< "\t\t GB" << endl;
-                    cout << "incoming to Socket" << i << " QPI Link" << l << "\t0\t\tGB" << endl;
+                    //cout << "Socket" << i << "\tBytes incoming to QPI link\t" << l<< "\t\t GB\n";
+                    cout << "incoming to Socket" << i << " QPI Link" << l << "\t0\t\tGB\n";
                 }
             }
         }
@@ -368,7 +368,7 @@ int main()
             stringstream c;
             c << "QPI_Traffic?";
             if (s == c.str()) {
-                cout << "Traffic on all QPIs\t0\t\tGB" << endl;
+                cout << "Traffic on all QPIs\t0\t\tGB\n";
             }
         }
 
@@ -376,7 +376,7 @@ int main()
             stringstream c;
             c << "Socket" << i << "/Frequency?";
             if (s == c.str()) {
-                cout << "Socket" << i << " Frequency\t0\t\tMHz" << endl;
+                cout << "Socket" << i << " Frequency\t0\t\tMHz\n";
             }
         }
 
@@ -384,7 +384,7 @@ int main()
             stringstream c;
             c << "Socket" << i << "/IPC?";
             if (s == c.str()) {
-                cout << "Socket" << i << " IPC\t0\t\t" << endl;
+                cout << "Socket" << i << " IPC\t0\t\t\n";
             }
         }
 
@@ -392,7 +392,7 @@ int main()
             stringstream c;
             c << "Socket" << i << "/L2CacheHitRatio?";
             if (s == c.str()) {
-                cout << "Socket" << i << " L2 Cache Hit Ratio\t0\t\t" << endl;
+                cout << "Socket" << i << " L2 Cache Hit Ratio\t0\t\t\n";
             }
         }
 
@@ -400,7 +400,7 @@ int main()
             stringstream c;
             c << "Socket" << i << "/L3CacheHitRatio?";
             if (s == c.str()) {
-                cout << "Socket" << i << " L3 Cache Hit Ratio\t0\t\t" << endl;
+                cout << "Socket" << i << " L3 Cache Hit Ratio\t0\t\t\n";
             }
         }
 
@@ -408,7 +408,7 @@ int main()
             stringstream c;
             c << "Socket" << i << "/L2CacheMisses?";
             if (s == c.str()) {
-                cout << "Socket" << i << " L2 Cache Misses\t0\t\t" << endl;
+                cout << "Socket" << i << " L2 Cache Misses\t0\t\t\n";
             }
         }
 
@@ -416,7 +416,7 @@ int main()
             stringstream c;
             c << "Socket" << i << "/L3CacheMisses?";
             if (s == c.str()) {
-                cout << "Socket" << i << " L3 Cache Misses\t0\t\t" << endl;
+                cout << "Socket" << i << " L3 Cache Misses\t0\t\t\n";
             }
         }
 
@@ -424,7 +424,7 @@ int main()
             stringstream c;
             c << "Socket" << i << "/L3Occupancy";
             if (s == c.str()) {
-                cout << "Socket" << i << " L3 Cache Occupancy\t0\t\t" << endl;
+                cout << "Socket" << i << " L3 Cache Occupancy\t0\t\t\n";
             }
         }
 
@@ -432,7 +432,7 @@ int main()
             stringstream c;
             c << "Socket" << i << "/LocalMemoryBandwidth";
             if (s == c.str()) {
-                cout << "Socket" << i << " Local Memory Bandwidth\t0\t\t" << endl;
+                cout << "Socket" << i << " Local Memory Bandwidth\t0\t\t\n";
             }
         }
 
@@ -440,7 +440,7 @@ int main()
             stringstream c;
             c << "Socket" << i << "/RemoteMemoryBandwidth";
             if (s == c.str()) {
-                cout << "Socket" << i << " Remote Memory Bandwidth\t0\t\t" << endl;
+                cout << "Socket" << i << " Remote Memory Bandwidth\t0\t\t\n";
             }
         }
 
@@ -448,7 +448,7 @@ int main()
             stringstream c;
             c << "Frequency?";
             if (s == c.str()) {
-                cout << "Frequency system wide\t0\t\tMhz" << endl;
+                cout << "Frequency system wide\t0\t\tMhz\n";
             }
         }
 
@@ -456,7 +456,7 @@ int main()
             stringstream c;
             c << "IPC?";
             if (s == c.str()) {
-                cout << "IPC system wide\t0\t\t" << endl;
+                cout << "IPC system wide\t0\t\t\n";
             }
         }
 
@@ -464,7 +464,7 @@ int main()
             stringstream c;
             c << "L2CacheHitRatio?";
             if (s == c.str()) {
-                cout << "System wide L2 Cache Hit Ratio\t0\t\t" << endl;
+                cout << "System wide L2 Cache Hit Ratio\t0\t\t\n";
             }
         }
 
@@ -472,7 +472,7 @@ int main()
             stringstream c;
             c << "L3CacheHitRatio?";
             if (s == c.str()) {
-                cout << "System wide L3 Cache Hit Ratio\t0\t\t" << endl;
+                cout << "System wide L3 Cache Hit Ratio\t0\t\t\n";
             }
         }
 
@@ -480,7 +480,7 @@ int main()
             stringstream c;
             c << "L2CacheMisses?";
             if (s == c.str()) {
-                cout << "System wide L2 Cache Misses\t0\t\t" << endl;
+                cout << "System wide L2 Cache Misses\t0\t\t\n";
             }
         }
 
@@ -488,7 +488,7 @@ int main()
             stringstream c;
             c << "L3CacheMisses?";
             if (s == c.str()) {
-                cout << "System wide L3 Cache Misses\t0\t\t" << endl;
+                cout << "System wide L3 Cache Misses\t0\t\t\n";
             }
         }
 
@@ -496,7 +496,7 @@ int main()
             stringstream c;
             c << "L3CacheMisses?";
             if (s == c.str()) {
-                cout << "System wide L3 Cache Misses\t0\t\t" << endl;
+                cout << "System wide L3 Cache Misses\t0\t\t\n";
             }
         }
 
@@ -504,70 +504,70 @@ int main()
             stringstream c;
             c << "DRAMEnergy?";
             if (s == c.str()) {
-                cout << "System wide energy consumed by DRAM \t0\t\tJoule" << endl;
+                cout << "System wide energy consumed by DRAM \t0\t\tJoule\n";
             }
         }
         {
             stringstream c;
             c << "CPUEnergy?";
             if (s == c.str()) {
-                cout << "System wide energy consumed by CPU packages \t0\t\tJoule" << endl;
+                cout << "System wide energy consumed by CPU packages \t0\t\tJoule\n";
             }
         }
         {
             stringstream c;
             c << "CoreC0StateResidency?";
             if (s == c.str()) {
-                cout << "System wide core C0-state residency \t0\t\t%" << endl;
+                cout << "System wide core C0-state residency \t0\t\t%\n";
             }
         }
         {
             stringstream c;
             c << "CoreC3StateResidency?";
             if (s == c.str()) {
-                cout << "System wide core C3-state residency \t0\t\t%" << endl;
+                cout << "System wide core C3-state residency \t0\t\t%\n";
             }
         }
         {
             stringstream c;
             c << "CoreC6StateResidency?";
             if (s == c.str()) {
-                cout << "System wide core C6-state residency \t0\t\t%" << endl;
+                cout << "System wide core C6-state residency \t0\t\t%\n";
             }
         }
         {
             stringstream c;
             c << "CoreC7StateResidency?";
             if (s == c.str()) {
-                cout << "System wide core C7-state residency \t0\t\t%" << endl;
+                cout << "System wide core C7-state residency \t0\t\t%\n";
             }
         }
         {
             stringstream c;
             c << "PackageC2StateResidency?";
             if (s == c.str()) {
-                cout << "System wide package C2-state residency \t0\t\t%" << endl;
+                cout << "System wide package C2-state residency \t0\t\t%\n";
             }
         }
         {
             stringstream c;
             c << "PackageC3StateResidency?";
             if (s == c.str()) {
-                cout << "System wide package C3-state residency \t0\t\t%" << endl;
+                cout << "System wide package C3-state residency \t0\t\t%\n";
             }
         }
         {
             stringstream c;
             c << "PackageC6StateResidency?";
             if (s == c.str()) {
-                cout << "System wide package C6-state residency \t0\t\t%" << endl;
+                cout << "System wide package C6-state residency \t0\t\t%\n";
             }
         }
         {
             stringstream c;
             c << "PackageC7StateResidency?";
             if (s == c.str()) {
-                cout << "System wide package C7-state residency \t0\t\t%" << endl;
+                cout << "System wide package C7-state residency \t0\t\t%\n";
             }
         }
 
@@ -580,7 +580,7 @@ int main()
                                                       stringstream c; \
                                                       c << "Socket" << a << "/CPU" << i << name; \
                                                       if (s == c.str()) { \
-                                                          cout << function << endl; \
+                                                          cout << function << "\n"; \
                                                       } \
                                                   } \
                                                   }
@@ -605,7 +605,7 @@ int main()
                              stringstream c; \
                              c << "Socket" << i << name; \
                              if (s == c.str()) { \
-                                 cout << function << endl; \
+                                 cout << function << "\n"; \
                              } \
                          }
 
@@ -639,7 +639,7 @@ int main()
                 stringstream c;
                 c << "Socket" << i << "/BytesIncomingToQPI" << l;
                 if (s == c.str()) {
-                    cout << double(counters.getSocket<uint64, ::getIncomingQPILinkBytes>(i, l)) / 1024 / 1024 / 1024 << endl;
+                    cout << double(counters.getSocket<uint64, ::getIncomingQPILinkBytes>(i, l)) / 1024 / 1024 / 1024 << "\n";
                 }
             }
         }
@@ -649,7 +649,7 @@ int main()
         stringstream c; \
         c << name; \
         if (s == c.str()) { \
-            cout << function << endl; \
+            cout << function << "\n"; \
         } \
     }
 
