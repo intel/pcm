@@ -82,7 +82,7 @@ namespace PCMDaemon {
 			}
 
                         // Here to make sure that any output elsewhere in this class or its callees is flushed before the sleep
-                        std::cout << std::flush
+                        std::cout << std::flush;
 
 			usleep(pollIntervalMs_ * 1000);
 
