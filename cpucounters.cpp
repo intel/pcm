@@ -4449,7 +4449,7 @@ void ServerPCICFGUncore::initSocket2Bus(std::vector<std::pair<uint32, uint32> > 
            // match
            if(DEV_IDS[i] == device_id)
            {
-                // std::cout << "DEBUG: found bus " << std::hex << bus << std::dec << "\n";
+               // std::cout << "DEBUG: found bus " << std::hex << bus << " with device ID " << device_id << std::dec << "\n";
                socket2bus.push_back(std::make_pair(mcfg[s].PCISegmentGroupNumber,bus));
                break;
            }
