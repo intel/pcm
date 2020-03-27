@@ -111,7 +111,7 @@ public:
         offset(offset_)
     {
     }
-    void operator = (uint64 val) override
+    void operator = (uint64 /*val*/) override
     {
         std::cerr << "PCICFGRegister64 write operation is not supported\n";
         throw std::exception();

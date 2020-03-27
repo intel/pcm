@@ -5210,7 +5210,7 @@ void populatePerfPMUs(unsigned socket_, const std::vector<int> & ids, std::vecto
 }
 #endif
 
-void ServerPCICFGUncore::initPerf(uint32 socket_, const PCM * pcm)
+void ServerPCICFGUncore::initPerf(uint32 socket_, const PCM * /*pcm*/)
 {
 #ifdef PCM_USE_PERF
     auto imcIDs = enumeratePerfPMUs("imc", 100);

@@ -103,7 +103,7 @@ void scanBus(int bus, const PCIDB & pciDB)
     }
 }
 
-int main(int argc, char * argv[])
+int main(int /*argc*/, char * /*argv*/[])
 {
     PCIDB pciDB;
     load_PCIDB(pciDB);

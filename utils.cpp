@@ -185,7 +185,7 @@ void sigINT_handler(int signum)
  * such as SIGHUP.
  * for example to re-read environment variables controlling PCM execution
  */
-void sigHUP_handler(int signum)
+void sigHUP_handler(int /*signum*/)
 {
     // output for DEBUG only
     std::cerr << "DEBUG: caught signal to hangup. Reloading configuration and continue...\n";
@@ -199,7 +199,7 @@ void sigHUP_handler(int signum)
  * such as SIGUSR1 and SIGUSR2.
  * for the future extensions
  */
-void sigUSR_handler(int signum)
+void sigUSR_handler(int /*signum*/)
 {
     std::cerr << "DEBUG: caught USR signal. Continue.\n";
     // TODO: reload configurationa, reset accumulative counters;
@@ -211,7 +211,7 @@ void sigUSR_handler(int signum)
  * \brief handles signals that lead to update of configuration
  * such as SIGSTOP, SIGTSTP, SIGTTIN, SIGTTOU
  */
-void sigSTOP_handler(int signum)
+void sigSTOP_handler(int /*signum*/)
 {
     PCM * m = PCM::getInstance();
     int runState = m->getRunState();
@@ -233,7 +233,7 @@ void sigSTOP_handler(int signum)
 * \brief handles signals that lead to update of configuration
 * such as SIGCONT
 */
-void sigCONT_handler(int signum)
+void sigCONT_handler(int /*signum*/)
 {
     std::cout << "DEBUG: caught signal to continue execution.\n"; // debug of signals only
     // TODO: clear counters, resume counting.
