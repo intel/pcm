@@ -151,7 +151,7 @@ void probe_pci(struct pci *p)
         p->exist = true;
         PciHandleType h(0, bdf->busno, bdf->devno, bdf->funcno);
         h.read32(0x0, &value); //VID:DID
-        if (value == ~0UL) // invalid VID::DID
+        if (value == std::numeric_limits<unsigned int>::max()) // invalid VID::DID
         {
             p->exist = false;
             return;
