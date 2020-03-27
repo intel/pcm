@@ -2224,6 +2224,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
                 L3CacheHitsSnoopAvailable = true;
                 L3CacheHitsAvailable = true;
                 core_gen_counter_num_used = 4;
+                break;
             default:
                 assert(!useSkylakeEvents());
                 coreEventDesc[0].event_number = ARCH_LLC_MISS_EVTNR;
