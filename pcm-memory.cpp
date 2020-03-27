@@ -697,6 +697,7 @@ void calculate_bandwidth(PCM *m, const ServerUncorePowerState uncState1[], const
                 md.EDC_Rd_socket[skt] += md.EDC_Rd_socket_chan[skt][channel];
                 md.EDC_Wr_socket[skt] += md.EDC_Wr_socket_chan[skt][channel];
             }
+            /* fall-through */
         default:
             for (uint32 channel = 0; channel < max_imc_channels; ++channel)
             {
