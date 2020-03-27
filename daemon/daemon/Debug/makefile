@@ -59,7 +59,7 @@ clean:
 
 pre-build:
 	-@echo 'Build PCM'
-	-g++ ${CXXFLAGS} -c ../../../*.cpp -std=c++0x
+	-g++ ${CXXFLAGS} -c ../../../*.cpp -std=c++11
 	-@echo ' '
 
 .PHONY: all clean dependents
