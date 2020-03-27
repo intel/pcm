@@ -1949,8 +1949,6 @@ protected:
     uint64 CStateResidency[PCM::MAX_C_STATE + 1];
     int32 ThermalHeadroom;
     uint64 L3Occupancy;
-    void readAndAggregate(std::shared_ptr<SafeMsrHandle>);
-    void readAndAggregateTSC(std::shared_ptr<SafeMsrHandle>);
     uint64 MemoryBWLocal;
     uint64 MemoryBWTotal;
     uint64 SMICount;
@@ -1991,6 +1989,9 @@ public:
         SMICount += o.SMICount;
         return *this;
     }
+
+    void readAndAggregate(std::shared_ptr<SafeMsrHandle>);
+    void readAndAggregateTSC(std::shared_ptr<SafeMsrHandle>);
 
     //! Returns current thermal headroom below TjMax
     int32 getThermalHeadroom() const { return ThermalHeadroom; }
