@@ -1395,6 +1395,33 @@ public:
         return 0;
     }
 
+    //! \brief Returns whether it is a server part
+    bool isServerCPU() const
+    {
+        switch (cpu_model)
+        {
+        case NEHALEM_EP:
+        case NEHALEM_EX:
+        case WESTMERE_EP:
+        case WESTMERE_EX:
+        case JAKETOWN:
+        case IVYTOWN:
+        case HASWELLX:
+        case BDX:
+        case BDX_DE:
+        case SKX:
+        case KNL:
+            return true;
+        default:
+            return false;
+        };
+    }
+
+    //! \brief Returns whether it is a client part
+    bool isClientCPU() const
+    {
+        return !isServerCPU();
+    }
     //! \brief Return TSC timer value in time units
     //! \param multiplier use 1 for seconds, 1000 for ms, 1000000 for mks, etc (default is 1000: ms)
     //! \param core core to read on-chip TSC value (default is 0)
