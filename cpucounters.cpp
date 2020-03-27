@@ -4102,7 +4102,7 @@ void PCM::getAllCounterStates(SystemCounterState & systemState, std::vector<Sock
         // read core counters
         if (isCoreOnline(core))
         {
-            std::packaged_task<void()> task([this,&coreStates,&socketStates,core]()
+            std::packaged_task<void()> task([this,&coreStates,&socketStates,core]() -> void
                 {
                     coreStates[core].readAndAggregate(MSR[core]);
                     socketStates[topology[core].socket].UncoreCounterState::readAndAggregate(MSR[core]); // read package C state counters
@@ -4118,7 +4118,7 @@ void PCM::getAllCounterStates(SystemCounterState & systemState, std::vector<Sock
     {
         int32 refCore = socketRefCore[s];
         if (refCore<0) refCore = 0;
-        std::packaged_task<void()> task([this, s, &socketStates]()
+        std::packaged_task<void()> task([this, s, &socketStates]() -> void
             {
                 readAndAggregateUncoreMCCounters(s, socketStates[s]);
                 readAndAggregateEnergyCounters(s, socketStates[s]);
