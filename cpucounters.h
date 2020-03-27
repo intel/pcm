@@ -2453,9 +2453,25 @@ protected:
     }
 
 public:
-    void accumulateCoreState(const CoreCounterState & o)
+    SocketCounterState& operator += ( const BasicCounterState& ccs )
     {
-        BasicCounterState::operator += (o);
+        BasicCounterState::operator += ( ccs );
+
+        return *this;
+    }
+
+    SocketCounterState& operator += ( const UncoreCounterState& ucs )
+    {
+        UncoreCounterState::operator += ( ucs );
+
+        return *this;
+    }
+
+    SocketCounterState operator = ( const UncoreCounterState& ucs )
+    {
+        UncoreCounterState::operator = ( ucs );
+
+        return *this;
     }
 };
 
@@ -2493,12 +2509,12 @@ public:
                                     std::vector<uint64>((uint32)m->getQPILinksPerSocket(), 0));
     }
 
-    void accumulateSocketState(const SocketCounterState & o)
+    SystemCounterState & operator += ( const SocketCounterState& scs )
     {
-        {
-            BasicCounterState::operator += (o);
-            UncoreCounterState::operator += (o);
-        }
+        BasicCounterState::operator += ( scs );
+        UncoreCounterState::operator += ( scs );
+
+        return *this;
     }
 };
 

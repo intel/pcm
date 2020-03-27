@@ -4136,16 +4136,15 @@ void PCM::getAllCounterStates(SystemCounterState & systemState, std::vector<Sock
     for (int32 core = 0; core < num_cores; ++core)
     {   // aggregate core counters into sockets
         if(isCoreOnline(core))
-          socketStates[topology[core].socket].accumulateCoreState(coreStates[core]);
+          socketStates[topology[core].socket] += coreStates[core];
     }
 
     for (int32 s = 0; s < num_sockets; ++s)
     {   // aggregate core counters from sockets into system state and
         // aggregate socket uncore iMC, energy and package C state counters into system
-        systemState.accumulateSocketState(socketStates[s]);
+        systemState += socketStates[s];
     }
 }
-
 
 void PCM::getUncoreCounterStates(SystemCounterState & systemState, std::vector<SocketCounterState> & socketStates)
 {
@@ -4177,11 +4176,11 @@ void PCM::getUncoreCounterStates(SystemCounterState & systemState, std::vector<S
             for(uint32 core=0; core < getNumCores(); ++core)
             {
                 if(topology[core].socket == s && isCoreOnline(core))
-                    socketStates[s].accumulateCoreState(refCoreStates[s]);
+                    socketStates[s] += refCoreStates[s];
             }
         }
         // aggregate socket uncore iMC, energy counters into system
-        systemState.accumulateSocketState(socketStates[s]);
+        systemState += socketStates[s];
     }
 }
 
