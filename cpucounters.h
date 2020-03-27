@@ -1751,7 +1751,7 @@ public:
         return "QPI";
     }
 
-    const bool hasCHA() const
+    bool hasCHA() const
     {
         return (
             cpu_model == PCM::SKX
