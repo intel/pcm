@@ -111,7 +111,7 @@ public:
         offset(offset_)
     {
     }
-    void operator = (uint64 val) override
+    void operator = (uint64 /*val*/) override
     {
         std::cerr << "PCICFGRegister64 write operation is not supported\n";
         throw std::exception();
@@ -408,7 +408,7 @@ public:
     //! \param port QPI port id
     uint64 getOutgoingFlits(uint32 port);
 
-    virtual ~ServerPCICFGUncore();
+    ~ServerPCICFGUncore();
 
     //! \brief Program power counters (disables programming performance counters)
     //! \param mc_profile memory controller measurement profile. See description of profiles in pcm-power.cpp
@@ -1395,6 +1395,33 @@ public:
         return 0;
     }
 
+    //! \brief Returns whether it is a server part
+    bool isServerCPU() const
+    {
+        switch (cpu_model)
+        {
+        case NEHALEM_EP:
+        case NEHALEM_EX:
+        case WESTMERE_EP:
+        case WESTMERE_EX:
+        case JAKETOWN:
+        case IVYTOWN:
+        case HASWELLX:
+        case BDX:
+        case BDX_DE:
+        case SKX:
+        case KNL:
+            return true;
+        default:
+            return false;
+        };
+    }
+
+    //! \brief Returns whether it is a client part
+    bool isClientCPU() const
+    {
+        return !isServerCPU();
+    }
     //! \brief Return TSC timer value in time units
     //! \param multiplier use 1 for seconds, 1000 for ms, 1000000 for mks, etc (default is 1000: ms)
     //! \param core core to read on-chip TSC value (default is 0)
@@ -1751,7 +1778,7 @@ public:
         return "QPI";
     }
 
-    const bool hasCHA() const
+    bool hasCHA() const
     {
         return (
             cpu_model == PCM::SKX
@@ -1949,8 +1976,6 @@ protected:
     uint64 CStateResidency[PCM::MAX_C_STATE + 1];
     int32 ThermalHeadroom;
     uint64 L3Occupancy;
-    void readAndAggregate(std::shared_ptr<SafeMsrHandle>);
-    void readAndAggregateTSC(std::shared_ptr<SafeMsrHandle>);
     uint64 MemoryBWLocal;
     uint64 MemoryBWTotal;
     uint64 SMICount;
@@ -1991,6 +2016,9 @@ public:
         SMICount += o.SMICount;
         return *this;
     }
+
+    void readAndAggregate(std::shared_ptr<SafeMsrHandle>);
+    void readAndAggregateTSC(std::shared_ptr<SafeMsrHandle>);
 
     //! Returns current thermal headroom below TjMax
     int32 getThermalHeadroom() const { return ThermalHeadroom; }
@@ -2425,9 +2453,25 @@ protected:
     }
 
 public:
-    void accumulateCoreState(const CoreCounterState & o)
+    SocketCounterState& operator += ( const BasicCounterState& ccs )
     {
-        BasicCounterState::operator += (o);
+        BasicCounterState::operator += ( ccs );
+
+        return *this;
+    }
+
+    SocketCounterState& operator += ( const UncoreCounterState& ucs )
+    {
+        UncoreCounterState::operator += ( ucs );
+
+        return *this;
+    }
+
+    SocketCounterState operator = ( const UncoreCounterState& ucs )
+    {
+        UncoreCounterState::operator = ( ucs );
+
+        return *this;
     }
 };
 
@@ -2465,12 +2509,12 @@ public:
                                     std::vector<uint64>((uint32)m->getQPILinksPerSocket(), 0));
     }
 
-    void accumulateSocketState(const SocketCounterState & o)
+    SystemCounterState & operator += ( const SocketCounterState& scs )
     {
-        {
-            BasicCounterState::operator += (o);
-            UncoreCounterState::operator += (o);
-        }
+        BasicCounterState::operator += ( scs );
+        UncoreCounterState::operator += ( scs );
+
+        return *this;
     }
 };
 

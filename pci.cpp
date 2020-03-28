@@ -651,7 +651,7 @@ PciHandleMM::PciHandleMM(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 fu
     }
 }
 
-bool PciHandleMM::exists(uint32 /*groupnr_*/, uint32 bus_, uint32 device_, uint32 function_)
+bool PciHandleMM::exists(uint32 /*groupnr_*/, uint32 /*bus_*/, uint32 /*device_*/, uint32 /*function_*/)
 {
     int handle = ::open("/dev/mem", O_RDWR);
 

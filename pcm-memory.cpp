@@ -147,7 +147,7 @@ void printSocketRankBWHeader(uint32 no_columns, uint32 skt)
     cout << "\n";
 }
 
-void printSocketChannelBW(PCM *m, memdata_t *md, uint32 no_columns, uint32 skt)
+void printSocketChannelBW(PCM */*m*/, memdata_t *md, uint32 no_columns, uint32 skt)
 {
     for (uint32 channel = 0; channel < max_imc_channels; ++channel) {
         // check all the sockets for bad channel "channel"
@@ -441,7 +441,7 @@ void choose(const CsvOutputType outputType, H1 h1Func, H2 h2Func, D dataFunc)
     }
 }
 
-void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 elapsedTime, const bool show_channel_output, const CsvOutputType outputType)
+void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 /*elapsedTime*/, const bool show_channel_output, const CsvOutputType outputType)
 {
     const uint32 numSockets = m->getNumSockets();
     choose(outputType,
@@ -697,6 +697,7 @@ void calculate_bandwidth(PCM *m, const ServerUncorePowerState uncState1[], const
                 md.EDC_Rd_socket[skt] += md.EDC_Rd_socket_chan[skt][channel];
                 md.EDC_Wr_socket[skt] += md.EDC_Wr_socket_chan[skt][channel];
             }
+            /* fall-through */
         default:
             for (uint32 channel = 0; channel < max_imc_channels; ++channel)
             {
@@ -786,7 +787,7 @@ void calculate_bandwidth(PCM *m, const ServerUncorePowerState uncState1[], const
     }
 }
 
-void calculate_bandwidth_rank(PCM *m, const ServerUncorePowerState uncState1[], const ServerUncorePowerState uncState2[], const uint64 elapsedTime, const bool csv, bool & csvheader, const uint32 no_columns, const int rankA, const int rankB)
+void calculate_bandwidth_rank(PCM *m, const ServerUncorePowerState uncState1[], const ServerUncorePowerState uncState2[], const uint64 elapsedTime, const bool /*csv*/, bool & /*csvheader*/, const uint32 no_columns, const int rankA, const int rankB)
 {
     uint32 skt = 0;
     cout.setf(ios::fixed);

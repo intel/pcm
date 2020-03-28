@@ -407,7 +407,7 @@ void check_status(PCM *m, PCM::ErrorCode status)
     }
 }
 
-void build_registers(PCM *m, PCM::ExtendedCustomCoreEventDescription conf, bool enable_pmm, bool enable_verbose)
+void build_registers(PCM *m, PCM::ExtendedCustomCoreEventDescription conf, bool enable_pmm, bool /*enable_verbose*/)
 {
 
 //Check if Online Cores = Available Cores. This version only supports available cores = online cores

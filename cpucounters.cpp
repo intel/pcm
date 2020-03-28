@@ -2224,6 +2224,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
                 L3CacheHitsSnoopAvailable = true;
                 L3CacheHitsAvailable = true;
                 core_gen_counter_num_used = 4;
+                break;
             default:
                 assert(!useSkylakeEvents());
                 coreEventDesc[0].event_number = ARCH_LLC_MISS_EVTNR;
@@ -4101,7 +4102,7 @@ void PCM::getAllCounterStates(SystemCounterState & systemState, std::vector<Sock
         // read core counters
         if (isCoreOnline(core))
         {
-            std::packaged_task<void()> task([this,&coreStates,&socketStates,core]()
+            std::packaged_task<void()> task([this,&coreStates,&socketStates,core]() -> void
                 {
                     coreStates[core].readAndAggregate(MSR[core]);
                     socketStates[topology[core].socket].UncoreCounterState::readAndAggregate(MSR[core]); // read package C state counters
@@ -4117,7 +4118,7 @@ void PCM::getAllCounterStates(SystemCounterState & systemState, std::vector<Sock
     {
         int32 refCore = socketRefCore[s];
         if (refCore<0) refCore = 0;
-        std::packaged_task<void()> task([this, s, &socketStates]()
+        std::packaged_task<void()> task([this, s, &socketStates]() -> void
             {
                 readAndAggregateUncoreMCCounters(s, socketStates[s]);
                 readAndAggregateEnergyCounters(s, socketStates[s]);
@@ -4135,16 +4136,15 @@ void PCM::getAllCounterStates(SystemCounterState & systemState, std::vector<Sock
     for (int32 core = 0; core < num_cores; ++core)
     {   // aggregate core counters into sockets
         if(isCoreOnline(core))
-          socketStates[topology[core].socket].accumulateCoreState(coreStates[core]);
+          socketStates[topology[core].socket] += coreStates[core];
     }
 
     for (int32 s = 0; s < num_sockets; ++s)
     {   // aggregate core counters from sockets into system state and
         // aggregate socket uncore iMC, energy and package C state counters into system
-        systemState.accumulateSocketState(socketStates[s]);
+        systemState += socketStates[s];
     }
 }
-
 
 void PCM::getUncoreCounterStates(SystemCounterState & systemState, std::vector<SocketCounterState> & socketStates)
 {
@@ -4176,11 +4176,11 @@ void PCM::getUncoreCounterStates(SystemCounterState & systemState, std::vector<S
             for(uint32 core=0; core < getNumCores(); ++core)
             {
                 if(topology[core].socket == s && isCoreOnline(core))
-                    socketStates[s].accumulateCoreState(refCoreStates[s]);
+                    socketStates[s] += refCoreStates[s];
             }
         }
         // aggregate socket uncore iMC, energy counters into system
-        systemState.accumulateSocketState(socketStates[s]);
+        systemState += socketStates[s];
     }
 }
 
@@ -5209,7 +5209,7 @@ void populatePerfPMUs(unsigned socket_, const std::vector<int> & ids, std::vecto
 }
 #endif
 
-void ServerPCICFGUncore::initPerf(uint32 socket_, const PCM * pcm)
+void ServerPCICFGUncore::initPerf(uint32 socket_, const PCM * /*pcm*/)
 {
 #ifdef PCM_USE_PERF
     auto imcIDs = enumeratePerfPMUs("imc", 100);

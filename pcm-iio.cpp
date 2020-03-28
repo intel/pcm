@@ -512,7 +512,7 @@ void collect_data(PCM *m, vector<struct iio_skx> iio_skx_v, vector<struct counte
     }
 }
 
-int main(int argc, char * argv[])
+int main(int /*argc*/, char * /*argv*/[])
 {
     std::cout << "\n Processor Counter Monitor " << PCM_VERSION << "\n";
     std::cout << "\n This utility measures Skylake-SP IIO information\n\n";

@@ -93,13 +93,13 @@ public:
 
         return (int32)sizeof(uint64);
     }
+
     int32 getCoreId()
     {
         if (pHandle)
             return pHandle->getCoreId();
 
-        throw std::exception();
-        return -1;
+        throw std::runtime_error("Core is offline");
     }
 
     void lock()
@@ -119,7 +119,6 @@ public:
             return pHandle->buildTopology(num_cores, p);
 
         throw std::exception();
-        return 0;
     }
     uint32 getNumInstances()
     {
@@ -127,7 +126,6 @@ public:
             return pHandle->getNumInstances();
 
         throw std::exception();
-        return 0;
     }
     uint32 incrementNumInstances()
     {
@@ -135,7 +133,6 @@ public:
             return pHandle->incrementNumInstances();
 
         throw std::exception();
-        return 0;
     }
     uint32 decrementNumInstances()
     {
@@ -143,7 +140,6 @@ public:
             return pHandle->decrementNumInstances();
 
         throw std::exception();
-        return 0;
     }
 #endif
     virtual ~SafeMsrHandle()
