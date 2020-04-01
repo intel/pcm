@@ -35,6 +35,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include "pci.h"
 #include "types.h"
 #include "utils.h"
+#include "topology.h"
 
 #if defined (__FreeBSD__) || defined(__DragonFly__)
 #include <sys/param.h>
@@ -1192,8 +1193,21 @@ bool PCM::discoverSystemTopology()
     for (uint32 sid = 0; s != socketIdMap.end(); ++s)
     {
         s->second = sid++;
+        // first is apic id, second is logical socket id
+        systemTopology->addSocket( s->first, s->second );
     }
 
+    for (int32 cid = 0; cid < num_cores; ++cid)
+    {
+        //std::cerr << "Cid: " << cid << "\n";
+        systemTopology->addThread( cid, topology[cid] );
+    }
+
+    // All threads are here now so we can set the refCore for a socket
+    for ( auto socket : systemTopology->sockets() )
+        socket->setRefCore();
+
+    // use map to change apic socket id to the logical socket id
     for (int i = 0; (i < (int)num_cores) && (!socketIdMap.empty()); ++i)
     {
         if(isCoreOnline((int32)i))
@@ -1295,10 +1309,13 @@ bool PCM::initMSR()
     {
         for (int i = 0; i < (int)num_cores; ++i)
         {
-            if (isCoreOnline((int32)i))
+            if ( isCoreOnline( (int32)i ) ) {
                 MSR.push_back(std::make_shared<SafeMsrHandle>(i));
-            else // the core is offlined, assign an invalid MSR handle
+                systemTopology->addMSRHandleToOSThread( MSR.back(), (uint32)i );
+            } else { // the core is offlined, assign an invalid MSR handle
                 MSR.push_back(std::make_shared<SafeMsrHandle>());
+                systemTopology->addMSRHandleToOSThread( MSR.back(), (uint32)i );
+            }
         }
     }
     catch (...)
@@ -1715,8 +1732,9 @@ PCM::PCM() :
     max_qpi_speed(0),
     L3ScalingFactor(0),
     pkgThermalSpecPower(-1),
-    pkgMinimumPower(-1), 
+    pkgMinimumPower(-1),
     pkgMaximumPower(-1),
+    systemTopology(new SystemRoot(this)),
     allow_multiple_instances(false),
     programmed_pmu(false),
     joulesPerEnergyUnit(0),
@@ -1911,6 +1929,7 @@ PCM::~PCM()
     {
         destroyMSR();
         instance = NULL;
+        delete systemTopology;
     }
 }
 
@@ -3780,12 +3799,15 @@ SystemCounterState PCM::getSystemCounterState()
     {
         // read core and uncore counter state
         for (int32 core = 0; core < num_cores; ++core)
-            result.readAndAggregate(MSR[core]);
+            if ( isCoreOnline( core ) )
+                result.readAndAggregate(MSR[core]);
 
         for (uint32 s = 0; s < (uint32)num_sockets; s++)
         {
-            readAndAggregateUncoreMCCounters(s, result);
-            readAndAggregateEnergyCounters(s, result);
+            if ( isSocketOnline( s ) ) {
+                readAndAggregateUncoreMCCounters(s, result);
+                readAndAggregateEnergyCounters(s, result);
+            }
         }
 
         readQPICounters(result);
@@ -3911,6 +3933,9 @@ void PCM::readAndAggregateUncoreMCCounters(const uint32 socket, CounterStateType
     }
 }
 
+// Explicit instantiation needed in topology.cpp
+template void PCM::readAndAggregateUncoreMCCounters<UncoreCounterState>(const uint32, UncoreCounterState&);
+
 template <class CounterStateType>
 void PCM::readAndAggregateEnergyCounters(const uint32 socket, CounterStateType & result)
 {
@@ -3921,6 +3946,8 @@ void PCM::readAndAggregateEnergyCounters(const uint32 socket, CounterStateType &
         result.DRAMEnergyStatus += dram_energy_status[socket]->read();
 }
 
+// Explicit instantiation needed in topology.cpp
+template void PCM::readAndAggregateEnergyCounters<UncoreCounterState>(const uint32, UncoreCounterState&);
 
 template <class CounterStateType>
 void PCM::readAndAggregatePackageCStateResidencies(std::shared_ptr<SafeMsrHandle> msr, CounterStateType & result)
@@ -3938,6 +3965,9 @@ void PCM::readAndAggregatePackageCStateResidencies(std::shared_ptr<SafeMsrHandle
         atomic_fetch_add((std::atomic<uint64> *)(result.CStateResidency + i), cCStateResidency[i]);
     }
 }
+
+// Explicit instantiation needed in topology.cpp
+template void PCM::readAndAggregatePackageCStateResidencies(std::shared_ptr<SafeMsrHandle>, UncoreCounterState &);
 
 void PCM::readQPICounters(SystemCounterState & result)
 {

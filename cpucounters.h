@@ -68,6 +68,7 @@ class BasicCounterState;
 class ServerUncorePowerState;
 class PCM;
 class CoreTaskQueue;
+class SystemRoot;
 
 #ifdef _MSC_VER
 #if _MSC_VER>= 1600
@@ -532,6 +533,7 @@ class PCM_API PCM
 {
     friend class BasicCounterState;
     friend class UncoreCounterState;
+    friend class ServerUncore;
     friend class PerfVirtualControlRegister;
     PCM();     // forbidden to call directly because it is a singleton
 
@@ -566,6 +568,7 @@ class PCM_API PCM
     int32 pkgThermalSpecPower, pkgMinimumPower, pkgMaximumPower;
 
     std::vector<TopologyEntry> topology;
+    SystemRoot* systemTopology;
     std::string errorMessage;
 
     static PCM * instance;
@@ -903,6 +906,15 @@ public:
 
     //! true if Linux perf for uncore PMU programming should AND can be used internally
     bool useLinuxPerfForUncore() const;
+
+    /*!
+             \brief The system, sockets, uncores, cores and threads are structured like a tree
+
+             \returns a reference to a const System object representing the root of the tree
+     */
+    SystemRoot const & getSystemTopology() const {
+        return *systemTopology;
+    }
 
     /*!
              \brief checks if QOS monitoring support present
@@ -1889,6 +1901,7 @@ public:
 class BasicCounterState
 {
     friend class PCM;
+    friend class JSONPrinter;
     template <class CounterStateType>
     friend double getExecUsage(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
@@ -2281,6 +2294,7 @@ double getDRAMConsumedJoules(const CounterStateType & before, const CounterState
 class UncoreCounterState
 {
     friend class PCM;
+    friend class JSONPrinter;
     template <class CounterStateType>
     friend uint64 getBytesReadFromMC(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
@@ -2476,7 +2490,7 @@ public:
 };
 
 //! \brief System-wide counter state
-class SystemCounterState : public BasicCounterState, public UncoreCounterState
+class SystemCounterState : public SocketCounterState
 {
     friend class PCM;
     std::vector<std::vector<uint64> > incomingQPIPackets; // each 64 byte
