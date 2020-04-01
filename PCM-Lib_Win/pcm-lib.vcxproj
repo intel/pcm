@@ -172,7 +172,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\cpucounters.cpp" />
-    <ClCompile Include="..\topology.cpp" />
     <ClCompile Include="dllmain.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
       </PrecompiledHeader>
@@ -200,7 +199,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\cpucounters.h" />
-    <ClInclude Include="..\topology.h" />
     <ClInclude Include="pcm-lib.h" />
     <ClInclude Include="..\msr.h" />
     <ClInclude Include="..\pci.h" />
