@@ -11,16 +11,6 @@ ifeq ($(UNAME), Linux)
 EXE += daemon-binaries
 endif
 
-all: $(EXE) lib
-
-lib: libPCM.a
-
-daemon-binaries:
-	make -C daemon/daemon/Debug
-	make -C daemon/client/Debug
-
-klocwork: $(EXE)
-
 CXXFLAGS += -Wall -g -O3 -Wno-unknown-pragmas -std=c++11
 
 # uncomment if your Linux kernel supports access to /dev/mem from user space
@@ -33,6 +23,13 @@ endif
 
 ifeq ($(UNAME), Linux)
 LIB= -pthread -lrt
+EXE += pcm-sensor-server.x
+CXXFLAGS += -Wextra
+OPENSSL_LIB=
+# Disabling until we can properly check for dependencies, enable 
+# yourself if you have the required headers and library installed
+#CXXFLAGS += -DUSE_SSL
+#OPENSSL_LIB=-lssl -lcrypto -lz -ldl
 endif
 ifeq ($(UNAME), DragonFly)
 LIB= -pthread -lrt
@@ -46,12 +43,22 @@ CXX=c++
 LIB= -lpthread -lc++
 endif
 
-COMMON_OBJS = msr.o cpucounters.o pci.o mmio.o client_bw.o utils.o
+COMMON_OBJS = msr.o cpucounters.o pci.o mmio.o client_bw.o utils.o topology.o
 EXE_OBJS = $(EXE:.x=.o)
 OBJS = $(COMMON_OBJS) $(EXE_OBJS)
 
 # ensure 'make' does not delete the intermediate .o files
 .PRECIOUS: $(OBJS)
+
+all: $(EXE) lib
+
+lib: libPCM.a
+
+daemon-binaries:
+	make -C daemon/daemon/Debug
+	make -C daemon/client/Debug
+
+klocwork: $(EXE)
 
 -include $(OBJS:.o=.d)
 libPCM.a: $(COMMON_OBJS)
@@ -59,6 +66,11 @@ libPCM.a: $(COMMON_OBJS)
 
 %.x: %.o $(COMMON_OBJS)
 	$(CXX) -o $@ $^ $(LIB)
+
+pcm-sensor-server.o: pcm-sensor-server.cpp favicon.ico.h
+
+pcm-sensor-server.x: pcm-sensor-server.o $(COMMON_OBJS)
+	$(CXX) -o $@ $^ $(LIB) $(OPENSSL_LIB)
 
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $*.cpp -o $*.o
@@ -104,6 +116,7 @@ ifeq ($(UNAME), Linux)
 	mkdir -p                                     ${prefix}/bin/
 	install -s -m 755 daemon/client/Debug/client ${prefix}/bin/pcm-client
 	install -s -m 755 daemon/daemon/Debug/daemon ${prefix}/sbin/pcm-daemon
+	install -s -m 755 pcm-sensor-server.x        ${prefix}/sbin/pcm-sensor-server
 endif
 	install -m 755 pcm-bw-histogram.sh           ${prefix}/sbin/pcm-bw-histogram
 	mkdir -p                                     ${prefix}/share/pcm/

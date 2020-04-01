@@ -48,6 +48,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_sbindir}/pcm-pcie
 %{_sbindir}/pcm-power
 %{_sbindir}/pcm-sensor
+%{_sbindir}/pcm-sensor-server
 %{_sbindir}/pcm-tsx
 %{_sbindir}/pcm
 %{_bindir}/pcm-client
@@ -57,6 +58,8 @@ rm -rf $RPM_BUILD_ROOT
 %{_bindir}/../share/pcm/opCode.txt
 
 %changelog
+* Tue Apr 01 2020 - otto.g.bruggeman@intel.com
+        Add pcm-sensor-server under %files
 * Mon Nov 25 2019 - roman.dementiev@intel.com
         call make install and use %{_sbindir} or %{_bindir}
 * Mon Oct 21 2019 - roman.dementiev@intel.com
