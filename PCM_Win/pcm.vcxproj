@@ -151,6 +151,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\cpucounters.cpp" />
+    <ClCompile Include="..\topology.cpp" />
     <ClCompile Include="..\freegetopt\getopt.cpp" />
     <ClCompile Include="..\winpmem\winpmem.cpp" />
     <ClCompile Include="..\msr.cpp" />
@@ -166,6 +167,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\cpucounters.h" />
+    <ClInclude Include="..\topology.h" />
     <ClInclude Include="..\msr.h" />
     <ClInclude Include="..\pci.h" />
     <ClInclude Include="..\client_bw.h" /> <ClInclude Include="..\mmio.h" />

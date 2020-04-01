@@ -152,6 +152,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\cpucounters.cpp" />
+    <ClCompile Include="..\topology.cpp" />
     <ClCompile Include="..\msr.cpp" />
     <ClCompile Include="..\pci.cpp" />
     <ClCompile Include="..\client_bw.cpp" /> <ClCompile Include="..\mmio.cpp" />
@@ -167,6 +168,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\cpucounters.h" />
+    <ClInclude Include="..\topology.h" />
     <ClInclude Include="..\msr.h" />
     <ClInclude Include="..\pci.h" />
     <ClInclude Include="..\client_bw.h" /> <ClInclude Include="..\mmio.h" />
