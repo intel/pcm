@@ -16,7 +16,7 @@ datasources:
   jsonData:
      tlsAuth: false
      tlsAuthWithCACert: false
-     timeInterval: "3s"
+     timeInterval: "2s"
   secureJsonData:
     tlsCACert: ""
     tlsClientCert: ""
