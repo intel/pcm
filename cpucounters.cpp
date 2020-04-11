@@ -4335,7 +4335,7 @@ ServerUncorePowerState PCM::getServerUncorePowerState(uint32 socket)
     }
     // std::cout << std::flush;
     readAndAggregateEnergyCounters(socket, result);
-  
+
     return result;
 }
 
@@ -6248,14 +6248,12 @@ void PCM::programIIOCounters(IIOPMUCNTCTLRegister rawEvents[4], int IIOStack)
     }
 }
 
-void PCM::programPCIeMissCounters(const PCM::PCIeEventCode event_, const uint32 tid_, const uint32 q_, const uint32 nc_)
+void PCM::programPCIeCounters(std::array<int, 4> &CHAEventCfg, const uint32 miss_)
 {
-    programPCIeCounters(event_,tid_,1, q_, nc_);
-}
-
-void PCM::programPCIeCounters(const PCM::PCIeEventCode event_, const uint32 tid_, const uint32 miss_, const uint32 q_, const uint32 nc_)
-{
-    const uint32 opCode = (uint32)event_;
+    const uint32 opCode = CHAEventCfg[0];
+    const uint32 q_ = CHAEventCfg[1];
+    const uint32 tid_ = CHAEventCfg[2];
+    const uint32 nc_ = CHAEventCfg[3];
 
     uint64 event0 = 0;
     // TOR_INSERTS.OPCODE event
