@@ -1,3 +1,16 @@
+#!/bin/sh
+
+if [ "$#" -ne 1 ];
+then
+  echo
+  echo "Usage: $0 http(s)://target_address:port"
+  echo
+  echo "target_address is the hostname or IP address of the system that runs pcm-sensor-server"
+  exit 1
+fi
+
+sed "s#PCMSENSORSERVER#$1#g" telegraf.conf.template > telegraf.conf
+
 echo Starting influxdb
 docker run -d --name influxdb -p 8083:8083 -p 8086:8086 influxdb
 echo Starting telegraf

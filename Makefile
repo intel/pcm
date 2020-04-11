@@ -43,7 +43,7 @@ CXX=c++
 LIB= -lpthread -lc++
 endif
 
-COMMON_OBJS = msr.o cpucounters.o pci.o mmio.o client_bw.o utils.o topology.o
+COMMON_OBJS = msr.o cpucounters.o pci.o mmio.o client_bw.o utils.o topology.o dashboard.o
 EXE_OBJS = $(EXE:.x=.o)
 OBJS = $(COMMON_OBJS) $(EXE_OBJS)
 
@@ -90,7 +90,10 @@ pcm-sensor-server.x: pcm-sensor-server.o $(COMMON_OBJS)
 	@rm -f $*.d.tmp
 
 memoptest.x: memoptest.cpp
-	g++ -Wall -g -O0 -std=c++11    memoptest.cpp   -o memoptest.x
+	g++ -Wall -g -O0 -std=c++11 memoptest.cpp -o memoptest.x
+
+dashboardtest.x: dashboardtest.cpp $(COMMON_OBJS)
+	$(CXX) -o $@ $^ $(LIB)
 
 nice:
 	uncrustify --replace -c ~/uncrustify.cfg *.cpp *.h WinMSRDriver/Win7/*.h WinMSRDriver/Win7/*.c WinMSRDriver/WinXP/*.h WinMSRDriver/WinXP/*.c  PCM_Win/*.h PCM_Win/*.cpp  

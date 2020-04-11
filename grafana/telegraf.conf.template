@@ -104,7 +104,7 @@
 
 [[inputs.http]]
   urls = [
-    "http://10.165.58.46:80/persecond/"
+    "PCMSENSORSERVER/persecond/"
   ]
   interval = "2s"
   data_format = "json"
