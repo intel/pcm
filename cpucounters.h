@@ -2199,7 +2199,9 @@ uint64 getM2MCounter(uint32 controller, uint32 counter, const CounterStateType &
 template <class CounterStateType>
 uint64 getEDCCounter(uint32 channel, uint32 counter, const CounterStateType & before, const CounterStateType & after)
 {
-    return after.EDCCounter[channel][counter] - before.EDCCounter[channel][counter];
+    if (PCM::getInstance()->MCDRAMmemoryTrafficMetricsAvailable())
+        return after.EDCCounter[channel][counter] - before.EDCCounter[channel][counter];
+    return 0ULL;
 }
 
 /*! \brief Direct read of power control unit PMU counter (counter meaning depends on the programming: power/performance/etc)
@@ -2762,6 +2764,7 @@ double getRelativeFrequency(const CounterStateType & before, const CounterStateT
 template <class CounterStateType>
 double getActiveRelativeFrequency(const CounterStateType & before, const CounterStateType & after) // fraction of nominal frequency
 {
+    if (!PCM::getInstance()->isActiveRelativeFrequencyAvailable()) return -1.;
     int64 clocks = after.CpuClkUnhaltedThread - before.CpuClkUnhaltedThread;
     int64 ref_clocks = after.CpuClkUnhaltedRef - before.CpuClkUnhaltedRef;
     if (ref_clocks != 0)
@@ -2779,6 +2782,7 @@ double getActiveRelativeFrequency(const CounterStateType & before, const Counter
 template <class CounterStateType>
 double getL2CacheHitRatio(const CounterStateType& before, const CounterStateType& after) // 0.0 - 1.0
 {
+    if (!PCM::getInstance()->isL2CacheHitRatioAvailable()) return 0;
     const auto hits = getL2CacheHits(before, after);
     const auto misses = getL2CacheMisses(before, after);
     return double(hits) / double(hits + misses);
@@ -2794,6 +2798,7 @@ double getL2CacheHitRatio(const CounterStateType& before, const CounterStateType
 template <class CounterStateType>
 double getL3CacheHitRatio(const CounterStateType& before, const CounterStateType& after) // 0.0 - 1.0
 {
+    if (!PCM::getInstance()->isL3CacheHitRatioAvailable()) return 0;
     const auto hits = getL3CacheHits(before, after);
     const auto misses = getL3CacheMisses(before, after);
     return double(hits) / double(hits + misses);
@@ -2824,6 +2829,7 @@ template <class CounterStateType>
 uint64 getL2CacheMisses(const CounterStateType & before, const CounterStateType & after)
 {
     auto pcm = PCM::getInstance();
+    if (pcm->isL2CacheMissesAvailable() == false) return 0ULL;
     if (pcm->useSkylakeEvents()) {
         return after.SKLL2Miss - before.SKLL2Miss;
     }
@@ -2848,6 +2854,7 @@ template <class CounterStateType>
 uint64 getL2CacheHits(const CounterStateType & before, const CounterStateType & after)
 {
     auto pcm = PCM::getInstance();
+    if (pcm->isL2CacheHitsAvailable() == false) return 0ULL;
     if (pcm->isAtom() || pcm->getCPUModel() == PCM::KNL)
     {
         uint64 L2Miss = after.ArchLLCMiss - before.ArchLLCMiss;
@@ -2863,6 +2870,7 @@ uint64 getL2CacheHits(const CounterStateType & before, const CounterStateType & 
 template <class CounterStateType>
 uint64 getL3CacheOccupancy(const CounterStateType & now)
 {
+    if (PCM::getInstance()->L3CacheOccupancyMetricAvailable() == false) return 0ULL;
     return now.L3Occupancy;
 }
 /*! \brief Computes Local Memory Bandwidth
@@ -2871,6 +2879,7 @@ uint64 getL3CacheOccupancy(const CounterStateType & now)
 template <class CounterStateType>
 uint64 getLocalMemoryBW(const CounterStateType & before, const CounterStateType & after)
 {
+    if (PCM::getInstance()->CoreLocalMemoryBWMetricAvailable() == false) return 0ULL;
     return after.MemoryBWLocal - before.MemoryBWLocal;
 }
 
@@ -2880,6 +2889,7 @@ uint64 getLocalMemoryBW(const CounterStateType & before, const CounterStateType 
 template <class CounterStateType>
 uint64 getRemoteMemoryBW(const CounterStateType & before, const CounterStateType & after)
 {
+    if (PCM::getInstance()->CoreRemoteMemoryBWMetricAvailable() == false) return 0ULL;
     const uint64 total = after.MemoryBWTotal - before.MemoryBWTotal;
     const uint64 local = getLocalMemoryBW(before, after);
     if (total > local)
@@ -3015,7 +3025,9 @@ inline double getPackageCStateResidency(int state, const CounterStateType & befo
 template <class CounterStateType>
 uint64 getBytesReadFromMC(const CounterStateType & before, const CounterStateType & after)
 {
-    return (after.UncMCNormalReads - before.UncMCNormalReads) * 64;
+    if (PCM::getInstance()->memoryTrafficMetricsAvailable())
+        return (after.UncMCNormalReads - before.UncMCNormalReads) * 64;
+    return 0ULL;
 }
 
 /*! \brief Computes number of bytes written to DRAM memory controllers
@@ -3027,7 +3039,9 @@ uint64 getBytesReadFromMC(const CounterStateType & before, const CounterStateTyp
 template <class CounterStateType>
 uint64 getBytesWrittenToMC(const CounterStateType & before, const CounterStateType & after)
 {
-    return (after.UncMCFullWrites - before.UncMCFullWrites) * 64;
+    if (PCM::getInstance()->memoryTrafficMetricsAvailable())
+        return (after.UncMCFullWrites - before.UncMCFullWrites) * 64;
+    return 0ULL;
 }
 
 /*! \brief Computes number of bytes read from PMM memory
@@ -3039,7 +3053,9 @@ uint64 getBytesWrittenToMC(const CounterStateType & before, const CounterStateTy
 template <class CounterStateType>
 uint64 getBytesReadFromPMM(const CounterStateType & before, const CounterStateType & after)
 {
-    return (after.UncPMMReads - before.UncPMMReads) * 64;
+    if (PCM::getInstance()->PMMTrafficMetricsAvailable())
+        return (after.UncPMMReads - before.UncPMMReads) * 64;
+    return 0ULL;
 }
 
 /*! \brief Computes number of bytes written to PMM memory
@@ -3051,7 +3067,9 @@ uint64 getBytesReadFromPMM(const CounterStateType & before, const CounterStateTy
 template <class CounterStateType>
 uint64 getBytesWrittenToPMM(const CounterStateType & before, const CounterStateType & after)
 {
-    return (after.UncPMMWrites - before.UncPMMWrites) * 64;
+    if (PCM::getInstance()->PMMTrafficMetricsAvailable())
+        return (after.UncPMMWrites - before.UncPMMWrites) * 64;
+    return 0ULL;
 }
 
 /*! \brief Computes number of bytes read from MCDRAM memory controllers
@@ -3063,7 +3081,9 @@ uint64 getBytesWrittenToPMM(const CounterStateType & before, const CounterStateT
 template <class CounterStateType>
 uint64 getBytesReadFromEDC(const CounterStateType & before, const CounterStateType & after)
 {
-    return (after.UncEDCNormalReads - before.UncEDCNormalReads) * 64;
+    if (PCM::getInstance()->MCDRAMmemoryTrafficMetricsAvailable())
+        return (after.UncEDCNormalReads - before.UncEDCNormalReads) * 64;
+    return 0ULL;
 }
 
 /*! \brief Computes number of bytes written to MCDRAM memory controllers
@@ -3075,7 +3095,9 @@ uint64 getBytesReadFromEDC(const CounterStateType & before, const CounterStateTy
 template <class CounterStateType>
 uint64 getBytesWrittenToEDC(const CounterStateType & before, const CounterStateType & after)
 {
-    return (after.UncEDCFullWrites - before.UncEDCFullWrites) * 64;
+    if (PCM::getInstance()->MCDRAMmemoryTrafficMetricsAvailable())
+        return (after.UncEDCFullWrites - before.UncEDCFullWrites) * 64;
+    return 0ULL;
 }
 
 
@@ -3088,7 +3110,9 @@ uint64 getBytesWrittenToEDC(const CounterStateType & before, const CounterStateT
 template <class CounterStateType>
 uint64 getIORequestBytesFromMC(const CounterStateType & before, const CounterStateType & after)
 {
-    return (after.UncMCIORequests - before.UncMCIORequests) * 64;
+    if (PCM::getInstance()->memoryIOTrafficMetricAvailable())
+        return (after.UncMCIORequests - before.UncMCIORequests) * 64;
+    return 0ULL;
 }
 
 /*! \brief Returns the number of occured system management interrupts
@@ -3130,7 +3154,7 @@ uint64 getNumberOfCustomEvents(int32 eventCounterNr, const CounterStateType & be
 */
 inline uint64 getIncomingQPILinkBytes(uint32 socketNr, uint32 linkNr, const SystemCounterState & before, const SystemCounterState & after)
 {
-    if (!PCM::getInstance()->incomingQPITrafficMetricsAvailable()) return 0;
+    if (!PCM::getInstance()->incomingQPITrafficMetricsAvailable()) return 0ULL;
     uint64 b = before.incomingQPIPackets[socketNr][linkNr];
     uint64 a = after.incomingQPIPackets[socketNr][linkNr];
     // prevent overflows due to counter dissynchronisation
@@ -3171,6 +3195,8 @@ inline double getIncomingQPILinkUtilization(uint32 socketNr, uint32 linkNr, cons
 inline double getOutgoingQPILinkUtilization(uint32 socketNr, uint32 linkNr, const SystemCounterState & before, const SystemCounterState & after)
 {
     PCM * m = PCM::getInstance();
+
+    if (m->outgoingQPITrafficMetricsAvailable() == false) return 0.;
 
     if (m->hasBecktonUncore())
     {
@@ -3215,7 +3241,7 @@ inline double getOutgoingQPILinkUtilization(uint32 socketNr, uint32 linkNr, cons
 inline uint64 getOutgoingQPILinkBytes(uint32 socketNr, uint32 linkNr, const SystemCounterState & before, const SystemCounterState & after)
 {
     PCM * m = PCM::getInstance();
-    if (!(m->outgoingQPITrafficMetricsAvailable())) return 0;
+    if (!(m->outgoingQPITrafficMetricsAvailable())) return 0ULL;
 
     const double util = getOutgoingQPILinkUtilization(socketNr, linkNr, before, after);
     const double max_bytes = (double(m->getQPILinkSpeed(socketNr, linkNr)) * double(getInvariantTSC(before, after) / double(m->getNumCores())) / double(m->getNominalFrequency()));
@@ -3280,7 +3306,9 @@ inline uint64 getAllOutgoingQPILinkBytes(const SystemCounterState & before, cons
 */
 inline uint64 getIncomingQPILinkBytes(uint32 socketNr, uint32 linkNr, const SystemCounterState & now)
 {
-    return 64 * now.incomingQPIPackets[socketNr][linkNr];
+    if (PCM::getInstance()->incomingQPITrafficMetricsAvailable())
+        return 64 * now.incomingQPIPackets[socketNr][linkNr];
+    return 0ULL;
 }
 
 /*! \brief Get estimation of total QPI data traffic for this socket
@@ -3351,6 +3379,7 @@ inline double getQPItoMCTrafficRatio(const SystemCounterState & before, const Sy
 template <class CounterStateType>
 inline double getLocalMemoryRequestRatio(const CounterStateType & before, const CounterStateType & after)
 {
+    if (PCM::getInstance()->localMemoryRequestRatioMetricAvailable() == false) return -1.;
     const auto all = after.UncHARequests - before.UncHARequests;
     const auto local = after.UncHALocalRequests - before.UncHALocalRequests;
     // std::cout << "DEBUG "<< 64*all/1e6 << " " << 64*local/1e6 << "\n";
@@ -3370,6 +3399,7 @@ inline uint64 getNumberOfEvents(const CounterType & before, const CounterType & 
 template <class CounterStateType>
 inline double getLLCReadMissLatency(const CounterStateType & before, const CounterStateType & after)
 {
+    if (PCM::getInstance()->LLCReadMissLatencyMetricsAvailable() == false) return -1.;
     const double occupancy = double(after.TOROccupancyIAMiss) - double(before.TOROccupancyIAMiss);
     const double inserts = double(after.TORInsertsIAMiss) - double(before.TORInsertsIAMiss);
     const double unc_clocks = double(after.UncClocks) - double(before.UncClocks);
