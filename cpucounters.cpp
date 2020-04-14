@@ -6248,12 +6248,12 @@ void PCM::programIIOCounters(IIOPMUCNTCTLRegister rawEvents[4], int IIOStack)
     }
 }
 
-void PCM::programPCIeCounters(std::array<int, 4> &CHAEventCfg, const uint32 miss_)
+void PCM::programPCIeCounters(CboEventCfg_t &CboEventCfg, const uint32 miss_)
 {
-    const uint32 opCode = CHAEventCfg[0];
-    const uint32 q_ = CHAEventCfg[1];
-    const uint32 tid_ = CHAEventCfg[2];
-    const uint32 nc_ = CHAEventCfg[3];
+    const uint32 opCode = CboEventCfg.opCode;
+    const uint32 q_ = CboEventCfg.queue;
+    const uint32 tid_ = CboEventCfg.tid;
+    const uint32 nc_ = CboEventCfg.nc;
 
     uint64 event0 = 0;
     // TOR_INSERTS.OPCODE event

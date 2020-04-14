@@ -49,6 +49,7 @@ public:
     virtual void cleanup() = 0;
     static IPlatform *getPlatform(PCM* m, bool csv, bool bandwidth,
                                         bool verbose, uint32 delay);
+    virtual ~IPlatform() { }
 
 protected:
     PCM *m_pcm;
@@ -81,21 +82,21 @@ void IPlatform::init()
         case PCM::Success:
             break;
         case PCM::MSRAccessDenied:
-            cerr << "Access to Processor Counter Monitor has denied (no MSR or PCI CFG space access)." << endl;
+            cerr << "Access to Processor Counter Monitor has denied (no MSR or PCI CFG space access).\n";
             exit(EXIT_FAILURE);
         case PCM::PMUBusy:
-            cerr << "Access to Processor Counter Monitor has denied (Performance Monitoring Unit is occupied by other application). Try to stop the application that uses PMU." << endl;
-            cerr << "Alternatively you can try to reset PMU configuration at your own risk. Try to reset? (y/n)" << endl;
+            cerr << "Access to Processor Counter Monitor has denied (Performance Monitoring Unit is occupied by other application). Try to stop the application that uses PMU.\n";
+            cerr << "Alternatively you can try to reset PMU configuration at your own risk. Try to reset? (y/n)\n";
             char yn;
             cin >> yn;
             if ('y' == yn)
             {
                 m_pcm->resetPMU();
-                cerr << "PMU configuration has been reset. Try to rerun the program again." << endl;
+                cerr << "PMU configuration has been reset. Try to rerun the program again.\n";
             }
             exit(EXIT_FAILURE);
         default:
-            cerr << "Access to Processor Counter Monitor has denied (Unknown error)." << endl;
+            cerr << "Access to Processor Counter Monitor has denied (Unknown error).\n";
             exit(EXIT_FAILURE);
     }
 
@@ -103,13 +104,13 @@ void IPlatform::init()
 
     if (m_socketCount > max_sockets)
     {
-        cerr << "Only systems with up to "<<max_sockets<<" sockets are supported! Program aborted" << endl;
+        cerr << "Only systems with up to "<<max_sockets<<" sockets are supported! Program aborted\n";
         exit(EXIT_FAILURE);
     }
 
     if (m_pcm->isSomeCoreOfflined())
     {
-        cerr << "Core offlining is not supported. Program aborted" << endl;
+        cerr << "Core offlining is not supported. Program aborted\n";
         exit(EXIT_FAILURE);
     }
 }
@@ -129,9 +130,9 @@ IPlatform::IPlatform(PCM *m, bool csv, bool bandwidth, bool verbose) :
 
 /*
  * JKT through CPX use common API to program and access required Uncore counters.
- * The only difference is event opcodes and the way how bandwidth is calculted.
+ * The only difference is event opcodes and the way how bandwidth is calculated.
  */
-class legacyPlatform: public IPlatform
+class LegacyPlatform: public IPlatform
 {
 public:
     virtual void getEvents();
@@ -149,10 +150,9 @@ public:
     };
 
     vector<string> eventNames;
-    typedef array<int, lastCtrlRegField> CHAEventCfg;
-    vector<CHAEventCfg> EventCodes;
+    vector<CboEventCfg_t> EventCodes;
 
-    legacyPlatform(initializer_list<string> events, initializer_list<CHAEventCfg> eventCodes,
+    LegacyPlatform(initializer_list<string> events, initializer_list<CboEventCfg_t> eventCodes,
         PCM *m, bool csv, bool bandwidth, bool verbose, uint32 delay) :
         IPlatform(m, csv, bandwidth, verbose),
             eventNames(events), EventCodes(eventCodes),
@@ -205,7 +205,7 @@ protected:
     virtual uint64 getWriteBw() = 0;
 };
 
-uint legacyPlatform::getIdent (const string &s)
+uint LegacyPlatform::getIdent (const string &s)
 {
     /*
      * We are adding "|  " before and "  " after the event name hence +5 to
@@ -215,22 +215,21 @@ uint legacyPlatform::getIdent (const string &s)
     return (3 + ident / 2);
 }
 
-void legacyPlatform::cleanup()
+void LegacyPlatform::cleanup()
 {
     for( auto& filter : eventSample)
         for(auto& event : filter)
             fill(event.begin(), event.end(), 0);
 
     fill(aggregate_sample.begin(), aggregate_sample.end(), 0);
-    return;
 }
 
-inline uint64 legacyPlatform::getEventCount (PCIeCounterState &before, PCIeCounterState &after)
+inline uint64 LegacyPlatform::getEventCount (PCIeCounterState &before, PCIeCounterState &after)
 {
     return m_eventsCount * getNumberOfEvents(before, after);
 }
 
-void legacyPlatform::getEvent(uint idx)
+void LegacyPlatform::getEvent(uint idx)
 {
     for (uint filter = TOTAL; filter < HIT; filter++)
     {
@@ -254,14 +253,13 @@ void legacyPlatform::getEvent(uint idx)
     }
 }
 
-void legacyPlatform::getEvents()
+void LegacyPlatform::getEvents()
 {
     for(uint idx = 0; idx < EventCodes.size(); idx++)
             getEvent(idx);
-    return;
 }
 
-void legacyPlatform::printHeader()
+void LegacyPlatform::printHeader()
 {
     cout << "Skt";
     if (!m_csv)
@@ -274,12 +272,12 @@ void legacyPlatform::printHeader()
     cout << "\n";
 }
 
-void legacyPlatform::printBandwidth(uint socket, uint filter)
+void LegacyPlatform::printBandwidth(uint socket, uint filter)
 {
-    typedef uint64 (legacyPlatform::*bwFunc_t)(uint, uint);
+    typedef uint64 (LegacyPlatform::*bwFunc_t)(uint, uint);
     vector<bwFunc_t> bwFunc = {
-        &legacyPlatform::getReadBw,
-        &legacyPlatform::getWriteBw,
+        &LegacyPlatform::getReadBw,
+        &LegacyPlatform::getWriteBw,
     };
 
     if (!m_csv)
@@ -295,7 +293,7 @@ void legacyPlatform::printBandwidth(uint socket, uint filter)
             cout << ',' << (this->*bw_f)(socket,filter);
 }
 
-void legacyPlatform::printSocketScopeEvent(uint socket, uint filter, uint idx)
+void LegacyPlatform::printSocketScopeEvent(uint socket, uint filter, uint idx)
 {
     uint64 event = eventSample[socket][filter][idx];
 
@@ -310,7 +308,7 @@ void legacyPlatform::printSocketScopeEvent(uint socket, uint filter, uint idx)
     }
 }
 
-void legacyPlatform::printSocketScopeEvents(uint socket, uint filter)
+void LegacyPlatform::printSocketScopeEvents(uint socket, uint filter)
 {
     if (!m_csv) {
         int ident = strlen("Skt |") / 2;
@@ -330,7 +328,7 @@ void legacyPlatform::printSocketScopeEvents(uint socket, uint filter)
     cout << "\n";
 }
 
-void legacyPlatform::printEvents()
+void LegacyPlatform::printEvents()
 {
     for (uint socket = 0; socket < m_socketCount; socket++)
         if (!m_verbose)
@@ -340,7 +338,7 @@ void legacyPlatform::printEvents()
                 printSocketScopeEvents(socket, filter);
 }
 
-void legacyPlatform::printAggrEventData()
+void LegacyPlatform::printAggrEventData()
 {
     if (!m_csv)
     {
@@ -369,10 +367,10 @@ void legacyPlatform::printAggrEventData()
 
         if (m_bandwidth)
         {
-            typedef uint64 (legacyPlatform::*bwFunc_t)();
+            typedef uint64 (LegacyPlatform::*bwFunc_t)();
             vector<bwFunc_t> bwFunc = {
-                &legacyPlatform::getReadBw,
-                &legacyPlatform::getWriteBw,
+                &LegacyPlatform::getReadBw,
+                &LegacyPlatform::getWriteBw,
             };
 
             for(auto& bw_f : bwFunc) {
@@ -392,12 +390,12 @@ void legacyPlatform::printAggrEventData()
 }
 
 //CPX, CLX, SKX
-class PurleyPlatform: public legacyPlatform
+class PurleyPlatform: public LegacyPlatform
 {
 public:
     PurleyPlatform(PCM *m, bool csv, bool bandwidth, bool verbose, uint32 delay) :
-    legacyPlatform( {"PCIeRdCur", "RFO", "CRd", "DRd", "ItoM", "PRd", "WiL"},
-                    {//  event  q   tid  nc
+    LegacyPlatform( {"PCIeRdCur", "RFO", "CRd", "DRd", "ItoM", "PRd", "WiL"},
+                    {//  opCode q  tid  nc
                         {0x21E, 2, 0x00, 0}, //PCIeRdCur
                         {0x200, 2, 0x00, 0}, //RFO
                         {0x201, 2, 0x00, 0}, //CRd
@@ -461,12 +459,12 @@ uint64 PurleyPlatform::getWriteBw()
 }
 
 //BDX, HSX
-class GrantleyPlatform: public legacyPlatform
+class GrantleyPlatform: public LegacyPlatform
 {
 public:
     GrantleyPlatform(PCM *m, bool csv, bool bandwidth, bool verbose, uint32 delay) :
-    legacyPlatform( {"PCIeRdCur", "RFO", "CRd", "DRd", "ItoM", "PRd", "WiL"},
-                    {//  event  q   tid  nc
+    LegacyPlatform( {"PCIeRdCur", "RFO", "CRd", "DRd", "ItoM", "PRd", "WiL"},
+                    {//  opCode q  tid  nc
                         {0x19E, 0, 0x00, 0}, //PCIeRdCur
                         {0x180, 0, 0x3e, 0}, //RFO
                         {0x181, 0, 0x00, 0}, //CRd
@@ -530,12 +528,12 @@ uint64 GrantleyPlatform::getWriteBw()
 }
 
 //IVT, JKT
-class BromolowPlatform: public legacyPlatform
+class BromolowPlatform: public LegacyPlatform
 {
 public:
     BromolowPlatform(PCM *m, bool csv, bool bandwidth, bool verbose, uint32 delay) :
-    legacyPlatform( {"PCIeRdCur", "PCIeNSRd", "PCIeWiLF", "PCIeItoM", "PCIeNSWr", "PCIeNSWrF"},
-                    {//  event  q   tid  nc
+    LegacyPlatform( {"PCIeRdCur", "PCIeNSRd", "PCIeWiLF", "PCIeItoM", "PCIeNSWr", "PCIeNSWrF"},
+                    {//  opCode q  tid  nc
                         {0x19E, 0, 0x00, 0}, //PCIeRdCur
                         {0x1E4, 0, 0x00, 0}, //PCIeNSRd
                         {0x194, 0, 0x00, 0}, //PCIeWiLF
