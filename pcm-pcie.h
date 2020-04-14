@@ -1,6 +1,4 @@
-#ifndef PCMPCIE_HEADER
-#define PCMPCIE_HEADER
-
+#pragma once
 /*
 
    Copyright (c) 2020, Intel Corporation
@@ -593,5 +591,3 @@ uint64 BromolowPlatform::getWriteBw()
                      aggregate_sample[PCIeNSWrF];
     return (writeBw * 64ULL);
 }
-
-#endif //PCMPCIE_HEADER
