@@ -139,14 +139,6 @@ public:
     virtual void printAggrEventData();
     virtual void cleanup();
 
-    enum CtrlRegFields {
-        opcode,
-        queue,
-        tid,
-        nc,
-        lastCtrlRegField
-    };
-
     vector<string> eventNames;
     vector<CboEventCfg_t> EventCodes;
 
@@ -179,8 +171,7 @@ public:
 
 private:
     typedef vector <PCIeCounterState> ctr;
-    vector <ctr> before;
-    vector <ctr> after;
+    vector <ctr> before, after;
 
     void printBandwidth(uint socket, uint filter);
     void printBandwidth();
@@ -220,6 +211,8 @@ void LegacyPlatform::cleanup()
             fill(event.begin(), event.end(), 0);
 
     fill(aggregate_sample.begin(), aggregate_sample.end(), 0);
+
+    if (!m_csv) cout << flush;
 }
 
 inline uint64 LegacyPlatform::getEventCount (PCIeCounterState &before, PCIeCounterState &after)
