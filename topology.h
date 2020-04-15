@@ -203,6 +203,13 @@ public:
         return socketID_;
     }
 
+    bool isOnline() const {
+        for( auto thread : threads_ )
+            if ( thread->isOnline() )
+                return true;
+        return false;
+    }
+
 private:
     PCM*                      pcm_;
     std::vector<HyperThread*> threads_;
@@ -311,17 +318,7 @@ public:
         uncore_->setRefCore( refCore_ );
     }
 
-    SocketCounterState socketCounterState( void ) const {
-        SocketCounterState scs;
-        // Fill the scs
-        // by iterating the cores
-        for( auto core : cores_ ) {
-            scs.BasicCounterState::operator += ( core->coreCounterState() );
-        }
-        // and the uncore
-        scs.UncoreCounterState::operator += ( uncore_->uncoreCounterState() );
-        return scs;
-    }
+    SocketCounterState socketCounterState( void ) const;
 
     Core* findCoreByTileID( int32 tileID ) {
         for ( auto core : cores_ ) {
@@ -345,6 +342,10 @@ public:
 
     int32 socketID() const {
         return logicalID_;
+    }
+
+    bool isOnline() const {
+        return refCore_->isOnline();
     }
 
 private:
@@ -464,43 +465,11 @@ private:
 class Aggregator : Visitor
 {
 public:
-    Aggregator( std::vector<CoreCounterState>& ccs, std::vector<SocketCounterState>& socs, SystemCounterState& sycs );
+    Aggregator();
     virtual ~Aggregator() {}
 
 public:
-    virtual void dispatch( SystemRoot const& syp ) override {
-        // std::cerr << "Aggregator::dispatch( SystemRoot )\n";
-        // CoreCounterStates are fetched asynchronously here
-        for ( auto* socket : syp.sockets() )
-            socket->accept( *this );
-        // Dispatching offlined cores
-        for ( auto* htp : syp.offlinedThreadsAtStart() )
-            htp->accept( *this );
-
-        auto ccsFuturesIter = ccsFutures_.begin();
-        auto ccsIter = ccsVector_.begin();
-        // int i = 0;
-        for ( ; ccsFuturesIter != ccsFutures_.end() && ccsIter != ccsVector_.end(); ++ccsFuturesIter, ++ccsIter ) {
-            // std::cerr << "Works ccsFuture: " << ++i << "\n";
-            (*ccsIter) = (*ccsFuturesIter).get();
-        }
-
-        for ( auto* socket : syp.sockets() ) {
-            for ( auto* core : socket->cores() )
-                for ( auto* thread : core->threads() )
-                    socsVector_[ socket->socketID() ] += ( ccsVector_[ thread->osID() ] );
-            sycs_ += socsVector_[ socket->socketID() ];
-        }
-
-        auto ucsFuturesIter = ucsFutures_.begin();
-        auto socsIter = socsVector_.begin();
-        // i = 0;
-        for ( ; ucsFuturesIter != ucsFutures_.end() && socsIter != socsVector_.end(); ++ucsFuturesIter, ++socsIter ) {
-            // std::cerr << "Works ucsFuture: " << ++i << "\n";
-            (*socsIter) = (*ucsFuturesIter).get();
-            sycs_ += (*socsIter);
-        }
-    }
+    virtual void dispatch( SystemRoot const& syp );
 
     virtual void dispatch( Socket* sop ) override {
         // std::cerr << "Aggregator::dispatch( Socket )\n";
@@ -509,7 +478,13 @@ public:
             core->accept( *this );
         // Fetch UncoreCounterState async result
         ucsFutures_[ sop->socketID() ] = std::async(
-            [sop]() { return sop->uncore()->uncoreCounterState(); }
+            std::launch::async,
+            [sop]() {
+                UncoreCounterState ucs;
+                if ( !sop->isOnline() )
+                    return ucs;
+                return sop->uncore()->uncoreCounterState();
+            }
         );
     }
 
@@ -525,16 +500,15 @@ public:
     virtual void dispatch( HyperThread* htp ) override {
         // std::cerr << "Aggregator::dispatch( HyperThread )\n";
         // std::cerr << "Dispatch htp with osID=" << htp->osID() << "\n";
-        if ( htp->isOnline() ) {
-            ccsFutures_[ htp->osID() ] = std::async(
-                [htp]() { return htp->coreCounterState(); }
-            );
-        } else {
-            // std::cerr << "Dispatch offlined htp with osID=" << htp->osID() << "\n";
-            ccsFutures_[ htp->osID() ] = std::async(
-                []() { CoreCounterState ccs; return ccs; }
-            );
-        }
+        ccsFutures_[ htp->osID() ] = std::async(
+            std::launch::async,
+            [htp]() {
+                CoreCounterState ccs;
+                if ( !htp->isOnline() )
+                    return ccs;
+                return htp->coreCounterState();
+            }
+        );
     }
 
     virtual void dispatch( ServerUncore* /*sup*/ ) override {
@@ -545,12 +519,28 @@ public:
         // std::cerr << "Aggregator::dispatch( ClientUncore )\n";
     }
 
+    std::vector<CoreCounterState>const & coreCounterStates( void ) const {
+        return ccsVector_;
+    }
+
+    std::vector<SocketCounterState>const & socketCounterStates( void ) const {
+        return socsVector_;
+    }
+
+    SystemCounterState const & systemCounterState( void ) const {
+        return sycs_;
+    }
+
+    std::chrono::steady_clock::time_point dispatchedAt( void ) const {
+        return dispatchedAt_;
+    }
+
 private:
-    // Provided by the user of the object
-    std::vector<CoreCounterState>& ccsVector_;
-    std::vector<SocketCounterState>& socsVector_;
-    SystemCounterState& sycs_;
+    std::vector<CoreCounterState> ccsVector_;
+    std::vector<SocketCounterState> socsVector_;
+    SystemCounterState sycs_;
     std::vector<std::future<CoreCounterState>> ccsFutures_;
     std::vector<std::future<UncoreCounterState>> ucsFutures_;
+    std::chrono::steady_clock::time_point dispatchedAt_;
 };
 
