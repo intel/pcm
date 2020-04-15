@@ -554,8 +554,8 @@ private:
         printCounter( "Embedded DRAM Writes",          getBytesWrittenToEDC   ( before, after ) );
         printCounter( "Embedded DRAM Reads",           getBytesReadFromEDC    ( before, after ) );
         printCounter( "Memory Controller IO Requests", getIORequestBytesFromMC( before, after ) );
-        printCounter( "Package Energy Consumed",       getConsumedEnergy      ( before, after ) );
-        printCounter( "DRAM Energy Consumed",          getDRAMConsumedEnergy  ( before, after ) );
+        printCounter( "Package Joules Consumed",       getConsumedJoules      ( before, after ) );
+        printCounter( "DRAM Joules Consumed",          getDRAMConsumedJoules  ( before, after ) );
         uint32 i = 0;
         for ( ; i < ( PCM::MAX_C_STATE ); ++i ) {
             std::stringstream s;
