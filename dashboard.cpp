@@ -413,7 +413,36 @@ std::string getPCMDashboardJSON(int ns, int nu, int nc)
     const int max_width = 24;
     int y = 0;
     Dashboard dashboard("Processor Counter Monitor (PCM) Dashboard");
-
+    {
+        auto panel = std::make_shared<GraphPanel>(0, y, width, height, "Memory Bandwidth", "MByte/sec", false);
+        auto panel1 = std::make_shared<BarGaugePanel>(width, y, max_width - width, height, "Memory Bandwidth (MByte/sec)");
+        y += height;
+        auto genAll = [](const std::string &prefix) -> std::string
+        {
+          std::string all;
+          for (auto &m : {"DRAM Reads", "DRAM Writes", "Persistent Memory Reads", "Persistent Memory Writes"})
+          {
+            if (all.size() > 0)
+            {
+              all += " + ";
+            }
+            all += prefix + "_Uncore Counters_" + m + "\\\")/1048576";
+          }
+          return all;
+        };
+        for (size_t s = 0; s < NumSockets; ++s)
+        {
+            const auto S = std::to_string(s);
+            auto t = std::make_shared<Target>("Socket" + S, genAll("mean(\\\"Sockets_" + S + "_Uncore"));
+            panel->push(t);
+            panel1->push(t);
+        }
+        auto t = std::make_shared<Target>("Total", genAll("mean(\\\"Uncore Aggregate"));
+        panel->push(t);
+        panel1->push(t);
+        dashboard.push(panel);
+        dashboard.push(panel1);
+    };
     for (size_t s = 0; s < NumSockets; ++s)
     {
         const auto S = std::to_string(s);
