@@ -723,7 +723,7 @@ protected:
 #if defined (USE_SSL)
         if ( nullptr == ssl_ ) {
 #endif
-            bytesSent= ::write( socketFD_, (void*)outputBuffer_, bytesToSend );
+            bytesSent= ::send( socketFD_, (void*)outputBuffer_, bytesToSend, MSG_NOSIGNAL );
             if ( -1 == bytesSent ) {
                 strerror( errno );
                 return traits_type::eof();
@@ -732,6 +732,7 @@ protected:
         }
         else {
             while( 1 ) {
+                // FIXME: openSSL has no support for setting the MSG_NOSIGNAL duing send
                 bytesSent = SSL_write( ssl_, (void*)outputBuffer_, bytesToSend );
                 if ( 0 >= bytesSent ) {
                     int sslError = SSL_get_error( ssl_, bytesSent );
@@ -952,6 +953,7 @@ public:
         serverSocket_ = initializeServerSocket();
         SignalHandler* shi = SignalHandler::getInstance();
         shi->setSocket( serverSocket_ );
+        shi->ignoreSignal( SIGPIPE ); // Sorry Dennis Ritchie, we do not care about this, we always check return codes
         shi->installHandler( SignalHandler::handleSignal, SIGTERM );
         shi->installHandler( SignalHandler::handleSignal, SIGINT );
     }
