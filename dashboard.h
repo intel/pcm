@@ -13,4 +13,4 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 */
 #include <string>
 
-std::string getPCMDashboardJSON();
+std::string getPCMDashboardJSON(int ns = -1, int nu = -1, int nc = -1);

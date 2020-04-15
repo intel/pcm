@@ -401,12 +401,12 @@ public:
     }
 };
 
-std::string getPCMDashboardJSON()
+std::string getPCMDashboardJSON(int ns, int nu, int nc)
 {
     auto pcm = PCM::getInstance();
-    const size_t NumSockets = pcm->getNumSockets();
-    const size_t NumUPILinksPerSocket = pcm->getQPILinksPerSocket();
-    const size_t maxCState = PCM::MAX_C_STATE;
+    const size_t NumSockets = (ns < 0) ? pcm->getNumSockets() : ns;
+    const size_t NumUPILinksPerSocket = (nu < 0) ? pcm->getQPILinksPerSocket() : nu;
+    const size_t maxCState = (nc < 0) ? PCM::MAX_C_STATE : nc;
 
     const int height = 5;
     const int width = 15;
@@ -420,14 +420,12 @@ std::string getPCMDashboardJSON()
         auto panel = std::make_shared<GraphPanel>(0, y, width, height, std::string("Socket") +  S + " Memory Bandwidth", "MByte/sec", false);
         auto panel1 = std::make_shared<BarGaugePanel>(width, y, max_width - width, height, std::string("Current Socket") +  S + " Memory Bandwidth (MByte/sec)");
         y += height;
-        auto DRAMReads = std::make_shared<Target>("Socket" + S + " DRAM Reads",
-            "mean(\\\"Sockets_" + S + "_Uncore_Uncore Counters_DRAM Reads\\\")/1048576");
-        auto DRAMWrites = std::make_shared<Target>("Socket" + S + " DRAM Writes",
-            "mean(\\\"Sockets_" + S + "_Uncore_Uncore Counters_DRAM Writes\\\")/1048576");
-        panel->push(DRAMReads);
-        panel->push(DRAMWrites);
-        panel1->push(DRAMReads);
-        panel1->push(DRAMWrites);
+        for (auto &m : {"DRAM Reads", "DRAM Writes", "Persistent Memory Reads", "Persistent Memory Writes"})
+        {
+          auto t = std::make_shared<Target>(m, "mean(\\\"Sockets_" + S + "_Uncore_Uncore Counters_" + m + "\\\")/1048576");
+          panel->push(t);
+          panel1->push(t);
+        }
         dashboard.push(panel);
         dashboard.push(panel1);
     }
