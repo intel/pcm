@@ -211,8 +211,6 @@ void LegacyPlatform::cleanup()
             fill(event.begin(), event.end(), 0);
 
     fill(aggregate_sample.begin(), aggregate_sample.end(), 0);
-
-    if (!m_csv) cout << flush;
 }
 
 inline uint64 LegacyPlatform::getEventCount (PCIeCounterState &before, PCIeCounterState &after)

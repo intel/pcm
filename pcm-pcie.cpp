@@ -252,6 +252,8 @@ int main(int argc, char * argv[])
     unsigned int ic = 1;
     while ((ic <= numberOfIterations) || (numberOfIterations == 0))
     {
+        if (!csv) cout << flush;
+
         for(uint i=0; i < NUM_SAMPLES; i++)
             platform->getEvents();
 
