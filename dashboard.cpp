@@ -151,7 +151,8 @@ public:
                   "value": 70
                 }
               ]
-            }
+            },
+            "unit": "%"
           },
           "overrides": [],
           "values": false
