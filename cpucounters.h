@@ -511,6 +511,13 @@ public:
 
 typedef SimpleCounterState PCIeCounterState;
 typedef SimpleCounterState IIOCounterState;
+typedef struct
+{
+    uint32 opCode;
+    uint32 queue;
+    uint32 tid;
+    uint32 nc;
+} CboEventCfg_t;
 
 class PerfVirtualControlRegister;
 
@@ -1520,10 +1527,7 @@ public:
     };
 
     //! \brief Program uncore PCIe monitoring event(s)
-    //! \param event_ a PCIe event to monitor
-    //! \param tid_ tid filter (PCM supports it only on Haswell server)
-    void programPCIeCounters(const PCIeEventCode event_, const uint32 tid_ = 0, const uint32 miss_ = 0, const uint32 q_ = 0, const uint32 nc_ = 0);
-    void programPCIeMissCounters(const PCIeEventCode event_, const uint32 tid_ = 0, const uint32 q_ = 0, const uint32 nc_ = 0);
+    void programPCIeCounters(CboEventCfg_t &CboEventCfg, const uint32 miss_ = 0);
 
     //! \brief Program CBO (or CHA on SKX+) counters
     //! \param events array with four raw event values

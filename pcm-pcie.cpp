@@ -1,8 +1,9 @@
 /*
-   Copyright (c) 2009-2018, Intel Corporation
-   All rights reserved.
 
-   Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+ * Copyright (c) 2009-2020, Intel Corporation
+  * All rights reserved.
+
+*Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
 
  * Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
  * Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
@@ -10,14 +11,14 @@
 
  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-// written by Patrick Lu
+// originally written by Patrick Lu
+// redesigned by Roman Sudarikov
 
 
 /*!     \file pcm-pcie.cpp
   \brief Example of using uncore CBo counters: implements a performance counter monitoring utility for monitoring PCIe bandwidth
   */
 #define HACK_TO_REMOVE_DUPLICATE_ERROR
-#include <iostream>
 #ifdef _MSC_VER
 #include <windows.h>
 #include "../PCM_Win/windriver.h"
@@ -32,45 +33,13 @@
 #include <string.h>
 #include <string>
 #include <assert.h>
-#include "cpucounters.h"
-#include "utils.h"
+#include "pcm-pcie.h"
 
 #define PCM_DELAY_DEFAULT 1.0 // in seconds
 #define PCM_DELAY_MIN 0.015 // 15 milliseconds is practical on most modern CPUs
 #define PCM_CALIBRATION_INTERVAL 50 // calibrate clock only every 50th iteration
-typedef struct
-{
-    // PCIe read events (PCI devices reading from memory)
-    uint64 PCIeRdCur; // PCIe read current
-    uint64 PCIeNSRd;  // PCIe non-snoop read
-    // PCIe write events (PCI devices writing to memory)
-    uint64 PCIeWiLF;  // PCIe Write (non-allocating)
-    uint64 PCIeItoM;  // PCIe Write (allocating)
-    uint64 PCIeNSWr;  // PCIe Non-snoop write (partial)
-    uint64 PCIeNSWrF; // PCIe Non-snoop write (full)
-    // events shared by CPU and IO
-    uint64 RFO;       // Demand Data RFO [PCIe write partial cache line]
-    uint64 CRd;       // Demand Code Read
-    uint64 DRd;       // Demand Data read
-    uint64 PRd;       // Partial Reads (UC) [MMIO Read]
-    uint64 WiL;       // Write Invalidate Line - partial [MMIO write], PL: Not documented in HSX/IVT
-    uint64 ItoM;      // Request Invalidate Line [PCIe write full cache line]
-} PCIeEvents_t;
-
-typedef struct
-{
-    PCIeEvents_t total;
-    PCIeEvents_t miss;
-    PCIeEvents_t hit;
-}sample_t;
-
-PCIeEvents_t aggregate_sample;
-uint32 num_events = (sizeof (PCIeEvents_t)/sizeof (uint64));
 
 using namespace std;
-
-const uint32 max_sockets = 4;
-void getPCIeEvents(PCM *m, PCM::PCIeEventCode opcode, uint32 delay_ms, sample_t *sample, const uint32 tid=0, const uint32 q=0, const uint32 nc=0);
 
 void print_events()
 {
@@ -121,6 +90,23 @@ void print_usage(const string progname)
     cerr << "\n";
 }
 
+IPlatform *IPlatform::getPlatform(PCM *m, bool csv, bool print_bandwidth, bool print_additional_info, uint32 delay)
+{
+    switch (m->getCPUModel()) {
+        case PCM::SKX:
+          return new PurleyPlatform(m, csv, print_bandwidth, print_additional_info, delay);
+        case PCM::BDX_DE:
+        case PCM::BDX:
+        case PCM::KNL:
+        case PCM::HASWELLX:
+            return new GrantleyPlatform(m, csv, print_bandwidth, print_additional_info, delay);
+        case PCM::IVYTOWN:
+        case PCM::JAKETOWN:
+            return new BromolowPlatform(m, csv, print_bandwidth, print_additional_info, delay);
+        default:
+          return NULL;
+    }
+}
 
 int main(int argc, char * argv[])
 {
@@ -229,50 +215,6 @@ int main(int argc, char * argv[])
         }
     } while(argc > 1); // end of command line partsing loop
 
-    m->disableJKTWorkaround();
-    PCM::ErrorCode status = m->program();
-    switch (status)
-    {
-        case PCM::Success:
-            break;
-        case PCM::MSRAccessDenied:
-            cerr << "Access to Processor Counter Monitor has denied (no MSR or PCI CFG space access).\n";
-            exit(EXIT_FAILURE);
-        case PCM::PMUBusy:
-            cerr << "Access to Processor Counter Monitor has denied (Performance Monitoring Unit is occupied by other application). Try to stop the application that uses PMU.\n";
-            cerr << "Alternatively you can try to reset PMU configuration at your own risk. Try to reset? (y/n)\n";
-            char yn;
-            cin >> yn;
-            if ('y' == yn)
-            {
-                m->resetPMU();
-                cerr << "PMU configuration has been reset. Try to rerun the program again.\n";
-            }
-            exit(EXIT_FAILURE);
-        default:
-            cerr << "Access to Processor Counter Monitor has denied (Unknown error).\n";
-            exit(EXIT_FAILURE);
-    }
-
-    print_cpu_details();
-    if (!(m->hasPCICFGUncore()))
-    {
-        cerr << "Jaketown, Ivytown, Haswell, Broadwell-DE Server CPU is required for this tool! Program aborted\n";
-        exit(EXIT_FAILURE);
-    }
-
-    if (m->getNumSockets() > max_sockets)
-    {
-        cerr << "Only systems with up to " << max_sockets << " sockets are supported! Program aborted\n";
-        exit(EXIT_FAILURE);
-    }
-
-    if (m->isSomeCoreOfflined())
-    {
-        cerr << "Core offlining is not supported. Program aborted\n";
-        exit(EXIT_FAILURE);
-    }
-
     if ( (sysCmd != NULL) && (delay<=0.0) ) {
         // in case external command is provided in command line, and
         // delay either not provided (-1) or is zero
@@ -292,474 +234,43 @@ int main(int argc, char * argv[])
 
     cerr << "Update every " << delay << " seconds\n";
 
-#define NUM_SAMPLES (1)
+    unique_ptr<IPlatform> platform(IPlatform::getPlatform(m, csv, print_bandwidth,
+                                    print_additional_info, delay));
 
-    uint32 i;
-    uint32 delay_ms = uint32(delay * 1000 / num_events / NUM_SAMPLES);
-    if (delay_ms * num_events * NUM_SAMPLES < delay * 1000) ++delay_ms; //Adjust the delay_ms if it's less than delay time
-    sample_t sample[max_sockets];
-    cerr << "delay_ms: " << delay_ms << "\n";
+    if (!platform)
+    {
+        print_cpu_details();
+        cerr << "Jaketown, Ivytown, Haswell, Broadwell-DE Server CPU is required for this tool! Program aborted\n";
+        exit(EXIT_FAILURE);
+    }
 
     if ( sysCmd != NULL ) {
         MySystem(sysCmd, sysArgv);
     }
 
     // ================================== Begin Printing Output ==================================
-
     unsigned int ic = 1;
     while ((ic <= numberOfIterations) || (numberOfIterations == 0))
     {
         if (!csv) cout << flush;
-        MySleepMs(delay_ms);
-        memset(sample,0,sizeof (sample));
-        memset(&aggregate_sample,0,sizeof (aggregate_sample));
 
-        if (!(m->getCPUModel() == PCM::JAKETOWN) && !(m->getCPUModel() == PCM::IVYTOWN))
-        {
-            for(i=0;i<NUM_SAMPLES;i++)
-            {
-                if (m->getCPUModel() == PCM::SKX)
-                {
-                    getPCIeEvents(m, m->SKX_RdCur, delay_ms, sample, 0, m->PRQ);
-                    getPCIeEvents(m, m->SKX_RFO, delay_ms, sample, 0, m->PRQ);
-                    getPCIeEvents(m, m->SKX_CRd, delay_ms, sample, 0, m->PRQ);
-                    getPCIeEvents(m, m->SKX_DRd, delay_ms, sample, 0, m->PRQ);
-                    getPCIeEvents(m, m->SKX_ItoM, delay_ms, sample, 0, m->PRQ);
-                    getPCIeEvents(m, m->SKX_PRd, delay_ms, sample, 0, m->IRQ, 1);
-                    getPCIeEvents(m, m->SKX_WiL, delay_ms, sample, 0, m->IRQ, 1);
-                }
-                else
-                {
-                    getPCIeEvents(m, m->PCIeRdCur, delay_ms, sample);
-                    getPCIeEvents(m, m->RFO, delay_ms, sample,m->RFOtid);
-                    getPCIeEvents(m, m->CRd, delay_ms, sample);
-                    getPCIeEvents(m, m->DRd, delay_ms, sample);
-                    getPCIeEvents(m, m->ItoM, delay_ms, sample,m->ItoMtid);
-                    getPCIeEvents(m, m->PRd, delay_ms, sample);
-                    getPCIeEvents(m, m->WiL, delay_ms, sample);
-                }
-            }
+        for(uint i=0; i < NUM_SAMPLES; i++)
+            platform->getEvents();
 
-            if (csv)
-                if (print_bandwidth)
-                    cout << "Skt,PCIeRdCur,RFO,CRd,DRd,ItoM,PRd,WiL,PCIe Rd (B),PCIe Wr (B)\n";
-                else
-                    cout << "Skt,PCIeRdCur,RFO,CRd,DRd,ItoM,PRd,WiL\n";
-            else
-                if (print_bandwidth)
-                    cout << "Skt | PCIeRdCur |  RFO  |  CRd  |  DRd  |  ItoM  |  PRd  |  WiL  | PCIe Rd (B) | PCIe Wr (B)\n";
-                else
-                    cout << "Skt | PCIeRdCur |  RFO  |  CRd  |  DRd  |  ItoM  |  PRd  |  WiL\n";
+        platform->printHeader();
 
-            //report extrapolated read and write PCIe bandwidth per socket using the data from the sample
-            for(i=0; i<m->getNumSockets(); ++i)
-            {
-                if (csv)
-                {
-                    cout << i;
-                    cout << "," << sample[i].total.PCIeRdCur;
-                    cout << "," << sample[i].total.RFO;
-                    cout << "," << sample[i].total.CRd;
-                    cout << "," << sample[i].total.DRd;
-                    cout << "," << sample[i].total.ItoM;
-                    cout << "," << sample[i].total.PRd;
-                    cout << "," << sample[i].total.WiL;
-                    if (print_bandwidth)
-                    {
-                        cout << "," << ((sample[i].total.PCIeRdCur + sample[i].total.RFO + sample[i].total.CRd + sample[i].total.DRd)*64ULL);
-                        cout << "," << ((sample[i].total.ItoM + sample[i].total.RFO)*64ULL);
-                    }
+        platform->printEvents();
 
-                    if (print_additional_info)
-                    {
-                        cout << "	(Total)\n";
+        platform->printAggrEventData();
 
-                        cout << i;
-                        cout << "," << sample[i].miss.PCIeRdCur;
-                        cout << "," << sample[i].miss.RFO;
-                        cout << "," << sample[i].miss.CRd;
-                        cout << "," << sample[i].miss.DRd;
-                        cout << "," << sample[i].miss.ItoM;
-                        cout << "," << sample[i].miss.PRd;
-                        cout << "," << sample[i].miss.WiL;
-                        if (print_bandwidth)
-                        {
-                            cout << "," << ((sample[i].miss.PCIeRdCur + sample[i].miss.RFO + sample[i].miss.CRd + sample[i].miss.DRd)*64ULL);
-                            cout << "," << ((sample[i].miss.ItoM + sample[i].miss.RFO)*64ULL);
-                        }
-                        cout << "	(Miss)\n";
+        platform->cleanup();
 
-                        cout << i;
-                        cout << "," << sample[i].hit.PCIeRdCur;
-                        cout << "," << sample[i].hit.RFO;
-                        cout << "," << sample[i].hit.CRd;
-                        cout << "," << sample[i].hit.DRd;
-                        cout << "," << sample[i].hit.ItoM;
-                        cout << "," << sample[i].hit.PRd;
-                        cout << "," << sample[i].hit.WiL;
-                        if (print_bandwidth)
-                        {
-                            cout << "," << ((sample[i].hit.PCIeRdCur + sample[i].hit.RFO + sample[i].hit.CRd + sample[i].hit.DRd)*64ULL);
-                            cout << "," << ((sample[i].hit.ItoM + sample[i].hit.RFO)*64ULL);
-                        }
-                        cout << "	(Hit)\n";
-                    }
-                    else //if (print_additional_info)
-                    {
-                        cout << "\n";
-                    }
-                }
-                else //if (csv)
-                {
-                    cout << " " << i;
-                    cout << "    " << unit_format(sample[i].total.PCIeRdCur);
-                    cout << "      " << unit_format(sample[i].total.RFO);
-                    cout << "  " << unit_format(sample[i].total.CRd);
-                    cout << "  " << unit_format(sample[i].total.DRd);
-                    cout << "   " << unit_format(sample[i].total.ItoM);
-                    cout << "  " << unit_format(sample[i].total.PRd);
-                    cout << "  " << unit_format(sample[i].total.WiL);
-                    if (print_bandwidth)
-                    {
-                        cout << "        " << unit_format((sample[i].total.PCIeRdCur + sample[i].total.RFO + sample[i].total.CRd + sample[i].total.DRd)*64ULL);
-                        cout << "        " << unit_format((sample[i].total.ItoM + sample[i].total.RFO)*64ULL);
-                    }
-
-                    if (print_additional_info)
-                    {
-                        cout << "	(Total)\n";
-
-                        cout << " " << i;
-                        cout << "    " << unit_format(sample[i].miss.PCIeRdCur);
-                        cout << "      " << unit_format(sample[i].miss.RFO);
-                        cout << "  " << unit_format(sample[i].miss.CRd);
-                        cout << "  " << unit_format(sample[i].miss.DRd);
-                        cout << "   " << unit_format(sample[i].miss.ItoM);
-                        cout << "  " << unit_format(sample[i].miss.PRd);
-                        cout << "  " << unit_format(sample[i].miss.WiL);
-                        if (print_bandwidth)
-                        {
-                            cout << "        " << unit_format((sample[i].miss.PCIeRdCur + sample[i].miss.RFO + sample[i].miss.CRd + sample[i].miss.DRd)*64ULL);
-                            cout << "        " << unit_format((sample[i].miss.ItoM + sample[i].miss.RFO)*64ULL);
-                        }
-                        cout << "	(Miss)\n";
-
-                        cout << " " << i;
-                        cout << "    " << unit_format(sample[i].hit.PCIeRdCur);
-                        cout << "      " << unit_format(sample[i].hit.RFO);
-                        cout << "  " << unit_format(sample[i].hit.CRd);
-                        cout << "  " << unit_format(sample[i].hit.DRd);
-                        cout << "   " << unit_format(sample[i].hit.ItoM);
-                        cout << "  " << unit_format(sample[i].hit.PRd);
-                        cout << "  " << unit_format(sample[i].hit.WiL);
-                        if (print_bandwidth)
-                        {
-                            cout << "        " << unit_format((sample[i].hit.PCIeRdCur + sample[i].hit.RFO + sample[i].hit.CRd + sample[i].hit.DRd)*64ULL);
-                            cout << "        " << unit_format((sample[i].hit.ItoM + sample[i].hit.RFO)*64ULL);
-                        }
-                        cout << "	(Hit)\n";
-                    }
-                    else //if (print_additional_info)
-                        cout << "\n";
-                }
-            }
-            if (!csv)
-            {
-                if (print_bandwidth)
-                    cout << "----------------------------------------------------------------------------------------------------\n";
-                else
-                    cout << "-----------------------------------------------------------------------\n";
-                cout << " * ";
-                cout << "   " << unit_format(aggregate_sample.PCIeRdCur);
-                cout << "      " << unit_format(aggregate_sample.RFO);
-                cout << "  " << unit_format(aggregate_sample.CRd);
-                cout << "  " << unit_format(aggregate_sample.DRd);
-                cout << "   " << unit_format(aggregate_sample.ItoM);
-                cout << "  " << unit_format(aggregate_sample.PRd);
-                cout << "  " << unit_format(aggregate_sample.WiL);
-                if (print_bandwidth)
-                {
-                    cout << "        " << unit_format((aggregate_sample.PCIeRdCur + aggregate_sample.CRd + aggregate_sample.DRd + aggregate_sample.RFO)*64ULL);
-                    cout << "        " << unit_format((aggregate_sample.ItoM + aggregate_sample.RFO)*64ULL);
-                }
-                if (print_additional_info)
-                    cout << "	(Aggregate)\n\n";
-                else
-                    cout << "\n\n";
-            }
-        }
-        else // Ivytown and Older Architectures
-        {
-            for(i=0;i<NUM_SAMPLES;i++)
-            {
-                getPCIeEvents(m, m->PCIeRdCur, delay_ms, sample,0);
-                getPCIeEvents(m, m->PCIeNSRd, delay_ms, sample,0);
-                getPCIeEvents(m, m->PCIeWiLF, delay_ms, sample,0);
-                getPCIeEvents(m, m->PCIeItoM, delay_ms, sample,0);
-                getPCIeEvents(m, m->PCIeNSWr, delay_ms, sample,0);
-                getPCIeEvents(m, m->PCIeNSWrF, delay_ms, sample,0);
-            }
-
-            if (csv)
-                if (print_bandwidth)
-                    cout << "Skt,PCIeRdCur,PCIeNSRd,PCIeWiLF,PCIeItoM,PCIeNSWr,PCIeNSWrF,PCIe Rd (B),PCIe Wr (B)\n";
-                else
-                    cout << "Skt,PCIeRdCur,PCIeNSRd,PCIeWiLF,PCIeItoM,PCIeNSWr,PCIeNSWrF\n";
-            else
-                if (print_bandwidth)
-                    cout << "Skt | PCIeRdCur | PCIeNSRd  | PCIeWiLF | PCIeItoM | PCIeNSWr | PCIeNSWrF | PCIe Rd (B) | PCIe Wr (B)\n";
-                else
-                    cout << "Skt | PCIeRdCur | PCIeNSRd  | PCIeWiLF | PCIeItoM | PCIeNSWr | PCIeNSWrF\n";
-
-            //report extrapolated read and write PCIe bandwidth per socket using the data from the sample
-            for(i=0; i<m->getNumSockets(); ++i)
-            {
-                if (csv)
-                {
-                    cout << i;
-                    cout << "," << sample[i].total.PCIeRdCur;
-                    cout << "," << sample[i].total.PCIeNSWr;
-                    cout << "," << sample[i].total.PCIeWiLF;
-                    cout << "," << sample[i].total.PCIeItoM;
-                    cout << "," << sample[i].total.PCIeNSWr;
-                    cout << "," << sample[i].total.PCIeNSWrF;
-                    if (print_bandwidth)
-                    {
-                        cout << "," << ((sample[i].total.PCIeRdCur+ sample[i].total.PCIeNSWr)*64ULL);
-                        cout << "," << ((sample[i].total.PCIeWiLF+sample[i].total.PCIeItoM+sample[i].total.PCIeNSWr+sample[i].total.PCIeNSWrF)*64ULL);
-                    }
-
-                    if (print_additional_info)
-                    {
-                        cout << "	(Total)\n";
-
-                        cout << i;
-                        cout << "," << sample[i].miss.PCIeRdCur;
-                        cout << "," << sample[i].miss.PCIeNSWr;
-                        cout << "," << sample[i].miss.PCIeWiLF;
-                        cout << "," << sample[i].miss.PCIeItoM;
-                        cout << "," << sample[i].miss.PCIeNSWr;
-                        cout << "," << sample[i].miss.PCIeNSWrF;
-                        if (print_bandwidth)
-                        {
-                            cout << "," << ((sample[i].miss.PCIeRdCur+ sample[i].miss.PCIeNSWr)*64ULL);
-                            cout << "," << ((sample[i].miss.PCIeWiLF+sample[i].miss.PCIeItoM+sample[i].miss.PCIeNSWr+sample[i].miss.PCIeNSWrF)*64ULL);
-                        }
-                        cout << "	(Miss)\n";
-
-                        cout << i;
-                        cout << "," << sample[i].hit.PCIeRdCur;
-                        cout << "," << sample[i].hit.PCIeNSWr;
-                        cout << "," << sample[i].hit.PCIeWiLF;
-                        cout << "," << sample[i].hit.PCIeItoM;
-                        cout << "," << sample[i].hit.PCIeNSWr;
-                        cout << "," << sample[i].hit.PCIeNSWrF;
-                        if (print_bandwidth)
-                        {
-                            cout << "," << ((sample[i].hit.PCIeRdCur+ sample[i].hit.PCIeNSWr)*64ULL);
-                            cout << "," << ((sample[i].hit.PCIeWiLF+sample[i].hit.PCIeItoM+sample[i].hit.PCIeNSWr+sample[i].hit.PCIeNSWrF)*64ULL);
-                        }
-                        cout << "	(Hit)\n";
-                    }
-                    else //if (print_additional_info)
-                        cout << "\n";
-                }
-                else
-                {
-                    cout << " " << i;
-                    cout << "      " << unit_format(sample[i].total.PCIeRdCur);
-                    cout << "      " << unit_format(sample[i].total.PCIeNSWr);
-                    cout << "      " << unit_format(sample[i].total.PCIeWiLF);
-                    cout << "     " << unit_format(sample[i].total.PCIeItoM);
-                    cout << "     " << unit_format(sample[i].total.PCIeNSWr);
-                    cout << "     " << unit_format(sample[i].total.PCIeNSWrF);
-                    if (print_bandwidth)
-                    {
-                        cout << "        " << unit_format((sample[i].total.PCIeRdCur+ sample[i].total.PCIeNSWr)*64ULL);
-                        cout << "         " << unit_format((sample[i].total.PCIeWiLF+sample[i].total.PCIeItoM+sample[i].total.PCIeNSWr+sample[i].total.PCIeNSWrF)*64ULL);
-                    }
-                    cout << "	(Total)\n";
-
-                    cout << " " << i;
-                    cout << "      " << unit_format(sample[i].miss.PCIeRdCur);
-                    cout << "      " << unit_format(sample[i].miss.PCIeNSWr);
-                    cout << "      " << unit_format(sample[i].miss.PCIeWiLF);
-                    cout << "     " << unit_format(sample[i].miss.PCIeItoM);
-                    cout << "     " << unit_format(sample[i].miss.PCIeNSWr);
-                    cout << "     " << unit_format(sample[i].miss.PCIeNSWrF);
-                    if (print_bandwidth)
-                    {
-                        cout << "        " << unit_format((sample[i].miss.PCIeRdCur+ sample[i].miss.PCIeNSWr)*64ULL);
-                        cout << "         " << unit_format((sample[i].miss.PCIeWiLF+sample[i].miss.PCIeItoM+sample[i].miss.PCIeNSWr+sample[i].miss.PCIeNSWrF)*64ULL);
-                    }
-                    cout << "	(Miss)\n";
-
-                    cout << " " << i;
-                    cout << "      " << unit_format(sample[i].hit.PCIeRdCur);
-                    cout << "      " << unit_format(sample[i].hit.PCIeNSWr);
-                    cout << "      " << unit_format(sample[i].hit.PCIeWiLF);
-                    cout << "     " << unit_format(sample[i].hit.PCIeItoM);
-                    cout << "     " << unit_format(sample[i].hit.PCIeNSWr);
-                    cout << "     " << unit_format(sample[i].hit.PCIeNSWrF);
-                    if (print_bandwidth)
-                    {
-                        cout << "        " << unit_format((sample[i].hit.PCIeRdCur+ sample[i].hit.PCIeNSWr)*64ULL);
-                        cout << "         " << unit_format((sample[i].hit.PCIeWiLF+sample[i].hit.PCIeItoM+sample[i].hit.PCIeNSWr+sample[i].hit.PCIeNSWrF)*64ULL);
-                    }
-                    cout << "	(Hit)\n";
-                }
-            }
-            if (!csv)
-            {
-                if (print_bandwidth)
-                    cout << "----------------------------------------------------------------------------------------------------------------\n";
-                else
-                    cout << "-----------------------------------------------------------------------------------\n";
-                cout << " * ";
-                cout << "      " << unit_format(aggregate_sample.PCIeRdCur);
-                cout << "      " << unit_format(aggregate_sample.PCIeNSWr);
-                cout << "      " << unit_format(aggregate_sample.PCIeWiLF);
-                cout << "     " << unit_format(aggregate_sample.PCIeItoM);
-                cout << "     " << unit_format(aggregate_sample.PCIeNSWr);
-                cout << "     " << unit_format(aggregate_sample.PCIeNSWrF);
-                if (print_bandwidth)
-                {
-                    cout << "        " << unit_format((aggregate_sample.PCIeRdCur+ aggregate_sample.PCIeNSWr)*64ULL);
-                    cout << "         " << unit_format((aggregate_sample.PCIeWiLF+aggregate_sample.PCIeItoM+aggregate_sample.PCIeNSWr+aggregate_sample.PCIeNSWrF)*64ULL);
-                }
-            }
-            if (print_additional_info)
-                cout << "	(Aggregate)\n\n";
-            else
-                cout << "\n\n";
-        }
-        if ( m->isBlocked() ) {
-            // in case PCM was blocked after spawning child application: break monitoring loop here
+        if (m->isBlocked())
             break;
-        }
+
         ++ic;
     }
     // ================================== End Printing Output ==================================
 
     exit(EXIT_SUCCESS);
-}
-
-void getPCIeEvents(PCM *m, PCM::PCIeEventCode opcode, uint32 delay_ms, sample_t *sample, const uint32 tid, const uint32 q, const uint32 nc)
-{
-    PCIeCounterState * before = new PCIeCounterState[m->getNumSockets()];
-    PCIeCounterState * after = new PCIeCounterState[m->getNumSockets()];
-    PCIeCounterState * before2 = new PCIeCounterState[m->getNumSockets()];
-    PCIeCounterState * after2 = new PCIeCounterState[m->getNumSockets()];
-    uint32 i;
-
-    m->programPCIeCounters(opcode, tid, 0, q, nc);
-    for(i=0; i<m->getNumSockets(); ++i)
-        before[i] = m->getPCIeCounterState(i);
-    MySleepMs(delay_ms);
-    for(i=0; i<m->getNumSockets(); ++i)
-        after[i] = m->getPCIeCounterState(i);
-
-    m->programPCIeMissCounters(opcode, tid, q, nc);
-    for(i=0; i<m->getNumSockets(); ++i)
-        before2[i] = m->getPCIeCounterState(i);
-    MySleepMs(delay_ms);
-    for(i=0; i<m->getNumSockets(); ++i)
-        after2[i] = m->getPCIeCounterState(i);
-
-    for(i=0; i<m->getNumSockets(); ++i)
-    {
-        switch(opcode)
-        {
-            case PCM::PCIeRdCur:
-            case PCM::SKX_RdCur:
-                sample[i].total.PCIeRdCur += (sizeof (PCIeEvents_t)/sizeof (uint64)) * getNumberOfEvents(before[i], after[i]);
-                sample[i].miss.PCIeRdCur += (sizeof (PCIeEvents_t)/sizeof (uint64)) * getNumberOfEvents(before2[i], after2[i]);
-                sample[i].hit.PCIeRdCur += (sample[i].total.PCIeRdCur > sample[i].miss.PCIeRdCur) ? sample[i].total.PCIeRdCur - sample[i].miss.PCIeRdCur : 0;
-                aggregate_sample.PCIeRdCur += sample[i].total.PCIeRdCur;
-                break;
-            case PCM::PCIeNSRd:
-                sample[i].total.PCIeNSRd += (sizeof (PCIeEvents_t)/sizeof (uint64)) * getNumberOfEvents(before[i], after[i]);
-                sample[i].miss.PCIeNSRd += (sizeof (PCIeEvents_t)/sizeof (uint64)) * getNumberOfEvents(before2[i], after2[i]);
-                sample[i].hit.PCIeNSRd += (sample[i].total.PCIeNSRd > sample[i].miss.PCIeNSRd) ? sample[i].total.PCIeNSRd - sample[i].miss.PCIeNSRd : 0;
-                aggregate_sample.PCIeNSRd += sample[i].total.PCIeNSRd;
-                break;
-            case PCM::PCIeWiLF:
-                sample[i].total.PCIeWiLF += (sizeof (PCIeEvents_t)/sizeof (uint64)) * getNumberOfEvents(before[i], after[i]);
-                sample[i].miss.PCIeWiLF += (sizeof (PCIeEvents_t)/sizeof (uint64)) * getNumberOfEvents(before2[i], after2[i]);
-                sample[i].hit.PCIeWiLF += (sample[i].total.PCIeWiLF > sample[i].miss.PCIeWiLF) ? sample[i].total.PCIeWiLF - sample[i].miss.PCIeWiLF : 0;
-                aggregate_sample.PCIeWiLF += sample[i].total.PCIeWiLF;
-                break;
-            case PCM::PCIeItoM:
-                sample[i].total.PCIeItoM += (sizeof (PCIeEvents_t)/sizeof (uint64)) * getNumberOfEvents(before[i], after[i]);
-                sample[i].miss.PCIeItoM += (sizeof (PCIeEvents_t)/sizeof (uint64)) * getNumberOfEvents(before2[i], after2[i]);
-                sample[i].hit.PCIeItoM += (sample[i].total.PCIeItoM > sample[i].miss.PCIeItoM) ? sample[i].total.PCIeItoM - sample[i].miss.PCIeItoM : 0;
-                aggregate_sample.PCIeItoM += sample[i].total.PCIeItoM;
-                break;
-            case PCM::PCIeNSWr:
-                sample[i].total.PCIeNSWr += (sizeof (PCIeEvents_t)/sizeof (uint64)) * getNumberOfEvents(before[i], after[i]);
-                sample[i].miss.PCIeNSWr += (sizeof (PCIeEvents_t)/sizeof (uint64)) * getNumberOfEvents(before2[i], after2[i]);
-                sample[i].hit.PCIeNSWr += (sample[i].total.PCIeNSWr > sample[i].miss.PCIeNSWr) ? sample[i].total.PCIeNSWr - sample[i].miss.PCIeNSWr : 0;
-                aggregate_sample.PCIeNSWr += sample[i].total.PCIeNSWr;
-                break;
-            case PCM::PCIeNSWrF:
-                sample[i].total.PCIeNSWrF += (sizeof (PCIeEvents_t)/sizeof (uint64)) * getNumberOfEvents(before[i], after[i]);
-                sample[i].miss.PCIeNSWrF += (sizeof (PCIeEvents_t)/sizeof (uint64)) * getNumberOfEvents(before2[i], after2[i]);
-                sample[i].hit.PCIeNSWrF += (sample[i].total.PCIeNSWrF > sample[i].miss.PCIeNSWrF) ? sample[i].total.PCIeNSWrF - sample[i].miss.PCIeNSWrF : 0;
-                aggregate_sample.PCIeNSWrF += sample[i].total.PCIeNSWrF;
-                break;
-            case PCM::SKX_RFO:
-            case PCM::RFO:
-                if (opcode == PCM::SKX_RFO || tid == PCM::RFOtid) //Use tid to filter only PCIe traffic
-                {
-                    sample[i].total.RFO += (sizeof (PCIeEvents_t)/sizeof (uint64)) * getNumberOfEvents(before[i], after[i]);
-                    sample[i].miss.RFO += (sizeof (PCIeEvents_t)/sizeof (uint64)) * getNumberOfEvents(before2[i], after2[i]);
-                    sample[i].hit.RFO += (sample[i].total.RFO > sample[i].miss.RFO) ? sample[i].total.RFO - sample[i].miss.RFO : 0;
-                    aggregate_sample.RFO += sample[i].total.RFO;
-                }
-                break;
-            case PCM::SKX_ItoM:
-            case PCM::ItoM:
-                if (opcode == PCM::SKX_ItoM || tid == PCM::ItoMtid) //Use tid to filter only PCIe traffic
-                {
-                    sample[i].total.ItoM += (sizeof (PCIeEvents_t)/sizeof (uint64)) * getNumberOfEvents(before[i], after[i]);
-                    sample[i].miss.ItoM += (sizeof (PCIeEvents_t)/sizeof (uint64)) * getNumberOfEvents(before2[i], after2[i]);
-                    sample[i].hit.ItoM += (sample[i].total.ItoM > sample[i].miss.ItoM) ? sample[i].total.ItoM - sample[i].miss.ItoM : 0;
-                    aggregate_sample.ItoM += sample[i].total.ItoM;
-                }
-                break;
-            case PCM::SKX_WiL:
-            case PCM::WiL:
-                sample[i].total.WiL += (sizeof (PCIeEvents_t)/sizeof (uint64)) * getNumberOfEvents(before[i], after[i]);
-                sample[i].miss.WiL += (sizeof (PCIeEvents_t)/sizeof (uint64)) * getNumberOfEvents(before2[i], after2[i]);
-                sample[i].hit.WiL += (sample[i].total.WiL > sample[i].miss.WiL) ? sample[i].total.WiL - sample[i].miss.WiL : 0;
-                aggregate_sample.WiL += sample[i].total.WiL;
-                break;
-            case PCM::SKX_PRd:
-            case PCM::PRd:
-                sample[i].total.PRd += (sizeof (PCIeEvents_t)/sizeof (uint64)) * getNumberOfEvents(before[i], after[i]);
-                sample[i].miss.PRd += (sizeof (PCIeEvents_t)/sizeof (uint64)) * getNumberOfEvents(before2[i], after2[i]);
-                sample[i].hit.PRd += (sample[i].total.PRd > sample[i].miss.PRd) ? sample[i].total.PRd - sample[i].miss.PRd : 0;
-                aggregate_sample.PRd += sample[i].total.PRd;
-                break;
-            case PCM::SKX_CRd:
-            case PCM::CRd:
-                sample[i].total.CRd += (sizeof (PCIeEvents_t)/sizeof (uint64)) * getNumberOfEvents(before[i], after[i]);
-                sample[i].miss.CRd += (sizeof (PCIeEvents_t)/sizeof (uint64)) * getNumberOfEvents(before2[i], after2[i]);
-                sample[i].hit.CRd += (sample[i].total.CRd > sample[i].miss.CRd) ? sample[i].total.CRd - sample[i].miss.CRd : 0;
-                aggregate_sample.CRd += sample[i].total.CRd;
-                break;
-            case PCM::SKX_DRd:
-            case PCM::DRd:
-                sample[i].total.DRd += (sizeof (PCIeEvents_t)/sizeof (uint64)) * getNumberOfEvents(before[i], after[i]);
-                sample[i].miss.DRd += (sizeof (PCIeEvents_t)/sizeof (uint64)) * getNumberOfEvents(before2[i], after2[i]);
-                sample[i].hit.DRd += (sample[i].total.DRd > sample[i].miss.DRd) ? sample[i].total.DRd - sample[i].miss.DRd : 0;
-                aggregate_sample.DRd += sample[i].total.DRd;
-                break;
-        }
-    }
-
-    delete[] before;
-    delete[] after;
-    delete[] before2;
-    delete[] after2;
 }
