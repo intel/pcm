@@ -562,5 +562,20 @@ std::string getPCMDashboardJSON(int ns, int nu, int nc)
         dashboard.push(panel);
         dashboard.push(panel1);
     }
+    for (size_t s = 0; s < NumSockets; ++s)
+    {
+        const auto S = std::to_string(s);
+        auto panel = std::make_shared<GraphPanel>(0, y, width, height, std::string("Socket") +  S + " Energy Consumption", "Watt", false);
+        auto panel1 = std::make_shared<BarGaugePanel>(width, y, max_width - width, height, std::string("Current Socket") +  S + " Energy Consumption (Watt)");
+        y += height;
+        for (auto &m : {"Package", "DRAM"})
+        {
+          auto t = std::make_shared<Target>(m, "mean(\\\"Sockets_" + S + "_Uncore_Uncore Counters_" + m + " Joules Consumed\\\")");
+          panel->push(t);
+          panel1->push(t);
+        }
+        dashboard.push(panel);
+        dashboard.push(panel1);
+    }
     return dashboard();
 }
