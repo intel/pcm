@@ -3933,9 +3933,6 @@ void PCM::readAndAggregateUncoreMCCounters(const uint32 socket, CounterStateType
     }
 }
 
-// Explicit instantiation needed in topology.cpp
-template void PCM::readAndAggregateUncoreMCCounters<UncoreCounterState>(const uint32, UncoreCounterState&);
-
 template <class CounterStateType>
 void PCM::readAndAggregateEnergyCounters(const uint32 socket, CounterStateType & result)
 {
@@ -3945,9 +3942,6 @@ void PCM::readAndAggregateEnergyCounters(const uint32 socket, CounterStateType &
     if (socket < (uint32)dram_energy_status.size())
         result.DRAMEnergyStatus += dram_energy_status[socket]->read();
 }
-
-// Explicit instantiation needed in topology.cpp
-template void PCM::readAndAggregateEnergyCounters<UncoreCounterState>(const uint32, UncoreCounterState&);
 
 template <class CounterStateType>
 void PCM::readAndAggregatePackageCStateResidencies(std::shared_ptr<SafeMsrHandle> msr, CounterStateType & result)
@@ -3965,9 +3959,6 @@ void PCM::readAndAggregatePackageCStateResidencies(std::shared_ptr<SafeMsrHandle
         atomic_fetch_add((std::atomic<uint64> *)(result.CStateResidency + i), cCStateResidency[i]);
     }
 }
-
-// Explicit instantiation needed in topology.cpp
-template void PCM::readAndAggregatePackageCStateResidencies(std::shared_ptr<SafeMsrHandle>, UncoreCounterState &);
 
 void PCM::readQPICounters(SystemCounterState & result)
 {
@@ -4095,6 +4086,12 @@ void PCM::readPackageThermalHeadroom(const uint32 socket, CounterStateType & res
     else
         result.ThermalHeadroom = PCM_INVALID_THERMAL_HEADROOM; // not available
 }
+
+// Explicit instantiation needed in topology.cpp
+template void PCM::readAndAggregatePackageCStateResidencies(std::shared_ptr<SafeMsrHandle>, UncoreCounterState &);
+template void PCM::readAndAggregateUncoreMCCounters<UncoreCounterState>(const uint32, UncoreCounterState&);
+template void PCM::readAndAggregateEnergyCounters<UncoreCounterState>(const uint32, UncoreCounterState&);
+template void PCM::readPackageThermalHeadroom<SocketCounterState>(const uint32, SocketCounterState &);
 
 SocketCounterState PCM::getSocketCounterState(uint32 socket)
 {

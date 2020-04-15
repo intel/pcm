@@ -533,8 +533,10 @@ class PCM_API PCM
 {
     friend class BasicCounterState;
     friend class UncoreCounterState;
+    friend class Socket;
     friend class ServerUncore;
     friend class PerfVirtualControlRegister;
+    friend class Aggregator;
     PCM();     // forbidden to call directly because it is a singleton
 
     int32 cpu_family;
@@ -2529,6 +2531,13 @@ public:
     {
         BasicCounterState::operator += ( scs );
         UncoreCounterState::operator += ( scs );
+
+        return *this;
+    }
+
+    SystemCounterState & operator += ( const UncoreCounterState& ucs )
+    {
+        UncoreCounterState::operator += ( ucs );
 
         return *this;
     }
