@@ -2227,7 +2227,7 @@ uint64 getPCUClocks(const CounterStateType & before, const CounterStateType & af
     return getPCUCounter(0, before, after);
 }
 
-/*!  \brief Returns energy consumed by processor, exclusing DRAM (measured in internal units)
+/*!  \brief Returns energy consumed by processor, excluding DRAM (measured in internal units)
     \param before CPU counter state before the experiment
     \param after CPU counter state after the experiment
 */
