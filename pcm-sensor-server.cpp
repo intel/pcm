@@ -51,6 +51,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "cpucounters.h"
 #include "topology.h"
+#include "dashboard.h"
 
 #define PCMWebServerVersion "0.1"
 #if defined (USE_SSL)
@@ -2585,15 +2586,18 @@ inline constexpr signed char operator "" _uc( unsigned long long arg ) noexcept 
 #include "favicon.ico.h"
 
 
-void createJSONOutput( HTTPResponse& resp, std::pair<std::shared_ptr<Aggregator>,std::shared_ptr<Aggregator>> aggregatorPair ) {
-    JSONPrinter jp( aggregatorPair );
-    jp.dispatch( PCM::getInstance()->getSystemTopology() );
-    std::string body = jp.str();
-    DYN_DEBUG_OUTPUT( 4, jp.str() );
+void createJSONOutputFromString( HTTPResponse& resp, std::string body) {
+    DYN_DEBUG_OUTPUT( 4, body );
     resp.addHeader( HTTPHeader( "Content-Type", "application/json" ) );
     resp.addHeader( HTTPHeader( "Content-Length", std::to_string( body.size() ) ) );
     resp.addBody( body );
     DYN_DEBUG_OUTPUT( 3, "request serviced" );
+}
+
+void createJSONOutput( HTTPResponse& resp, std::pair<std::shared_ptr<Aggregator>,std::shared_ptr<Aggregator>> aggregatorPair ) {
+    JSONPrinter jp( aggregatorPair );
+    jp.dispatch( PCM::getInstance()->getSystemTopology() );
+    createJSONOutputFromString(resp, jp.str());
 }
 
 void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & resp ) {
@@ -2679,6 +2683,10 @@ void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & re
                 std::string msg( "Server can only serve application/json or text/html" );
                 resp.addBody( msg );
             }
+        } else if ( url.path_ == "/dashboard") {
+            DYN_DEBUG_OUTPUT( 3, "my_get_callback: client requesting /dashboard path: '", url.path_, "'" );
+            createJSONOutputFromString( resp, getPCMDashboardJSON());
+            rc = RC_200_OK;;
         } else if ( 0 == url.path_.rfind( "/persecond", 0 ) ) {
             DYN_DEBUG_OUTPUT( 3, "my_get_callback: client requesting /persecond path: '", url.path_, "'" );
             if ( 10 == url.path_.size() || ( 11 == url.path_.size() && url.path_.at(10) == '/' ) ) {
