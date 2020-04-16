@@ -23,6 +23,10 @@
 #include <initializer_list>
 #include <algorithm>
 
+#if defined(_MSC_VER)
+typedef unsigned int uint;
+#endif
+
 using namespace std;
 const uint32 max_sockets = 4;
 #define NUM_SAMPLES (1)
@@ -148,7 +152,7 @@ public:
             eventNames(events), EventCodes(eventCodes),
             eventSample {0}, aggregate_sample {0}
     {
-        m_eventsCount = eventNames.size();
+        m_eventsCount = (uint) eventNames.size();
 
         m_delay = uint32(delay * 1000 / m_eventsCount / NUM_SAMPLES);
         if (m_delay * m_eventsCount * NUM_SAMPLES < delay * 1000) ++m_delay;
@@ -200,7 +204,7 @@ uint LegacyPlatform::getIdent (const string &s)
      * We are adding "|  " before and "  " after the event name hence +5 to
      * strlen(eventNames). Rest of the logic is to center the event name.
      */
-    uint ident = 5 + s.size();
+    uint ident = 5 + (uint)s.size();
     return (3 + ident / 2);
 }
 
@@ -300,7 +304,7 @@ void LegacyPlatform::printSocketScopeEvent(uint socket, uint filter, uint idx)
 void LegacyPlatform::printSocketScopeEvents(uint socket, uint filter)
 {
     if (!m_csv) {
-        int ident = strlen("Skt |") / 2;
+        int ident = (int)strlen("Skt |") / 2;
         cout << setw(ident) << socket << setw(ident) << ' ';
     } else
         cout << socket;
@@ -331,20 +335,20 @@ void LegacyPlatform::printAggrEventData()
 {
     if (!m_csv)
     {
-        uint len = strlen("Skt ");
+        uint len = (uint)strlen("Skt ");
 
         for(auto& evt : eventNames)
-            len += (5 + evt.size());
+            len += (uint)(5 + evt.size());
 
         if (m_bandwidth)
             for(auto& bw : bwNames)
-                len += (5 + bw.size());
+                len += (uint)(5 + bw.size());
 
         while (len--)
             cout << '-';
         cout << "\n";
 
-        int ident = strlen("Skt |") /2 ;
+        int ident = (uint)strlen("Skt |") /2 ;
         cout << setw(ident) << "*" << setw(ident) << ' ';
 
         for (uint idx = 0; idx < eventNames.size(); idx++) {
