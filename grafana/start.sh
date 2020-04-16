@@ -24,3 +24,5 @@ docker run -d --name telegraf --link=influxdb -v $PWD/telegraf.conf:/etc/telegra
 echo Starting grafana
 docker run -d --link=influxdb --name=grafana -p 3000:3000 -v $PWD/provisioning:/etc/grafana/provisioning -v $PWD/grafana_volume:/var/lib/grafana grafana/grafana
 
+echo Start browser at http://localhost:3000/ and login with admin user, password admin
+
