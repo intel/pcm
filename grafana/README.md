@@ -1,5 +1,5 @@
 --------------------------------------------------------------------------------
-Instructions How-To Run PCM Grafana Dashboard
+Instructions on How-To Run PCM Grafana Dashboard
 --------------------------------------------------------------------------------
 
 Installation on target system to be analyzed:
