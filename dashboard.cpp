@@ -13,6 +13,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 #include <vector>
 #include <memory>
+#include <unistd.h>
 #include "cpucounters.h"
 #include "dashboard.h"
 
@@ -413,7 +414,13 @@ std::string getPCMDashboardJSON(int ns, int nu, int nc)
     const int width = 15;
     const int max_width = 24;
     int y = 0;
-    Dashboard dashboard("Processor Counter Monitor (PCM) Dashboard");
+    char buffer[64];
+    std::string hostname = "unknown hostname";
+    if (gethostname(buffer, 63) == 0)
+    {
+      hostname = buffer;
+    }
+    Dashboard dashboard("Processor Counter Monitor (PCM) Dashboard - " + hostname);
     {
         auto panel = std::make_shared<GraphPanel>(0, y, width, height, "Memory Bandwidth", "MByte/sec", false);
         auto panel1 = std::make_shared<BarGaugePanel>(width, y, max_width - width, height, "Memory Bandwidth (MByte/sec)");
