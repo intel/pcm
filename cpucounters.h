@@ -1742,9 +1742,9 @@ public:
 
     bool PMMTrafficMetricsAvailable() const
     {
-		return (
-			isCLX()
-            );
+        return (
+            isCLX()
+        );
     }
 
     bool LLCReadMissLatencyMetricsAvailable() const
@@ -2015,6 +2015,10 @@ public:
         memset(getEventsPtr(), 0, sizeof(uint64) * PERF_MAX_CUSTOM_COUNTERS);
     }
     virtual ~BasicCounterState() { }
+
+    BasicCounterState( const BasicCounterState& ) = default;
+    BasicCounterState( BasicCounterState&& ) = default;
+    BasicCounterState & operator = ( BasicCounterState&& ) = default;
 
     BasicCounterState & operator += (const BasicCounterState & o)
     {
@@ -2367,6 +2371,10 @@ public:
     }
     virtual ~UncoreCounterState() { }
 
+    UncoreCounterState( const UncoreCounterState& ) = default;
+    UncoreCounterState( UncoreCounterState&& ) = default;
+    UncoreCounterState & operator = ( UncoreCounterState&& ) = default;
+
     UncoreCounterState & operator += (const UncoreCounterState & o)
     {
         UncMCFullWrites += o.UncMCFullWrites;
@@ -2460,6 +2468,10 @@ class CoreCounterState : public BasicCounterState
     friend class PCM;
 
 public:
+    CoreCounterState() = default;
+    CoreCounterState( const CoreCounterState& ) = default;
+    CoreCounterState( CoreCounterState&& ) = default;
+    CoreCounterState & operator= ( CoreCounterState&& ) = default;
 };
 
 //! \brief Socket-wide counter state
@@ -2489,10 +2501,13 @@ public:
         return *this;
     }
 
-    SocketCounterState operator = ( const UncoreCounterState& ucs )
-    {
-        UncoreCounterState::operator = ( ucs );
+    SocketCounterState() = default;
+    SocketCounterState( const SocketCounterState& ) = default;
+    SocketCounterState( SocketCounterState&& ) = default;
+    SocketCounterState & operator = ( SocketCounterState&& ) = default;
 
+    SocketCounterState & operator = ( UncoreCounterState&& ucs ) {
+        UncoreCounterState::operator = ( std::move(ucs) );
         return *this;
     }
 };
@@ -2501,6 +2516,7 @@ public:
 class SystemCounterState : public SocketCounterState
 {
     friend class PCM;
+
     std::vector<std::vector<uint64> > incomingQPIPackets; // each 64 byte
     std::vector<std::vector<uint64> > outgoingQPIFlits; // idle or data/non-data flits depending on the architecture
     std::vector<std::vector<uint64> > TxL0Cycles;
@@ -2519,6 +2535,7 @@ public:
     friend double getOutgoingQPILinkUtilization(uint32 socketNr, uint32 linkNr, const SystemCounterState & before, const SystemCounterState & after);
     friend uint64 getOutgoingQPILinkBytes(uint32 socketNr, uint32 linkNr, const SystemCounterState & before, const SystemCounterState & after);
     friend uint64 getOutgoingQPILinkBytes(uint32 socketNr, uint32 linkNr, const SystemCounterState & now);
+
     SystemCounterState() :
         uncoreTSC(0)
     {
@@ -2530,6 +2547,10 @@ public:
         TxL0Cycles.resize(m->getNumSockets(),
                                     std::vector<uint64>((uint32)m->getQPILinksPerSocket(), 0));
     }
+
+    SystemCounterState( const SystemCounterState& ) = default;
+    SystemCounterState( SystemCounterState&& ) = default;
+    SystemCounterState & operator = ( SystemCounterState&& ) = default;
 
     SystemCounterState & operator += ( const SocketCounterState& scs )
     {

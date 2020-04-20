@@ -39,17 +39,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <sched.h>
 
 #include <cstring>
-#include <sstream>
-#include <iostream>
-#include <iomanip>
 #include <fstream>
 #include <ctime>
 #include <vector>
 #include <unordered_map>
 
 #include "cpucounters.h"
+#include "debug.h"
 #include "topology.h"
 #include "dashboard.h"
 
@@ -62,151 +61,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #  define KEY_FILE_NAME  "./server.pem"
 #endif // USE_SSL
 
-#include <thread>
-#include <mutex>
-#include <condition_variable>
-#include <queue>
 #include <chrono>
 #include <algorithm>
 
-namespace debug {
-    int currentDebugLevel = 0;
-
-    template<typename T>
-    void dyn_debug_output_helper( std::stringstream& out, T t ) {
-        out << t << "\n";
-    }
-
-    template<typename T, typename... Args>
-    void dyn_debug_output_helper( std::stringstream& out, T t, Args... args ) {
-        out << t;
-        dyn_debug_output_helper( out, args... );
-    }
-
-    template<typename PF, typename F, typename L, typename... Args>
-    void dyn_debug_output( std::ostream& out, PF pretty_function, F file, L line, Args... args ) {
-        std::stringstream ss;
-        ss << "DDO: File '" << file << "', line '" << std::dec << line << "' :\n";
-        ss << "DDO: " << pretty_function << ":\n";
-        ss << "DDO: "; // Next code line will continue printing on this output line
-        dyn_debug_output_helper( ss, args... );
-        out << ss.str() << std::flush;
-    }
-
-    template<typename T>
-    void dyn_hex_table_output( int debugLevel, std::ostream& out, ssize_t len, T* inputBuffer_ ) {
-        std::stringstream ss;
-        if ( debug::currentDebugLevel < debugLevel )
-            return;
-        for ( ssize_t i = 0; i < len; ++i ) {
-            constexpr int DHTO_CHARS_PER_LINE = 16;
-            ss << std::hex << std::internal << std::setfill('0') << std::setw(2) << std::abs(inputBuffer_[i]) << " ";
-            if ( (i % DHTO_CHARS_PER_LINE) == (DHTO_CHARS_PER_LINE - 1) ) ss << "\n";
-        }
-        out << ss.str() << std::flush;
-    }
-
-    void dyn_debug_level( int debugLevel ) {
-        debug::currentDebugLevel = debugLevel;
-    }
-}
-
-#define DYN_DEBUG_OUTPUT( level, ... ) \
-    if ( debug::currentDebugLevel >= level ) \
-        debug::dyn_debug_output( std::cout, __PRETTY_FUNCTION__, __FILE__, __LINE__, __VA_ARGS__)
+#include "threadpool.h"
 
 std::string const HTTP_EOL( "\r\n" );
-
-class Work {
-public:
-    Work() {}
-    virtual ~Work() {}
-    virtual void execute() = 0;
-};
-
-class WorkQueue {
-public:
-    WorkQueue() = default;
-    WorkQueue( WorkQueue const& ) = delete;
-    ~WorkQueue() = default;
-
-    void addWork( Work* w );
-    Work* retrieveWork();
-
-private:
-    std::queue<Work*> workQ_;
-    std::mutex qMutex_;
-    std::condition_variable queueCV_;
-};
-
-void WorkQueue::addWork( Work* w ) {
-    DYN_DEBUG_OUTPUT( 3, "WQ: Adding work" );
-    std::lock_guard<std::mutex> lg( qMutex_ );
-    workQ_.push( w );
-    queueCV_.notify_one();
-    DYN_DEBUG_OUTPUT( 3, "WQ: Work available" );
-}
-
-Work* WorkQueue::retrieveWork() {
-    DYN_DEBUG_OUTPUT( 3, "WQ: Retrieving work" );
-    std::unique_lock<std::mutex> lock( qMutex_ );
-    while ( workQ_.empty() )
-        queueCV_.wait( lock, [this]{ return !workQ_.empty(); } );
-    Work* w = workQ_.front();
-    workQ_.pop();
-    lock.unlock();
-    DYN_DEBUG_OUTPUT( 3, "WQ: Work retrieved" );
-
-    return w;
-}
-// Work better be heap allocated!!! Do not pass stack objects in here!!!!
-auto doWorkLambda = []( WorkQueue& wq ) {
-    Work* w;
-    while ( (w = wq.retrieveWork()) != NULL ) {
-        w->execute();
-        delete w;
-    }
-};
-
-class ThreadPool {
-public:
-    ThreadPool() = delete;
-    ThreadPool( unsigned int n );
-    ThreadPool( ThreadPool const& ) = delete;
-    ~ThreadPool();
-
-public:
-    void addWork( Work* w );
-    void finishUp();
-
-private:
-    std::vector<std::thread> threads_;
-    WorkQueue wq_;
-};
-
-ThreadPool::ThreadPool( unsigned int n ) {
-    for ( unsigned int i = 0; i < n; ++i )
-        threads_.push_back( std::thread(doWorkLambda, std::ref( wq_ )) );
-}
-
-ThreadPool::~ThreadPool() {
-    finishUp();
-}
-
-void ThreadPool::addWork( Work* w ) {
-    DYN_DEBUG_OUTPUT( 3, "TP: Adding work" );
-    wq_.addWork( w );
-    DYN_DEBUG_OUTPUT( 3, "TP: Work added" );
-}
-
-void ThreadPool::finishUp() {
-    size_t i;
-    for ( i = 0; i < threads_.size(); ++i )
-        wq_.addWork( NULL );
-    for ( i = 0; i < threads_.size(); ++i )
-        threads_[i].join();
-    threads_.clear();
-}
 
 class Indent {
     public:
@@ -401,7 +261,7 @@ public:
     JSONPrinter( std::pair<std::shared_ptr<Aggregator>,std::shared_ptr<Aggregator>> aggregatorPair ) : indentation("  "), aggPair_( aggregatorPair ) {
         if ( nullptr == aggPair_.second.get() )
             throw std::runtime_error("BUG: second Aggregator == nullptr!");
-        DYN_DEBUG_OUTPUT(2, "Constructor: before=", std::hex, aggPair_.first.get(), ", after=", std::hex, aggPair_.second.get() );
+        DBG(2, "Constructor: before=", std::hex, aggPair_.first.get(), ", after=", std::hex, aggPair_.second.get() );
     }
 
     JSONPrinter( JSONPrinter const & ) = delete;
@@ -410,22 +270,22 @@ public:
     CoreCounterState const getCoreCounter( std::shared_ptr<Aggregator> ag, uint32 tid ) const {
         CoreCounterState ccs;
         if ( nullptr == ag.get() )
-            return ccs;
-        return ag->coreCounterStates()[tid];
+            return std::move( ccs );
+        return std::move( ag->coreCounterStates()[tid] );
     }
 
     SocketCounterState const getSocketCounter( std::shared_ptr<Aggregator> ag, uint32 sid ) const {
         SocketCounterState socs;
         if ( nullptr == ag.get() )
-            return socs;
-        return ag->socketCounterStates()[sid];
+            return std::move( socs );
+        return std::move( ag->socketCounterStates()[sid] );
     }
 
     SystemCounterState getSystemCounter( std::shared_ptr<Aggregator> ag ) const {
         SystemCounterState sycs;
         if ( nullptr == ag.get() )
-            return sycs;
-        return ag->systemCounterState();
+            return std::move( sycs );
+        return std::move( ag->systemCounterState() );
     }
 
 
@@ -524,6 +384,7 @@ private:
         printCounter( "Invariant TSC",            getInvariantTSC       ( before, after ) );
         printCounter( "SMI Count",                getSMICount           ( before, after ) );
         endObject( JSONPrinter::DelimiterAndNewLine, END_OBJECT );
+        //DBG( 2, "Invariant TSC before=", before.InvariantTSC, ", after=", after.InvariantTSC, ", difference=", after.InvariantTSC-before.InvariantTSC );
 
         startObject( "Energy Counters", BEGIN_OBJECT );
         printCounter( "Thermal Headroom", after.getThermalHeadroom() );
@@ -786,7 +647,7 @@ protected:
 #if defined (USE_SSL)
         if ( nullptr == ssl_ ) {
 #endif
-            DYN_DEBUG_OUTPUT( 3, "Socketbuf: Read from socket:" );
+            DBG( 3, "Socketbuf: Read from socket:" );
             bytesReceived = ::read( socketFD_, static_cast<char*>(inputBuffer_), SIZE * sizeof( char_type ) );
             if ( 0 == bytesReceived ) {
                 // Client closed the socket normally, we will do the same
@@ -795,14 +656,14 @@ protected:
             }
             if ( -1 == bytesReceived ) {
                 if ( errno )
-                    DYN_DEBUG_OUTPUT( 3, "Errno: ", errno, ", (", strerror( errno ) , ")" );
+                    DBG( 3, "Errno: ", errno, ", (", strerror( errno ) , ")" );
                 ::close( socketFD_ );
                 Base::setg( nullptr, nullptr, nullptr );
                 return traits_type::eof();
             }
-            DYN_DEBUG_OUTPUT( 3, "Bytes received: ", bytesReceived );
+            DBG( 3, "Bytes received: ", bytesReceived );
             debug::dyn_hex_table_output( 3, std::cout, bytesReceived, inputBuffer_ );
-            DYN_DEBUG_OUTPUT( 3, "End", std::dec );
+            DBG( 3, "End", std::dec );
 #if defined (USE_SSL)
         }
         else {
@@ -930,7 +791,7 @@ public:
     void putLine( std::string& line ) {
         if ( !socketBuffer_.socket() )
             throw std::runtime_error( "The socket is not or no longer open!" );
-        DYN_DEBUG_OUTPUT( 3, "socketstream::putLine: putting \"", line, "\" into the socket." );
+        DBG( 3, "socketstream::putLine: putting \"", line, "\" into the socket." );
         Base::write( line.c_str(), line.size() );
     }
 
@@ -949,7 +810,7 @@ typedef basic_socketstream<wchar_t> wsocketstream;
 class Server {
 public:
     Server() = delete;
-    Server( std::string listenIP, uint16_t port ) noexcept( false ) : listenIP_(listenIP), port_( port ), threadPool_( 32 ) {
+    Server( std::string listenIP, uint16_t port ) noexcept( false ) : listenIP_(listenIP), port_( port ) {
         serverSocket_ = initializeServerSocket();
         SignalHandler* shi = SignalHandler::getInstance();
         shi->setSocket( serverSocket_ );
@@ -1002,7 +863,7 @@ private:
 protected:
     std::string& listenIP_;
     uint16_t     port_;
-    ThreadPool   threadPool_;
+    WorkQueue    wq_;
     int          serverSocket_;
 };
 
@@ -1343,7 +1204,7 @@ public:
 
 public:
     static URL parse( std::string fullURL ) {
-        DYN_DEBUG_OUTPUT( 3, "fullURL: '", fullURL, "'" );
+        DBG( 3, "fullURL: '", fullURL, "'" );
         URL url;
         size_t pathBeginPos = 0;
         size_t pathEndPos = std::string::npos;
@@ -1371,7 +1232,7 @@ public:
                 std::string scheme;
                 scheme = fullURL.substr( 0, schemeColonPos );
                 std::string validSchemeChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-.";
-                DYN_DEBUG_OUTPUT( 3, "scheme: '", scheme, "'" );
+                DBG( 3, "scheme: '", scheme, "'" );
                 if ( scheme.find_first_not_of( validSchemeChars ) != std::string::npos )
                     throw std::runtime_error( "Scheme contains invalid characters" );
                 url.scheme_ = scheme;
@@ -1390,7 +1251,7 @@ public:
                 pathBeginPos = fullURL.find( '/', authorityPos+2 );
                 authorityEndPos = std::min( { pathBeginPos, questionMarkPos, numberPos } );
                 authority = fullURL.substr( authorityPos+2, authorityEndPos - (authorityPos + 2) );
-                DYN_DEBUG_OUTPUT( 3, "authority: '", authority, "'" );
+                DBG( 3, "authority: '", authority, "'" );
 
                 size_t atPos = authority.find( '@' );
                 bool atFound = (atPos != std::string::npos);
@@ -1400,22 +1261,22 @@ public:
                     // User (+passwd) found user : passwd @ host
                     size_t passwdColonPos = authority.rfind( ':', atPos );
                     size_t userEndPos = std::string::npos;
-                    DYN_DEBUG_OUTPUT( 3, "1 userEndPos '", userEndPos, "'" );
+                    DBG( 3, "1 userEndPos '", userEndPos, "'" );
                     if ( passwdColonPos != std::string::npos ) {
                         std::string passwd = authority.substr( passwdColonPos+1, atPos-(passwdColonPos+1) );
-                        DYN_DEBUG_OUTPUT( 3, "passwd: '", passwd, "', passwdColonPos: ", passwdColonPos );
+                        DBG( 3, "passwd: '", passwd, "', passwdColonPos: ", passwdColonPos );
                         userEndPos = passwdColonPos;
-                        DYN_DEBUG_OUTPUT( 3, "2a userEndPos '", userEndPos, "'" );
+                        DBG( 3, "2a userEndPos '", userEndPos, "'" );
                         // passwd is possibly percent encoded FIXME
                         url.passwd_ = passwd;
                         url.hasPasswd_ = true;
                     } else {
                         userEndPos = atPos;
-                        DYN_DEBUG_OUTPUT( 3, "2b userEndPos '", userEndPos, "'" );
+                        DBG( 3, "2b userEndPos '", userEndPos, "'" );
                     }
-                    DYN_DEBUG_OUTPUT( 3, "3 userEndPos '", userEndPos, "'" );
+                    DBG( 3, "3 userEndPos '", userEndPos, "'" );
                     std::string user = authority.substr( 0, userEndPos );
-                    DYN_DEBUG_OUTPUT( 3, "user: '", user, "'" );
+                    DBG( 3, "user: '", user, "'" );
                     // user is possibly percent encoded FIXME
                     url.user_ = user;
                     url.hasUser_ = true;
@@ -1437,7 +1298,7 @@ public:
                         throw std::runtime_error( "No matching  ']' found." );
                     url.host_ = authority.substr( 0, angleBracketClosePos );
                     url.hasHost_ = true;
-                    DYN_DEBUG_OUTPUT( 3, "angleBracketCloseFound: host: '", url.host_, "'" );
+                    DBG( 3, "angleBracketCloseFound: host: '", url.host_, "'" );
                     authority.erase( 0, angleBracketClosePos+1 );
                 }
 
@@ -1452,12 +1313,12 @@ public:
                             throw std::runtime_error( "No hostname found" );
                         if ( portColonPos != 0 ) {
                             url.host_ = authority.substr( 0, portColonPos );
-                            DYN_DEBUG_OUTPUT( 3, "portColonFound: host: '", url.host_, "'" );
+                            DBG( 3, "portColonFound: host: '", url.host_, "'" );
                             url.hasHost_ = true;
                         }
                         size_t port = 0;
                         std::string portString = authority.substr( portColonPos+1 );
-                        DYN_DEBUG_OUTPUT( 3, "portString: '", portString, "'" );
+                        DBG( 3, "portString: '", portString, "'" );
                         if ( portString.empty() )
                             // Use the default port number, use scheme and the /etc/services file
                             port = 0; // FIXME
@@ -1466,22 +1327,22 @@ public:
                             try {
                                 port = std::stoull( portString, &pos );
                             } catch ( std::invalid_argument& e ) {
-                                DYN_DEBUG_OUTPUT( 3, "invalid_argument exception caught in stoull: ", e.what() );
-                                DYN_DEBUG_OUTPUT( 3, "number of characters procesed: ", pos );
+                                DBG( 3, "invalid_argument exception caught in stoull: ", e.what() );
+                                DBG( 3, "number of characters procesed: ", pos );
                             } catch ( std::out_of_range& e ) {
-                                DYN_DEBUG_OUTPUT( 3, "out_of_range exception caught in stoull: ", e.what() );
-                                DYN_DEBUG_OUTPUT( 3, "errno: ", errno, strerror(errno) );
+                                DBG( 3, "out_of_range exception caught in stoull: ", e.what() );
+                                DBG( 3, "errno: ", errno, strerror(errno) );
                             }
                         }
                         if ( port >= 65536 )
                             throw std::runtime_error( "URL::parse: port too large" );
                         url.port_ = (unsigned short)port;
                         url.hasPort_ = true;
-                        DYN_DEBUG_OUTPUT( 3, "port: ", port );
+                        DBG( 3, "port: ", port );
                     } else {
                         url.host_ = authority;
                         url.hasHost_ = true;
-                        DYN_DEBUG_OUTPUT( 3, "portColonNotFound: host: '", url.host_, "'" );
+                        DBG( 3, "portColonNotFound: host: '", url.host_, "'" );
                     }
                 } else if ( !url.hasHost_ )
                     throw std::runtime_error( "No hostname found" );
@@ -1490,25 +1351,25 @@ public:
 
         pathEndPos = std::min( {questionMarkPos, numberPos} );
         url.path_ = fullURL.substr( pathBeginPos, pathEndPos - pathBeginPos );
-        DYN_DEBUG_OUTPUT( 3, "path: '", url.path_, "'" );
+        DBG( 3, "path: '", url.path_, "'" );
 
         if ( std::string::npos != questionMarkPos ) {
             url.hasQuery_ = true;
             std::string queryString = fullURL.substr( questionMarkPos+1, numberPos-(questionMarkPos+1) );
-            DYN_DEBUG_OUTPUT( 3, "queryString: '", queryString, "'" );
+            DBG( 3, "queryString: '", queryString, "'" );
             size_t ampPos = 0;
             while ( !queryString.empty() ) {
                 ampPos = queryString.find( '&' );
                 std::string query = queryString.substr( 0, ampPos );
-                DYN_DEBUG_OUTPUT( 3, "query: '", query, "'" );
+                DBG( 3, "query: '", query, "'" );
                 size_t equalsPos = query.find( '=' );
                 if ( std::string::npos == equalsPos )
                     throw std::runtime_error( "Did not find a '=' in the query" );
                 std::string one, two;
                 one = query.substr( 0, equalsPos );
-                DYN_DEBUG_OUTPUT( 3, "one: '", one, "'" );
+                DBG( 3, "one: '", one, "'" );
                 two = query.substr( equalsPos+1 );
-                DYN_DEBUG_OUTPUT( 3, "two: '", two, "'" );
+                DBG( 3, "two: '", two, "'" );
                 url.arguments_.push_back( std::make_pair( one ,two ) );
                 // npos + 1 == 0... ouch
                 if ( std::string::npos == ampPos )
@@ -1521,7 +1382,7 @@ public:
         if ( std::string::npos != numberPos ) {
             url.hasFragment_ = true;
             url.fragment_ = fullURL.substr( numberPos+1 );
-            DYN_DEBUG_OUTPUT( 3, "path: '", url.path_, "'" );
+            DBG( 3, "path: '", url.path_, "'" );
         }
 
         // Now make sure the URL does not contain %xx values
@@ -1535,55 +1396,55 @@ public:
     }
 
     void printURL( std::ostream& os ) const {
-        DYN_DEBUG_OUTPUT( 3, "URL::printURL: debug level 3 to see more" );
+        DBG( 3, "URL::printURL: debug level 3 to see more" );
         std::stringstream ss;
-        DYN_DEBUG_OUTPUT( 3, " hasScheme_: ", hasScheme_, ", scheme_: ", scheme_ );
+        DBG( 3, " hasScheme_: ", hasScheme_, ", scheme_: ", scheme_ );
         if ( hasScheme_ ) {
             ss << scheme_ << ':';
         }
-        DYN_DEBUG_OUTPUT( 3, " hasHost_: ", hasHost_, ", host_: ", host_ );
+        DBG( 3, " hasHost_: ", hasHost_, ", host_: ", host_ );
         if ( hasHost_ ) {
             ss << "//";
-            DYN_DEBUG_OUTPUT( 3, " hasUser_: ", hasUser_, ", user_: ", user_ );
+            DBG( 3, " hasUser_: ", hasUser_, ", user_: ", user_ );
             if ( hasUser_ ) {
                 ss << user_;
             }
-            DYN_DEBUG_OUTPUT( 3, " hasPasswd_: ", hasPasswd_, ", passwd_: ", passwd_ );
+            DBG( 3, " hasPasswd_: ", hasPasswd_, ", passwd_: ", passwd_ );
             if ( hasPasswd_ ) {
                 ss << ':' << passwd_;
             }
-            DYN_DEBUG_OUTPUT( 3, " hasUser_: ", hasUser_, ", user_: ", user_ );
+            DBG( 3, " hasUser_: ", hasUser_, ", user_: ", user_ );
             if ( hasUser_ ) {
                 ss << '@';
             }
-            DYN_DEBUG_OUTPUT( 3, " hasHost_: ", hasHost_, ", host_: ", host_ );
+            DBG( 3, " hasHost_: ", hasHost_, ", host_: ", host_ );
             if ( hasHost_ ) {
                 ss << host_;
             }
-            DYN_DEBUG_OUTPUT( 3, " hasPort_: ", hasPort_, ", port_: ", port_ );
+            DBG( 3, " hasPort_: ", hasPort_, ", port_: ", port_ );
             if ( hasPort_ ) {
                 ss << ':' << port_;
             }
         }
-        DYN_DEBUG_OUTPUT( 3, " path_: '", path_, "'" );
+        DBG( 3, " path_: '", path_, "'" );
         ss << (path_.empty() ? "/" : path_);
         if ( hasQuery_ ) {
-            DYN_DEBUG_OUTPUT( 3, " hasQuery_: ", hasQuery_ );
+            DBG( 3, " hasQuery_: ", hasQuery_ );
             ss << '?';
             size_t i;
             for ( i = 0; i < (arguments_.size()-1); ++i ) {
-                DYN_DEBUG_OUTPUT( 3, " query[", i, "]: ", arguments_[i].first, " ==> ", arguments_[i].second );
+                DBG( 3, " query[", i, "]: ", arguments_[i].first, " ==> ", arguments_[i].second );
                 ss << arguments_[i].first << '=' << arguments_[i].second << "&";
             }
-            DYN_DEBUG_OUTPUT( 3, " query[", i, "]: ", arguments_[i].first, " ==> ", arguments_[i].second );
+            DBG( 3, " query[", i, "]: ", arguments_[i].first, " ==> ", arguments_[i].second );
             ss << arguments_[i].first << '=' << arguments_[i].second;
         }
         if ( hasFragment_ ) {
-            DYN_DEBUG_OUTPUT( 3, " hasFragment_: ", hasFragment_, ", fragment_: ", fragment_ );
+            DBG( 3, " hasFragment_: ", hasFragment_, ", fragment_: ", fragment_ );
             ss << '#' << fragment_;
         }
         os << ss.str() << "\n";
-        DYN_DEBUG_OUTPUT( 3, "URL::printURL: done" );
+        DBG( 3, "URL::printURL: done" );
     }
 
 public:
@@ -1626,7 +1487,7 @@ public:
     static HTTPHeader parse( std::string& header ) {
         HTTPHeader hh;
 
-        DYN_DEBUG_OUTPUT( 3, "Raw Header : '", header, "'" );
+        DBG( 3, "Raw Header : '", header, "'" );
 
         std::string::size_type colonPos = header.find( ':' );
         if ( std::string::npos == colonPos )
@@ -1642,9 +1503,9 @@ public:
         hh.value_ = headerValue;
         hh.type_  = HTTPHeaderProperties::headerType( hh.name_ );
 
-        DYN_DEBUG_OUTPUT( 3, "Headername : '", headerName, "'" );
-        DYN_DEBUG_OUTPUT( 3, "Headervalue: '", headerValue, "'" );
-        DYN_DEBUG_OUTPUT( 3, "HeaderType : '", HTTPHeaderProperties::headerTypeAsString(hh.type_), "'" );
+        DBG( 3, "Headername : '", headerName, "'" );
+        DBG( 3, "Headervalue: '", headerValue, "'" );
+        DBG( 3, "HeaderType : '", HTTPHeaderProperties::headerTypeAsString(hh.type_), "'" );
 
         if ( hh.type_ == HeaderType::Invalid )
             throw std::runtime_error( "Parsing with Invalid HeaderType" );
@@ -1652,7 +1513,7 @@ public:
         std::string::size_type quotes = std::count( headerValue.begin(), headerValue.end(), '"' );
         bool properlyQuoted = (quotes % 2 == 0);
         if ( !properlyQuoted ) {
-            DYN_DEBUG_OUTPUT( 3, "Parse: header not properly quoted: uneven number of  quotes (", quotes, ") found" );
+            DBG( 3, "Parse: header not properly quoted: uneven number of  quotes (", quotes, ") found" );
             throw std::runtime_error( "parse header: header improperly quoted" );
         }
 
@@ -1699,7 +1560,7 @@ public:
     }
 
     void debugPrint() const {
-        DYN_DEBUG_OUTPUT( 3, "Headername: '", name_, "', Headervalue: '", value_, "'" );
+        DBG( 3, "Headername: '", name_, "', Headervalue: '", value_, "'" );
     }
 
     size_t headerValueAsNumber() const {
@@ -1813,7 +1674,7 @@ public:
             ++it;
         }
         if ( it == protocol_map_.end() ) {
-            DYN_DEBUG_OUTPUT( 3, "Protocol string '", protocolString, "' not found in map, protocol unsupported!" );
+            DBG( 3, "Protocol string '", protocolString, "' not found in map, protocol unsupported!" );
             throw std::runtime_error( "Protocol not found in the map" );
         }
     }
@@ -1823,7 +1684,7 @@ public:
         if ( hasHeader( "Host" ) ) {
             HTTPHeader host = getHeader( "Host" );
         } else {
-            DYN_DEBUG_OUTPUT(3, "HTTPMessage::host: header Host not found." );
+            DBG(3, "HTTPMessage::host: header Host not found." );
             host = "";
         }
         return host;
@@ -1844,22 +1705,22 @@ protected:
         while ( '0' != chunkHeader[0] ) {
             // chunkheader: hexadecimal numbers followed by an optional semi-colon with a comment and a \r
             // stoll should filter all that crap out for us and return just the hexadecimal digits
-            DYN_DEBUG_OUTPUT( 3, "chunkHeader (ater check for 0): '", chunkHeader, "'" );
+            DBG( 3, "chunkHeader (ater check for 0): '", chunkHeader, "'" );
             size_t length = std::stoll( chunkHeader, nullptr, 16 );
-            DYN_DEBUG_OUTPUT( 3, "length: '", length, "'" );
+            DBG( 3, "length: '", length, "'" );
             // Initialize chunk to all zeros
             std::string chunk( length, '\0' );
             in.read( &chunk[0], length );
-            DYN_DEBUG_OUTPUT( 3, "chunk: '", chunk, "'" );
+            DBG( 3, "chunk: '", chunk, "'" );
             data += chunk;
             // Reads trailing \r\n from the chunk
             std::getline( in, chunkHeader, '\n' );
             // Reads the empty line following the chunk
             std::getline( in, chunkHeader, '\n' );
-            DYN_DEBUG_OUTPUT( 3, "chunkHeader (should be empty line): '", chunkHeader, "'" );
+            DBG( 3, "chunkHeader (should be empty line): '", chunkHeader, "'" );
             // Read a new line to check for 0\r header
             std::getline( in, chunkHeader, '\n' );
-            DYN_DEBUG_OUTPUT( 3, "chunkHeader (should be next chunk header): '", chunkHeader, "'" );
+            DBG( 3, "chunkHeader (should be next chunk header): '", chunkHeader, "'" );
         }
         return data;
     }
@@ -1895,13 +1756,13 @@ public:
     }
 
     void debugPrint() {
-        DYN_DEBUG_OUTPUT( 3, "HTTPRequest::debugPrint:" );
-        DYN_DEBUG_OUTPUT( 3, "Method  : \"", method_, "\"" );
-        DYN_DEBUG_OUTPUT( 3, "URL     : \"", url_, "\"" );
-        DYN_DEBUG_OUTPUT( 3, "Protocol: \"", protocol_, "\"" );
+        DBG( 3, "HTTPRequest::debugPrint:" );
+        DBG( 3, "Method  : \"", method_, "\"" );
+        DBG( 3, "URL     : \"", url_, "\"" );
+        DBG( 3, "Protocol: \"", protocol_, "\"" );
         for ( auto& header: headers_ )
-            DYN_DEBUG_OUTPUT( 3, "Header : \"", header.first, "\" ==> \"", header.second.headerValueAsString(), "\"" );
-        DYN_DEBUG_OUTPUT( 3, "Body    : \"", body_, "\"" );
+            DBG( 3, "Header : \"", header.first, "\" ==> \"", header.second.headerValueAsString(), "\"" );
+        DBG( 3, "Body    : \"", body_, "\"" );
     }
 
 private:
@@ -1926,15 +1787,15 @@ public:
         return response_map_.at( responseCode_ );
     }
     void setResponseCode( enum HTTPResponseCode rc ) {
-        DYN_DEBUG_OUTPUT( 3, "Setting response code to: '", std::dec, (int)rc, "'" );
+        DBG( 3, "Setting response code to: '", std::dec, (int)rc, "'" );
         responseCode_ = rc;
     }
     void debugPrint() {
-        DYN_DEBUG_OUTPUT( 3, "HTTPReponse::debugPrint:" );
-        DYN_DEBUG_OUTPUT( 3, "Response Code: \"", (int)responseCode_, "\"" );
+        DBG( 3, "HTTPReponse::debugPrint:" );
+        DBG( 3, "Response Code: \"", (int)responseCode_, "\"" );
         for ( auto& header: headers_ )
-            DYN_DEBUG_OUTPUT( 3, "Header: \"", header.first, "\" ==> \"", header.second.headerValueAsString(), "\"" );
-        DYN_DEBUG_OUTPUT( 3, "Body: \"", body_, "\"" );
+            DBG( 3, "Header: \"", header.first, "\" ==> \"", header.second.headerValueAsString(), "\"" );
+        DBG( 3, "Body: \"", body_, "\"" );
     }
 
 private:
@@ -2031,12 +1892,12 @@ std::string& compressLWSAndRemoveCR( std::string& line ) {
 
 template <class CharT, class Traits>
 basic_socketstream<CharT, Traits>& operator>>( basic_socketstream<CharT, Traits>& rs, HTTPRequest& m ) {
-    DYN_DEBUG_OUTPUT( 3, "Reading from the socket" );
+    DBG( 3, "Reading from the socket" );
 
     std::string method, url, protocol;
     rs >> method >> url >> protocol;
     if ( rs.fail() ) {
-        DYN_DEBUG_OUTPUT( 5, "Could not read from socket, might have been closed due to e.g. timeout" );
+        DBG( 5, "Could not read from socket, might have been closed due to e.g. timeout" );
         throw std::runtime_error( "Could not read from socket, might have been closed due to e.g. timeout" );
     }
 
@@ -2051,11 +1912,11 @@ basic_socketstream<CharT, Traits>& operator>>( basic_socketstream<CharT, Traits>
     std::string concatLine;
     while ( true ) {
         std::getline( rs, line );
-        DYN_DEBUG_OUTPUT( 3, "Line with whitespace: '", line, "'" );
+        DBG( 3, "Line with whitespace: '", line, "'" );
         concatLine += compressLWSAndRemoveCR( line );
 
-        DYN_DEBUG_OUTPUT( 3, "Line without whitepsace: '", line, "'" );
-        DYN_DEBUG_OUTPUT( 3, "ConcatLine: '", concatLine, "'" );
+        DBG( 3, "Line without whitepsace: '", line, "'" );
+        DBG( 3, "ConcatLine: '", concatLine, "'" );
         // empty line is separator between headers and body
         if ( concatLine.empty() ) {
             break;
@@ -2072,10 +1933,10 @@ basic_socketstream<CharT, Traits>& operator>>( basic_socketstream<CharT, Traits>
         // Parsing of header done, clear concatLine to start fresh
         concatLine.clear();
     }
-    DYN_DEBUG_OUTPUT( 3, "Done parsing headers" );
+    DBG( 3, "Done parsing headers" );
 
     enum HTTPRequestHasBody hasBody = HTTPMethodProperties::requestHasBody( m.method_ );
-    DYN_DEBUG_OUTPUT( 3, "Request has Body (0 No, 1 Optional, 2 Yes): ", (int)hasBody );
+    DBG( 3, "Request has Body (0 No, 1 Optional, 2 Yes): ", (int)hasBody );
     if ( hasBody != HTTPRequestHasBody::No ) {
         // this mess of code checks if the body is chunked or regular and tests the pre conditions
         // that belong with them either content-length header or transfer-encoding header, both
@@ -2089,10 +1950,10 @@ basic_socketstream<CharT, Traits>& operator>>( basic_socketstream<CharT, Traits>
             HTTPHeader const h = m.getHeader( "Content-Length" );
             contentLength = h.headerValueAsNumber();
             validCL = true;
-            DYN_DEBUG_OUTPUT( 3, "Content-Length: clValue: ", contentLength, ", validCL: ", validCL );
+            DBG( 3, "Content-Length: clValue: ", contentLength, ", validCL: ", validCL );
         } else {
             validCL = false;
-            DYN_DEBUG_OUTPUT( 3, "Content-Length: header not found." );
+            DBG( 3, "Content-Length: header not found." );
         }
         // te = Transfer Encoding
         if ( m.hasHeader( "Transfer-Encoding" ) ) {
@@ -2104,9 +1965,9 @@ basic_socketstream<CharT, Traits>& operator>>( basic_socketstream<CharT, Traits>
             } else {
                 chunkedTE = false;
             }
-            DYN_DEBUG_OUTPUT( 3, "Transfer-Encoding: teString: ", teString, ", chunkedTE: ", chunkedTE );
+            DBG( 3, "Transfer-Encoding: teString: ", teString, ", chunkedTE: ", chunkedTE );
         } else {
-            DYN_DEBUG_OUTPUT( 3, "Transfer-Encoding: header not found " );
+            DBG( 3, "Transfer-Encoding: header not found " );
             chunkedTE = false;
         }
         size_t trailerLength = 0;
@@ -2115,11 +1976,11 @@ basic_socketstream<CharT, Traits>& operator>>( basic_socketstream<CharT, Traits>
             trailerLength = trailer.headerValueAsList().size();
 
         } else {
-            DYN_DEBUG_OUTPUT( 3, "Trailer: header not found " );
+            DBG( 3, "Trailer: header not found " );
         }
 
         if ( ( chunkedTE && !validCL ) || ( !chunkedTE && validCL ) ) {
-            DYN_DEBUG_OUTPUT( 3, "Good request" );
+            DBG( 3, "Good request" );
             // Good request, get body
             // but first check if the client sent the Expect header, if so we
             // need to respond with 100 Continue so it starts transmitting the body
@@ -2147,7 +2008,7 @@ basic_socketstream<CharT, Traits>& operator>>( basic_socketstream<CharT, Traits>
                 std::string remainder;
                 size_t numHeadersAdded = 0;
                 std::getline( rs, remainder, '\n' );
-                DYN_DEBUG_OUTPUT( 3, "Parsing remainder '", remainder, "'" );
+                DBG( 3, "Parsing remainder '", remainder, "'" );
                 while ( remainder[0] != '\r' ) {
                     HTTPHeader hh = HTTPHeader::parse( remainder );
                     m.addHeader( hh );
@@ -2176,16 +2037,16 @@ basic_socketstream<CharT, Traits>& operator>>( basic_socketstream<CharT, Traits>
 
 template <class CharT, class Traits>
 basic_socketstream<CharT, Traits>& operator<<( basic_socketstream<CharT, Traits>& ws, HTTPResponse& m ) {
-    DYN_DEBUG_OUTPUT( 3, "Writing the HTTPResponse to the socket" );
+    DBG( 3, "Writing the HTTPResponse to the socket" );
     m.debugPrint();
 
-    DYN_DEBUG_OUTPUT( 3, m.protocolAsString(), " ", (int)m.responseCode(), " ", m.responseCodeAsString() );
+    DBG( 3, m.protocolAsString(), " ", (int)m.responseCode(), " ", m.responseCodeAsString() );
     ws << m.protocolAsString() << " " << (int)m.responseCode() << " " << m.responseCodeAsString() << HTTP_EOL;
 
-    DYN_DEBUG_OUTPUT( 3, "Headers:" );
+    DBG( 3, "Headers:" );
     // write headers
     for( auto& header : m.headers_ ) {
-        DYN_DEBUG_OUTPUT( 3, header.first, ": ", header.second.headerValueAsString() );
+        DBG( 3, header.first, ": ", header.second.headerValueAsString() );
         if ( header.first == "Content-Type" )
             ws << header.first << ": " << header.second.headerValueAsString() << "; charset=UTF-8" << HTTP_EOL;
         else
@@ -2194,7 +2055,7 @@ basic_socketstream<CharT, Traits>& operator<<( basic_socketstream<CharT, Traits>
 
     ws << HTTP_EOL;
 
-    DYN_DEBUG_OUTPUT( 3, "Body:", m.body() );
+    DBG( 3, "Body:", m.body() );
     ws << m.body();
 
     ws.flush();
@@ -2230,7 +2091,7 @@ public:
             try {
                 socketStream_ >> request;
             } catch( std::exception& e ) {
-                DYN_DEBUG_OUTPUT( 3, "Reading request from socket: Exception caught: ", e.what(), "\n" );
+                DBG( 3, "Reading request from socket: Exception caught: ", e.what(), "\n" );
                 break;
             }
             ++numRequests;
@@ -2253,12 +2114,12 @@ public:
                     HTTPHeader const h = request.getHeader( "Connection" );
                     connection = h.headerValueAsString();
                 } else {
-                    DYN_DEBUG_OUTPUT( 3, "Connection: header not found" );
+                    DBG( 3, "Connection: header not found" );
                     connection = "";
                 }
                 // FIXME: case insenstive compare
                 if ( connection == "keep-alive" ) {
-                    DYN_DEBUG_OUTPUT( 3, "HTTPConnection::execute: keep-alive header found" );
+                    DBG( 3, "HTTPConnection::execute: keep-alive header found" );
                     response.addHeader( HTTPHeader( "Connection", "keep-alive" ) );
                     std::string tmp = "timeout=" + std::to_string(connectionTimeout) + ", max=" + std::to_string( requestLimit );
                     HTTPHeader header2( "Keep-Alive", tmp );
@@ -2266,7 +2127,7 @@ public:
                     keepListening = true;
                 }
             } else {
-                DYN_DEBUG_OUTPUT( 3, "Keep-Alive connection request limit (", requestLimit, ") reached" );
+                DBG( 3, "Keep-Alive connection request limit (", requestLimit, ") reached" );
                 // Now respond with the answer
                 response.addHeader( HTTPHeader( "Connection", "close" ) );
                 keepListening = false;
@@ -2297,17 +2158,17 @@ public:
     virtual ~PeriodicCounterFetcher() override {}
 
     void start( void ) {
-        DYN_DEBUG_OUTPUT( 3, "PeriodicCounterFetcher::start() called" );
+        DBG( 3, "PeriodicCounterFetcher::start() called" );
         run_ = true;
     }
 
     void pause( void ) {
-        DYN_DEBUG_OUTPUT( 3, "PeriodicCounterFetcher::pause() called" );
+        DBG( 3, "PeriodicCounterFetcher::pause() called" );
         run_ = false;
     }
 
     void stop( void ) {
-        DYN_DEBUG_OUTPUT( 3, "PeriodicCounterFetcher::stop() called" );
+        DBG( 3, "PeriodicCounterFetcher::stop() called" );
         exit_ = true;
     }
 
@@ -2322,7 +2183,7 @@ private:
 class HTTPServer : public Server {
 public:
     HTTPServer() : Server( "", 80 ) {
-        DYN_DEBUG_OUTPUT( 3, "HTTPServer::HTTPServer()" );
+        DBG( 3, "HTTPServer::HTTPServer()" );
         callbackList_.resize( 256 );
         createPeriodicCounterFetcher();
         pcf_->start();
@@ -2330,7 +2191,7 @@ public:
     }
 
     HTTPServer( std::string const & ip, uint16_t port ) : Server( ip, port ) {
-        DYN_DEBUG_OUTPUT( 3, "HTTPServer::HTTPServer( ip=", ip, ", port=", port, " )" );
+        DBG( 3, "HTTPServer::HTTPServer( ip=", ip, ", port=", port, " )" );
         callbackList_.resize( 256 );
         createPeriodicCounterFetcher();
         pcf_->start();
@@ -2350,7 +2211,6 @@ public:
 
     virtual void stop() {
         pcf_->stop();
-        threadPool_.finishUp();
     }
 
     // Register Callbacks
@@ -2365,17 +2225,12 @@ public:
     }
 
     void addAggregator( std::shared_ptr<Aggregator> agp ) {
+        DBG( 3, "HTTPServer::addAggregator( agp=", std::hex, agp.get(), " ) called" );
+
         agVectorMutex_.lock();
-        DYN_DEBUG_OUTPUT( 3, "HTTPServer::addAggregator() called" );
-        if ( agVector_.size() >=5 ) {
-            std::stringstream ss;
-            for( size_t i=0; i <=5; ++i )
-                ss << std::hex << (agVector_[i]).get() << ", ";
-            DYN_DEBUG_OUTPUT( 2, "AG 0-5: ", ss.str() );
-        }
         agVector_.insert( agVector_.begin(), agp );
         if ( agVector_.size() > 30 ) {
-            DYN_DEBUG_OUTPUT( 3, "HTTPServer::addAggregator(): Removing last Aggegator" );
+            DBG( 3, "HTTPServer::addAggregator(): Removing last Aggegator" );
             agVector_.pop_back();
         }
         agVectorMutex_.unlock();
@@ -2398,7 +2253,7 @@ public:
 private:
     void createPeriodicCounterFetcher() {
         pcf_ = new PeriodicCounterFetcher( this );
-        threadPool_.addWork( pcf_ );
+        wq_.addWork( pcf_ );
         pcf_->start();
     }
 
@@ -2436,14 +2291,14 @@ void PeriodicCounterFetcher::execute() {
             auto before = steady_clock::now();
             // create an aggregator
             std::shared_ptr<Aggregator> sagp = std::make_shared<Aggregator>();
-            DYN_DEBUG_OUTPUT( 2, "PCF::execute(): AGP=", sagp.get(), " )" );
+            DBG( 2, "PCF::execute(): AGP=", sagp.get(), " )" );
             // dispatch it
             sagp->dispatch( PCM::getInstance()->getSystemTopology() );
             // add it to the vector
             hs_->addAggregator( sagp );
             auto after = steady_clock::now();
             auto elapsed = duration_cast<std::chrono::milliseconds>(after - before);
-            DYN_DEBUG_OUTPUT( 2, "Aggregation Duration: ", elapsed.count(), "ms." );
+            DBG( 2, "Aggregation Duration: ", elapsed.count(), "ms." );
         }
         now = now + std::chrono::seconds(1);
         std::this_thread::sleep_until( now );
@@ -2475,18 +2330,18 @@ void HTTPServer::run() {
         }
 
         int port = ntohs( clientAddress.sin_port );
-        DYN_DEBUG_OUTPUT( 3, "Client IP is: ", ipbuf, ", and the port it uses is : ", port );
+        DBG( 3, "Client IP is: ", ipbuf, ", and the port it uses is : ", port );
 
         HTTPConnection* connection;
         try {
             connection = new HTTPConnection( this, clientSocketFD, clientAddress, callbackList_ );
         } catch ( std::exception& e ) {
-            DYN_DEBUG_OUTPUT( 3, "Exception caught while creating a HTTPConnection: " );
+            DBG( 3, "Exception caught while creating a HTTPConnection: " );
             ::close( clientSocketFD );
             continue;
         }
 
-        threadPool_.addWork( connection );
+        wq_.addWork( connection );
     }
 }
 
@@ -2570,12 +2425,12 @@ void HTTPSServer::run() {
         }
 
         int port = ntohs( clientAddress.sin_port );
-        DYN_DEBUG_OUTPUT( 3, "Client IP is: ", ipbuf, ", and the port it uses is : ", port );
-        DYN_DEBUG_OUTPUT( 3, "SSL info: version: ", SSL_get_version( ssl ), ", stuff" );
+        DBG( 3, "Client IP is: ", ipbuf, ", and the port it uses is : ", port );
+        DBG( 3, "SSL info: version: ", SSL_get_version( ssl ), ", stuff" );
 
         HTTPConnection* connection = new HTTPConnection( this, clientSocketFD, clientAddress, callbackList_, ssl );
 
-        threadPool_.addWork( connection );
+        wq_.addWork( connection );
     }
 }
 #endif // USE_SSL
@@ -2589,11 +2444,11 @@ inline constexpr signed char operator "" _uc( unsigned long long arg ) noexcept 
 
 
 void createJSONOutputFromString( HTTPResponse& resp, std::string body) {
-    DYN_DEBUG_OUTPUT( 4, body );
+    DBG( 4, body );
     resp.addHeader( HTTPHeader( "Content-Type", "application/json" ) );
     resp.addHeader( HTTPHeader( "Content-Length", std::to_string( body.size() ) ) );
     resp.addBody( body );
-    DYN_DEBUG_OUTPUT( 3, "request serviced" );
+    DBG( 3, "request serviced" );
 }
 
 void createJSONOutput( HTTPResponse& resp, std::pair<std::shared_ptr<Aggregator>,std::shared_ptr<Aggregator>> aggregatorPair ) {
@@ -2609,7 +2464,7 @@ void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & re
     if ( req.hasHeader( "Host" ) ) {
         host = req.getHeader( "Host" ).headerValueAsString();
     } else {
-        DYN_DEBUG_OUTPUT( 3, "Host: header not found." );
+        DBG( 3, "Host: header not found." );
         host = "";
     }
     url = req.url();
@@ -2622,18 +2477,18 @@ void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & re
         // Violation of the specification, abort
         rc = RC_400_BadRequest;
     } else {
-        DYN_DEBUG_OUTPUT( 3, "PATH=\"", url.path_, "\", size=", url.path_.size() );
+        DBG( 3, "PATH=\"", url.path_, "\", size=", url.path_.size() );
 
         if ( url.path_ == "/favicon.ico" ) {
-            DYN_DEBUG_OUTPUT( 3, "my_get_callback: client requesting '/favicon.ico'" );
+            DBG( 3, "my_get_callback: client requesting '/favicon.ico'" );
             std::string favicon( favicon_ico, favicon_ico + favicon_ico_len );
             resp.addHeader( HTTPHeader( "Content-Type", "image/x-icon" ) );
             resp.addHeader( HTTPHeader( "Content-Length", std::to_string( favicon_ico_len ) ) );
             resp.addBody( favicon );
-            DYN_DEBUG_OUTPUT( 3, "request serviced" );
+            DBG( 3, "request serviced" );
             rc = RC_200_OK;
         } else if ( (1 == url.path_.size()) && (url.path_ == "/") ) {
-            DYN_DEBUG_OUTPUT( 3, "my_get_callback: client requesting '/'" );
+            DBG( 3, "my_get_callback: client requesting '/'" );
             HTTPHeader accept;
             if ( req.hasHeader( "Accept" ) ) {
                 accept = req.getHeader( "Accept" );
@@ -2646,32 +2501,52 @@ void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & re
             bool wantsJSON = false;
             bool catchAll  = false;
             for ( auto& item : list ) {
-                DYN_DEBUG_OUTPUT( 3, "item: '", item, "'" );
+                DBG( 3, "item: '", item, "'" );
                 if ( item.compare( 0, 9, "text/html" ) == 0 ) {
-                    DYN_DEBUG_OUTPUT( 3, "my_get_callback: wantsHTML = true" );
+                    DBG( 3, "my_get_callback: wantsHTML = true" );
                     wantsHTML = true;
                     break;
                 } else if ( item.compare( 0, 16, "application/json" ) == 0 ) {
-                    DYN_DEBUG_OUTPUT( 3, "my_get_callback: wantsJSON = true" );
+                    DBG( 3, "my_get_callback: wantsJSON = true" );
                     wantsJSON = true;
                     break;
                 } else if ( item.compare( 0, 3, "*/*" ) == 0 ) {
-                    DYN_DEBUG_OUTPUT( 3, "my_get_callback: catchAll = true" );
+                    DBG( 3, "my_get_callback: catchAll = true" );
                     catchAll = true;
                 }
             }
             if ( !wantsHTML && !wantsJSON && catchAll ) {
-                wantsHTML = wantsJSON = true;
+                wantsHTML = true;
             }
             // Temporarily force json output
-            wantsHTML = false;
-            wantsJSON = true;
+            //wantsHTML = false;
+            //wantsJSON = true;
             if ( wantsHTML ) {
-                std::string body = "<!DOCTYPE html><html><head><title>My first title</title></head><body><h1>I'm screaming!</h1><p>Woohoo!!!</p></body></html>";
+                // If you make changes to the HTML, please validate it
+                // Probably best to put this in static files and serve this
+                std::string body = "\
+<!DOCTYPE html>\n\
+<html lang=\"en\">\n\
+  <head>\n\
+    <title>PCM Sensor Daemon</title>\n\
+  </head>\n\
+  <body>\n\
+    <h1>PCM Sensor Daemon</h1>\n\
+    <p>PCM Sensor Daemon provides performance counter data in JSON format when called with the HTTP header \"Accept: application/json\". With the normal \"Accept: text/html\" or \"Accept: */*\" it will serve this HTML page when requesting /.</p>\n\
+    <p>Endpoints you can call are:</p>\n\
+    <ul>\n\
+      <li>/ : This will fetch the counter values since start of the daemon, minus overflow so should be considered absolute numbers and should be used for further processing by yourself.</li>\n\
+      <li>/persecond : This will fetch data from the internal sample thread which samples every second and returns the difference between the last 2 samples.</li>\n\
+      <li>/persecond/X : This will fetch data from the internal sample thread which samples every second and returns the difference between the last 2 samples which are X seconds apart. X can be at most 30 seconds without changing the source code.</li>\n\
+      <li>/dashboard : This will return JSON for a Grafana dashboard that holds all counters. Please see the documentation for more information.</li>\n\
+      <li>/favicon.ico : This will return a small favicon.ico as requested by many browsers.</li>\n\
+    </ul>\n\
+  </body>\n\
+</html>\n";
                 resp.addHeader( HTTPHeader( "Content-Type", "text/html" ) );
                 resp.addHeader( HTTPHeader( "Content-Length", std::to_string( body.size() ) ) );
                 resp.addBody( body );
-                DYN_DEBUG_OUTPUT( 3, "request serviced" );
+                DBG( 3, "request serviced" );
                 rc = RC_200_OK;;
             } else if ( wantsJSON ) {
                 auto current = std::make_shared<Aggregator>();
@@ -2686,23 +2561,23 @@ void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & re
                 resp.addBody( msg );
             }
         } else if ( url.path_ == "/dashboard") {
-            DYN_DEBUG_OUTPUT( 3, "my_get_callback: client requesting /dashboard path: '", url.path_, "'" );
+            DBG( 3, "my_get_callback: client requesting /dashboard path: '", url.path_, "'" );
             createJSONOutputFromString( resp, getPCMDashboardJSON());
             rc = RC_200_OK;;
         } else if ( 0 == url.path_.rfind( "/persecond", 0 ) ) {
-            DYN_DEBUG_OUTPUT( 3, "my_get_callback: client requesting /persecond path: '", url.path_, "'" );
+            DBG( 3, "my_get_callback: client requesting /persecond path: '", url.path_, "'" );
             if ( 10 == url.path_.size() || ( 11 == url.path_.size() && url.path_.at(10) == '/' ) ) {
-                DYN_DEBUG_OUTPUT( 3, "size == 10 or 11" );
+                DBG( 3, "size == 10 or 11" );
                 // path looks like /persecond or /persecond/
                 // Create a difference from the last 2 1-second samples
                 auto aggregatorPair = hs->getAggregators( 1, 0 );
                 createJSONOutput( resp, aggregatorPair );
                 rc = RC_200_OK;;
             } else {
-                DYN_DEBUG_OUTPUT( 3, "size > 11: size = ", url.path_.size() );
+                DBG( 3, "size > 11: size = ", url.path_.size() );
                 // We're looking for value X after /persecond/X and possibly a trailing / anything else not
                 url.path_.erase( 0, 10 ); // remove /persecond
-                DYN_DEBUG_OUTPUT( 3, "after removal: path = \"", url.path_, "\", size = ", url.path_.size() );
+                DBG( 3, "after removal: path = \"", url.path_, "\", size = ", url.path_.size() );
                 if ( url.path_.at(0) == '/' ) {
                     url.path_.erase( 0, 1 );
                     if ( url.path_.at( url.path_.size() - 1 ) == '/' ) {
@@ -2713,7 +2588,7 @@ void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & re
                         try {
                             seconds = std::stoll( url.path_ );
                         } catch ( std::exception& e ) {
-                            DYN_DEBUG_OUTPUT( 3, "my_get_callback: Error during conversion of /persecond/ seconds: ", e.what() );
+                            DBG( 3, "my_get_callback: Error during conversion of /persecond/ seconds: ", e.what() );
                             seconds = 0;
                         }
                         if ( 1 <= seconds && 30 >= seconds ) {
@@ -2722,7 +2597,7 @@ void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & re
                             createJSONOutput( resp, aggregatorPair );
                             rc = RC_200_OK;
                         } else {
-                            DYN_DEBUG_OUTPUT( 3, "seconds == 0 or seconds >= 30, not allowed" );
+                            DBG( 3, "seconds == 0 or seconds >= 30, not allowed" );
                             resp.addHeader( HTTPHeader( "Content-Type", "text/html" ) );
                             resp.addHeader( HTTPHeader( "Content-Length", "0" ) );
                             rc = RC_400_BadRequest;
@@ -2731,7 +2606,7 @@ void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & re
                 }
             }
         } else {
-            DYN_DEBUG_OUTPUT( 3, "my_get_callback: Unknown path requested: \"", url.path_, "\"" );
+            DBG( 3, "my_get_callback: Unknown path requested: \"", url.path_, "\"" );
             std::string str( "404 Unknown path." );
             resp.addHeader( HTTPHeader( "Content-Type", "text/html" ) );
             resp.addHeader( HTTPHeader( "Content-Length", std::to_string( str.size() ) ) );
@@ -2769,6 +2644,9 @@ void printHelpText( std::string const & programName ) {
     std::cerr << "    -p portnumber        : Run on port <portnumber> (default port is 1080)\n";
     std::cerr << "    -r|--reset           : Reset programming of the performance counters.\n";
     std::cerr << "    -D|--debug level     : level = 0: no debug info, > 0 increase verbosity.\n";
+    std::cerr << "    -R|--real-time       : If possible the daemon will run with real time\n";
+    std::cerr << "                           priority, could be useful under heavy load to \n";
+    std::cerr << "                           stabilize the async counter fetching.\n";
 #if defined (USE_SSL)
     std::cerr << "    -C|--certificateFile : \n";
     std::cerr << "    -P|--privateKeyFile  : \n";
@@ -2784,6 +2662,7 @@ int main( int argc, char* argv[] ) {
     bool useSSL = false;
 #endif
     bool forcedProgramming = false;
+    bool useRealtimePriority = false;
     unsigned short port = 0;
     unsigned short debug_level = 0;
     std::string certificateFile;
@@ -2830,6 +2709,10 @@ int main( int argc, char* argv[] ) {
                 } else {
                     throw std::runtime_error( "main: Error no debug level argument given" );
                 }
+            }
+            else if ( 0 == strncmp( argv[i], "-R", 2 ) || 0 == strncmp( argv[i], "--real-time", 11 ) )
+            {
+                useRealtimePriority = true;
             }
             else if ( 0 == strncmp( argv[i], "-h", 2 ) || 0 == strncmp( argv[i], "--help", 6 ) )
             {
@@ -2885,6 +2768,24 @@ int main( int argc, char* argv[] ) {
     }
 #endif
 
+    if ( useRealtimePriority ) {
+        int priority = sched_get_priority_min( SCHED_RR );
+        if ( priority == -1 ) {
+            std::cerr << "Could not get SCHED_RR min priority: " << strerror( errno ) << "\n";
+            exit( 6 );
+        } else {
+            struct sched_param sp = { .sched_priority = priority };
+            if ( sched_setscheduler(0, SCHED_RR, &sp ) == -1 ) {
+                int errnosave = errno;
+                std::cerr << "Could not set scheduler to realtime! Errno: " << errnosave << "\n";
+                std::cerr << "Error message: \"" << strerror( errnosave ) << "\"\n";
+                exit( 6 );
+            } else {
+                std::cerr << "Scheduler changed to SCHED_RR and priority to " << priority << "\n";
+            }
+        }
+    }
+
     pid_t pid;
     if ( daemonMode )
         pid = fork();
@@ -2926,9 +2827,9 @@ int main( int argc, char* argv[] ) {
         } while( status != PCM::Success );
 
         if ( pcmInstance->PMMTrafficMetricsAvailable() ) {
-            DYN_DEBUG_OUTPUT( 1, "Programmed PMEM R/W BW instead of Partial Writes" );
+            DBG( 1, "Programmed PMEM R/W BW instead of Partial Writes" );
         } else {
-            DYN_DEBUG_OUTPUT( 1, "Programmed Partial Writes instead of PMEM R/W BW" );
+            DBG( 1, "Programmed Partial Writes instead of PMEM R/W BW" );
         }
 
 #if defined (USE_SSL)
@@ -2947,11 +2848,11 @@ int main( int argc, char* argv[] ) {
         }
     } else if ( pid > 0 ) {
         /* Parent, just leave */
-        DYN_DEBUG_OUTPUT( 2, "Child pid: ", pid );
+        DBG( 2, "Child pid: ", pid );
         return 0;
     } else {
         /* Error */
-        DYN_DEBUG_OUTPUT( 2, "Error forking. " );
+        DBG( 2, "Error forking. " );
         return 200;
     }
 }

@@ -81,7 +81,8 @@ void Aggregator::dispatch( SystemRoot const& syp ) {
 
     auto ccsFuturesIter = ccsFutures_.begin();
     auto ccsIter = ccsVector_.begin();
-    // int i = 0;
+    // int i;
+    // i = 0;
     for ( ; ccsFuturesIter != ccsFutures_.end() && ccsIter != ccsVector_.end(); ++ccsFuturesIter, ++ccsIter ) {
         // std::cerr << "Works ccsFuture: " << ++i << "\n";
         (*ccsIter) = (*ccsFuturesIter).get();
@@ -107,8 +108,8 @@ void Aggregator::dispatch( SystemRoot const& syp ) {
         // only needs the ucs added here. If we would add socs to sycs we would
         // count all Basic/CoreCounterState counters double
         UncoreCounterState ucs = (*ucsFuturesIter).get();
-        (*socsIter) = ucs;
         sycs_ += ucs;
+        (*socsIter) = std::move( ucs );
     }
     PCM* pcm = PCM::getInstance();
     pcm->readQPICounters( sycs_ );

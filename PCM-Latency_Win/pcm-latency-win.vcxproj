@@ -161,6 +161,8 @@
     <ClCompile Include="pcm-latency-win.cpp" />
     <ClCompile Include="stdafx.cpp" />
     <ClCompile Include="..\utils.cpp" />
+    <ClCompile Include="..\debug.cpp" />
+    <ClCompile Include="..\threadpool.cpp" />
     <ClCompile Include="..\PCM_Win\restrictDriverAccess.cpp">
       <CompileAsManaged>true</CompileAsManaged>
       <ExceptionHandling>Async</ExceptionHandling>
@@ -176,6 +178,8 @@
     <ClInclude Include="..\types.h" />
     <ClInclude Include="windriver.h" />
     <ClInclude Include="..\utils.h" />
+    <ClInclude Include="..\debug.h" />
+    <ClInclude Include="..\threadpool.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="My Amplifier Results\r000hs\r000hs.ampl" />

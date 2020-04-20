@@ -38,6 +38,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <future>
 
 #include "types.h"
+#include "cpucounters.h"
+#include "threadpool.h"
 
 // all can be done with forwards, anything hat actually uses PCM should be put in the topology.cpp file
 class PCM;
@@ -87,7 +89,7 @@ public:
         CoreCounterState ccs;
         // fill ccs
         ccs.BasicCounterState::readAndAggregate( msrHandle_ );
-        return ccs;
+        return std::move( ccs );
     }
 
     void addMSRHandle( std::shared_ptr<SafeMsrHandle> handle ) {
@@ -146,7 +148,7 @@ public:
         for ( HyperThread* thread : threads_ ) {
             ccs += thread->coreCounterState();
         }
-        return ccs;
+        return std::move( ccs );
     }
 
     void addHyperThreadInfo( int32 threadID, int32 osID ) {
@@ -277,7 +279,7 @@ public:
     virtual UncoreCounterState uncoreCounterState( void ) const override {
         UncoreCounterState ucs;
         // TODO: Fill the ucs
-        return ucs;
+        return std::move( ucs );
     }
 };
 
@@ -440,7 +442,7 @@ public:
         for ( auto socket : sockets_ ) {
             scs += ( socket->socketCounterState() );
         }
-        return scs;
+        return std::move( scs );
     }
 
     std::vector<Socket*> const & sockets( void ) const {
@@ -477,15 +479,19 @@ public:
         for ( auto* core : sop->cores() )
             core->accept( *this );
         // Fetch UncoreCounterState async result
-        ucsFutures_[ sop->socketID() ] = std::async(
-            std::launch::async,
-            [sop]() {
+        auto job = new LambdaJob<UncoreCounterState>(
+            []( Socket* s ) -> UncoreCounterState {
+                DBG( 3, "Lambda fetching UncoreCounterState async" );
                 UncoreCounterState ucs;
-                if ( !sop->isOnline() )
+                if ( !s->isOnline() )
                     return ucs;
-                return sop->uncore()->uncoreCounterState();
-            }
+                return s->uncore()->uncoreCounterState();
+            }, sop
         );
+        ucsFutures_[ sop->socketID() ] = job->getFuture();
+        wq_.addWork( job );
+        // For now execute directly to compile test
+        //job->execute();
     }
 
     virtual void dispatch( Core* cop ) override {
@@ -500,15 +506,17 @@ public:
     virtual void dispatch( HyperThread* htp ) override {
         // std::cerr << "Aggregator::dispatch( HyperThread )\n";
         // std::cerr << "Dispatch htp with osID=" << htp->osID() << "\n";
-        ccsFutures_[ htp->osID() ] = std::async(
-            std::launch::async,
-            [htp]() {
+        auto job = new LambdaJob<CoreCounterState>(
+            []( HyperThread* h ) -> CoreCounterState {
+                DBG( 3, "Lambda fetching CoreCounterState async" );
                 CoreCounterState ccs;
-                if ( !htp->isOnline() )
+                if ( !h->isOnline() )
                     return ccs;
-                return htp->coreCounterState();
-            }
+                return h->coreCounterState();
+            }, htp
         );
+        ccsFutures_[ htp->osID() ] = job->getFuture();
+        wq_.addWork( job );
     }
 
     virtual void dispatch( ServerUncore* /*sup*/ ) override {
@@ -542,5 +550,6 @@ private:
     std::vector<std::future<CoreCounterState>> ccsFutures_;
     std::vector<std::future<UncoreCounterState>> ucsFutures_;
     std::chrono::steady_clock::time_point dispatchedAt_;
+    WorkQueue wq_;
 };
 
