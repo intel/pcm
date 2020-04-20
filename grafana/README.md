@@ -4,7 +4,7 @@ Instructions on How-To Run PCM Grafana Dashboard
 
 Installation on target system to be analyzed:
 1.  Build: `make pcm-sensor-server.x`
-2.  As root start pcm-sensor-server-realtime.sh script: `sudo sh pcm-sensor-server-realtime.sh`
+2.  As root start pcm-sensor-server.x: `sudo ./pcm-sensor-server.x`
 
 
 Installation of the grafana front-end (can be on any *host* system with connectivity to the target system):
