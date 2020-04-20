@@ -161,6 +161,8 @@
     <ClCompile Include="..\winpmem\winpmem.cpp" />
     <ClCompile Include="stdafx.cpp" />
     <ClCompile Include="..\utils.cpp" />
+    <ClCompile Include="..\debug.cpp" />
+    <ClCompile Include="..\threadpool.cpp" />
     <ClCompile Include="..\PCM_Win\restrictDriverAccess.cpp">
       <CompileAsManaged>true</CompileAsManaged>
       <ExceptionHandling>Async</ExceptionHandling>
@@ -174,6 +176,9 @@
     <ClInclude Include="..\client_bw.h" /> <ClInclude Include="..\mmio.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="..\types.h" />
+    <ClInclude Include="..\utils.h" />
+    <ClInclude Include="..\debug.h" />
+    <ClInclude Include="..\threadpool.h" />
     <ClInclude Include="windriver.h" />
   </ItemGroup>
   <ItemGroup>

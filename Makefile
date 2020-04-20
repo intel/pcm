@@ -26,7 +26,7 @@ LIB= -pthread -lrt
 EXE += pcm-sensor-server.x
 CXXFLAGS += -Wextra
 OPENSSL_LIB=
-# Disabling until we can properly check for dependencies, enable 
+# Disabling until we can properly check for dependencies, enable
 # yourself if you have the required headers and library installed
 #CXXFLAGS += -DUSE_SSL
 #OPENSSL_LIB=-lssl -lcrypto -lz -ldl
@@ -43,7 +43,7 @@ CXX=c++
 LIB= -lpthread -lc++
 endif
 
-COMMON_OBJS = msr.o cpucounters.o pci.o mmio.o client_bw.o utils.o topology.o dashboard.o
+COMMON_OBJS = msr.o cpucounters.o pci.o mmio.o client_bw.o utils.o topology.o dashboard.o debug.o threadpool.o
 EXE_OBJS = $(EXE:.x=.o)
 OBJS = $(COMMON_OBJS) $(EXE_OBJS)
 
