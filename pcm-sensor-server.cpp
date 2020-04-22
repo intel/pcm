@@ -848,7 +848,7 @@ private:
         retval = ::bind( sockfd, reinterpret_cast<struct sockaddr*>(&serv), len );
         if ( 0 != retval ) {
             ::close( sockfd );
-            throw std::runtime_error( "Server Constructor: Cannot bind to socket" );
+            throw std::runtime_error( std::string("Server Constructor: Cannot bind to port ") + std::to_string(port_) );
         }
 
         retval = listen( sockfd, 64 );
@@ -2640,8 +2640,10 @@ void printHelpText( std::string const & programName ) {
     std::cerr << "Usage: " << programName << " [OPTION]\n\n";
     std::cerr << "Valid Options:\n";
     std::cerr << "    -d                   : Run in the background\n";
+#if defined (USE_SSL)
     std::cerr << "    -s                   : Use https protocol (default port 443)\n";
-    std::cerr << "    -p portnumber        : Run on port <portnumber> (default port is 1080)\n";
+#endif
+    std::cerr << "    -p portnumber        : Run on port <portnumber> (default port is 80)\n";
     std::cerr << "    -r|--reset           : Reset programming of the performance counters.\n";
     std::cerr << "    -D|--debug level     : level = 0: no debug info, > 0 increase verbosity.\n";
     std::cerr << "    -R|--real-time       : If possible the daemon will run with real time\n";
