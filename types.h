@@ -853,6 +853,9 @@ struct BecktonUncorePMUCNTCTLRegister
 
 #define JKT_CBO_MSR_PMON_BOX_FILTER_OPC(x) (x << 23UL)
 #define IVTHSX_CBO_MSR_PMON_BOX_FILTER1_OPC(x) (x << 20UL)
+#define BDX_CBO_MSR_PMON_BOX_GET_OPC0(x) ((x >> 20) & 0x3FF)
+#define BDX_CBO_MSR_PMON_BOX_GET_FLT(x) ((x >> 0x10) & 0x1)
+#define BDX_CBO_MSR_PMON_BOX_GET_TID(x) ((x >> 0x11) & 0x1)
 
 #define SKX_CHA_MSR_PMON_BOX_FILTER1_REM(x) (x << 0UL)
 #define SKX_CHA_MSR_PMON_BOX_FILTER1_LOC(x) (x << 1UL)
@@ -861,6 +864,9 @@ struct BecktonUncorePMUCNTCTLRegister
 #define SKX_CHA_MSR_PMON_BOX_FILTER1_OPC0(x) ((x) << 9UL)
 #define SKX_CHA_MSR_PMON_BOX_FILTER1_OPC1(x) ((x) << 19UL)
 #define SKX_CHA_MSR_PMON_BOX_FILTER1_NC(x) (x << 30UL)
+#define SKX_CHA_MSR_PMON_BOX_FILTER1_RSV(x) (x << 2UL)
+#define SKX_CHA_MSR_PMON_BOX_GET_OPC0(x) ((x >> 9) & 0x3FF)
+#define SKX_CHA_MSR_PMON_BOX_GET_NC(x) ((x >> 0x1e) & 0x1)
 
 #define SKX_CHA_TOR_INSERTS_UMASK_IRQ(x) (x << 0)
 #define SKX_CHA_TOR_INSERTS_UMASK_PRQ(x) (x << 2)

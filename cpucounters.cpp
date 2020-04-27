@@ -6245,44 +6245,44 @@ void PCM::programIIOCounters(IIOPMUCNTCTLRegister rawEvents[4], int IIOStack)
     }
 }
 
-void PCM::programPCIeCounters(CboEventCfg_t &CboEventCfg, const uint32 miss_)
+void PCM::programPCIeEventGroup(eventGroup_t &eventGroup)
 {
-    const uint32 opCode = CboEventCfg.opCode;
-    const uint32 q_ = CboEventCfg.queue;
-    const uint32 tid_ = CboEventCfg.tid;
-    const uint32 nc_ = CboEventCfg.nc;
+    assert(eventGroup.size() > 0);
+    uint64 events[4] = {0};
+    uint64 umask[4] = {0};
 
-    uint64 event0 = 0;
-    // TOR_INSERTS.OPCODE event
-    if (SKX == cpu_model) {
-        uint64 umask = 0;
-        switch (q_)
-        {
-        case PRQ:
-            umask |= (uint64)(SKX_CHA_TOR_INSERTS_UMASK_PRQ(1));
-            break;
-        case IRQ:
-            umask |= (uint64)(SKX_CHA_TOR_INSERTS_UMASK_IRQ(1));
-            break;
-        }
-        switch (miss_)
-        {
-        case 0:
-            umask |= (uint64)(SKX_CHA_TOR_INSERTS_UMASK_HIT(1));
-            umask |= (uint64)(SKX_CHA_TOR_INSERTS_UMASK_MISS(1));
-            break;
-        case 1:
-            umask |= (uint64)(SKX_CHA_TOR_INSERTS_UMASK_MISS(1));
-            break;
-        }
+    switch (cpu_model)
+    {
+        case PCM::SKX:
+        //JKT through СLX generations allow programming only one required event at a time.
+            if (eventGroup[0] & SKX_CHA_MSR_PMON_BOX_FILTER1_NC(1))
+                umask[0] |= (uint64)(SKX_CHA_TOR_INSERTS_UMASK_IRQ(1));
+                else
+                umask[0] |= (uint64)(SKX_CHA_TOR_INSERTS_UMASK_PRQ(1));
 
-        event0 = CBO_MSR_PMON_CTL_EVENT(0x35) + CBO_MSR_PMON_CTL_UMASK(umask);
+            if (eventGroup[0] & SKX_CHA_MSR_PMON_BOX_FILTER1_RSV(1))
+                umask[0] |= (uint64)(SKX_CHA_TOR_INSERTS_UMASK_HIT(1));
+                else
+                umask[0] |= (uint64)(SKX_CHA_TOR_INSERTS_UMASK_MISS(1));
+
+            events[0] += CBO_MSR_PMON_CTL_EVENT(0x35) + CBO_MSR_PMON_CTL_UMASK(umask[0]);
+            programCbo(events, SKX_CHA_MSR_PMON_BOX_GET_OPC0(eventGroup[0]),
+                                    SKX_CHA_MSR_PMON_BOX_GET_NC(eventGroup[0]));
+            break;
+        case PCM::BDX_DE:
+        case PCM::BDX:
+        case PCM::KNL:
+        case PCM::HASWELLX:
+        case PCM::IVYTOWN:
+        case PCM::JAKETOWN:
+            events[0] = CBO_MSR_PMON_CTL_EVENT(0x35);
+            events[0] += BDX_CBO_MSR_PMON_BOX_GET_FLT(eventGroup[0]) ? CBO_MSR_PMON_CTL_UMASK(0x3) : CBO_MSR_PMON_CTL_UMASK(1);
+            events[0] += BDX_CBO_MSR_PMON_BOX_GET_TID(eventGroup[0]) ? CBO_MSR_PMON_CTL_TID_EN : 0ULL;
+
+            programCbo(events, BDX_CBO_MSR_PMON_BOX_GET_OPC0(eventGroup[0]),
+                    0, BDX_CBO_MSR_PMON_BOX_GET_TID(eventGroup[0]) ? 0x3e : 0ULL);
+            break;
     }
-    else
-        event0 = CBO_MSR_PMON_CTL_EVENT(0x35) + (CBO_MSR_PMON_CTL_UMASK(1) | (miss_ ? CBO_MSR_PMON_CTL_UMASK(0x3) : 0ULL)) + (tid_ ? CBO_MSR_PMON_CTL_TID_EN : 0ULL);
-
-    uint64 events[4] = { event0, 0, 0, 0 };
-    programCbo(events, opCode, nc_, tid_);
 }
 
 void PCM::programCbo(const uint64 * events, const uint32 opCode, const uint32 nc_, const uint32 llc_lookup_tid_filter, const uint32 loc, const uint32 rem)
@@ -6346,6 +6346,11 @@ PCIeCounterState PCM::getPCIeCounterState(const uint32 socket_)
     PCIeCounterState result;
     result.data = getCBOCounterState(socket_, 0);
     return result;
+}
+
+uint64 PCM::getPCIeCounterData(const uint32 socket_, const uint32 ctr_)
+{
+    return getCBOCounterState(socket_, ctr_);
 }
 
 void PCM::initLLCReadMissLatencyEvents(uint64 * events, uint32 & opCode)

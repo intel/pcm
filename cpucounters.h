@@ -511,13 +511,7 @@ public:
 
 typedef SimpleCounterState PCIeCounterState;
 typedef SimpleCounterState IIOCounterState;
-typedef struct
-{
-    uint32 opCode;
-    uint32 queue;
-    uint32 tid;
-    uint32 nc;
-} CboEventCfg_t;
+typedef std::vector<uint64> eventGroup_t;
 
 class PerfVirtualControlRegister;
 
@@ -1527,7 +1521,9 @@ public:
     };
 
     //! \brief Program uncore PCIe monitoring event(s)
-    void programPCIeCounters(CboEventCfg_t &CboEventCfg, const uint32 miss_ = 0);
+    //! \param eventGroup - events to programm for the same run
+    void programPCIeEventGroup(eventGroup_t &eventGroup);
+    uint64 getPCIeCounterData(const uint32 socket_, const uint32 ctr_);
 
     //! \brief Program CBO (or CHA on SKX+) counters
     //! \param events array with four raw event values

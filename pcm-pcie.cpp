@@ -94,7 +94,7 @@ IPlatform *IPlatform::getPlatform(PCM *m, bool csv, bool print_bandwidth, bool p
 {
     switch (m->getCPUModel()) {
         case PCM::SKX:
-          return new PurleyPlatform(m, csv, print_bandwidth, print_additional_info, delay);
+            return new PurleyPlatform(m, csv, print_bandwidth, print_additional_info, delay);
         case PCM::BDX_DE:
         case PCM::BDX:
         case PCM::KNL:
@@ -261,7 +261,7 @@ int main(int argc, char * argv[])
 
         platform->printEvents();
 
-        platform->printAggrEventData();
+        platform->printAggregatedEvents();
 
         platform->cleanup();
 
