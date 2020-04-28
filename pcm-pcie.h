@@ -160,6 +160,7 @@ class LegacyPlatform: public IPlatform
     void printSocketScopeEvent(uint socket, eventFilter filter, uint idx);
     void printSocketScopeEvents(uint socket, eventFilter filter);
     uint64 getEventCount (uint socket, uint idx);
+    uint eventGroupOffset(eventGroup_t &eventGroup);
     void getEventGroup(eventGroup_t &eventGroup);
     void printAggregatedEvent(uint idx);
 
@@ -172,7 +173,7 @@ public:
         int eventsCount = 0;
         for (auto &group : eventGroups) eventsCount += group.size();
 
-        m_delay = uint32(delay * 1000 / eventsCount / NUM_SAMPLES);
+        m_delay = uint32(delay * 1000 / (eventGroups.size()) / NUM_SAMPLES);
         if (m_delay * eventsCount * NUM_SAMPLES < delay * 1000) ++m_delay;
 
         eventSample.resize(m_socketCount);
@@ -207,20 +208,31 @@ inline uint64 LegacyPlatform::getEventCount (uint skt, uint idx)
                                         eventCount[before][skt][idx]);
 }
 
+uint LegacyPlatform::eventGroupOffset(eventGroup_t &eventGroup)
+{
+    uint offset = 0;
+    uint grpIdx = &eventGroup - eventGroups.data();
+
+    for (auto iter = eventGroups.begin(); iter < eventGroups.begin() + grpIdx; iter++)
+         offset += iter->size();
+
+    return offset;
+}
+
 void LegacyPlatform::getEventGroup(eventGroup_t &eventGroup)
 {
     m_pcm->programPCIeEventGroup(eventGroup);
-    uint grpOffset = (&eventGroup - eventGroups.data()) * eventGroup.size();
+    uint offset = eventGroupOffset(eventGroup);
 
     for (auto &run : eventCount) {
         for(uint skt =0; skt < m_socketCount; ++skt)
             for (uint ctr = 0; ctr < eventGroup.size(); ++ctr)
-                run[skt][ctr + grpOffset] = m_pcm->getPCIeCounterData(skt, ctr);
+                run[skt][ctr + offset] = m_pcm->getPCIeCounterData(skt, ctr);
         MySleepMs(m_delay);
     }
 
     for(uint skt = 0; skt < m_socketCount; ++skt)
-        for (uint idx = grpOffset; idx < grpOffset + eventGroup.size(); ++idx)
+        for (uint idx = offset; idx < offset + eventGroup.size(); ++idx)
             eventSample[skt][idx] += getEventCount(skt, idx);
 }
 
