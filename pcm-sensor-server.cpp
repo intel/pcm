@@ -593,7 +593,7 @@ protected:
         }
         else {
             while( 1 ) {
-                // FIXME: openSSL has no support for setting the MSG_NOSIGNAL duing send
+                // FIXME: openSSL has no support for setting the MSG_NOSIGNAL during send
                 bytesSent = SSL_write( ssl_, (void*)outputBuffer_, bytesToSend );
                 if ( 0 >= bytesSent ) {
                     int sslError = SSL_get_error( ssl_, bytesSent );
@@ -862,9 +862,9 @@ private:
 
 protected:
     std::string& listenIP_;
-    uint16_t     port_;
     WorkQueue    wq_;
     int          serverSocket_;
+    uint16_t     port_;
 };
 
 enum HTTPRequestMethod {
@@ -952,7 +952,7 @@ enum HTTPResponseCode {
     RC_510_NotExtended = 510,
     RC_511_NetworkAuthenticationRequired,
     RC_599_NetworkConnectTimeoutError = 599,
-    HTTPReponseCode__Spare = 1000 // Filler
+    HTTPReponseCode_Spare = 1000 // Filler
 };
 
 enum HTTPRequestHasBody {
@@ -1618,7 +1618,7 @@ public:
         return body_;
     }
 
-    void addBody( std::string& body ) {
+    void addBody( std::string const& body ) {
         body_ = body;
     }
 
@@ -1783,13 +1783,16 @@ public:
     enum HTTPResponseCode responseCode() const {
         return responseCode_;
     }
+
     std::string responseCodeAsString() const {
         return response_map_.at( responseCode_ );
     }
+
     void setResponseCode( enum HTTPResponseCode rc ) {
         DBG( 3, "Setting response code to: '", std::dec, (int)rc, "'" );
         responseCode_ = rc;
     }
+
     void debugPrint() {
         DBG( 3, "HTTPReponse::debugPrint:" );
         DBG( 3, "Response Code: \"", (int)responseCode_, "\"" );
@@ -2624,7 +2627,7 @@ int startHTTPServer( unsigned short port ) {
     return 0;
 }
 
-#if defined (USE_SLL)
+#if defined (USE_SSL)
 int startHTTPSServer( unsigned short port, std::string const & cFile, std::string const & pkFile) {
     HTTPSServer server( "", port );
     server.setPrivateKeyFile ( pkFile );
