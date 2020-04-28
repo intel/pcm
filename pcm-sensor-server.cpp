@@ -2720,97 +2720,58 @@ inline constexpr signed char operator "" _uc( unsigned long long arg ) noexcept 
 
 #include "favicon.ico.h"
 
-
-void createJSONOutputFromString( HTTPResponse& resp, std::string body) {
-    DBG( 4, body );
-    resp.addHeader( HTTPHeader( "Content-Type", "application/json" ) );
-    resp.addHeader( HTTPHeader( "Content-Length", std::to_string( body.size() ) ) );
-    resp.addBody( body );
-    DBG( 3, "request serviced" );
-}
-
-void createJSONOutput( HTTPResponse& resp, std::pair<std::shared_ptr<Aggregator>,std::shared_ptr<Aggregator>> aggregatorPair ) {
-    JSONPrinter jp( aggregatorPair );
-    jp.dispatch( PCM::getInstance()->getSystemTopology() );
-    createJSONOutputFromString(resp, jp.str());
-}
-
-void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & resp ) {
-    std::string host;
-    URL url;
-
-    if ( req.hasHeader( "Host" ) ) {
-        host = req.getHeader( "Host" ).headerValueAsString();
-    } else {
-        DBG( 3, "Host: header not found." );
-        host = "";
+void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & resp )
+{
+    if ( req.protocol() == HTTPProtocol::HTTP_1_1 ) {
+        if ( ! req.hasHeader( "Host" ) ) {
+            DBG( 3, "Mandatory Host header not found." );
+            std::string body( "400 Bad Request. HTTP 1.1: Mandatory Host header is missing." );
+            resp.createResponse( TextPlain, body, RC_400_BadRequest );
+            return;
+        }
     }
+
+    enum MimeType mt;
+    HTTPHeader accept;
+    if ( req.hasHeader( "Accept" ) ) {
+        accept = req.getHeader( "Accept" );
+        mt = accept.headerValueAsMimeType();
+    } else {
+        // If there is no accept header then the assumption is that the client can handle anything
+        mt = CatchAll;
+    }
+
+    URL url;
     url = req.url();
 
-    //url.printURL(std::cout);
+    DBG( 3, "PATH=\"", url.path_, "\", size=", url.path_.size() );
 
-    enum HTTPResponseCode rc = RC_404_NotFound;
+    if ( url.path_ == "/favicon.ico" ) {
+        DBG( 3, "my_get_callback: client requesting '/favicon.ico'" );
+        std::string favicon( favicon_ico, favicon_ico + favicon_ico_len );
+        resp.createResponse( ImageXIcon, favicon, RC_200_OK );
+        return;
+    }
 
-    if ( host.empty() && req.protocol() == HTTPProtocol::HTTP_1_1 ) {
-        // Violation of the specification, abort
-        rc = RC_400_BadRequest;
-    } else {
-        DBG( 3, "PATH=\"", url.path_, "\", size=", url.path_.size() );
+    std::pair<std::shared_ptr<Aggregator>,std::shared_ptr<Aggregator>> aggregatorPair;
 
-        if ( url.path_ == "/favicon.ico" ) {
-            DBG( 3, "my_get_callback: client requesting '/favicon.ico'" );
-            std::string favicon( favicon_ico, favicon_ico + favicon_ico_len );
-            resp.addHeader( HTTPHeader( "Content-Type", "image/x-icon" ) );
-            resp.addHeader( HTTPHeader( "Content-Length", std::to_string( favicon_ico_len ) ) );
-            resp.addBody( favicon );
-            DBG( 3, "request serviced" );
-            rc = RC_200_OK;
-        } else if ( (1 == url.path_.size()) && (url.path_ == "/") ) {
-            DBG( 3, "my_get_callback: client requesting '/'" );
-            HTTPHeader accept;
-            if ( req.hasHeader( "Accept" ) ) {
-                accept = req.getHeader( "Accept" );
-            } else {
-                // If there is no accept header then the assumption is that the client can handle anything
-                accept = HTTPHeader( "Accept", "*/*" );
-            }
-            auto list = accept.headerValueAsList();
-            bool wantsHTML = false;
-            bool wantsJSON = false;
-            bool catchAll  = false;
-            for ( auto& item : list ) {
-                DBG( 3, "item: '", item, "'" );
-                if ( item.compare( 0, 9, "text/html" ) == 0 ) {
-                    DBG( 3, "my_get_callback: wantsHTML = true" );
-                    wantsHTML = true;
-                    break;
-                } else if ( item.compare( 0, 16, "application/json" ) == 0 ) {
-                    DBG( 3, "my_get_callback: wantsJSON = true" );
-                    wantsJSON = true;
-                    break;
-                } else if ( item.compare( 0, 3, "*/*" ) == 0 ) {
-                    DBG( 3, "my_get_callback: catchAll = true" );
-                    catchAll = true;
-                }
-            }
-            if ( !wantsHTML && !wantsJSON && catchAll ) {
-                wantsHTML = true;
-            }
-            // Temporarily force json output
-            //wantsHTML = false;
-            //wantsJSON = true;
-            if ( wantsHTML ) {
-                // If you make changes to the HTML, please validate it
-                // Probably best to put this in static files and serve this
-                std::string body = "\
+    if ( (1 == url.path_.size()) && (url.path_ == "/") ) {
+        DBG( 3, "my_get_callback: client requesting '/'" );
+        // If it is not Prometheus and not JSON just return this html code
+        // It might violate the protocol but it makes coding this easier
+        if ( ApplicationJSON != mt && TextPlain != mt ) {
+            // If you make changes to the HTML, please validate it
+            // Probably best to put this in static files and serve this
+            std::string body = "\
 <!DOCTYPE html>\n\
 <html lang=\"en\">\n\
   <head>\n\
-    <title>PCM Sensor Daemon</title>\n\
+    <title>PCM Sensor Server</title>\n\
   </head>\n\
   <body>\n\
-    <h1>PCM Sensor Daemon</h1>\n\
-    <p>PCM Sensor Daemon provides performance counter data in JSON format when called with the HTTP header \"Accept: application/json\". With the normal \"Accept: text/html\" or \"Accept: */*\" it will serve this HTML page when requesting /.</p>\n\
+    <h1>PCM Sensor Server</h1>\n\
+    <p>PCM Sensor Server provides performance counter data through an HTTP interface. By default this text is served when requesting the endpoint \"/\".</p>\n\
+    <p>The endpoints for retrieving counter data, /, /persecond and /persecond/X, support returning data in JSON or prometheus format. For JSON have your client send the HTTP header \"Accept: application/json\" and for prometheus \"Accept: text/plain\" along with the request, PCM Sensor Server will then return the counter data in the requested format.</p>\n\
     <p>Endpoints you can call are:</p>\n\
     <ul>\n\
       <li>/ : This will fetch the counter values since start of the daemon, minus overflow so should be considered absolute numbers and should be used for further processing by yourself.</li>\n\
@@ -2821,78 +2782,92 @@ void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & re
     </ul>\n\
   </body>\n\
 </html>\n";
-                resp.addHeader( HTTPHeader( "Content-Type", "text/html" ) );
-                resp.addHeader( HTTPHeader( "Content-Length", std::to_string( body.size() ) ) );
-                resp.addBody( body );
-                DBG( 3, "request serviced" );
-                rc = RC_200_OK;;
-            } else if ( wantsJSON ) {
-                auto current = std::make_shared<Aggregator>();
-                auto null    = std::make_shared<Aggregator>();
-                current->dispatch( PCM::getInstance()->getSystemTopology() );
-                auto aggregatorPair = std::make_pair( null, current );
-                createJSONOutput( resp, aggregatorPair );
-                rc = RC_200_OK;;
-            } else {
-                rc = RC_406_NotAcceptable;
-                std::string msg( "Server can only serve application/json or text/html" );
-                resp.addBody( msg );
-            }
-        } else if ( url.path_ == "/dashboard") {
-            DBG( 3, "my_get_callback: client requesting /dashboard path: '", url.path_, "'" );
-            createJSONOutputFromString( resp, getPCMDashboardJSON());
-            rc = RC_200_OK;;
-        } else if ( 0 == url.path_.rfind( "/persecond", 0 ) ) {
-            DBG( 3, "my_get_callback: client requesting /persecond path: '", url.path_, "'" );
-            if ( 10 == url.path_.size() || ( 11 == url.path_.size() && url.path_.at(10) == '/' ) ) {
-                DBG( 3, "size == 10 or 11" );
-                // path looks like /persecond or /persecond/
-                // Create a difference from the last 2 1-second samples
-                auto aggregatorPair = hs->getAggregators( 1, 0 );
-                createJSONOutput( resp, aggregatorPair );
-                rc = RC_200_OK;;
-            } else {
-                DBG( 3, "size > 11: size = ", url.path_.size() );
-                // We're looking for value X after /persecond/X and possibly a trailing / anything else not
-                url.path_.erase( 0, 10 ); // remove /persecond
-                DBG( 3, "after removal: path = \"", url.path_, "\", size = ", url.path_.size() );
-                if ( url.path_.at(0) == '/' ) {
-                    url.path_.erase( 0, 1 );
-                    if ( url.path_.at( url.path_.size() - 1 ) == '/' ) {
-                        url.path_.pop_back();
-                    }
-                    if ( std::all_of( url.path_.begin(), url.path_.end(), ::isdigit ) ) {
-                        size_t seconds;
-                        try {
-                            seconds = std::stoll( url.path_ );
-                        } catch ( std::exception& e ) {
-                            DBG( 3, "my_get_callback: Error during conversion of /persecond/ seconds: ", e.what() );
-                            seconds = 0;
-                        }
-                        if ( 1 <= seconds && 30 >= seconds ) {
-                            // create difference
-                            auto aggregatorPair = hs->getAggregators( seconds, 0 );
-                            createJSONOutput( resp, aggregatorPair );
-                            rc = RC_200_OK;
-                        } else {
-                            DBG( 3, "seconds == 0 or seconds >= 30, not allowed" );
-                            resp.addHeader( HTTPHeader( "Content-Type", "text/html" ) );
-                            resp.addHeader( HTTPHeader( "Content-Length", "0" ) );
-                            rc = RC_400_BadRequest;
-                        }
-                    }
-                }
-            }
-        } else {
-            DBG( 3, "my_get_callback: Unknown path requested: \"", url.path_, "\"" );
-            std::string str( "404 Unknown path." );
-            resp.addHeader( HTTPHeader( "Content-Type", "text/html" ) );
-            resp.addHeader( HTTPHeader( "Content-Length", std::to_string( str.size() ) ) );
-            resp.addBody( str );
-            rc = RC_404_NotFound;
+            resp.createResponse( TextHTML, body, RC_200_OK );
+            return;
         }
+
+        std::shared_ptr<Aggregator> current;
+        std::shared_ptr<Aggregator> null;
+        current = std::make_shared<Aggregator>();
+        null    = std::make_shared<Aggregator>();
+        current->dispatch( PCM::getInstance()->getSystemTopology() );
+        aggregatorPair = std::make_pair( null, current );
+
+    } else if ( url.path_ == "/dashboard") {
+        DBG( 3, "client requesting /dashboard path: '", url.path_, "'" );
+        resp.createResponse( ApplicationJSON, getPCMDashboardJSON(), RC_200_OK );
+        return;
+    } else if ( 0 == url.path_.rfind( "/persecond", 0 ) ) {
+        DBG( 3, "client requesting /persecond path: '", url.path_, "'" );
+        if ( 10 == url.path_.size() || ( 11 == url.path_.size() && url.path_.at(10) == '/' ) ) {
+            DBG( 3, "size == 10 or 11" );
+            // path looks like /persecond or /persecond/
+            aggregatorPair = hs->getAggregators( 1, 0 );
+        } else {
+            DBG( 3, "size > 11: size = ", url.path_.size() );
+            // We're looking for value X after /persecond/X and possibly a trailing / anything else not
+            url.path_.erase( 0, 10 ); // remove /persecond
+            DBG( 3, "after removal: path = \"", url.path_, "\", size = ", url.path_.size() );
+            if ( url.path_.at(0) == '/' ) {
+                url.path_.erase( 0, 1 );
+                if ( url.path_.at( url.path_.size() - 1 ) == '/' ) {
+                    url.path_.pop_back();
+                }
+                if ( std::all_of( url.path_.begin(), url.path_.end(), ::isdigit ) ) {
+                    size_t seconds;
+                    try {
+                        seconds = std::stoll( url.path_ );
+                    } catch ( std::exception& e ) {
+                        DBG( 3, "Error during conversion of /persecond/ seconds: ", e.what() );
+                        seconds = 0;
+                    }
+                    if ( 1 <= seconds && 30 >= seconds ) {
+                        aggregatorPair = hs->getAggregators( seconds, 0 );
+                    } else {
+                        DBG( 3, "seconds == 0 or seconds >= 30, not allowed" );
+                        std::string body( "400 Bad Request. seconds == 0 or seconds >= 30, not allowed" );
+                        resp.createResponse( TextPlain, body, RC_400_BadRequest );
+                        return;
+                    }
+                } else {
+                    DBG( 3, "/persecond/ Not followed by all numbers" );
+                    std::string body( "400 Bad Request Request starts with /persecond/ but is not followed by numbers only." );
+                    resp.createResponse( TextPlain, body, RC_400_BadRequest );
+                    return;
+                }
+            } else {
+                DBG( 3, "/persecond something requested: something=\"", url.path_, "\"" );
+                std::string body( "404 Bad Request. Request starts with /persecond but contains bad characters." );
+                resp.createResponse( TextPlain, body, RC_404_NotFound );
+                return;
+            }
+        }
+    } else {
+        DBG( 3, "Unknown path requested: \"", url.path_, "\"" );
+        std::string body( "404 Unknown path." );
+        resp.createResponse( TextPlain, body, RC_404_NotFound );
+        return;
     }
-    resp.setResponseCode( rc );
+    switch ( mt ) {
+    case ApplicationJSON:
+    {
+        JSONPrinter jp( aggregatorPair );
+        jp.dispatch( PCM::getInstance()->getSystemTopology() );
+        resp.createResponse( ApplicationJSON, jp.str(), RC_200_OK );
+        break;
+    }
+    case TextPlain:
+    {
+        PrometheusPrinter pp( aggregatorPair );
+        pp.dispatch( PCM::getInstance()->getSystemTopology() );
+        resp.createResponse( TextPlain, pp.str(), RC_200_OK );
+        break;
+    }
+    default:
+        std::string body( "406 Not Acceptable. Server can only serve \"" );
+        body += req.url().path_ + "\" as application/json, text/plain (prometheus format).";
+        resp.createResponse( TextPlain, body, RC_406_NotAcceptable );
+    }
 }
 
 int startHTTPServer( unsigned short port ) {
