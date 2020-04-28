@@ -1498,6 +1498,8 @@ public:
         type_ = HeaderType::ServerSet;
     }
     HTTPHeader( HTTPHeader const & ) = default;
+    HTTPHeader( HTTPHeader&& ) = default;
+    HTTPHeader& operator=( HTTPHeader const& ) = default;
     ~HTTPHeader() = default;
 
 public:
