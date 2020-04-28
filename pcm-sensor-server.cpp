@@ -2147,7 +2147,13 @@ public:
             response.setProtocol( request.protocol() );
 
             // Do processing of the request here
-            (*callbackList_[request.method()])( hs_, request, response );
+            if (*callbackList_[request.method()])
+                (*callbackList_[request.method()])( hs_, request, response );
+            else {
+                std::string body( "501 Not Implemented." );
+                body += " Method \"" + HTTPMethodProperties::getMethodAsString(request.method()) + "\" is not implemented (yet).";
+                response.createResponse( TextPlain, body, RC_501_NotImplemented );
+            }
 
             // Post-processing, adding some server specific reponse headers
             int const requestLimit = 100;
@@ -2177,6 +2183,11 @@ public:
                 // Now respond with the answer
                 response.addHeader( HTTPHeader( "Connection", "close" ) );
                 keepListening = false;
+            }
+            // Remove body if method is HEAD, it is using the same callback as GET but does not need the body
+            if ( request.method() == HEAD ) {
+                DBG( 1, "Method HEAD, removing body" );
+                response.addBody( "" );
             }
             response.debugPrint();
             socketStream_ << response;
@@ -2665,7 +2676,9 @@ void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & re
 
 int startHTTPServer( unsigned short port ) {
     HTTPServer server( "", port );
-    server.registerCallback( HTTPRequestMethod::GET, my_get_callback );
+    // HEAD is GET without body, we will remove the body in execute()
+    server.registerCallback( HTTPRequestMethod::GET,  my_get_callback );
+    server.registerCallback( HTTPRequestMethod::HEAD, my_get_callback );
     server.run();
     return 0;
 }
@@ -2676,7 +2689,9 @@ int startHTTPSServer( unsigned short port, std::string const & cFile, std::strin
     server.setPrivateKeyFile ( pkFile );
     server.setCertificateFile( cFile );
     server.initialiseSSL();
-    server.registerCallback( HTTPRequestMethod::GET, my_get_callback );
+    // HEAD is GET without body, we will remove the body in execute()
+    server.registerCallback( HTTPRequestMethod::GET,  my_get_callback );
+    server.registerCallback( HTTPRequestMethod::HEAD, my_get_callback );
     server.run();
     return 0;
 }
