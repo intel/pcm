@@ -515,6 +515,227 @@ void JSONPrinter::iterateVectorAndCallAccept(Vector const& v) {
     }
 };
 
+class PrometheusPrinter : Visitor
+{
+public:
+    PrometheusPrinter( std::pair<std::shared_ptr<Aggregator>,std::shared_ptr<Aggregator>> aggregatorPair ) : aggPair_( aggregatorPair ) {
+        if ( nullptr == aggPair_.second.get() )
+            throw std::runtime_error("BUG: second Aggregator == nullptr!");
+        DBG(2, "Constructor: before=", std::hex, aggPair_.first.get(), ", after=", std::hex, aggPair_.second.get() );
+    }
+
+    PrometheusPrinter( PrometheusPrinter const & ) = delete;
+    PrometheusPrinter() = delete;
+
+    CoreCounterState const getCoreCounter( std::shared_ptr<Aggregator> ag, uint32 tid ) const {
+        CoreCounterState ccs;
+        if ( nullptr == ag.get() )
+            return std::move( ccs );
+        return std::move( ag->coreCounterStates()[tid] );
+    }
+
+    SocketCounterState const getSocketCounter( std::shared_ptr<Aggregator> ag, uint32 sid ) const {
+        SocketCounterState socs;
+        if ( nullptr == ag.get() )
+            return std::move( socs );
+        return std::move( ag->socketCounterStates()[sid] );
+    }
+
+    SystemCounterState getSystemCounter( std::shared_ptr<Aggregator> ag ) const {
+        SystemCounterState sycs;
+        if ( nullptr == ag.get() )
+            return std::move( sycs );
+        return std::move( ag->systemCounterState() );
+    }
+
+    virtual void dispatch( HyperThread* ht ) override {
+        addToHierarchy( "thread=\"" + std::to_string( ht->threadID() ) + "\"" );
+        printCounter( "OS ID", ht->osID() );
+        CoreCounterState before = getCoreCounter( aggPair_.first,  ht->osID() );
+        CoreCounterState after  = getCoreCounter( aggPair_.second, ht->osID() );
+        printBasicCounterState( before, after );
+        removeFromHierarchy();
+    }
+
+    virtual void dispatch( ServerUncore* su ) override {
+        addToHierarchy( "uncore=\"server\"" );
+        SocketCounterState before = getSocketCounter( aggPair_.first,  su->socketID() );
+        SocketCounterState after  = getSocketCounter( aggPair_.second, su->socketID() );
+        printUncoreCounterState( before, after );
+        removeFromHierarchy();
+    }
+
+    virtual void dispatch( ClientUncore* ) override {
+    }
+
+    virtual void dispatch( Core* c ) override {
+        addToHierarchy( std::string( "core=\"" ) + std::to_string( c->coreID() ) + "\"" );
+        auto vec = c->threads();
+        iterateVectorAndCallAccept( vec );
+
+        // Useless?
+        //printCounter( "Tile ID", c->tileID() );
+        //printCounter( "Core ID", c->coreID() );
+        //printCounter( "Socket ID", c->socketID() );
+        removeFromHierarchy();
+    }
+
+    virtual void dispatch( SystemRoot const & s ) override {
+        using namespace std::chrono;
+        auto interval = duration_cast<microseconds>( aggPair_.second->dispatchedAt() - aggPair_.first->dispatchedAt() ).count();
+        printCounter( "Measurement Interval in us", interval );
+        auto vec = s.sockets();
+        printCounter( "Number of sockets", vec.size() );
+        iterateVectorAndCallAccept( vec );
+        SystemCounterState before = getSystemCounter( aggPair_.first );
+        SystemCounterState after  = getSystemCounter( aggPair_.second );
+        addToHierarchy( "aggregate=\"system\"" );
+        printSystemCounterState( before, after );
+        printBasicCounterState ( before, after );
+        printUncoreCounterState( before, after );
+        removeFromHierarchy(); // aggregate=system
+    }
+
+    virtual void dispatch( Socket* s ) override {
+        addToHierarchy( std::string( "socket=\"" ) + std::to_string( s->socketID() ) + "\"" );
+        auto vec = s->cores();
+        iterateVectorAndCallAccept( vec );
+
+        s->uncore()->accept( *this );
+        addToHierarchy( "aggregate=\"socket\"" );
+        SocketCounterState before = getSocketCounter( aggPair_.first,  s->socketID() );
+        SocketCounterState after  = getSocketCounter( aggPair_.second, s->socketID() );
+        printBasicCounterState( before, after );
+        removeFromHierarchy(); // aggregate=socket
+        removeFromHierarchy(); // socket=x
+    }
+
+    std::string str( void ) {
+        return ss.str();
+    }
+
+private:
+    void printBasicCounterState( BasicCounterState const& before, BasicCounterState const& after ) {
+        printCounter( "Instructions Retired Any", getInstructionsRetired( before, after ) );
+        printCounter( "Clock Unhalted Thread",    getCycles             ( before, after ) );
+        printCounter( "Clock Unhalted Ref",       getRefCycles          ( before, after ) );
+        printCounter( "L3 Cache Misses",          getL3CacheMisses      ( before, after ) );
+        printCounter( "L3 Cache Hits",            getL3CacheHits        ( before, after ) );
+        printCounter( "L2 Cache Misses",          getL2CacheMisses      ( before, after ) );
+        printCounter( "L2 Cache Hits",            getL2CacheHits        ( before, after ) );
+        printCounter( "L3 Cache Occupancy",       getL3CacheOccupancy   ( after ) );
+        printCounter( "Invariant TSC",            getInvariantTSC       ( before, after ) );
+        printCounter( "SMI Count",                getSMICount           ( before, after ) );
+        //DBG( 2, "Invariant TSC before=", before.InvariantTSC, ", after=", after.InvariantTSC, ", difference=", after.InvariantTSC-before.InvariantTSC );
+
+        printCounter( "Thermal Headroom", after.getThermalHeadroom() );
+        uint32 i = 0;
+        for ( ; i < ( PCM::MAX_C_STATE ); ++i ) {
+            std::stringstream s;
+            s << "CStateResidency[" << i << "]";
+            printCounter( s.str(), getCoreCStateResidency( i, before, after ) );
+        }
+        // Here i == PCM::MAX_STATE so no need to type so many characters ;-)
+        std::stringstream s;
+        s << "CStateResidency[" << i << "]";
+        printCounter( s.str(), getCoreCStateResidency( i, before, after ) );
+
+        printCounter( "Local Memory Bandwidth", getLocalMemoryBW( before, after ) );
+        printCounter( "Remote Memory Bandwidth", getRemoteMemoryBW( before, after ) );
+    }
+
+    void printUncoreCounterState( SocketCounterState const& before, SocketCounterState const& after ) {
+        printCounter( "DRAM Writes",                   getBytesWrittenToMC    ( before, after ) );
+        printCounter( "DRAM Reads",                    getBytesReadFromMC     ( before, after ) );
+        printCounter( "Persistent Memory Writes",      getBytesWrittenToPMM   ( before, after ) );
+        printCounter( "Persistent Memory Reads",       getBytesReadFromPMM    ( before, after ) );
+        printCounter( "Embedded DRAM Writes",          getBytesWrittenToEDC   ( before, after ) );
+        printCounter( "Embedded DRAM Reads",           getBytesReadFromEDC    ( before, after ) );
+        printCounter( "Memory Controller IO Requests", getIORequestBytesFromMC( before, after ) );
+        printCounter( "Package Joules Consumed",       getConsumedJoules      ( before, after ) );
+        printCounter( "DRAM Joules Consumed",          getDRAMConsumedJoules  ( before, after ) );
+        uint32 i = 0;
+        for ( ; i < ( PCM::MAX_C_STATE ); ++i ) {
+            std::stringstream s;
+            s << "CStateResidency[" << i << "]";
+            printCounter( s.str(), getPackageCStateResidency( i, before, after ) );
+        }
+        // Here i == PCM::MAX_STATE so no need to type so many characters ;-)
+        std::stringstream s;
+        s << "CStateResidency[" << i << "]";
+        printCounter( s.str(), getPackageCStateResidency( i, before, after ) );
+    }
+
+    void printSystemCounterState( SystemCounterState const& before, SystemCounterState const& after ) {
+        PCM* pcm = PCM::getInstance();
+        uint32 sockets = pcm->getNumSockets();
+        uint32 links   = pcm->getQPILinksPerSocket();
+        for ( uint32 i=0; i < sockets; ++i ) {
+            addToHierarchy( std::string( "socket=\"" ) + std::to_string( i ) + "\"" );
+            for ( uint32 j=0; j < links; ++j ) {
+                printCounter( std::string( "Incoming Data Traffic On Link " ) + std::to_string( j ),                          getIncomingQPILinkBytes      ( i, j, before, after ) );
+                printCounter( std::string( "Outgoing Data And Non-Data Traffic On Link " ) + std::to_string( j ),             getOutgoingQPILinkBytes      ( i, j, before, after ) );
+                printCounter( std::string( "Utilization Incoming Data Traffic On Link " ) + std::to_string( j ),              getIncomingQPILinkUtilization( i, j, before, after ) );
+                printCounter( std::string( "Utilization Outgoing Data And Non-Data Traffic On Link " ) + std::to_string( j ), getOutgoingQPILinkUtilization( i, j, before, after ) );
+            }
+            removeFromHierarchy();
+        }
+    }
+
+    std::string replaceSpaceWithUnderbar( std::string const& s ) {
+        size_t pos = 0;
+        std::string str(s);
+        while ( ( pos = str.find( ' ', pos ) ) != std::string::npos ) {
+            str.replace( pos, 1, "_" );
+        }
+        return str;
+    }
+
+    void addToHierarchy( std::string const& s ) {
+        hierarchy_.push_back( s );
+    }
+
+    void removeFromHierarchy() {
+        hierarchy_.pop_back();
+    }
+
+    std::string printHierarchy() {
+        std::string s(" ");
+        if (hierarchy_.size() == 0 )
+            return s;
+        s = "{";
+        for( auto level : hierarchy_ ) {
+            s += level + ',';
+        }
+        s.pop_back();
+        s += "} ";
+        return s;
+    }
+
+    template <typename Counter>
+    void printCounter( std::string const & name, Counter c );
+
+    template <typename Vector>
+    void iterateVectorAndCallAccept( Vector const& v );
+
+private:
+    std::pair<std::shared_ptr<Aggregator>,std::shared_ptr<Aggregator>> aggPair_;
+    std::stringstream ss;
+    std::vector<std::string> hierarchy_;
+};
+
+template <typename Counter>
+void PrometheusPrinter::printCounter( std::string const & name, Counter c ) {
+        ss << replaceSpaceWithUnderbar(name) << printHierarchy() << c << HTTP_EOL;
+}
+
+template <typename Vector>
+void PrometheusPrinter::iterateVectorAndCallAccept(Vector const& v) {
+    for ( auto* vecElem: v ) {
+        vecElem->accept( *this );
+    }
+};
+
 template <std::size_t SIZE = 256, class CharT = char, class Traits = std::char_traits<CharT>>
 class basic_socketbuf : public std::basic_streambuf<CharT> {
 public:
