@@ -1471,6 +1471,23 @@ std::ostream& operator<<(  std::ostream& os, URL const & url ) {
     return os;
 }
 
+enum MimeType {
+    CatchAll = 0,
+    TextHTML,
+    TextPlain,
+    ApplicationJSON,
+    ImageXIcon,
+    MimeType_spare = 255
+};
+
+std::unordered_map<enum MimeType, std::string> mimeTypeMap = {
+    { CatchAll,        "*/*" },
+    { TextHTML,        "text/html" },
+    { TextPlain,       "text/plain" },
+    { ImageXIcon,      "image/x-icon" },
+    { ApplicationJSON, "application/json" }
+};
+
 class HTTPHeader {
 public:
     HTTPHeader() = default;
@@ -1575,6 +1592,22 @@ public:
 
     std::string const & headerValueAsString() const {
         return value_;
+    }
+
+    enum MimeType headerValueAsMimeType() const {
+        auto list = headerValueAsList();
+        for ( auto& item : list ) {
+            DBG( 3, "item: '", item, "'" );
+            for( auto& mt : mimeTypeMap ) {
+                DBG( 3, "comparing item: '", item, "' to '", mt.second, "'" );
+                if ( mt.second.compare( item ) == 0 ) {
+                    DBG( 3, "MimeType ", mt.second, " found." );
+                    return mt.first;
+                }
+            }
+        }
+        // If we did not recognize the mimetype we will return TextHTML so the client can see the HTML page
+        return TextHTML;
     }
 
 private:
@@ -1799,6 +1832,14 @@ public:
         for ( auto& header: headers_ )
             DBG( 3, "Header: \"", header.first, "\" ==> \"", header.second.headerValueAsString(), "\"" );
         DBG( 3, "Body: \"", body_, "\"" );
+    }
+
+    void createResponse( enum MimeType mimeType, std::string body, enum HTTPResponseCode rc ) {
+        // mimetype validity checking?
+        addHeader( HTTPHeader( "Content-Type", mimeTypeMap[mimeType] ) );
+        addHeader( HTTPHeader( "Content-Length", std::to_string( body.size() ) ) );
+        addBody( body );
+        setResponseCode( rc );
     }
 
 private:
