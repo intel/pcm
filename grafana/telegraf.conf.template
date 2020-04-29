@@ -108,4 +108,6 @@
   ]
   interval = "2s"
   data_format = "json"
+  headers = {"Accept" = "application/json"}
+
 

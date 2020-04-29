@@ -515,6 +515,227 @@ void JSONPrinter::iterateVectorAndCallAccept(Vector const& v) {
     }
 };
 
+class PrometheusPrinter : Visitor
+{
+public:
+    PrometheusPrinter( std::pair<std::shared_ptr<Aggregator>,std::shared_ptr<Aggregator>> aggregatorPair ) : aggPair_( aggregatorPair ) {
+        if ( nullptr == aggPair_.second.get() )
+            throw std::runtime_error("BUG: second Aggregator == nullptr!");
+        DBG(2, "Constructor: before=", std::hex, aggPair_.first.get(), ", after=", std::hex, aggPair_.second.get() );
+    }
+
+    PrometheusPrinter( PrometheusPrinter const & ) = delete;
+    PrometheusPrinter() = delete;
+
+    CoreCounterState const getCoreCounter( std::shared_ptr<Aggregator> ag, uint32 tid ) const {
+        CoreCounterState ccs;
+        if ( nullptr == ag.get() )
+            return std::move( ccs );
+        return std::move( ag->coreCounterStates()[tid] );
+    }
+
+    SocketCounterState const getSocketCounter( std::shared_ptr<Aggregator> ag, uint32 sid ) const {
+        SocketCounterState socs;
+        if ( nullptr == ag.get() )
+            return std::move( socs );
+        return std::move( ag->socketCounterStates()[sid] );
+    }
+
+    SystemCounterState getSystemCounter( std::shared_ptr<Aggregator> ag ) const {
+        SystemCounterState sycs;
+        if ( nullptr == ag.get() )
+            return std::move( sycs );
+        return std::move( ag->systemCounterState() );
+    }
+
+    virtual void dispatch( HyperThread* ht ) override {
+        addToHierarchy( "thread=\"" + std::to_string( ht->threadID() ) + "\"" );
+        printCounter( "OS ID", ht->osID() );
+        CoreCounterState before = getCoreCounter( aggPair_.first,  ht->osID() );
+        CoreCounterState after  = getCoreCounter( aggPair_.second, ht->osID() );
+        printBasicCounterState( before, after );
+        removeFromHierarchy();
+    }
+
+    virtual void dispatch( ServerUncore* su ) override {
+        addToHierarchy( "uncore=\"server\"" );
+        SocketCounterState before = getSocketCounter( aggPair_.first,  su->socketID() );
+        SocketCounterState after  = getSocketCounter( aggPair_.second, su->socketID() );
+        printUncoreCounterState( before, after );
+        removeFromHierarchy();
+    }
+
+    virtual void dispatch( ClientUncore* ) override {
+    }
+
+    virtual void dispatch( Core* c ) override {
+        addToHierarchy( std::string( "core=\"" ) + std::to_string( c->coreID() ) + "\"" );
+        auto vec = c->threads();
+        iterateVectorAndCallAccept( vec );
+
+        // Useless?
+        //printCounter( "Tile ID", c->tileID() );
+        //printCounter( "Core ID", c->coreID() );
+        //printCounter( "Socket ID", c->socketID() );
+        removeFromHierarchy();
+    }
+
+    virtual void dispatch( SystemRoot const & s ) override {
+        using namespace std::chrono;
+        auto interval = duration_cast<microseconds>( aggPair_.second->dispatchedAt() - aggPair_.first->dispatchedAt() ).count();
+        printCounter( "Measurement Interval in us", interval );
+        auto vec = s.sockets();
+        printCounter( "Number of sockets", vec.size() );
+        iterateVectorAndCallAccept( vec );
+        SystemCounterState before = getSystemCounter( aggPair_.first );
+        SystemCounterState after  = getSystemCounter( aggPair_.second );
+        addToHierarchy( "aggregate=\"system\"" );
+        printSystemCounterState( before, after );
+        printBasicCounterState ( before, after );
+        printUncoreCounterState( before, after );
+        removeFromHierarchy(); // aggregate=system
+    }
+
+    virtual void dispatch( Socket* s ) override {
+        addToHierarchy( std::string( "socket=\"" ) + std::to_string( s->socketID() ) + "\"" );
+        auto vec = s->cores();
+        iterateVectorAndCallAccept( vec );
+
+        s->uncore()->accept( *this );
+        addToHierarchy( "aggregate=\"socket\"" );
+        SocketCounterState before = getSocketCounter( aggPair_.first,  s->socketID() );
+        SocketCounterState after  = getSocketCounter( aggPair_.second, s->socketID() );
+        printBasicCounterState( before, after );
+        removeFromHierarchy(); // aggregate=socket
+        removeFromHierarchy(); // socket=x
+    }
+
+    std::string str( void ) {
+        return ss.str();
+    }
+
+private:
+    void printBasicCounterState( BasicCounterState const& before, BasicCounterState const& after ) {
+        printCounter( "Instructions Retired Any", getInstructionsRetired( before, after ) );
+        printCounter( "Clock Unhalted Thread",    getCycles             ( before, after ) );
+        printCounter( "Clock Unhalted Ref",       getRefCycles          ( before, after ) );
+        printCounter( "L3 Cache Misses",          getL3CacheMisses      ( before, after ) );
+        printCounter( "L3 Cache Hits",            getL3CacheHits        ( before, after ) );
+        printCounter( "L2 Cache Misses",          getL2CacheMisses      ( before, after ) );
+        printCounter( "L2 Cache Hits",            getL2CacheHits        ( before, after ) );
+        printCounter( "L3 Cache Occupancy",       getL3CacheOccupancy   ( after ) );
+        printCounter( "Invariant TSC",            getInvariantTSC       ( before, after ) );
+        printCounter( "SMI Count",                getSMICount           ( before, after ) );
+        //DBG( 2, "Invariant TSC before=", before.InvariantTSC, ", after=", after.InvariantTSC, ", difference=", after.InvariantTSC-before.InvariantTSC );
+
+        printCounter( "Thermal Headroom", after.getThermalHeadroom() );
+        uint32 i = 0;
+        for ( ; i < ( PCM::MAX_C_STATE ); ++i ) {
+            std::stringstream s;
+            s << "CStateResidency[" << i << "]";
+            printCounter( s.str(), getCoreCStateResidency( i, before, after ) );
+        }
+        // Here i == PCM::MAX_STATE so no need to type so many characters ;-)
+        std::stringstream s;
+        s << "CStateResidency[" << i << "]";
+        printCounter( s.str(), getCoreCStateResidency( i, before, after ) );
+
+        printCounter( "Local Memory Bandwidth", getLocalMemoryBW( before, after ) );
+        printCounter( "Remote Memory Bandwidth", getRemoteMemoryBW( before, after ) );
+    }
+
+    void printUncoreCounterState( SocketCounterState const& before, SocketCounterState const& after ) {
+        printCounter( "DRAM Writes",                   getBytesWrittenToMC    ( before, after ) );
+        printCounter( "DRAM Reads",                    getBytesReadFromMC     ( before, after ) );
+        printCounter( "Persistent Memory Writes",      getBytesWrittenToPMM   ( before, after ) );
+        printCounter( "Persistent Memory Reads",       getBytesReadFromPMM    ( before, after ) );
+        printCounter( "Embedded DRAM Writes",          getBytesWrittenToEDC   ( before, after ) );
+        printCounter( "Embedded DRAM Reads",           getBytesReadFromEDC    ( before, after ) );
+        printCounter( "Memory Controller IO Requests", getIORequestBytesFromMC( before, after ) );
+        printCounter( "Package Joules Consumed",       getConsumedJoules      ( before, after ) );
+        printCounter( "DRAM Joules Consumed",          getDRAMConsumedJoules  ( before, after ) );
+        uint32 i = 0;
+        for ( ; i < ( PCM::MAX_C_STATE ); ++i ) {
+            std::stringstream s;
+            s << "CStateResidency[" << i << "]";
+            printCounter( s.str(), getPackageCStateResidency( i, before, after ) );
+        }
+        // Here i == PCM::MAX_STATE so no need to type so many characters ;-)
+        std::stringstream s;
+        s << "CStateResidency[" << i << "]";
+        printCounter( s.str(), getPackageCStateResidency( i, before, after ) );
+    }
+
+    void printSystemCounterState( SystemCounterState const& before, SystemCounterState const& after ) {
+        PCM* pcm = PCM::getInstance();
+        uint32 sockets = pcm->getNumSockets();
+        uint32 links   = pcm->getQPILinksPerSocket();
+        for ( uint32 i=0; i < sockets; ++i ) {
+            addToHierarchy( std::string( "socket=\"" ) + std::to_string( i ) + "\"" );
+            for ( uint32 j=0; j < links; ++j ) {
+                printCounter( std::string( "Incoming Data Traffic On Link " ) + std::to_string( j ),                          getIncomingQPILinkBytes      ( i, j, before, after ) );
+                printCounter( std::string( "Outgoing Data And Non-Data Traffic On Link " ) + std::to_string( j ),             getOutgoingQPILinkBytes      ( i, j, before, after ) );
+                printCounter( std::string( "Utilization Incoming Data Traffic On Link " ) + std::to_string( j ),              getIncomingQPILinkUtilization( i, j, before, after ) );
+                printCounter( std::string( "Utilization Outgoing Data And Non-Data Traffic On Link " ) + std::to_string( j ), getOutgoingQPILinkUtilization( i, j, before, after ) );
+            }
+            removeFromHierarchy();
+        }
+    }
+
+    std::string replaceSpaceWithUnderbar( std::string const& s ) {
+        size_t pos = 0;
+        std::string str(s);
+        while ( ( pos = str.find( ' ', pos ) ) != std::string::npos ) {
+            str.replace( pos, 1, "_" );
+        }
+        return str;
+    }
+
+    void addToHierarchy( std::string const& s ) {
+        hierarchy_.push_back( s );
+    }
+
+    void removeFromHierarchy() {
+        hierarchy_.pop_back();
+    }
+
+    std::string printHierarchy() {
+        std::string s(" ");
+        if (hierarchy_.size() == 0 )
+            return s;
+        s = "{";
+        for( auto level : hierarchy_ ) {
+            s += level + ',';
+        }
+        s.pop_back();
+        s += "} ";
+        return s;
+    }
+
+    template <typename Counter>
+    void printCounter( std::string const & name, Counter c );
+
+    template <typename Vector>
+    void iterateVectorAndCallAccept( Vector const& v );
+
+private:
+    std::pair<std::shared_ptr<Aggregator>,std::shared_ptr<Aggregator>> aggPair_;
+    std::stringstream ss;
+    std::vector<std::string> hierarchy_;
+};
+
+template <typename Counter>
+void PrometheusPrinter::printCounter( std::string const & name, Counter c ) {
+        ss << replaceSpaceWithUnderbar(name) << printHierarchy() << c << HTTP_EOL;
+}
+
+template <typename Vector>
+void PrometheusPrinter::iterateVectorAndCallAccept(Vector const& v) {
+    for ( auto* vecElem: v ) {
+        vecElem->accept( *this );
+    }
+};
+
 template <std::size_t SIZE = 256, class CharT = char, class Traits = std::char_traits<CharT>>
 class basic_socketbuf : public std::basic_streambuf<CharT> {
 public:
@@ -593,7 +814,7 @@ protected:
         }
         else {
             while( 1 ) {
-                // FIXME: openSSL has no support for setting the MSG_NOSIGNAL duing send
+                // FIXME: openSSL has no support for setting the MSG_NOSIGNAL during send
                 bytesSent = SSL_write( ssl_, (void*)outputBuffer_, bytesToSend );
                 if ( 0 >= bytesSent ) {
                     int sslError = SSL_get_error( ssl_, bytesSent );
@@ -862,9 +1083,9 @@ private:
 
 protected:
     std::string& listenIP_;
-    uint16_t     port_;
     WorkQueue    wq_;
     int          serverSocket_;
+    uint16_t     port_;
 };
 
 enum HTTPRequestMethod {
@@ -952,7 +1173,7 @@ enum HTTPResponseCode {
     RC_510_NotExtended = 510,
     RC_511_NetworkAuthenticationRequired,
     RC_599_NetworkConnectTimeoutError = 599,
-    HTTPReponseCode__Spare = 1000 // Filler
+    HTTPReponseCode_Spare = 1000 // Filler
 };
 
 enum HTTPRequestHasBody {
@@ -1471,6 +1692,23 @@ std::ostream& operator<<(  std::ostream& os, URL const & url ) {
     return os;
 }
 
+enum MimeType {
+    CatchAll = 0,
+    TextHTML,
+    TextPlain,
+    ApplicationJSON,
+    ImageXIcon,
+    MimeType_spare = 255
+};
+
+std::unordered_map<enum MimeType, std::string> mimeTypeMap = {
+    { CatchAll,        "*/*" },
+    { TextHTML,        "text/html" },
+    { TextPlain,       "text/plain" },
+    { ImageXIcon,      "image/x-icon" },
+    { ApplicationJSON, "application/json" }
+};
+
 class HTTPHeader {
 public:
     HTTPHeader() = default;
@@ -1481,6 +1719,8 @@ public:
         type_ = HeaderType::ServerSet;
     }
     HTTPHeader( HTTPHeader const & ) = default;
+    HTTPHeader( HTTPHeader&& ) = default;
+    HTTPHeader& operator=( HTTPHeader const& ) = default;
     ~HTTPHeader() = default;
 
 public:
@@ -1577,6 +1817,22 @@ public:
         return value_;
     }
 
+    enum MimeType headerValueAsMimeType() const {
+        auto list = headerValueAsList();
+        for ( auto& item : list ) {
+            DBG( 3, "item: '", item, "'" );
+            for( auto& mt : mimeTypeMap ) {
+                DBG( 3, "comparing item: '", item, "' to '", mt.second, "'" );
+                if ( mt.second.compare( item ) == 0 ) {
+                    DBG( 3, "MimeType ", mt.second, " found." );
+                    return mt.first;
+                }
+            }
+        }
+        // If we did not recognize the mimetype we will return TextHTML so the client can see the HTML page
+        return TextHTML;
+    }
+
 private:
     std::vector<std::string> splitHeaderValue() const {
         std::vector<std::string> elementList;
@@ -1618,7 +1874,7 @@ public:
         return body_;
     }
 
-    void addBody( std::string& body ) {
+    void addBody( std::string const& body ) {
         body_ = body;
     }
 
@@ -1783,19 +2039,30 @@ public:
     enum HTTPResponseCode responseCode() const {
         return responseCode_;
     }
+
     std::string responseCodeAsString() const {
         return response_map_.at( responseCode_ );
     }
+
     void setResponseCode( enum HTTPResponseCode rc ) {
         DBG( 3, "Setting response code to: '", std::dec, (int)rc, "'" );
         responseCode_ = rc;
     }
+
     void debugPrint() {
         DBG( 3, "HTTPReponse::debugPrint:" );
         DBG( 3, "Response Code: \"", (int)responseCode_, "\"" );
         for ( auto& header: headers_ )
             DBG( 3, "Header: \"", header.first, "\" ==> \"", header.second.headerValueAsString(), "\"" );
         DBG( 3, "Body: \"", body_, "\"" );
+    }
+
+    void createResponse( enum MimeType mimeType, std::string body, enum HTTPResponseCode rc ) {
+        // mimetype validity checking?
+        addHeader( HTTPHeader( "Content-Type", mimeTypeMap[mimeType] ) );
+        addHeader( HTTPHeader( "Content-Length", std::to_string( body.size() ) ) );
+        addBody( body );
+        setResponseCode( rc );
     }
 
 private:
@@ -2101,7 +2368,13 @@ public:
             response.setProtocol( request.protocol() );
 
             // Do processing of the request here
-            (*callbackList_[request.method()])( hs_, request, response );
+            if (*callbackList_[request.method()])
+                (*callbackList_[request.method()])( hs_, request, response );
+            else {
+                std::string body( "501 Not Implemented." );
+                body += " Method \"" + HTTPMethodProperties::getMethodAsString(request.method()) + "\" is not implemented (yet).";
+                response.createResponse( TextPlain, body, RC_501_NotImplemented );
+            }
 
             // Post-processing, adding some server specific reponse headers
             int const requestLimit = 100;
@@ -2131,6 +2404,11 @@ public:
                 // Now respond with the answer
                 response.addHeader( HTTPHeader( "Connection", "close" ) );
                 keepListening = false;
+            }
+            // Remove body if method is HEAD, it is using the same callback as GET but does not need the body
+            if ( request.method() == HEAD ) {
+                DBG( 1, "Method HEAD, removing body" );
+                response.addBody( "" );
             }
             response.debugPrint();
             socketStream_ << response;
@@ -2442,97 +2720,58 @@ inline constexpr signed char operator "" _uc( unsigned long long arg ) noexcept 
 
 #include "favicon.ico.h"
 
-
-void createJSONOutputFromString( HTTPResponse& resp, std::string body) {
-    DBG( 4, body );
-    resp.addHeader( HTTPHeader( "Content-Type", "application/json" ) );
-    resp.addHeader( HTTPHeader( "Content-Length", std::to_string( body.size() ) ) );
-    resp.addBody( body );
-    DBG( 3, "request serviced" );
-}
-
-void createJSONOutput( HTTPResponse& resp, std::pair<std::shared_ptr<Aggregator>,std::shared_ptr<Aggregator>> aggregatorPair ) {
-    JSONPrinter jp( aggregatorPair );
-    jp.dispatch( PCM::getInstance()->getSystemTopology() );
-    createJSONOutputFromString(resp, jp.str());
-}
-
-void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & resp ) {
-    std::string host;
-    URL url;
-
-    if ( req.hasHeader( "Host" ) ) {
-        host = req.getHeader( "Host" ).headerValueAsString();
-    } else {
-        DBG( 3, "Host: header not found." );
-        host = "";
+void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & resp )
+{
+    if ( req.protocol() == HTTPProtocol::HTTP_1_1 ) {
+        if ( ! req.hasHeader( "Host" ) ) {
+            DBG( 3, "Mandatory Host header not found." );
+            std::string body( "400 Bad Request. HTTP 1.1: Mandatory Host header is missing." );
+            resp.createResponse( TextPlain, body, RC_400_BadRequest );
+            return;
+        }
     }
+
+    enum MimeType mt;
+    HTTPHeader accept;
+    if ( req.hasHeader( "Accept" ) ) {
+        accept = req.getHeader( "Accept" );
+        mt = accept.headerValueAsMimeType();
+    } else {
+        // If there is no accept header then the assumption is that the client can handle anything
+        mt = CatchAll;
+    }
+
+    URL url;
     url = req.url();
 
-    //url.printURL(std::cout);
+    DBG( 3, "PATH=\"", url.path_, "\", size=", url.path_.size() );
 
-    enum HTTPResponseCode rc = RC_404_NotFound;
+    if ( url.path_ == "/favicon.ico" ) {
+        DBG( 3, "my_get_callback: client requesting '/favicon.ico'" );
+        std::string favicon( favicon_ico, favicon_ico + favicon_ico_len );
+        resp.createResponse( ImageXIcon, favicon, RC_200_OK );
+        return;
+    }
 
-    if ( host.empty() && req.protocol() == HTTPProtocol::HTTP_1_1 ) {
-        // Violation of the specification, abort
-        rc = RC_400_BadRequest;
-    } else {
-        DBG( 3, "PATH=\"", url.path_, "\", size=", url.path_.size() );
+    std::pair<std::shared_ptr<Aggregator>,std::shared_ptr<Aggregator>> aggregatorPair;
 
-        if ( url.path_ == "/favicon.ico" ) {
-            DBG( 3, "my_get_callback: client requesting '/favicon.ico'" );
-            std::string favicon( favicon_ico, favicon_ico + favicon_ico_len );
-            resp.addHeader( HTTPHeader( "Content-Type", "image/x-icon" ) );
-            resp.addHeader( HTTPHeader( "Content-Length", std::to_string( favicon_ico_len ) ) );
-            resp.addBody( favicon );
-            DBG( 3, "request serviced" );
-            rc = RC_200_OK;
-        } else if ( (1 == url.path_.size()) && (url.path_ == "/") ) {
-            DBG( 3, "my_get_callback: client requesting '/'" );
-            HTTPHeader accept;
-            if ( req.hasHeader( "Accept" ) ) {
-                accept = req.getHeader( "Accept" );
-            } else {
-                // If there is no accept header then the assumption is that the client can handle anything
-                accept = HTTPHeader( "Accept", "*/*" );
-            }
-            auto list = accept.headerValueAsList();
-            bool wantsHTML = false;
-            bool wantsJSON = false;
-            bool catchAll  = false;
-            for ( auto& item : list ) {
-                DBG( 3, "item: '", item, "'" );
-                if ( item.compare( 0, 9, "text/html" ) == 0 ) {
-                    DBG( 3, "my_get_callback: wantsHTML = true" );
-                    wantsHTML = true;
-                    break;
-                } else if ( item.compare( 0, 16, "application/json" ) == 0 ) {
-                    DBG( 3, "my_get_callback: wantsJSON = true" );
-                    wantsJSON = true;
-                    break;
-                } else if ( item.compare( 0, 3, "*/*" ) == 0 ) {
-                    DBG( 3, "my_get_callback: catchAll = true" );
-                    catchAll = true;
-                }
-            }
-            if ( !wantsHTML && !wantsJSON && catchAll ) {
-                wantsHTML = true;
-            }
-            // Temporarily force json output
-            //wantsHTML = false;
-            //wantsJSON = true;
-            if ( wantsHTML ) {
-                // If you make changes to the HTML, please validate it
-                // Probably best to put this in static files and serve this
-                std::string body = "\
+    if ( (1 == url.path_.size()) && (url.path_ == "/") ) {
+        DBG( 3, "my_get_callback: client requesting '/'" );
+        // If it is not Prometheus and not JSON just return this html code
+        // It might violate the protocol but it makes coding this easier
+        if ( ApplicationJSON != mt && TextPlain != mt ) {
+            // If you make changes to the HTML, please validate it
+            // Probably best to put this in static files and serve this
+            std::string body = "\
 <!DOCTYPE html>\n\
 <html lang=\"en\">\n\
   <head>\n\
-    <title>PCM Sensor Daemon</title>\n\
+    <title>PCM Sensor Server</title>\n\
   </head>\n\
   <body>\n\
-    <h1>PCM Sensor Daemon</h1>\n\
-    <p>PCM Sensor Daemon provides performance counter data in JSON format when called with the HTTP header \"Accept: application/json\". With the normal \"Accept: text/html\" or \"Accept: */*\" it will serve this HTML page when requesting /.</p>\n\
+    <h1>PCM Sensor Server</h1>\n\
+    <p>PCM Sensor Server provides performance counter data through an HTTP interface. By default this text is served when requesting the endpoint \"/\".</p>\n\
+    <p>The endpoints for retrieving counter data, /, /persecond and /persecond/X, support returning data in JSON or prometheus format. For JSON have your client send the HTTP header \"Accept: application/json\" and for prometheus \"Accept: text/plain\" along with the request, PCM Sensor Server will then return the counter data in the requested format.</p>\n\
     <p>Endpoints you can call are:</p>\n\
     <ul>\n\
       <li>/ : This will fetch the counter values since start of the daemon, minus overflow so should be considered absolute numbers and should be used for further processing by yourself.</li>\n\
@@ -2543,94 +2782,112 @@ void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & re
     </ul>\n\
   </body>\n\
 </html>\n";
-                resp.addHeader( HTTPHeader( "Content-Type", "text/html" ) );
-                resp.addHeader( HTTPHeader( "Content-Length", std::to_string( body.size() ) ) );
-                resp.addBody( body );
-                DBG( 3, "request serviced" );
-                rc = RC_200_OK;;
-            } else if ( wantsJSON ) {
-                auto current = std::make_shared<Aggregator>();
-                auto null    = std::make_shared<Aggregator>();
-                current->dispatch( PCM::getInstance()->getSystemTopology() );
-                auto aggregatorPair = std::make_pair( null, current );
-                createJSONOutput( resp, aggregatorPair );
-                rc = RC_200_OK;;
-            } else {
-                rc = RC_406_NotAcceptable;
-                std::string msg( "Server can only serve application/json or text/html" );
-                resp.addBody( msg );
-            }
-        } else if ( url.path_ == "/dashboard") {
-            DBG( 3, "my_get_callback: client requesting /dashboard path: '", url.path_, "'" );
-            createJSONOutputFromString( resp, getPCMDashboardJSON());
-            rc = RC_200_OK;;
-        } else if ( 0 == url.path_.rfind( "/persecond", 0 ) ) {
-            DBG( 3, "my_get_callback: client requesting /persecond path: '", url.path_, "'" );
-            if ( 10 == url.path_.size() || ( 11 == url.path_.size() && url.path_.at(10) == '/' ) ) {
-                DBG( 3, "size == 10 or 11" );
-                // path looks like /persecond or /persecond/
-                // Create a difference from the last 2 1-second samples
-                auto aggregatorPair = hs->getAggregators( 1, 0 );
-                createJSONOutput( resp, aggregatorPair );
-                rc = RC_200_OK;;
-            } else {
-                DBG( 3, "size > 11: size = ", url.path_.size() );
-                // We're looking for value X after /persecond/X and possibly a trailing / anything else not
-                url.path_.erase( 0, 10 ); // remove /persecond
-                DBG( 3, "after removal: path = \"", url.path_, "\", size = ", url.path_.size() );
-                if ( url.path_.at(0) == '/' ) {
-                    url.path_.erase( 0, 1 );
-                    if ( url.path_.at( url.path_.size() - 1 ) == '/' ) {
-                        url.path_.pop_back();
-                    }
-                    if ( std::all_of( url.path_.begin(), url.path_.end(), ::isdigit ) ) {
-                        size_t seconds;
-                        try {
-                            seconds = std::stoll( url.path_ );
-                        } catch ( std::exception& e ) {
-                            DBG( 3, "my_get_callback: Error during conversion of /persecond/ seconds: ", e.what() );
-                            seconds = 0;
-                        }
-                        if ( 1 <= seconds && 30 >= seconds ) {
-                            // create difference
-                            auto aggregatorPair = hs->getAggregators( seconds, 0 );
-                            createJSONOutput( resp, aggregatorPair );
-                            rc = RC_200_OK;
-                        } else {
-                            DBG( 3, "seconds == 0 or seconds >= 30, not allowed" );
-                            resp.addHeader( HTTPHeader( "Content-Type", "text/html" ) );
-                            resp.addHeader( HTTPHeader( "Content-Length", "0" ) );
-                            rc = RC_400_BadRequest;
-                        }
-                    }
-                }
-            }
-        } else {
-            DBG( 3, "my_get_callback: Unknown path requested: \"", url.path_, "\"" );
-            std::string str( "404 Unknown path." );
-            resp.addHeader( HTTPHeader( "Content-Type", "text/html" ) );
-            resp.addHeader( HTTPHeader( "Content-Length", std::to_string( str.size() ) ) );
-            resp.addBody( str );
-            rc = RC_404_NotFound;
+            resp.createResponse( TextHTML, body, RC_200_OK );
+            return;
         }
+
+        std::shared_ptr<Aggregator> current;
+        std::shared_ptr<Aggregator> null;
+        current = std::make_shared<Aggregator>();
+        null    = std::make_shared<Aggregator>();
+        current->dispatch( PCM::getInstance()->getSystemTopology() );
+        aggregatorPair = std::make_pair( null, current );
+
+    } else if ( url.path_ == "/dashboard") {
+        DBG( 3, "client requesting /dashboard path: '", url.path_, "'" );
+        resp.createResponse( ApplicationJSON, getPCMDashboardJSON(), RC_200_OK );
+        return;
+    } else if ( 0 == url.path_.rfind( "/persecond", 0 ) ) {
+        DBG( 3, "client requesting /persecond path: '", url.path_, "'" );
+        if ( 10 == url.path_.size() || ( 11 == url.path_.size() && url.path_.at(10) == '/' ) ) {
+            DBG( 3, "size == 10 or 11" );
+            // path looks like /persecond or /persecond/
+            aggregatorPair = hs->getAggregators( 1, 0 );
+        } else {
+            DBG( 3, "size > 11: size = ", url.path_.size() );
+            // We're looking for value X after /persecond/X and possibly a trailing / anything else not
+            url.path_.erase( 0, 10 ); // remove /persecond
+            DBG( 3, "after removal: path = \"", url.path_, "\", size = ", url.path_.size() );
+            if ( url.path_.at(0) == '/' ) {
+                url.path_.erase( 0, 1 );
+                if ( url.path_.at( url.path_.size() - 1 ) == '/' ) {
+                    url.path_.pop_back();
+                }
+                if ( std::all_of( url.path_.begin(), url.path_.end(), ::isdigit ) ) {
+                    size_t seconds;
+                    try {
+                        seconds = std::stoll( url.path_ );
+                    } catch ( std::exception& e ) {
+                        DBG( 3, "Error during conversion of /persecond/ seconds: ", e.what() );
+                        seconds = 0;
+                    }
+                    if ( 1 <= seconds && 30 >= seconds ) {
+                        aggregatorPair = hs->getAggregators( seconds, 0 );
+                    } else {
+                        DBG( 3, "seconds == 0 or seconds >= 30, not allowed" );
+                        std::string body( "400 Bad Request. seconds == 0 or seconds >= 30, not allowed" );
+                        resp.createResponse( TextPlain, body, RC_400_BadRequest );
+                        return;
+                    }
+                } else {
+                    DBG( 3, "/persecond/ Not followed by all numbers" );
+                    std::string body( "400 Bad Request Request starts with /persecond/ but is not followed by numbers only." );
+                    resp.createResponse( TextPlain, body, RC_400_BadRequest );
+                    return;
+                }
+            } else {
+                DBG( 3, "/persecond something requested: something=\"", url.path_, "\"" );
+                std::string body( "404 Bad Request. Request starts with /persecond but contains bad characters." );
+                resp.createResponse( TextPlain, body, RC_404_NotFound );
+                return;
+            }
+        }
+    } else {
+        DBG( 3, "Unknown path requested: \"", url.path_, "\"" );
+        std::string body( "404 Unknown path." );
+        resp.createResponse( TextPlain, body, RC_404_NotFound );
+        return;
     }
-    resp.setResponseCode( rc );
+    switch ( mt ) {
+    case ApplicationJSON:
+    {
+        JSONPrinter jp( aggregatorPair );
+        jp.dispatch( PCM::getInstance()->getSystemTopology() );
+        resp.createResponse( ApplicationJSON, jp.str(), RC_200_OK );
+        break;
+    }
+    case TextPlain:
+    {
+        PrometheusPrinter pp( aggregatorPair );
+        pp.dispatch( PCM::getInstance()->getSystemTopology() );
+        resp.createResponse( TextPlain, pp.str(), RC_200_OK );
+        break;
+    }
+    default:
+        std::string body( "406 Not Acceptable. Server can only serve \"" );
+        body += req.url().path_ + "\" as application/json, text/plain (prometheus format).";
+        resp.createResponse( TextPlain, body, RC_406_NotAcceptable );
+    }
 }
 
 int startHTTPServer( unsigned short port ) {
     HTTPServer server( "", port );
-    server.registerCallback( HTTPRequestMethod::GET, my_get_callback );
+    // HEAD is GET without body, we will remove the body in execute()
+    server.registerCallback( HTTPRequestMethod::GET,  my_get_callback );
+    server.registerCallback( HTTPRequestMethod::HEAD, my_get_callback );
     server.run();
     return 0;
 }
 
-#if defined (USE_SLL)
+#if defined (USE_SSL)
 int startHTTPSServer( unsigned short port, std::string const & cFile, std::string const & pkFile) {
     HTTPSServer server( "", port );
     server.setPrivateKeyFile ( pkFile );
     server.setCertificateFile( cFile );
     server.initialiseSSL();
-    server.registerCallback( HTTPRequestMethod::GET, my_get_callback );
+    // HEAD is GET without body, we will remove the body in execute()
+    server.registerCallback( HTTPRequestMethod::GET,  my_get_callback );
+    server.registerCallback( HTTPRequestMethod::HEAD, my_get_callback );
     server.run();
     return 0;
 }
