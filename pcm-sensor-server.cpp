@@ -630,15 +630,13 @@ private:
 
         printCounter( "Thermal Headroom", after.getThermalHeadroom() );
         uint32 i = 0;
-        for ( ; i < ( PCM::MAX_C_STATE ); ++i ) {
+        for ( ; i <= ( PCM::MAX_C_STATE ); ++i ) {
             std::stringstream s;
-            s << "CStateResidency[" << i << "]";
-            printCounter( s.str(), getCoreCStateResidency( i, before, after ) );
+            s << "index=\"" << i << "\"";
+            addToHierarchy( s.str() );
+            printCounter( "CStateResidency", getCoreCStateResidency( i, before, after ) );
+            removeFromHierarchy();
         }
-        // Here i == PCM::MAX_STATE so no need to type so many characters ;-)
-        std::stringstream s;
-        s << "CStateResidency[" << i << "]";
-        printCounter( s.str(), getCoreCStateResidency( i, before, after ) );
 
         printCounter( "Local Memory Bandwidth", getLocalMemoryBW( before, after ) );
         printCounter( "Remote Memory Bandwidth", getRemoteMemoryBW( before, after ) );
@@ -655,15 +653,13 @@ private:
         printCounter( "Package Joules Consumed",       getConsumedJoules      ( before, after ) );
         printCounter( "DRAM Joules Consumed",          getDRAMConsumedJoules  ( before, after ) );
         uint32 i = 0;
-        for ( ; i < ( PCM::MAX_C_STATE ); ++i ) {
+        for ( ; i <= ( PCM::MAX_C_STATE ); ++i ) {
             std::stringstream s;
-            s << "CStateResidency[" << i << "]";
-            printCounter( s.str(), getPackageCStateResidency( i, before, after ) );
+            s << "index=\"" << i << "\"";
+            addToHierarchy( s.str() );
+            printCounter( "CStateResidency", getPackageCStateResidency( i, before, after ) );
+            removeFromHierarchy();
         }
-        // Here i == PCM::MAX_STATE so no need to type so many characters ;-)
-        std::stringstream s;
-        s << "CStateResidency[" << i << "]";
-        printCounter( s.str(), getPackageCStateResidency( i, before, after ) );
     }
 
     void printSystemCounterState( SystemCounterState const& before, SystemCounterState const& after ) {
