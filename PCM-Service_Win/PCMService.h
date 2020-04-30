@@ -335,7 +335,7 @@ namespace PCMServiceNS {
                     }
 
                     // Copy current state to old state
-                    oldSystemState = systemState;
+                    oldSystemState = std::move( systemState );
 
                     // Set socket performance counters
                     for ( unsigned int i = 0; i < numSockets; ++i )
@@ -385,7 +385,7 @@ namespace PCMServiceNS {
                                 ((PerformanceCounter^)qpiHash_[t])->RawValue = getIncomingQPILinkBytes(i, j, systemState);
                             }
                         }
-                        oldSocketStates[i] = socketState;
+                        oldSocketStates[i] = std::move(socketState);
                     }
 
                     // Set core performance counters
@@ -412,7 +412,7 @@ namespace PCMServiceNS {
                             ((PerformanceCounter^)CoreC6StateResidencyHash_[s])->RawValue = __int64(100.*getCoreCStateResidency(6,oldCoreStates[i], coreState));
                             ((PerformanceCounter^)CoreC7StateResidencyHash_[s])->RawValue = __int64(100.*getCoreCStateResidency(7,oldCoreStates[i], coreState));
                         }
-                        oldCoreStates[i] = coreState;
+                        oldCoreStates[i] = std::move(coreState);
                     }
                 }
             }

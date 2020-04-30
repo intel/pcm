@@ -57,9 +57,11 @@ clean:
 	-$(RM) $(OBJS)$(C++_DEPS)$(C_DEPS)$(CC_DEPS)$(CPP_DEPS)$(EXECUTABLES)$(CXX_DEPS)$(C_UPPER_DEPS) *.o daemon
 	-@echo ' '
 
-pre-build:
+pre-build: $(USER_OBJS)
+
+%.o: ../../../%.cpp
 	-@echo 'Build PCM'
-	-g++ ${CXXFLAGS} -c ../../../*.cpp -std=c++0x
+	-g++ ${CXXFLAGS} -c $< -o $@ -std=c++11
 	-@echo ' '
 
 .PHONY: all clean dependents

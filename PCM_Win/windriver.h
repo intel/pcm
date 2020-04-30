@@ -117,8 +117,8 @@ public:
 
                 std::wcerr << "Starting MSR service failed with error " << err << " ";
                 const TCHAR * errorStr = _com_error(err).ErrorMessage();
-                if (errorStr) std::wcerr << errorStr;
-                std::wcerr << std::endl;
+                if (errorStr)
+                    std::wcerr << errorStr << "\n";
 
                 ControlService(hService, SERVICE_CONTROL_STOP, &ss);
 
@@ -130,8 +130,8 @@ public:
             {
                 std::wcerr << "Opening service manager failed with error " << GetLastError() << " ";
                 const TCHAR * errorStr = _com_error(GetLastError()).ErrorMessage();
-                if (errorStr) std::wcerr << errorStr;
-                std::wcerr << std::endl;
+                if (errorStr)
+                    std::wcerr << errorStr << "\n";
             }
 
             CloseServiceHandle(hSCManager);
@@ -140,20 +140,20 @@ public:
         {
             std::wcerr << "Opening service manager failed with error " << GetLastError() << " ";
             const TCHAR * errorStr = _com_error(GetLastError()).ErrorMessage();
-            if (errorStr) std::wcerr << errorStr;
-            std::wcerr << std::endl;
+            if (errorStr)
+                std::wcerr << errorStr << "\n";
         }
 
         #ifndef NO_WINRING // In cases where loading the WinRing0 driver is not desirable as a fallback to MSR.sys, add -DNO_WINRING to compile command to remove ability to load driver (will also remove initWinRing0Lib function)
-        std::cerr << "Trying to load winring0.dll/winring0.sys driver..." << std::endl;
+        std::cerr << "Trying to load winring0.dll/winring0.sys driver...\n";
         if(PCM::initWinRing0Lib())
         {
-            std::cerr << "Using winring0.dll/winring0.sys driver.\n" << std::endl;
+            std::cerr << "Using winring0.dll/winring0.sys driver.\n\n";
             return true;
         }
         else
         {
-            std::cerr << "Failed to load winring0.dll/winring0.sys driver.\n" << std::endl;
+            std::cerr << "Failed to load winring0.dll/winring0.sys driver.\n\n";
         }
         #endif // NO_WINRING
 
@@ -179,8 +179,8 @@ public:
         {
             std::wcerr << "Opening service manager failed with error " << GetLastError() << " ";
             const TCHAR * errorStr = _com_error(GetLastError()).ErrorMessage();
-            if (errorStr) std::wcerr << errorStr;
-            std::wcerr << std::endl;
+            if (errorStr)
+                std::wcerr << errorStr;
         }
     }
 
@@ -207,8 +207,8 @@ public:
         {
             std::wcerr << "Opening service manager failed with error " << GetLastError() << " ";
             const TCHAR * errorStr = _com_error(GetLastError()).ErrorMessage();
-            if (errorStr) std::wcerr << errorStr;
-            std::wcerr << std::endl;
+            if (errorStr)
+                std::wcerr << errorStr;
         }
     }
 

@@ -54,7 +54,7 @@ public:
         PCM::ErrorCode status = m->program();
         if (status != PCM::Success)
         {
-          std::cout << "\nCan not access CPU counters. Try to run pcm.x 1 to check the PMU access status.\n" << std::endl;
+            std::cerr << "\nCannot access CPU counters. Try to run pcm.x 1 to check the PMU access status.\n\n";
             exit(-1);
         }
 
@@ -191,17 +191,17 @@ void * UpdateCounters(void * state)
     while (true) {
         pthread_mutex_lock(&(s->CounterMutex));
         for (uint32 core = 0; core < s->m->getNumCores(); ++core) {
-            s->cstates1[core] = s->cstates2[core];
-            s->cstates2[core] = s->m->getCoreCounterState(core);
+            s->cstates1[core] = std::move(s->cstates2[core]);
+            s->cstates2[core] = std::move(s->m->getCoreCounterState(core));
         }
 
         for (uint32 socket = 0; socket < s->m->getNumSockets(); ++socket) {
-            s->skstates1[socket] = s->skstates2[socket];
-            s->skstates2[socket] = s->m->getSocketCounterState(socket);
+            s->skstates1[socket] = std::move(s->skstates2[socket]);
+            s->skstates2[socket] = std::move(s->m->getSocketCounterState(socket));
         }
 
-        s->sstate1 = s->sstate2;
-        s->sstate2 = s->m->getSystemCounterState();
+        s->sstate1 = std::move(s->sstate2);
+        s->sstate2 = std::move(s->m->getSystemCounterState());
 
         pthread_mutex_unlock(&(s->CounterMutex));
         sleep(1);

@@ -57,7 +57,7 @@ struct CoreEvent
 	uint64 value;
 	uint64 msr_value;
 	char * description;
-} events[4];
+} events[PERF_MAX_CUSTOM_COUNTERS];
 
 extern "C" {
 	SystemCounterState SysBeforeState, SysAfterState;
@@ -71,7 +71,7 @@ extern "C" {
 		if(idx > 3)
 			return -1;
 
-		cout << "building core event " << argv << " " << idx << endl;
+		cout << "building core event " << argv << " " << idx << "\n";
 		build_event(argv, &regs[idx], idx);
 		return 0;
 	}
@@ -123,24 +123,25 @@ extern "C" {
 
 void print_usage(const string progname)
 {
-	cerr << endl << " Usage: " << endl << " " << progname
-		<< " --help | [delay] [options] [-- external_program [external_program_options]]" << endl;
-	cerr << "   <delay>                               => time interval to sample performance counters." << endl;
-	cerr << "                                            If not specified, or 0, with external program given" << endl;
-	cerr << "                                            will read counters only after external program finishes" << endl;
-	cerr << " Supported <options> are: " << endl;
-	cerr << "  -h    | --help      | /h               => print this help and exit" << endl;
-	cerr << "  -c    | /c                             => print CPU Model name and exit (used for pmu-query.py)" << endl;
-	cerr << "  -csv[=file.csv]     | /csv[=file.csv]  => output compact CSV format to screen or" << endl
-		<< "                                            to a file, in case filename is provided" << endl;
-	cerr << "  [-e event1] [-e event2] [-e event3] .. => optional list of custom events to monitor (up to 4)." << endl;
-	cerr << "  -yc   | --yescores  | /yc              => enable specific cores to output" << endl;
+	cerr << "\n Usage: \n " << progname
+		<< " --help | [delay] [options] [-- external_program [external_program_options]]\n";
+	cerr << "   <delay>                               => time interval to sample performance counters.\n";
+	cerr << "                                            If not specified, or 0, with external program given\n";
+	cerr << "                                            will read counters only after external program finishes\n";
+	cerr << " Supported <options> are: \n";
+	cerr << "  -h    | --help      | /h               => print this help and exit\n";
+	cerr << "  -c    | /c                             => print CPU Model name and exit (used for pmu-query.py)\n";
+	cerr << "  -csv[=file.csv]     | /csv[=file.csv]  => output compact CSV format to screen or\n"
+		<< "                                            to a file, in case filename is provided\n";
+    cerr << "  [-e event1] [-e event2] [-e event3] .. => optional list of custom events to monitor\n";
+	cerr << "  event description example: cpu/umask=0x01,event=0x05,name=MISALIGN_MEM_REF.LOADS/ \n";
+	cerr << "  -yc   | --yescores  | /yc              => enable specific cores to output\n";
     print_help_force_rtm_abort_mode(41);
-	cerr << " Examples:" << endl;
-	cerr << "  " << progname << " 1                   => print counters every second without core and socket output" << endl;
-	cerr << "  " << progname << " 0.5 -csv=test.log   => twice a second save counter values to test.log in CSV format" << endl;
-	cerr << "  " << progname << " /csv 5 2>/dev/null  => one sampe every 5 seconds, and discard all diagnostic output" << endl;
-	cerr << endl;
+	cerr << " Examples:\n";
+	cerr << "  " << progname << " 1                   => print counters every second without core and socket output\n";
+	cerr << "  " << progname << " 0.5 -csv=test.log   => twice a second save counter values to test.log in CSV format\n";
+	cerr << "  " << progname << " /csv 5 2>/dev/null  => one sampe every 5 seconds, and discard all diagnostic output\n";
+	cerr << "\n";
 }
 
 	template <class StateType>
@@ -166,7 +167,8 @@ void print_custom_stats(const StateType & BeforeState, const StateType & AfterSt
 		cout << double(instr)/double(txn_rate) << ",";
 		cout << double(cycles)/double(txn_rate) << ",";
 	}
-	for(int i=0;i<4;++i)
+    const auto max_ctr = PCM::getInstance()->getMaxCustomCoreEvents();
+    for (int i = 0; i < max_ctr; ++i)
 		if(!csv) {
 			cout << setw(10);
 			if(txn_rate == 1)
@@ -175,9 +177,9 @@ void print_custom_stats(const StateType & BeforeState, const StateType & AfterSt
 				cout << double(getNumberOfCustomEvents(i, BeforeState, AfterState))/double(txn_rate);
 		}
 		else
-			cout << double(getNumberOfCustomEvents(i, BeforeState, AfterState))/double(txn_rate)<<",";
+			cout << double(getNumberOfCustomEvents(i, BeforeState, AfterState))/double(txn_rate) << ",";
 
-	cout << endl;
+	cout << "\n";
 }
 
 // emulates scanf %i for hex 0x prefix otherwise assumes dec (no oct support)
@@ -250,7 +252,7 @@ void build_event(const char * argv, EventSelectRegister *reg, int idx)
 			else if(pcm_sscanf(subtoken) >> s_expect("offcore_rsp=") >> std::hex >> tmp2) {
 				if(idx >= 2)
 				{
-					cerr << "offcore_rsp must specify in first or second event only. idx=" << idx << endl;
+					cerr << "offcore_rsp must specify in first or second event only. idx=" << idx << "\n";
 					throw idx;
 				}
 				events[idx].msr_value = tmp2;
@@ -258,7 +260,7 @@ void build_event(const char * argv, EventSelectRegister *reg, int idx)
 			else if(pcm_sscanf(subtoken) >> s_expect("name=") >> setw(255) >> events[idx].name) ;
 			else
 			{
-				cerr << "Event '" << subtoken << "' is not supported. See the list of supported events"<< endl;
+				cerr << "Event '" << subtoken << "' is not supported. See the list of supported events\n";
 				throw subtoken;
 			}
 
@@ -277,9 +279,9 @@ int main(int argc, char * argv[])
 	std::cerr.rdbuf(&nullStream2);
 #endif
 
-	cerr << endl;
-	cerr << " Processor Counter Monitor: Core Monitoring Utility "<< endl;
-	cerr << endl;
+	cerr << "\n";
+	cerr << " Processor Counter Monitor: Core Monitoring Utility \n";
+	cerr << "\n";
 
 	double delay = -1.0;
 	char *sysCmd = NULL;
@@ -345,7 +347,7 @@ int main(int argc, char * argv[])
 		else if (strncmp(*argv, "-c",2) == 0 ||
 				strncmp(*argv, "/c",2) == 0)
 		{
-			cout << m->getCPUFamilyModelString() << endl;
+			cout << m->getCPUFamilyModelString() << "\n";
 			exit(EXIT_SUCCESS);
 		}
 		else if (strncmp(*argv, "-txn",4) == 0 ||
@@ -354,7 +356,7 @@ int main(int argc, char * argv[])
 			argv++;
 			argc--;
 			txn_rate = strtoull(*argv,NULL,10);
-			cout << "txn_rate set to " << txn_rate << endl;
+			cout << "txn_rate set to " << txn_rate << "\n";
 			continue;
 		}
 		if (strncmp(*argv, "--yescores", 10) == 0 ||
@@ -366,7 +368,7 @@ int main(int argc, char * argv[])
 			show_partial_core_output = true;
 			if(*argv == NULL)
 			{
-				cerr << "Error: --yescores requires additional argument." << endl;
+				cerr << "Error: --yescores requires additional argument.\n";
 				exit(EXIT_FAILURE);
 			}
 			std::stringstream ss(*argv);
@@ -380,7 +382,7 @@ int main(int argc, char * argv[])
 				core_id = atoi(s.c_str());
 				if(core_id > MAX_CORES)
 				{
-					cerr << "Core ID:" << core_id << " exceed maximum range " << MAX_CORES << ", program abort" << endl;
+					cerr << "Core ID:" << core_id << " exceed maximum range " << MAX_CORES << ", program abort\n";
 					exit(EXIT_FAILURE);
 				}
 
@@ -388,8 +390,8 @@ int main(int argc, char * argv[])
 			}
 			if(m->getNumCores() > MAX_CORES)
 			{
-				cerr << "Error: --yescores option is enabled, but #define MAX_CORES " << MAX_CORES << " is less than  m->getNumCores() = " << m->getNumCores() << endl;
-				cerr << "There is a potential to crash the system. Please increase MAX_CORES to at least " << m->getNumCores() << " and re-enable this option." << endl;
+				cerr << "Error: --yescores option is enabled, but #define MAX_CORES " << MAX_CORES << " is less than  m->getNumCores() = " << m->getNumCores() << "\n";
+				cerr << "There is a potential to crash the system. Please increase MAX_CORES to at least " << m->getNumCores() << " and re-enable this option.\n";
 				exit(EXIT_FAILURE);
 			}
 			continue;
@@ -399,7 +401,7 @@ int main(int argc, char * argv[])
 			argv++;
 			argc--;
 			if(cur_event >= conf.nGPCounters) {
-				cerr << "At most " << conf.nGPCounters << " events are allowed"<< endl;
+				cerr << "At most " << conf.nGPCounters << " events are allowed\n";
 				exit(EXIT_FAILURE);
 			}
 			try {
@@ -433,7 +435,7 @@ int main(int argc, char * argv[])
 			if(is_str_stream.eof() && !is_str_stream.fail()) {
 				delay = delay_input;
 			} else {
-				cerr << "WARNING: unknown command-line option: \"" << *argv << "\". Ignoring it." << endl;
+				cerr << "WARNING: unknown command-line option: \"" << *argv << "\". Ignoring it.\n";
 				print_usage(program);
 				exit(EXIT_FAILURE);
 			}
@@ -453,21 +455,21 @@ int main(int argc, char * argv[])
 		case PCM::Success:
 			break;
 		case PCM::MSRAccessDenied:
-			cerr << "Access to Processor Counter Monitor has denied (no MSR or PCI CFG space access)." << endl;
+			cerr << "Access to Processor Counter Monitor has denied (no MSR or PCI CFG space access).\n";
 			exit(EXIT_FAILURE);
 		case PCM::PMUBusy:
-			cerr << "Access to Processor Counter Monitor has denied (Performance Monitoring Unit is occupied by other application). Try to stop the application that uses PMU." << endl;
-			cerr << "Alternatively you can try to reset PMU configuration at your own risk. Try to reset? (y/n)" << endl;
+			cerr << "Access to Processor Counter Monitor has denied (Performance Monitoring Unit is occupied by other application). Try to stop the application that uses PMU.\n";
+			cerr << "Alternatively you can try to reset PMU configuration at your own risk. Try to reset? (y/n)\n";
 			char yn;
 			std::cin >> yn;
 			if ('y' == yn)
 			{
 				m->resetPMU();
-				cerr << "PMU configuration has been reset. Try to rerun the program again." << endl;
+				cerr << "PMU configuration has been reset. Try to rerun the program again.\n";
 			}
 			exit(EXIT_FAILURE);
 		default:
-			cerr << "Access to Processor Counter Monitor has denied (Unknown error)." << endl;
+			cerr << "Access to Processor Counter Monitor has denied (Unknown error).\n";
 			exit(EXIT_FAILURE);
 	}
 
@@ -496,7 +498,7 @@ int main(int argc, char * argv[])
 		if( ((delay<1.0) && (delay>0.0)) || (delay<=0.0) ) delay = PCM_DELAY_DEFAULT;
 	}
 
-	cerr << "Update every "<<delay<<" seconds"<< endl;
+	cerr << "Update every " << delay << " seconds\n";
 
 	std::cout.precision(2);
 	std::cout << std::fixed; 
@@ -542,34 +544,48 @@ int main(int argc, char * argv[])
 		AfterTime = m->getTickCount();
 		m->getAllCounterStates(SysAfterState, DummySocketStates, AfterState);
 
-		cout << "Time elapsed: "<<dec<<fixed<<AfterTime-BeforeTime<<" ms" << endl;
-		cout << "txn_rate: " << txn_rate << endl;
-		//cout << "Called sleep function for "<<dec<<fixed<<delay_ms<<" ms\n";
+		cout << "Time elapsed: " << dec << fixed << AfterTime-BeforeTime << " ms\n";
+		cout << "txn_rate: " << txn_rate << "\n";
+		//cout << "Called sleep function for " << dec << fixed << delay_ms << " ms\n";
 
 		for(uint32 i=0;i<cur_event;++i)
 		{
-			cout <<"Event"<<i<<": "<<events[i].name<<" (raw 0x"<<
+			cout << "Event" << i << ": " << events[i].name << " (raw 0x" <<
 				std::hex << (uint32)events[i].value;
 
 			if(events[i].msr_value)
 				cout << ", offcore_rsp 0x" << (uint64) events[i].msr_value;
 
-			cout << std::dec << ")" << endl;
+			cout << std::dec << ")\n";
 		}
-		cout << endl;
-		if(csv)
-			cout << "Core,IPC,Instructions,Cycles,Event0,Event1,Event2,Event3\n";
-		else
-			cout << "Core | IPC | Instructions  |  Cycles  | Event0  | Event1  | Event2  | Event3 \n";
+		cout << "\n";
+        if (csv)
+        {
+            cout << "Core,IPC,Instructions,Cycles";
+            for (unsigned i = 0; i < conf.nGPCounters; ++i)
+            {
+                cout << ",Event" << i;
+            }
+            cout << "\n";
+        }
+        else
+        {
+            cout << "Core | IPC | Instructions  |  Cycles  ";
+            for (unsigned i = 0; i < conf.nGPCounters; ++i)
+            {
+                cout << "| Event" << i << "  ";
+            }
+            cout << "\n";
+        }
 
 		for(uint32 i = 0; i<ncores ; ++i)
 		{
 			if(m->isCoreOnline(i) == false || (show_partial_core_output && ycores.test(i) == false))
 				continue;
 			if(csv)
-				cout <<i<<",";
+				cout << i << ",";
 			else
-				cout <<" "<< setw(3) << i << "   " << setw(2) ; 
+				cout << " " << setw(3) << i << "   " << setw(2) ;
 			print_custom_stats(BeforeState[i], AfterState[i], csv, txn_rate);
 		}
 		if(csv)
@@ -581,7 +597,7 @@ int main(int argc, char * argv[])
 		}
 		print_custom_stats(SysBeforeState, SysAfterState, csv, txn_rate);
 
-		std::cout << std::endl;
+		std::cout << "\n";
 
 		swap(BeforeTime, AfterTime);
 		swap(BeforeState, AfterState);

@@ -172,6 +172,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\cpucounters.cpp" />
+    <ClCompile Include="..\topology.cpp" />
     <ClCompile Include="dllmain.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
       </PrecompiledHeader>
@@ -192,6 +193,8 @@
     <ClCompile Include="..\pci.cpp" />
     <ClCompile Include="..\client_bw.cpp" /> <ClCompile Include="..\mmio.cpp" />
     <ClCompile Include="..\utils.cpp" />
+    <ClCompile Include="..\debug.cpp" />
+    <ClCompile Include="..\threadpool.cpp" />
     <ClCompile Include="..\PCM_Win\restrictDriverAccess.cpp">
       <CompileAsManaged>true</CompileAsManaged>
       <ExceptionHandling>Async</ExceptionHandling>
@@ -199,9 +202,12 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\cpucounters.h" />
+    <ClInclude Include="..\topology.h" />
     <ClInclude Include="pcm-lib.h" />
     <ClInclude Include="..\msr.h" />
     <ClInclude Include="..\pci.h" />
+    <ClInclude Include="..\debug.h" />
+    <ClInclude Include="..\threadpool.h" />
     <ClInclude Include="..\client_bw.h" /> <ClInclude Include="..\mmio.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>

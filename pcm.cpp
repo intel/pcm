@@ -76,32 +76,32 @@ std::string l3cache_occ_format(uint64 o)
 
 void print_help(const string prog_name)
 {
-    cerr << endl << " Usage: " << endl << " " << prog_name
-        << " --help | [delay] [options] [-- external_program [external_program_options]]" << endl;
-    cerr << "   <delay>                           => time interval to sample performance counters." << endl;
-    cerr << "                                        If not specified, or 0, with external program given" << endl;
-    cerr << "                                        will read counters only after external program finishes" << endl;
-    cerr << " Supported <options> are: " << endl;
-    cerr << "  -h    | --help      | /h           => print this help and exit" << endl;
+    cerr << "\n Usage: \n " << prog_name
+        << " --help | [delay] [options] [-- external_program [external_program_options]]\n";
+    cerr << "   <delay>                           => time interval to sample performance counters.\n";
+    cerr << "                                        If not specified, or 0, with external program given\n";
+    cerr << "                                        will read counters only after external program finishes\n";
+    cerr << " Supported <options> are: \n";
+    cerr << "  -h    | --help      | /h           => print this help and exit\n";
 #ifdef _MSC_VER
-    cerr << "  --uninstallDriver   | --installDriver=> (un)install driver" << endl;
+    cerr << "  --uninstallDriver   | --installDriver=> (un)install driver\n";
 #endif
-    cerr << "  -r    | --reset     | /reset       => reset PMU configuration (at your own risk)" << endl;
-    cerr << "  -nc   | --nocores   | /nc          => hide core related output" << endl;
-    cerr << "  -yc   | --yescores  | /yc          => enable specific cores to output" << endl;
-    cerr << "  -ns   | --nosockets | /ns          => hide socket related output" << endl;
-    cerr << "  -nsys | --nosystem  | /nsys        => hide system related output" << endl;
-    cerr << "  -m    | --multiple-instances | /m  => allow multiple PCM instances running in parallel" << endl;
-    cerr << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or" << endl
-        << "                                        to a file, in case filename is provided" << endl;
-    cerr << "  -i[=number] | /i[=number]          => allow to determine number of iterations" << endl;
+    cerr << "  -r    | --reset     | /reset       => reset PMU configuration (at your own risk)\n";
+    cerr << "  -nc   | --nocores   | /nc          => hide core related output\n";
+    cerr << "  -yc   | --yescores  | /yc          => enable specific cores to output\n";
+    cerr << "  -ns   | --nosockets | /ns          => hide socket related output\n";
+    cerr << "  -nsys | --nosystem  | /nsys        => hide system related output\n";
+    cerr << "  -m    | --multiple-instances | /m  => allow multiple PCM instances running in parallel\n";
+    cerr << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or\n"
+        << "                                        to a file, in case filename is provided\n";
+    cerr << "  -i[=number] | /i[=number]          => allow to determine number of iterations\n";
     print_help_force_rtm_abort_mode(37);
-    cerr << " Examples:" << endl;
-    cerr << "  " << prog_name << " 1 -nc -ns          => print counters every second without core and socket output" << endl;
-    cerr << "  " << prog_name << " 1 -i=10            => print counters every second 10 times and exit" << endl;
-    cerr << "  " << prog_name << " 0.5 -csv=test.log  => twice a second save counter values to test.log in CSV format" << endl;
-    cerr << "  " << prog_name << " /csv 5 2>/dev/null => one sampe every 5 seconds, and discard all diagnostic output" << endl;
-    cerr << endl;
+    cerr << " Examples:\n";
+    cerr << "  " << prog_name << " 1 -nc -ns          => print counters every second without core and socket output\n";
+    cerr << "  " << prog_name << " 1 -i=10            => print counters every second 10 times and exit\n";
+    cerr << "  " << prog_name << " 0.5 -csv=test.log  => twice a second save counter values to test.log in CSV format\n";
+    cerr << "  " << prog_name << " /csv 5 2>/dev/null => one sampe every 5 seconds, and discard all diagnostic output\n";
+    cerr << "\n";
 }
 
 
@@ -155,42 +155,42 @@ void print_output(PCM * m,
     )
 {
     cout << "\n";
-    cout << " EXEC  : instructions per nominal CPU cycle" << "\n";
-    cout << " IPC   : instructions per CPU cycle" << "\n";
-    cout << " FREQ  : relation to nominal CPU frequency='unhalted clock ticks'/'invariant timer ticks' (includes Intel Turbo Boost)" << "\n";
+    cout << " EXEC  : instructions per nominal CPU cycle\n";
+    cout << " IPC   : instructions per CPU cycle\n";
+    cout << " FREQ  : relation to nominal CPU frequency='unhalted clock ticks'/'invariant timer ticks' (includes Intel Turbo Boost)\n";
     if (m->isActiveRelativeFrequencyAvailable())
-        cout << " AFREQ : relation to nominal CPU frequency while in active state (not in power-saving C state)='unhalted clock ticks'/'invariant timer ticks while in C0-state'  (includes Intel Turbo Boost)" << "\n";
+        cout << " AFREQ : relation to nominal CPU frequency while in active state (not in power-saving C state)='unhalted clock ticks'/'invariant timer ticks while in C0-state'  (includes Intel Turbo Boost)\n";
     if (m->isL3CacheMissesAvailable())
-        cout << " L3MISS: L3 (read) cache misses " << "\n";
+        cout << " L3MISS: L3 (read) cache misses \n";
     if (m->isL2CacheHitsAvailable())
     {
         if (m->isAtom() || cpu_model == PCM::KNL)
-            cout << " L2MISS: L2 (read) cache misses " << "\n";
+            cout << " L2MISS: L2 (read) cache misses \n";
         else
-            cout << " L2MISS: L2 (read) cache misses (including other core's L2 cache *hits*) " << "\n";
+            cout << " L2MISS: L2 (read) cache misses (including other core's L2 cache *hits*) \n";
     }
     if (m->isL3CacheHitRatioAvailable())
-        cout << " L3HIT : L3 (read) cache hit ratio (0.00-1.00)" << "\n";
+        cout << " L3HIT : L3 (read) cache hit ratio (0.00-1.00)\n";
     if (m->isL2CacheHitRatioAvailable())
-        cout << " L2HIT : L2 cache hit ratio (0.00-1.00)" << "\n";
+        cout << " L2HIT : L2 cache hit ratio (0.00-1.00)\n";
     if (m->isL3CacheMissesAvailable())
         cout << " L3MPI : number of L3 (read) cache misses per instruction\n";
     if (m->isL2CacheMissesAvailable())
         cout << " L2MPI : number of L2 (read) cache misses per instruction\n";
-    if (m->memoryTrafficMetricsAvailable()) cout << " READ  : bytes read from main memory controller (in GBytes)" << "\n";
-    if (m->memoryTrafficMetricsAvailable()) cout << " WRITE : bytes written to main memory controller (in GBytes)" << "\n";
-    if (m->localMemoryRequestRatioMetricAvailable()) cout << " LOCAL : ratio of local memory requests to memory controller in %" << "\n";
-    if (m->LLCReadMissLatencyMetricsAvailable()) cout << "LLCRDMISSLAT: average latency of last level cache miss for reads and prefetches (in ns)" << "\n";
-    if (m->PMMTrafficMetricsAvailable()) cout << " PMM RD : bytes read from PMM memory (in GBytes)" << "\n";
-    if (m->PMMTrafficMetricsAvailable()) cout << " PMM WR : bytes written to PMM memory (in GBytes)" << "\n";
-    if (m->MCDRAMmemoryTrafficMetricsAvailable()) cout << " MCDRAM READ  : bytes read from MCDRAM controller (in GBytes)" << "\n";
-    if (m->MCDRAMmemoryTrafficMetricsAvailable()) cout << " MCDRAM WRITE : bytes written to MCDRAM controller (in GBytes)" << "\n";
-    if (m->memoryIOTrafficMetricAvailable()) cout << " IO    : bytes read/written due to IO requests to memory controller (in GBytes); this may be an over estimate due to same-cache-line partial requests" << "\n";
-    if (m->L3CacheOccupancyMetricAvailable()) cout << " L3OCC : L3 occupancy (in KBytes)" << "\n";
-    if (m->CoreLocalMemoryBWMetricAvailable()) cout << " LMB   : L3 cache external bandwidth satisfied by local memory (in MBytes)" << "\n";
-    if (m->CoreRemoteMemoryBWMetricAvailable()) cout << " RMB   : L3 cache external bandwidth satisfied by remote memory (in MBytes)" << "\n";
-    cout << " TEMP  : Temperature reading in 1 degree Celsius relative to the TjMax temperature (thermal headroom): 0 corresponds to the max temperature" << "\n";
-    cout << " energy: Energy in Joules" << "\n";
+    if (m->memoryTrafficMetricsAvailable()) cout << " READ  : bytes read from main memory controller (in GBytes)\n";
+    if (m->memoryTrafficMetricsAvailable()) cout << " WRITE : bytes written to main memory controller (in GBytes)\n";
+    if (m->localMemoryRequestRatioMetricAvailable()) cout << " LOCAL : ratio of local memory requests to memory controller in %\n";
+    if (m->LLCReadMissLatencyMetricsAvailable()) cout << "LLCRDMISSLAT: average latency of last level cache miss for reads and prefetches (in ns)\n";
+    if (m->PMMTrafficMetricsAvailable()) cout << " PMM RD : bytes read from PMM memory (in GBytes)\n";
+    if (m->PMMTrafficMetricsAvailable()) cout << " PMM WR : bytes written to PMM memory (in GBytes)\n";
+    if (m->MCDRAMmemoryTrafficMetricsAvailable()) cout << " MCDRAM READ  : bytes read from MCDRAM controller (in GBytes)\n";
+    if (m->MCDRAMmemoryTrafficMetricsAvailable()) cout << " MCDRAM WRITE : bytes written to MCDRAM controller (in GBytes)\n";
+    if (m->memoryIOTrafficMetricAvailable()) cout << " IO    : bytes read/written due to IO requests to memory controller (in GBytes); this may be an over estimate due to same-cache-line partial requests\n";
+    if (m->L3CacheOccupancyMetricAvailable()) cout << " L3OCC : L3 occupancy (in KBytes)\n";
+    if (m->CoreLocalMemoryBWMetricAvailable()) cout << " LMB   : L3 cache external bandwidth satisfied by local memory (in MBytes)\n";
+    if (m->CoreRemoteMemoryBWMetricAvailable()) cout << " RMB   : L3 cache external bandwidth satisfied by remote memory (in MBytes)\n";
+    cout << " TEMP  : Temperature reading in 1 degree Celsius relative to the TjMax temperature (thermal headroom): 0 corresponds to the max temperature\n";
+    cout << " energy: Energy in Joules\n";
     cout << "\n";
     cout << "\n";
     const char * longDiv = "---------------------------------------------------------------------------------------------------------------\n";
@@ -224,7 +224,7 @@ void print_output(PCM * m,
     if (m->CoreRemoteMemoryBWMetricAvailable())
         cout << "   RMB  |";
 
-    cout << " TEMP" << endl << endl;
+    cout << " TEMP\n\n";
 
     if (show_core_output)
     {
@@ -269,14 +269,14 @@ void print_output(PCM * m,
         print_basic_metrics(m, sstate1, sstate2);
 
         if (m->L3CacheOccupancyMetricAvailable())
-            cout << "    " << " N/A ";
+            cout << "     N/A ";
         if (m->CoreLocalMemoryBWMetricAvailable())
-            cout << "   " << " N/A ";
+            cout << "    N/A ";
         if (m->CoreRemoteMemoryBWMetricAvailable())
-            cout << "   " << " N/A ";
+            cout << "    N/A ";
 
         cout << "     N/A\n";
-        cout << "\n" << " Instructions retired: " << unit_format(getInstructionsRetired(sstate1, sstate2)) << " ; Active cycles: " << unit_format(getCycles(sstate1, sstate2)) << " ; Time (TSC): " << unit_format(getInvariantTSC(cstates1[0], cstates2[0])) << "ticks ; C0 (active,non-halted) core residency: " << (getCoreCStateResidency(0, sstate1, sstate2)*100.) << " %\n";
+        cout << "\n Instructions retired: " << unit_format(getInstructionsRetired(sstate1, sstate2)) << " ; Active cycles: " << unit_format(getCycles(sstate1, sstate2)) << " ; Time (TSC): " << unit_format(getInvariantTSC(cstates1[0], cstates2[0])) << "ticks ; C0 (active,non-halted) core residency: " << (getCoreCStateResidency(0, sstate1, sstate2)*100.) << " %\n";
         cout << "\n";
         for (int s = 1; s <= PCM::MAX_C_STATE; ++s)
         {
@@ -309,29 +309,29 @@ void print_output(PCM * m,
 
         if (m->getNumCores() == m->getNumOnlineCores())
         {
-            cout << "\n" << " PHYSICAL CORE IPC                 : " << getCoreIPC(sstate1, sstate2) << " => corresponds to " << 100. * (getCoreIPC(sstate1, sstate2) / double(m->getMaxIPC())) << " % utilization for cores in active state";
-            cout << "\n" << " Instructions per nominal CPU cycle: " << getTotalExecUsage(sstate1, sstate2) << " => corresponds to " << 100. * (getTotalExecUsage(sstate1, sstate2) / double(m->getMaxIPC())) << " % core utilization over time interval" << "\n";
+            cout << "\n PHYSICAL CORE IPC                 : " << getCoreIPC(sstate1, sstate2) << " => corresponds to " << 100. * (getCoreIPC(sstate1, sstate2) / double(m->getMaxIPC())) << " % utilization for cores in active state";
+            cout << "\n Instructions per nominal CPU cycle: " << getTotalExecUsage(sstate1, sstate2) << " => corresponds to " << 100. * (getTotalExecUsage(sstate1, sstate2) / double(m->getMaxIPC())) << " % core utilization over time interval\n";
         }
-        cout <<" SMI count: "<< getSMICount(sstate1, sstate2) <<"\n";
+        cout << " SMI count: " << getSMICount(sstate1, sstate2) << "\n";
     }
 
     if (show_socket_output)
     {
         if (m->getNumSockets() > 1 && m->incomingQPITrafficMetricsAvailable()) // QPI info only for multi socket systems
         {
-            cout << "\n" << "Intel(r) "<< m->xPI() <<" data traffic estimation in bytes (data traffic coming to CPU/socket through "<< m->xPI() <<" links):" << "\n" << "\n";
+            cout << "\nIntel(r) " << m->xPI() << " data traffic estimation in bytes (data traffic coming to CPU/socket through " << m->xPI() << " links):\n\n";
 
             const uint32 qpiLinks = (uint32)m->getQPILinksPerSocket();
 
             cout << "              ";
             for (uint32 i = 0; i < qpiLinks; ++i)
-                cout << " "<< m->xPI() << i << "    ";
+                cout << " " << m->xPI() << i << "    ";
 
             if (m->qpiUtilizationMetricsAvailable())
             {
                 cout << "| ";
                 for (uint32 i = 0; i < qpiLinks; ++i)
-                    cout << " "<< m->xPI() << i << "  ";
+                    cout << " " << m->xPI() << i << "  ";
             }
 
             cout << "\n" << longDiv;
@@ -360,14 +360,14 @@ void print_output(PCM * m,
         cout << longDiv;
 
         if (m->getNumSockets() > 1 && m->incomingQPITrafficMetricsAvailable()) // QPI info only for multi socket systems
-            cout << "Total "<< m->xPI() <<" incoming data traffic: " << unit_format(getAllIncomingQPILinkBytes(sstate1, sstate2)) << "     "<< m->xPI() <<" data traffic/Memory controller traffic: " << getQPItoMCTrafficRatio(sstate1, sstate2) << "\n";
+            cout << "Total " << m->xPI() << " incoming data traffic: " << unit_format(getAllIncomingQPILinkBytes(sstate1, sstate2)) << "     " << m->xPI() << " data traffic/Memory controller traffic: " << getQPItoMCTrafficRatio(sstate1, sstate2) << "\n";
     }
 
     if (show_socket_output)
     {
         if (m->getNumSockets() > 1 && (m->outgoingQPITrafficMetricsAvailable())) // QPI info only for multi socket systems
         {
-            cout << "\n" << "Intel(r) "<< m->xPI() <<" traffic estimation in bytes (data and non-data traffic outgoing from CPU/socket through "<< m->xPI() <<" links):" << "\n" << "\n";
+            cout << "\nIntel(r) " << m->xPI() << " traffic estimation in bytes (data and non-data traffic outgoing from CPU/socket through " << m->xPI() << " links):\n\n";
 
             const uint32 qpiLinks = (uint32)m->getQPILinksPerSocket();
 
@@ -378,7 +378,7 @@ void print_output(PCM * m,
 
             cout << "| ";
             for (uint32 i = 0; i < qpiLinks; ++i)
-                cout << " "<< m->xPI() << i << "  ";
+                cout << " " << m->xPI() << i << "  ";
 
             cout << "\n" << longDiv;
 
@@ -396,7 +396,7 @@ void print_output(PCM * m,
             }
 
             cout << longDiv;
-            cout << "Total "<< m->xPI() <<" outgoing data and non-data traffic: " << unit_format(getAllOutgoingQPILinkBytes(sstate1, sstate2)) << "\n";
+            cout << "Total " << m->xPI() << " outgoing data and non-data traffic: " << unit_format(getAllOutgoingQPILinkBytes(sstate1, sstate2)) << "\n";
         }
     }
     if (show_socket_output)
@@ -522,7 +522,7 @@ void print_basic_metrics_csv_semicolons(const PCM * m)
 
 void print_csv_header(PCM * m,
     const std::bitset<MAX_CORES> & ycores,
-    const int cpu_model,
+    const int /*cpu_model*/,
     const bool show_core_output,
     const bool show_partial_core_output,
     const bool show_socket_output,
@@ -703,9 +703,9 @@ void print_csv_header(PCM * m,
         cout << "INST,ACYC,TIME(ticks),PhysIPC,PhysIPC%,INSTnom,INSTnom%,";
         if (m->getNumSockets() > 1) { // QPI info only for multi socket systems
             if (m->incomingQPITrafficMetricsAvailable())
-                cout << "Total"<<m->xPI()<<"in,"<<m->xPI()<<"toMC,";
+                cout << "Total" << m->xPI() << "in," << m->xPI() << "toMC,";
             if (m->outgoingQPITrafficMetricsAvailable())
-                cout << "Total"<<m->xPI()<<"out,";
+                cout << "Total" << m->xPI() << "out,";
         }
 
         for (int s = 0; s <= PCM::MAX_C_STATE; ++s)
@@ -870,7 +870,7 @@ void print_csv(PCM * m,
     const std::bitset<MAX_CORES> & ycores,
     const SystemCounterState& sstate1,
     const SystemCounterState& sstate2,
-    const int cpu_model,
+    const int /*cpu_model*/,
     const bool show_core_output,
     const bool show_partial_core_output,
     const bool show_socket_output,
@@ -884,7 +884,7 @@ void print_csv(PCM * m,
     tm tt = pcm_localtime();
     char old_fill = cout.fill('0');
     cout.precision(3);
-    cout << endl << setw(4) << 1900 + tt.tm_year << '-' << setw(2) << 1 + tt.tm_mon << '-'
+    cout << "\n" << setw(4) << 1900 + tt.tm_year << '-' << setw(2) << 1 + tt.tm_mon << '-'
         << setw(2) << tt.tm_mday << ',' << setw(2) << tt.tm_hour << ':'
         << setw(2) << tt.tm_min << ':' << setw(2) << tt.tm_sec
 #ifdef _MSC_VER
@@ -1052,11 +1052,11 @@ int main(int argc, char * argv[])
     std::cerr.rdbuf(&nullStream2);
 #endif
 
-    cerr << endl;
-    cerr << " Processor Counter Monitor " << PCM_VERSION << endl;
-    cerr << endl;
+    cerr << "\n";
+    cerr << " Processor Counter Monitor " << PCM_VERSION << "\n";
+    cerr << "\n";
     
-    cerr << endl;
+    cerr << "\n";
 
     // if delay is not specified: use either default (1 second),
     // or only read counters before or after PCM started: keep PCM blocked
@@ -1102,7 +1102,7 @@ int main(int argc, char * argv[])
             show_partial_core_output = true;
             if(*argv == NULL)
             {
-                cerr << "Error: --yescores requires additional argument." << endl;
+                cerr << "Error: --yescores requires additional argument.\n";
                 exit(EXIT_FAILURE);
             }
             std::stringstream ss(*argv);
@@ -1116,7 +1116,7 @@ int main(int argc, char * argv[])
                 core_id = atoi(s.c_str());
                 if(core_id > MAX_CORES)
                 {
-                    cerr << "Core ID:" << core_id << " exceed maximum range " << MAX_CORES << ", program abort" << endl;
+                    cerr << "Core ID:" << core_id << " exceed maximum range " << MAX_CORES << ", program abort\n";
                     exit(EXIT_FAILURE);
                 }
 
@@ -1124,8 +1124,8 @@ int main(int argc, char * argv[])
             }
             if(m->getNumCores() > MAX_CORES)
             {
-                cerr << "Error: --yescores option is enabled, but #define MAX_CORES " << MAX_CORES << " is less than  m->getNumCores() = " << m->getNumCores() << endl;
-                cerr << "There is a potential to crash the system. Please increase MAX_CORES to at least " << m->getNumCores() << " and re-enable this option." << endl;
+                cerr << "Error: --yescores option is enabled, but #define MAX_CORES " << MAX_CORES << " is less than  m->getNumCores() = " << m->getNumCores() << "\n";
+                cerr << "There is a potential to crash the system. Please increase MAX_CORES to at least " << m->getNumCores() << " and re-enable this option.\n";
                 exit(EXIT_FAILURE);
             }
             continue;
@@ -1215,7 +1215,7 @@ int main(int argc, char * argv[])
         {
             Driver tmpDrvObject;
             tmpDrvObject.uninstall();
-            cerr << "msr.sys driver has been uninstalled. You might need to reboot the system to make this effective." << endl;
+            cerr << "msr.sys driver has been uninstalled. You might need to reboot the system to make this effective.\n";
             exit(EXIT_SUCCESS);
         }
         else
@@ -1224,8 +1224,8 @@ int main(int argc, char * argv[])
             Driver tmpDrvObject = Driver(Driver::msrLocalPath());
             if (!tmpDrvObject.start())
             {
-                wcerr << "Can not access CPU counters" << endl;
-                wcerr << "You must have a signed  driver at " << tmpDrvObject.driverPath() << " and have administrator rights to run this program" << endl;
+                wcerr << "Can not access CPU counters\n";
+                wcerr << "You must have a signed  driver at " << tmpDrvObject.driverPath() << " and have administrator rights to run this program\n";
                 exit(EXIT_FAILURE);
             }
             exit(EXIT_SUCCESS);
@@ -1248,10 +1248,10 @@ int main(int argc, char * argv[])
             is_str_stream >> noskipws >> delay_input;
             if (is_str_stream.eof() && !is_str_stream.fail() && delay == -1) {
                 delay = delay_input;
-                cerr << "Delay: " << delay << endl;
+                cerr << "Delay: " << delay << "\n";
             }
             else {
-                cerr << "WARNING: unknown command-line option: \"" << *argv << "\". Ignoring it." << endl;
+                cerr << "WARNING: unknown command-line option: \"" << *argv << "\". Ignoring it.\n";
                 print_help(program);
                 exit(EXIT_FAILURE);
             }
@@ -1263,7 +1263,7 @@ int main(int argc, char * argv[])
 
     if (reset_pmu)
     {
-        cerr << "\n Resetting PMU configuration" << endl;
+        cerr << "\n Resetting PMU configuration\n";
         m->resetPMU();
     }
 
@@ -1280,14 +1280,14 @@ int main(int argc, char * argv[])
     case PCM::Success:
         break;
     case PCM::MSRAccessDenied:
-        cerr << "Access to Processor Counter Monitor has denied (no MSR or PCI CFG space access)." << endl;
+        cerr << "Access to Processor Counter Monitor has denied (no MSR or PCI CFG space access).\n";
         exit(EXIT_FAILURE);
     case PCM::PMUBusy:
-        cerr << "Access to Processor Counter Monitor has denied (Performance Monitoring Unit is occupied by other application). Try to stop the application that uses PMU." << endl;
-        cerr << "Alternatively you can try running PCM with option -r to reset PMU configuration at your own risk." << endl;
+        cerr << "Access to Processor Counter Monitor has denied (Performance Monitoring Unit is occupied by other application). Try to stop the application that uses PMU.\n";
+        cerr << "Alternatively you can try running PCM with option -r to reset PMU configuration at your own risk.\n";
         exit(EXIT_FAILURE);
     default:
-        cerr << "Access to Processor Counter Monitor has denied (Unknown error)." << endl;
+        cerr << "Access to Processor Counter Monitor has denied (Unknown error).\n";
         exit(EXIT_FAILURE);
     }
 
@@ -1310,7 +1310,7 @@ int main(int argc, char * argv[])
     }
     // in case delay is not provided in command line => set default
     if (delay <= 0.0) delay = PCM_DELAY_DEFAULT;
-    // cerr << "DEBUG: Delay: " << delay << " seconds. Blocked: " << m->isBlocked() << endl;
+    // cerr << "DEBUG: Delay: " << delay << " seconds. Blocked: " << m->isBlocked() << "\n";
 
     if (csv_output) {
         print_csv_header(m, ycores, cpu_model, show_core_output, show_partial_core_output, show_socket_output, show_system_output);

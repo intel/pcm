@@ -151,7 +151,7 @@ void probe_pci(struct pci *p)
         p->exist = true;
         PciHandleType h(0, bdf->busno, bdf->devno, bdf->funcno);
         h.read32(0x0, &value); //VID:DID
-        if (value == ~0UL) // invalid VID::DID
+        if (value == (std::numeric_limits<unsigned int>::max)()) // invalid VID::DID
         {
             p->exist = false;
             return;
@@ -215,7 +215,7 @@ void load_PCIDB(PCIDB & pciDB)
     if (!in.is_open())
     {
 #endif
-        std::cerr << PCI_IDS_NOT_FOUND << std::endl;
+        std::cerr << PCI_IDS_NOT_FOUND << "\n";
         return;
     }
 
@@ -234,7 +234,7 @@ void load_PCIDB(PCIDB & pciDB)
         if (line[0] == '\t')
         {
             int deviceID = stoi(line.substr(1,4),0,16);
-            //std::cout << vendorID << ";" << vendorName << ";" << deviceID << ";"<< line.substr(7) << endl;
+            //std::cout << vendorID << ";" << vendorName << ";" << deviceID << ";" << line.substr(7) << "\n";
             pciDB.second[vendorID][deviceID] = line.substr(7);
             continue;
         }

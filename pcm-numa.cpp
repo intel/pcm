@@ -48,20 +48,20 @@ using namespace std;
 
 void print_usage(const string progname)
 {
-    cerr << endl << " Usage: " << endl << " " << progname
-         << " --help | [delay] [options] [-- external_program [external_program_options]]" << endl;
-    cerr << "   <delay>                           => time interval to sample performance counters." << endl;
-    cerr << "                                        If not specified, or 0, with external program given" << endl;
-    cerr << "                                        will read counters only after external program finishes" << endl;
-    cerr << " Supported <options> are: " << endl;
-    cerr << "  -h    | --help  | /h               => print this help and exit" << endl;
-    cerr << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or" << endl
-         << "                                        to a file, in case filename is provided" << endl;
-    cerr << " Examples:" << endl;
-    cerr << "  " << progname << " 1                  => print counters every second without core and socket output" << endl;
-    cerr << "  " << progname << " 0.5 -csv=test.log  => twice a second save counter values to test.log in CSV format" << endl;
-    cerr << "  " << progname << " /csv 5 2>/dev/null => one sample every 5 seconds, and discard all diagnostic output" << endl;
-    cerr << endl;
+    cerr << "\n Usage: \n " << progname
+         << " --help | [delay] [options] [-- external_program [external_program_options]]\n";
+    cerr << "   <delay>                           => time interval to sample performance counters.\n";
+    cerr << "                                        If not specified, or 0, with external program given\n";
+    cerr << "                                        will read counters only after external program finishes\n";
+    cerr << " Supported <options> are: \n";
+    cerr << "  -h    | --help  | /h               => print this help and exit\n";
+    cerr << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or\n"
+         << "                                        to a file, in case filename is provided\n";
+    cerr << " Examples:\n";
+    cerr << "  " << progname << " 1                  => print counters every second without core and socket output\n";
+    cerr << "  " << progname << " 0.5 -csv=test.log  => twice a second save counter values to test.log in CSV format\n";
+    cerr << "  " << progname << " /csv 5 2>/dev/null => one sample every 5 seconds, and discard all diagnostic output\n";
+    cerr << "\n";
 }
 
 template <class StateType>
@@ -99,13 +99,13 @@ int main(int argc, char * argv[])
 
 #ifdef PCM_FORCE_SILENT
     null_stream nullStream1, nullStream2;
-    std::cout.rdbuf(&nullStream1);
-    std::cerr.rdbuf(&nullStream2);
+    cout.rdbuf(&nullStream1);
+    cerr.rdbuf(&nullStream2);
 #endif
 
-    cerr << endl;
-    cerr << " Processor Counter Monitor: NUMA monitoring utility " << endl;
-    cerr << endl;
+    cerr << "\n";
+    cerr << " Processor Counter Monitor: NUMA monitoring utility \n";
+    cerr << "\n";
 
     double delay = -1.0;
     char * sysCmd = NULL;
@@ -154,12 +154,12 @@ int main(int argc, char * argv[])
                 // any other options positional that is a floating point number is treated as <delay>,
                 // while the other options are ignored with a warning issues to stderr
                 double delay_input;
-                std::istringstream is_str_stream(*argv);
+                istringstream is_str_stream(*argv);
                 is_str_stream >> noskipws >> delay_input;
                 if (is_str_stream.eof() && !is_str_stream.fail()) {
                     delay = delay_input;
                 } else {
-                    cerr << "WARNING: unknown command-line option: \"" << *argv << "\". Ignoring it." << endl;
+                    cerr << "WARNING: unknown command-line option: \"" << *argv << "\". Ignoring it.\n";
                     print_usage(program);
                     exit(EXIT_FAILURE);
                 }
@@ -181,7 +181,7 @@ int main(int argc, char * argv[])
         m->setupCustomCoreEventsForNuma(conf);
     }
     catch (UnsupportedProcessorException& ) {
-        std::cerr << "pcm-numa tool does not support your processor currently." << std::endl;
+        cerr << "pcm-numa tool does not support your processor currently.\n";
         exit(EXIT_FAILURE);
     }
 
@@ -201,21 +201,21 @@ int main(int argc, char * argv[])
     case PCM::Success:
         break;
     case PCM::MSRAccessDenied:
-        cerr << "Access to Processor Counter Monitor has denied (no MSR or PCI CFG space access)." << endl;
+        cerr << "Access to Processor Counter Monitor has denied (no MSR or PCI CFG space access).\n";
         exit(EXIT_FAILURE);
     case PCM::PMUBusy:
-        cerr << "Access to Processor Counter Monitor has denied (Performance Monitoring Unit is occupied by other application). Try to stop the application that uses PMU." << endl;
-        cerr << "Alternatively you can try to reset PMU configuration at your own risk. Try to reset? (y/n)" << endl;
+        cerr << "Access to Processor Counter Monitor has denied (Performance Monitoring Unit is occupied by other application). Try to stop the application that uses PMU.\n";
+        cerr << "Alternatively you can try to reset PMU configuration at your own risk. Try to reset? (y/n)\n";
         char yn;
-        std::cin >> yn;
+        cin >> yn;
         if ('y' == yn)
         {
             m->resetPMU();
-            cerr << "PMU configuration has been reset. Try to rerun the program again." << endl;
+            cerr << "PMU configuration has been reset. Try to rerun the program again.\n";
         }
         exit(EXIT_FAILURE);
     default:
-        cerr << "Access to Processor Counter Monitor has denied (Unknown error)." << endl;
+        cerr << "Access to Processor Counter Monitor has denied (Unknown error).\n";
         exit(EXIT_FAILURE);
     }
 
@@ -224,8 +224,8 @@ int main(int argc, char * argv[])
     uint64 BeforeTime = 0, AfterTime = 0;
     SystemCounterState SysBeforeState, SysAfterState;
     const uint32 ncores = m->getNumCores();
-    std::vector<CoreCounterState> BeforeState, AfterState;
-    std::vector<SocketCounterState> DummySocketStates;
+    vector<CoreCounterState> BeforeState, AfterState;
+    vector<SocketCounterState> DummySocketStates;
 
     if ((sysCmd != NULL) && (delay <= 0.0)) {
         // in case external command is provided in command line, and
@@ -244,10 +244,10 @@ int main(int argc, char * argv[])
         if (((delay < 1.0) && (delay > 0.0)) || (delay <= 0.0)) delay = PCM_DELAY_DEFAULT;
     }
 
-    cerr << "Update every " << delay << " seconds" << endl;
+    cerr << "Update every " << delay << " seconds\n";
 
-    std::cout.precision(2);
-    std::cout << std::fixed;
+    cout.precision(2);
+    cout << fixed;
 
     BeforeTime = m->getTickCount();
     m->getAllCounterStates(SysBeforeState, DummySocketStates, BeforeState);
@@ -258,7 +258,7 @@ int main(int argc, char * argv[])
 
     while (1)
     {
-        if (!csv) cout << std::flush;
+        if (!csv) cout << flush;
         int delay_ms = int(delay * 1000);
         int calibrated_delay_ms = delay_ms;
 #ifdef _MSC_VER
@@ -288,7 +288,7 @@ int main(int argc, char * argv[])
         m->getAllCounterStates(SysAfterState, DummySocketStates, AfterState);
 
         cout << "Time elapsed: " << dec << fixed << AfterTime - BeforeTime << " ms\n";
-        //cout << "Called sleep function for "<<dec<<fixed<<delay_ms<<" ms\n";
+        //cout << "Called sleep function for " << dec << fixed << delay_ms << " ms\n";
 
         if (csv)
             cout << "Core,IPC,Instructions,Cycles,Local DRAM accesses,Remote DRAM accesses \n";
@@ -316,7 +316,7 @@ int main(int argc, char * argv[])
 
         print_stats(SysBeforeState, SysAfterState, csv);
 
-        std::cout << std::endl;
+        cout << "\n";
 
         swap(BeforeTime, AfterTime);
         swap(BeforeState, AfterState);

@@ -151,12 +151,15 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\cpucounters.cpp" />
+    <ClCompile Include="..\topology.cpp" />
     <ClCompile Include="..\freegetopt\getopt.cpp" />
     <ClCompile Include="..\winpmem\winpmem.cpp" />
     <ClCompile Include="..\msr.cpp" />
     <ClCompile Include="..\pci.cpp" />
     <ClCompile Include="..\client_bw.cpp" /> <ClCompile Include="..\mmio.cpp" />
     <ClCompile Include="pcm.cpp" />
+    <ClCompile Include="..\debug.cpp" />
+    <ClCompile Include="..\threadpool.cpp" />
     <ClCompile Include="restrictDriverAccess.cpp">
       <CompileAsManaged>true</CompileAsManaged>
       <ExceptionHandling>Async</ExceptionHandling>
@@ -166,6 +169,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\cpucounters.h" />
+    <ClInclude Include="..\topology.h" />
     <ClInclude Include="..\msr.h" />
     <ClInclude Include="..\pci.h" />
     <ClInclude Include="..\client_bw.h" /> <ClInclude Include="..\mmio.h" />
@@ -173,6 +177,8 @@
     <ClInclude Include="..\types.h" />
     <ClInclude Include="windriver.h" />
     <ClInclude Include="..\utils.h" />
+    <ClInclude Include="..\debug.h" />
+    <ClInclude Include="..\threadpool.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="My Amplifier Results\r000hs\r000hs.ampl" />

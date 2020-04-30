@@ -35,7 +35,7 @@ void scanBus(int bus, const PCIDB & pciDB)
 {
     if(!PciHandleType::exists(0, bus, 8, 2)) return;
 
-    std::cout << "BUS 0x" << std::hex << bus << std::dec << endl;
+    std::cout << "BUS 0x" << std::hex << bus << std::dec << "\n";
 
     struct iio_skx iio_skx;
 
@@ -103,7 +103,7 @@ void scanBus(int bus, const PCIDB & pciDB)
     }
 }
 
-int main(int argc, char * argv[])
+int main(int /*argc*/, char * /*argv*/[])
 {
     PCIDB pciDB;
     load_PCIDB(pciDB);

@@ -49,16 +49,16 @@ protected:
             wcscat_s(driver_filename, MAX_PATH, L"\\winpmem_x64.sys");
             if (GetFileAttributes(driver_filename) == INVALID_FILE_ATTRIBUTES)
             {
-                std::cout << "ERROR: winpmem_x64.sys not found in current directory. Download it from https://github.com/google/rekall/raw/master/tools/pmem/resources/winpmem/winpmem_x64.sys ." << std::endl;
-                std::cout << "ERROR: Memory bandwidth statistics will not be available." << std::endl;
+                std::cerr << "ERROR: winpmem_x64.sys not found in current directory. Download it from https://github.com/google/rekall/raw/master/tools/pmem/resources/winpmem/winpmem_x64.sys .\n";
+                std::cerr << "ERROR: Memory bandwidth statistics will not be available.\n";
             }
             break;
         case PROCESSOR_ARCHITECTURE_INTEL:
             wcscat_s(driver_filename, MAX_PATH, L"\\winpmem_x86.sys");
             if (GetFileAttributes(driver_filename) == INVALID_FILE_ATTRIBUTES)
             {
-                std::cout << "ERROR: winpmem_x86.sys not found in current directory. Download it from https://github.com/google/rekall/raw/master/tools/pmem/resources/winpmem/winpmem_x86.sys ." << std::endl;
-                std::cout << "ERROR: Memory bandwidth statistics will not be available." << std::endl;
+                std::cerr << "ERROR: winpmem_x86.sys not found in current directory. Download it from https://github.com/google/rekall/raw/master/tools/pmem/resources/winpmem/winpmem_x86.sys .\n";
+                std::cerr << "ERROR: Memory bandwidth statistics will not be available.\n";
             }
             break;
         default:
@@ -100,7 +100,7 @@ MMIORange::MMIORange(uint64 physical_address, uint64 size_, bool readonly_) :
 {
     if (size > 4096)
     {
-        std::cerr << "PCM Error: the driver does not support mapping of regions > 4KB" << std::endl;
+        std::cerr << "PCM Error: the driver does not support mapping of regions > 4KB\n";
         return;
     }
     if (physical_address) {
@@ -124,11 +124,11 @@ uint64 MMIORange::read64(uint64 offset)
 
 void MMIORange::write32(uint64 offset, uint32 val)
 {
-    std::cerr << "PCM Error: the driver does not support writing to MMIORange" << std::endl;
+    std::cerr << "PCM Error: the driver does not support writing to MMIORange\n";
 }
 void MMIORange::write64(uint64 offset, uint64 val)
 {
-    std::cerr << "PCM Error: the driver does not support writing to MMIORange" << std::endl;
+    std::cerr << "PCM Error: the driver does not support writing to MMIORange\n";
 }
 
 MMIORange::~MMIORange()
@@ -148,7 +148,7 @@ MMIORange::MMIORange(uint64 baseAddr_, uint64 size_, bool readonly_) :
     int handle = ::open("/dev/mem", oflag);
     if (handle < 0)
     {
-       std::cout << "opening /dev/mem failed: errno is " << errno << " (" << strerror(errno) << ")" << std::endl;
+       std::cerr << "opening /dev/mem failed: errno is " << errno << " (" << strerror(errno) << ")\n";
        throw std::exception();
     }
     fd = handle;
@@ -158,7 +158,7 @@ MMIORange::MMIORange(uint64 baseAddr_, uint64 size_, bool readonly_) :
 
     if (mmapAddr == MAP_FAILED)
     {
-        std::cout << "mmap failed: errno is " << errno << " (" << strerror(errno) << ")" << std::endl;
+        std::cerr << "mmap failed: errno is " << errno << " (" << strerror(errno) << ")\n";
         throw std::exception();
     }
 }
@@ -177,7 +177,7 @@ void MMIORange::write32(uint64 offset, uint32 val)
 {
     if (readonly)
     {
-        std::cerr << "PCM Error: attempting to write to a read-only MMIORange" << std::endl;
+        std::cerr << "PCM Error: attempting to write to a read-only MMIORange\n";
         return;
     }
     *((uint32 *)(mmapAddr + offset)) = val;
@@ -186,7 +186,7 @@ void MMIORange::write64(uint64 offset, uint64 val)
 {
     if (readonly)
     {
-        std::cerr << "PCM Error: attempting to write to a read-only MMIORange" << std::endl;
+        std::cerr << "PCM Error: attempting to write to a read-only MMIORange\n";
         return;
     }
     *((uint64 *)(mmapAddr + offset)) = val;

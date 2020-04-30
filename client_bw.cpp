@@ -30,10 +30,10 @@ ClientBW::ClientBW()
     PciHandleType imcHandle(0, 0, 0, 0); // memory controller device coordinates: domain 0, bus 0, device 0, function 0
     uint64 imcbar = 0;
     imcHandle.read64(PCM_CLIENT_IMC_BAR_OFFSET, &imcbar);
-    // std::cout << "DEBUG: imcbar="<<std::hex << imcbar <<std::endl;
+    // std::cout << "DEBUG: imcbar=" << std::hex << imcbar << "\n" << std::flush;
     if (!imcbar)
     {
-        std::cerr << "ERROR: imcbar is zero." << std::endl;
+        std::cerr << "ERROR: imcbar is zero.\n";
         throw std::exception();
     }
     auto startAddr = imcbar & (~(4096ULL - 1ULL)); // round down to 4K

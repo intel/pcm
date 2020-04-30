@@ -1,0 +1,27 @@
+apiVersion: 1
+
+datasources:
+- name: PCM 
+  type: influxdb
+  access: proxy
+  url: "http://influxdb:8086"
+  password:
+  user:
+  database: telegraf 
+  basicAuth: false
+  basicAuthUser:
+  basicAuthPassword:
+  withCredentials:
+  isDefault: true
+  jsonData:
+     tlsAuth: false
+     tlsAuthWithCACert: false
+     timeInterval: "2s"
+  secureJsonData:
+    tlsCACert: ""
+    tlsClientCert: ""
+    tlsClientKey: ""
+  version: 1
+  editable: true
+
+
