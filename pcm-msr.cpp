@@ -31,7 +31,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 void print_usage(const char * progname)
 {
     std::cout << "Usage " << progname << " [-w value] [-c core] [-a] [-d] msr\n\n";
-    std::cout << "  Reads specified msr (model specific register) \n";
+    std::cout << "  Reads/writes specified msr (model specific register) \n";
     std::cout << "   -w value : write the value before reading \n";
     std::cout << "   -c core  : perform msr read/write on specified core (default is 0)\n";
     std::cout << "   -d       : output all numbers in dec (default is hex)\n";
