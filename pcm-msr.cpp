@@ -28,15 +28,6 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include "freegetopt/getopt.h"
 #endif
 
-uint64 read_number(char * str)
-{
-    std::istringstream stream(str);
-    if (strstr(str, "x")) stream >> std::hex;
-    uint64 result = 0;
-    stream >> result;
-    return result;
-}
-
 void print_usage(const char * progname)
 {
     std::cout << "Usage " << progname << " [-w value] [-c core] [-d] msr\n\n";

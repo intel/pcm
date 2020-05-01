@@ -218,3 +218,5 @@ struct StackedBarItem {
 };
 
 void drawStackedBar(const std::string & label, std::vector<StackedBarItem> & h, const int width = 80);
+
+uint64 read_number(char* str);
