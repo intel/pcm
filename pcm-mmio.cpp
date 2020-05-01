@@ -40,16 +40,21 @@ void print_usage(const char* progname)
 }
 
 template <class T, class RD, class WR>
-void doOp(const uint64 address, const uint64 offset, const bool write, T value, RD readOp, WR writeOp)
+void doOp(const uint64 address, const uint64 offset, const bool write, T value, RD readOp, WR writeOp, const bool dec)
 {
+    if (!dec) std::cout << std::hex << std::showbase;
     constexpr auto bit = sizeof(T) * 8;
     if (write)
     {
-        std::cout << " Writing " << value << " to " << bit <<"-bit MMIO register " << address << "\n";
+        std::cout << " Writing " << value << " to " << std::dec << bit;
+        if (!dec) std::cout << std::hex << std::showbase;
+        std::cout <<"-bit MMIO register " << address << "\n";
         writeOp(offset, value);
     }
     value = readOp(offset);
-    std::cout << " Read value " << value << " from " << bit << "-bit MMIO register " << address << "\n\n";
+    std::cout << " Read value " << value << " from " << std::dec << bit;
+    if (!dec) std::cout << std::hex << std::showbase;
+    std::cout << "-bit MMIO register " << address << "\n\n";
 }
 
 int main(int argc, char * argv[])
@@ -65,7 +70,7 @@ int main(int argc, char * argv[])
     bool quad = false;
 
     int my_opt = -1;
-    while ((my_opt = getopt(argc, argv, "w:d:q")) != -1)
+    while ((my_opt = getopt(argc, argv, "w:dq")) != -1)
     {
         switch (my_opt)
         {
@@ -101,16 +106,14 @@ int main(int argc, char * argv[])
 
         MMIORange mmio(baseAddr, rangeSize, !write);
 
-        if (!dec) std::cout << std::hex << std::showbase;
-
         using namespace std::placeholders;
         if (quad)
         {
-            doOp(address, offset, write, (uint64)value, std::bind(&MMIORange::read64, &mmio, _1), std::bind(&MMIORange::write64, &mmio, _1, _2));
+            doOp(address, offset, write, (uint64)value, std::bind(&MMIORange::read64, &mmio, _1), std::bind(&MMIORange::write64, &mmio, _1, _2), dec);
         }
         else
         {
-            doOp(address, offset, write, (uint32)value, std::bind(&MMIORange::read32, &mmio, _1), std::bind(&MMIORange::write32, &mmio, _1, _2));
+            doOp(address, offset, write, (uint32)value, std::bind(&MMIORange::read32, &mmio, _1), std::bind(&MMIORange::write32, &mmio, _1, _2), dec);
         }
     }
     catch (std::exception & e)
