@@ -19,7 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{78F57684-F6F2-4691-B498-C7FC0731F875}</ProjectGuid>
+    <ProjectGuid>{C1E91036-FFE1-400E-850F-C3C5CDFCBBDC}</ProjectGuid>
     <RootNamespace>pcm-mmio-win</RootNamespace>
     <Keyword>Win32Proj</Keyword>
     <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
@@ -156,7 +156,8 @@
     <ClCompile Include="..\msr.cpp" />
     <ClCompile Include="..\pci.cpp" />
     <ClCompile Include="..\winpmem\winpmem.cpp" />
-    <ClCompile Include="..\client_bw.cpp" /> <ClCompile Include="..\mmio.cpp" />
+    <ClCompile Include="..\client_bw.cpp" />
+    <ClCompile Include="..\mmio.cpp" />
     <ClCompile Include="..\freegetopt\getopt.cpp" />
     <ClCompile Include="pcm-mmio-win.cpp" />
     <ClCompile Include="stdafx.cpp" />
@@ -173,7 +174,8 @@
     <ClInclude Include="..\topology.h" />
     <ClInclude Include="..\msr.h" />
     <ClInclude Include="..\pci.h" />
-    <ClInclude Include="..\client_bw.h" /> <ClInclude Include="..\mmio.h" />
+    <ClInclude Include="..\client_bw.h" />
+    <ClInclude Include="..\mmio.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="..\types.h" />
     <ClInclude Include="windriver.h" />
