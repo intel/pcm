@@ -52,7 +52,7 @@ int main(int argc, char * argv[])
     bool dec = false;
 
     int my_opt = -1;
-    while ((my_opt = getopt(argc, argv, "w:c:d:a")) != -1)
+    while ((my_opt = getopt(argc, argv, "w:c:da")) != -1)
     {
         switch (my_opt)
         {
