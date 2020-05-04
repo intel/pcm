@@ -2759,6 +2759,48 @@ std::unordered_map<enum MimeType, enum OutputFormat> mimeTypeToOutputFormat = {
     { CatchAll,            HTML }
 };
 
+std::unordered_map<enum MimeType, std::string> supportedOutputMimeTypes = {
+    { TextPlainProm_0_0_4, "text/plain;version=0.0.4" },
+    { ApplicationJSON,     "application/json" }
+};
+
+enum MimeType matchSupportedWithAcceptedMimeTypes( HTTPHeader const& h ) {
+    auto list = h.headerValueAsList();
+    // TODO: We should actually build up a list of accepted mimetypes and their preference, sort
+    // the list and then compare against it. We now use the inherent order as preference which
+    // is not entirely accurate but is good enough.
+    for ( auto& item : list ) {
+        DBG( 2, "Item: \"", item, "\"" );
+        // Search for preference and remove it
+        auto copy = item;
+        size_t pos;
+        // Using erase with npos as second parameter to be explicit about the intent: delete until end
+        if ( std::string::npos != ( pos = item.find( "q=", 0 ) ) ){
+            // found it, remove q=...
+            copy.erase( pos, std::string::npos );
+            DBG( 2, "q= found and erased: \"", copy, "\"" );
+            if ( std::string::npos != ( pos = item.rfind( ";", pos ) ) ) {
+                // remove trailing ;
+                copy.erase( pos, std::string::npos );
+                DBG( 2, "trailing ';' found and erased: \"", copy, "\"" );
+            }
+        }
+        // remove all whitespace from the item
+        copy.erase( std::remove_if( copy.begin(), copy.end(), isspace ), copy.end() );
+        // compare mimetype with supported ones
+        for ( auto mimetype : supportedOutputMimeTypes ) {
+            auto str = mimetype.second;
+            str.erase( std::remove_if( str.begin(), str.end(), isspace ), str.end() );
+            DBG( 2, "Comparing mimetype '", copy, "' with known Mimetype '", str, "'" );
+            if ( str == copy ) {
+                DBG( 2, "Found a match!" );
+                return mimetype.first;
+            }
+        }
+    }
+    return CatchAll;
+}
+
 /* Normally the Accept Header decides what format is returned but certain endpoints can override this,
  * therefore we have a seperate enum for output format */
 void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & resp )
@@ -2769,7 +2811,7 @@ void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & re
     HTTPHeader accept;
     if ( req.hasHeader( "Accept" ) ) {
         accept = req.getHeader( "Accept" );
-        mt = accept.headerValueAsMimeType();
+        mt = matchSupportedWithAcceptedMimeTypes( accept );
     } else {
         // If there is no accept header then the assumption is that the client can handle anything
         mt = CatchAll;
