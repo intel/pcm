@@ -1261,6 +1261,7 @@ enum HeaderType {
     OnOff = 19,
     ContainsOtherHeaders = 20,
     StarOrFQURL = 21,
+    CustomHeader = 22,
     HeaderType_Spare = 127 // Reserving some values
 };
 
@@ -1300,7 +1301,8 @@ private:
         { Character, "Character" },
         { OnOff, "OnOff" },
         { ContainsOtherHeaders, "ContainsOtherHeaders" },
-        { StarOrFQURL, "StarOrFQURL" }
+        { StarOrFQURL, "StarOrFQURL" },
+        { CustomHeader, "CustomHeader" }
     };
 
 public:
@@ -1310,6 +1312,8 @@ public:
             if ( prop.name_ == str )
                 return prop.type_;
         }
+        if ( str.find( "X-", 0 ) != std::string::npos )
+            return CustomHeader;
         throw std::runtime_error( "headerType: Headername not found" );
     }
     static char listSeparatorChar( std::string const & headerName ) {
@@ -1318,6 +1322,8 @@ public:
             if ( prop.name_ == headerName )
                 return prop.listSeparatorChar_;
         }
+        if ( headerName.find( "X-", 0 ) != std::string::npos )
+            return ',';
         throw std::runtime_error( "listSeparatorChar: Headername not found" );
     }
     static std::string const& headerTypeAsString( enum HeaderType ht ) {
