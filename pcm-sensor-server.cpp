@@ -1691,18 +1691,21 @@ std::ostream& operator<<(  std::ostream& os, URL const & url ) {
 enum MimeType {
     CatchAll = 0,
     TextHTML,
+    TextXML,
     TextPlain,
+    TextPlainProm_0_0_4,
     ApplicationJSON,
     ImageXIcon,
     MimeType_spare = 255
 };
 
 std::unordered_map<enum MimeType, std::string> mimeTypeMap = {
-    { CatchAll,        "*/*" },
-    { TextHTML,        "text/html" },
-    { TextPlain,       "text/plain" },
-    { ImageXIcon,      "image/x-icon" },
-    { ApplicationJSON, "application/json" }
+    { CatchAll,            "*/*" },
+    { TextHTML,            "text/html" },
+    { TextPlain,           "text/plain" },
+    { TextPlainProm_0_0_4, "text/plain; version=0.0.4" },
+    { ImageXIcon,          "image/x-icon" },
+    { ApplicationJSON,     "application/json" }
 };
 
 class HTTPHeader {
@@ -2363,6 +2366,16 @@ public:
 
             response.setProtocol( request.protocol() );
 
+            // Check for protocol conformity
+            if ( request.protocol() == HTTPProtocol::HTTP_1_1 ) {
+                if ( ! request.hasHeader( "Host" ) ) {
+                    DBG( 3, "Mandatory Host header not found." );
+                    std::string body( "400 Bad Request. HTTP 1.1: Mandatory Host header is missing." );
+                    response.createResponse( TextPlain, body, RC_400_BadRequest );
+                    return;
+                }
+            }
+
             // Do processing of the request here
             if (*callbackList_[request.method()])
                 (*callbackList_[request.method()])( hs_, request, response );
@@ -2716,18 +2729,37 @@ inline constexpr signed char operator "" _uc( unsigned long long arg ) noexcept 
 
 #include "favicon.ico.h"
 
+std::pair<std::shared_ptr<Aggregator>,std::shared_ptr<Aggregator>> getNullAndCurrentAggregator() {
+    std::shared_ptr<Aggregator> current = std::make_shared<Aggregator>();
+    std::shared_ptr<Aggregator> null    = std::make_shared<Aggregator>();
+    current->dispatch( PCM::getInstance()->getSystemTopology() );
+    return std::make_pair( null, current );
+}
+
+enum OutputFormat {
+    Prometheus_0_0_4 = 1,
+    JSON,
+    HTML,
+    XML,
+    PlainText,
+    OutputFormat_Spare = 255
+};
+
+std::unordered_map<enum MimeType, enum OutputFormat> mimeTypeToOutputFormat = {
+    { TextHTML,            HTML },
+    { TextXML,             XML  },
+    { ApplicationJSON,     JSON },
+    { TextPlainProm_0_0_4, Prometheus_0_0_4 },
+    { CatchAll,            HTML }
+};
+
+/* Normally the Accept Header decides what format is returned but certain endpoints can override this,
+ * therefore we have a seperate enum for output format */
 void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & resp )
 {
-    if ( req.protocol() == HTTPProtocol::HTTP_1_1 ) {
-        if ( ! req.hasHeader( "Host" ) ) {
-            DBG( 3, "Mandatory Host header not found." );
-            std::string body( "400 Bad Request. HTTP 1.1: Mandatory Host header is missing." );
-            resp.createResponse( TextPlain, body, RC_400_BadRequest );
-            return;
-        }
-    }
-
     enum MimeType mt;
+    enum OutputFormat format;
+
     HTTPHeader accept;
     if ( req.hasHeader( "Accept" ) ) {
         accept = req.getHeader( "Accept" );
@@ -2736,6 +2768,7 @@ void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & re
         // If there is no accept header then the assumption is that the client can handle anything
         mt = CatchAll;
     }
+    format = mimeTypeToOutputFormat[ mt ];
 
     URL url;
     url = req.url();
@@ -2755,7 +2788,7 @@ void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & re
         DBG( 3, "my_get_callback: client requesting '/'" );
         // If it is not Prometheus and not JSON just return this html code
         // It might violate the protocol but it makes coding this easier
-        if ( ApplicationJSON != mt && TextPlain != mt ) {
+        if ( ApplicationJSON != mt && TextPlainProm_0_0_4 != mt ) {
             // If you make changes to the HTML, please validate it
             // Probably best to put this in static files and serve this
             std::string body = "\
@@ -2782,13 +2815,13 @@ void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & re
             return;
         }
 
-        std::shared_ptr<Aggregator> current;
-        std::shared_ptr<Aggregator> null;
-        current = std::make_shared<Aggregator>();
-        null    = std::make_shared<Aggregator>();
-        current->dispatch( PCM::getInstance()->getSystemTopology() );
-        aggregatorPair = std::make_pair( null, current );
-
+        //std::shared_ptr<Aggregator> current;
+        //std::shared_ptr<Aggregator> null;
+        //current = std::make_shared<Aggregator>();
+        //null    = std::make_shared<Aggregator>();
+        //current->dispatch( PCM::getInstance()->getSystemTopology() );
+        //aggregatorPair = std::make_pair( null, current );
+        aggregatorPair = getNullAndCurrentAggregator();
     } else if ( url.path_ == "/dashboard") {
         DBG( 3, "client requesting /dashboard path: '", url.path_, "'" );
         resp.createResponse( ApplicationJSON, getPCMDashboardJSON(), RC_200_OK );
@@ -2838,25 +2871,30 @@ void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & re
                 return;
             }
         }
+    } else if ( 8 == url.path_.size() && 0 == url.path_.find( "/metrics", 0 ) ) {
+        DBG( 3, "Special snowflake prometheus wants a /metrics URL, it cant be bothered to use its own mimetype in the Accept header" );
+        format = Prometheus_0_0_4;
+        aggregatorPair = getNullAndCurrentAggregator();
     } else {
         DBG( 3, "Unknown path requested: \"", url.path_, "\"" );
         std::string body( "404 Unknown path." );
         resp.createResponse( TextPlain, body, RC_404_NotFound );
         return;
     }
-    switch ( mt ) {
-    case ApplicationJSON:
+
+    switch ( format ) {
+    case JSON:
     {
         JSONPrinter jp( aggregatorPair );
         jp.dispatch( PCM::getInstance()->getSystemTopology() );
         resp.createResponse( ApplicationJSON, jp.str(), RC_200_OK );
         break;
     }
-    case TextPlain:
+    case Prometheus_0_0_4:
     {
         PrometheusPrinter pp( aggregatorPair );
         pp.dispatch( PCM::getInstance()->getSystemTopology() );
-        resp.createResponse( TextPlain, pp.str(), RC_200_OK );
+        resp.createResponse( TextPlainProm_0_0_4, pp.str(), RC_200_OK );
         break;
     }
     default:
