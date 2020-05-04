@@ -2800,12 +2800,13 @@ void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & re
   <body>\n\
     <h1>PCM Sensor Server</h1>\n\
     <p>PCM Sensor Server provides performance counter data through an HTTP interface. By default this text is served when requesting the endpoint \"/\".</p>\n\
-    <p>The endpoints for retrieving counter data, /, /persecond and /persecond/X, support returning data in JSON or prometheus format. For JSON have your client send the HTTP header \"Accept: application/json\" and for prometheus \"Accept: text/plain\" along with the request, PCM Sensor Server will then return the counter data in the requested format.</p>\n\
+    <p>The endpoints for retrieving counter data, /, /persecond and /persecond/X, support returning data in JSON or prometheus format. For JSON have your client send the HTTP header \"Accept: application/json\" and for prometheus \"Accept: text/plain; version=0.0.4\" along with the request, PCM Sensor Server will then return the counter data in the requested format.</p>\n\
     <p>Endpoints you can call are:</p>\n\
     <ul>\n\
       <li>/ : This will fetch the counter values since start of the daemon, minus overflow so should be considered absolute numbers and should be used for further processing by yourself.</li>\n\
       <li>/persecond : This will fetch data from the internal sample thread which samples every second and returns the difference between the last 2 samples.</li>\n\
       <li>/persecond/X : This will fetch data from the internal sample thread which samples every second and returns the difference between the last 2 samples which are X seconds apart. X can be at most 30 seconds without changing the source code.</li>\n\
+      <li>/metrics : The Prometheus server does not send an Accept header to decide what format to return so it got its own endpoint that will always return data in the Prometheus format. pcm-sensor-server is sending the header \"Content-Type: text/plain; version=0.0.4\" as required. This /metrics endpoints mimics the same behavior as / and data is thus absolute, not relative.</li>\n\
       <li>/dashboard : This will return JSON for a Grafana dashboard that holds all counters. Please see the documentation for more information.</li>\n\
       <li>/favicon.ico : This will return a small favicon.ico as requested by many browsers.</li>\n\
     </ul>\n\
