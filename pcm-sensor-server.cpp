@@ -67,6 +67,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "threadpool.h"
 
 std::string const HTTP_EOL( "\r\n" );
+std::string const PROM_EOL( "\n" );
 
 class Indent {
     public:
@@ -678,9 +679,13 @@ private:
         }
     }
 
-    std::string replaceSpaceWithUnderbar( std::string const& s ) {
+    std::string replaceIllegalCharsWithUnderbar( std::string const& s ) {
         size_t pos = 0;
         std::string str(s);
+        while ( ( pos = str.find( '-', pos ) ) != std::string::npos ) {
+            str.replace( pos, 1, "_" );
+        }
+        pos = 0;
         while ( ( pos = str.find( ' ', pos ) ) != std::string::npos ) {
             str.replace( pos, 1, "_" );
         }
@@ -722,7 +727,7 @@ private:
 
 template <typename Counter>
 void PrometheusPrinter::printCounter( std::string const & name, Counter c ) {
-        ss << replaceSpaceWithUnderbar(name) << printHierarchy() << c << HTTP_EOL;
+        ss << replaceIllegalCharsWithUnderbar(name) << printHierarchy() << c << PROM_EOL;
 }
 
 template <typename Vector>
