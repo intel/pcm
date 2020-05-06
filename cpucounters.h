@@ -281,7 +281,7 @@ public:
         if (unitControl.get()) *unitControl = 0;
         if (fixedCounterControl.get()) *fixedCounterControl = 0;
     }
-    bool freeze(const uint32 extra, const char * xPICheckMsg = NULL)
+    bool initFreeze(const uint32 extra, const char * xPICheckMsg = NULL)
     {
         // freeze enable
         *unitControl = extra;

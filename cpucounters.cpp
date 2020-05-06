@@ -3706,7 +3706,7 @@ PCM::ErrorCode PCM::programServerUncorePowerMetrics(int mc_profile, int pcu_prof
       uint32 refCore = socketRefCore[i];
       TemporalThreadAffinity tempThreadAffinity(refCore); // speedup trick for Linux
 
-      pcuPMUs[i].freeze(UNC_PMON_UNIT_CTL_FRZ_EN);
+      pcuPMUs[i].initFreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
 
       if (freq_bands == NULL)
       {
@@ -5414,7 +5414,7 @@ void ServerPCICFGUncore::programXPI(const uint32 * event)
     {
         // QPI LL PMU
 
-        if (xpiPMUs[i].freeze(extra,
+        if (xpiPMUs[i].initFreeze(extra,
             "       Please see BIOS options to enable the export of QPI/UPI performance monitoring devices (devices 8 and 9: function 2).\n")
             == false)
         {
@@ -5635,7 +5635,7 @@ void ServerPCICFGUncore::programIMC(const uint32 * MCCntConfig)
     for (uint32 i = 0; i < (uint32)imcPMUs.size(); ++i)
     {
         // imc PMU
-        imcPMUs[i].freeze(extraIMC);
+        imcPMUs[i].initFreeze(extraIMC);
 
         // enable fixed counter (DRAM clocks)
         *imcPMUs[i].fixedCounterControl = MC_CH_PCI_PMON_FIXED_CTL_EN;
@@ -5657,7 +5657,7 @@ void ServerPCICFGUncore::programEDC(const uint32 * EDCCntConfig)
 {
     for (uint32 i = 0; i < (uint32)edcPMUs.size(); ++i)
     {
-        edcPMUs[i].freeze(UNC_PMON_UNIT_CTL_FRZ_EN);
+        edcPMUs[i].initFreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
 
         // MCDRAM clocks enabled by default
         *edcPMUs[i].fixedCounterControl = EDC_CH_PCI_PMON_FIXED_CTL_EN;
@@ -5677,7 +5677,7 @@ void ServerPCICFGUncore::programM2M()
     {
         for (auto & pmu : m2mPMUs)
         {
-            pmu.freeze(UNC_PMON_UNIT_CTL_RSV);
+            pmu.initFreeze(UNC_PMON_UNIT_CTL_RSV);
 
             *pmu.counterControl[EventPosition::NM_HIT] = M2M_PCI_PMON_CTL_EN;
             // UNC_M2M_TAG_HIT.NM_DRD_HIT_* events (CLEAN | DIRTY)
@@ -5702,7 +5702,7 @@ void ServerPCICFGUncore::programHA(const uint32 * config)
 {
     for (auto & pmu : haPMUs)
     {
-        pmu.freeze(UNC_PMON_UNIT_CTL_RSV);
+        pmu.initFreeze(UNC_PMON_UNIT_CTL_RSV);
         for (uint32 c = 0; c < 4; ++c)
         {
             *pmu.counterControl[c] = HA_PCI_PMON_CTL_EN;
@@ -6220,7 +6220,7 @@ void PCM::programIIOCounters(IIOPMUCNTCTLRegister rawEvents[4], int IIOStack)
                 continue;
             }
             auto & pmu = iioPMUs[i][unit];
-            pmu.freeze(UNC_PMON_UNIT_CTL_RSV);
+            pmu.initFreeze(UNC_PMON_UNIT_CTL_RSV);
 
             for (int c = 0; c < 4; ++c)
             {
@@ -6282,7 +6282,7 @@ void PCM::programCbo(const uint64 * events, const uint32 opCode, const uint32 nc
 
         for(uint32 cbo = 0; cbo < getMaxNumOfCBoxes(); ++cbo)
         {
-            cboPMUs[i][cbo].freeze(UNC_PMON_UNIT_CTL_FRZ_EN);
+            cboPMUs[i][cbo].initFreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
 
             programCboOpcodeFilter(opCode, cboPMUs[i][cbo], nc_, 0, loc, rem);
 
