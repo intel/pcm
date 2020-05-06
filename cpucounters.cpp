@@ -5414,25 +5414,13 @@ void ServerPCICFGUncore::programXPI(const uint32 * event)
     {
         // QPI LL PMU
 
-        // freeze enable
-        *xpiPMUs[i].unitControl = extra;
-        if ((extra & UNC_PMON_UNIT_CTL_VALID_BITS_MASK) != (*xpiPMUs[i].unitControl & UNC_PMON_UNIT_CTL_VALID_BITS_MASK))
+        if (xpiPMUs[i].freeze(extra,
+            "       Please see BIOS options to enable the export of QPI/UPI performance monitoring devices (devices 8 and 9: function 2).\n")
+            == false)
         {
             std::cout << "Link " << (i + 1) << " is disabled\n";
-            xpiPMUs[i].unitControl = NULL;
             continue;
         }
-        // freeze
-        *xpiPMUs[i].unitControl = extra + UNC_PMON_UNIT_CTL_FRZ;
-
-#ifdef PCM_UNCORE_PMON_BOX_CHECK_STATUS
-        const uint64 val = *xpiPMUs[i].unitControl;
-        if ((val & UNC_PMON_UNIT_CTL_VALID_BITS_MASK) != (extra + UNC_PMON_UNIT_CTL_FRZ))
-        {
-            std::cerr << "ERROR: QPI LL counter programming seems not to work. Q_P" << i << "_PCI_PMON_BOX_CTL=0x" << std::hex << val << "\n";
-            std::cerr << "       Please see BIOS options to enable the export of performance monitoring devices (devices 8 and 9: function 2).\n";
-        }
-#endif
 
         for (int cnt = 0; cnt < 4; ++cnt)
         {
