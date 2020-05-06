@@ -240,8 +240,8 @@ public:
 class UncorePMU
 {
     typedef std::shared_ptr<HWRegister> HWRegisterPtr;
-public:
     HWRegisterPtr unitControl;
+public:
     HWRegisterPtr counterControl[4];
     HWRegisterPtr counterValue[4];
     HWRegisterPtr fixedCounterControl;
@@ -272,8 +272,18 @@ public:
     }
     UncorePMU() {}
     virtual ~UncorePMU() {}
+    bool valid() const
+    {
+        return unitControl.get() != nullptr;
+    }
+    void writeUnitControl(const uint32 value)
+    {
+        *unitControl = value;
+    }
     void cleanup();
-    bool initFreeze(const uint32 extra, const char* xPICheckMsg = NULL);
+    void freeze(const uint32 extra);
+    bool initFreeze(const uint32 extra, const char* xPICheckMsg = nullptr);
+    void unfreeze(const uint32 extra);
     void resetUnfreeze(const uint32 extra);
 };
 
@@ -284,11 +294,13 @@ class ServerPCICFGUncore
     int32 iMCbus,UPIbus,M2Mbus;
     uint32 groupnr;
     int32 cpu_model;
-    std::vector<UncorePMU> imcPMUs;
-    std::vector<UncorePMU> edcPMUs;
-    std::vector<UncorePMU> xpiPMUs;
-    std::vector<UncorePMU> m2mPMUs;
-    std::vector<UncorePMU> haPMUs;
+    typedef std::vector<UncorePMU> UncorePMUVector;
+    UncorePMUVector imcPMUs;
+    UncorePMUVector edcPMUs;
+    UncorePMUVector xpiPMUs;
+    UncorePMUVector m2mPMUs;
+    UncorePMUVector haPMUs;
+    std::vector<UncorePMUVector*> allPMUs{ &imcPMUs, &edcPMUs, &xpiPMUs, &m2mPMUs, &haPMUs };
     std::vector<uint64> qpi_speed;
     std::vector<uint32> num_imc_channels; // number of memory channels in each memory controller
     std::vector<std::pair<uint32, uint32> > XPIRegisterLocation; // (device, function)

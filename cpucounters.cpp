@@ -3740,13 +3740,13 @@ void PCM::freezeServerUncoreCounters()
     for (int i = 0; (i < (int)server_pcicfg_uncore.size()) && MSR.size(); ++i)
     {
         server_pcicfg_uncore[i]->freezeCounters();
-        *pcuPMUs[i].unitControl = UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ;
+        pcuPMUs[i].freeze(UNC_PMON_UNIT_CTL_FRZ_EN);
 
         if (IIOEventsAvailable())
         {
             for (auto & pmu : iioPMUs[i])
             {
-                *pmu.second.unitControl = UNC_PMON_UNIT_CTL_RSV + UNC_PMON_UNIT_CTL_FRZ;
+                pmu.second.freeze(UNC_PMON_UNIT_CTL_RSV);
             }
         }
 
@@ -3754,8 +3754,7 @@ void PCM::freezeServerUncoreCounters()
         TemporalThreadAffinity tempThreadAffinity(refCore); // speedup trick for Linux
         for (auto & pmu : cboPMUs[i])
         {
-            // freeze enable
-            *pmu.unitControl = UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ;
+            pmu.freeze(UNC_PMON_UNIT_CTL_FRZ_EN);
         }
     }
 }
@@ -3764,13 +3763,13 @@ void PCM::unfreezeServerUncoreCounters()
     for (int i = 0; (i < (int)server_pcicfg_uncore.size()) && MSR.size(); ++i)
     {
         server_pcicfg_uncore[i]->unfreezeCounters();
-        *pcuPMUs[i].unitControl = UNC_PMON_UNIT_CTL_FRZ_EN;
+        pcuPMUs[i].unfreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
 
         if (IIOEventsAvailable())
         {
             for (auto & pmu : iioPMUs[i])
             {
-                *pmu.second.unitControl = UNC_PMON_UNIT_CTL_RSV;
+                pmu.second.unfreeze(UNC_PMON_UNIT_CTL_RSV);
             }
         }
 
@@ -3778,8 +3777,7 @@ void PCM::unfreezeServerUncoreCounters()
         TemporalThreadAffinity tempThreadAffinity(refCore); // speedup trick for Linux
         for (auto & pmu : cboPMUs[i])
         {
-            // freeze enable
-            *pmu.unitControl = UNC_PMON_UNIT_CTL_FRZ_EN;
+            pmu.unfreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
         }
     }
 }
@@ -5438,7 +5436,7 @@ void ServerPCICFGUncore::cleanupQPIHandles()
 {
     for(auto i = xpiPMUs.begin(); i != xpiPMUs.end(); ++i)
     {
-        if (!i->unitControl.get()) // NULL
+        if (!i->valid())
         {
             xpiPMUs.erase(i);
             cleanupQPIHandles();
@@ -5758,25 +5756,12 @@ void ServerPCICFGUncore::freezeCounters()
 
 void ServerPCICFGUncore::writeAllUnitControl(const uint32 value)
 {
-    for(auto & pmu : xpiPMUs)
+    for (auto& pmuVector : allPMUs)
     {
-        *pmu.unitControl = value;
-    }
-    for (auto & pmu : imcPMUs)
-    {
-        *pmu.unitControl = value;
-    }
-    for (auto & pmu : edcPMUs)
-    {
-        *pmu.unitControl = value;
-    }
-    for (auto & pmu: m2mPMUs)
-    {
-        *pmu.unitControl = value;
-    }
-    for (auto & pmu : haPMUs)
-    {
-        *pmu.unitControl = value;
+        for (auto& pmu : *pmuVector)
+        {
+            pmu.writeUnitControl(value);
+        }
     }
 }
 
@@ -6429,6 +6414,16 @@ void UncorePMU::cleanup()
     if (fixedCounterControl.get()) *fixedCounterControl = 0;
 }
 
+void UncorePMU::freeze(const uint32 extra)
+{
+    *unitControl = extra + UNC_PMON_UNIT_CTL_FRZ;
+}
+
+void UncorePMU::unfreeze(const uint32 extra)
+{
+    *unitControl = extra;
+}
+
 bool UncorePMU::initFreeze(const uint32 extra, const char* xPICheckMsg)
 {
     // freeze enable
@@ -6437,7 +6432,7 @@ bool UncorePMU::initFreeze(const uint32 extra, const char* xPICheckMsg)
     {
         if ((extra & UNC_PMON_UNIT_CTL_VALID_BITS_MASK) != ((*unitControl) & UNC_PMON_UNIT_CTL_VALID_BITS_MASK))
         {
-            unitControl = NULL;
+            unitControl = nullptr;
             return false;
         }
     }
