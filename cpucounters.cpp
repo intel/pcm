@@ -6419,6 +6419,54 @@ CounterWidthExtender::~CounterWidthExtender()
     if (raw_counter) delete raw_counter;
 }
 
+void UncorePMU::cleanup()
+{
+    for (int i = 0; i < 4; ++i)
+    {
+        if (counterControl[i].get()) *counterControl[i] = 0;
+    }
+    if (unitControl.get()) *unitControl = 0;
+    if (fixedCounterControl.get()) *fixedCounterControl = 0;
+}
+
+bool UncorePMU::initFreeze(const uint32 extra, const char* xPICheckMsg)
+{
+    // freeze enable
+    *unitControl = extra;
+    if (xPICheckMsg)
+    {
+        if ((extra & UNC_PMON_UNIT_CTL_VALID_BITS_MASK) != ((*unitControl) & UNC_PMON_UNIT_CTL_VALID_BITS_MASK))
+        {
+            unitControl = NULL;
+            return false;
+        }
+    }
+    // freeze
+    *unitControl = extra + UNC_PMON_UNIT_CTL_FRZ;
+
+#ifdef PCM_UNCORE_PMON_BOX_CHECK_STATUS
+    const uint64 val = *unitControl;
+    if ((val & UNC_PMON_UNIT_CTL_VALID_BITS_MASK) != (extra + UNC_PMON_UNIT_CTL_FRZ))
+    {
+        std::cerr << "ERROR: PMU counter programming seems not to work. PMON_BOX_CTL=0x" << std::hex << val << " needs to be =0x" << (UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ) << "\n";
+        if (xPICheckMsg)
+        {
+            std::cerr << xPICheckMsg;
+        }
+    }
+#endif
+    return true;
+}
+
+void UncorePMU::resetUnfreeze(const uint32 extra)
+{
+    // reset counter values
+    *unitControl = extra + UNC_PMON_UNIT_CTL_FRZ + UNC_PMON_UNIT_CTL_RST_COUNTERS;
+
+    // unfreeze counters
+    *unitControl = extra;
+}
+
 IIOCounterState PCM::getIIOCounterState(int socket, int IIOStack, int counter)
 {
     IIOCounterState result;

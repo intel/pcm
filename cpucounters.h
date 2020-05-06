@@ -272,51 +272,9 @@ public:
     }
     UncorePMU() {}
     virtual ~UncorePMU() {}
-    void cleanup()
-    {
-        for (int i = 0; i < 4; ++i)
-        {
-            if (counterControl[i].get()) *counterControl[i] = 0;
-        }
-        if (unitControl.get()) *unitControl = 0;
-        if (fixedCounterControl.get()) *fixedCounterControl = 0;
-    }
-    bool initFreeze(const uint32 extra, const char * xPICheckMsg = NULL)
-    {
-        // freeze enable
-        *unitControl = extra;
-        if (xPICheckMsg)
-        {
-            if ((extra & UNC_PMON_UNIT_CTL_VALID_BITS_MASK) != ((*unitControl) & UNC_PMON_UNIT_CTL_VALID_BITS_MASK))
-            {
-                unitControl = NULL;
-                return false;
-            }
-        }
-        // freeze
-        *unitControl = extra + UNC_PMON_UNIT_CTL_FRZ;
-
-#ifdef PCM_UNCORE_PMON_BOX_CHECK_STATUS
-        const uint64 val = *unitControl;
-        if ((val & UNC_PMON_UNIT_CTL_VALID_BITS_MASK) != (extra + UNC_PMON_UNIT_CTL_FRZ))
-        {
-            std::cerr << "ERROR: PMU counter programming seems not to work. PMON_BOX_CTL=0x" << std::hex << val << " needs to be =0x" << (UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ) << "\n";
-            if (xPICheckMsg)
-            {
-                std::cerr << xPICheckMsg;
-            }
-        }
-#endif
-        return true;
-    }
-    void resetUnfreeze(const uint32 extra)
-    {
-        // reset counter values
-        *unitControl = extra + UNC_PMON_UNIT_CTL_FRZ + UNC_PMON_UNIT_CTL_RST_COUNTERS;
-
-        // unfreeze counters
-        *unitControl = extra;
-    }
+    void cleanup();
+    bool initFreeze(const uint32 extra, const char* xPICheckMsg = NULL);
+    void resetUnfreeze(const uint32 extra);
 };
 
 //! Object to access uncore counters in a socket/processor with microarchitecture codename SandyBridge-EP (Jaketown) or Ivytown-EP or Ivytown-EX
