@@ -840,7 +840,7 @@ private:
 
     static bool isCPX(int cpu_model_, int cpu_stepping_) // Cooper Lake
     {
-        return (PCM::SKX == cpu_model_) && (cpu_stepping_ == 10);
+        return (PCM::SKX == cpu_model_) && (cpu_stepping_ >= 10);
     }
 
     bool isCPX() const
