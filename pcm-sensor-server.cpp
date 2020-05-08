@@ -30,6 +30,12 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#define GCC_VERSION (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + _GNUC_PATCHLEVEL__)
+
+#if defined(__GNUC__) && GCC_VERSION < 50000
+#  error "This compiler is not fully suporting the c++-11 standard, please use at least g++ 5.0"
+#endif
+
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
