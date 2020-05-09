@@ -13,3 +13,5 @@ Installation of the grafana front-end (can be on any *host* system with connecti
 3.  (Download once and) start docker containers on the *host*: `sh start.sh http://target_system_address:80`
 4.  Start your browser at http://*host*:3000/ and then login with admin user, password admin . Change the password and then click on "**Home**" (left top corner) -> "Processor Counter Monitor (PCM) Dashboard"
 5.  You can also stop and delete the containers when needed: `sh stop.sh`
+
+![pcm grafana output](https://raw.githubusercontent.com/wiki/opcm/pcm/pcm-dashboard.png)
