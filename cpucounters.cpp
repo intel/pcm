@@ -2144,8 +2144,11 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
         if (isAtom() == false && cpu_model != KNL)
         {
             coreEventDesc[2] = pDesc[2];
-            coreEventDesc[3] = pDesc[3];
-            core_gen_counter_num_used = 4;
+            core_gen_counter_num_used = 3;
+            if (core_gen_counter_num_max > 3) {
+                coreEventDesc[3] = pDesc[3];
+                core_gen_counter_num_used = 4;
+            }
         }
         else
             core_gen_counter_num_used = 2;

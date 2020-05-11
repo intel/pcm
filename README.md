@@ -34,7 +34,7 @@ PCM provides a number of command-line utilities for real-time monitoring:
 - **pcm-bw-histogram**: collect memory bandwidth utilization histogram
 
 Graphical front ends:
-- **pcm Grafana dashboard** :  front-end for Grafana (in `grafana` directory)
+- **pcm Grafana dashboard** :  front-end for Grafana (in [grafana](https://github.com/opcm/pcm/tree/master/grafana) directory)
 ![pcm grafana output](https://raw.githubusercontent.com/wiki/opcm/pcm/pcm-dashboard.png)
 - **pcm-sensor** :  front-end for KDE KSysGuard
 - **pcm-service** :  front-end for Windows perfmon
