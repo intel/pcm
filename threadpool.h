@@ -117,7 +117,7 @@ public:
 
 private:
     void addThread() {
-        threads_.push_back( std::thread( std::bind( this->execute, this ) ) );
+        threads_.push_back( std::thread( std::bind( &this->execute, this ) ) );
     }
 
     // Executes work items from a std::thread, do not call manually

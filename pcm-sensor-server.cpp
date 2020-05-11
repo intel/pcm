@@ -1277,7 +1277,7 @@ private:
         char listSeparatorChar_;
     };
 
-    std::unordered_map<enum HeaderType, std::string> const headerTypeToString_ = {
+    std::unordered_map<enum HeaderType, std::string, std::hash<int>> const headerTypeToString_ = {
         { ServerSet, "ServerSet" },
         { Invalid, "Invalid" },
         { Unspecified, "Unspecified" },
@@ -1697,7 +1697,7 @@ enum MimeType {
     MimeType_spare = 255
 };
 
-std::unordered_map<enum MimeType, std::string> mimeTypeMap = {
+std::unordered_map<enum MimeType, std::string, std::hash<int>> mimeTypeMap = {
     { CatchAll,        "*/*" },
     { TextHTML,        "text/html" },
     { TextPlain,       "text/plain" },
@@ -1981,7 +1981,7 @@ protected:
     enum HTTPProtocol protocol_;
     std::unordered_map<std::string, HTTPHeader> headers_;
     std::string body_;
-    std::unordered_map<enum HTTPProtocol, std::string> protocol_map_ = {
+    std::unordered_map<enum HTTPProtocol, std::string, std::hash<int>> protocol_map_ = {
         { HTTPProtocol::HTTP_0_9, "HTTP/0.9" },
         { HTTPProtocol::HTTP_1_0, "HTTP/1.0" },
         { HTTPProtocol::HTTP_1_1, "HTTP/1.1" },
@@ -2063,7 +2063,7 @@ public:
 
 private:
     enum HTTPResponseCode responseCode_;
-    std::unordered_map<enum HTTPResponseCode, std::string> response_map_ = {
+    std::unordered_map<enum HTTPResponseCode, std::string, std::hash<int>> response_map_ = {
         { RC_100_Continue, "Continue" },
         { RC_101_SwitchingProtocols, "Switching Protocols" },
         { RC_102_Processing, "Processing" },
