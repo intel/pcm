@@ -36,7 +36,7 @@ ClientBW::ClientBW()
         std::cerr << "ERROR: imcbar is zero.\n";
         throw std::exception();
     }
-    auto startAddr = imcbar & (~(4096ULL - 1ULL)); // round down to 4K
+    const auto startAddr = imcbar & (~(4096ULL - 1ULL)); // round down to 4K
     mmioRange = std::make_shared<MMIORange>(startAddr + PCM_CLIENT_IMC_EVENT_BASE, PCM_CLIENT_IMC_MMAP_SIZE - PCM_CLIENT_IMC_EVENT_BASE);
 }
 

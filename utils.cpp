@@ -518,6 +518,15 @@ bool CheckAndForceRTMAbortMode(const char * arg, PCM * m)
     return false;
 }
 
+uint64 read_number(char* str)
+{
+    std::istringstream stream(str);
+    if (strstr(str, "x")) stream >> std::hex;
+    uint64 result = 0;
+    stream >> result;
+    return result;
+}
+
 void print_help_force_rtm_abort_mode(const int alignment)
 {
     const auto m = PCM::getInstance();

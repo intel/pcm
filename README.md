@@ -20,7 +20,7 @@ PCM provides a number of command-line utilities for real-time monitoring:
 
 - **pcm** : basic processor monitoring utility (instructions per cycle, core frequency (including Intel(r) Turbo Boost Technology), memory and Intel(r) Quick Path Interconnect bandwidth, local and remote memory bandwidth, cache misses, core and CPU package sleep C-state residency, core and CPU package thermal headroom, cache utilization, CPU and memory energy consumption)
 ![pcm output](https://raw.githubusercontent.com/wiki/opcm/pcm/pcm.x.jpg)
-- **pcm-sensor-server** : pcm collector exposing metrics over http in JSON format
+- **pcm-sensor-server** : pcm collector exposing metrics over http in JSON or Prometheus (text based) format
 - **pcm-memory** : monitor memory bandwidth (per-channel and per-DRAM DIMM rank)
 ![pcm-memory output](https://raw.githubusercontent.com/wiki/opcm/pcm/pcm-memory.x.JPG)
 - **pcm-latency** : monitor L1 cache miss and DDR/PMM memory latency
@@ -39,7 +39,7 @@ Graphical front ends:
 - **pcm-sensor** :  front-end for KDE KSysGuard
 - **pcm-service** :  front-end for Windows perfmon
 
-There are also utilities for reading/writing model specific registers (**pcm-msr**) and PCI configuration registers (**pcm-pcicfg**) supported on Linux, Windows, Mac OS X and FreeBSD.
+There are also utilities for reading/writing model specific registers (**pcm-msr**), PCI configuration registers (**pcm-pcicfg**) and memory mapped registers (**pcm-mmio**) supported on Linux, Windows, Mac OS X and FreeBSD.
 
 And finally a daemon that stores core, memory and QPI counters in shared memory that can be be accessed by non-root users.
 

@@ -240,8 +240,8 @@ public:
 class UncorePMU
 {
     typedef std::shared_ptr<HWRegister> HWRegisterPtr;
-public:
     HWRegisterPtr unitControl;
+public:
     HWRegisterPtr counterControl[4];
     HWRegisterPtr counterValue[4];
     HWRegisterPtr fixedCounterControl;
@@ -272,36 +272,19 @@ public:
     }
     UncorePMU() {}
     virtual ~UncorePMU() {}
-    void cleanup()
+    bool valid() const
     {
-        for (int i = 0; i < 4; ++i)
-        {
-            if (counterControl[i].get()) *counterControl[i] = 0;
-        }
-        if (unitControl.get()) *unitControl = 0;
-        if (fixedCounterControl.get()) *fixedCounterControl = 0;
+        return unitControl.get() != nullptr;
     }
-    void freeze(const uint32 extra)
+    void writeUnitControl(const uint32 value)
     {
-        // freeze enable
-        *unitControl = extra;
-        // freeze
-        *unitControl = extra + UNC_PMON_UNIT_CTL_FRZ;
-
-#ifdef PCM_UNCORE_PMON_BOX_CHECK_STATUS
-        const uint64 val = *unitControl;
-        if ((val & UNC_PMON_UNIT_CTL_VALID_BITS_MASK) != (extra + UNC_PMON_UNIT_CTL_FRZ))
-            std::cerr << "ERROR: PMU counter programming seems not to work. PMON_BOX_CTL=0x" << std::hex << val << " needs to be =0x" << (UNC_PMON_UNIT_CTL_FRZ_EN + UNC_PMON_UNIT_CTL_FRZ) << "\n";
-#endif
+        *unitControl = value;
     }
-    void resetUnfreeze(const uint32 extra)
-    {
-        // reset counter values
-        *unitControl = extra + UNC_PMON_UNIT_CTL_FRZ + UNC_PMON_UNIT_CTL_RST_COUNTERS;
-
-        // unfreeze counters
-        *unitControl = extra;
-    }
+    void cleanup();
+    void freeze(const uint32 extra);
+    bool initFreeze(const uint32 extra, const char* xPICheckMsg = nullptr);
+    void unfreeze(const uint32 extra);
+    void resetUnfreeze(const uint32 extra);
 };
 
 //! Object to access uncore counters in a socket/processor with microarchitecture codename SandyBridge-EP (Jaketown) or Ivytown-EP or Ivytown-EX
@@ -311,11 +294,13 @@ class ServerPCICFGUncore
     int32 iMCbus,UPIbus,M2Mbus;
     uint32 groupnr;
     int32 cpu_model;
-    std::vector<UncorePMU> imcPMUs;
-    std::vector<UncorePMU> edcPMUs;
-    std::vector<UncorePMU> xpiPMUs;
-    std::vector<UncorePMU> m2mPMUs;
-    std::vector<UncorePMU> haPMUs;
+    typedef std::vector<UncorePMU> UncorePMUVector;
+    UncorePMUVector imcPMUs;
+    UncorePMUVector edcPMUs;
+    UncorePMUVector xpiPMUs;
+    UncorePMUVector m2mPMUs;
+    UncorePMUVector haPMUs;
+    std::vector<UncorePMUVector*> allPMUs{ &imcPMUs, &edcPMUs, &xpiPMUs, &m2mPMUs, &haPMUs };
     std::vector<uint64> qpi_speed;
     std::vector<uint32> num_imc_channels; // number of memory channels in each memory controller
     std::vector<std::pair<uint32, uint32> > XPIRegisterLocation; // (device, function)

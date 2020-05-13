@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2012, 2018 Intel Corporation
+Copyright (c) 2012-2020, Intel Corporation
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -21,6 +21,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <unistd.h>
 #endif
 #include <iostream>
+#include <functional>
 #include <stdlib.h>
 #include <iomanip>
 #include <string.h>
@@ -28,33 +29,48 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include "freegetopt/getopt.h"
 #endif
 
-void print_usage(const char * progname)
+void print_usage(const char* progname)
 {
-    std::cout << "Usage " << progname << " [-w value] [-d] group bus device function offset\n\n";
-    std::cout << "  Reads/writes 32-bit PCICFG register \n";
+    std::cout << "Usage " << progname << " [-w value] [-q] [-d] address\n\n";
+    std::cout << "  Reads/writes MMIO (memory mapped) register in the specified address\n";
     std::cout << "   -w value : write the value before reading \n";
+    std::cout << "   -q       : read/write 64-bit quad word (default is 32-bit double word)\n";
     std::cout << "   -d       : output all numbers in dec (default is hex)\n";
     std::cout << "\n";
+}
+
+template <class T, class RD, class WR>
+void doOp(const uint64 address, const uint64 offset, const bool write, T value, RD readOp, WR writeOp, const bool dec)
+{
+    if (!dec) std::cout << std::hex << std::showbase;
+    constexpr auto bit = sizeof(T) * 8;
+    if (write)
+    {
+        std::cout << " Writing " << value << " to " << std::dec << bit;
+        if (!dec) std::cout << std::hex << std::showbase;
+        std::cout <<"-bit MMIO register " << address << "\n";
+        writeOp(offset, value);
+    }
+    value = readOp(offset);
+    std::cout << " Read value " << value << " from " << std::dec << bit;
+    if (!dec) std::cout << std::hex << std::showbase;
+    std::cout << "-bit MMIO register " << address << "\n\n";
 }
 
 int main(int argc, char * argv[])
 {
     std::cout << "\n Processor Counter Monitor " << PCM_VERSION << "\n";
 
-    std::cout << "\n PCICFG read/write utility\n\n";
+    std::cout << "\n MMIO register read/write utility\n\n";
 
-    #ifdef __linux__
-    #ifndef PCM_USE_PCI_MM_LINUX
-    std::cout << "\n To access *extended* configuration space recompile with -DPCM_USE_PCI_MM_LINUX option.\n";
-    #endif
-    #endif
-
-    uint32 value = 0;
+    uint64 value = ~(0ULL);
     bool write = false;
+    uint64 address = 0;
     bool dec = false;
+    bool quad = false;
 
     int my_opt = -1;
-    while ((my_opt = getopt(argc, argv, "w:d")) != -1)
+    while ((my_opt = getopt(argc, argv, "w:dq")) != -1)
     {
         switch (my_opt)
         {
@@ -65,53 +81,45 @@ int main(int argc, char * argv[])
         case 'd':
             dec = true;
             break;
+        case 'q':
+            quad = true;
+            break;
         default:
             print_usage(argv[0]);
             return -1;
         }
     }
 
-    if (optind + 4 >= argc)
+    if (optind >= argc)
     {
         print_usage(argv[0]);
         return -1;
     }
 
-    int group = (int)read_number(argv[optind]);
-    int bus = (int)read_number(argv[optind + 1]);
-    int device = (int)read_number(argv[optind+2]);
-    int function = (int)read_number(argv[optind+3]);
-    int offset = (int)read_number(argv[optind+4]);
+    address = read_number(argv[optind]);
 
-    #ifdef _MSC_VER
-    // Increase the priority a bit to improve context switching delays on Windows
-    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
-
-    // WARNING: This driver code (msr.sys) is only for testing purposes, not for production use
-    Driver drv = Driver(Driver::msrLocalPath());
-    // drv.stop();     // restart driver (usually not needed)
-    if (!drv.start())
+    try
     {
-        std::wcerr << "Can not load MSR driver.\n";
-        std::wcerr << "You must have a signed  driver at " << drv.driverPath() << " and have administrator rights to run this program\n";
-        return -1;
-    }
-    #endif
-    try {
-        PciHandleType h(group, bus, device, function);
-        if (!dec) std::cout << std::hex << std::showbase;
-        if (write)
+        constexpr uint64 rangeSize = 4096ULL;
+        const uint64 baseAddr = address & (~(rangeSize - 1ULL)); // round down to 4K boundary
+        const uint64 offset = address - baseAddr;
+
+        MMIORange mmio(baseAddr, rangeSize, !write);
+
+        using namespace std::placeholders;
+        if (quad)
         {
-            std::cout << " Writing " << value << " to " << group << ":" << bus << ":" << device << ":" << function << "@" << offset << "\n";
-            h.write32(offset, value);
+            doOp(address, offset, write, (uint64)value, std::bind(&MMIORange::read64, &mmio, _1), std::bind(&MMIORange::write64, &mmio, _1, _2), dec);
         }
-        value = 0;
-        h.read32(offset, &value);
-        std::cout << " Read value " << value << " from " << group << ":" << bus << ":" << device << ":" << function << "@" << offset << "\n\n";
+        else
+        {
+            doOp(address, offset, write, (uint32)value, std::bind(&MMIORange::read32, &mmio, _1), std::bind(&MMIORange::write32, &mmio, _1, _2), dec);
+        }
     }
     catch (std::exception & e)
     {
-        std::cerr << "Error accessing registers: " << e.what() << "\n";
-        std::cerr << "Please check if the program can access MSR/PCICFG drivers.\n";
+        std::cerr << "Error accessing MMIO registers: " << e.what() << "\n";
+        std::cerr << "Please check if the program can access MMIO drivers.\n";
     }
+    return 0;
 }

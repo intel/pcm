@@ -5,6 +5,8 @@
 
 EXE = pcm.x pcm-numa.x pcm-latency.x pcm-power.x pcm-sensor.x pcm-msr.x pcm-memory.x pcm-tsx.x pcm-pcie.x pcm-core.x pcm-iio.x pcm-lspci.x pcm-pcicfg.x
 
+EXE += pcm-mmio.x
+
 UNAME:=$(shell uname)
 
 ifeq ($(UNAME), Linux)
