@@ -129,14 +129,24 @@ class datetime {
     public:
         void printDateTimeString( std::ostream& os ) const {
             std::stringstream str("");
+            char timeBuffer[64];
+            std::memset( timeBuffer, 0, 64 );
             str.imbue( std::locale::classic() );
-            str << std::put_time( &now, "%a, %d %b %Y %T GMT" );
+            if ( strftime( timeBuffer, 63, "%a, %d %b %Y %T GMT", &now ) )
+                str << timeBuffer;
+            else
+                throw std::runtime_error("Error writing to timeBuffer, too small?");
             os << str.str();
         }
         std::string toString() const {
             std::stringstream str("");
+            char timeBuffer[64];
+            std::memset( timeBuffer, 0, 64 );
             str.imbue( std::locale::classic() );
-            str << std::put_time( &now, "%a, %d %b %Y %T GMT" );
+            if ( strftime( timeBuffer, 63, "%a, %d %b %Y %T GMT", &now ) )
+                str << timeBuffer;
+            else
+                throw std::runtime_error("Error writing to timeBuffer, too small?");
             return str.str();
         }
 
