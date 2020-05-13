@@ -39,8 +39,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Use port allocated for PCM in prometheus:
 // https://github.com/prometheus/prometheus/wiki/Default-port-allocations
 constexpr unsigned int DEFAULT_HTTP_PORT = 9738;
-
-constexpr unsigned int DEFAULT_HTTPS_PORT = 443;
+constexpr unsigned int DEFAULT_HTTPS_PORT = DEFAULT_HTTP_PORT;
 
 #include <limits.h>
 #include <stdio.h>
