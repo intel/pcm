@@ -6,5 +6,6 @@ RUN cd /tmp/pcm && make
 
 FROM fedora:31
 COPY --from=builder /tmp/pcm/*.x /usr/local/bin/
+ENV PCM_NO_PERF=1
 
-ENTRYPOINT [ "/usr/local/bin/pcm-sensor-server.x", "-p", "9738" ]
+ENTRYPOINT [ "/usr/local/bin/pcm-sensor-server.x", "-p", "9738", "-r" ]
