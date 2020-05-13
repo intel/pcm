@@ -36,6 +36,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #  error "This compiler is not fully suporting the c++-11 standard, please use at least g++ 5.0"
 #endif
 
+// Use port allocated for PCM in prometheus:
+// https://github.com/prometheus/prometheus/wiki/Default-port-allocations
+constexpr unsigned int DEFAULT_HTTP_PORT = 9738;
+
+constexpr unsigned int DEFAULT_HTTPS_PORT = 443;
+
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -2992,9 +2998,9 @@ void printHelpText( std::string const & programName ) {
     std::cerr << "Valid Options:\n";
     std::cerr << "    -d                   : Run in the background\n";
 #if defined (USE_SSL)
-    std::cerr << "    -s                   : Use https protocol (default port 443)\n";
+    std::cerr << "    -s                   : Use https protocol (default port " << DEFAULT_HTTPS_PORT << ")\n";
 #endif
-    std::cerr << "    -p portnumber        : Run on port <portnumber> (default port is 80)\n";
+    std::cerr << "    -p portnumber        : Run on port <portnumber> (default port is " << DEFAULT_HTTP_PORT << ")\n";
     std::cerr << "    -r|--reset           : Reset programming of the performance counters.\n";
     std::cerr << "    -D|--debug level     : level = 0: no debug info, > 0 increase verbosity.\n";
     std::cerr << "    -R|--real-time       : If possible the daemon will run with real time\n";
@@ -3188,14 +3194,14 @@ int main( int argc, char* argv[] ) {
 #if defined (USE_SSL)
         if ( useSSL ) {
             if ( port == 0 )
-                port = 443;
+                port = DEFAULT_HTTPS_PORT;
             std::cerr << "Starting SSL enabled server on https://localhost:" << port << "/\n";
             startHTTPSServer( port, certificateFile, privateKeyFile );
         } else
 #endif
         {
             if ( port == 0 )
-                port = 80;
+                port = DEFAULT_HTTP_PORT;
             std::cerr << "Starting plain HTTP server on http://localhost:" << port << "/\n";
             startHTTPServer( port );
         }
