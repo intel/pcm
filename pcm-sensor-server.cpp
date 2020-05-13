@@ -2767,7 +2767,7 @@ enum OutputFormat {
     OutputFormat_Spare = 255
 };
 
-std::unordered_map<enum MimeType, enum OutputFormat> mimeTypeToOutputFormat = {
+std::unordered_map<enum MimeType, enum OutputFormat, std::hash<int>> mimeTypeToOutputFormat = {
     { TextHTML,            HTML },
     { TextXML,             XML  },
     { ApplicationJSON,     JSON },
@@ -2775,7 +2775,7 @@ std::unordered_map<enum MimeType, enum OutputFormat> mimeTypeToOutputFormat = {
     { CatchAll,            HTML }
 };
 
-std::unordered_map<enum MimeType, std::string> supportedOutputMimeTypes = {
+std::unordered_map<enum MimeType, std::string, std::hash<int>> supportedOutputMimeTypes = {
     { TextPlainProm_0_0_4, "text/plain;version=0.0.4" },
     { ApplicationJSON,     "application/json" }
 };
