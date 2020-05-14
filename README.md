@@ -58,6 +58,7 @@ Downloading Pre-Compiled PCM Tools
 
 - Linux: precompiled RPMs (binary and source) are available [here](https://download.opensuse.org/repositories/home:/opcm/)
 - Windows: download PCM binaries as [appveyor build service](https://ci.appveyor.com/project/opcm/pcm/history) artifacts and required Visual C++ Redistributable from [www.microsoft.com](https://www.microsoft.com/en-us/download/details.aspx?id=48145). Additional drivers are needed, see [WINDOWS_HOWTO.md](https://github.com/opcm/pcm/blob/master/WINDOWS_HOWTO.md).
+- Docker: see [instructions on how to use pcm-sensor-server pre-compiled container from docker hub](https://github.com/opcm/pcm/blob/master/DOCKER_README.md).
 
 --------------------------------------------------------------------------------
 PCM API documentation
