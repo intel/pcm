@@ -6,6 +6,7 @@ Installation on target system to be analyzed:
 1.  Build: `make pcm-sensor-server.x`
 2.  As root start pcm-sensor-server.x: `sudo ./pcm-sensor-server.x`
 
+Alternatively one can start [pcm-sensor-server as a container from docker hub](https://github.com/opcm/pcm/blob/master/DOCKER_README.md).
 
 Installation of the grafana front-end (can be on any *host* system with connectivity to the target system):
 1.  Make sure curl and docker are installed on the *host*
