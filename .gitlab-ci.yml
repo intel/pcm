@@ -1,9 +1,9 @@
 image: "ubuntu:xenial"
 
-before_script:
+before_script:gcc48:
   - apt-get update -qq && apt-get install -qq -y make g++-4.8
 
-build_linux:
+build_linux:gcc48:
    stage: build
    script:
       - ln -s /usr/bin/g++-4.8 /usr/bin/g++
