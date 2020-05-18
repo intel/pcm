@@ -575,6 +575,7 @@ public:
 
     virtual void dispatch( ServerUncore* su ) override {
         addToHierarchy( "uncore=\"server\"" );
+        printComment( std::string( "Uncore Counters Socket " ) + std::to_string( su->socketID() ) );
         SocketCounterState before = getSocketCounter( aggPair_.first,  su->socketID() );
         SocketCounterState after  = getSocketCounter( aggPair_.second, su->socketID() );
         printUncoreCounterState( before, after );
@@ -606,19 +607,25 @@ public:
         SystemCounterState before = getSystemCounter( aggPair_.first );
         SystemCounterState after  = getSystemCounter( aggPair_.second );
         addToHierarchy( "aggregate=\"system\"" );
+        printComment( "UPI/QPI Counters" );
         printSystemCounterState( before, after );
+        printComment( "Core Counters Aggregate System" );
         printBasicCounterState ( before, after );
+        printComment( "Uncore Counters Aggregate System" );
         printUncoreCounterState( before, after );
         removeFromHierarchy(); // aggregate=system
     }
 
     virtual void dispatch( Socket* s ) override {
         addToHierarchy( std::string( "socket=\"" ) + std::to_string( s->socketID() ) + "\"" );
+        printComment( std::string( "Core Counters Socket " ) + std::to_string( s->socketID() ) );
         auto vec = s->cores();
         iterateVectorAndCallAccept( vec );
 
+        // Uncore writes the comment for the socket uncore counters
         s->uncore()->accept( *this );
         addToHierarchy( "aggregate=\"socket\"" );
+        printComment( std::string( "Core Counters Aggregate Socket " ) + std::to_string( s->socketID() ) );
         SocketCounterState before = getSocketCounter( aggPair_.first,  s->socketID() );
         SocketCounterState after  = getSocketCounter( aggPair_.second, s->socketID() );
         printBasicCounterState( before, after );
@@ -730,6 +737,10 @@ private:
 
     template <typename Counter>
     void printCounter( std::string const & name, Counter c );
+
+    void printComment( std::string const &comment ) {
+        ss << "# " << comment << PROM_EOL;
+    }
 
     template <typename Vector>
     void iterateVectorAndCallAccept( Vector const& v );
