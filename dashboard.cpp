@@ -19,11 +19,18 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 class Target
 {
+public:
+    virtual std::string operator () (const std::string& refId) const = 0;
+    virtual ~Target() {}
+};
+
+class InfluxDBTarget : public Target
+{
     std::string alias;
     std::string metric;
-    Target() = delete;
+    InfluxDBTarget() = delete;
 public:
-    Target(const std::string & alias_, const std::string & metric_) : alias(alias_), metric(metric_) {}
+    InfluxDBTarget(const std::string & alias_, const std::string & metric_) : alias(alias_), metric(metric_) {}
     std::string operator () (const std::string & refId) const
     {
         std::string result;
@@ -441,11 +448,11 @@ std::string getPCMDashboardJSON(int ns, int nu, int nc)
         for (size_t s = 0; s < NumSockets; ++s)
         {
             const auto S = std::to_string(s);
-            auto t = std::make_shared<Target>("Socket" + S, genAll("mean(\\\"Sockets_" + S + "_Uncore"));
+            auto t = std::make_shared<InfluxDBTarget>("Socket" + S, genAll("mean(\\\"Sockets_" + S + "_Uncore"));
             panel->push(t);
             panel1->push(t);
         }
-        auto t = std::make_shared<Target>("Total", genAll("mean(\\\"Uncore Aggregate"));
+        auto t = std::make_shared<InfluxDBTarget>("Total", genAll("mean(\\\"Uncore Aggregate"));
         panel->push(t);
         panel1->push(t);
         dashboard.push(panel);
@@ -459,7 +466,7 @@ std::string getPCMDashboardJSON(int ns, int nu, int nc)
         y += height;
         for (auto &m : {"DRAM Reads", "DRAM Writes", "Persistent Memory Reads", "Persistent Memory Writes"})
         {
-          auto t = std::make_shared<Target>(m, "mean(\\\"Sockets_" + S + "_Uncore_Uncore Counters_" + m + "\\\")/1048576");
+          auto t = std::make_shared<InfluxDBTarget>(m, "mean(\\\"Sockets_" + S + "_Uncore_Uncore Counters_" + m + "\\\")/1048576");
           panel->push(t);
           panel1->push(t);
         }
@@ -476,7 +483,7 @@ std::string getPCMDashboardJSON(int ns, int nu, int nc)
             y += height;
             for (size_t l = 0; l < NumUPILinksPerSocket; ++l)
             {
-                auto t = std::make_shared<Target>("UPI" + std::to_string(l),
+                auto t = std::make_shared<InfluxDBTarget>("UPI" + std::to_string(l),
                                                   "mean(\\\"QPI/UPI Links_QPI Counters Socket " + S + "_" + m + " On Link " + std::to_string(l) + "\\\")*100");
                 panel->push(t);
                 panel1->push(t);
@@ -495,7 +502,7 @@ std::string getPCMDashboardJSON(int ns, int nu, int nc)
             y += height;
             for (size_t l = 0; l < NumUPILinksPerSocket; ++l)
             {
-                auto t = std::make_shared<Target>("UPI" + std::to_string(l),
+                auto t = std::make_shared<InfluxDBTarget>("UPI" + std::to_string(l),
                                                   "mean(\\\"QPI/UPI Links_QPI Counters Socket " + S + "_" + m + " On Link " + std::to_string(l) + "\\\")/1048576");
                 panel->push(t);
                 panel1->push(t);
@@ -513,7 +520,7 @@ std::string getPCMDashboardJSON(int ns, int nu, int nc)
         for (size_t c = 0; c < maxCState + 1; ++c)
         {
             auto C = std::to_string(c);
-            auto t = std::make_shared<Target>("C" + C,
+            auto t = std::make_shared<InfluxDBTarget>("C" + C,
                                               std::string("mean(\\\"") + tPrefix + " Counters_CStateResidency[" + C + "]\\\")*100");
             panel->push(t);
             panel1->push(t);
@@ -531,14 +538,14 @@ std::string getPCMDashboardJSON(int ns, int nu, int nc)
         for (size_t s = 0; s < NumSockets; ++s)
         {
             const auto S = std::to_string(s);
-            auto t = std::make_shared<Target>("Socket" + S,
+            auto t = std::make_shared<InfluxDBTarget>("Socket" + S,
                                                       std::string("mean(\\\"Sockets_") + S + "_Core Aggregate_Core Counters_" + dividend + "\\\")" +
                                                       "/" +
                                                       std::string("mean(\\\"Sockets_") + S + "_Core Aggregate_Core Counters_" + divisor + "\\\")");
             panel->push(t);
             panel1->push(t);
         }
-        auto t = std::make_shared<Target>("Total", std::string("mean(\\\"Core Aggregate_Core Counters_" + dividend + "\\\")") +
+        auto t = std::make_shared<InfluxDBTarget>("Total", std::string("mean(\\\"Core Aggregate_Core Counters_" + dividend + "\\\")") +
                                                    "/" +
                                                    "mean(\\\"Core Aggregate_Core Counters_" + divisor + "\\\")");
         panel->push(t);
@@ -558,12 +565,12 @@ std::string getPCMDashboardJSON(int ns, int nu, int nc)
         for (size_t s = 0; s < NumSockets; ++s)
         {
             const auto S = std::to_string(s);
-            auto t = std::make_shared<Target>("Socket" + S,
+            auto t = std::make_shared<InfluxDBTarget>("Socket" + S,
                                                       std::string("mean(\\\"Sockets_") + S + "_Core Aggregate_Core Counters_" + m + "\\\")/1000000");
             panel->push(t);
             panel1->push(t);
         }
-        auto t = std::make_shared<Target>("Total",
+        auto t = std::make_shared<InfluxDBTarget>("Total",
                                                       std::string("mean(\\\"Core Aggregate_Core Counters_") + m + "\\\")/1000000");
         panel->push(t);
         panel1->push(t);
@@ -578,7 +585,7 @@ std::string getPCMDashboardJSON(int ns, int nu, int nc)
         y += height;
         for (auto &m : {"Package", "DRAM"})
         {
-          auto t = std::make_shared<Target>(m, "mean(\\\"Sockets_" + S + "_Uncore_Uncore Counters_" + m + " Joules Consumed\\\")");
+          auto t = std::make_shared<InfluxDBTarget>(m, "mean(\\\"Sockets_" + S + "_Uncore_Uncore Counters_" + m + " Joules Consumed\\\")");
           panel->push(t);
           panel1->push(t);
         }
