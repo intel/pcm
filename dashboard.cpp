@@ -16,6 +16,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <unistd.h>
 #include "cpucounters.h"
 #include "dashboard.h"
+#include <regex>
 
 class Target
 {
@@ -124,6 +125,7 @@ protected:
         result += R"PCMDELIMITER(
     {
       "datasource": null,
+      "interval": "2s",
       "gridPos": {
 )PCMDELIMITER";
         result += "        \"x\": " + std::to_string(x) + ",\n";
@@ -344,7 +346,7 @@ public:
           result += R"PCMDELIMITER(",
           "logBase": 1,
           "max": null,
-          "min": null,
+          "min": "0",
           "show": true
         },
         {
@@ -437,7 +439,67 @@ public:
     }
 };
 
-std::string getPCMDashboardJSON(int ns, int nu, int nc)
+std::string prometheusMetric(const std::string& m)
+{
+    const auto result = std::regex_replace(m, std::regex(" "), "_");
+    return std::regex_replace(result, std::regex("-"), "_");
+}
+
+std::string prometheusSystem()
+{
+    return "{aggregate=\\\"system\\\"}";
+}
+
+std::string prometheusSocket(const std::string& S, const bool aggregate = true)
+{
+    if (aggregate)
+        return "{aggregate=\\\"socket\\\", socket=\\\"" + S + "\\\"}";
+    return "{socket=\\\"" + S + "\\\"}";
+}
+
+std::string prometheusSystem(const std::string& S)
+{
+    return "{aggregate=\\\"system\\\", socket=\\\"" + S + "\\\"}";
+}
+
+std::string influxDB_Counters(const std::string& S, const std::string& m, const char * domain)
+{
+    return std::string("mean(\\\"Sockets_") + S + "_" + domain + "_" + m + "\\\")";
+}
+
+std::string influxDB_Counters(const std::string& m, const char* domain)
+{
+    return std::string("mean(\\\"") + domain + "_" + m + "\\\")";
+}
+
+std::string influxDBCore_Aggregate_Core_Counters(const std::string& S, const std::string& m)
+{
+    return influxDB_Counters(S, m, "Core Aggregate_Core Counters");
+}
+
+std::string influxDBCore_Aggregate_Core_Counters(const std::string& m)
+{
+    return influxDB_Counters(m, "Core Aggregate_Core Counters");
+}
+
+std::string influxDBUncore_Uncore_Counters(const std::string& S, const std::string& m)
+{
+    return influxDB_Counters(S, m, "Uncore_Uncore Counters");
+}
+
+constexpr const char* interval = "[3s]";
+
+std::string prometheusCounters(const std::string& S, const std::string& m, const bool aggregate = true)
+{
+    return std::string("rate(") + prometheusMetric(m) + prometheusSocket(S, aggregate) + interval + ")";
+}
+
+std::string prometheusCounters(const std::string& m)
+{
+    return std::string("rate(") + prometheusMetric(m) + prometheusSystem() + interval + ")";
+}
+
+std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int nc)
 {
     auto pcm = PCM::getInstance();
     const size_t NumSockets = (ns < 0) ? pcm->getNumSockets() : ns;
@@ -452,34 +514,46 @@ std::string getPCMDashboardJSON(int ns, int nu, int nc)
     std::string hostname = "unknown hostname";
     if (gethostname(buffer, 63) == 0)
     {
-      hostname = buffer;
+        hostname = buffer;
     }
     Dashboard dashboard("Processor Counter Monitor (PCM) Dashboard - " + hostname);
+    auto createTarget = [type](const std::string& title, const std::string& inluxdbMetric, const std::string& prometheusExpr) -> std::shared_ptr<Target>
+    {
+        std::shared_ptr<Target> t;
+        if (type == InfluxDB)
+            t = std::make_shared<InfluxDBTarget>(title, inluxdbMetric);
+        else
+            t = std::make_shared<PrometheusTarget>(title, prometheusExpr);
+        return t;
+    };
     {
         auto panel = std::make_shared<GraphPanel>(0, y, width, height, "Memory Bandwidth", "MByte/sec", false);
         auto panel1 = std::make_shared<BarGaugePanel>(width, y, max_width - width, height, "Memory Bandwidth (MByte/sec)");
         y += height;
-        auto genAll = [](const std::string &prefix) -> std::string
+        auto genAll = [type](const std::string& special) -> std::string
         {
-          std::string all;
-          for (auto &m : {"DRAM Reads", "DRAM Writes", "Persistent Memory Reads", "Persistent Memory Writes"})
-          {
-            if (all.size() > 0)
+            std::string all;
+            for (auto& m : { "DRAM Reads", "DRAM Writes", "Persistent Memory Reads", "Persistent Memory Writes" })
             {
-              all += " + ";
+                if (all.size() > 0)
+                {
+                    all += " + ";
+                }
+                if (type == InfluxDB)
+                    all += special + "_Uncore Counters_" + m + "\\\")/1048576";
+                else
+                    all += std::string("rate(") + prometheusMetric(m) + special + interval + ")/1048576";
             }
-            all += prefix + "_Uncore Counters_" + m + "\\\")/1048576";
-          }
-          return all;
+            return all;
         };
         for (size_t s = 0; s < NumSockets; ++s)
         {
             const auto S = std::to_string(s);
-            auto t = std::make_shared<InfluxDBTarget>("Socket" + S, genAll("mean(\\\"Sockets_" + S + "_Uncore"));
+            auto t = createTarget("Socket" + S, genAll("mean(\\\"Sockets_" + S + "_Uncore"), genAll(prometheusSocket(S, false)));
             panel->push(t);
             panel1->push(t);
         }
-        auto t = std::make_shared<InfluxDBTarget>("Total", genAll("mean(\\\"Uncore Aggregate"));
+        auto t = createTarget("Total", genAll("mean(\\\"Uncore Aggregate"), genAll(prometheusSystem()));
         panel->push(t);
         panel1->push(t);
         dashboard.push(panel);
@@ -488,57 +562,53 @@ std::string getPCMDashboardJSON(int ns, int nu, int nc)
     for (size_t s = 0; s < NumSockets; ++s)
     {
         const auto S = std::to_string(s);
-        auto panel = std::make_shared<GraphPanel>(0, y, width, height, std::string("Socket") +  S + " Memory Bandwidth", "MByte/sec", false);
-        auto panel1 = std::make_shared<BarGaugePanel>(width, y, max_width - width, height, std::string("Current Socket") +  S + " Memory Bandwidth (MByte/sec)");
+        auto panel = std::make_shared<GraphPanel>(0, y, width, height, std::string("Socket") + S + " Memory Bandwidth", "MByte/sec", false);
+        auto panel1 = std::make_shared<BarGaugePanel>(width, y, max_width - width, height, std::string("Current Socket") + S + " Memory Bandwidth (MByte/sec)");
         y += height;
-        for (auto &m : {"DRAM Reads", "DRAM Writes", "Persistent Memory Reads", "Persistent Memory Writes"})
+        for (auto& m : { "DRAM Reads", "DRAM Writes", "Persistent Memory Reads", "Persistent Memory Writes" })
         {
-          auto t = std::make_shared<InfluxDBTarget>(m, "mean(\\\"Sockets_" + S + "_Uncore_Uncore Counters_" + m + "\\\")/1048576");
-          panel->push(t);
-          panel1->push(t);
+            auto t = createTarget(m, influxDBUncore_Uncore_Counters(S, m) + "/1048576", prometheusCounters(S, m, false) + "/1048576");
+            panel->push(t);
+            panel1->push(t);
         }
         dashboard.push(panel);
         dashboard.push(panel1);
     }
-    for (auto &m : {"Utilization Outgoing Data And Non-Data Traffic", "Utilization Incoming Data Traffic"})
+    auto upi = [&](const std::string & m, const bool utilization)
     {
         for (size_t s = 0; s < NumSockets; ++s)
         {
             const auto S = std::to_string(s);
-            auto panel = std::make_shared<GraphPanel>(0, y, width, height, std::string("Socket") + S + " UPI " + m, "%", false);
-            auto panel1 = std::make_shared<GaugePanel>(width, y, max_width - width, height, std::string("Current Socket") + S + " UPI " + m + " (%)");
+            auto panel = std::make_shared<GraphPanel>(0, y, width, height, std::string("Socket") + S + " UPI " + m, utilization?"%": "MByte/sec", false);
+            std::shared_ptr<Panel> panel1;
+            if (utilization)
+                panel1 = std::make_shared<GaugePanel>(width, y, max_width - width, height, std::string("Current Socket") + S + " UPI " + m + " (%)");
+            else
+                panel1 = std::make_shared<BarGaugePanel>(width, y, max_width - width, height, std::string("Current Socket") + S + " UPI " + m + " (MByte/sec)");
             y += height;
+            const auto suffix = utilization ? "*100" : "/1048576";
             for (size_t l = 0; l < NumUPILinksPerSocket; ++l)
             {
-                auto t = std::make_shared<InfluxDBTarget>("UPI" + std::to_string(l),
-                                                  "mean(\\\"QPI/UPI Links_QPI Counters Socket " + S + "_" + m + " On Link " + std::to_string(l) + "\\\")*100");
+                const auto L = std::to_string(l);
+                auto t = createTarget("UPI" + std::to_string(l),
+                    "mean(\\\"QPI/UPI Links_QPI Counters Socket " + S + "_" + m + " On Link " + L + "\\\")" +  suffix,
+                    "rate(" + prometheusMetric(m) + "_On_Link_" + L + prometheusSystem(S) + interval + ")" + suffix);
                 panel->push(t);
                 panel1->push(t);
             }
             dashboard.push(panel);
             dashboard.push(panel1);
         }
+    };
+    for (auto &m : {"Utilization Outgoing Data And Non-Data Traffic", "Utilization Incoming Data Traffic"})
+    {
+        upi(m, true);
     }
     for (auto & m : {"Outgoing Data And Non-Data Traffic", "Incoming Data Traffic"})
     {
-        for (size_t s = 0; s < NumSockets; ++s)
-        {
-            const auto S = std::to_string(s);
-            auto panel = std::make_shared<GraphPanel>(0, y, width, height, std::string("Socket") + S + " UPI " + m, "MByte/sec", false);
-            auto panel1 = std::make_shared<BarGaugePanel>(width, y, max_width - width, height, std::string("Current Socket") + S + " UPI " + m + " (MByte/sec)");
-            y += height;
-            for (size_t l = 0; l < NumUPILinksPerSocket; ++l)
-            {
-                auto t = std::make_shared<InfluxDBTarget>("UPI" + std::to_string(l),
-                                                  "mean(\\\"QPI/UPI Links_QPI Counters Socket " + S + "_" + m + " On Link " + std::to_string(l) + "\\\")/1048576");
-                panel->push(t);
-                panel1->push(t);
-            }
-            dashboard.push(panel);
-            dashboard.push(panel1);
-        }
+        upi(m, false);
     }
-    auto cstate = [&] (const char * m, const char * tPrefix)
+    auto cstate = [&] (const char * m, const char * tPrefix, const char * source)
     {
         auto my_height = 3 * height / 2;
         auto panel = std::make_shared<GraphPanel>(0, y, width, my_height, std::string(m) + " C-state residency", "stacked %", true);
@@ -547,16 +617,20 @@ std::string getPCMDashboardJSON(int ns, int nu, int nc)
         for (size_t c = 0; c < maxCState + 1; ++c)
         {
             auto C = std::to_string(c);
-            auto t = std::make_shared<InfluxDBTarget>("C" + C,
-                                              std::string("mean(\\\"") + tPrefix + " Counters_CStateResidency[" + C + "]\\\")*100");
+            auto t = createTarget("C" + C, std::string("mean(\\\"") + tPrefix + " Counters_CStateResidency[" + C + "]\\\")*100",
+                std::string("100 * rate(RawCStateResidency{ aggregate = \\\"system\\\", index = \\\"") + C + "\\\", source = \\\"" + source + "\\\" }" + interval + 
+                                    ") / ignoring(source, index) rate(Invariant_TSC{ aggregate = \\\"system\\\" }" + interval + ")");
             panel->push(t);
             panel1->push(t);
         }
         dashboard.push(panel);
         dashboard.push(panel1);
     };
-    cstate("Core", "Core Aggregate_Energy");
-    cstate("Package", "Uncore Aggregate_Uncore");
+    if (type == InfluxDB) // only InfluxDB supported right now
+    {
+        cstate("Core", "Core Aggregate_Energy", "core");
+        cstate("Package", "Uncore Aggregate_Uncore", "uncore");
+    }
     auto derived = [&](const std::string & fullName, const std::string & shortName, const std::string & dividend, const std::string & divisor)
     {
         auto panel = std::make_shared<GraphPanel>(0, y, width, height, fullName, shortName, false);
@@ -565,16 +639,16 @@ std::string getPCMDashboardJSON(int ns, int nu, int nc)
         for (size_t s = 0; s < NumSockets; ++s)
         {
             const auto S = std::to_string(s);
-            auto t = std::make_shared<InfluxDBTarget>("Socket" + S,
-                                                      std::string("mean(\\\"Sockets_") + S + "_Core Aggregate_Core Counters_" + dividend + "\\\")" +
-                                                      "/" +
-                                                      std::string("mean(\\\"Sockets_") + S + "_Core Aggregate_Core Counters_" + divisor + "\\\")");
+            auto t = createTarget("Socket" + S,
+                influxDBCore_Aggregate_Core_Counters(S, dividend) + "/" + influxDBCore_Aggregate_Core_Counters(S, divisor),
+                prometheusCounters(S, dividend) + "/" + prometheusCounters(S, divisor));
             panel->push(t);
             panel1->push(t);
         }
-        auto t = std::make_shared<InfluxDBTarget>("Total", std::string("mean(\\\"Core Aggregate_Core Counters_" + dividend + "\\\")") +
-                                                   "/" +
-                                                   "mean(\\\"Core Aggregate_Core Counters_" + divisor + "\\\")");
+        auto t = createTarget("Total",
+            influxDBCore_Aggregate_Core_Counters(dividend) + "/" + influxDBCore_Aggregate_Core_Counters(divisor),
+            prometheusCounters(dividend) + "/" + prometheusCounters(divisor)
+        );
         panel->push(t);
         panel1->push(t);
         dashboard.push(panel);
@@ -592,13 +666,11 @@ std::string getPCMDashboardJSON(int ns, int nu, int nc)
         for (size_t s = 0; s < NumSockets; ++s)
         {
             const auto S = std::to_string(s);
-            auto t = std::make_shared<InfluxDBTarget>("Socket" + S,
-                                                      std::string("mean(\\\"Sockets_") + S + "_Core Aggregate_Core Counters_" + m + "\\\")/1000000");
+            auto t = createTarget("Socket" + S, influxDBCore_Aggregate_Core_Counters(S, m) + "/1000000", prometheusCounters(S, m) + "/1000000");
             panel->push(t);
             panel1->push(t);
         }
-        auto t = std::make_shared<InfluxDBTarget>("Total",
-                                                      std::string("mean(\\\"Core Aggregate_Core Counters_") + m + "\\\")/1000000");
+        auto t = createTarget("Total", influxDBCore_Aggregate_Core_Counters(m) + "/1000000", prometheusCounters(m) + "/1000000");
         panel->push(t);
         panel1->push(t);
         dashboard.push(panel);
@@ -610,9 +682,9 @@ std::string getPCMDashboardJSON(int ns, int nu, int nc)
         auto panel = std::make_shared<GraphPanel>(0, y, width, height, std::string("Socket") +  S + " Energy Consumption", "Watt", false);
         auto panel1 = std::make_shared<BarGaugePanel>(width, y, max_width - width, height, std::string("Current Socket") +  S + " Energy Consumption (Watt)");
         y += height;
-        for (auto &m : {"Package", "DRAM"})
+        for (auto &m : {"Package Joules Consumed", "DRAM Joules Consumed"})
         {
-          auto t = std::make_shared<InfluxDBTarget>(m, "mean(\\\"Sockets_" + S + "_Uncore_Uncore Counters_" + m + " Joules Consumed\\\")");
+          auto t = createTarget(m, influxDBUncore_Uncore_Counters(S, m), prometheusCounters(S, m, false));
           panel->push(t);
           panel1->push(t);
         }
