@@ -84,6 +84,33 @@ public:
     }
 };
 
+class PrometheusTarget : public Target
+{
+    std::string legend, expr;
+    PrometheusTarget() = delete;
+public:
+    PrometheusTarget(const std::string& legend_, const std::string& expr_) : legend(legend_), expr(expr_) {}
+    std::string operator () (const std::string& refId) const
+    {
+        std::string result;
+        result += R"PCMDELIMITER(
+        {
+          "expr": ")PCMDELIMITER";
+        result += expr;
+        result += R"PCMDELIMITER(",
+          "instant": false,
+          "interval": "",
+          "legendFormat": ")PCMDELIMITER";
+        result += legend;
+        result += R"PCMDELIMITER(",
+          "refId": ")PCMDELIMITER";
+        result += refId;
+        result += R"PCMDELIMITER("
+        })PCMDELIMITER";
+        return result;
+    }
+};
+
 class Panel
 {
     int x, y, w, h;
