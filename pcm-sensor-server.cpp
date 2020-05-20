@@ -574,12 +574,10 @@ public:
     }
 
     virtual void dispatch( ServerUncore* su ) override {
-        addToHierarchy( "uncore=\"server\"" );
         printComment( std::string( "Uncore Counters Socket " ) + std::to_string( su->socketID() ) );
         SocketCounterState before = getSocketCounter( aggPair_.first,  su->socketID() );
         SocketCounterState after  = getSocketCounter( aggPair_.second, su->socketID() );
         printUncoreCounterState( before, after );
-        removeFromHierarchy();
     }
 
     virtual void dispatch( ClientUncore* ) override {
@@ -607,8 +605,11 @@ public:
         SystemCounterState before = getSystemCounter( aggPair_.first );
         SystemCounterState after  = getSystemCounter( aggPair_.second );
         addToHierarchy( "aggregate=\"system\"" );
-        printComment( "UPI/QPI Counters" );
-        printSystemCounterState( before, after );
+        PCM* pcm = PCM::getInstance();
+        if ( pcm->isServerCPU() && pcm->getNumSockets() >= 2 ) {
+            printComment( "UPI/QPI Counters" );
+            printSystemCounterState( before, after );
+        }
         printComment( "Core Counters Aggregate System" );
         printBasicCounterState ( before, after );
         printComment( "Uncore Counters Aggregate System" );
@@ -639,6 +640,7 @@ public:
 
 private:
     void printBasicCounterState( BasicCounterState const& before, BasicCounterState const& after ) {
+        addToHierarchy( "source=\"core\"" );
         printCounter( "Instructions Retired Any", getInstructionsRetired( before, after ) );
         printCounter( "Clock Unhalted Thread",    getCycles             ( before, after ) );
         printCounter( "Clock Unhalted Ref",       getRefCycles          ( before, after ) );
@@ -663,9 +665,11 @@ private:
 
         printCounter( "Local Memory Bandwidth", getLocalMemoryBW( before, after ) );
         printCounter( "Remote Memory Bandwidth", getRemoteMemoryBW( before, after ) );
+        removeFromHierarchy();
     }
 
     void printUncoreCounterState( SocketCounterState const& before, SocketCounterState const& after ) {
+        addToHierarchy( "source=\"uncore\"" );
         printCounter( "DRAM Writes",                   getBytesWrittenToMC    ( before, after ) );
         printCounter( "DRAM Reads",                    getBytesReadFromMC     ( before, after ) );
         printCounter( "Persistent Memory Writes",      getBytesWrittenToPMM   ( before, after ) );
@@ -683,9 +687,11 @@ private:
             printCounter( "CStateResidency", getPackageCStateResidency( i, before, after ) );
             removeFromHierarchy();
         }
+        removeFromHierarchy();
     }
 
     void printSystemCounterState( SystemCounterState const& before, SystemCounterState const& after ) {
+        addToHierarchy( "source=\"uncore\"" );
         PCM* pcm = PCM::getInstance();
         uint32 sockets = pcm->getNumSockets();
         uint32 links   = pcm->getQPILinksPerSocket();
@@ -699,6 +705,7 @@ private:
             }
             removeFromHierarchy();
         }
+        removeFromHierarchy();
     }
 
     std::string replaceIllegalCharsWithUnderbar( std::string const& s ) {
