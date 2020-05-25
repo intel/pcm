@@ -2911,7 +2911,7 @@ void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & re
         aggregatorPair = getNullAndCurrentAggregator();
     } else if ( url.path_ == "/dashboard") {
         DBG( 3, "client requesting /dashboard path: '", url.path_, "'" );
-        resp.createResponse( ApplicationJSON, getPCMDashboardJSON(), RC_200_OK );
+        resp.createResponse( ApplicationJSON, getPCMDashboardJSON(InfluxDB), RC_200_OK );
         return;
     } else if ( 0 == url.path_.rfind( "/persecond", 0 ) ) {
         DBG( 3, "client requesting /persecond path: '", url.path_, "'" );
