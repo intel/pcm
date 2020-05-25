@@ -2893,7 +2893,9 @@ void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & re
       <li>/persecond : This will fetch data from the internal sample thread which samples every second and returns the difference between the last 2 samples.</li>\n\
       <li>/persecond/X : This will fetch data from the internal sample thread which samples every second and returns the difference between the last 2 samples which are X seconds apart. X can be at most 30 seconds without changing the source code.</li>\n\
       <li>/metrics : The Prometheus server does not send an Accept header to decide what format to return so it got its own endpoint that will always return data in the Prometheus format. pcm-sensor-server is sending the header \"Content-Type: text/plain; version=0.0.4\" as required. This /metrics endpoints mimics the same behavior as / and data is thus absolute, not relative.</li>\n\
-      <li>/dashboard : This will return JSON for a Grafana dashboard that holds all counters. Please see the documentation for more information.</li>\n\
+      <li>/dashboard/influxdb : This will return JSON for a Grafana dashboard with InfluxDB backend that holds all counters. Please see the documentation for more information.</li>\n\
+      <li>/dashboard/prometheus : This will return JSON for a Grafana dashboard with Prometheus backend that holds all counters. Please see the documentation for more information.</li>\n\
+      <li>/dashboard : same as /dashboard/influxdb </li>\n\
       <li>/favicon.ico : This will return a small favicon.ico as requested by many browsers.</li>\n\
     </ul>\n\
   </body>\n\
@@ -2909,9 +2911,14 @@ void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & re
         //current->dispatch( PCM::getInstance()->getSystemTopology() );
         //aggregatorPair = std::make_pair( null, current );
         aggregatorPair = getNullAndCurrentAggregator();
-    } else if ( url.path_ == "/dashboard") {
+    } else if ( url.path_ == "/dashboard" || url.path_ == "/dashboard/influxdb") {
         DBG( 3, "client requesting /dashboard path: '", url.path_, "'" );
         resp.createResponse( ApplicationJSON, getPCMDashboardJSON(InfluxDB), RC_200_OK );
+        return;
+    }
+    else if (url.path_ == "/dashboard/prometheus") {
+        DBG(3, "client requesting /dashboard path: '", url.path_, "'");
+        resp.createResponse(ApplicationJSON, getPCMDashboardJSON(Prometheus), RC_200_OK);
         return;
     } else if ( 0 == url.path_.rfind( "/persecond", 0 ) ) {
         DBG( 3, "client requesting /persecond path: '", url.path_, "'" );
