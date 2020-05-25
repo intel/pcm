@@ -16,7 +16,6 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <unistd.h>
 #include "cpucounters.h"
 #include "dashboard.h"
-#include <regex>
 
 class Target
 {
@@ -441,8 +440,15 @@ public:
 
 std::string prometheusMetric(const std::string& m)
 {
-    const auto result = std::regex_replace(m, std::regex(" "), "_");
-    return std::regex_replace(result, std::regex("-"), "_");
+    auto result = m;
+    for (char& c : result)
+    {
+        if (c == ' ' || c == '-')
+        {
+            c = '_';
+        }
+    }
+    return result;
 }
 
 std::string prometheusSystem()

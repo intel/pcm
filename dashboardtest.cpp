@@ -16,6 +16,6 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 int main()
 {
-    std::cout << getPCMDashboardJSON(InfluxDB, 2, 3, 10) << std::endl;
+    std::cout << getPCMDashboardJSON(Prometheus, 2, 3, 10) << std::endl;
     return 0;
 }
