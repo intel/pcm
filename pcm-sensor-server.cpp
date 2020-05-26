@@ -662,7 +662,7 @@ private:
             printCounter( "CStateResidency", getCoreCStateResidency( i, before, after ) );
             // need a raw CStateResidency metric because the precision is lost to unacceptable levels when trying
             // to compute CStateResidency for the last second using the existing CStateResidency metric
-            printCounter( "RawCStateResidency", getCoreCStateResidency(i, after));
+            printCounter( "RawCStateResidency", getCoreCStateResidency( i, after ) );
             removeFromHierarchy();
         }
 
@@ -690,7 +690,7 @@ private:
             printCounter( "CStateResidency", getPackageCStateResidency( i, before, after ) );
             // need a CStateResidency raw metric because the precision is lost to unacceptable levels when trying
             // to compute CStateResidency for the last second using the existing CStateResidency metric
-            printCounter( "RawCStateResidency", getPackageCStateResidency(i, after));
+            printCounter( "RawCStateResidency", getPackageCStateResidency( i, after ) );
             removeFromHierarchy();
         }
         removeFromHierarchy();
