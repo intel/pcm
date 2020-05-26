@@ -14,6 +14,9 @@ sed "s#PCMSENSORSERVER#$1#g" telegraf.conf.template > telegraf.conf
 mkdir -p grafana_volume/dashboards
 mkdir -p influxdb_volume
 
+mkdir -p provisioning/datasources
+cp automatic_influxdb.yml provisioning/datasources/automatic.yml
+
 echo Downloading PCM dashboard
 curl -o grafana_volume/dashboards/pcm-dashboard.json $1/dashboard
 
