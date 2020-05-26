@@ -1,8 +1,11 @@
 
-for c in grafana telegraf influxdb; do
+for c in grafana telegraf influxdb prometheus; do
 
-	echo Stopping and deleting $c
-	docker rm $(docker stop $(docker ps -a -q --filter="name=$c" --format="{{.ID}}"))
-
+	id=`docker ps -a -q --filter="name=$c" --format="{{.ID}}"`
+	if [ ! -z "$id" ]
+	then
+	   echo Stopping and deleting $c
+	   docker rm $(docker stop $id)
+	fi
 done
 

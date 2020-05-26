@@ -1940,6 +1940,8 @@ class BasicCounterState
     template <class CounterStateType>
     friend double getCoreCStateResidency(int state, const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
+    friend uint64 getCoreCStateResidency(int state, const CounterStateType& now);
+    template <class CounterStateType>
     friend uint64 getSMICount(const CounterStateType & before, const CounterStateType & after);
 
 protected:
@@ -2308,6 +2310,8 @@ class UncoreCounterState
     friend uint64 getDRAMConsumedEnergy(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
     friend double getPackageCStateResidency(int state, const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
+    friend uint64 getPackageCStateResidency(int state, const CounterStateType& now);
     template <class CounterStateType>
     friend double getLLCReadMissLatency(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
@@ -3003,6 +3007,20 @@ inline double getCoreCStateResidency(int state, const CounterStateType & before,
     return (after.BasicCounterState::CStateResidency[state] - before.BasicCounterState::CStateResidency[state]) / tsc;
 }
 
+/*! \brief Reads raw residency counter for the core C-state
+
+    \param state C-state #
+    \param now CPU counter state
+    \return raw residency value
+*/
+template <class CounterStateType>
+inline uint64 getCoreCStateResidency(int state, const CounterStateType& now)
+{
+    if (state == 0) return now.CpuClkUnhaltedRef;
+
+    return now.BasicCounterState::CStateResidency[state];
+}
+
 /*! \brief Computes residency in the package C-state
 
     \param state C-state
@@ -3030,6 +3048,17 @@ inline double getPackageCStateResidency(int state, const CounterStateType & befo
     return double(after.UncoreCounterState::CStateResidency[state] - before.UncoreCounterState::CStateResidency[state]) / tsc;
 }
 
+/*! \brief Reads raw residency counter for the package C-state
+
+    \param state C-state #
+    \param now CPU counter state
+    \return raw residency value
+*/
+template <class CounterStateType>
+inline uint64 getPackageCStateResidency(int state, const CounterStateType& now)
+{
+    return now.UncoreCounterState::CStateResidency[state];
+}
 
 /*! \brief Computes number of bytes read from DRAM memory controllers
 

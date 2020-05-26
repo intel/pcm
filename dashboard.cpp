@@ -620,23 +620,41 @@ std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int
         auto panel = std::make_shared<GraphPanel>(0, y, width, my_height, std::string(m) + " C-state residency", "stacked %", true);
         auto panel1 = std::make_shared<BarGaugePanel>(width, y, max_width - width, my_height, std::string("Current ") + m + " C-state residency (%)");
         y += my_height;
+        auto prometheusCStateExpression = [](const std::string& source, const size_t c) -> std::string
+        {
+            auto C = std::to_string(c);
+            return std::string("100 * rate(RawCStateResidency{ aggregate = \\\"system\\\", index = \\\"") + C + "\\\", source = \\\"" + source + "\\\" }" + interval +
+                ") / ignoring(source, index) rate(Invariant_TSC{ aggregate = \\\"system\\\" }" + interval + ")";
+        };
+        auto prometheusComputedCStateExpression = [&maxCState, &prometheusCStateExpression](const std::string& source, const size_t e) -> std::string
+        {
+            std::string result = "100";
+            for (size_t c = 0; c < maxCState + 1; ++c)
+            {
+                if (e != c)
+                {
+                    result = result + " - (" + prometheusCStateExpression(source, c) + ") ";
+                }
+            }
+            return result;
+        };
         for (size_t c = 0; c < maxCState + 1; ++c)
         {
             auto C = std::to_string(c);
-            auto t = createTarget("C" + C, std::string("mean(\\\"") + tPrefix + " Counters_CStateResidency[" + C + "]\\\")*100",
-                std::string("100 * rate(RawCStateResidency{ aggregate = \\\"system\\\", index = \\\"") + C + "\\\", source = \\\"" + source + "\\\" }" + interval + 
-                                    ") / ignoring(source, index) rate(Invariant_TSC{ aggregate = \\\"system\\\" }" + interval + ")");
+            auto pExpr = prometheusCStateExpression(source, c);
+            if ((std::string(source) == "core" && c == 1) || (std::string(source) == "uncore" && c == 0))
+            {
+               pExpr = prometheusComputedCStateExpression(source, c);
+            }
+            auto t = createTarget("C" + C, std::string("mean(\\\"") + tPrefix + " Counters_CStateResidency[" + C + "]\\\")*100", pExpr);
             panel->push(t);
             panel1->push(t);
         }
         dashboard.push(panel);
         dashboard.push(panel1);
     };
-    if (type == InfluxDB) // only InfluxDB supported right now
-    {
-        cstate("Core", "Core Aggregate_Energy", "core");
-        cstate("Package", "Uncore Aggregate_Uncore", "uncore");
-    }
+    cstate("Core", "Core Aggregate_Energy", "core");
+    cstate("Package", "Uncore Aggregate_Uncore", "uncore");
     auto derived = [&](const std::string & fullName, const std::string & shortName, const std::string & dividend, const std::string & divisor)
     {
         auto panel = std::make_shared<GraphPanel>(0, y, width, height, fullName, shortName, false);
