@@ -1442,14 +1442,14 @@ void PCM::initUncoreObjects()
         catch (...)
         {
             server_pcicfg_uncore.clear();
-            std::cerr << "Can not access Jaketown/Ivytown PCI configuration space. Access to uncore counters (memory and QPI bandwidth) is disabled.\n";
+            std::cerr << "Can not access server uncore PCI configuration space. Access to uncore counters (memory and QPI bandwidth) is disabled.\n";
 #ifdef _MSC_VER
             std::cerr << "You must have signed msr.sys driver in your current directory and have administrator rights to run this program.\n";
 #else
             //std::cerr << "you must have read and write permissions for /proc/bus/pci/7f/10.* and /proc/bus/pci/ff/10.* devices (the 'chown' command can help).\n";
             //std::cerr << "you must have read and write permissions for /dev/mem device (the 'chown' command can help).\n";
             //std::cerr << "you must have read permission for /sys/firmware/acpi/tables/MCFG device (the 'chmod' command can help).\n";
-            std::cerr << "You must be root to access these Jaketown/Ivytown counters in PCM.\n";
+            std::cerr << "You must be root to access server uncore counters in PCM.\n";
 #endif
         }
     } else if((cpu_model == SANDY_BRIDGE || cpu_model == IVY_BRIDGE || cpu_model == HASWELL || cpu_model == BROADWELL || cpu_model == SKL || cpu_model == KBL) && MSR.size())

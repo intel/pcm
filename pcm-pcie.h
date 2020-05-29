@@ -79,31 +79,6 @@ protected:
 
 void IPlatform::init()
 {
-    m_pcm->disableJKTWorkaround();
-    PCM::ErrorCode status = m_pcm->program();
-    switch(status)
-    {
-        case PCM::Success:
-            break;
-        case PCM::MSRAccessDenied:
-            cerr << "Access to Processor Counter Monitor has denied (no MSR or PCI CFG space access).\n";
-            exit(EXIT_FAILURE);
-        case PCM::PMUBusy:
-            cerr << "Access to Processor Counter Monitor has denied (Performance Monitoring Unit is occupied by other application). Try to stop the application that uses PMU.\n";
-            cerr << "Alternatively you can try to reset PMU configuration at your own risk. Try to reset? (y/n)\n";
-            char yn;
-            cin >> yn;
-            if ('y' == yn)
-            {
-                m_pcm->resetPMU();
-                cerr << "PMU configuration has been reset. Try to rerun the program again.\n";
-            }
-            exit(EXIT_FAILURE);
-        default:
-            cerr << "Access to Processor Counter Monitor has denied (Unknown error).\n";
-            exit(EXIT_FAILURE);
-    }
-
     print_cpu_details();
 
     if (m_socketCount > max_sockets)

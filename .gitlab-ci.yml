@@ -1,0 +1,25 @@
+before_script:
+  - apt-get update -qq && apt-get install -qq -y make g++-4.8 g++
+
+build_linux:gcc48:
+   image: "ubuntu:xenial"
+   stage: build
+   script:
+      - rm -f /usr/bin/g++
+      - ln -s /usr/bin/g++-4.8 /usr/bin/g++
+      - g++ --version
+      - make -j
+
+build_linux:gcc5:
+   image: "ubuntu:xenial"
+   stage: build
+   script:
+      - g++ --version
+      - make -j
+
+build_linux:gcc7:
+   image: "ubuntu:bionic"
+   stage: build
+   script:
+      - g++ --version
+      - make -j
