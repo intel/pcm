@@ -439,21 +439,22 @@ PciHandle::~PciHandle()
 }
 
 int PciHandle::openMcfgTable() {
-    const char* path = "/sys/firmware/acpi/tables/MCFG";
-    int handle = ::open(path, O_RDONLY);
-
-    if ( handle < 0 ) {
-        /**
-         * There are no MCFG table on some machines, but MCFG1.
-         * See https://github.com/opcm/pcm/issues/74 for details
-         */
-        path = "/sys/firmware/acpi/tables/MCFG1";
-        handle = ::open(path, O_RDONLY);
-        if ( handle < 0 ) {
-            std::cerr << "Can't open MCFG table. Check permission of /sys/firmware/acpi/tables/MCFG or MCFG1\n";
+    auto paths = {"/sys/firmware/acpi/tables/MCFG", "/sys/firmware/acpi/tables/MCFG1", "MCFG"};
+    int handle = -1;
+    for (auto p: paths)
+    {
+        if (handle < 0)
+        {
+            handle = ::open(p, O_RDONLY);
         }
     }
-
+    if (handle < 0)
+    {
+        for (auto p: paths)
+        {
+            std::cerr << "Can't open MCFG table. Check permission of " << p << "\n";
+        }
+    }
     return handle;
 }
 
