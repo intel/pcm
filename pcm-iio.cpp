@@ -514,6 +514,7 @@ void collect_data(PCM *m, vector<struct iio_skx> iio_skx_v, vector<struct counte
 
 int main(int /*argc*/, char * /*argv*/[])
 {
+    set_signal_handlers();
     std::cout << "\n Processor Counter Monitor " << PCM_VERSION << "\n";
     std::cout << "\n This utility measures Skylake-SP IIO information\n\n";
 #define TEST_VAR 1
@@ -529,30 +530,6 @@ int main(int /*argc*/, char * /*argv*/[])
     load_PCIDB(pciDB);
 
     PCM * m = PCM::getInstance();
-    PCM::ErrorCode status = m->program();
-    switch (status)
-    {
-        case PCM::Success:
-            break;
-        case PCM::MSRAccessDenied:
-            cerr << "Access to Intel(r) Performance Counter Monitor has denied (no MSR or PCI CFG space access).\n";
-            exit(EXIT_FAILURE);
-        case PCM::PMUBusy:
-            cerr << "Access to Intel(r) Performance Counter Monitor has denied (Performance Monitoring Unit is occupied by other application). Try to stop the application that uses PMU.\n";
-            cerr << "Alternatively you can try to reset PMU configuration at your own risk. Try to reset? (y/n)\n";
-            char yn;
-            std::cin >> yn;
-            if ('y' == yn)
-            {
-                m->resetPMU();
-                cerr << "PMU configuration has been reset. Try to rerun the program again.\n";
-            }
-            exit(EXIT_FAILURE);
-        default:
-            cerr << "Access to Intel(r) Performance Counter Monitor has denied (Unknown error).\n";
-            exit(EXIT_FAILURE);
-    }
-
     print_cpu_details();
     if(!(m->IIOEventsAvailable()))
     {

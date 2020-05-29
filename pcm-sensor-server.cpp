@@ -129,14 +129,24 @@ class datetime {
     public:
         void printDateTimeString( std::ostream& os ) const {
             std::stringstream str("");
+            char timeBuffer[64];
+            std::memset( timeBuffer, 0, 64 );
             str.imbue( std::locale::classic() );
-            str << std::put_time( &now, "%a, %d %b %Y %T GMT" );
+            if ( strftime( timeBuffer, 63, "%a, %d %b %Y %T GMT", &now ) )
+                str << timeBuffer;
+            else
+                throw std::runtime_error("Error writing to timeBuffer, too small?");
             os << str.str();
         }
         std::string toString() const {
             std::stringstream str("");
+            char timeBuffer[64];
+            std::memset( timeBuffer, 0, 64 );
             str.imbue( std::locale::classic() );
-            str << std::put_time( &now, "%a, %d %b %Y %T GMT" );
+            if ( strftime( timeBuffer, 63, "%a, %d %b %Y %T GMT", &now ) )
+                str << timeBuffer;
+            else
+                throw std::runtime_error("Error writing to timeBuffer, too small?");
             return str.str();
         }
 
@@ -564,11 +574,10 @@ public:
     }
 
     virtual void dispatch( ServerUncore* su ) override {
-        addToHierarchy( "uncore=\"server\"" );
+        printComment( std::string( "Uncore Counters Socket " ) + std::to_string( su->socketID() ) );
         SocketCounterState before = getSocketCounter( aggPair_.first,  su->socketID() );
         SocketCounterState after  = getSocketCounter( aggPair_.second, su->socketID() );
         printUncoreCounterState( before, after );
-        removeFromHierarchy();
     }
 
     virtual void dispatch( ClientUncore* ) override {
@@ -596,19 +605,28 @@ public:
         SystemCounterState before = getSystemCounter( aggPair_.first );
         SystemCounterState after  = getSystemCounter( aggPair_.second );
         addToHierarchy( "aggregate=\"system\"" );
-        printSystemCounterState( before, after );
+        PCM* pcm = PCM::getInstance();
+        if ( pcm->isServerCPU() && pcm->getNumSockets() >= 2 ) {
+            printComment( "UPI/QPI Counters" );
+            printSystemCounterState( before, after );
+        }
+        printComment( "Core Counters Aggregate System" );
         printBasicCounterState ( before, after );
+        printComment( "Uncore Counters Aggregate System" );
         printUncoreCounterState( before, after );
         removeFromHierarchy(); // aggregate=system
     }
 
     virtual void dispatch( Socket* s ) override {
         addToHierarchy( std::string( "socket=\"" ) + std::to_string( s->socketID() ) + "\"" );
+        printComment( std::string( "Core Counters Socket " ) + std::to_string( s->socketID() ) );
         auto vec = s->cores();
         iterateVectorAndCallAccept( vec );
 
+        // Uncore writes the comment for the socket uncore counters
         s->uncore()->accept( *this );
         addToHierarchy( "aggregate=\"socket\"" );
+        printComment( std::string( "Core Counters Aggregate Socket " ) + std::to_string( s->socketID() ) );
         SocketCounterState before = getSocketCounter( aggPair_.first,  s->socketID() );
         SocketCounterState after  = getSocketCounter( aggPair_.second, s->socketID() );
         printBasicCounterState( before, after );
@@ -622,6 +640,7 @@ public:
 
 private:
     void printBasicCounterState( BasicCounterState const& before, BasicCounterState const& after ) {
+        addToHierarchy( "source=\"core\"" );
         printCounter( "Instructions Retired Any", getInstructionsRetired( before, after ) );
         printCounter( "Clock Unhalted Thread",    getCycles             ( before, after ) );
         printCounter( "Clock Unhalted Ref",       getRefCycles          ( before, after ) );
@@ -641,14 +660,19 @@ private:
             s << "index=\"" << i << "\"";
             addToHierarchy( s.str() );
             printCounter( "CStateResidency", getCoreCStateResidency( i, before, after ) );
+            // need a raw CStateResidency metric because the precision is lost to unacceptable levels when trying
+            // to compute CStateResidency for the last second using the existing CStateResidency metric
+            printCounter( "RawCStateResidency", getCoreCStateResidency( i, after ) );
             removeFromHierarchy();
         }
 
         printCounter( "Local Memory Bandwidth", getLocalMemoryBW( before, after ) );
         printCounter( "Remote Memory Bandwidth", getRemoteMemoryBW( before, after ) );
+        removeFromHierarchy();
     }
 
     void printUncoreCounterState( SocketCounterState const& before, SocketCounterState const& after ) {
+        addToHierarchy( "source=\"uncore\"" );
         printCounter( "DRAM Writes",                   getBytesWrittenToMC    ( before, after ) );
         printCounter( "DRAM Reads",                    getBytesReadFromMC     ( before, after ) );
         printCounter( "Persistent Memory Writes",      getBytesWrittenToPMM   ( before, after ) );
@@ -664,11 +688,16 @@ private:
             s << "index=\"" << i << "\"";
             addToHierarchy( s.str() );
             printCounter( "CStateResidency", getPackageCStateResidency( i, before, after ) );
+            // need a CStateResidency raw metric because the precision is lost to unacceptable levels when trying
+            // to compute CStateResidency for the last second using the existing CStateResidency metric
+            printCounter( "RawCStateResidency", getPackageCStateResidency( i, after ) );
             removeFromHierarchy();
         }
+        removeFromHierarchy();
     }
 
     void printSystemCounterState( SystemCounterState const& before, SystemCounterState const& after ) {
+        addToHierarchy( "source=\"uncore\"" );
         PCM* pcm = PCM::getInstance();
         uint32 sockets = pcm->getNumSockets();
         uint32 links   = pcm->getQPILinksPerSocket();
@@ -682,6 +711,7 @@ private:
             }
             removeFromHierarchy();
         }
+        removeFromHierarchy();
     }
 
     std::string replaceIllegalCharsWithUnderbar( std::string const& s ) {
@@ -720,6 +750,10 @@ private:
 
     template <typename Counter>
     void printCounter( std::string const & name, Counter c );
+
+    void printComment( std::string const &comment ) {
+        ss << "# " << comment << PROM_EOL;
+    }
 
     template <typename Vector>
     void iterateVectorAndCallAccept( Vector const& v );
@@ -2865,7 +2899,9 @@ void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & re
       <li>/persecond : This will fetch data from the internal sample thread which samples every second and returns the difference between the last 2 samples.</li>\n\
       <li>/persecond/X : This will fetch data from the internal sample thread which samples every second and returns the difference between the last 2 samples which are X seconds apart. X can be at most 30 seconds without changing the source code.</li>\n\
       <li>/metrics : The Prometheus server does not send an Accept header to decide what format to return so it got its own endpoint that will always return data in the Prometheus format. pcm-sensor-server is sending the header \"Content-Type: text/plain; version=0.0.4\" as required. This /metrics endpoints mimics the same behavior as / and data is thus absolute, not relative.</li>\n\
-      <li>/dashboard : This will return JSON for a Grafana dashboard that holds all counters. Please see the documentation for more information.</li>\n\
+      <li>/dashboard/influxdb : This will return JSON for a Grafana dashboard with InfluxDB backend that holds all counters. Please see the documentation for more information.</li>\n\
+      <li>/dashboard/prometheus : This will return JSON for a Grafana dashboard with Prometheus backend that holds all counters. Please see the documentation for more information.</li>\n\
+      <li>/dashboard : same as /dashboard/influxdb </li>\n\
       <li>/favicon.ico : This will return a small favicon.ico as requested by many browsers.</li>\n\
     </ul>\n\
   </body>\n\
@@ -2881,9 +2917,14 @@ void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & re
         //current->dispatch( PCM::getInstance()->getSystemTopology() );
         //aggregatorPair = std::make_pair( null, current );
         aggregatorPair = getNullAndCurrentAggregator();
-    } else if ( url.path_ == "/dashboard") {
+    } else if ( url.path_ == "/dashboard" || url.path_ == "/dashboard/influxdb") {
         DBG( 3, "client requesting /dashboard path: '", url.path_, "'" );
-        resp.createResponse( ApplicationJSON, getPCMDashboardJSON(), RC_200_OK );
+        resp.createResponse( ApplicationJSON, getPCMDashboardJSON(InfluxDB), RC_200_OK );
+        return;
+    }
+    else if (url.path_ == "/dashboard/prometheus") {
+        DBG(3, "client requesting /dashboard path: '", url.path_, "'");
+        resp.createResponse(ApplicationJSON, getPCMDashboardJSON(Prometheus), RC_200_OK);
         return;
     } else if ( 0 == url.path_.rfind( "/persecond", 0 ) ) {
         DBG( 3, "client requesting /persecond path: '", url.path_, "'" );
