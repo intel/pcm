@@ -16,6 +16,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 //            Jim Harris (FreeBSD)
 
 #include <iostream>
+#include <stdexcept>
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
