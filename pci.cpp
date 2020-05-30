@@ -390,7 +390,8 @@ PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 functi
     int handle = openHandle(groupnr_, bus_, device_, function_);
     if (handle < 0)
     {
-        throw std::runtime_error("PCM error: can't open PciHandle");
+        throw std::runtime_error(std::string("PCM error: can't open PciHandle ")
+            + std::to_string(groupnr_) + ":" + std::to_string(bus_) + ":" + std::to_string(device_) + ":" + std::to_string(function_));
     }
     fd = handle;
 
