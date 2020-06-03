@@ -67,12 +67,12 @@ libPCM.a: $(COMMON_OBJS)
 	ar -rcs $@ $^
 
 %.x: %.o $(COMMON_OBJS)
-	$(CXX) -o $@ $^ $(LIB)
+	$(CXX) $(LDFLAGS) -o $@ $^ $(LIB)
 
 pcm-sensor-server.o: pcm-sensor-server.cpp favicon.ico.h
 
 pcm-sensor-server.x: pcm-sensor-server.o $(COMMON_OBJS)
-	$(CXX) -o $@ $^ $(LIB) $(OPENSSL_LIB)
+	$(CXX) $(LDFLAGS) -o $@ $^ $(LIB) $(OPENSSL_LIB)
 
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $*.cpp -o $*.o
