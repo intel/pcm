@@ -1432,6 +1432,7 @@ void PCM::initUncoreObjects()
     if (hasPCICFGUncore() && MSR.size())
     {
         int i = 0;
+        bool failed = false;
         try
         {
             for (i = 0; i < (int)num_sockets; ++i)
@@ -1439,7 +1440,16 @@ void PCM::initUncoreObjects()
                 server_pcicfg_uncore.push_back(std::make_shared<ServerPCICFGUncore>(i, this));
             }
         }
+        catch (std::runtime_error & e)
+        {
+            std::cerr << e.what() << "\n";
+            failed = true;
+        }
         catch (...)
+        {
+            failed = true;
+        }
+        if (failed)
         {
             server_pcicfg_uncore.clear();
             std::cerr << "Can not access server uncore PCI configuration space. Access to uncore counters (memory and QPI bandwidth) is disabled.\n";

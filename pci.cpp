@@ -16,6 +16,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 //            Jim Harris (FreeBSD)
 
 #include <iostream>
+#include <stdexcept>
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -358,11 +359,8 @@ PciHandle::~PciHandle()
 
 // Linux implementation
 
-PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 function_) :
-    fd(-1),
-    bus(bus_),
-    device(device_),
-    function(function_)
+
+int openHandle(uint32 groupnr_, uint32 bus, uint32 device, uint32 function)
 {
     std::ostringstream path(std::ostringstream::out);
 
@@ -379,7 +377,22 @@ PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 functi
     if (handle < 0)
     {
        if (errno == 24) std::cerr << "ERROR: try executing 'ulimit -n 100000' to increase the limit on the number of open files.\n";
-       throw std::exception();
+       handle = ::open((std::string("/pcm") + path.str()).c_str(), O_RDWR);
+    }
+    return handle;
+}
+
+PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 function_) :
+    fd(-1),
+    bus(bus_),
+    device(device_),
+    function(function_)
+{
+    int handle = openHandle(groupnr_, bus_, device_, function_);
+    if (handle < 0)
+    {
+        throw std::runtime_error(std::string("PCM error: can't open PciHandle ")
+            + std::to_string(groupnr_) + ":" + std::to_string(bus_) + ":" + std::to_string(device_) + ":" + std::to_string(function_));
     }
     fd = handle;
 
@@ -389,24 +402,9 @@ PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 functi
 
 bool PciHandle::exists(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 function_)
 {
-    std::ostringstream path(std::ostringstream::out);
+    int handle = openHandle(groupnr_, bus_, device_, function_);
 
-    path << std::hex << "/proc/bus/pci/";
-    if (groupnr_)
-    {
-        path << std::setw(4) << std::setfill('0') << groupnr_ << ":";
-    }
-    path << std::setw(2) << std::setfill('0') << bus_ << "/" << std::setw(2) << std::setfill('0') << device_ << "." << function_;
-
-    // std::cout << "PciHandle: Opening "<<path.str()<<"\n";
-
-    int handle = ::open(path.str().c_str(), O_RDWR);
-
-    if (handle < 0)
-    {
-        if (errno == 24) std::cerr << "ERROR: try executing 'ulimit -n 100000' to increase the limit on the number of open files.\n";
-        return false;
-    }
+    if (handle < 0) return false;
 
     ::close(handle);
 
@@ -439,21 +437,27 @@ PciHandle::~PciHandle()
 }
 
 int PciHandle::openMcfgTable() {
-    const char* path = "/sys/firmware/acpi/tables/MCFG";
-    int handle = ::open(path, O_RDONLY);
-
-    if ( handle < 0 ) {
-        /**
-         * There are no MCFG table on some machines, but MCFG1.
-         * See https://github.com/opcm/pcm/issues/74 for details
-         */
-        path = "/sys/firmware/acpi/tables/MCFG1";
-        handle = ::open(path, O_RDONLY);
-        if ( handle < 0 ) {
-            std::cerr << "Can't open MCFG table. Check permission of /sys/firmware/acpi/tables/MCFG or MCFG1\n";
+    const std::vector<std::string> base_paths = {"/sys/firmware/acpi/tables/MCFG", "/sys/firmware/acpi/tables/MCFG1"};
+    std::vector<std::string> paths = base_paths;
+    for (auto p: base_paths)
+    {
+        paths.push_back(std::string("/pcm") + p);
+    }
+    int handle = -1;
+    for (auto p: paths)
+    {
+        if (handle < 0)
+        {
+            handle = ::open(p.c_str(), O_RDONLY);
         }
     }
-
+    if (handle < 0)
+    {
+        for (auto p: paths)
+        {
+            std::cerr << "Can't open MCFG table. Check permission of " << p << "\n";
+        }
+    }
     return handle;
 }
 
