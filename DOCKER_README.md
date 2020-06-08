@@ -7,3 +7,5 @@ As root user:
 2. ``docker run -d --name pcm --privileged -p 9738:9738 opcm/pcm``
 
 This will start pcm-sensor-server container exposing CPU metrics from the whole system at port 9738 
+
+The URL of the docker container repository: https://hub.docker.com/r/opcm/pcm

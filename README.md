@@ -11,6 +11,7 @@ Current Build Status
 - Linux and OSX: [![Build Status](https://travis-ci.com/opcm/pcm.svg?branch=master)](https://travis-ci.com/opcm/pcm)
 - Windows: [![Build status](https://ci.appveyor.com/api/projects/status/github/opcm/pcm?branch=master&svg=true)](https://ci.appveyor.com/project/opcm/pcm)
 - FreeBSD: [![Build Status](https://api.cirrus-ci.com/github/opcm/pcm.svg)](https://cirrus-ci.com/github/opcm/pcm)
+- Docker Hub: [![Build status](https://img.shields.io/docker/cloud/build/opcm/pcm.svg)](https://github.com/opcm/pcm/blob/master/DOCKER_README.md) [![pulls](https://img.shields.io/docker/pulls/opcm/pcm.svg)](https://github.com/opcm/pcm/blob/master/DOCKER_README.md)
 
 --------------------------------------------------------------------------------
 PCM Tools
@@ -20,7 +21,7 @@ PCM provides a number of command-line utilities for real-time monitoring:
 
 - **pcm** : basic processor monitoring utility (instructions per cycle, core frequency (including Intel(r) Turbo Boost Technology), memory and Intel(r) Quick Path Interconnect bandwidth, local and remote memory bandwidth, cache misses, core and CPU package sleep C-state residency, core and CPU package thermal headroom, cache utilization, CPU and memory energy consumption)
 ![pcm output](https://raw.githubusercontent.com/wiki/opcm/pcm/pcm.x.jpg)
-- **pcm-sensor-server** : pcm collector exposing metrics over http in JSON or Prometheus (text based) format
+- **pcm-sensor-server** : pcm collector exposing metrics over http in JSON or Prometheus (text based) format. Also available as a [docker container](https://github.com/opcm/pcm/blob/master/DOCKER_README.md)
 - **pcm-memory** : monitor memory bandwidth (per-channel and per-DRAM DIMM rank)
 ![pcm-memory output](https://raw.githubusercontent.com/wiki/opcm/pcm/pcm-memory.x.JPG)
 - **pcm-latency** : monitor L1 cache miss and DDR/PMM memory latency
