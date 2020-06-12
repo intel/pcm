@@ -25,8 +25,8 @@ endif
 
 ifeq ($(UNAME), Linux)
 LIB= -pthread -lrt
-EXE += pcm-sensor-server.x
-CXXFLAGS += -Wextra
+EXE += pcm-sensor-server.x c_example.x
+CXXFLAGS += -Wextra -fPIC
 OPENSSL_LIB=
 # Disabling until we can properly check for dependencies, enable
 # yourself if you have the required headers and library installed
@@ -73,6 +73,12 @@ pcm-sensor-server.o: pcm-sensor-server.cpp favicon.ico.h
 
 pcm-sensor-server.x: pcm-sensor-server.o $(COMMON_OBJS)
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LIB) $(OPENSSL_LIB)
+
+libpcm.so: $(COMMON_OBJS) pcm-core.o
+	$(CXX) $(LDFLAGS) $(CXXFLAGS) -DPCM_SILENT -shared $^ -lpthread -o $@
+
+c_example.x: c_example.o libpcm.so
+	gcc $^ -ldl -L./ -lpcm -Wl,-rpath=$(shell pwd) -o $@
 
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $*.cpp -o $*.o
@@ -128,6 +134,6 @@ endif
 	install -m 644 opCode.txt                    ${prefix}/share/pcm/
 
 clean:
-	rm -rf *.x *.o *~ *.d *.a
+	rm -rf *.x *.o *~ *.d *.a *.so
 	make -C daemon/daemon/Debug clean
 	make -C daemon/client/Debug clean
