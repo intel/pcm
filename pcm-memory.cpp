@@ -47,9 +47,9 @@
 using namespace std;
 
 const uint32 max_sockets = 256;
-const uint32 max_imc_channels = ServerUncorePowerState::maxChannels;
-const uint32 max_edc_channels = ServerUncorePowerState::maxChannels;
-const uint32 max_imc_controllers = ServerUncorePowerState::maxControllers;
+const uint32 max_imc_channels = ServerUncoreCounterState::maxChannels;
+const uint32 max_edc_channels = ServerUncoreCounterState::maxChannels;
+const uint32 max_imc_controllers = ServerUncoreCounterState::maxControllers;
 
 typedef struct memdata {
     float iMC_Rd_socket_chan[max_sockets][max_imc_channels];
@@ -181,7 +181,7 @@ void printSocketChannelBW(PCM */*m*/, memdata_t *md, uint32 no_columns, uint32 s
     }
 }
 
-void printSocketChannelBW(uint32 no_columns, uint32 skt, uint32 num_imc_channels, const ServerUncorePowerState * uncState1, const ServerUncorePowerState * uncState2, uint64 elapsedTime, int rankA, int rankB)
+void printSocketChannelBW(uint32 no_columns, uint32 skt, uint32 num_imc_channels, const ServerUncoreCounterState * uncState1, const ServerUncoreCounterState * uncState2, uint64 elapsedTime, int rankA, int rankB)
 {
     for (uint32 channel = 0; channel < num_imc_channels; ++channel) {
         if(rankA >= 0) {
@@ -650,7 +650,7 @@ void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 /*elapsedTime*/, const 
            });
 }
 
-void calculate_bandwidth(PCM *m, const ServerUncorePowerState uncState1[], const ServerUncorePowerState uncState2[], const uint64 elapsedTime, const bool csv, bool & csvheader, uint32 no_columns, const bool PMM, const bool show_channel_output, const bool PMMMixedMode)
+void calculate_bandwidth(PCM *m, const ServerUncoreCounterState uncState1[], const ServerUncoreCounterState uncState2[], const uint64 elapsedTime, const bool csv, bool & csvheader, uint32 no_columns, const bool PMM, const bool show_channel_output, const bool PMMMixedMode)
 {
     //const uint32 num_imc_channels = m->getMCChannelsPerSocket();
     //const uint32 num_edc_channels = m->getEDCChannelsPerSocket();
@@ -787,7 +787,7 @@ void calculate_bandwidth(PCM *m, const ServerUncorePowerState uncState1[], const
     }
 }
 
-void calculate_bandwidth_rank(PCM *m, const ServerUncorePowerState uncState1[], const ServerUncorePowerState uncState2[], const uint64 elapsedTime, const bool /*csv*/, bool & /*csvheader*/, const uint32 no_columns, const int rankA, const int rankB)
+void calculate_bandwidth_rank(PCM *m, const ServerUncoreCounterState uncState1[], const ServerUncoreCounterState uncState2[], const uint64 elapsedTime, const bool /*csv*/, bool & /*csvheader*/, const uint32 no_columns, const int rankA, const int rankB)
 {
     uint32 skt = 0;
     cout.setf(ios::fixed);
@@ -1060,8 +1060,8 @@ int main(int argc, char * argv[])
         exit(EXIT_FAILURE);
     }
 
-    ServerUncorePowerState * BeforeState = new ServerUncorePowerState[m->getNumSockets()];
-    ServerUncorePowerState * AfterState = new ServerUncorePowerState[m->getNumSockets()];
+    ServerUncoreCounterState * BeforeState = new ServerUncoreCounterState[m->getNumSockets()];
+    ServerUncoreCounterState * AfterState = new ServerUncoreCounterState[m->getNumSockets()];
     uint64 BeforeTime = 0, AfterTime = 0;
 
     if ( (sysCmd != NULL) && (delay<=0.0) ) {
@@ -1084,7 +1084,7 @@ int main(int argc, char * argv[])
     cerr << "Update every " << delay << " seconds\n";
 
     for(uint32 i=0; i<m->getNumSockets(); ++i)
-        BeforeState[i] = m->getServerUncorePowerState(i);
+        BeforeState[i] = m->getServerUncoreCounterState(i);
 
     BeforeTime = m->getTickCount();
 
@@ -1125,7 +1125,7 @@ int main(int argc, char * argv[])
 
         AfterTime = m->getTickCount();
         for(uint32 i=0; i<m->getNumSockets(); ++i)
-            AfterState[i] = m->getServerUncorePowerState(i);
+            AfterState[i] = m->getServerUncoreCounterState(i);
 
         if (!csv) {
           //cout << "Time elapsed: " << dec << fixed << AfterTime-BeforeTime << " ms\n";

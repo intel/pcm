@@ -66,8 +66,8 @@ namespace PCMDaemon {
 		std::vector<CoreCounterState> coreStatesBefore_, coreStatesAfter_;
 		std::vector<SocketCounterState> socketStatesBefore_, socketStatesAfter_;
 		SystemCounterState systemStatesBefore_, systemStatesForQPIBefore_, systemStatesAfter_;
-		ServerUncorePowerState* serverUncorePowerStatesBefore_;
-		ServerUncorePowerState* serverUncorePowerStatesAfter_;
+		ServerUncoreCounterState* serverUncoreCounterStatesBefore_;
+		ServerUncoreCounterState* serverUncoreCounterStatesAfter_;
 	};
 
 }

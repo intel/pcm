@@ -65,7 +65,7 @@ class SystemCounterState;
 class SocketCounterState;
 class CoreCounterState;
 class BasicCounterState;
-class ServerUncorePowerState;
+class ServerUncoreCounterState;
 class PCM;
 class CoreTaskQueue;
 class SystemRoot;
@@ -1039,7 +1039,7 @@ public:
         \param socket socket id
         \return State of power counters in the socket
     */
-    ServerUncorePowerState getServerUncorePowerState(uint32 socket);
+    ServerUncoreCounterState getServerUncoreCounterState(uint32 socket);
 
     /*! \brief Cleanups resources and stops performance counting
 
@@ -2387,7 +2387,7 @@ public:
 
 //! \brief Server uncore power counter state
 //!
-class ServerUncorePowerState : public UncoreCounterState
+class ServerUncoreCounterState : public UncoreCounterState
 {
 public:
     enum {
@@ -2435,7 +2435,7 @@ private:
 public:
     //! Returns current thermal headroom below TjMax
     int32 getPackageThermalHeadroom() const { return PackageThermalHeadroom; }
-    ServerUncorePowerState() :
+    ServerUncoreCounterState() :
         QPIClocks{}, QPIL0pTxCycles{}, QPIL1Cycles{},
         DRAMClocks{},
         MCDRAMClocks{},

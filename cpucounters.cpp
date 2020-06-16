@@ -4318,9 +4318,9 @@ bool PCM::isSomeCoreOfflined()
     return !(getNumOnlineCores() == max_num_lcores);
 }
 
-ServerUncorePowerState PCM::getServerUncorePowerState(uint32 socket)
+ServerUncoreCounterState PCM::getServerUncoreCounterState(uint32 socket)
 {
-    ServerUncorePowerState result;
+    ServerUncoreCounterState result;
     if(server_pcicfg_uncore.size() && server_pcicfg_uncore[socket].get())
     {
         server_pcicfg_uncore[socket]->freezeCounters();
@@ -4338,7 +4338,7 @@ ServerUncorePowerState PCM::getServerUncorePowerState(uint32 socket)
             assert(channel < result.DRAMClocks.size());
             result.DRAMClocks[channel] = server_pcicfg_uncore[socket]->getDRAMClocks(channel);
             assert(channel < result.MCCounter.size());
-            for (uint32 cnt = 0; cnt < ServerUncorePowerState::maxCounters; ++cnt)
+            for (uint32 cnt = 0; cnt < ServerUncoreCounterState::maxCounters; ++cnt)
                 result.MCCounter[channel][cnt] = server_pcicfg_uncore[socket]->getMCCounter(channel, cnt);
         }
         for (uint32 channel = 0; channel < (uint32)server_pcicfg_uncore[socket]->getNumEDCChannels(); ++channel)
@@ -4346,13 +4346,13 @@ ServerUncorePowerState PCM::getServerUncorePowerState(uint32 socket)
             assert(channel < result.MCDRAMClocks.size());
             result.MCDRAMClocks[channel] = server_pcicfg_uncore[socket]->getMCDRAMClocks(channel);
             assert(channel < result.EDCCounter.size());
-            for (uint32 cnt = 0; cnt < ServerUncorePowerState::maxCounters; ++cnt)
+            for (uint32 cnt = 0; cnt < ServerUncoreCounterState::maxCounters; ++cnt)
                 result.EDCCounter[channel][cnt] = server_pcicfg_uncore[socket]->getEDCCounter(channel, cnt);
         }
     for (uint32 controller = 0; controller < (uint32)server_pcicfg_uncore[socket]->getNumMC(); ++controller)
     {
       assert(controller < result.M2MCounter.size());
-      for (uint32 cnt = 0; cnt < ServerUncorePowerState::maxCounters; ++cnt)
+      for (uint32 cnt = 0; cnt < ServerUncoreCounterState::maxCounters; ++cnt)
           result.M2MCounter[controller][cnt] = server_pcicfg_uncore[socket]->getM2MCounter(controller, cnt);
     }
         server_pcicfg_uncore[socket]->unfreezeCounters();
@@ -4361,7 +4361,7 @@ ServerUncorePowerState PCM::getServerUncorePowerState(uint32 socket)
     {
         uint32 refCore = socketRefCore[socket];
         TemporalThreadAffinity tempThreadAffinity(refCore);
-        for (int i = 0; i < ServerUncorePowerState::maxCounters && socket < pcuPMUs.size(); ++i)
+        for (int i = 0; i < ServerUncoreCounterState::maxCounters && socket < pcuPMUs.size(); ++i)
             result.PCUCounter[i] = *pcuPMUs[socket].counterValue[i];
         // std::cout << "values read: " << result.PCUCounter[0] << " " << result.PCUCounter[1] << " " << result.PCUCounter[2] << " " << result.PCUCounter[3] << "\n";
         uint64 val=0;
