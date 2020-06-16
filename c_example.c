@@ -1,7 +1,17 @@
 #include <stdio.h>
 #include <dlfcn.h>
 #include <stdint.h>
-#include <sched.h>
+
+int pcm_getcpu()
+{
+    int id = -1;
+    asm volatile (
+       "rdtscp\n\t"
+       "mov %%ecx, %0\n\t":
+       "=r" (id) :: "%rax", "%rcx", "%rdx");
+    // processor ID is in ECX: https://www.felixcloutier.com/x86/rdtscp
+    return id;
+}
 
 struct {
 	int (*pcm_c_build_core_event)(uint8_t id, const char * argv);
@@ -57,7 +67,7 @@ int main(int argc, const char *argv[])
             c[i%100] = 4 * a[i%100] + b[i%100];
 	PCM.pcm_c_stop();
 
-	lcore_id = sched_getcpu();
+	lcore_id = pcm_getcpu();
 	printf("C:%lu I:%lu, IPC:%3.2f\n",
 		PCM.pcm_c_get_cycles(lcore_id),
 		PCM.pcm_c_get_instr(lcore_id),
