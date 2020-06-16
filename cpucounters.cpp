@@ -545,8 +545,38 @@ bool PCM::detectModel()
     return true;
 }
 
+bool PCM::isRDTDisabled() const
+{
+    static int flag = -1;
+    if (flag < 0)
+    {
+        // flag not yet initialized
+        const char * varname = "PCM_NO_RDT";
+        char* env = nullptr;
+#ifdef _MSC_VER
+        _dupenv_s(&env, NULL, varname);
+#else
+        env = std::getenv(varname);
+#endif
+        if (env != nullptr && std::string(env) == std::string("1"))
+        {
+            std::cout << "Disabling RDT usage because PCM_NO_RDT=1 environment variable is set.\n";
+            flag = 1;
+        }
+        else
+        {
+            flag = 0;
+        }
+#ifdef _MSC_VER
+        free(env);
+#endif
+    }
+    return flag > 0;
+}
+
 bool PCM::QOSMetricAvailable() const
 {
+    if (isRDTDisabled()) return false;
     if (isSecureBoot()) return false; // TODO: use perf rdt driver
     PCM_CPUID_INFO cpuinfo;
     pcm_cpuid(0x7,0,cpuinfo);
@@ -555,6 +585,7 @@ bool PCM::QOSMetricAvailable() const
 
 bool PCM::L3QOSMetricAvailable() const
 {
+    if (isRDTDisabled()) return false;
     if (isSecureBoot()) return false; // TODO:: use perf rdt driver
     PCM_CPUID_INFO cpuinfo;
     pcm_cpuid(0xf,0,cpuinfo);

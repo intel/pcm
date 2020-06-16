@@ -880,6 +880,7 @@ private:
 
     void initUncorePMUsDirect();
     void initUncorePMUsPerf();
+    bool isRDTDisabled() const;
 
 public:
     enum EventPosition
