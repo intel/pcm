@@ -321,6 +321,7 @@ class ServerPCICFGUncore
     PciHandleType * createIntelPerfMonDevice(uint32 groupnr, int32 bus, uint32 dev, uint32 func, bool checkVendor = false);
     void programIMC(const uint32 * MCCntConfig);
     void programEDC(const uint32 * EDCCntConfig);
+    void programM2M(const uint32 * M2MCntConfig);
     void programM2M();
     void programHA(const uint32 * config);
     void programHA();

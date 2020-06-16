@@ -5716,25 +5716,25 @@ void ServerPCICFGUncore::programEDC(const uint32 * EDCCntConfig)
 
 void ServerPCICFGUncore::programM2M()
 {
+    uint32 cfg[4] = {0, 0, 0, 0};
+    cfg[EventPosition::NM_HIT]    = M2M_PCI_PMON_CTL_EVENT(0x2c) + M2M_PCI_PMON_CTL_UMASK(3);    // UNC_M2M_TAG_HIT.NM_DRD_HIT_* events (CLEAN | DIRTY)
+    cfg[EventPosition::M2M_CLOCKTICKS] = 0;                                                      // CLOCKTICKS
+    cfg[EventPosition::PMM_READ]  = M2M_PCI_PMON_CTL_EVENT(0x37) + M2M_PCI_PMON_CTL_UMASK(0x8);  // UNC_M2M_IMC_READS.TO_PMM
+    cfg[EventPosition::PMM_WRITE] = M2M_PCI_PMON_CTL_EVENT(0x38) + M2M_PCI_PMON_CTL_UMASK(0x20); // UNC_M2M_IMC_WRITES.TO_PMM
+    programM2M(cfg);
+}
+
+void ServerPCICFGUncore::programM2M(const uint32* M2MCntConfig)
+{
     {
         for (auto & pmu : m2mPMUs)
         {
             pmu.initFreeze(UNC_PMON_UNIT_CTL_RSV);
-
-            *pmu.counterControl[EventPosition::NM_HIT] = M2M_PCI_PMON_CTL_EN;
-            // UNC_M2M_TAG_HIT.NM_DRD_HIT_* events (CLEAN | DIRTY)
-            *pmu.counterControl[EventPosition::NM_HIT] = M2M_PCI_PMON_CTL_EN + M2M_PCI_PMON_CTL_EVENT(0x2c) + M2M_PCI_PMON_CTL_UMASK(3);
-
-            *pmu.counterControl[EventPosition::M2M_CLOCKTICKS] = M2M_PCI_PMON_CTL_EN; // CLOCKTICKS
-
-            *pmu.counterControl[EventPosition::PMM_READ] = M2M_PCI_PMON_CTL_EN;
-            // UNC_M2M_IMC_READS.TO_PMM
-            *pmu.counterControl[EventPosition::PMM_READ] = M2M_PCI_PMON_CTL_EN + M2M_PCI_PMON_CTL_EVENT(0x37) + M2M_PCI_PMON_CTL_UMASK(0x8);
-
-            *pmu.counterControl[EventPosition::PMM_WRITE] = M2M_PCI_PMON_CTL_EN;
-            // UNC_M2M_IMC_WRITES.TO_PMM
-            *pmu.counterControl[EventPosition::PMM_WRITE] = M2M_PCI_PMON_CTL_EN + M2M_PCI_PMON_CTL_EVENT(0x38) + M2M_PCI_PMON_CTL_UMASK(0x20);
-
+            for (int c = 0; c < 4; ++c)
+            {
+                *pmu.counterControl[c] = M2M_PCI_PMON_CTL_EN;
+                *pmu.counterControl[c] = M2M_PCI_PMON_CTL_EN | M2MCntConfig[c];
+            }
             pmu.resetUnfreeze(UNC_PMON_UNIT_CTL_RSV);
         }
     }
