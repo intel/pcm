@@ -2276,7 +2276,7 @@ public:
     enum {
         maxControllers = 2,
         maxChannels = 8,
-        maxXPILinks = 3,
+        maxXPILinks = 6,
         maxCounters = 4
     };
 private:
