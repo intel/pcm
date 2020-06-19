@@ -7,6 +7,8 @@ EXE = pcm.x pcm-numa.x pcm-latency.x pcm-power.x pcm-sensor.x pcm-msr.x pcm-memo
 
 EXE += pcm-mmio.x
 
+EXE += c_example.x
+
 UNAME:=$(shell uname)
 
 ifeq ($(UNAME), Linux)
@@ -25,7 +27,7 @@ endif
 
 ifeq ($(UNAME), Linux)
 LIB= -pthread -lrt
-EXE += pcm-sensor-server.x c_example.x
+EXE += pcm-sensor-server.x
 CXXFLAGS += -Wextra -fPIC
 OPENSSL_LIB=
 # Disabling until we can properly check for dependencies, enable
