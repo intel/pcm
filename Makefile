@@ -77,7 +77,7 @@ pcm-sensor-server.x: pcm-sensor-server.o $(COMMON_OBJS)
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LIB) $(OPENSSL_LIB)
 
 libpcm.so: $(COMMON_OBJS) pcm-core.o
-	$(CXX) $(LDFLAGS) $(CXXFLAGS) -DPCM_SILENT -shared $^ -lpthread -o $@
+	$(CXX) $(LDFLAGS) $(CXXFLAGS) -DPCM_SILENT -shared $^ $(LIB) -o $@
 
 c_example.x: c_example.o libpcm.so
 	gcc $^ -ldl -L./ -lpcm -Wl,-rpath=$(shell pwd) -o $@
