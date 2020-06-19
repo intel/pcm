@@ -99,8 +99,8 @@ struct res_core
 
 double DRAMSpeed;
 
-ServerUncorePowerState * BeforeState;
-ServerUncorePowerState * AfterState;
+ServerUncoreCounterState * BeforeState;
+ServerUncoreCounterState * AfterState;
 
 
 SystemCounterState SysBeforeState, SysAfterState;
@@ -111,7 +111,7 @@ void collect_beforestate_uncore(PCM *m)
 {
     for (unsigned int i=0; i<m->getNumSockets(); i++)
     {
-        BeforeState[i] = m->getServerUncorePowerState(i);
+        BeforeState[i] = m->getServerUncoreCounterState(i);
     }
 }
 
@@ -119,7 +119,7 @@ void collect_afterstate_uncore(PCM *m)
 {
     for (unsigned int i=0; i<m->getNumSockets(); i++)
     {
-        AfterState[i] = m->getServerUncorePowerState(i);
+        AfterState[i] = m->getServerUncoreCounterState(i);
     }
 }
 
@@ -452,8 +452,8 @@ void build_registers(PCM *m, PCM::ExtendedCustomCoreEventDescription conf, bool 
 void collect_data(PCM *m, bool enable_pmm, bool enable_verbose, int delay_ms)
 {
 
-    BeforeState = new ServerUncorePowerState[m->getNumSockets()];
-    AfterState = new ServerUncorePowerState[m->getNumSockets()];
+    BeforeState = new ServerUncoreCounterState[m->getNumSockets()];
+    AfterState = new ServerUncoreCounterState[m->getNumSockets()];
 
     while (1)
     {

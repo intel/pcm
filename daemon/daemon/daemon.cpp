@@ -58,8 +58,8 @@ namespace PCMDaemon {
 		updatePCMState(&systemStatesBefore_, &socketStatesBefore_, &coreStatesBefore_);
 		systemStatesForQPIBefore_ = SystemCounterState(systemStatesBefore_);
 
-		serverUncorePowerStatesBefore_ = new ServerUncorePowerState[pcmInstance_->getNumSockets()];
-		serverUncorePowerStatesAfter_ = new ServerUncorePowerState[pcmInstance_->getNumSockets()];
+		serverUncoreCounterStatesBefore_ = new ServerUncoreCounterState[pcmInstance_->getNumSockets()];
+		serverUncoreCounterStatesAfter_ = new ServerUncoreCounterState[pcmInstance_->getNumSockets()];
 	}
 
 	int Daemon::run()
@@ -94,8 +94,8 @@ namespace PCMDaemon {
 
 	Daemon::~Daemon()
 	{
-		delete serverUncorePowerStatesBefore_;
-		delete serverUncorePowerStatesAfter_;
+		delete serverUncoreCounterStatesBefore_;
+		delete serverUncoreCounterStatesAfter_;
 	}
 
 	void Daemon::setupPCM()
@@ -464,7 +464,7 @@ namespace PCMDaemon {
 		std::swap(coreStatesBefore_, coreStatesAfter_);
 		std::swap(socketStatesBefore_, socketStatesAfter_);
 		std::swap(systemStatesBefore_, systemStatesAfter_);
-		std::swap(serverUncorePowerStatesBefore_, serverUncorePowerStatesAfter_);
+		std::swap(serverUncoreCounterStatesBefore_, serverUncoreCounterStatesAfter_);
 	}
 
 	void Daemon::getPCMSystem()
@@ -574,7 +574,7 @@ namespace PCMDaemon {
 
         for(uint32 i(0); i < numSockets; ++i)
         {
-        	serverUncorePowerStatesAfter_[i] = pcmInstance_->getServerUncorePowerState(i);
+        	serverUncoreCounterStatesAfter_[i] = pcmInstance_->getServerUncoreCounterState(i);
         }
 
         uint64 elapsedTime = collectionTimeAfter_ - collectionTimeBefore_;
@@ -594,8 +594,8 @@ namespace PCMDaemon {
 			for(uint32 channel(0); channel < MEMORY_MAX_IMC_CHANNELS; ++channel)
 			{
 				//In case of JKT-EN, there are only three channels. Skip one and continue.
-				bool memoryReadAvailable = getMCCounter(channel,MEMORY_READ,serverUncorePowerStatesBefore_[skt],serverUncorePowerStatesAfter_[skt]) == 0.0;
-				bool memoryWriteAvailable = getMCCounter(channel,MEMORY_WRITE,serverUncorePowerStatesBefore_[skt],serverUncorePowerStatesAfter_[skt]) == 0.0;
+				bool memoryReadAvailable = getMCCounter(channel,MEMORY_READ,serverUncoreCounterStatesBefore_[skt],serverUncoreCounterStatesAfter_[skt]) == 0.0;
+				bool memoryWriteAvailable = getMCCounter(channel,MEMORY_WRITE,serverUncoreCounterStatesBefore_[skt],serverUncoreCounterStatesAfter_[skt]) == 0.0;
 				if(memoryReadAvailable && memoryWriteAvailable)
 				{
 					iMC_Rd_socket_chan[skt][channel] = -1.0;
@@ -603,13 +603,13 @@ namespace PCMDaemon {
 					continue;
 				}
 
-				iMC_Rd_socket_chan[skt][channel] = (float) (getMCCounter(channel,MEMORY_READ,serverUncorePowerStatesBefore_[skt],serverUncorePowerStatesAfter_[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0));
-				iMC_Wr_socket_chan[skt][channel] = (float) (getMCCounter(channel,MEMORY_WRITE,serverUncorePowerStatesBefore_[skt],serverUncorePowerStatesAfter_[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0));
+				iMC_Rd_socket_chan[skt][channel] = (float) (getMCCounter(channel,MEMORY_READ,serverUncoreCounterStatesBefore_[skt],serverUncoreCounterStatesAfter_[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0));
+				iMC_Wr_socket_chan[skt][channel] = (float) (getMCCounter(channel,MEMORY_WRITE,serverUncoreCounterStatesBefore_[skt],serverUncoreCounterStatesAfter_[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0));
 
 				iMC_Rd_socket[skt] += iMC_Rd_socket_chan[skt][channel];
 				iMC_Wr_socket[skt] += iMC_Wr_socket_chan[skt][channel];
 
-				partial_write[skt] += (uint64) (getMCCounter(channel,MEMORY_PARTIAL,serverUncorePowerStatesBefore_[skt],serverUncorePowerStatesAfter_[skt]) / (elapsedTime/1000.0));
+				partial_write[skt] += (uint64) (getMCCounter(channel,MEMORY_PARTIAL,serverUncoreCounterStatesBefore_[skt],serverUncoreCounterStatesAfter_[skt]) / (elapsedTime/1000.0));
 			}
 		}
 

@@ -65,7 +65,7 @@ class SystemCounterState;
 class SocketCounterState;
 class CoreCounterState;
 class BasicCounterState;
-class ServerUncorePowerState;
+class ServerUncoreCounterState;
 class PCM;
 class CoreTaskQueue;
 class SystemRoot;
@@ -321,6 +321,7 @@ class ServerPCICFGUncore
     PciHandleType * createIntelPerfMonDevice(uint32 groupnr, int32 bus, uint32 dev, uint32 func, bool checkVendor = false);
     void programIMC(const uint32 * MCCntConfig);
     void programEDC(const uint32 * EDCCntConfig);
+    void programM2M(const uint32 * M2MCntConfig);
     void programM2M();
     void programHA(const uint32 * config);
     void programHA();
@@ -335,7 +336,7 @@ class ServerPCICFGUncore
     void initDirect(uint32 socket_, const PCM * pcm);
     void initPerf(uint32 socket_, const PCM * pcm);
     void initBuses(uint32 socket_, const PCM * pcm);
-    void initRegisterLocations();
+    void initRegisterLocations(const PCM * pcm);
     uint64 getPMUCounter(std::vector<UncorePMU> & pmu, const uint32 id, const uint32 counter);
 
 public:
@@ -523,6 +524,7 @@ class PCM_API PCM
     friend class ServerUncore;
     friend class PerfVirtualControlRegister;
     friend class Aggregator;
+    friend class ServerPCICFGUncore;
     PCM();     // forbidden to call directly because it is a singleton
 
     int32 cpu_family;
@@ -875,11 +877,22 @@ private:
 
     bool isCLX() const // Cascade Lake-SP
     {
-        return (PCM::SKX == cpu_model) && (cpu_stepping > 4);
+        return (PCM::SKX == cpu_model) && (cpu_stepping > 4 && cpu_stepping < 8);
+    }
+
+    static bool isCPX(int cpu_model_, int cpu_stepping_) // Cooper Lake
+    {
+        return (PCM::SKX == cpu_model_) && (cpu_stepping_ >= 10);
+    }
+
+    bool isCPX() const
+    {
+        return isCPX(cpu_model, cpu_stepping);
     }
 
     void initUncorePMUsDirect();
     void initUncorePMUsPerf();
+    bool isRDTDisabled() const;
 
 public:
     enum EventPosition
@@ -1037,7 +1050,7 @@ public:
         \param socket socket id
         \return State of power counters in the socket
     */
-    ServerUncorePowerState getServerUncorePowerState(uint32 socket);
+    ServerUncoreCounterState getServerUncoreCounterState(uint32 socket);
 
     /*! \brief Cleanups resources and stops performance counting
 
@@ -1725,6 +1738,7 @@ public:
     {
         return (
             isCLX()
+                    ||  isCPX()
         );
     }
 
@@ -2385,13 +2399,13 @@ public:
 
 //! \brief Server uncore power counter state
 //!
-class ServerUncorePowerState : public UncoreCounterState
+class ServerUncoreCounterState : public UncoreCounterState
 {
 public:
     enum {
         maxControllers = 2,
         maxChannels = 8,
-        maxXPILinks = 3,
+        maxXPILinks = 6,
         maxCounters = 4
     };
 private:
@@ -2433,7 +2447,7 @@ private:
 public:
     //! Returns current thermal headroom below TjMax
     int32 getPackageThermalHeadroom() const { return PackageThermalHeadroom; }
-    ServerUncorePowerState() :
+    ServerUncoreCounterState() :
         QPIClocks{}, QPIL0pTxCycles{}, QPIL1Cycles{},
         DRAMClocks{},
         MCDRAMClocks{},
