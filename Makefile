@@ -15,7 +15,7 @@ ifeq ($(UNAME), Linux)
 EXE += daemon-binaries
 endif
 
-CXXFLAGS += -Wall -g -O3 -Wno-unknown-pragmas -std=c++11
+CXXFLAGS += -Wall -g -O3 -Wno-unknown-pragmas -std=c++11 -fPIC
 
 # uncomment if your Linux kernel supports access to /dev/mem from user space
 # CXXFLAGS += -DPCM_USE_PCI_MM_LINUX
@@ -28,7 +28,7 @@ endif
 ifeq ($(UNAME), Linux)
 LIB= -pthread -lrt
 EXE += pcm-sensor-server.x
-CXXFLAGS += -Wextra -fPIC
+CXXFLAGS += -Wextra
 OPENSSL_LIB=
 # Disabling until we can properly check for dependencies, enable
 # yourself if you have the required headers and library installed
