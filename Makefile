@@ -80,7 +80,7 @@ libpcm.so: $(COMMON_OBJS) pcm-core.o
 	$(CXX) $(LDFLAGS) $(CXXFLAGS) -DPCM_SILENT -shared $^ $(LIB) -o $@
 
 c_example.x: c_example.o libpcm.so
-	$(CC) $^ -ldl -L./ -lpcm -Wl,-rpath=$(shell pwd) -o $@
+	$(CC) $^ -ldl -L./ -lpcm -Wl,-rpath,$(shell pwd) -o $@
 
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $*.cpp -o $*.o
