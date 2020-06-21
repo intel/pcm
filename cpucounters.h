@@ -1776,6 +1776,13 @@ public:
             );
     }
 
+    bool isSkxCompatible() const
+    {
+        return (
+            cpu_model == PCM::SKX
+               );
+    }
+
     bool hasUPI() const // Intel(r) Ultra Path Interconnect
     {
         return (

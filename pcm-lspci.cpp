@@ -107,7 +107,13 @@ int main(int /*argc*/, char * /*argv*/[])
 {
     PCIDB pciDB;
     load_PCIDB(pciDB);
-    PCM::getInstance();
+    PCM * m = PCM::getInstance();
+
+    if (!m->isSkxCompatible())
+    {
+        cerr << "Unsupported processor model (" << m->getCPUModel() << ").\n";
+        exit(EXIT_FAILURE);
+    }
     std::cout << "\n Display PCI tree information\n\n";
     for(int bus=0; bus < 256; ++bus)
         scanBus(bus, pciDB);
