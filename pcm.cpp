@@ -47,6 +47,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #define MAX_CORES 4096
 
 using namespace std;
+using namespace pcm;
 
 template <class IntType>
 double float_format(IntType n)

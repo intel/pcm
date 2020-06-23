@@ -45,6 +45,7 @@
 #define PCM_CALIBRATION_INTERVAL 50 // calibrate clock only every 50th iteration
 
 using namespace std;
+using namespace pcm;
 
 void print_usage(const string progname)
 {

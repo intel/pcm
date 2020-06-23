@@ -37,6 +37,8 @@ CT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
 #include <cmath>
 #endif
 
+namespace pcm {
+
 void exit_cleanup(void);
 void set_signal_handlers(void);
 void restore_signal_handlers(void);
@@ -220,3 +222,5 @@ struct StackedBarItem {
 void drawStackedBar(const std::string & label, std::vector<StackedBarItem> & h, const int width = 80);
 
 uint64 read_number(char* str);
+
+} // namespace pcm

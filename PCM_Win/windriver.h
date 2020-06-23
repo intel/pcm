@@ -22,6 +22,8 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <comdef.h>
 #include "cpucounters.h"
 
+namespace pcm {
+
 /*!     \file windriver.h
         \brief Loading and unloading custom Windows MSR (Model Specific Register) Driver
 */
@@ -250,5 +252,7 @@ private:
     const std::wstring driverPath_;
     const std::wstring driverDescription_;
 };
+
+} // namespace pcm
 
 #endif

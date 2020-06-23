@@ -35,6 +35,8 @@ namespace std {
  }
 #endif
 
+namespace pcm {
+
 class CounterWidthExtender
 {
 public:
@@ -180,5 +182,6 @@ public:
     }
 };
 
+} // namespace pcm
 
 #endif

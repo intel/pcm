@@ -28,6 +28,7 @@ typedef unsigned int uint;
 #endif
 
 using namespace std;
+using namespace pcm;
 const uint32 max_sockets = 4;
 #define NUM_SAMPLES (1)
 

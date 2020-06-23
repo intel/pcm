@@ -35,6 +35,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include "lspci.h"
 #include "utils.h"
 using namespace std;
+using namespace pcm;
 
 #define DDR 0
 #define PMM 1

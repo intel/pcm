@@ -24,6 +24,8 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <memory>
 #include "mmio.h"
 
+namespace pcm {
+
 class ClientBW
 {
     std::shared_ptr<MMIORange> mmioRange;
@@ -35,5 +37,6 @@ public:
     uint64 getIoRequests();
 };
 
+} // namespace pcm
 
 #endif

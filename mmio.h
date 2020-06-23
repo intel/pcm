@@ -33,6 +33,8 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include "mutex.h"
 #include <memory>
 
+namespace pcm {
+
 #ifdef _MSC_VER
 class MMIORange
 {
@@ -109,4 +111,4 @@ public:
 };
 #endif
 
-
+} // namespace pcm

@@ -30,8 +30,12 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #endif
 
 #ifdef _MSC_VER
-
 #include <windows.h>
+#endif
+
+namespace pcm {
+
+#ifdef _MSC_VER
 
 class PCMPmem : public WinPmem {
 protected:
@@ -200,3 +204,4 @@ MMIORange::~MMIORange()
 
 #endif
 
+} // namespace pcm

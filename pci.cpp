@@ -36,6 +36,12 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include "winring0/OlsDef.h"
 #include "winring0/OlsApiInitExt.h"
 
+#endif
+
+namespace pcm {
+
+#ifdef _MSC_VER
+
 extern HMODULE hOpenLibSys;
 
 PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 function_) :
@@ -706,5 +712,6 @@ PciHandleMM::~PciHandleMM()
     if (fd >= 0) ::close(fd);
 }
 
-
 #endif
+
+} // namespace pcm

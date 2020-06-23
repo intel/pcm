@@ -48,6 +48,7 @@
 #define MAX_CORES 4096
 
 using namespace std;
+using namespace pcm;
 
 void build_event(const char * argv, EventSelectRegister *reg, int idx);
 

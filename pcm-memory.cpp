@@ -45,6 +45,7 @@
 #define DEFAULT_DISPLAY_COLUMNS 2
 
 using namespace std;
+using namespace pcm;
 
 const uint32 max_sockets = 256;
 const uint32 max_imc_channels = ServerUncoreCounterState::maxChannels;

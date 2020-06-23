@@ -83,10 +83,13 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #include <sys/sem.h>
+#endif
 
+namespace pcm {
+
+#ifdef __APPLE__
 // convertUnknownToInt is used in the safe sysctl call to convert an unknown size to an int
 int convertUnknownToInt(size_t size, char* value);
-
 #endif
 
 #undef PCM_DEBUG_TOPOLOGY // debug of topology enumeration routine
@@ -6566,3 +6569,5 @@ void PCM::setupCustomCoreEventsForNuma(PCM::ExtendedCustomCoreEventDescription& 
         throw UnsupportedProcessorException();
     }
 }
+
+} // namespace pcm

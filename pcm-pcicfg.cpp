@@ -28,6 +28,8 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include "freegetopt/getopt.h"
 #endif
 
+using namespace pcm;
+
 void print_usage(const char * progname)
 {
     std::cout << "Usage " << progname << " [-w value] [-d] group bus device function offset\n\n";

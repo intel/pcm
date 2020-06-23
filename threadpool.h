@@ -41,6 +41,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <condition_variable>
 #include <queue>
 
+namespace pcm {
+
 class Work {
 public:
     Work() {}
@@ -147,3 +149,4 @@ private:
     size_t workProcessed_;
 };
 
+} // namespace pcm

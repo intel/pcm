@@ -33,6 +33,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "cpucounters.h"
 #include "topology.h"
 
+namespace pcm {
+
 UncoreCounterState ServerUncore::uncoreCounterState( void ) const
 {
     UncoreCounterState ucs;
@@ -125,3 +127,5 @@ Aggregator::Aggregator()
     ccsFutures_.resize( pcm->getNumCores() );
     ucsFutures_.resize( pcm->getNumSockets() );
 }
+
+}// namespace pcm

@@ -30,6 +30,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 #include "lspci.h"
 using namespace std;
+using namespace pcm;
 
 void scanBus(int bus, const PCIDB & pciDB)
 {

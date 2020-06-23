@@ -42,6 +42,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define __PRETTY_FUNCTION__ __FUNCSIG__
 #endif
 
+namespace pcm {
+
 namespace debug {
     extern int currentDebugLevel;
 
@@ -86,3 +88,4 @@ namespace debug {
     if ( debug::currentDebugLevel >= level ) \
         debug::dyn_debug_output( std::cout, level, __PRETTY_FUNCTION__, __FILE__, __LINE__, __VA_ARGS__)
 
+} // namespace pcm
