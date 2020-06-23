@@ -22,7 +22,6 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 /*!     \file pcm-sensor.cpp
         \brief Example of using CPU counters: implements a graphical plugin for KDE ksysguard
 */
-#define HACK_TO_REMOVE_DUPLICATE_ERROR
 #include <iostream>
 #include <string>
 #include <sstream>
@@ -30,6 +29,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include "utils.h"
 
 using namespace std;
+using namespace pcm;
 
 int main()
 {

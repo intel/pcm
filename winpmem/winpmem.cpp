@@ -43,6 +43,8 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #define PCM_API 
 #endif
 
+namespace pcm {
+
 extern PCM_API void restrictDriverAccess(LPCWSTR path);
 
 int WinPmem::set_acquisition_mode(__int32 mode) {
@@ -195,3 +197,4 @@ int WinPmem::uninstall_driver() {
   return 1;
 }
 
+} // namespace pcm

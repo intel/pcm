@@ -33,6 +33,8 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include "mutex.h"
 #include <memory>
 
+namespace pcm {
+
 class MsrHandle
 {
 #ifdef _MSC_VER
@@ -65,7 +67,7 @@ public:
 class SafeMsrHandle
 {
     std::shared_ptr<MsrHandle> pHandle;
-    PCM_Util::Mutex mutex;
+    Mutex mutex;
 
     SafeMsrHandle(const SafeMsrHandle &);               // forbidden
     SafeMsrHandle & operator = (const SafeMsrHandle &); // forbidden
@@ -145,5 +147,7 @@ public:
     virtual ~SafeMsrHandle()
     { }
 };
+
+} // namespace pcm
 
 #endif

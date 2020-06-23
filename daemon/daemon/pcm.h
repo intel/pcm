@@ -29,4 +29,6 @@
 	#include "../../freegetopt/getopt.h"
 #endif
 
+using namespace pcm;
+
 #endif /* PCM_H_ */

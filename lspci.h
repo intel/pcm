@@ -23,6 +23,8 @@
     " copy it to the current directory."
 #endif
 
+namespace pcm {
+
 typedef uint32_t h_id;
 typedef uint32_t v_id;
 typedef std::map<std::pair<h_id,v_id>,uint64_t> ctr_data;
@@ -243,5 +245,7 @@ void load_PCIDB(PCIDB & pciDB)
         pciDB.first[vendorID] = line.substr(6);
     }
 }
+
+} // namespace pcm
 
 #endif

@@ -37,6 +37,8 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 #include <vector>
 
+namespace pcm {
+
 class PciHandle
 {
 #ifdef _MSC_VER
@@ -163,5 +165,6 @@ public:
 
 #endif
 
+} // namespace pcm
 
 #endif

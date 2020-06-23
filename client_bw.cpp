@@ -18,6 +18,8 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include "client_bw.h"
 #include "pci.h"
 
+namespace pcm {
+
 #define PCM_CLIENT_IMC_BAR_OFFSET       (0x0048)
 #define PCM_CLIENT_IMC_DRAM_IO_REQESTS  (0x5048)
 #define PCM_CLIENT_IMC_DRAM_DATA_READS  (0x5050)
@@ -54,3 +56,5 @@ uint64 ClientBW::getIoRequests()
 {
     return mmioRange->read32(PCM_CLIENT_IMC_DRAM_IO_REQESTS - PCM_CLIENT_IMC_EVENT_BASE);
 }
+
+} // namespace pcm

@@ -17,6 +17,8 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include "cpucounters.h"
 #include "dashboard.h"
 
+namespace pcm {
+
 class Target
 {
 public:
@@ -717,3 +719,5 @@ std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int
     }
     return dashboard();
 }
+
+} // namespace pcm

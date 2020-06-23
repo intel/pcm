@@ -12,7 +12,6 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 */
 
 // written by Patrick Lu
-#define HACK_TO_REMOVE_DUPLICATE_ERROR
 #include "cpucounters.h"
 #ifdef _MSC_VER
 #pragma warning(disable : 4996) // for sprintf
@@ -30,6 +29,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 #include "lspci.h"
 using namespace std;
+using namespace pcm;
 
 void scanBus(int bus, const PCIDB & pciDB)
 {

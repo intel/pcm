@@ -33,12 +33,14 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include "mutex.h"
 #include <memory>
 
+namespace pcm {
+
 #ifdef _MSC_VER
 class MMIORange
 {
 
     static std::shared_ptr<WinPmem> pmem;
-    static PCM_Util::Mutex mutex;
+    static Mutex mutex;
     static bool writeSupported;
     uint64 startAddr;
 
@@ -109,4 +111,4 @@ public:
 };
 #endif
 
-
+} // namespace pcm

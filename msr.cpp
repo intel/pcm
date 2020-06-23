@@ -32,6 +32,12 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include "Winmsrdriver\win7\msrstruct.h"
 #include "winring0/OlsApiInitExt.h"
 
+#endif
+
+namespace pcm {
+
+#ifdef _MSC_VER
+
 extern HMODULE hOpenLibSys;
 
 // here comes an implementatation for Windows
@@ -237,3 +243,5 @@ int32 MsrHandle::read(uint64 msr_number, uint64 * value)
 }
 
 #endif
+
+} // namespace pcm

@@ -83,10 +83,13 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #include <sys/sem.h>
+#endif
 
+namespace pcm {
+
+#ifdef __APPLE__
 // convertUnknownToInt is used in the safe sysctl call to convert an unknown size to an int
 int convertUnknownToInt(size_t size, char* value);
-
 #endif
 
 #undef PCM_DEBUG_TOPOLOGY // debug of topology enumeration routine
@@ -4469,7 +4472,7 @@ static const uint32 M2M_DEV_IDS[] = {
     0x2066
 };
 
-PCM_Util::Mutex ServerPCICFGUncore::socket2busMutex;
+Mutex ServerPCICFGUncore::socket2busMutex;
 std::vector<std::pair<uint32,uint32> > ServerPCICFGUncore::socket2iMCbus;
 std::vector<std::pair<uint32,uint32> > ServerPCICFGUncore::socket2UPIbus;
 std::vector<std::pair<uint32,uint32> > ServerPCICFGUncore::socket2M2Mbus;
@@ -4480,7 +4483,7 @@ void ServerPCICFGUncore::initSocket2Bus(std::vector<std::pair<uint32, uint32> > 
     {
         return;
     }
-    PCM_Util::Mutex::Scope _(socket2busMutex);
+    Mutex::Scope _(socket2busMutex);
     if(!socket2bus.empty()) return;
 
     #ifdef __linux__
@@ -6566,3 +6569,5 @@ void PCM::setupCustomCoreEventsForNuma(PCM::ExtendedCustomCoreEventDescription& 
         throw UnsupportedProcessorException();
     }
 }
+
+} // namespace pcm

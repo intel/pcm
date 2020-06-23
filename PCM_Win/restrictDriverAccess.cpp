@@ -13,6 +13,8 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <windows.h>
 #include <iostream>
 
+namespace pcm {
+
 //! restrict usage of driver to system (SY) and builtin admins (BA)
 void restrictDriverAccess(LPCWSTR path)
 {
@@ -26,3 +28,5 @@ void restrictDriverAccess(LPCWSTR path)
         std::wcerr << "Error in GetAccessControl/SetSecurityDescriptorSddlForm for " << path << " driver.\n";
     }
 }
+
+} // namespace pcm

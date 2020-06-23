@@ -22,6 +22,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <stdexcept>
 #pragma managed
 
+using namespace pcm;
 using namespace System;
 using namespace System::Collections;
 using namespace System::ServiceProcess;

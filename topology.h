@@ -41,6 +41,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "cpucounters.h"
 #include "threadpool.h"
 
+namespace pcm {
+
 // all can be done with forwards, anything hat actually uses PCM should be put in the topology.cpp file
 class PCM;
 
@@ -553,3 +555,4 @@ private:
     WorkQueue wq_;
 };
 
+} // namespace pcm

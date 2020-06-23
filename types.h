@@ -28,6 +28,12 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <sstream>
 #include <iomanip>
 
+#ifdef _MSC_VER
+#include <windows.h>
+#endif
+
+namespace pcm {
+
 typedef unsigned long long uint64;
 typedef signed long long int64;
 typedef unsigned int uint32;
@@ -966,7 +972,6 @@ struct IIOPMUCNTCTLRegister
 #define MSR_TSX_FORCE_ABORT (0x10f)
 
 #ifdef _MSC_VER
-#include <windows.h>
 // data structure for converting two uint32s <-> uin64
 union cvt_ds
 {
@@ -1017,5 +1022,7 @@ struct MCFGHeader
         std::cout << "Header: length=" << length << " nrecords=" << nrecords() << "\n";
     }
 };
+
+} // namespace pcm
 
 #endif

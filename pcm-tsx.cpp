@@ -16,7 +16,6 @@
 /*!     \file pcm-tsx.cpp
   \brief Example of using CPU counters: implements a performance counter monitoring utility for Intel Transactional Synchronization Extensions
   */
-#define HACK_TO_REMOVE_DUPLICATE_ERROR
 #include <iostream>
 #ifdef _MSC_VER
 #include <windows.h>
@@ -45,6 +44,7 @@
 #define PCM_CALIBRATION_INTERVAL 50 // calibrate clock only every 50th iteration
 
 using namespace std;
+using namespace pcm;
 
 struct TSXEvent
 {
