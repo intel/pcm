@@ -853,7 +853,7 @@ private:
     void readAndAggregatePackageCStateResidencies(std::shared_ptr<SafeMsrHandle> msr, CounterStateType & result);
     void readQPICounters(SystemCounterState & counterState);
     void reportQPISpeed() const;
-    void readCoreCounterConfig();
+    void readCoreCounterConfig(const bool complainAboutMSR = false);
     void readCPUMicrocodeLevel();
 
     uint64 CX_MSR_PMON_CTRY(uint32 Cbo, uint32 Ctr) const;

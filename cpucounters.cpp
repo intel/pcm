@@ -437,7 +437,7 @@ void pcm_cpuid(const unsigned leaf, const unsigned subleaf, PCM_CPUID_INFO & inf
     #endif
 }
 
-void PCM::readCoreCounterConfig()
+void PCM::readCoreCounterConfig(const bool complainAboutMSR)
 {
     if (max_cpuid >= 0xa)
     {
@@ -452,10 +452,17 @@ void PCM::readCoreCounterConfig()
             core_fixed_counter_num_max = extract_bits_ui(cpuinfo.array[3], 0, 4);
             core_fixed_counter_width = extract_bits_ui(cpuinfo.array[3], 5, 12);
         }
-        if (isForceRTMAbortModeAvailable() && MSR.size())
+        if (isForceRTMAbortModeAvailable())
         {
             uint64 TSXForceAbort = 0;
-            if (MSR[0]->read(MSR_TSX_FORCE_ABORT, &TSXForceAbort) == sizeof(uint64))
+            if (MSR.empty())
+            {
+                if (complainAboutMSR)
+                {
+                    std::cerr << "PCM Error: Can't determine the number of available counters reliably because of no access to MSR.\n";
+                }
+            }
+            else if (MSR[0]->read(MSR_TSX_FORCE_ABORT, &TSXForceAbort) == sizeof(uint64))
             {
                 TSXForceAbort &= 1;
                 /*
@@ -469,7 +476,7 @@ void PCM::readCoreCounterConfig()
             }
             else
             {
-                std::cerr << "PCM Error: reading MSR_TSX_FORCE_ABORT failed. \n";
+                std::cerr << "PCM Error: Can't determine the number of available counters reliably because reading MSR_TSX_FORCE_ABORT failed.\n";
             }
         }
     }
@@ -1825,7 +1832,7 @@ PCM::PCM() :
 
     if(!initMSR()) return;
 
-    readCoreCounterConfig();
+    readCoreCounterConfig(true);
 
 #ifndef PCM_SILENT
     printSystemTopology();
