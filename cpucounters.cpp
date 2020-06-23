@@ -4472,7 +4472,7 @@ static const uint32 M2M_DEV_IDS[] = {
     0x2066
 };
 
-PCM_Util::Mutex ServerPCICFGUncore::socket2busMutex;
+Mutex ServerPCICFGUncore::socket2busMutex;
 std::vector<std::pair<uint32,uint32> > ServerPCICFGUncore::socket2iMCbus;
 std::vector<std::pair<uint32,uint32> > ServerPCICFGUncore::socket2UPIbus;
 std::vector<std::pair<uint32,uint32> > ServerPCICFGUncore::socket2M2Mbus;
@@ -4483,7 +4483,7 @@ void ServerPCICFGUncore::initSocket2Bus(std::vector<std::pair<uint32, uint32> > 
     {
         return;
     }
-    PCM_Util::Mutex::Scope _(socket2busMutex);
+    Mutex::Scope _(socket2busMutex);
     if(!socket2bus.empty()) return;
 
     #ifdef __linux__

@@ -77,7 +77,7 @@ protected:
 };
 
 std::shared_ptr<WinPmem> MMIORange::pmem;
-PCM_Util::Mutex MMIORange::mutex;
+Mutex MMIORange::mutex;
 bool MMIORange::writeSupported;
 
 MMIORange::MMIORange(uint64 baseAddr_, uint64 /* size_ */, bool readonly_) : startAddr(baseAddr_), readonly(readonly_)

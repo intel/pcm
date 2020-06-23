@@ -67,7 +67,7 @@ public:
 class SafeMsrHandle
 {
     std::shared_ptr<MsrHandle> pHandle;
-    PCM_Util::Mutex mutex;
+    Mutex mutex;
 
     SafeMsrHandle(const SafeMsrHandle &);               // forbidden
     SafeMsrHandle & operator = (const SafeMsrHandle &); // forbidden

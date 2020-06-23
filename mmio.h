@@ -40,7 +40,7 @@ class MMIORange
 {
 
     static std::shared_ptr<WinPmem> pmem;
-    static PCM_Util::Mutex mutex;
+    static Mutex mutex;
     static bool writeSupported;
     uint64 startAddr;
 
