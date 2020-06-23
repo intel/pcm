@@ -18,7 +18,6 @@
 /*!     \file pcm-memory.cpp
   \brief Example of using CPU counters: implements a performance counter monitoring utility for memory controller channels and DIMMs (ranks) + PMM memory traffic
   */
-#define HACK_TO_REMOVE_DUPLICATE_ERROR
 #include <iostream>
 #ifdef _MSC_VER
 #include <windows.h>

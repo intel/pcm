@@ -16,7 +16,6 @@
 /*!     \file pcm-core.cpp
   \brief Example of using CPU counters: implements a performance counter monitoring utility for Intel Core, Offcore events
   */
-#define HACK_TO_REMOVE_DUPLICATE_ERROR
 #include <iostream>
 #ifdef _MSC_VER
 #define strtok_r strtok_s

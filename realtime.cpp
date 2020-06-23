@@ -13,7 +13,6 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 // written by Roman Dementiev
 //
 
-#define HACK_TO_REMOVE_DUPLICATE_ERROR
 #include "cpucounters.h"
 #include "cpuasynchcounter.h"
 #include <iostream>

@@ -506,17 +506,6 @@ typedef std::vector<uint64> eventGroup_t;
 
 class PerfVirtualControlRegister;
 
-/*
-#ifndef HACK_TO_REMOVE_DUPLICATE_ERROR
-template class PCM_API std::allocator<TopologyEntry>;
-template class PCM_API std::vector<TopologyEntry>;
-template class PCM_API std::allocator<CounterWidthExtender *>;
-template class PCM_API std::vector<CounterWidthExtender *>;
-template class PCM_API std::allocator<uint32>;
-template class PCM_API std::vector<uint32>;
-template class PCM_API std::allocator<char>;
-#endif
-*/
 /*!
         \brief CPU Performance Monitor
 

@@ -13,7 +13,6 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 // written by Patrick Lu,
 //            Aaron Cruz
-#define HACK_TO_REMOVE_DUPLICATE_ERROR
 #include "cpucounters.h"
 #ifdef _MSC_VER
 #pragma warning(disable : 4996) // for sprintf
