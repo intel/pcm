@@ -2826,7 +2826,7 @@ void PCM::enableForceRTMAbortMode()
                         << res << " on core " << m->getCoreId() << "\n";
                 }
             }
-            readCoreCounterConfig(); // re-read core_gen_counter_num_max from CPUID
+            readCoreCounterConfig(true); // re-read core_gen_counter_num_max from CPUID
             std::cerr << "The number of custom counters is now " << core_gen_counter_num_max << "\n";
             if (core_gen_counter_num_max < 4)
             {
@@ -2856,7 +2856,7 @@ void PCM::disableForceRTMAbortMode()
                     << res << " on core " << m->getCoreId() << "\n";
             }
         }
-        readCoreCounterConfig(); // re-read core_gen_counter_num_max from CPUID
+        readCoreCounterConfig(true); // re-read core_gen_counter_num_max from CPUID
         std::cerr << "The number of custom counters is now " << core_gen_counter_num_max << "\n";
         if (core_gen_counter_num_max != 3)
         {
