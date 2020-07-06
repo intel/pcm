@@ -815,9 +815,19 @@ void PCM::initCStateSupportTables()
 
 
 #ifdef __linux__
+FILE * tryOpen(const char * path, const char * mode)
+{
+    FILE * f = fopen(path, mode);
+    if (!f)
+    {
+        f = fopen((std::string("/pcm") + path).c_str(), mode);
+    }
+    return f;
+}
+
 std::string readSysFS(const char * path, bool silent = false)
 {
-    FILE * f = fopen(path, "r");
+    FILE * f = tryOpen(path, "r");
     if (!f)
     {
         if (silent == false) std::cerr << "ERROR: Can not open " << path << " file.\n";
@@ -836,7 +846,7 @@ std::string readSysFS(const char * path, bool silent = false)
 
 bool writeSysFS(const char * path, const std::string & value, bool silent = false)
 {
-    FILE * f = fopen(path, "w");
+    FILE * f = tryOpen(path, "w");
     if (!f)
     {
         if (silent == false) std::cerr << "ERROR: Can not open " << path << " file.\n";
