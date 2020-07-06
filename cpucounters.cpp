@@ -3126,6 +3126,10 @@ const char * PCM::getUArchCodename(const int32 cpu_model_param) const
             {
                 return "Cascade Lake-SP";
             }
+            if (isCPX())
+            {
+                return "Cooper Lake";
+            }
             return "Skylake-SP";
     }
     return "unknown";
@@ -4643,7 +4647,7 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
    , cpu_model(pcm->getCPUModel())
    , qpi_speed(0)
 {
-    initRegisterLocations();
+    initRegisterLocations(pcm);
     initBuses(socket_, pcm);
 
     if (pcm->useLinuxPerfForUncore())
@@ -4662,7 +4666,7 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
         " " << haPMUs.size()  << " Home Agents detected.\n";
 }
 
-void ServerPCICFGUncore::initRegisterLocations()
+void ServerPCICFGUncore::initRegisterLocations(const PCM * pcm)
 {
 #define PCM_PCICFG_MC_INIT(controller, channel, arch) \
     MCRegisterLocation.resize(controller + 1); \
@@ -4733,6 +4737,13 @@ void ServerPCICFGUncore::initRegisterLocations()
         PCM_PCICFG_QPI_INIT(0, SKX);
         PCM_PCICFG_QPI_INIT(1, SKX);
         PCM_PCICFG_QPI_INIT(2, SKX);
+
+        if (pcm->isCPX())
+        {
+            PCM_PCICFG_QPI_INIT(3, CPX);
+            PCM_PCICFG_QPI_INIT(4, CPX);
+            PCM_PCICFG_QPI_INIT(5, CPX);
+        }
 
         PCM_PCICFG_M2M_INIT(0, SKX)
         PCM_PCICFG_M2M_INIT(1, SKX)
@@ -4815,6 +4826,7 @@ void ServerPCICFGUncore::initBuses(uint32 socket_, const PCM * pcm)
         throw std::exception();
     }
 
+#if 1
     if (total_sockets_ == 1) {
         /*
          * For single socket systems, do not worry at all about QPI ports.  This
@@ -4825,6 +4837,7 @@ void ServerPCICFGUncore::initBuses(uint32 socket_, const PCM * pcm)
          */
         return;
     }
+#endif
 
 #ifdef PCM_NOQPI
     return;
@@ -4974,7 +4987,7 @@ void ServerPCICFGUncore::initDirect(uint32 socket_, const PCM * pcm)
             );
         }
     }
-
+#if 1
     {
         std::vector<std::shared_ptr<PciHandleType> > haHandles;
         for (auto & reg : HARegisterLocation)
@@ -5012,7 +5025,7 @@ void ServerPCICFGUncore::initDirect(uint32 socket_, const PCM * pcm)
         xpiPMUs.clear();
         return;
     }
-
+#endif
 #ifdef PCM_NOQPI
     xpiPMUs.clear();
     std::cerr << getNumMC() << " memory controllers detected with total number of " << imcPMUs.size() << " channels. " <<

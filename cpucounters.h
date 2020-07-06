@@ -341,7 +341,7 @@ class ServerPCICFGUncore
     void initDirect(uint32 socket_, const PCM * pcm);
     void initPerf(uint32 socket_, const PCM * pcm);
     void initBuses(uint32 socket_, const PCM * pcm);
-    void initRegisterLocations();
+    void initRegisterLocations(const PCM * pcm);
     uint64 getPMUCounter(std::vector<UncorePMU> & pmu, const uint32 id, const uint32 counter);
 
 public:
@@ -520,6 +520,7 @@ class PCM_API PCM
     friend class ServerUncore;
     friend class PerfVirtualControlRegister;
     friend class Aggregator;
+    friend class ServerPCICFGUncore;
     PCM();     // forbidden to call directly because it is a singleton
 
     int32 cpu_family;
@@ -872,7 +873,17 @@ private:
 
     bool isCLX() const // Cascade Lake-SP
     {
-        return (PCM::SKX == cpu_model) && (cpu_stepping > 4);
+        return (PCM::SKX == cpu_model) && (cpu_stepping > 4 && cpu_stepping < 8);
+    }
+
+    static bool isCPX(int cpu_model_, int cpu_stepping_) // Cooper Lake
+    {
+        return (PCM::SKX == cpu_model_) && (cpu_stepping_ >= 10);
+    }
+
+    bool isCPX() const
+    {
+        return isCPX(cpu_model, cpu_stepping);
     }
 
     void initUncorePMUsDirect();
@@ -1723,6 +1734,7 @@ public:
     {
         return (
             isCLX()
+                    ||  isCPX()
         );
     }
 
@@ -1758,6 +1770,13 @@ public:
             || cpu_model == PCM::BDX
             || cpu_model == PCM::KNL
             );
+    }
+
+    bool isSkxCompatible() const
+    {
+        return (
+            cpu_model == PCM::SKX
+               );
     }
 
     bool hasUPI() const // Intel(r) Ultra Path Interconnect
@@ -2389,7 +2408,7 @@ public:
     enum {
         maxControllers = 2,
         maxChannels = 8,
-        maxXPILinks = 3,
+        maxXPILinks = 6,
         maxCounters = 4
     };
 private:

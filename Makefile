@@ -7,13 +7,15 @@ EXE = pcm.x pcm-numa.x pcm-latency.x pcm-power.x pcm-sensor.x pcm-msr.x pcm-memo
 
 EXE += pcm-mmio.x
 
+EXE += c_example.x
+
 UNAME:=$(shell uname)
 
 ifeq ($(UNAME), Linux)
 EXE += daemon-binaries
 endif
 
-CXXFLAGS += -Wall -g -O3 -Wno-unknown-pragmas -std=c++11
+CXXFLAGS += -Wall -g -O3 -Wno-unknown-pragmas -std=c++11 -fPIC
 
 # uncomment if your Linux kernel supports access to /dev/mem from user space
 # CXXFLAGS += -DPCM_USE_PCI_MM_LINUX
@@ -25,8 +27,8 @@ endif
 
 ifeq ($(UNAME), Linux)
 LIB= -pthread -lrt
-EXE += pcm-sensor-server.x c_example.x
-CXXFLAGS += -Wextra -fPIC
+EXE += pcm-sensor-server.x
+CXXFLAGS += -Wextra
 OPENSSL_LIB=
 # Disabling until we can properly check for dependencies, enable
 # yourself if you have the required headers and library installed
@@ -75,10 +77,10 @@ pcm-sensor-server.x: pcm-sensor-server.o $(COMMON_OBJS)
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LIB) $(OPENSSL_LIB)
 
 libpcm.so: $(COMMON_OBJS) pcm-core.o
-	$(CXX) $(LDFLAGS) $(CXXFLAGS) -DPCM_SILENT -shared $^ -lpthread -o $@
+	$(CXX) $(LDFLAGS) $(CXXFLAGS) -DPCM_SILENT -shared $^ $(LIB) -o $@
 
 c_example.x: c_example.o libpcm.so
-	gcc $^ -ldl -L./ -lpcm -Wl,-rpath=$(shell pwd) -o $@
+	$(CC) $^ -ldl -L./ -lpcm -Wl,-rpath,$(shell pwd) -o $@
 
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $*.cpp -o $*.o
