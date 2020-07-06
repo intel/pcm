@@ -1,0 +1,14 @@
+version: '2.0'
+services:
+    pcm:
+       image: opcm/pcm
+       ports:
+           - "9738:9738"
+       volumes:
+           - "/sys/firmware/acpi/tables/MCFG:/pcm/sys/firmware/acpi/tables/MCFG:ro"
+           - "/proc/bus/pci/:/pcm/proc/bus/pci/"
+       cap_add:
+           - SYS_ADMIN
+           - SYS_RAWIO
+       devices:
+           - /dev/cpu
