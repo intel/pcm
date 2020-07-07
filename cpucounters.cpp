@@ -6207,7 +6207,7 @@ uint64 PCM::CX_MSR_PMON_BOX_CTL(uint32 Cbo) const
 
 uint32 PCM::getMaxNumOfCBoxes() const
 {
-    if(cpu_model == KNL)
+    if (KNL == cpu_model || SKX == cpu_model)
     {
         /*
          *  on KNL two physical cores share CHA.
