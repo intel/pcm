@@ -1744,6 +1744,8 @@ public:
                HASWELLX == cpu_model
             || BDX_DE == cpu_model
             || BDX == cpu_model
+            || isCLX()
+            || isCPX()
 #ifdef PCM_ENABLE_LLCRDLAT_SKX_MP
             || SKX == cpu_model
 #else
