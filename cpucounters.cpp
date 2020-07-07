@@ -6218,15 +6218,14 @@ uint32 PCM::getMaxNumOfCBoxes() const
         uint32 refCore = socketRefCore[0];
         uint32 NCUPMONConfig = 0x702;
         MSR[refCore]->read(NCUPMONConfig, &val);
-    } else {
-        /*
-         *  on other supported CPUs there is one CBox per physical core.  This calculation will get us
-         *  the number of physical cores per socket which is the expected
-         *  value to be returned.
-         */
-        return (uint32)num_phys_cores_per_socket;
+        return val & 63;
     }
-    return 0;
+    /*
+     *  on other supported CPUs there is one CBox per physical core.  This calculation will get us
+     *  the number of physical cores per socket which is the expected
+     *  value to be returned.
+     */
+    return (uint32)num_phys_cores_per_socket;
 }
 
 void PCM::programCboOpcodeFilter(const uint32 opc0, UncorePMU & pmu, const uint32 nc_, const uint32 opc1, const uint32 loc, const uint32 rem)
