@@ -38,6 +38,10 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 #endif
 
+#if defined (__FreeBSD__) || defined(__DragonFly__)
+#include <sys/pciio.h>
+#endif
+
 namespace pcm {
 
 #ifdef _MSC_VER
@@ -234,8 +238,6 @@ PciHandle::~PciHandle()
 { }
 
 #elif defined (__FreeBSD__) || defined(__DragonFly__)
-
-#include <sys/pciio.h>
 
 PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 function_) :
     fd(-1),
