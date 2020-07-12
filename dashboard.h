@@ -13,6 +13,10 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 */
 #include <string>
 
+namespace pcm {
+
 enum PCMDashboardType { InfluxDB, Prometheus };
 
 std::string getPCMDashboardJSON(const PCMDashboardType type, int ns = -1, int nu = -1, int nc = -1);
+
+} // namespace pcm

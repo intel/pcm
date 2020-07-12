@@ -32,6 +32,17 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include "Winmsrdriver\win7\msrstruct.h"
 #include "winring0/OlsApiInitExt.h"
 
+#endif
+
+#if defined(__FreeBSD__) || defined(__DragonFly__)
+#include <sys/ioccom.h>
+#include <sys/cpuctl.h>
+#endif
+
+namespace pcm {
+
+#ifdef _MSC_VER
+
 extern HMODULE hOpenLibSys;
 
 // here comes an implementatation for Windows
@@ -159,9 +170,6 @@ uint32 MsrHandle::decrementNumInstances()
 
 #elif defined(__FreeBSD__) || defined(__DragonFly__)
 
-#include <sys/ioccom.h>
-#include <sys/cpuctl.h>
-
 MsrHandle::MsrHandle(uint32 cpu) : fd(-1), cpu_id(cpu)
 {
     char path[200];
@@ -237,3 +245,5 @@ int32 MsrHandle::read(uint64 msr_number, uint64 * value)
 }
 
 #endif
+
+} // namespace pcm

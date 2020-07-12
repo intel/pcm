@@ -71,6 +71,8 @@ constexpr unsigned int DEFAULT_HTTPS_PORT = DEFAULT_HTTP_PORT;
 
 #include "threadpool.h"
 
+using namespace pcm;
+
 std::string const HTTP_EOL( "\r\n" );
 std::string const PROM_EOL( "\n" );
 

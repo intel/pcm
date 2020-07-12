@@ -29,6 +29,8 @@ CT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
 #include "utils.h"
 #include "cpucounters.h"
 
+namespace pcm {
+
 void (*post_cleanup_callback)(void) = NULL;
 
 //! \brief handler of exit() call
@@ -540,3 +542,5 @@ void print_help_force_rtm_abort_mode(const int alignment)
         std::cerr << "=> force RTM transaction abort mode to enable more programmable counters\n";
     }
 }
+
+} // namespace pcm

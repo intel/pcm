@@ -30,8 +30,12 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #endif
 
 #ifdef _MSC_VER
-
 #include <windows.h>
+#endif
+
+namespace pcm {
+
+#ifdef _MSC_VER
 
 class PCMPmem : public WinPmem {
 protected:
@@ -73,7 +77,7 @@ protected:
 };
 
 std::shared_ptr<WinPmem> MMIORange::pmem;
-PCM_Util::Mutex MMIORange::mutex;
+Mutex MMIORange::mutex;
 bool MMIORange::writeSupported;
 
 MMIORange::MMIORange(uint64 baseAddr_, uint64 /* size_ */, bool readonly_) : startAddr(baseAddr_), readonly(readonly_)
@@ -200,3 +204,4 @@ MMIORange::~MMIORange()
 
 #endif
 
+} // namespace pcm

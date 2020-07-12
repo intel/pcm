@@ -32,6 +32,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "threadpool.h"
 
+namespace pcm {
+
 void ThreadPool::execute( ThreadPool* tp ) {
     while( 1 ) {
         Work* w = tp->retrieveWork();
@@ -41,3 +43,4 @@ void ThreadPool::execute( ThreadPool* tp ) {
     }
 }
 
+} // namespace pcm

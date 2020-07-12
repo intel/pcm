@@ -83,10 +83,13 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #include <sys/sem.h>
+#endif
 
+namespace pcm {
+
+#ifdef __APPLE__
 // convertUnknownToInt is used in the safe sysctl call to convert an unknown size to an int
 int convertUnknownToInt(size_t size, char* value);
-
 #endif
 
 #undef PCM_DEBUG_TOPOLOGY // debug of topology enumeration routine
@@ -434,7 +437,7 @@ void pcm_cpuid(const unsigned leaf, const unsigned subleaf, PCM_CPUID_INFO & inf
     #endif
 }
 
-void PCM::readCoreCounterConfig()
+void PCM::readCoreCounterConfig(const bool complainAboutMSR)
 {
     if (max_cpuid >= 0xa)
     {
@@ -449,10 +452,17 @@ void PCM::readCoreCounterConfig()
             core_fixed_counter_num_max = extract_bits_ui(cpuinfo.array[3], 0, 4);
             core_fixed_counter_width = extract_bits_ui(cpuinfo.array[3], 5, 12);
         }
-        if (isForceRTMAbortModeAvailable() && MSR.size())
+        if (isForceRTMAbortModeAvailable())
         {
             uint64 TSXForceAbort = 0;
-            if (MSR[0]->read(MSR_TSX_FORCE_ABORT, &TSXForceAbort) == sizeof(uint64))
+            if (MSR.empty())
+            {
+                if (complainAboutMSR)
+                {
+                    std::cerr << "PCM Error: Can't determine the number of available counters reliably because of no access to MSR.\n";
+                }
+            }
+            else if (MSR[0]->read(MSR_TSX_FORCE_ABORT, &TSXForceAbort) == sizeof(uint64))
             {
                 TSXForceAbort &= 1;
                 /*
@@ -466,7 +476,7 @@ void PCM::readCoreCounterConfig()
             }
             else
             {
-                std::cerr << "PCM Error: reading MSR_TSX_FORCE_ABORT failed. \n";
+                std::cerr << "PCM Error: Can't determine the number of available counters reliably because reading MSR_TSX_FORCE_ABORT failed.\n";
             }
         }
     }
@@ -805,9 +815,19 @@ void PCM::initCStateSupportTables()
 
 
 #ifdef __linux__
+FILE * tryOpen(const char * path, const char * mode)
+{
+    FILE * f = fopen(path, mode);
+    if (!f)
+    {
+        f = fopen((std::string("/pcm") + path).c_str(), mode);
+    }
+    return f;
+}
+
 std::string readSysFS(const char * path, bool silent = false)
 {
-    FILE * f = fopen(path, "r");
+    FILE * f = tryOpen(path, "r");
     if (!f)
     {
         if (silent == false) std::cerr << "ERROR: Can not open " << path << " file.\n";
@@ -826,7 +846,7 @@ std::string readSysFS(const char * path, bool silent = false)
 
 bool writeSysFS(const char * path, const std::string & value, bool silent = false)
 {
-    FILE * f = fopen(path, "w");
+    FILE * f = tryOpen(path, "w");
     if (!f)
     {
         if (silent == false) std::cerr << "ERROR: Can not open " << path << " file.\n";
@@ -1822,7 +1842,7 @@ PCM::PCM() :
 
     if(!initMSR()) return;
 
-    readCoreCounterConfig();
+    readCoreCounterConfig(true);
 
 #ifndef PCM_SILENT
     printSystemTopology();
@@ -2816,7 +2836,7 @@ void PCM::enableForceRTMAbortMode()
                         << res << " on core " << m->getCoreId() << "\n";
                 }
             }
-            readCoreCounterConfig(); // re-read core_gen_counter_num_max from CPUID
+            readCoreCounterConfig(true); // re-read core_gen_counter_num_max from CPUID
             std::cerr << "The number of custom counters is now " << core_gen_counter_num_max << "\n";
             if (core_gen_counter_num_max < 4)
             {
@@ -2846,7 +2866,7 @@ void PCM::disableForceRTMAbortMode()
                     << res << " on core " << m->getCoreId() << "\n";
             }
         }
-        readCoreCounterConfig(); // re-read core_gen_counter_num_max from CPUID
+        readCoreCounterConfig(true); // re-read core_gen_counter_num_max from CPUID
         std::cerr << "The number of custom counters is now " << core_gen_counter_num_max << "\n";
         if (core_gen_counter_num_max != 3)
         {
@@ -4473,7 +4493,7 @@ static const uint32 M2M_DEV_IDS[] = {
     0x2066
 };
 
-PCM_Util::Mutex ServerPCICFGUncore::socket2busMutex;
+Mutex ServerPCICFGUncore::socket2busMutex;
 std::vector<std::pair<uint32,uint32> > ServerPCICFGUncore::socket2iMCbus;
 std::vector<std::pair<uint32,uint32> > ServerPCICFGUncore::socket2UPIbus;
 std::vector<std::pair<uint32,uint32> > ServerPCICFGUncore::socket2M2Mbus;
@@ -4484,7 +4504,7 @@ void ServerPCICFGUncore::initSocket2Bus(std::vector<std::pair<uint32, uint32> > 
     {
         return;
     }
-    PCM_Util::Mutex::Scope _(socket2busMutex);
+    Mutex::Scope _(socket2busMutex);
     if(!socket2bus.empty()) return;
 
     #ifdef __linux__
@@ -6579,3 +6599,5 @@ void PCM::setupCustomCoreEventsForNuma(PCM::ExtendedCustomCoreEventDescription& 
         throw UnsupportedProcessorException();
     }
 }
+
+} // namespace pcm

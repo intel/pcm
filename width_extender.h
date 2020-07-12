@@ -35,6 +35,8 @@ namespace std {
  }
 #endif
 
+namespace pcm {
+
 class CounterWidthExtender
 {
 public:
@@ -127,7 +129,7 @@ public:
 private:
     std::thread * UpdateThread;
 
-    PCM_Util::Mutex CounterMutex;
+    Mutex CounterMutex;
 
     AbstractRawCounter * raw_counter;
     uint64 extended_value;
@@ -180,5 +182,6 @@ public:
     }
 };
 
+} // namespace pcm
 
 #endif

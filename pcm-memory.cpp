@@ -18,7 +18,6 @@
 /*!     \file pcm-memory.cpp
   \brief Example of using CPU counters: implements a performance counter monitoring utility for memory controller channels and DIMMs (ranks) + PMM memory traffic
   */
-#define HACK_TO_REMOVE_DUPLICATE_ERROR
 #include <iostream>
 #ifdef _MSC_VER
 #include <windows.h>
@@ -45,6 +44,7 @@
 #define DEFAULT_DISPLAY_COLUMNS 2
 
 using namespace std;
+using namespace pcm;
 
 const uint32 max_sockets = 256;
 const uint32 max_imc_channels = ServerUncoreCounterState::maxChannels;

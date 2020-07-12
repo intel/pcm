@@ -14,7 +14,6 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 // written by Roman Dementiev
 // added PPD cycles by Thomas Willhalm
 
-#define HACK_TO_REMOVE_DUPLICATE_ERROR
 #include "cpucounters.h"
 #ifdef _MSC_VER
 #include <windows.h>
@@ -37,6 +36,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #define PCM_CALIBRATION_INTERVAL 50 // calibrate clock only every 50th iteration
 
 using namespace std;
+using namespace pcm;
 
 int getFirstRank(int imc_profile)
 {

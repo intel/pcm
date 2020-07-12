@@ -18,7 +18,6 @@
 /*!     \file pcm-pcie.cpp
   \brief Example of using uncore CBo counters: implements a performance counter monitoring utility for monitoring PCIe bandwidth
   */
-#define HACK_TO_REMOVE_DUPLICATE_ERROR
 #ifdef _MSC_VER
 #include <windows.h>
 #include "../PCM_Win/windriver.h"

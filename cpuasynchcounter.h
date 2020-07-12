@@ -29,6 +29,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 #define DELAY 1 // in seconds
 
+using namespace pcm;
 
 void * UpdateCounters(void *);
 

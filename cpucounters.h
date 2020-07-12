@@ -61,6 +61,18 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <unistd.h>
 #endif
 
+#ifdef _MSC_VER
+#if _MSC_VER>= 1600
+#include <intrin.h>
+#endif
+#endif
+
+namespace pcm {
+
+#ifdef _MSC_VER
+void PCM_API restrictDriverAccess(LPCWSTR path);
+#endif
+
 class SystemCounterState;
 class SocketCounterState;
 class CoreCounterState;
@@ -69,13 +81,6 @@ class ServerUncoreCounterState;
 class PCM;
 class CoreTaskQueue;
 class SystemRoot;
-
-#ifdef _MSC_VER
-#if _MSC_VER>= 1600
-#include <intrin.h>
-#endif
-void PCM_API restrictDriverAccess(LPCWSTR path);
-#endif
 
 /*
         CPU performance monitoring routines
@@ -309,7 +314,7 @@ class ServerPCICFGUncore
     std::vector<std::pair<uint32, uint32> > M2MRegisterLocation; // M2MRegisterLocation: (device, function)
     std::vector<std::pair<uint32, uint32> > HARegisterLocation;  // HARegisterLocation: (device, function)
 
-    static PCM_Util::Mutex socket2busMutex;
+    static Mutex socket2busMutex;
     static std::vector<std::pair<uint32, uint32> > socket2iMCbus;
     static std::vector<std::pair<uint32, uint32> > socket2UPIbus;
     static std::vector<std::pair<uint32, uint32> > socket2M2Mbus;
@@ -501,15 +506,6 @@ typedef std::vector<uint64> eventGroup_t;
 
 class PerfVirtualControlRegister;
 
-#ifndef HACK_TO_REMOVE_DUPLICATE_ERROR
-template class PCM_API std::allocator<TopologyEntry>;
-template class PCM_API std::vector<TopologyEntry>;
-template class PCM_API std::allocator<CounterWidthExtender *>;
-template class PCM_API std::vector<CounterWidthExtender *>;
-template class PCM_API std::allocator<uint32>;
-template class PCM_API std::vector<uint32>;
-template class PCM_API std::allocator<char>;
-#endif
 /*!
         \brief CPU Performance Monitor
 
@@ -858,7 +854,7 @@ private:
     void readAndAggregatePackageCStateResidencies(std::shared_ptr<SafeMsrHandle> msr, CounterStateType & result);
     void readQPICounters(SystemCounterState & counterState);
     void reportQPISpeed() const;
-    void readCoreCounterConfig();
+    void readCoreCounterConfig(const bool complainAboutMSR = false);
     void readCPUMicrocodeLevel();
 
     uint64 CX_MSR_PMON_CTRY(uint32 Cbo, uint32 Ctr) const;
@@ -3472,5 +3468,7 @@ inline double getLLCReadMissLatency(const CounterStateType & before, const Count
     const double seconds = double(getInvariantTSC(before, after)) / double(m->getNumCores()/m->getNumSockets()) / double(m->getNominalFrequency());
     return 1e9*seconds*(occupancy/inserts)/unc_clocks;
 }
+
+} // namespace pcm
 
 #endif

@@ -2,6 +2,8 @@
 #include "stdio.h"
 #include "tchar.h"
 
+namespace pcm {
+
 // Executable version.
 static TCHAR version[] = TEXT("1.3. Built ") TEXT(__DATE__);
 #define PMEM_DEVICE_NAME "pmem"
@@ -95,3 +97,5 @@ static TCHAR driver_filename[MAX_PATH];
 // Available modes
 #define PMEM_MODE_IOSPACE 0
 #define PMEM_MODE_PHYSICAL 1
+
+} // namespace pcm

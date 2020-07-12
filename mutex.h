@@ -9,7 +9,7 @@
 
 #include <stdlib.h>
 
-namespace PCM_Util
+namespace pcm
 {
     class Mutex {
 #ifdef _MSC_VER
