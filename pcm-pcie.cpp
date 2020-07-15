@@ -78,6 +78,7 @@ void print_usage(const string progname)
          << "                                        to a file, in case filename is provided\n";
     cerr << "  -B                                 => Estimate PCIe B/W (in Bytes/sec) by multiplying\n";
     cerr << "                                        the number of transfers by the cache line size (=64 bytes).\n";
+    cerr << "  -e                                 => print additional PCIe LLC miss/hit statistics.\n";
     cerr << " It overestimates the bandwidth under traffic with many partial cache line transfers.\n";
     cerr << "\n";
     print_events();
