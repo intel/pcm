@@ -34,6 +34,11 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 #endif
 
+#if defined(__FreeBSD__) || defined(__DragonFly__)
+#include <sys/ioccom.h>
+#include <sys/cpuctl.h>
+#endif
+
 namespace pcm {
 
 #ifdef _MSC_VER
@@ -164,9 +169,6 @@ uint32 MsrHandle::decrementNumInstances()
 }
 
 #elif defined(__FreeBSD__) || defined(__DragonFly__)
-
-#include <sys/ioccom.h>
-#include <sys/cpuctl.h>
 
 MsrHandle::MsrHandle(uint32 cpu) : fd(-1), cpu_id(cpu)
 {
