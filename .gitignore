@@ -2,6 +2,7 @@
 *.x
 *.d
 *.a
+*.so
 *.xml
 /.project
 *.XML
