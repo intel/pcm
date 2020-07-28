@@ -759,6 +759,7 @@ void PCM::initCStateSupportTables()
         case SKL_UY:
         case KBL:
         case KBL_1:
+        case ICL:
         case BROADWELL_XEON_E3:
             PCM_CSTATE_ARRAY(pkgCStateMsr, PCM_PARAM_PROTECT({0, 0, 0x60D, 0x3F8, 0, 0, 0x3F9, 0x3FA, 0x630, 0x631, 0x632}) );
 
@@ -802,6 +803,7 @@ void PCM::initCStateSupportTables()
         case SKL:
         case KBL:
         case KBL_1:
+        case ICL:
             PCM_CSTATE_ARRAY(coreCStateMsr, PCM_PARAM_PROTECT({0, 0, 0, 0x3FC, 0, 0, 0x3FD, 0x3FE, 0, 0, 0}) );
         case KNL:
             PCM_CSTATE_ARRAY(coreCStateMsr, PCM_PARAM_PROTECT({0, 0, 0, 0, 0, 0, 0x3FF, 0, 0, 0, 0}) );
@@ -1411,6 +1413,7 @@ bool PCM::detectNominalFrequency()
                || cpu_model == DENVERTON
                || cpu_model == SKL
                || cpu_model == KBL
+               || cpu_model == ICL
                || cpu_model == KNL
                || cpu_model == SKX
                ) ? (100000000ULL) : (133333333ULL);
@@ -1513,7 +1516,7 @@ void PCM::initUncoreObjects()
             std::cerr << "You must be root to access server uncore counters in PCM.\n";
 #endif
         }
-    } else if((cpu_model == SANDY_BRIDGE || cpu_model == IVY_BRIDGE || cpu_model == HASWELL || cpu_model == BROADWELL || cpu_model == SKL || cpu_model == KBL) && MSR.size())
+    } else if(hasClientMCCounters() && MSR.size())
     {
        // initialize memory bandwidth counting
        try
@@ -1951,6 +1954,7 @@ bool PCM::isCPUModelSupported(int model_)
             || model_ == KNL
             || model_ == SKL
             || model_ == KBL
+            || model_ == ICL
             || model_ == SKX
            );
 }
@@ -2232,6 +2236,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
             case SKL:
             case SKX:
             case KBL:
+            case ICL:
                 assert(useSkylakeEvents());
                 coreEventDesc[0].event_number = SKL_MEM_LOAD_RETIRED_L3_MISS_EVTNR;
                 coreEventDesc[0].umask_value = SKL_MEM_LOAD_RETIRED_L3_MISS_UMASK;
@@ -3126,6 +3131,8 @@ const char * PCM::getUArchCodename(const int32 cpu_model_param) const
             return "Skylake";
         case KBL:
             return "Kabylake";
+        case ICL:
+            return "Icelake";
         case SKX:
             if (cpu_model_param >= 0)
             {

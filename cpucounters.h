@@ -1200,6 +1200,7 @@ public:
         SKL_UY = 78,
         KBL = 158,
         KBL_1 = 142,
+        ICL = 126,
         BDX = 79,
         KNL = 87,
         SKL = 94,
@@ -1373,6 +1374,7 @@ public:
         case BDX:
         case SKL:
         case KBL:
+        case ICL:
         case SKX:
             return 4;
         case KNL:
@@ -1620,6 +1622,7 @@ public:
                  || cpu_model == PCM::KNL
                  || cpu_model == PCM::SKL
                  || cpu_model == PCM::KBL
+                 || cpu_model == PCM::ICL
                  || cpu_model == PCM::SKX
                );
     }
@@ -1703,6 +1706,7 @@ public:
             || cpu_model == PCM::BROADWELL
             || cpu_model == PCM::SKL
             || cpu_model == PCM::KBL
+            || cpu_model == PCM::ICL
             );
     }
 
@@ -1810,8 +1814,21 @@ public:
     {
         return    PCM::SKL == cpu_model
                || PCM::KBL == cpu_model
+               || PCM::ICL == cpu_model
                || PCM::SKX == cpu_model
                ;
+    }
+
+    bool hasClientMCCounters() const
+    {
+        return  cpu_model == SANDY_BRIDGE
+            || cpu_model == IVY_BRIDGE
+            || cpu_model == HASWELL
+            || cpu_model == BROADWELL
+            || cpu_model == SKL
+            || cpu_model == KBL
+            || cpu_model == ICL
+            ;
     }
 
     static double getBytesPerFlit(int32 cpu_model_)
