@@ -716,11 +716,15 @@ void calculate_bandwidth(PCM *m, const ServerUncoreCounterState uncState1[], con
                 }
                 if (reads + writes == 0)
                 {
-                    if ((!PMM || (pmmReads + pmmWrites == 0)) || (!PMMMixedMode || (pmmMemoryModeCleanMisses + pmmMemoryModeDirtyMisses == 0)))
+                    if ((PMM == false) || (pmmReads + pmmWrites == 0))
                     {
-                        md.iMC_Rd_socket_chan[skt][channel] = -1.0;
-                        md.iMC_Wr_socket_chan[skt][channel] = -1.0;
-                        continue;
+                        if ((PMMMixedMode == false) || (pmmMemoryModeCleanMisses + pmmMemoryModeDirtyMisses == 0))
+                        {
+
+                            md.iMC_Rd_socket_chan[skt][channel] = -1.0;
+                            md.iMC_Wr_socket_chan[skt][channel] = -1.0;
+                            continue;
+                        }
                     }
                 }
 
