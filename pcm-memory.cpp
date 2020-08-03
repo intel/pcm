@@ -47,16 +47,16 @@ using namespace std;
 using namespace pcm;
 
 const uint32 max_sockets = 256;
-const uint32 max_imc_channels = ServerUncoreCounterState::maxChannels;
+uint32 max_imc_channels = ServerUncoreCounterState::maxChannels;
 const uint32 max_edc_channels = ServerUncoreCounterState::maxChannels;
 const uint32 max_imc_controllers = ServerUncoreCounterState::maxControllers;
 
 typedef struct memdata {
-    float iMC_Rd_socket_chan[max_sockets][max_imc_channels];
-    float iMC_Wr_socket_chan[max_sockets][max_imc_channels];
-    float iMC_PMM_Rd_socket_chan[max_sockets][max_imc_channels];
-    float iMC_PMM_Wr_socket_chan[max_sockets][max_imc_channels];
-    float iMC_PMM_MemoryMode_Miss_socket_chan[max_sockets][max_imc_channels];
+    float iMC_Rd_socket_chan[max_sockets][ServerUncoreCounterState::maxChannels];
+    float iMC_Wr_socket_chan[max_sockets][ServerUncoreCounterState::maxChannels];
+    float iMC_PMM_Rd_socket_chan[max_sockets][ServerUncoreCounterState::maxChannels];
+    float iMC_PMM_Wr_socket_chan[max_sockets][ServerUncoreCounterState::maxChannels];
+    float iMC_PMM_MemoryMode_Miss_socket_chan[max_sockets][ServerUncoreCounterState::maxChannels];
     float iMC_Rd_socket[max_sockets];
     float iMC_Wr_socket[max_sockets];
     float iMC_PMM_Rd_socket[max_sockets];
@@ -1073,6 +1073,8 @@ int main(int argc, char * argv[])
         cerr << "Only systems with up to " << max_sockets << " sockets are supported! Program aborted\n";
         exit(EXIT_FAILURE);
     }
+
+    max_imc_channels = m->getMCChannelsPerSocket();
 
     ServerUncoreCounterState * BeforeState = new ServerUncoreCounterState[m->getNumSockets()];
     ServerUncoreCounterState * AfterState = new ServerUncoreCounterState[m->getNumSockets()];
