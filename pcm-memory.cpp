@@ -71,6 +71,8 @@ typedef struct memdata {
     bool PMM, PMMMixedMode;
 } memdata_t;
 
+bool skipInactiveChannels = true;
+
 void print_help(const string prog_name)
 {
     cerr << "\n Usage: \n " << prog_name
@@ -87,6 +89,7 @@ void print_help(const string prog_name)
     cerr << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or\n"
          << "                                        to a file, in case filename is provided\n";
     cerr << "  -columns=X | /columns=X            => Number of columns to display the NUMA Nodes, defaults to 2.\n";
+    cerr << "  -all | /all                        => Display all channels (even with no traffic)\n";
 #ifdef _MSC_VER
     cerr << "  --uninstallDriver | --installDriver=> (un)install driver\n";
 #endif
@@ -684,7 +687,7 @@ void calculate_bandwidth(PCM *m, const ServerUncoreCounterState uncState1[], con
         case PCM::KNL:
             for (uint32 channel = 0; channel < max_edc_channels; ++channel)
             {
-                if (getEDCCounter(channel, ServerPCICFGUncore::EventPosition::READ, uncState1[skt], uncState2[skt]) == 0.0 && getEDCCounter(channel, ServerPCICFGUncore::EventPosition::WRITE, uncState1[skt], uncState2[skt]) == 0.0)
+                if (skipInactiveChannels && getEDCCounter(channel, ServerPCICFGUncore::EventPosition::READ, uncState1[skt], uncState2[skt]) == 0.0 && getEDCCounter(channel, ServerPCICFGUncore::EventPosition::WRITE, uncState1[skt], uncState2[skt]) == 0.0)
                 {
                     md.EDC_Rd_socket_chan[skt][channel] = -1.0;
                     md.EDC_Wr_socket_chan[skt][channel] = -1.0;
@@ -714,7 +717,7 @@ void calculate_bandwidth(PCM *m, const ServerUncoreCounterState uncState1[], con
                     pmmMemoryModeCleanMisses = getMCCounter(channel, ServerPCICFGUncore::EventPosition::PMM_MM_MISS_CLEAN, uncState1[skt], uncState2[skt]);
                     pmmMemoryModeDirtyMisses = getMCCounter(channel, ServerPCICFGUncore::EventPosition::PMM_MM_MISS_DIRTY, uncState1[skt], uncState2[skt]);
                 }
-                if (reads + writes == 0)
+                if (skipInactiveChannels && (reads + writes == 0))
                 {
                     if ((PMM == false) || (pmmReads + pmmWrites == 0))
                     {
@@ -857,7 +860,7 @@ int main(int argc, char * argv[])
 
     PCM * m = PCM::getInstance();
 
-    if(argc > 1) do
+    if (argc > 1) do
     {
         argv++;
         argc--;
@@ -949,6 +952,13 @@ int main(int argc, char * argv[])
             strncmp(*argv, "/pmm", 6) == 0)
         {
             PMM = true;
+            continue;
+        }
+
+        if (strncmp(*argv, "-all", 4) == 0 ||
+            strncmp(*argv, "/all", 4) == 0)
+        {
+            skipInactiveChannels = false;
             continue;
         }
 
