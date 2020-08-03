@@ -948,8 +948,8 @@ int main(int argc, char * argv[])
             continue;
         }
 
-        if (strncmp(*argv, "-pmm", 6) == 0 ||
-            strncmp(*argv, "/pmm", 6) == 0)
+        if (strncmp(*argv, "-pmm", 4) == 0 ||
+            strncmp(*argv, "/pmm", 4) == 0)
         {
             PMM = true;
             continue;
