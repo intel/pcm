@@ -4363,6 +4363,9 @@ ServerUncoreCounterState PCM::getServerUncoreCounterState(uint32 socket)
             result.QPIL0pTxCycles[port] = server_pcicfg_uncore[socket]->getQPIL0pTxCycles(port);
             assert(port < result.QPIL1Cycles.size());
             result.QPIL1Cycles[port] = server_pcicfg_uncore[socket]->getQPIL1Cycles(port);
+            assert(port < result.M3UPICounter.size());
+            for (uint32 cnt = 0; cnt < ServerUncoreCounterState::maxCounters; ++cnt)
+                result.M3UPICounter[port][cnt] = server_pcicfg_uncore[socket]->getM3UPICounter(port, cnt);
         }
         for (uint32 channel = 0; channel < (uint32)server_pcicfg_uncore[socket]->getNumMCChannels(); ++channel)
         {
@@ -4695,6 +4698,10 @@ void ServerPCICFGUncore::initRegisterLocations(const PCM * pcm)
     XPIRegisterLocation.resize(port + 1); \
     XPIRegisterLocation[port] = std::make_pair(arch##_QPI_PORT##port##_REGISTER_DEV_ADDR, arch##_QPI_PORT##port##_REGISTER_FUNC_ADDR);
 
+#define PCM_PCICFG_M3UPI_INIT(port, arch) \
+    M3UPIRegisterLocation.resize(port + 1); \
+    M3UPIRegisterLocation[port] = std::make_pair(arch##_M3UPI_PORT##port##_REGISTER_DEV_ADDR, arch##_M3UPI_PORT##port##_REGISTER_FUNC_ADDR);
+
 #define PCM_PCICFG_EDC_INIT(controller, clock, arch) \
     EDCRegisterLocation.resize(controller + 1); \
     EDCRegisterLocation[controller] = std::make_pair(arch##_EDC##controller##_##clock##_REGISTER_DEV_ADDR, arch##_EDC##controller##_##clock##_REGISTER_FUNC_ADDR);
@@ -4764,6 +4771,25 @@ void ServerPCICFGUncore::initRegisterLocations(const PCM * pcm)
 
         PCM_PCICFG_M2M_INIT(0, SKX)
         PCM_PCICFG_M2M_INIT(1, SKX)
+
+        // M3UPI
+        if (pcm->isCPX())
+        {
+            // CPX
+            PCM_PCICFG_M3UPI_INIT(0, CPX);
+            PCM_PCICFG_M3UPI_INIT(1, CPX);
+            PCM_PCICFG_M3UPI_INIT(2, CPX);
+            PCM_PCICFG_M3UPI_INIT(3, CPX);
+            PCM_PCICFG_M3UPI_INIT(4, CPX);
+            PCM_PCICFG_M3UPI_INIT(5, CPX);
+        }
+        else
+        {
+            // SKX/CLX
+            PCM_PCICFG_M3UPI_INIT(0, SKX);
+            PCM_PCICFG_M3UPI_INIT(1, SKX);
+            PCM_PCICFG_M3UPI_INIT(2, SKX);
+        }
     }
     else if(cpu_model == PCM::KNL)
     {
@@ -4793,6 +4819,7 @@ void ServerPCICFGUncore::initRegisterLocations(const PCM * pcm)
 
 #undef PCM_PCICFG_MC_INIT
 #undef PCM_PCICFG_QPI_INIT
+#undef PCM_PCICFG_M3UPI_INIT
 #undef PCM_PCICFG_EDC_INIT
 #undef PCM_PCICFG_M2M_INIT
 #undef PCM_PCICFG_HA_INIT
@@ -4973,6 +5000,32 @@ void ServerPCICFGUncore::initDirect(uint32 socket_, const PCM * pcm)
                     std::make_shared<PCICFGRegister64>(handle, KNX_EDC_CH_PCI_PMON_FIXED_CTR_ADDR))
             );
         }
+    }
+
+    std::vector<std::shared_ptr<PciHandleType> > m3upiHandles;
+    if (UPIbus >= 0)
+    {
+        for (auto& reg : M3UPIRegisterLocation)
+        {
+            PciHandleType* handle = createIntelPerfMonDevice(groupnr, UPIbus, reg.first, reg.second, true);
+            if (handle) m3upiHandles.push_back(std::shared_ptr<PciHandleType>(handle));
+        }
+    }
+    for (auto& handle : m3upiHandles)
+    {
+        m3upiPMUs.push_back(
+            UncorePMU(
+                std::make_shared<PCICFGRegister32>(handle, M3UPI_PCI_PMON_BOX_CTL_ADDR),
+                std::make_shared<PCICFGRegister32>(handle, M3UPI_PCI_PMON_CTL0_ADDR),
+                std::make_shared<PCICFGRegister32>(handle, M3UPI_PCI_PMON_CTL1_ADDR),
+                std::make_shared<PCICFGRegister32>(handle, M3UPI_PCI_PMON_CTL2_ADDR),
+                std::shared_ptr<PCICFGRegister32>(),
+                std::make_shared<PCICFGRegister64>(handle, M3UPI_PCI_PMON_CTR0_ADDR),
+                std::make_shared<PCICFGRegister64>(handle, M3UPI_PCI_PMON_CTR1_ADDR),
+                std::make_shared<PCICFGRegister64>(handle, M3UPI_PCI_PMON_CTR2_ADDR),
+                std::shared_ptr<PCICFGRegister64>()
+            )
+        );
     }
 
     {
@@ -5780,6 +5833,22 @@ void ServerPCICFGUncore::programM2M(const uint32* M2MCntConfig)
     }
 }
 
+void ServerPCICFGUncore::programM3UPI(const uint32* M3UPICntConfig)
+{
+    {
+        for (auto& pmu : m3upiPMUs)
+        {
+            pmu.initFreeze(UNC_PMON_UNIT_CTL_RSV);
+            for (int c = 0; c < 3; ++c)
+            {
+                *pmu.counterControl[c] = M2M_PCI_PMON_CTL_EN;
+                *pmu.counterControl[c] = M2M_PCI_PMON_CTL_EN | M3UPICntConfig[c];
+            }
+            pmu.resetUnfreeze(UNC_PMON_UNIT_CTL_RSV);
+        }
+    }
+}
+
 void ServerPCICFGUncore::programHA(const uint32 * config)
 {
     for (auto & pmu : haPMUs)
@@ -5895,7 +5964,7 @@ uint64 ServerPCICFGUncore::getPMUCounter(std::vector<UncorePMU> & pmu, const uin
 {
     uint64 result = 0;
 
-    if (id < (uint32)pmu.size() && counter < 4)
+    if (id < (uint32)pmu.size() && counter < 4 && pmu[id].counterValue[counter].get() != nullptr)
     {
         result = *(pmu[id].counterValue[counter]);
     }
@@ -5921,6 +5990,11 @@ uint64 ServerPCICFGUncore::getM2MCounter(uint32 box, uint32 counter)
 uint64 ServerPCICFGUncore::getQPILLCounter(uint32 port, uint32 counter)
 {
     return getPMUCounter(xpiPMUs, port, counter);
+}
+
+uint64 ServerPCICFGUncore::getM3UPICounter(uint32 port, uint32 counter)
+{
+    return getPMUCounter(m3upiPMUs, port, counter);
 }
 
 void ServerPCICFGUncore::enableJKTWorkaround(bool enable)

@@ -303,12 +303,14 @@ class ServerPCICFGUncore
     UncorePMUVector imcPMUs;
     UncorePMUVector edcPMUs;
     UncorePMUVector xpiPMUs;
+    UncorePMUVector m3upiPMUs;
     UncorePMUVector m2mPMUs;
     UncorePMUVector haPMUs;
-    std::vector<UncorePMUVector*> allPMUs{ &imcPMUs, &edcPMUs, &xpiPMUs, &m2mPMUs, &haPMUs };
+    std::vector<UncorePMUVector*> allPMUs{ &imcPMUs, &edcPMUs, &xpiPMUs, &m3upiPMUs , &m2mPMUs, &haPMUs };
     std::vector<uint64> qpi_speed;
     std::vector<uint32> num_imc_channels; // number of memory channels in each memory controller
     std::vector<std::pair<uint32, uint32> > XPIRegisterLocation; // (device, function)
+    std::vector<std::pair<uint32, uint32> > M3UPIRegisterLocation; // (device, function)
     std::vector<std::vector< std::pair<uint32, uint32> > > MCRegisterLocation; // MCRegisterLocation[controller]: (device, function)
     std::vector<std::pair<uint32, uint32> > EDCRegisterLocation; // EDCRegisterLocation: (device, function)
     std::vector<std::pair<uint32, uint32> > M2MRegisterLocation; // M2MRegisterLocation: (device, function)
@@ -331,6 +333,7 @@ class ServerPCICFGUncore
     void programHA(const uint32 * config);
     void programHA();
     void programXPI(const uint32 * XPICntConfig);
+    void programM3UPI(const uint32* M3UPICntConfig);
     typedef std::pair<size_t, std::vector<uint64 *> > MemTestParam;
     void initMemTest(MemTestParam & param);
     void doMemTest(const MemTestParam & param);
@@ -444,7 +447,10 @@ public:
     //! \param port port number
     //! \param counter counter number
     uint64 getQPILLCounter(uint32 port, uint32 counter);
-
+    //! \brief Direct read of M3UPI PMU counter (counter meaning depends on the programming: power/performance/etc)
+    //! \param port port number
+    //! \param counter counter number
+    uint64 getM3UPICounter(uint32 port, uint32 counter);
     //! \brief Direct read of M2M counter
     //! \param box box ID/number
     //! \param counter counter number
@@ -2205,6 +2211,17 @@ uint64 getMCCounter(uint32 channel, uint32 counter, const CounterStateType & bef
     return after.MCCounter[channel][counter] - before.MCCounter[channel][counter];
 }
 
+/*! \brief Direct read of M3UPI PMU counter (counter meaning depends on the programming: power/performance/etc)
+    \param counter counter number
+    \param port UPI port number
+    \param before CPU counter state before the experiment
+    \param after CPU counter state after the experiment
+*/
+template <class CounterStateType>
+uint64 getM3UPICounter(uint32 port, uint32 counter, const CounterStateType& before, const CounterStateType& after)
+{
+    return after.M3UPICounter[port][counter] - before.M3UPICounter[port][counter];
+}
 
 /*! \brief Direct read of Memory2Mesh controller PMU counter (counter meaning depends on the programming: power/performance/etc)
     \param counter counter number
@@ -2432,6 +2449,7 @@ public:
     };
 private:
     std::array<uint64, maxXPILinks> QPIClocks, QPIL0pTxCycles, QPIL1Cycles;
+    std::array<std::array<uint64, maxCounters>, maxXPILinks> M3UPICounter;
     std::array<uint64, maxChannels> DRAMClocks;
     std::array<uint64, maxChannels> MCDRAMClocks;
     std::array<std::array<uint64, maxCounters>, maxChannels> MCCounter; // channel X counter
@@ -2454,6 +2472,8 @@ private:
     template <class CounterStateType>
     friend uint64 getMCCounter(uint32 channel, uint32 counter, const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
+    friend uint64 getM3UPICounter(uint32 port, uint32 counter, const CounterStateType& before, const CounterStateType& after);
+    template <class CounterStateType>
     friend uint64 getM2MCounter(uint32 controller, uint32 counter, const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
     friend uint64 getEDCCounter(uint32 channel, uint32 counter, const CounterStateType & before, const CounterStateType & after);
@@ -2471,6 +2491,7 @@ public:
     int32 getPackageThermalHeadroom() const { return PackageThermalHeadroom; }
     ServerUncoreCounterState() :
         QPIClocks{}, QPIL0pTxCycles{}, QPIL1Cycles{},
+        M3UPICounter{},
         DRAMClocks{},
         MCDRAMClocks{},
         MCCounter{},
