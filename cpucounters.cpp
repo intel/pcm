@@ -3798,14 +3798,7 @@ PCM::ErrorCode PCM::programServerUncorePowerMetrics(int mc_profile, int pcu_prof
               PCU_MSR_PMON_BOX_FILTER_BAND_2(freq_bands[2]);
       }
 
-      for(int ctr = 0; ctr < 4; ++ctr)
-      {
-          *pcuPMUs[i].counterControl[ctr] = PCU_MSR_PMON_CTL_EN;
-          *pcuPMUs[i].counterControl[ctr] = PCU_MSR_PMON_CTL_EN + PCUCntConf[ctr];
-      }
-
-      pcuPMUs[i].resetUnfreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
-
+      program(pcuPMUs[i], &PCUCntConf[0], &PCUCntConf[4], UNC_PMON_UNIT_CTL_FRZ_EN);
     }
     return PCM::Success;
 }
@@ -5557,14 +5550,7 @@ void ServerPCICFGUncore::programXPI(const uint32 * event)
             continue;
         }
 
-        for (int cnt = 0; cnt < 4; ++cnt)
-        {
-            // enable counter
-            *xpiPMUs[i].counterControl[cnt] = Q_P_PCI_PMON_CTL_EN;
-            *xpiPMUs[i].counterControl[cnt] = Q_P_PCI_PMON_CTL_EN + event[cnt];
-        }
-
-        xpiPMUs[i].resetUnfreeze(extra);
+        PCM::program(xpiPMUs[i], event, event + 4, extra);
     }
     cleanupQPIHandles();
 }
@@ -5778,13 +5764,7 @@ void ServerPCICFGUncore::programIMC(const uint32 * MCCntConfig)
         // reset it
         *imcPMUs[i].fixedCounterControl = MC_CH_PCI_PMON_FIXED_CTL_EN + MC_CH_PCI_PMON_FIXED_CTL_RST;
 
-        for (int c = 0; c < 4; ++c)
-        {
-            *imcPMUs[i].counterControl[c] = MC_CH_PCI_PMON_CTL_EN;
-            *imcPMUs[i].counterControl[c] = MC_CH_PCI_PMON_CTL_EN + MCCntConfig[c];
-        }
-
-        imcPMUs[i].resetUnfreeze(extraIMC);
+        PCM::program(imcPMUs[i], MCCntConfig, MCCntConfig + 4, extraIMC);
     }
 }
 
@@ -5797,13 +5777,7 @@ void ServerPCICFGUncore::programEDC(const uint32 * EDCCntConfig)
         // MCDRAM clocks enabled by default
         *edcPMUs[i].fixedCounterControl = EDC_CH_PCI_PMON_FIXED_CTL_EN;
 
-        for (int c = 0; c < 4; ++c)
-        {
-            *edcPMUs[i].counterControl[c] = MC_CH_PCI_PMON_CTL_EN;
-            *edcPMUs[i].counterControl[c] = MC_CH_PCI_PMON_CTL_EN + EDCCntConfig[c];
-        }
-
-        edcPMUs[i].resetUnfreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
+        PCM::program(edcPMUs[i], EDCCntConfig, EDCCntConfig + 4, UNC_PMON_UNIT_CTL_FRZ_EN);
     }
 }
 
@@ -5823,12 +5797,7 @@ void ServerPCICFGUncore::programM2M(const uint32* M2MCntConfig)
         for (auto & pmu : m2mPMUs)
         {
             pmu.initFreeze(UNC_PMON_UNIT_CTL_RSV);
-            for (int c = 0; c < 4; ++c)
-            {
-                *pmu.counterControl[c] = M2M_PCI_PMON_CTL_EN;
-                *pmu.counterControl[c] = M2M_PCI_PMON_CTL_EN | M2MCntConfig[c];
-            }
-            pmu.resetUnfreeze(UNC_PMON_UNIT_CTL_RSV);
+            PCM::program(pmu, M2MCntConfig, M2MCntConfig + 4, UNC_PMON_UNIT_CTL_RSV);
         }
     }
 }
@@ -5839,12 +5808,7 @@ void ServerPCICFGUncore::programM3UPI(const uint32* M3UPICntConfig)
         for (auto& pmu : m3upiPMUs)
         {
             pmu.initFreeze(UNC_PMON_UNIT_CTL_RSV);
-            for (int c = 0; c < 3; ++c)
-            {
-                *pmu.counterControl[c] = M2M_PCI_PMON_CTL_EN;
-                *pmu.counterControl[c] = M2M_PCI_PMON_CTL_EN | M3UPICntConfig[c];
-            }
-            pmu.resetUnfreeze(UNC_PMON_UNIT_CTL_RSV);
+            PCM::program(pmu, M3UPICntConfig, M3UPICntConfig + 3, UNC_PMON_UNIT_CTL_RSV);
         }
     }
 }
@@ -5854,12 +5818,7 @@ void ServerPCICFGUncore::programHA(const uint32 * config)
     for (auto & pmu : haPMUs)
     {
         pmu.initFreeze(UNC_PMON_UNIT_CTL_RSV);
-        for (uint32 c = 0; c < 4; ++c)
-        {
-            *pmu.counterControl[c] = HA_PCI_PMON_CTL_EN;
-            *pmu.counterControl[c] = HA_PCI_PMON_CTL_EN + config[c];
-        }
-        pmu.resetUnfreeze(UNC_PMON_UNIT_CTL_RSV);
+        PCM::program(pmu, config, config + 4, UNC_PMON_UNIT_CTL_RSV);
     }
 }
 
@@ -6364,13 +6323,7 @@ void PCM::programIIOCounters(IIOPMUCNTCTLRegister rawEvents[4], int IIOStack)
             auto & pmu = iioPMUs[i][unit];
             pmu.initFreeze(UNC_PMON_UNIT_CTL_RSV);
 
-            for (int c = 0; c < 4; ++c)
-            {
-                *pmu.counterControl[c] = IIO_MSR_PMON_CTL_EN;
-                *pmu.counterControl[c] = IIO_MSR_PMON_CTL_EN | rawEvents[c].value;
-            }
-
-            pmu.resetUnfreeze(UNC_PMON_UNIT_CTL_RSV);
+            program(pmu, &rawEvents[0], &rawEvents[4], UNC_PMON_UNIT_CTL_RSV);
         }
     }
 }
@@ -6431,13 +6384,7 @@ void PCM::programCbo(const uint64 * events, const uint32 opCode, const uint32 nc
             if((HASWELLX == cpu_model || BDX_DE == cpu_model || BDX == cpu_model || SKX == cpu_model) && llc_lookup_tid_filter != 0)
                 *cboPMUs[i][cbo].filter[0] = llc_lookup_tid_filter;
 
-            for (int c = 0; c < 4; ++c)
-            {
-                *cboPMUs[i][cbo].counterControl[c] = CBO_MSR_PMON_CTL_EN;
-                *cboPMUs[i][cbo].counterControl[c] = CBO_MSR_PMON_CTL_EN + events[c];
-            }
-
-            cboPMUs[i][cbo].resetUnfreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
+            PCM::program(cboPMUs[i][cbo], events, events + 4, UNC_PMON_UNIT_CTL_FRZ_EN);
 
             for (int c = 0; c < 4; ++c)
             {

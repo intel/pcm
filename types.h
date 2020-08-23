@@ -983,6 +983,7 @@ struct IIOPMUCNTCTLRegister
         uint64 value;
     };
     IIOPMUCNTCTLRegister() : value(0) { }
+    operator uint64() { return value; }
 };
 
 #define MSR_PACKAGE_THERM_STATUS (0x01B1)

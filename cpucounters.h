@@ -874,6 +874,17 @@ private:
     void initCHARequestEvents(uint64 * events);
     void programCbo();
     uint64 getCBOCounterState(const uint32 socket, const uint32 ctr_);
+    template <class Iterator>
+    static void program(UncorePMU& pmu, const Iterator& eventsBegin, const Iterator& eventsEnd, const uint32 extra)
+    {
+        Iterator curEvent = eventsBegin;
+        for (int c = 0; curEvent != eventsEnd; ++c, ++curEvent)
+        {
+            *pmu.counterControl[c] = MC_CH_PCI_PMON_CTL_EN;
+            *pmu.counterControl[c] = MC_CH_PCI_PMON_CTL_EN | *curEvent;
+        }
+        pmu.resetUnfreeze(extra);
+    }
 
     void cleanupUncorePMUs();
 
