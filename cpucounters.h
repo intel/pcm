@@ -1547,6 +1547,12 @@ public:
     //! \param rem match on remote node target
     void programCbo(const uint64 * events, const uint32 opCode, const uint32 nc_ = 0, const uint32 llc_lookup_tid_filter = 0, const uint32 loc = 1, const uint32 rem = 1);
 
+    //! \brief Program CBO (or CHA on SKX+) counters
+    //! \param events array with four raw event values
+    //! \param filter0 raw filter value
+    //! \param filter1 raw filter1 value
+    void programCboRaw(const uint64* events, const uint64 filter0, const uint64 filter1);
+
     //! \brief Get the state of PCIe counter(s)
     //! \param socket_ socket of the PCIe controller
     //! \return State of PCIe counter(s)

@@ -6395,6 +6395,37 @@ void PCM::programCbo(const uint64 * events, const uint32 opCode, const uint32 nc
     }
 }
 
+void PCM::programCboRaw(const uint64* events, const uint64 filter0, const uint64 filter1)
+{
+    for (size_t i = 0; (i < cboPMUs.size()) && MSR.size(); ++i)
+    {
+        uint32 refCore = socketRefCore[i];
+        TemporalThreadAffinity tempThreadAffinity(refCore); // speedup trick for Linux
+
+        for (uint32 cbo = 0; cbo < getMaxNumOfCBoxes(); ++cbo)
+        {
+            cboPMUs[i][cbo].initFreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
+
+            if (filter0)
+            {
+                *cboPMUs[i][cbo].filter[0] = filter0;
+            }
+
+            if (filter1)
+            {
+                *cboPMUs[i][cbo].filter[1] = filter1;
+            }
+
+            PCM::program(cboPMUs[i][cbo], events, events + 4, UNC_PMON_UNIT_CTL_FRZ_EN);
+
+            for (int c = 0; c < 4; ++c)
+            {
+                *cboPMUs[i][cbo].counterValue[c] = 0;
+            }
+        }
+    }
+}
+
 uint64 PCM::getCBOCounterState(const uint32 socket_, const uint32 ctr_)
 {
     uint64 result = 0;
