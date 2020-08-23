@@ -5380,6 +5380,7 @@ void ServerPCICFGUncore::initPerf(uint32 socket_, const PCM * /*pcm*/)
     populatePerfPMUs(socket_, m2mIDs, m2mPMUs, false);
     populatePerfPMUs(socket_, enumeratePerfPMUs("qpi", 100), xpiPMUs, false);
     populatePerfPMUs(socket_, enumeratePerfPMUs("upi", 100), xpiPMUs, false);
+    populatePerfPMUs(socket_, enumeratePerfPMUs("m3upi", 100), m3upiPMUs, false);
     populatePerfPMUs(socket_, haIDs, haPMUs, false);
 #endif
 }
