@@ -4350,12 +4350,9 @@ ServerUncoreCounterState PCM::getServerUncoreCounterState(uint32 socket)
         server_pcicfg_uncore[socket]->freezeCounters();
         for(uint32 port=0;port < (uint32)server_pcicfg_uncore[socket]->getNumQPIPorts();++port)
         {
-            assert(port < result.QPIClocks.size());
-            result.QPIClocks[port] = server_pcicfg_uncore[socket]->getQPIClocks(port);
-            assert(port < result.QPIL0pTxCycles.size());
-            result.QPIL0pTxCycles[port] = server_pcicfg_uncore[socket]->getQPIL0pTxCycles(port);
-            assert(port < result.QPIL1Cycles.size());
-            result.QPIL1Cycles[port] = server_pcicfg_uncore[socket]->getQPIL1Cycles(port);
+            assert(port < result.xPICounter.size());
+            for (uint32 cnt = 0; cnt < ServerUncoreCounterState::maxCounters; ++cnt)
+                result.xPICounter[port][cnt] = server_pcicfg_uncore[socket]->getQPILLCounter(port, cnt);
             assert(port < result.M3UPICounter.size());
             for (uint32 cnt = 0; cnt < ServerUncoreCounterState::maxCounters; ++cnt)
                 result.M3UPICounter[port][cnt] = server_pcicfg_uncore[socket]->getM3UPICounter(port, cnt);
@@ -5519,7 +5516,7 @@ void ServerPCICFGUncore::program()
         // monitor TxL_FLITS.NON_DATA+ALL_DATA on counter 2
         event[2] = Q_P_PCI_PMON_CTL_EVENT(0x02) + Q_P_PCI_PMON_CTL_UMASK((0x97|0x0F));
         // monitor UPI CLOCKTICKS
-        event[3] = Q_P_PCI_PMON_CTL_EVENT(0x01);
+        event[ServerUncoreCounterState::EventPosition::xPI_CLOCKTICKS] = Q_P_PCI_PMON_CTL_EVENT(0x01);
     }
     else
     {
@@ -5530,7 +5527,7 @@ void ServerPCICFGUncore::program()
         // monitor outgoing data+nondata flits on counter 2: TxL_FLITS_G0.DATA + TxL_FLITS_G0.NON_DATA
         event[2] = Q_P_PCI_PMON_CTL_EVENT(0x00) + Q_P_PCI_PMON_CTL_UMASK(6);
         // monitor QPI clocks
-        event[3] = Q_P_PCI_PMON_CTL_EVENT(0x14); // QPI clocks (CLOCKTICKS)
+        event[ServerUncoreCounterState::EventPosition::xPI_CLOCKTICKS] = Q_P_PCI_PMON_CTL_EVENT(0x14); // QPI clocks (CLOCKTICKS)
     }
     programXPI(event);
     programHA();
@@ -5705,12 +5702,11 @@ uint64 ServerPCICFGUncore::getUPIL0TxCycles(uint32 port)
 
 void ServerPCICFGUncore::program_power_metrics(int mc_profile)
 {
-    uint32 xPIEvents[4] = {
-        (uint32)Q_P_PCI_PMON_CTL_EVENT((cpu_model == PCM::SKX ? 0x27 : 0x0D)), // L0p Tx Cycles (TxL0P_POWER_CYCLES)
-        0, // event not used
-        (uint32)Q_P_PCI_PMON_CTL_EVENT((cpu_model == PCM::SKX ? 0x21 : 0x12)), // L1 Cycles (L1_POWER_CYCLES)
-        (uint32)Q_P_PCI_PMON_CTL_EVENT((cpu_model == PCM::SKX ? 0x01 : 0x14)) // QPI/UPI clocks (CLOCKTICKS)
-    };
+    uint32 xPIEvents[4] = { 0,0,0,0 };
+    xPIEvents[ServerUncoreCounterState::EventPosition::xPI_TxL0P_POWER_CYCLES] = (uint32)Q_P_PCI_PMON_CTL_EVENT((cpu_model == PCM::SKX ? 0x27 : 0x0D)); // L0p Tx Cycles (TxL0P_POWER_CYCLES)
+    xPIEvents[ServerUncoreCounterState::EventPosition::xPI_L1_POWER_CYCLES] = (uint32)Q_P_PCI_PMON_CTL_EVENT((cpu_model == PCM::SKX ? 0x21 : 0x12)); // L1 Cycles (L1_POWER_CYCLES)
+    xPIEvents[ServerUncoreCounterState::EventPosition::xPI_CLOCKTICKS] = (uint32)Q_P_PCI_PMON_CTL_EVENT((cpu_model == PCM::SKX ? 0x01 : 0x14)); // QPI/UPI clocks (CLOCKTICKS)
+
     programXPI(xPIEvents);
 
     uint32 MCCntConfig[4] = {0,0,0,0};
@@ -5885,17 +5881,17 @@ void ServerPCICFGUncore::unfreezeCounters()
 
 uint64 ServerPCICFGUncore::getQPIClocks(uint32 port)
 {
-    return getQPILLCounter(port, 3);
+    return getQPILLCounter(port, ServerUncoreCounterState::EventPosition::xPI_CLOCKTICKS);
 }
 
 uint64 ServerPCICFGUncore::getQPIL0pTxCycles(uint32 port)
 {
-    return getQPILLCounter(port, 0);
+    return getQPILLCounter(port, ServerUncoreCounterState::EventPosition::xPI_TxL0P_POWER_CYCLES);
 }
 
 uint64 ServerPCICFGUncore::getQPIL1Cycles(uint32 port)
 {
-    return getQPILLCounter(port, 2);
+    return getQPILLCounter(port, ServerUncoreCounterState::EventPosition::xPI_L1_POWER_CYCLES);
 }
 
 uint64 ServerPCICFGUncore::getDRAMClocks(uint32 channel)

@@ -2129,44 +2129,10 @@ inline uint64 RDTSCP()
     return result;
 }
 
-/*! \brief Returns QPI LL clock ticks
-    \param port QPI port number
-    \param before CPU counter state before the experiment
-    \param after CPU counter state after the experiment
-*/
-template <class CounterStateType>
-uint64 getQPIClocks(uint32 port, const CounterStateType & before, const CounterStateType & after)
-{
-    return after.QPIClocks[port] - before.QPIClocks[port];
-}
-
-
 template <class CounterStateType>
 int32 getThermalHeadroom(const CounterStateType & /* before */, const CounterStateType & after)
 {
     return after.getThermalHeadroom();
-}
-
-/*! \brief Returns the number of QPI cycles in power saving half-lane mode
-    \param port QPI port number
-    \param before CPU counter state before the experiment
-    \param after CPU counter state after the experiment
-*/
-template <class CounterStateType>
-uint64 getQPIL0pTxCycles(uint32 port, const CounterStateType & before, const CounterStateType & after)
-{
-    return after.QPIL0pTxCycles[port] - before.QPIL0pTxCycles[port];
-}
-
-/*! \brief Returns the number of QPI cycles in power saving shutdown mode
-    \param port QPI port number
-    \param before CPU counter state before the experiment
-    \param after CPU counter state after the experiment
-*/
-template <class CounterStateType>
-uint64 getQPIL1Cycles(uint32 port, const CounterStateType & before, const CounterStateType & after)
-{
-    return after.QPIL1Cycles[port] - before.QPIL1Cycles[port];
 }
 
 /*! \brief Returns the ratio of QPI cycles in power saving half-lane mode
@@ -2238,6 +2204,18 @@ template <class CounterStateType>
 uint64 getM3UPICounter(uint32 port, uint32 counter, const CounterStateType& before, const CounterStateType& after)
 {
     return after.M3UPICounter[port][counter] - before.M3UPICounter[port][counter];
+}
+
+/*! \brief Direct read of UPI or QPI PMU counter (counter meaning depends on the programming: power/performance/etc)
+    \param counter counter number
+    \param port UPI/QPI port number
+    \param before CPU counter state before the experiment
+    \param after CPU counter state after the experiment
+*/
+template <class CounterStateType>
+uint64 getXPICounter(uint32 port, uint32 counter, const CounterStateType& before, const CounterStateType& after)
+{
+    return after.xPICounter[port][counter] - before.xPICounter[port][counter];
 }
 
 /*! \brief Direct read of Memory2Mesh controller PMU counter (counter meaning depends on the programming: power/performance/etc)
@@ -2464,8 +2442,14 @@ public:
         maxXPILinks = 6,
         maxCounters = 4
     };
+    enum EventPosition
+    {
+        xPI_TxL0P_POWER_CYCLES = 0,
+        xPI_L1_POWER_CYCLES = 2,
+        xPI_CLOCKTICKS = 3
+    };
 private:
-    std::array<uint64, maxXPILinks> QPIClocks, QPIL0pTxCycles, QPIL1Cycles;
+    std::array<std::array<uint64, maxCounters>, maxXPILinks> xPICounter;
     std::array<std::array<uint64, maxCounters>, maxXPILinks> M3UPICounter;
     std::array<uint64, maxChannels> DRAMClocks;
     std::array<uint64, maxChannels> MCDRAMClocks;
@@ -2477,12 +2461,6 @@ private:
     uint64 InvariantTSC;    // invariant time stamp counter
     friend class PCM;
     template <class CounterStateType>
-    friend uint64 getQPIClocks(uint32 port, const CounterStateType & before, const CounterStateType & after);
-    template <class CounterStateType>
-    friend uint64 getQPIL0pTxCycles(uint32 port, const CounterStateType & before, const CounterStateType & after);
-    template <class CounterStateType>
-    friend uint64 getQPIL1Cycles(uint32 port, const CounterStateType & before, const CounterStateType & after);
-    template <class CounterStateType>
     friend uint64 getDRAMClocks(uint32 channel, const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
     friend uint64 getMCDRAMClocks(uint32 channel, const CounterStateType & before, const CounterStateType & after);
@@ -2490,6 +2468,8 @@ private:
     friend uint64 getMCCounter(uint32 channel, uint32 counter, const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
     friend uint64 getM3UPICounter(uint32 port, uint32 counter, const CounterStateType& before, const CounterStateType& after);
+    template <class CounterStateType>
+    friend uint64 getXPICounter(uint32 port, uint32 counter, const CounterStateType& before, const CounterStateType& after);
     template <class CounterStateType>
     friend uint64 getM2MCounter(uint32 controller, uint32 counter, const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
@@ -2507,7 +2487,7 @@ public:
     //! Returns current thermal headroom below TjMax
     int32 getPackageThermalHeadroom() const { return PackageThermalHeadroom; }
     ServerUncoreCounterState() :
-        QPIClocks{}, QPIL0pTxCycles{}, QPIL1Cycles{},
+        xPICounter{},
         M3UPICounter{},
         DRAMClocks{},
         MCDRAMClocks{},
@@ -2520,6 +2500,39 @@ public:
     {
     }
 };
+
+/*! \brief Returns QPI LL clock ticks
+    \param port QPI port number
+    \param before CPU counter state before the experiment
+    \param after CPU counter state after the experiment
+*/
+template <class CounterStateType>
+uint64 getQPIClocks(uint32 port, const CounterStateType& before, const CounterStateType& after)
+{
+    return getXPICounter(port, ServerUncoreCounterState::EventPosition::xPI_CLOCKTICKS, before, after);
+}
+
+/*! \brief Returns the number of QPI cycles in power saving half-lane mode
+    \param port QPI port number
+    \param before CPU counter state before the experiment
+    \param after CPU counter state after the experiment
+*/
+template <class CounterStateType>
+uint64 getQPIL0pTxCycles(uint32 port, const CounterStateType& before, const CounterStateType& after)
+{
+    return getXPICounter(port, ServerUncoreCounterState::EventPosition::xPI_TxL0P_POWER_CYCLES, before, after);
+}
+
+/*! \brief Returns the number of QPI cycles in power saving shutdown mode
+    \param port QPI port number
+    \param before CPU counter state before the experiment
+    \param after CPU counter state after the experiment
+*/
+template <class CounterStateType>
+uint64 getQPIL1Cycles(uint32 port, const CounterStateType& before, const CounterStateType& after)
+{
+    return getXPICounter(port, ServerUncoreCounterState::EventPosition::xPI_L1_POWER_CYCLES, before, after);
+}
 
 //! \brief (Logical) core-wide counter state
 class CoreCounterState : public BasicCounterState
