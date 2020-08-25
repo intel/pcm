@@ -6434,7 +6434,7 @@ uint32 PCM::getMaxNumOfIIOStacks() const
 {
     if (iioPMUs.size() > 0)
     {
-        return iioPMUs[0].size();
+        return (uint32)iioPMUs[0].size();
     }
     return 0;
 }
