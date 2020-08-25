@@ -9,6 +9,8 @@ EXE += pcm-mmio.x
 
 EXE += c_example.x
 
+EXE += pcm-raw.x
+
 UNAME:=$(shell uname)
 
 ifeq ($(UNAME), Linux)

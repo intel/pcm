@@ -204,6 +204,49 @@ inline tm pcm_localtime()
     return result;
 }
 
+enum CsvOutputType
+{
+    Header1,
+    Header2,
+    Data
+};
+
+template <class H1, class H2, class D>
+inline void choose(const CsvOutputType outputType, H1 h1Func, H2 h2Func, D dataFunc)
+{
+    switch (outputType)
+    {
+    case Header1:
+        h1Func();
+        break;
+    case Header2:
+        h2Func();
+        break;
+    case Data:
+        dataFunc();
+        break;
+    default:
+        std::cerr << "PCM internal error: wrong CSvOutputType\n";
+    }
+}
+
+inline void printDateForCSV(const CsvOutputType outputType)
+{
+    choose(outputType,
+        []() {
+            std::cout << ",,"; // Time
+        },
+        []() { std::cout << "Date,Time,"; },
+            []() {
+            tm tt = pcm_localtime();
+            std::cout.precision(3);
+            std::cout << 1900 + tt.tm_year << '-' << 1 + tt.tm_mon << '-' << tt.tm_mday << ','
+                << tt.tm_hour << ':' << tt.tm_min << ':' << tt.tm_sec << ',';
+            std::cout.setf(std::ios::fixed);
+            std::cout.precision(2);
+        });
+}
+
 class PCM;
 bool CheckAndForceRTMAbortMode(const char * argv, PCM * m);
 

@@ -418,48 +418,10 @@ void display_bandwidth(PCM *m, memdata_t *md, const uint32 no_columns, const boo
     }
 }
 
-enum CsvOutputType
-{
-    Header1,
-    Header2,
-    Data
-};
-
-template <class H1, class H2, class D>
-void choose(const CsvOutputType outputType, H1 h1Func, H2 h2Func, D dataFunc)
-{
-    switch (outputType)
-    {
-    case Header1:
-        h1Func();
-        break;
-    case Header2:
-        h2Func();
-        break;
-    case Data:
-        dataFunc();
-        break;
-    default:
-        cerr << "PCM internal error: wrong CSvOutputType\n";
-    }
-}
-
 void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 /*elapsedTime*/, const bool show_channel_output, const CsvOutputType outputType)
 {
     const uint32 numSockets = m->getNumSockets();
-    choose(outputType,
-           []() {
-               cout << ",,"; // Time
-           },
-           []() { cout << "Date,Time,"; },
-           []() {
-               tm tt = pcm_localtime();
-               cout.precision(3);
-               cout << 1900 + tt.tm_year << '-' << 1 + tt.tm_mon << '-' << tt.tm_mday << ','
-                    << tt.tm_hour << ':' << tt.tm_min << ':' << tt.tm_sec << ',';
-               cout.setf(ios::fixed);
-               cout.precision(2);
-           });
+    printDateForCSV(outputType);
 
     float sysReadDRAM = 0.0, sysWriteDRAM = 0.0, sysReadPMM = 0.0, sysWritePMM = 0.0;
 

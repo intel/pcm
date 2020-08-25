@@ -983,6 +983,7 @@ struct IIOPMUCNTCTLRegister
         uint64 value;
     };
     IIOPMUCNTCTLRegister() : value(0) { }
+    IIOPMUCNTCTLRegister(const uint64 v) : value(v) { }
     operator uint64() { return value; }
 };
 

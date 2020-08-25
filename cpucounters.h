@@ -868,7 +868,6 @@ private:
     uint64 CX_MSR_PMON_BOX_FILTER1(uint32 Cbo) const;
     uint64 CX_MSR_PMON_CTLY(uint32 Cbo, uint32 Ctl) const;
     uint64 CX_MSR_PMON_BOX_CTL(uint32 Cbo) const;
-    uint32 getMaxNumOfCBoxes() const;
     void programCboOpcodeFilter(const uint32 opc0, UncorePMU & pmu, const uint32 nc_, const uint32 opc1, const uint32 loc, const uint32 rem);
     void initLLCReadMissLatencyEvents(uint64 * events, uint32 & opCode);
     void initCHARequestEvents(uint64 * events);
@@ -885,6 +884,7 @@ private:
         }
         pmu.resetUnfreeze(extra);
     }
+    void programPCU(uint32 * events, const uint64 filter);
 
     void cleanupUncorePMUs();
 
@@ -967,6 +967,12 @@ public:
      */
     unsigned getMaxRMID() const;
 
+    //! \brief Returns the number of CBO or CHA units per socket
+    uint32 getMaxNumOfCBoxes() const;
+
+    //! \brief Returns the number of IIO stacks per socket
+    uint32 getMaxNumOfIIOStacks() const;
+
     /*!
             \brief Returns PCM object
 
@@ -975,8 +981,6 @@ public:
 
             \return Pointer to PCM object
     */
-
-
     static PCM * getInstance();        // the only way to get access
 
     /*!
@@ -1052,6 +1056,14 @@ public:
         VTune or PTU measurements invalid. VTune or PTU measurement may make measurement with this code invalid. Please enable either usage of these routines or VTune/PTU/etc.
     */
     ErrorCode programServerUncoreMemoryMetrics(int rankA = -1, int rankB = -1, bool PMM = false, bool PMMMixedMode = false);
+
+    // vector of IDs. E.g. for core {raw event} or {raw event, offcore response1 msr value, } or {raw event, offcore response1 msr value, offcore response2}
+    // or for cha/cbo {raw event, filter value}, etc
+    // + user-supplied name
+    typedef std::pair<std::array<uint64, 3>, std::string> RawEventConfig;
+    typedef std::vector<RawEventConfig> RawPMUConfig;
+    typedef std::map<std::string, RawPMUConfig> RawPMUConfigs;
+    ErrorCode program(const RawPMUConfigs& allPMUConfigs);
 
     //! \brief Freezes uncore event counting (works only on microarchitecture codename SandyBridge-EP and IvyTown)
     void freezeServerUncoreCounters();
@@ -2206,6 +2218,30 @@ uint64 getM3UPICounter(uint32 port, uint32 counter, const CounterStateType& befo
     return after.M3UPICounter[port][counter] - before.M3UPICounter[port][counter];
 }
 
+/*! \brief Direct read of CHA or CBO PMU counter (counter meaning depends on the programming: power/performance/etc)
+    \param counter counter number
+    \param cbo cbo or cha number
+    \param before CPU counter state before the experiment
+    \param after CPU counter state after the experiment
+*/
+template <class CounterStateType>
+uint64 getCBOCounter(uint32 cbo, uint32 counter, const CounterStateType& before, const CounterStateType& after)
+{
+    return after.CBOCounter[cbo][counter] - before.CBOCounter[cbo][counter];
+}
+
+/*! \brief Direct read of IIO PMU counter (counter meaning depends on the programming: power/performance/etc)
+    \param counter counter number
+    \param cbo IIO stack number
+    \param before CPU counter state before the experiment
+    \param after CPU counter state after the experiment
+*/
+template <class CounterStateType>
+uint64 getIIOCounter(uint32 stack, uint32 counter, const CounterStateType& before, const CounterStateType& after)
+{
+    return after.IIOCounter[stack][counter] - before.IIOCounter[stack][counter];
+}
+
 /*! \brief Direct read of UPI or QPI PMU counter (counter meaning depends on the programming: power/performance/etc)
     \param counter counter number
     \param port UPI/QPI port number
@@ -2440,6 +2476,8 @@ public:
         maxControllers = 2,
         maxChannels = 8,
         maxXPILinks = 6,
+        maxCBOs = 128,
+        maxIIOStacks = 16,
         maxCounters = 4
     };
     enum EventPosition
@@ -2451,6 +2489,8 @@ public:
 private:
     std::array<std::array<uint64, maxCounters>, maxXPILinks> xPICounter;
     std::array<std::array<uint64, maxCounters>, maxXPILinks> M3UPICounter;
+    std::array<std::array<uint64, maxCounters>, maxCBOs> CBOCounter;
+    std::array<std::array<uint64, maxCounters>, maxIIOStacks> IIOCounter;
     std::array<uint64, maxChannels> DRAMClocks;
     std::array<uint64, maxChannels> MCDRAMClocks;
     std::array<std::array<uint64, maxCounters>, maxChannels> MCCounter; // channel X counter
@@ -2468,6 +2508,10 @@ private:
     friend uint64 getMCCounter(uint32 channel, uint32 counter, const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
     friend uint64 getM3UPICounter(uint32 port, uint32 counter, const CounterStateType& before, const CounterStateType& after);
+    template <class CounterStateType>
+    friend uint64 getCBOCounter(uint32 cbo, uint32 counter, const CounterStateType& before, const CounterStateType& after);
+    template <class CounterStateType>
+    friend uint64 getIIOCounter(uint32 stack, uint32 counter, const CounterStateType& before, const CounterStateType& after);
     template <class CounterStateType>
     friend uint64 getXPICounter(uint32 port, uint32 counter, const CounterStateType& before, const CounterStateType& after);
     template <class CounterStateType>
@@ -2489,6 +2533,7 @@ public:
     ServerUncoreCounterState() :
         xPICounter{},
         M3UPICounter{},
+        CBOCounter{},
         DRAMClocks{},
         MCDRAMClocks{},
         MCCounter{},
