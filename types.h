@@ -725,6 +725,8 @@ constexpr auto M3UPI_PCI_PMON_CTR0_ADDR = (0xA0);
 constexpr auto M3UPI_PCI_PMON_CTR1_ADDR = (0xA8);
 constexpr auto M3UPI_PCI_PMON_CTR2_ADDR = (0xB0);
 
+constexpr auto MSR_UNCORE_PMON_GLOBAL_CTL = 0x700;
+
 #define PCM_INVALID_DEV_ADDR (~(uint32)0UL)
 #define PCM_INVALID_FUNC_ADDR (~(uint32)0UL)
 

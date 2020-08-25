@@ -1556,6 +1556,17 @@ void PCM::initUncorePMUsDirect()
     for (uint32 s = 0; s < (uint32)num_sockets; ++s)
     {
         auto & handle = MSR[socketRefCore[s]];
+        // unfreeze uncore PMUs
+        switch (cpu_model)
+        {
+        case SKX:
+            handle->write(MSR_UNCORE_PMON_GLOBAL_CTL, 1ULL << 61ULL);
+            break;
+        case HASWELLX:
+        case BDX:
+            handle->write(MSR_UNCORE_PMON_GLOBAL_CTL, 1ULL << 29ULL);
+            break;
+        }
         uboxPMUs.push_back(
             UncorePMU(
                 std::shared_ptr<MSRRegister>(),
