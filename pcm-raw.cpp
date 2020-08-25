@@ -59,7 +59,8 @@ void print_usage(const string progname)
     cerr << "  -csv[=file.csv]     | /csv[=file.csv]  => output compact CSV format to screen or\n"
         << "                                            to a file, in case filename is provided\n";
     cerr << "  [-e event1] [-e event2] [-e event3] .. => list of custom events to monitor\n";
-    cerr << "  event description example: cpu/config=0x0105,name=MISALIGN_MEM_REF.LOADS/ \n";
+    cerr << "  event description example: core/config=0x0105,name=MISALIGN_MEM_REF.LOADS/ \n";
+    cerr << "                             cha/config=0,name=UNC_CHA_CLOCKTICKS/ \n";
     cerr << "  -yc   | --yescores  | /yc              => enable specific cores to output\n";
     print_help_force_rtm_abort_mode(41);
     cerr << " Examples:\n";
