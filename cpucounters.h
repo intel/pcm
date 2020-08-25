@@ -876,15 +876,20 @@ private:
     template <class Iterator>
     static void program(UncorePMU& pmu, const Iterator& eventsBegin, const Iterator& eventsEnd, const uint32 extra)
     {
+        if (!eventsBegin) return;
         Iterator curEvent = eventsBegin;
         for (int c = 0; curEvent != eventsEnd; ++c, ++curEvent)
         {
             *pmu.counterControl[c] = MC_CH_PCI_PMON_CTL_EN;
             *pmu.counterControl[c] = MC_CH_PCI_PMON_CTL_EN | *curEvent;
         }
-        pmu.resetUnfreeze(extra);
+        if (extra)
+        {
+            pmu.resetUnfreeze(extra);
+        }
     }
     void programPCU(uint32 * events, const uint64 filter);
+    void programUBOX(const uint64* events);
 
     void cleanupUncorePMUs();
 
@@ -2230,6 +2235,18 @@ uint64 getCBOCounter(uint32 cbo, uint32 counter, const CounterStateType& before,
     return after.CBOCounter[cbo][counter] - before.CBOCounter[cbo][counter];
 }
 
+/*! \brief Direct read of UBOX PMU counter (counter meaning depends on the programming: power/performance/etc)
+    \param counter counter number
+    \param cbo cbo or cha number
+    \param before CPU counter state before the experiment
+    \param after CPU counter state after the experiment
+*/
+template <class CounterStateType>
+uint64 getUBOXCounter(uint32 counter, const CounterStateType& before, const CounterStateType& after)
+{
+    return after.UBOXCounter[counter] - before.UBOXCounter[counter];
+}
+
 /*! \brief Direct read of IIO PMU counter (counter meaning depends on the programming: power/performance/etc)
     \param counter counter number
     \param cbo IIO stack number
@@ -2491,6 +2508,7 @@ private:
     std::array<std::array<uint64, maxCounters>, maxXPILinks> M3UPICounter;
     std::array<std::array<uint64, maxCounters>, maxCBOs> CBOCounter;
     std::array<std::array<uint64, maxCounters>, maxIIOStacks> IIOCounter;
+    std::array<uint64, maxCounters> UBOXCounter;
     std::array<uint64, maxChannels> DRAMClocks;
     std::array<uint64, maxChannels> MCDRAMClocks;
     std::array<std::array<uint64, maxCounters>, maxChannels> MCCounter; // channel X counter
@@ -2510,6 +2528,8 @@ private:
     friend uint64 getM3UPICounter(uint32 port, uint32 counter, const CounterStateType& before, const CounterStateType& after);
     template <class CounterStateType>
     friend uint64 getCBOCounter(uint32 cbo, uint32 counter, const CounterStateType& before, const CounterStateType& after);
+    template <class CounterStateType>
+    friend uint64 getUBOXCounter(uint32 counter, const CounterStateType& before, const CounterStateType& after);
     template <class CounterStateType>
     friend uint64 getIIOCounter(uint32 stack, uint32 counter, const CounterStateType& before, const CounterStateType& after);
     template <class CounterStateType>
@@ -2534,6 +2554,8 @@ public:
         xPICounter{},
         M3UPICounter{},
         CBOCounter{},
+        IIOCounter{},
+        UBOXCounter{},
         DRAMClocks{},
         MCDRAMClocks{},
         MCCounter{},

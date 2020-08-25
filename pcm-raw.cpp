@@ -250,6 +250,21 @@ void print(PCM* m, vector<CoreCounterState>& BeforeState, vector<CoreCounterStat
                 }
             }
         }
+        else if (type == "ubox")
+        {
+            for (uint32 s = 0; s < m->getNumSockets(); ++s)
+            {
+                int i = 0;
+                for (auto event : events)
+                {
+                    choose(outputType,
+                        [m, s]() { cout << "SKT" << s << ","; },
+                        [&event, &i]() { if (event.second.empty()) cout << "Event" << i << ",";  else cout << event.second << ","; },
+                        [&]() { cout << getUBOXCounter(i, BeforeUncoreState[s], AfterUncoreState[s]) << ","; });
+                    ++i;
+                }
+            }
+        }
         else if (type == "cbo" || type == "cha")
         {
             for (uint32 s = 0; s < m->getNumSockets(); ++s)

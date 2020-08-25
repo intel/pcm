@@ -3919,6 +3919,10 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& allPMUConfigs_)
         {
             programPCU(events32, events[globalRegPos].first[1]);
         }
+        else if (type == "ubox")
+        {
+            programUBOX(events64);
+        }
         else if (type == "cbo" || type == "cha")
         {
             programCboRaw(events64, events[globalRegPos].first[1], events[globalRegPos].first[2]);
@@ -4532,6 +4536,10 @@ ServerUncoreCounterState PCM::getServerUncoreCounterState(uint32 socket)
             {
                 result.IIOCounter[stack][i] = *(iioPMUs[socket][stack].counterValue[i]);
             }
+        }
+        for (int i = 0; i < 2 && socket < uboxPMUs.size(); ++i)
+        {
+            result.UBOXCounter[i] = *(uboxPMUs[socket].counterValue[i]);
         }
         for (int i = 0; i < ServerUncoreCounterState::maxCounters && socket < pcuPMUs.size(); ++i)
             result.PCUCounter[i] = *pcuPMUs[socket].counterValue[i];
@@ -6597,6 +6605,19 @@ void PCM::programCboRaw(const uint64* events, const uint64 filter0, const uint64
     }
 }
 
+void PCM::programUBOX(const uint64* events)
+{
+    for (size_t s = 0; (s < uboxPMUs.size()) && MSR.size(); ++s)
+    {
+        uint32 refCore = socketRefCore[s];
+        TemporalThreadAffinity tempThreadAffinity(refCore); // speedup trick for Linux
+
+        *uboxPMUs[s].fixedCounterControl = UCLK_FIXED_CTL_EN;
+
+        PCM::program(uboxPMUs[s], events, events + 2, 0);
+    }
+}
+
 uint64 PCM::getCBOCounterState(const uint32 socket_, const uint32 ctr_)
 {
     uint64 result = 0;
@@ -6666,10 +6687,7 @@ void PCM::programCbo()
 
     programCbo(events, opCode);
 
-    for (auto & pmu : uboxPMUs)
-    {
-        *pmu.fixedCounterControl = UCLK_FIXED_CTL_EN;
-    }
+    programUBOX(nullptr);
 }
 
 void PCM::initCHARequestEvents(uint64 * config)
