@@ -2525,6 +2525,7 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
         if (EXT_CUSTOM_CORE_EVENTS == mode_ && pExtDesc && pExtDesc->gpCounterCfg)
         {
             event_select_reg = pExtDesc->gpCounterCfg[j];
+            event_select_reg.fields.enable = 1;
         }
         else
         {
