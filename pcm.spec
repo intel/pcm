@@ -50,6 +50,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_sbindir}/pcm-sensor
 %{_sbindir}/pcm-sensor-server
 %{_sbindir}/pcm-tsx
+%{_sbindir}/pcm-raw
 %{_sbindir}/pcm
 %{_bindir}/pcm-client
 %{_sbindir}/pcm-daemon
@@ -58,6 +59,8 @@ rm -rf $RPM_BUILD_ROOT
 %{_bindir}/../share/pcm/opCode.txt
 
 %changelog
+* Tue Aug 25 2020 - roman.dementiev@intel.com
+        Add pcm-raw under %files
 * Tue Apr 01 2020 - otto.g.bruggeman@intel.com
         Add pcm-sensor-server under %files
 * Mon Nov 25 2019 - roman.dementiev@intel.com

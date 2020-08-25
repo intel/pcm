@@ -126,6 +126,7 @@ install: all
 	install -s -m 755 pcm-power.x                ${prefix}/sbin/pcm-power
 	install -s -m 755 pcm-sensor.x               ${prefix}/sbin/pcm-sensor
 	install -s -m 755 pcm-tsx.x                  ${prefix}/sbin/pcm-tsx
+	install -s -m 755 pcm-raw.x                  ${prefix}/sbin/pcm-raw
 	install -s -m 755 pcm.x                      ${prefix}/sbin/pcm
 ifeq ($(UNAME), Linux)
 	mkdir -p                                     ${prefix}/bin/
