@@ -494,6 +494,22 @@ void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 /*elapsedTime*/, const 
                             << setw(8) << md->iMC_PMM_Wr_socket[skt] << ',';
                    });
         }
+        if (md->PMM)
+        {
+            for (uint32 c = 0; c < max_imc_controllers; ++c)
+            {
+                choose(outputType,
+                    [printSKT]() {
+                        printSKT();
+                    },
+                    [c]() {
+                        cout << "iMC" << c << " NM read hit rate,";
+                    },
+                    [&md, &skt, c]() {
+                        cout << setw(8) << md->M2M_NM_read_hit_rate[skt][c] << ',';
+                    });
+            }
+        }
         if (md->PMMMixedMode)
         {
             choose(outputType,
