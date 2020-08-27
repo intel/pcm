@@ -1,2 +1,1 @@
-see LINUX_HOWTO.txt
-
+see LINUX_HOWTO.txt (but use gmake instead of make to build).
