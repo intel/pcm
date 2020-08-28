@@ -759,6 +759,7 @@ void PCM::initCStateSupportTables()
         case SKL_UY:
         case KBL:
         case KBL_1:
+        case ICL:
         case BROADWELL_XEON_E3:
             PCM_CSTATE_ARRAY(pkgCStateMsr, PCM_PARAM_PROTECT({0, 0, 0x60D, 0x3F8, 0, 0, 0x3F9, 0x3FA, 0x630, 0x631, 0x632}) );
 
@@ -802,6 +803,7 @@ void PCM::initCStateSupportTables()
         case SKL:
         case KBL:
         case KBL_1:
+        case ICL:
             PCM_CSTATE_ARRAY(coreCStateMsr, PCM_PARAM_PROTECT({0, 0, 0, 0x3FC, 0, 0, 0x3FD, 0x3FE, 0, 0, 0}) );
         case KNL:
             PCM_CSTATE_ARRAY(coreCStateMsr, PCM_PARAM_PROTECT({0, 0, 0, 0, 0, 0, 0x3FF, 0, 0, 0, 0}) );
@@ -1411,6 +1413,7 @@ bool PCM::detectNominalFrequency()
                || cpu_model == DENVERTON
                || cpu_model == SKL
                || cpu_model == KBL
+               || cpu_model == ICL
                || cpu_model == KNL
                || cpu_model == SKX
                ) ? (100000000ULL) : (133333333ULL);
@@ -1513,7 +1516,7 @@ void PCM::initUncoreObjects()
             std::cerr << "You must be root to access server uncore counters in PCM.\n";
 #endif
         }
-    } else if((cpu_model == SANDY_BRIDGE || cpu_model == IVY_BRIDGE || cpu_model == HASWELL || cpu_model == BROADWELL || cpu_model == SKL || cpu_model == KBL) && MSR.size())
+    } else if(hasClientMCCounters() && MSR.size())
     {
        // initialize memory bandwidth counting
        try
@@ -1553,6 +1556,17 @@ void PCM::initUncorePMUsDirect()
     for (uint32 s = 0; s < (uint32)num_sockets; ++s)
     {
         auto & handle = MSR[socketRefCore[s]];
+        // unfreeze uncore PMUs
+        switch (cpu_model)
+        {
+        case SKX:
+            handle->write(MSR_UNCORE_PMON_GLOBAL_CTL, 1ULL << 61ULL);
+            break;
+        case HASWELLX:
+        case BDX:
+            handle->write(MSR_UNCORE_PMON_GLOBAL_CTL, 1ULL << 29ULL);
+            break;
+        }
         uboxPMUs.push_back(
             UncorePMU(
                 std::shared_ptr<MSRRegister>(),
@@ -1951,6 +1965,7 @@ bool PCM::isCPUModelSupported(int model_)
             || model_ == KNL
             || model_ == SKL
             || model_ == KBL
+            || model_ == ICL
             || model_ == SKX
            );
 }
@@ -2232,6 +2247,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
             case SKL:
             case SKX:
             case KBL:
+            case ICL:
                 assert(useSkylakeEvents());
                 coreEventDesc[0].event_number = SKL_MEM_LOAD_RETIRED_L3_MISS_EVTNR;
                 coreEventDesc[0].umask_value = SKL_MEM_LOAD_RETIRED_L3_MISS_UMASK;
@@ -2509,6 +2525,7 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
         if (EXT_CUSTOM_CORE_EVENTS == mode_ && pExtDesc && pExtDesc->gpCounterCfg)
         {
             event_select_reg = pExtDesc->gpCounterCfg[j];
+            event_select_reg.fields.enable = 1;
         }
         else
         {
@@ -3126,6 +3143,8 @@ const char * PCM::getUArchCodename(const int32 cpu_model_param) const
             return "Skylake";
         case KBL:
             return "Kabylake";
+        case ICL:
+            return "Icelake";
         case SKX:
             if (cpu_model_param >= 0)
             {
@@ -3762,43 +3781,163 @@ PCM::ErrorCode PCM::programServerUncorePowerMetrics(int mc_profile, int pcu_prof
          std::cerr << "ERROR: unsupported PCU profile " << pcu_profile << "\n";
     }
 
+    for (auto u : server_pcicfg_uncore)
+    {
+        u->program_power_metrics(mc_profile);
+    }
+    uint64 filter = 0;
+    if (freq_bands == NULL)
+    {
+        filter =
+            PCU_MSR_PMON_BOX_FILTER_BAND_0(10) + // 1000 MHz
+            PCU_MSR_PMON_BOX_FILTER_BAND_1(20) + // 2000 MHz
+            PCU_MSR_PMON_BOX_FILTER_BAND_2(30);  // 3000 MHz
+    }
+    else
+    {
+        filter =
+            PCU_MSR_PMON_BOX_FILTER_BAND_0(freq_bands[0]) +
+            PCU_MSR_PMON_BOX_FILTER_BAND_1(freq_bands[1]) +
+            PCU_MSR_PMON_BOX_FILTER_BAND_2(freq_bands[2]);
+    }
+    programPCU(PCUCntConf, filter);
+
+    return PCM::Success;
+}
+
+void PCM::programPCU(uint32* PCUCntConf, const uint64 filter)
+{
     for (int i = 0; (i < (int)server_pcicfg_uncore.size()) && MSR.size(); ++i)
     {
-      server_pcicfg_uncore[i]->program_power_metrics(mc_profile);
+        if (i >= (int)pcuPMUs.size())
+        {
+            continue;
+        }
 
-      if (i >= (int)pcuPMUs.size())
-      {
-          continue;
-      }
+        uint32 refCore = socketRefCore[i];
+        TemporalThreadAffinity tempThreadAffinity(refCore); // speedup trick for Linux
 
-      uint32 refCore = socketRefCore[i];
-      TemporalThreadAffinity tempThreadAffinity(refCore); // speedup trick for Linux
+        pcuPMUs[i].initFreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
 
-      pcuPMUs[i].initFreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
+        *pcuPMUs[i].filter[0] = filter;
 
-      if (freq_bands == NULL)
-      {
-          *pcuPMUs[i].filter[0] =
-              PCU_MSR_PMON_BOX_FILTER_BAND_0(10) + // 1000 MHz
-              PCU_MSR_PMON_BOX_FILTER_BAND_1(20) + // 2000 MHz
-              PCU_MSR_PMON_BOX_FILTER_BAND_2(30);  // 3000 MHz
-      }
-      else
-      {
-          *pcuPMUs[i].filter[0] =
-              PCU_MSR_PMON_BOX_FILTER_BAND_0(freq_bands[0]) +
-              PCU_MSR_PMON_BOX_FILTER_BAND_1(freq_bands[1]) +
-              PCU_MSR_PMON_BOX_FILTER_BAND_2(freq_bands[2]);
-      }
+        program(pcuPMUs[i], &PCUCntConf[0], &PCUCntConf[4], UNC_PMON_UNIT_CTL_FRZ_EN);
+    }
+}
 
-      for(int ctr = 0; ctr < 4; ++ctr)
-      {
-          *pcuPMUs[i].counterControl[ctr] = PCU_MSR_PMON_CTL_EN;
-          *pcuPMUs[i].counterControl[ctr] = PCU_MSR_PMON_CTL_EN + PCUCntConf[ctr];
-      }
+PCM::ErrorCode PCM::program(const RawPMUConfigs& allPMUConfigs_)
+{
+    if (MSR.empty() || server_pcicfg_uncore.empty())  return PCM::MSRAccessDenied;
+    RawPMUConfigs allPMUConfigs = allPMUConfigs_;
+    constexpr auto globalRegPos = 0;
+    if (allPMUConfigs.count("core"))
+    {
+        // need to program core PMU first
+        EventSelectRegister regs[PERF_MAX_COUNTERS];
+        PCM::ExtendedCustomCoreEventDescription conf;
+        conf.OffcoreResponseMsrValue[0] = 0;
+        conf.OffcoreResponseMsrValue[1] = 0;
 
-      pcuPMUs[i].resetUnfreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
+        auto corePMUConfig = allPMUConfigs["core"];
+        if (corePMUConfig.size() > (size_t)getMaxCustomCoreEvents())
+        {
+            std::cerr << "ERROR: trying to program " << corePMUConfig.size() << " core PMU counters, which exceeds the max num possible ("<< getMaxCustomCoreEvents() << ").";
+            return PCM::UnknownError;
+        }
+        size_t c = 0;
+        for (; c < corePMUConfig.size() && c < (size_t)getMaxCustomCoreEvents() && c < PERF_MAX_COUNTERS; ++c)
+        {
+            regs[c].value = corePMUConfig[c].first[0];
+        }
+        if (corePMUConfig.size() > 0 && corePMUConfig[globalRegPos].first[1] != 0)
+        {
+            conf.OffcoreResponseMsrValue[0] = corePMUConfig[globalRegPos].first[1];
+        }
+        if (corePMUConfig.size() > 0 && corePMUConfig[globalRegPos].first[2] != 0)
+        {
+            conf.OffcoreResponseMsrValue[1] = corePMUConfig[globalRegPos].first[2];
+        }
+        conf.fixedCfg = NULL; // default
+        conf.nGPCounters = (uint32)c;
+        conf.gpCounterCfg = regs;
 
+        const auto status = program(PCM::EXT_CUSTOM_CORE_EVENTS, &conf);
+        if (status != PCM::Success)
+        {
+            return status;
+        }
+        allPMUConfigs.erase("core");
+    }
+    for (auto pmuConfig : allPMUConfigs)
+    {
+        const auto & type = pmuConfig.first;
+        const auto & events = pmuConfig.second;
+        if (events.empty())
+        {
+            continue;
+        }
+        if (events.size() > ServerUncoreCounterState::maxCounters)
+        {
+            std::cerr << "ERROR: trying to program " << events.size() << " core PMU counters, which exceeds the max num possible (" << ServerUncoreCounterState::maxCounters << ").";
+            return PCM::UnknownError;
+        }
+        uint32 events32[ServerUncoreCounterState::maxCounters] = { 0,0,0,0 };
+        uint64 events64[ServerUncoreCounterState::maxCounters] = { 0,0,0,0 };
+        for (size_t c = 0; c < events.size() && c < ServerUncoreCounterState::maxCounters; ++c)
+        {
+            events32[c] = (uint32)events[c].first[0];
+            events64[c] = events[c].first[0];
+        }
+        if (type == "m3upi")
+        {
+            for (auto uncore : server_pcicfg_uncore)
+            {
+                uncore->programM3UPI(events32);
+            }
+        }
+        else if (type == "xpi" || type == "upi" || type == "qpi")
+        {
+            for (auto uncore : server_pcicfg_uncore)
+            {
+                uncore->programXPI(events32);
+            }
+        }
+        else if (type == "imc")
+        {
+            for (auto uncore : server_pcicfg_uncore)
+            {
+                uncore->programIMC(events32);
+            }
+        }
+        else if (type == "m2m")
+        {
+            for (auto uncore : server_pcicfg_uncore)
+            {
+                uncore->programM2M(events32);
+            }
+        }
+        else if (type == "pcu")
+        {
+            programPCU(events32, events[globalRegPos].first[1]);
+        }
+        else if (type == "ubox")
+        {
+            programUBOX(events64);
+        }
+        else if (type == "cbo" || type == "cha")
+        {
+            programCboRaw(events64, events[globalRegPos].first[1], events[globalRegPos].first[2]);
+        }
+        else if (type == "iio")
+        {
+            IIOPMUCNTCTLRegister regs[ServerUncoreCounterState::maxCounters] = { events64[0], events64[1], events64[2], events64[3] };
+            programIIOCounters(regs);
+        }
+        else
+        {
+            std::cerr << "ERROR: unrecognized PMU type \"" << type << "\"\n";
+            return PCM::UnknownError;
+        }
     }
     return PCM::Success;
 }
@@ -4350,12 +4489,12 @@ ServerUncoreCounterState PCM::getServerUncoreCounterState(uint32 socket)
         server_pcicfg_uncore[socket]->freezeCounters();
         for(uint32 port=0;port < (uint32)server_pcicfg_uncore[socket]->getNumQPIPorts();++port)
         {
-            assert(port < result.QPIClocks.size());
-            result.QPIClocks[port] = server_pcicfg_uncore[socket]->getQPIClocks(port);
-            assert(port < result.QPIL0pTxCycles.size());
-            result.QPIL0pTxCycles[port] = server_pcicfg_uncore[socket]->getQPIL0pTxCycles(port);
-            assert(port < result.QPIL1Cycles.size());
-            result.QPIL1Cycles[port] = server_pcicfg_uncore[socket]->getQPIL1Cycles(port);
+            assert(port < result.xPICounter.size());
+            for (uint32 cnt = 0; cnt < ServerUncoreCounterState::maxCounters; ++cnt)
+                result.xPICounter[port][cnt] = server_pcicfg_uncore[socket]->getQPILLCounter(port, cnt);
+            assert(port < result.M3UPICounter.size());
+            for (uint32 cnt = 0; cnt < ServerUncoreCounterState::maxCounters; ++cnt)
+                result.M3UPICounter[port][cnt] = server_pcicfg_uncore[socket]->getM3UPICounter(port, cnt);
         }
         for (uint32 channel = 0; channel < (uint32)server_pcicfg_uncore[socket]->getNumMCChannels(); ++channel)
         {
@@ -4381,10 +4520,28 @@ ServerUncoreCounterState PCM::getServerUncoreCounterState(uint32 socket)
     }
         server_pcicfg_uncore[socket]->unfreezeCounters();
     }
-    if(MSR.size())
+    if (MSR.size())
     {
         uint32 refCore = socketRefCore[socket];
         TemporalThreadAffinity tempThreadAffinity(refCore);
+        for (uint32 cbo = 0; socket < cboPMUs.size() && cbo < cboPMUs[socket].size() && cbo < ServerUncoreCounterState::maxCBOs; ++cbo)
+        {
+            for (int i = 0; i < ServerUncoreCounterState::maxCounters; ++i)
+            {
+                result.CBOCounter[cbo][i] = *(cboPMUs[socket][cbo].counterValue[i]);
+            }
+        }
+        for (uint32 stack = 0; socket < iioPMUs.size() && stack < iioPMUs[socket].size() && stack < ServerUncoreCounterState::maxIIOStacks; ++stack)
+        {
+            for (int i = 0; i < ServerUncoreCounterState::maxCounters; ++i)
+            {
+                result.IIOCounter[stack][i] = *(iioPMUs[socket][stack].counterValue[i]);
+            }
+        }
+        for (int i = 0; i < 2 && socket < uboxPMUs.size(); ++i)
+        {
+            result.UBOXCounter[i] = *(uboxPMUs[socket].counterValue[i]);
+        }
         for (int i = 0; i < ServerUncoreCounterState::maxCounters && socket < pcuPMUs.size(); ++i)
             result.PCUCounter[i] = *pcuPMUs[socket].counterValue[i];
         // std::cout << "values read: " << result.PCUCounter[0] << " " << result.PCUCounter[1] << " " << result.PCUCounter[2] << " " << result.PCUCounter[3] << "\n";
@@ -4673,7 +4830,9 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
         getNumMC() << " memory controllers detected with total number of " << getNumMCChannels() << " channels. " <<
         getNumQPIPorts() << " QPI ports detected." <<
         " " << m2mPMUs.size() << " M2M (mesh to memory) blocks detected."
-        " " << haPMUs.size()  << " Home Agents detected.\n";
+        " " << haPMUs.size()  << " Home Agents detected."
+        " " << m3upiPMUs.size() << " M3UPI blocks detected."
+        "\n";
 }
 
 void ServerPCICFGUncore::initRegisterLocations(const PCM * pcm)
@@ -4687,6 +4846,10 @@ void ServerPCICFGUncore::initRegisterLocations(const PCM * pcm)
 #define PCM_PCICFG_QPI_INIT(port, arch) \
     XPIRegisterLocation.resize(port + 1); \
     XPIRegisterLocation[port] = std::make_pair(arch##_QPI_PORT##port##_REGISTER_DEV_ADDR, arch##_QPI_PORT##port##_REGISTER_FUNC_ADDR);
+
+#define PCM_PCICFG_M3UPI_INIT(port, arch) \
+    M3UPIRegisterLocation.resize(port + 1); \
+    M3UPIRegisterLocation[port] = std::make_pair(arch##_M3UPI_PORT##port##_REGISTER_DEV_ADDR, arch##_M3UPI_PORT##port##_REGISTER_FUNC_ADDR);
 
 #define PCM_PCICFG_EDC_INIT(controller, clock, arch) \
     EDCRegisterLocation.resize(controller + 1); \
@@ -4757,6 +4920,25 @@ void ServerPCICFGUncore::initRegisterLocations(const PCM * pcm)
 
         PCM_PCICFG_M2M_INIT(0, SKX)
         PCM_PCICFG_M2M_INIT(1, SKX)
+
+        // M3UPI
+        if (pcm->isCPX())
+        {
+            // CPX
+            PCM_PCICFG_M3UPI_INIT(0, CPX);
+            PCM_PCICFG_M3UPI_INIT(1, CPX);
+            PCM_PCICFG_M3UPI_INIT(2, CPX);
+            PCM_PCICFG_M3UPI_INIT(3, CPX);
+            PCM_PCICFG_M3UPI_INIT(4, CPX);
+            PCM_PCICFG_M3UPI_INIT(5, CPX);
+        }
+        else
+        {
+            // SKX/CLX
+            PCM_PCICFG_M3UPI_INIT(0, SKX);
+            PCM_PCICFG_M3UPI_INIT(1, SKX);
+            PCM_PCICFG_M3UPI_INIT(2, SKX);
+        }
     }
     else if(cpu_model == PCM::KNL)
     {
@@ -4786,6 +4968,7 @@ void ServerPCICFGUncore::initRegisterLocations(const PCM * pcm)
 
 #undef PCM_PCICFG_MC_INIT
 #undef PCM_PCICFG_QPI_INIT
+#undef PCM_PCICFG_M3UPI_INIT
 #undef PCM_PCICFG_EDC_INIT
 #undef PCM_PCICFG_M2M_INIT
 #undef PCM_PCICFG_HA_INIT
@@ -4968,6 +5151,32 @@ void ServerPCICFGUncore::initDirect(uint32 socket_, const PCM * pcm)
         }
     }
 
+    std::vector<std::shared_ptr<PciHandleType> > m3upiHandles;
+    if (UPIbus >= 0)
+    {
+        for (auto& reg : M3UPIRegisterLocation)
+        {
+            PciHandleType* handle = createIntelPerfMonDevice(groupnr, UPIbus, reg.first, reg.second, true);
+            if (handle) m3upiHandles.push_back(std::shared_ptr<PciHandleType>(handle));
+        }
+    }
+    for (auto& handle : m3upiHandles)
+    {
+        m3upiPMUs.push_back(
+            UncorePMU(
+                std::make_shared<PCICFGRegister32>(handle, M3UPI_PCI_PMON_BOX_CTL_ADDR),
+                std::make_shared<PCICFGRegister32>(handle, M3UPI_PCI_PMON_CTL0_ADDR),
+                std::make_shared<PCICFGRegister32>(handle, M3UPI_PCI_PMON_CTL1_ADDR),
+                std::make_shared<PCICFGRegister32>(handle, M3UPI_PCI_PMON_CTL2_ADDR),
+                std::shared_ptr<PCICFGRegister32>(),
+                std::make_shared<PCICFGRegister64>(handle, M3UPI_PCI_PMON_CTR0_ADDR),
+                std::make_shared<PCICFGRegister64>(handle, M3UPI_PCI_PMON_CTR1_ADDR),
+                std::make_shared<PCICFGRegister64>(handle, M3UPI_PCI_PMON_CTR2_ADDR),
+                std::shared_ptr<PCICFGRegister64>()
+            )
+        );
+    }
+
     {
         std::vector<std::shared_ptr<PciHandleType> > m2mHandles;
 
@@ -5039,8 +5248,10 @@ void ServerPCICFGUncore::initDirect(uint32 socket_, const PCM * pcm)
 #ifdef PCM_NOQPI
     xpiPMUs.clear();
     std::cerr << getNumMC() << " memory controllers detected with total number of " << imcPMUs.size() << " channels. " <<
-        m2mPMUs.size() << " M2M (mesh to memory) blocks detected."
-        " " << haPMUs.size() << " Home Agents detected.\n";
+        m2mPMUs.size() << " M2M (mesh to memory) blocks detected. "
+        << haPMUs.size() << " Home Agents detected. "
+        << m3upiPMUs.size() << " M3UPI blocks detected. "
+        "\n";
     return;
 #endif
 
@@ -5327,6 +5538,7 @@ void ServerPCICFGUncore::initPerf(uint32 socket_, const PCM * /*pcm*/)
     populatePerfPMUs(socket_, m2mIDs, m2mPMUs, false);
     populatePerfPMUs(socket_, enumeratePerfPMUs("qpi", 100), xpiPMUs, false);
     populatePerfPMUs(socket_, enumeratePerfPMUs("upi", 100), xpiPMUs, false);
+    populatePerfPMUs(socket_, enumeratePerfPMUs("m3upi", 100), m3upiPMUs, false);
     populatePerfPMUs(socket_, haIDs, haPMUs, false);
 #endif
 }
@@ -5465,7 +5677,7 @@ void ServerPCICFGUncore::program()
         // monitor TxL_FLITS.NON_DATA+ALL_DATA on counter 2
         event[2] = Q_P_PCI_PMON_CTL_EVENT(0x02) + Q_P_PCI_PMON_CTL_UMASK((0x97|0x0F));
         // monitor UPI CLOCKTICKS
-        event[3] = Q_P_PCI_PMON_CTL_EVENT(0x01);
+        event[ServerUncoreCounterState::EventPosition::xPI_CLOCKTICKS] = Q_P_PCI_PMON_CTL_EVENT(0x01);
     }
     else
     {
@@ -5476,7 +5688,7 @@ void ServerPCICFGUncore::program()
         // monitor outgoing data+nondata flits on counter 2: TxL_FLITS_G0.DATA + TxL_FLITS_G0.NON_DATA
         event[2] = Q_P_PCI_PMON_CTL_EVENT(0x00) + Q_P_PCI_PMON_CTL_UMASK(6);
         // monitor QPI clocks
-        event[3] = Q_P_PCI_PMON_CTL_EVENT(0x14); // QPI clocks (CLOCKTICKS)
+        event[ServerUncoreCounterState::EventPosition::xPI_CLOCKTICKS] = Q_P_PCI_PMON_CTL_EVENT(0x14); // QPI clocks (CLOCKTICKS)
     }
     programXPI(event);
     programHA();
@@ -5497,14 +5709,7 @@ void ServerPCICFGUncore::programXPI(const uint32 * event)
             continue;
         }
 
-        for (int cnt = 0; cnt < 4; ++cnt)
-        {
-            // enable counter
-            *xpiPMUs[i].counterControl[cnt] = Q_P_PCI_PMON_CTL_EN;
-            *xpiPMUs[i].counterControl[cnt] = Q_P_PCI_PMON_CTL_EN + event[cnt];
-        }
-
-        xpiPMUs[i].resetUnfreeze(extra);
+        PCM::program(xpiPMUs[i], event, event + 4, extra);
     }
     cleanupQPIHandles();
 }
@@ -5658,12 +5863,11 @@ uint64 ServerPCICFGUncore::getUPIL0TxCycles(uint32 port)
 
 void ServerPCICFGUncore::program_power_metrics(int mc_profile)
 {
-    uint32 xPIEvents[4] = {
-        (uint32)Q_P_PCI_PMON_CTL_EVENT((cpu_model == PCM::SKX ? 0x27 : 0x0D)), // L0p Tx Cycles (TxL0P_POWER_CYCLES)
-        0, // event not used
-        (uint32)Q_P_PCI_PMON_CTL_EVENT((cpu_model == PCM::SKX ? 0x21 : 0x12)), // L1 Cycles (L1_POWER_CYCLES)
-        (uint32)Q_P_PCI_PMON_CTL_EVENT((cpu_model == PCM::SKX ? 0x01 : 0x14)) // QPI/UPI clocks (CLOCKTICKS)
-    };
+    uint32 xPIEvents[4] = { 0,0,0,0 };
+    xPIEvents[ServerUncoreCounterState::EventPosition::xPI_TxL0P_POWER_CYCLES] = (uint32)Q_P_PCI_PMON_CTL_EVENT((cpu_model == PCM::SKX ? 0x27 : 0x0D)); // L0p Tx Cycles (TxL0P_POWER_CYCLES)
+    xPIEvents[ServerUncoreCounterState::EventPosition::xPI_L1_POWER_CYCLES] = (uint32)Q_P_PCI_PMON_CTL_EVENT((cpu_model == PCM::SKX ? 0x21 : 0x12)); // L1 Cycles (L1_POWER_CYCLES)
+    xPIEvents[ServerUncoreCounterState::EventPosition::xPI_CLOCKTICKS] = (uint32)Q_P_PCI_PMON_CTL_EVENT((cpu_model == PCM::SKX ? 0x01 : 0x14)); // QPI/UPI clocks (CLOCKTICKS)
+
     programXPI(xPIEvents);
 
     uint32 MCCntConfig[4] = {0,0,0,0};
@@ -5718,13 +5922,7 @@ void ServerPCICFGUncore::programIMC(const uint32 * MCCntConfig)
         // reset it
         *imcPMUs[i].fixedCounterControl = MC_CH_PCI_PMON_FIXED_CTL_EN + MC_CH_PCI_PMON_FIXED_CTL_RST;
 
-        for (int c = 0; c < 4; ++c)
-        {
-            *imcPMUs[i].counterControl[c] = MC_CH_PCI_PMON_CTL_EN;
-            *imcPMUs[i].counterControl[c] = MC_CH_PCI_PMON_CTL_EN + MCCntConfig[c];
-        }
-
-        imcPMUs[i].resetUnfreeze(extraIMC);
+        PCM::program(imcPMUs[i], MCCntConfig, MCCntConfig + 4, extraIMC);
     }
 }
 
@@ -5737,13 +5935,7 @@ void ServerPCICFGUncore::programEDC(const uint32 * EDCCntConfig)
         // MCDRAM clocks enabled by default
         *edcPMUs[i].fixedCounterControl = EDC_CH_PCI_PMON_FIXED_CTL_EN;
 
-        for (int c = 0; c < 4; ++c)
-        {
-            *edcPMUs[i].counterControl[c] = MC_CH_PCI_PMON_CTL_EN;
-            *edcPMUs[i].counterControl[c] = MC_CH_PCI_PMON_CTL_EN + EDCCntConfig[c];
-        }
-
-        edcPMUs[i].resetUnfreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
+        PCM::program(edcPMUs[i], EDCCntConfig, EDCCntConfig + 4, UNC_PMON_UNIT_CTL_FRZ_EN);
     }
 }
 
@@ -5763,12 +5955,18 @@ void ServerPCICFGUncore::programM2M(const uint32* M2MCntConfig)
         for (auto & pmu : m2mPMUs)
         {
             pmu.initFreeze(UNC_PMON_UNIT_CTL_RSV);
-            for (int c = 0; c < 4; ++c)
-            {
-                *pmu.counterControl[c] = M2M_PCI_PMON_CTL_EN;
-                *pmu.counterControl[c] = M2M_PCI_PMON_CTL_EN | M2MCntConfig[c];
-            }
-            pmu.resetUnfreeze(UNC_PMON_UNIT_CTL_RSV);
+            PCM::program(pmu, M2MCntConfig, M2MCntConfig + 4, UNC_PMON_UNIT_CTL_RSV);
+        }
+    }
+}
+
+void ServerPCICFGUncore::programM3UPI(const uint32* M3UPICntConfig)
+{
+    {
+        for (auto& pmu : m3upiPMUs)
+        {
+            pmu.initFreeze(UNC_PMON_UNIT_CTL_RSV);
+            PCM::program(pmu, M3UPICntConfig, M3UPICntConfig + 3, UNC_PMON_UNIT_CTL_RSV);
         }
     }
 }
@@ -5778,12 +5976,7 @@ void ServerPCICFGUncore::programHA(const uint32 * config)
     for (auto & pmu : haPMUs)
     {
         pmu.initFreeze(UNC_PMON_UNIT_CTL_RSV);
-        for (uint32 c = 0; c < 4; ++c)
-        {
-            *pmu.counterControl[c] = HA_PCI_PMON_CTL_EN;
-            *pmu.counterControl[c] = HA_PCI_PMON_CTL_EN + config[c];
-        }
-        pmu.resetUnfreeze(UNC_PMON_UNIT_CTL_RSV);
+        PCM::program(pmu, config, config + 4, UNC_PMON_UNIT_CTL_RSV);
     }
 }
 
@@ -5849,17 +6042,17 @@ void ServerPCICFGUncore::unfreezeCounters()
 
 uint64 ServerPCICFGUncore::getQPIClocks(uint32 port)
 {
-    return getQPILLCounter(port, 3);
+    return getQPILLCounter(port, ServerUncoreCounterState::EventPosition::xPI_CLOCKTICKS);
 }
 
 uint64 ServerPCICFGUncore::getQPIL0pTxCycles(uint32 port)
 {
-    return getQPILLCounter(port, 0);
+    return getQPILLCounter(port, ServerUncoreCounterState::EventPosition::xPI_TxL0P_POWER_CYCLES);
 }
 
 uint64 ServerPCICFGUncore::getQPIL1Cycles(uint32 port)
 {
-    return getQPILLCounter(port, 2);
+    return getQPILLCounter(port, ServerUncoreCounterState::EventPosition::xPI_L1_POWER_CYCLES);
 }
 
 uint64 ServerPCICFGUncore::getDRAMClocks(uint32 channel)
@@ -5888,9 +6081,13 @@ uint64 ServerPCICFGUncore::getPMUCounter(std::vector<UncorePMU> & pmu, const uin
 {
     uint64 result = 0;
 
-    if (id < (uint32)pmu.size() && counter < 4)
+    if (id < (uint32)pmu.size() && counter < 4 && pmu[id].counterValue[counter].get() != nullptr)
     {
         result = *(pmu[id].counterValue[counter]);
+    }
+    else
+    {
+        //std::cout << "DEBUG: Invalid ServerPCICFGUncore::getPMUCounter(" << id << ", " << counter << ") \n";
     }
     // std::cout << "DEBUG: ServerPCICFGUncore::getPMUCounter(" << id << ", " << counter << ") = " << result << "\n";
     return result;
@@ -5914,6 +6111,12 @@ uint64 ServerPCICFGUncore::getM2MCounter(uint32 box, uint32 counter)
 uint64 ServerPCICFGUncore::getQPILLCounter(uint32 port, uint32 counter)
 {
     return getPMUCounter(xpiPMUs, port, counter);
+}
+
+uint64 ServerPCICFGUncore::getM3UPICounter(uint32 port, uint32 counter)
+{
+    // std::cout << "DEBUG: ServerPCICFGUncore::getM3UPICounter(" << port << ", " << counter << ") = " << getPMUCounter(m3upiPMUs, port, counter) << "\n";
+    return getPMUCounter(m3upiPMUs, port, counter);
 }
 
 void ServerPCICFGUncore::enableJKTWorkaround(bool enable)
@@ -6207,7 +6410,12 @@ uint64 PCM::CX_MSR_PMON_BOX_CTL(uint32 Cbo) const
 
 uint32 PCM::getMaxNumOfCBoxes() const
 {
-    if(cpu_model == KNL)
+    static int num = -1;
+    if (num >= 0)
+    {
+        return (uint32)num;
+    }
+    if (KNL == cpu_model || SKX == cpu_model)
     {
         /*
          *  on KNL two physical cores share CHA.
@@ -6218,13 +6426,25 @@ uint32 PCM::getMaxNumOfCBoxes() const
         uint32 refCore = socketRefCore[0];
         uint32 NCUPMONConfig = 0x702;
         MSR[refCore]->read(NCUPMONConfig, &val);
-    } else {
+        num = (uint32)(val & 63);
+    }
+    else
+    {
         /*
          *  on other supported CPUs there is one CBox per physical core.  This calculation will get us
          *  the number of physical cores per socket which is the expected
          *  value to be returned.
          */
-        return (uint32)num_phys_cores_per_socket;
+        num = (uint32)num_phys_cores_per_socket;
+    }
+    return num;
+}
+
+uint32 PCM::getMaxNumOfIIOStacks() const
+{
+    if (iioPMUs.size() > 0)
+    {
+        return (uint32)iioPMUs[0].size();
     }
     return 0;
 }
@@ -6284,13 +6504,7 @@ void PCM::programIIOCounters(IIOPMUCNTCTLRegister rawEvents[4], int IIOStack)
             auto & pmu = iioPMUs[i][unit];
             pmu.initFreeze(UNC_PMON_UNIT_CTL_RSV);
 
-            for (int c = 0; c < 4; ++c)
-            {
-                *pmu.counterControl[c] = IIO_MSR_PMON_CTL_EN;
-                *pmu.counterControl[c] = IIO_MSR_PMON_CTL_EN | rawEvents[c].value;
-            }
-
-            pmu.resetUnfreeze(UNC_PMON_UNIT_CTL_RSV);
+            program(pmu, &rawEvents[0], &rawEvents[4], UNC_PMON_UNIT_CTL_RSV);
         }
     }
 }
@@ -6351,19 +6565,57 @@ void PCM::programCbo(const uint64 * events, const uint32 opCode, const uint32 nc
             if((HASWELLX == cpu_model || BDX_DE == cpu_model || BDX == cpu_model || SKX == cpu_model) && llc_lookup_tid_filter != 0)
                 *cboPMUs[i][cbo].filter[0] = llc_lookup_tid_filter;
 
-            for (int c = 0; c < 4; ++c)
-            {
-                *cboPMUs[i][cbo].counterControl[c] = CBO_MSR_PMON_CTL_EN;
-                *cboPMUs[i][cbo].counterControl[c] = CBO_MSR_PMON_CTL_EN + events[c];
-            }
-
-            cboPMUs[i][cbo].resetUnfreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
+            PCM::program(cboPMUs[i][cbo], events, events + 4, UNC_PMON_UNIT_CTL_FRZ_EN);
 
             for (int c = 0; c < 4; ++c)
             {
                 *cboPMUs[i][cbo].counterValue[c] = 0;
             }
         }
+    }
+}
+
+void PCM::programCboRaw(const uint64* events, const uint64 filter0, const uint64 filter1)
+{
+    for (size_t i = 0; (i < cboPMUs.size()) && MSR.size(); ++i)
+    {
+        uint32 refCore = socketRefCore[i];
+        TemporalThreadAffinity tempThreadAffinity(refCore); // speedup trick for Linux
+
+        for (uint32 cbo = 0; cbo < getMaxNumOfCBoxes(); ++cbo)
+        {
+            cboPMUs[i][cbo].initFreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
+
+            if (filter0)
+            {
+                *cboPMUs[i][cbo].filter[0] = filter0;
+            }
+
+            if (filter1)
+            {
+                *cboPMUs[i][cbo].filter[1] = filter1;
+            }
+
+            PCM::program(cboPMUs[i][cbo], events, events + 4, UNC_PMON_UNIT_CTL_FRZ_EN);
+
+            for (int c = 0; c < 4; ++c)
+            {
+                *cboPMUs[i][cbo].counterValue[c] = 0;
+            }
+        }
+    }
+}
+
+void PCM::programUBOX(const uint64* events)
+{
+    for (size_t s = 0; (s < uboxPMUs.size()) && MSR.size(); ++s)
+    {
+        uint32 refCore = socketRefCore[s];
+        TemporalThreadAffinity tempThreadAffinity(refCore); // speedup trick for Linux
+
+        *uboxPMUs[s].fixedCounterControl = UCLK_FIXED_CTL_EN;
+
+        PCM::program(uboxPMUs[s], events, events + 2, 0);
     }
 }
 
@@ -6436,10 +6688,7 @@ void PCM::programCbo()
 
     programCbo(events, opCode);
 
-    for (auto & pmu : uboxPMUs)
-    {
-        *pmu.fixedCounterControl = UCLK_FIXED_CTL_EN;
-    }
+    programUBOX(nullptr);
 }
 
 void PCM::initCHARequestEvents(uint64 * config)
