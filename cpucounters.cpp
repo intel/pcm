@@ -1566,6 +1566,9 @@ void PCM::initUncorePMUsDirect()
         case BDX:
             handle->write(MSR_UNCORE_PMON_GLOBAL_CTL, 1ULL << 29ULL);
             break;
+        case IVYTOWN:
+            handle->write(IVT_MSR_UNCORE_PMON_GLOBAL_CTL, 1ULL << 29ULL);
+            break;
         }
         if (IVYTOWN == cpu_model || JAKETOWN == cpu_model)
         {
