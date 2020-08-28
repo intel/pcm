@@ -32,7 +32,7 @@ PCM provides a number of command-line utilities for real-time monitoring:
 - **pcm-power** : monitor sleep and energy states of processor, Intel(r) Quick Path Interconnect, DRAM memory, reasons of CPU frequency throttling and other energy-related metrics
 - **pcm-tsx**: monitor performance metrics for Intel(r) Transactional Synchronization Extensions
 - **pcm-core** and **pmu-query**: query and monitor arbitrary processor core events
-- **pcm-raw**(NEW): program arbitrary **core** and **uncore** events by specifying raw register event ID encoding
+- **pcm-raw**(NEW): [program arbitrary **core** and **uncore** events by specifying raw register event ID encoding](https://github.com/opcm/pcm/blob/master/PCM_RAW_README.md)
 - **pcm-bw-histogram**: collect memory bandwidth utilization histogram
 
 Graphical front ends:
