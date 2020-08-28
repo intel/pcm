@@ -1567,21 +1567,42 @@ void PCM::initUncorePMUsDirect()
             handle->write(MSR_UNCORE_PMON_GLOBAL_CTL, 1ULL << 29ULL);
             break;
         }
-        uboxPMUs.push_back(
-            UncorePMU(
-                std::shared_ptr<MSRRegister>(),
-                std::make_shared<MSRRegister>(handle, UBOX_MSR_PMON_CTL0_ADDR),
-                std::make_shared<MSRRegister>(handle, UBOX_MSR_PMON_CTL1_ADDR),
-                std::shared_ptr<MSRRegister>(),
-                std::shared_ptr<MSRRegister>(),
-                std::make_shared<MSRRegister>(handle, UBOX_MSR_PMON_CTR0_ADDR),
-                std::make_shared<MSRRegister>(handle, UBOX_MSR_PMON_CTR1_ADDR),
-                std::shared_ptr<MSRRegister>(),
-                std::shared_ptr<MSRRegister>(),
-                std::make_shared<MSRRegister>(handle, UCLK_FIXED_CTL_ADDR),
-                std::make_shared<MSRRegister>(handle, UCLK_FIXED_CTR_ADDR)
-            )
-        );
+        if (IVYTOWN == cpu_model || JAKETOWN == cpu_model)
+        {
+            uboxPMUs.push_back(
+                UncorePMU(
+                    std::shared_ptr<MSRRegister>(),
+                    std::make_shared<MSRRegister>(handle, JKTIVT_UBOX_MSR_PMON_CTL0_ADDR),
+                    std::make_shared<MSRRegister>(handle, JKTIVT_UBOX_MSR_PMON_CTL1_ADDR),
+                    std::shared_ptr<MSRRegister>(),
+                    std::shared_ptr<MSRRegister>(),
+                    std::make_shared<MSRRegister>(handle, JKTIVT_UBOX_MSR_PMON_CTR0_ADDR),
+                    std::make_shared<MSRRegister>(handle, JKTIVT_UBOX_MSR_PMON_CTR1_ADDR),
+                    std::shared_ptr<MSRRegister>(),
+                    std::shared_ptr<MSRRegister>(),
+                    std::make_shared<MSRRegister>(handle, JKTIVT_UCLK_FIXED_CTL_ADDR),
+                    std::make_shared<MSRRegister>(handle, JKTIVT_UCLK_FIXED_CTR_ADDR)
+                )
+            );
+        }
+        else
+        {
+            uboxPMUs.push_back(
+                UncorePMU(
+                    std::shared_ptr<MSRRegister>(),
+                    std::make_shared<MSRRegister>(handle, UBOX_MSR_PMON_CTL0_ADDR),
+                    std::make_shared<MSRRegister>(handle, UBOX_MSR_PMON_CTL1_ADDR),
+                    std::shared_ptr<MSRRegister>(),
+                    std::shared_ptr<MSRRegister>(),
+                    std::make_shared<MSRRegister>(handle, UBOX_MSR_PMON_CTR0_ADDR),
+                    std::make_shared<MSRRegister>(handle, UBOX_MSR_PMON_CTR1_ADDR),
+                    std::shared_ptr<MSRRegister>(),
+                    std::shared_ptr<MSRRegister>(),
+                    std::make_shared<MSRRegister>(handle, UCLK_FIXED_CTL_ADDR),
+                    std::make_shared<MSRRegister>(handle, UCLK_FIXED_CTR_ADDR)
+                )
+            );
+        }
         switch (cpu_model)
         {
         case IVYTOWN:
