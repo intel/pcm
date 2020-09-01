@@ -3857,10 +3857,11 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& allPMUConfigs_)
     if (allPMUConfigs.count("core"))
     {
         // need to program core PMU first
-        EventSelectRegister regs[PERF_MAX_COUNTERS];
+        EventSelectRegister regs[PERF_MAX_CUSTOM_COUNTERS];
         PCM::ExtendedCustomCoreEventDescription conf;
         conf.OffcoreResponseMsrValue[0] = 0;
         conf.OffcoreResponseMsrValue[1] = 0;
+        FixedEventControlRegister fixedReg;
 
         auto corePMUConfig = allPMUConfigs["core"];
         if (corePMUConfig.programmable.size() > (size_t)getMaxCustomCoreEvents())
@@ -3881,9 +3882,17 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& allPMUConfigs_)
         {
             conf.OffcoreResponseMsrValue[1] = corePMUConfig.programmable[globalRegPos].first[2];
         }
-        conf.fixedCfg = NULL; // default
         conf.nGPCounters = (uint32)c;
         conf.gpCounterCfg = regs;
+        if (corePMUConfig.fixed.empty())
+        {
+            conf.fixedCfg = NULL; // default
+        }
+        else
+        {
+            fixedReg.value = corePMUConfig.fixed[0].first[0];
+            conf.fixedCfg = &fixedReg;
+        }
 
         const auto status = program(PCM::EXT_CUSTOM_CORE_EVENTS, &conf);
         if (status != PCM::Success)

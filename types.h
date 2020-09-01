@@ -365,6 +365,7 @@ struct FixedEventControlRegister
         } fields;
         uint64 value;
     };
+    FixedEventControlRegister() : value(0) {}
 };
 
 inline std::ostream & operator << (std::ostream & o, const FixedEventControlRegister & reg)
