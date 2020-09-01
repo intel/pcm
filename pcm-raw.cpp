@@ -228,6 +228,13 @@ void print(PCM* m, vector<CoreCounterState>& BeforeState, vector<CoreCounterStat
             {
                 for (uint32 ch = 0; ch < m->getMCChannelsPerSocket(); ++ch)
                 {
+                    if (fixedEvents.size())
+                    {
+                        choose(outputType,
+                            [m, s, ch]() { cout << "SKT" << s << "CHAN" << ch << ","; },
+                            [&fixedEvents]() { cout << "DRAMClocks" << fixedEvents[0].second << ","; },
+                            [&]() { cout << getDRAMClocks(ch, BeforeUncoreState[s], AfterUncoreState[s]) << ","; });
+                    }
                     int i = 0;
                     for (auto event : events)
                     {
