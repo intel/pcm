@@ -1066,7 +1066,11 @@ public:
     // or for cha/cbo {raw event, filter value}, etc
     // + user-supplied name
     typedef std::pair<std::array<uint64, 3>, std::string> RawEventConfig;
-    typedef std::vector<RawEventConfig> RawPMUConfig;
+    struct RawPMUConfig
+    {
+        std::vector<RawEventConfig> programmable;
+        std::vector<RawEventConfig> fixed;
+    };
     typedef std::map<std::string, RawPMUConfig> RawPMUConfigs;
     ErrorCode program(const RawPMUConfigs& allPMUConfigs);
 

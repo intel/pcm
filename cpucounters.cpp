@@ -3863,23 +3863,23 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& allPMUConfigs_)
         conf.OffcoreResponseMsrValue[1] = 0;
 
         auto corePMUConfig = allPMUConfigs["core"];
-        if (corePMUConfig.size() > (size_t)getMaxCustomCoreEvents())
+        if (corePMUConfig.programmable.size() > (size_t)getMaxCustomCoreEvents())
         {
-            std::cerr << "ERROR: trying to program " << corePMUConfig.size() << " core PMU counters, which exceeds the max num possible ("<< getMaxCustomCoreEvents() << ").";
+            std::cerr << "ERROR: trying to program " << corePMUConfig.programmable.size() << " core PMU counters, which exceeds the max num possible ("<< getMaxCustomCoreEvents() << ").";
             return PCM::UnknownError;
         }
         size_t c = 0;
-        for (; c < corePMUConfig.size() && c < (size_t)getMaxCustomCoreEvents() && c < PERF_MAX_COUNTERS; ++c)
+        for (; c < corePMUConfig.programmable.size() && c < (size_t)getMaxCustomCoreEvents() && c < PERF_MAX_COUNTERS; ++c)
         {
-            regs[c].value = corePMUConfig[c].first[0];
+            regs[c].value = corePMUConfig.programmable[c].first[0];
         }
-        if (corePMUConfig.size() > 0 && corePMUConfig[globalRegPos].first[1] != 0)
+        if (corePMUConfig.programmable.size() > 0 && corePMUConfig.programmable[globalRegPos].first[1] != 0)
         {
-            conf.OffcoreResponseMsrValue[0] = corePMUConfig[globalRegPos].first[1];
+            conf.OffcoreResponseMsrValue[0] = corePMUConfig.programmable[globalRegPos].first[1];
         }
-        if (corePMUConfig.size() > 0 && corePMUConfig[globalRegPos].first[2] != 0)
+        if (corePMUConfig.programmable.size() > 0 && corePMUConfig.programmable[globalRegPos].first[2] != 0)
         {
-            conf.OffcoreResponseMsrValue[1] = corePMUConfig[globalRegPos].first[2];
+            conf.OffcoreResponseMsrValue[1] = corePMUConfig.programmable[globalRegPos].first[2];
         }
         conf.fixedCfg = NULL; // default
         conf.nGPCounters = (uint32)c;
@@ -3896,21 +3896,21 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& allPMUConfigs_)
     {
         const auto & type = pmuConfig.first;
         const auto & events = pmuConfig.second;
-        if (events.empty())
+        if (events.programmable.empty() && events.fixed.empty())
         {
             continue;
         }
-        if (events.size() > ServerUncoreCounterState::maxCounters)
+        if (events.programmable.size() > ServerUncoreCounterState::maxCounters)
         {
-            std::cerr << "ERROR: trying to program " << events.size() << " core PMU counters, which exceeds the max num possible (" << ServerUncoreCounterState::maxCounters << ").";
+            std::cerr << "ERROR: trying to program " << events.programmable.size() << " core PMU counters, which exceeds the max num possible (" << ServerUncoreCounterState::maxCounters << ").";
             return PCM::UnknownError;
         }
         uint32 events32[ServerUncoreCounterState::maxCounters] = { 0,0,0,0 };
         uint64 events64[ServerUncoreCounterState::maxCounters] = { 0,0,0,0 };
-        for (size_t c = 0; c < events.size() && c < ServerUncoreCounterState::maxCounters; ++c)
+        for (size_t c = 0; c < events.programmable.size() && c < ServerUncoreCounterState::maxCounters; ++c)
         {
-            events32[c] = (uint32)events[c].first[0];
-            events64[c] = events[c].first[0];
+            events32[c] = (uint32)events.programmable[c].first[0];
+            events64[c] = events.programmable[c].first[0];
         }
         if (type == "m3upi")
         {
@@ -3942,7 +3942,7 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& allPMUConfigs_)
         }
         else if (type == "pcu")
         {
-            programPCU(events32, events[globalRegPos].first[1]);
+            programPCU(events32, events.programmable[globalRegPos].first[1]);
         }
         else if (type == "ubox")
         {
@@ -3950,7 +3950,7 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& allPMUConfigs_)
         }
         else if (type == "cbo" || type == "cha")
         {
-            programCboRaw(events64, events[globalRegPos].first[1], events[globalRegPos].first[2]);
+            programCboRaw(events64, events.programmable[globalRegPos].first[1], events.programmable[globalRegPos].first[2]);
         }
         else if (type == "iio")
         {

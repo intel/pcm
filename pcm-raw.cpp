@@ -132,7 +132,7 @@ bool addEvent(string eventStr)
         }
     }
     cout << "parsed event " << pmuName << ": \"" << hex << config.second << "\" : {0x" << hex << config.first[0] << ", 0x" << config.first[1] << ", 0x" << config.first[2] << "}\n" << dec;
-    allPMUConfigs[pmuName].push_back(config);
+    allPMUConfigs[pmuName].programmable.push_back(config);
     return true;
 }
 
@@ -145,7 +145,7 @@ void print(PCM* m, vector<CoreCounterState>& BeforeState, vector<CoreCounterStat
     for (auto typeEvents : allPMUConfigs)
     {
         const auto & type = typeEvents.first;
-        const auto & events = typeEvents.second;
+        const auto & events = typeEvents.second.programmable;
         if (type == "core")
         {
             for (uint32 core = 0; core < m->getNumCores(); ++core)
