@@ -106,11 +106,10 @@ bool addEvent(string eventStr)
         cerr << "ERROR: wrong syntax in event description \"" << eventStr << "\"\n";
         return false;
     }
-    const auto pmuName = typeConfig[0];
+    auto pmuName = typeConfig[0];
     if (pmuName.empty())
     {
-        cerr << "ERROR: empty PMU name in event description \"" << eventStr << "\"\n";
-        return false;
+        pmuName = "core";
     }
     const auto configStr = typeConfig[1];
     if (configStr.empty())
