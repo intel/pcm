@@ -3851,7 +3851,7 @@ void PCM::programPCU(uint32* PCUCntConf, const uint64 filter)
 
 PCM::ErrorCode PCM::program(const RawPMUConfigs& allPMUConfigs_)
 {
-    if (MSR.empty() || server_pcicfg_uncore.empty())  return PCM::MSRAccessDenied;
+    if (MSR.empty())  return PCM::MSRAccessDenied;
     RawPMUConfigs allPMUConfigs = allPMUConfigs_;
     constexpr auto globalRegPos = 0;
     if (allPMUConfigs.count("core"))
