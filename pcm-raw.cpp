@@ -59,8 +59,8 @@ void print_usage(const string progname)
     cerr << "  -csv[=file.csv]     | /csv[=file.csv]  => output compact CSV format to screen or\n"
         << "                                            to a file, in case filename is provided\n";
     cerr << "  [-e event1] [-e event2] [-e event3] .. => list of custom events to monitor\n";
-    cerr << "  event description example: core/config=0x0105,name=MISALIGN_MEM_REF.LOADS/ \n";
-    cerr << "                             cha/config=0,name=UNC_CHA_CLOCKTICKS/ \n";
+    cerr << "  event description example: -e core/config=0x30203,name=LD_BLOCKS.STORE_FORWARD/ -e core/fixed,config=0x333/ \n";
+    cerr << "                             -e cha/config=0,name=UNC_CHA_CLOCKTICKS/ -e imc/fixed,name=DRAM_CLOCKS/\n";
     cerr << "  -yc   | --yescores  | /yc              => enable specific cores to output\n";
     print_help_force_rtm_abort_mode(41);
     cerr << " Examples:\n";
@@ -106,11 +106,10 @@ bool addEvent(string eventStr)
         cerr << "ERROR: wrong syntax in event description \"" << eventStr << "\"\n";
         return false;
     }
-    const auto pmuName = typeConfig[0];
+    auto pmuName = typeConfig[0];
     if (pmuName.empty())
     {
-        cerr << "ERROR: empty PMU name in event description \"" << eventStr << "\"\n";
-        return false;
+        pmuName = "core";
     }
     const auto configStr = typeConfig[1];
     if (configStr.empty())
@@ -119,20 +118,28 @@ bool addEvent(string eventStr)
         return false;
     }
     const auto configArray = split(configStr, ',');
+    bool fixed = false;
     for (auto item : configArray)
     {
         if (match(item, "config=", &config.first[0])) {}
         else if (match(item, "config1=", &config.first[1])) {}
         else if (match(item, "config2=", &config.first[2])) {}
         else if (pcm_sscanf(item) >> s_expect("name=") >> setw(255) >> config.second) {}
+        else if (item == "fixed")
+        {
+            fixed = true;
+        }
         else
         {
             cerr << "ERROR: unknown token " << item << " in event description \"" << eventStr << "\"\n";
             return false;
         }
     }
-    cout << "parsed event " << pmuName << ": \"" << hex << config.second << "\" : {0x" << hex << config.first[0] << ", 0x" << config.first[1] << ", 0x" << config.first[2] << "}\n" << dec;
-    allPMUConfigs[pmuName].push_back(config);
+    cout << "parsed "<< (fixed?"fixed ":"")<<"event " << pmuName << ": \"" << hex << config.second << "\" : {0x" << hex << config.first[0] << ", 0x" << config.first[1] << ", 0x" << config.first[2] << "}\n" << dec;
+    if (fixed)
+        allPMUConfigs[pmuName].fixed.push_back(config);
+    else
+        allPMUConfigs[pmuName].programmable.push_back(config);
     return true;
 }
 
@@ -145,7 +152,8 @@ void print(PCM* m, vector<CoreCounterState>& BeforeState, vector<CoreCounterStat
     for (auto typeEvents : allPMUConfigs)
     {
         const auto & type = typeEvents.first;
-        const auto & events = typeEvents.second;
+        const auto & events = typeEvents.second.programmable;
+        const auto & fixedEvents = typeEvents.second.fixed;
         if (type == "core")
         {
             for (uint32 core = 0; core < m->getNumCores(); ++core)
@@ -153,6 +161,19 @@ void print(PCM* m, vector<CoreCounterState>& BeforeState, vector<CoreCounterStat
                 if (m->isCoreOnline(core) == false || (show_partial_core_output && ycores.test(core) == false))
                     continue;
 
+                if (fixedEvents.size())
+                {
+                    auto print = [&](const char* metric, const uint64 value)
+                    {
+                        choose(outputType,
+                            [m, core]() { cout << "SKT" << m->getSocketId(core) << "CORE" << core << ","; },
+                            [&fixedEvents,&metric]() { cout << metric << fixedEvents[0].second << ","; },
+                            [&]() { cout << value << ","; });
+                    };
+                    print("InstructionsRetired", getInstructionsRetired(BeforeState[core], AfterState[core]));
+                    print("Cycles", getCycles(BeforeState[core], AfterState[core]));
+                    print("RefCycles", getRefCycles(BeforeState[core], AfterState[core]));
+                }
                 int i = 0;
                 for (auto event : events)
                 {
@@ -206,6 +227,13 @@ void print(PCM* m, vector<CoreCounterState>& BeforeState, vector<CoreCounterStat
             {
                 for (uint32 ch = 0; ch < m->getMCChannelsPerSocket(); ++ch)
                 {
+                    if (fixedEvents.size())
+                    {
+                        choose(outputType,
+                            [m, s, ch]() { cout << "SKT" << s << "CHAN" << ch << ","; },
+                            [&fixedEvents]() { cout << "DRAMClocks" << fixedEvents[0].second << ","; },
+                            [&]() { cout << getDRAMClocks(ch, BeforeUncoreState[s], AfterUncoreState[s]) << ","; });
+                    }
                     int i = 0;
                     for (auto event : events)
                     {
@@ -255,6 +283,13 @@ void print(PCM* m, vector<CoreCounterState>& BeforeState, vector<CoreCounterStat
         {
             for (uint32 s = 0; s < m->getNumSockets(); ++s)
             {
+                if (fixedEvents.size())
+                {
+                    choose(outputType,
+                        [m, s]() { cout << "SKT" << s << ","; },
+                        [&fixedEvents]() { cout << "UncoreClocks" << fixedEvents[0].second << ","; },
+                        [&]() { cout << getUncoreClocks(BeforeUncoreState[s], AfterUncoreState[s]) << ","; });
+                }
                 int i = 0;
                 for (auto event : events)
                 {

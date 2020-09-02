@@ -1066,7 +1066,11 @@ public:
     // or for cha/cbo {raw event, filter value}, etc
     // + user-supplied name
     typedef std::pair<std::array<uint64, 3>, std::string> RawEventConfig;
-    typedef std::vector<RawEventConfig> RawPMUConfig;
+    struct RawPMUConfig
+    {
+        std::vector<RawEventConfig> programmable;
+        std::vector<RawEventConfig> fixed;
+    };
     typedef std::map<std::string, RawPMUConfig> RawPMUConfigs;
     ErrorCode program(const RawPMUConfigs& allPMUConfigs);
 
@@ -2339,6 +2343,16 @@ uint64 getDRAMConsumedEnergy(const CounterStateType & before, const CounterState
     return after.DRAMEnergyStatus - before.DRAMEnergyStatus;
 }
 
+/*!  \brief Returns uncore clock ticks
+    \param before CPU counter state before the experiment
+    \param after CPU counter state after the experiment
+*/
+template <class CounterStateType>
+uint64 getUncoreClocks(const CounterStateType& before, const CounterStateType& after)
+{
+    return after.UncClocks - before.UncClocks;
+}
+
 /*!  \brief Returns Joules consumed by processor (excluding DRAM)
     \param before CPU counter state before the experiment
     \param after CPU counter state after the experiment
@@ -2409,6 +2423,8 @@ class UncoreCounterState
     friend uint64 getConsumedEnergy(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
     friend uint64 getDRAMConsumedEnergy(const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
+    friend uint64 getUncoreClocks(const CounterStateType& before, const CounterStateType& after);
     template <class CounterStateType>
     friend double getPackageCStateResidency(int state, const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>

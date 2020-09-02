@@ -12,7 +12,6 @@ pcm-raw allows to collect arbitrary core and uncore PMU events by providing raw 
 Currently supported PMUs: core, m3upi, upi(ll)/qpi(ll), imc, m2m, pcu, cha/cbo, iio, ubox
 
 Current limitations:
-- programming fixed PMU counters is not supported yet
 - event multiplexing not supported
 
 Recommended usage (as priviliged/root user):
