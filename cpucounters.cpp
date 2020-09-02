@@ -3843,7 +3843,10 @@ void PCM::programPCU(uint32* PCUCntConf, const uint64 filter)
 
         pcuPMUs[i].initFreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
 
-        *pcuPMUs[i].filter[0] = filter;
+        if (pcuPMUs[i].filter[0].get())
+        {
+            *pcuPMUs[i].filter[0] = filter;
+        }
 
         program(pcuPMUs[i], &PCUCntConf[0], &PCUCntConf[4], UNC_PMON_UNIT_CTL_FRZ_EN);
     }
@@ -3951,7 +3954,12 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& allPMUConfigs_)
         }
         else if (type == "pcu")
         {
-            programPCU(events32, events.programmable[globalRegPos].first[1]);
+            uint64 filter = 0;
+            if (globalRegPos < events.programmable.size())
+            {
+                filter = events.programmable[globalRegPos].first[1];
+            }
+            programPCU(events32, filter);
         }
         else if (type == "ubox")
         {
@@ -3959,7 +3967,13 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& allPMUConfigs_)
         }
         else if (type == "cbo" || type == "cha")
         {
-            programCboRaw(events64, events.programmable[globalRegPos].first[1], events.programmable[globalRegPos].first[2]);
+            uint64 filter0 = 0, filter1 = 0;
+            if (globalRegPos < events.programmable.size())
+            {
+                filter0 = events.programmable[globalRegPos].first[1];
+                filter1 = events.programmable[globalRegPos].first[2];
+            }
+            programCboRaw(events64, filter0, filter1);
         }
         else if (type == "iio")
         {
@@ -6620,12 +6634,12 @@ void PCM::programCboRaw(const uint64* events, const uint64 filter0, const uint64
         {
             cboPMUs[i][cbo].initFreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
 
-            if (filter0)
+            if (cboPMUs[i][cbo].filter[0].get())
             {
                 *cboPMUs[i][cbo].filter[0] = filter0;
             }
 
-            if (filter1)
+            if (cboPMUs[i][cbo].filter[1].get())
             {
                 *cboPMUs[i][cbo].filter[1] = filter1;
             }
