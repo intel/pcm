@@ -34,6 +34,6 @@ iio Uncore Event Set 0
 ```
 3. Run pcm-raw by specifying the obtained raw event encodings to collect into csv file. Example:
 ```
-pcm-raw.x -csv=out.csv -e core/config=0x00000000004300c5,name=BR_MISP_RETIRED.ALL_BRANCHES -e cha/config=0x0000000000400000,name=UNC_CHA_CLOCKTICKS -e qpi/config=0x0000000000409702,name=UNC_UPI_TxL_FLITS.NON_DATA -e iio/config=0x0000701000400183,name=UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.PART0
+pcm-raw.x -e core/config=0x00000000004300c5,name=BR_MISP_RETIRED.ALL_BRANCHES -e cha/config=0x0000000000400000,name=UNC_CHA_CLOCKTICKS -e qpi/config=0x0000000000409702,name=UNC_UPI_TxL_FLITS.NON_DATA -e iio/config=0x0000701000400183,name=UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.PART0 -csv=out.csv 
 ```
 4. View/process the csv file using your favorite method. For example just open it in Excel.
