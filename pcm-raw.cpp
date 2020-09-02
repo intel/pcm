@@ -283,6 +283,13 @@ void print(PCM* m, vector<CoreCounterState>& BeforeState, vector<CoreCounterStat
         {
             for (uint32 s = 0; s < m->getNumSockets(); ++s)
             {
+                if (fixedEvents.size())
+                {
+                    choose(outputType,
+                        [m, s]() { cout << "SKT" << s << ","; },
+                        [&fixedEvents]() { cout << "UncoreClocks" << fixedEvents[0].second << ","; },
+                        [&]() { cout << getUncoreClocks(BeforeUncoreState[s], AfterUncoreState[s]) << ","; });
+                }
                 int i = 0;
                 for (auto event : events)
                 {

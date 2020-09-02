@@ -4574,6 +4574,7 @@ ServerUncoreCounterState PCM::getServerUncoreCounterState(uint32 socket)
         for (int i = 0; i < 2 && socket < uboxPMUs.size(); ++i)
         {
             result.UBOXCounter[i] = *(uboxPMUs[socket].counterValue[i]);
+            result.UncClocks = getUncoreClocks(socket);
         }
         for (int i = 0; i < ServerUncoreCounterState::maxCounters && socket < pcuPMUs.size(); ++i)
             result.PCUCounter[i] = *pcuPMUs[socket].counterValue[i];
