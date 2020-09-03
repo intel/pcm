@@ -149,6 +149,13 @@ bitset<MAX_CORES> ycores;
 void print(PCM* m, vector<CoreCounterState>& BeforeState, vector<CoreCounterState>& AfterState, vector<ServerUncoreCounterState>& BeforeUncoreState, vector<ServerUncoreCounterState>& AfterUncoreState, const CsvOutputType outputType)
 {
     printDateForCSV(outputType);
+    if (BeforeState.size() > 0 && AfterState.size() > 0)
+    {
+        choose(outputType,
+            []() { cout << ","; },
+            []() { cout << "ms,"; },
+            [&]() { cout << (1000ULL * getInvariantTSC(BeforeState[0], AfterState[0])) / m->getNominalFrequency() << ","; });
+    }
     for (auto typeEvents : allPMUConfigs)
     {
         const auto & type = typeEvents.first;
