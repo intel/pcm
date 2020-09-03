@@ -1996,7 +1996,6 @@ bool PCM::isCPUModelSupported(int model_)
 
 bool PCM::checkModel()
 {
-    if (cpu_model == ICL_1) cpu_model = ICL;
     if (cpu_model == NEHALEM) cpu_model = NEHALEM_EP;
     if (cpu_model == ATOM_2) cpu_model = ATOM;
     if (cpu_model == HASWELL_ULT || cpu_model == HASWELL_2) cpu_model = HASWELL;
