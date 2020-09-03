@@ -3877,12 +3877,9 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& allPMUConfigs_)
         {
             regs[c].value = corePMUConfig.programmable[c].first[0];
         }
-        if (corePMUConfig.programmable.size() > 0 && corePMUConfig.programmable[globalRegPos].first[1] != 0)
+        if (globalRegPos < corePMUConfig.programmable.size())
         {
             conf.OffcoreResponseMsrValue[0] = corePMUConfig.programmable[globalRegPos].first[1];
-        }
-        if (corePMUConfig.programmable.size() > 0 && corePMUConfig.programmable[globalRegPos].first[2] != 0)
-        {
             conf.OffcoreResponseMsrValue[1] = corePMUConfig.programmable[globalRegPos].first[2];
         }
         conf.nGPCounters = (uint32)c;
