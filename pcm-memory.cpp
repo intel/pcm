@@ -83,7 +83,7 @@ void print_help(const string prog_name)
     cerr << " Supported <options> are: \n";
     cerr << "  -h    | --help  | /h               => print this help and exit\n";
     cerr << "  -rank=X | /rank=X                  => monitor DIMM rank X. At most 2 out of 8 total ranks can be monitored simultaneously.\n";
-    cerr << "  -pmm                               => monitor PMM memory bandwidth and DRAM cache hit rate in Memory Mode (default on systems with PMM support).\n";
+    cerr << "  -pmm | /pmm | -pmem | /pmem        => monitor PMM memory bandwidth and DRAM cache hit rate in Memory Mode (default on systems with PMM support).\n";
     cerr << "  -mixed                             => monitor PMM mixed mode (AppDirect + Memory Mode).\n";
     cerr << "  -partial                           => monitor monitor partial writes instead of PMM (default on systems without PMM support).\n";
     cerr << "  -nc   | --nochannel | /nc          => suppress output for individual channels.\n";
@@ -928,7 +928,9 @@ int main(int argc, char * argv[])
         }
 
         if (strncmp(*argv, "-pmm", 4) == 0 ||
-            strncmp(*argv, "/pmm", 4) == 0)
+            strncmp(*argv, "/pmm", 4) == 0 ||
+            strncmp(*argv, "-pmem", 5) == 0 ||
+            strncmp(*argv, "/pmem", 5) == 0 )
         {
             PMM = true;
             continue;
