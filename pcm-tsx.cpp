@@ -171,10 +171,12 @@ void print_basic_stats(const StateType & BeforeState, const StateType & AfterSta
         cout << " N/A\n";
 }
 
+std::vector<int> events;
+
 template <class StateType>
 void print_custom_stats(const StateType & BeforeState, const StateType & AfterState, bool csv)
 {
-    for (int i = 0; i < 4; ++i)
+    for (int i = 0; i < events.size(); ++i)
         if (!csv)
             cout << unit_format(getNumberOfCustomEvents(i, BeforeState, AfterState)) << "    ";
         else
@@ -211,7 +213,6 @@ int main(int argc, char * argv[])
     double delay = -1.0;
     char * sysCmd = NULL;
     char ** sysArgv = NULL;
-    std::vector<int> events;
     int cur_event;
     bool csv = false;
     long diff_usec = 0;                            // deviation of clock is useconds between measurements
@@ -220,6 +221,7 @@ int main(int argc, char * argv[])
     string program = string(argv[0]);
 
     PCM * m = PCM::getInstance();
+    const auto numCtrSupported = m->getMaxCustomCoreEvents();
 
     if (argc > 1) do
         {
@@ -250,8 +252,8 @@ int main(int argc, char * argv[])
             {
                 argv++;
                 argc--;
-                if (events.size() >= 4) {
-                    cerr << "At most 4 events are allowed\n";
+                if (events.size() >= numCtrSupported) {
+                    cerr << "At most " << numCtrSupported << " events are allowed\n";
                     exit(EXIT_FAILURE);
                 }
                 cur_event = findEvent(*argv);
@@ -307,9 +309,9 @@ int main(int argc, char * argv[])
 
     PCM::ExtendedCustomCoreEventDescription conf;
     conf.fixedCfg = NULL; // default
-    EventSelectRegister regs[4];
+    EventSelectRegister regs[PERF_MAX_CUSTOM_COUNTERS];
     conf.gpCounterCfg = regs;
-    for (int i = 0; i < 4; ++i)
+    for (int i = 0; i < PERF_MAX_CUSTOM_COUNTERS; ++i)
         regs[i] = def_event_select_reg;
 
     if (events.empty())
@@ -476,9 +478,23 @@ int main(int argc, char * argv[])
             }
             cout << "\n";
             if (csv)
-                cout << "Core,Event0,Event1,Event2,Event3\n";
+            {
+                cout << "Core";
+                for (unsigned i = 0; i < events.size(); ++i)
+                {
+                    cout << ",Event" << i;
+                }
+                cout << "\n";
+            }
             else
-                cout << "Core | Event0  | Event1  | Event2  | Event3 \n";
+            {
+                cout << "Core ";
+                for (unsigned i = 0; i < events.size(); ++i)
+                {
+                    cout << "| Event" << i << "  ";
+                }
+                cout << "\n";
+            }
         }
         for (uint32 i = 0; i < ncores; ++i)
         {
