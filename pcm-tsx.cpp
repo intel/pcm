@@ -54,7 +54,7 @@ struct TSXEvent
     const char * description;
 };
 
-TSXEvent eventDefinition[] = {
+vector<TSXEvent> eventDefinition = {
     { "RTM_RETIRED.START", 0xC9, 0x01, "Number of times an RTM execution started." },
     { "RTM_RETIRED.COMMIT", 0xC9, 0x02, "Number of times an RTM execution successfully committed" },
     { "RTM_RETIRED.ABORTED", 0xC9, 0x04, "Number of times an RTM execution aborted due to any reasons (multiple categories may count as one)" },
@@ -101,9 +101,9 @@ void print_usage(const string progname)
          << "                                        to a file, in case filename is provided\n";
     cerr << "  [-e event1] [-e event2] [-e event3]=> optional list of custom TSX events to monitor (up to 4)."
          << "  The list of supported events:\n";
-    for (uint32 i = 0; i < sizeof(eventDefinition) / sizeof(TSXEvent); ++i)
+    for (auto & e: eventDefinition)
     {
-        cerr << eventDefinition[i].name << "\t" << eventDefinition[i].description << "\n";
+        cerr << e.name << "\t" << e.description << "\n";
     }
     cerr << "\n";
     cerr << " Examples:\n";
@@ -186,11 +186,10 @@ void print_custom_stats(const StateType & BeforeState, const StateType & AfterSt
 
 int findEvent(const char * name)
 {
-    const int all = sizeof(eventDefinition) / sizeof(TSXEvent);
-    for (int i = 0; i < all; ++i)
+    for (size_t i = 0; i < eventDefinition.size(); ++i)
     {
         if (strcmp(name, eventDefinition[i].name) == 0)
-            return i;
+            return (int)i;
     }
     return -1;
 }
