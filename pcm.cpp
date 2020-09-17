@@ -836,9 +836,9 @@ void print_basic_metrics_csv(const PCM * m, const State & state1, const State & 
     if (m->isActiveRelativeFrequencyAvailable())
         cout << ',' << getActiveRelativeFrequency(state1, state2);
     if (m->isL3CacheMissesAvailable())
-        cout << ',' << float_format(getL3CacheMisses(state1, state2));
+        cout << ',' << unit_format(getL3CacheMisses(state1, state2));
     if (m->isL2CacheMissesAvailable())
-        cout << ',' << float_format(getL2CacheMisses(state1, state2));
+        cout << ',' << unit_format(getL2CacheMisses(state1, state2));
     if (m->isL3CacheHitRatioAvailable())
         cout << ',' << getL3CacheHitRatio(state1, state2);
     if (m->isL2CacheHitRatioAvailable())
