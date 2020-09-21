@@ -415,7 +415,14 @@ int main(int argc, char * argv[])
         conf.nGPCounters = (uint32) events.size();
         for (unsigned int i = 0; i < events.size(); ++i)
         {
-            regs[i].fields.event_select = eventDefinition[events[i]].event;
+            const auto event = eventDefinition[events[i]].event;
+            if (event == 0x54 && i >= 4)
+            {
+                cerr << "Error: a TX_MEM.* event found in position " << i <<
+                    " which is not supported. Reorder the events in the command line such that TX_MEM events are at positions 0..3.\n";
+                return -1;
+            }
+            regs[i].fields.event_select = event;
             regs[i].fields.umask = eventDefinition[events[i]].umask;
         }
     }
