@@ -117,10 +117,12 @@ public:
         offset(offset_)
     {
     }
-    void operator = (uint64 /*val*/) override
+    void operator = (uint64 val) override
     {
-        std::cerr << "PCICFGRegister64 write operation is not supported\n";
-        throw std::exception();
+        cvt_ds cvt;
+        cvt.ui64 = val;
+        handle->write32(offset, cvt.ui32.low);
+        handle->write32(offset + sizeof(uint32), cvt.ui32.high);
     }
     operator uint64 ()  override
     {
@@ -328,7 +330,7 @@ class ServerPCICFGUncore
     PciHandleType * createIntelPerfMonDevice(uint32 groupnr, int32 bus, uint32 dev, uint32 func, bool checkVendor = false);
     void programIMC(const uint32 * MCCntConfig);
     void programEDC(const uint32 * EDCCntConfig);
-    void programM2M(const uint32 * M2MCntConfig);
+    void programM2M(const uint64 * M2MCntConfig);
     void programM2M();
     void programHA(const uint32 * config);
     void programHA();

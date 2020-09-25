@@ -3946,7 +3946,7 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& allPMUConfigs_)
         {
             for (auto uncore : server_pcicfg_uncore)
             {
-                uncore->programM2M(events32);
+                uncore->programM2M(events64);
             }
         }
         else if (type == "pcu")
@@ -5239,10 +5239,10 @@ void ServerPCICFGUncore::initDirect(uint32 socket_, const PCM * pcm)
             m2mPMUs.push_back(
                 UncorePMU(
                     std::make_shared<PCICFGRegister32>(handle, M2M_PCI_PMON_BOX_CTL_ADDR),
-                    std::make_shared<PCICFGRegister32>(handle, M2M_PCI_PMON_CTL0_ADDR),
-                    std::make_shared<PCICFGRegister32>(handle, M2M_PCI_PMON_CTL1_ADDR),
-                    std::make_shared<PCICFGRegister32>(handle, M2M_PCI_PMON_CTL2_ADDR),
-                    std::make_shared<PCICFGRegister32>(handle, M2M_PCI_PMON_CTL3_ADDR),
+                    std::make_shared<PCICFGRegister64>(handle, M2M_PCI_PMON_CTL0_ADDR),
+                    std::make_shared<PCICFGRegister64>(handle, M2M_PCI_PMON_CTL1_ADDR),
+                    std::make_shared<PCICFGRegister64>(handle, M2M_PCI_PMON_CTL2_ADDR),
+                    std::make_shared<PCICFGRegister64>(handle, M2M_PCI_PMON_CTL3_ADDR),
                     std::make_shared<PCICFGRegister64>(handle, M2M_PCI_PMON_CTR0_ADDR),
                     std::make_shared<PCICFGRegister64>(handle, M2M_PCI_PMON_CTR1_ADDR),
                     std::make_shared<PCICFGRegister64>(handle, M2M_PCI_PMON_CTR2_ADDR),
@@ -5986,7 +5986,7 @@ void ServerPCICFGUncore::programEDC(const uint32 * EDCCntConfig)
 
 void ServerPCICFGUncore::programM2M()
 {
-    uint32 cfg[4] = {0, 0, 0, 0};
+    uint64 cfg[4] = {0, 0, 0, 0};
     cfg[EventPosition::NM_HIT]    = M2M_PCI_PMON_CTL_EVENT(0x2c) + M2M_PCI_PMON_CTL_UMASK(3);    // UNC_M2M_TAG_HIT.NM_DRD_HIT_* events (CLEAN | DIRTY)
     cfg[EventPosition::M2M_CLOCKTICKS] = 0;                                                      // CLOCKTICKS
     cfg[EventPosition::PMM_READ]  = M2M_PCI_PMON_CTL_EVENT(0x37) + M2M_PCI_PMON_CTL_UMASK(0x8);  // UNC_M2M_IMC_READS.TO_PMM
@@ -5994,7 +5994,7 @@ void ServerPCICFGUncore::programM2M()
     programM2M(cfg);
 }
 
-void ServerPCICFGUncore::programM2M(const uint32* M2MCntConfig)
+void ServerPCICFGUncore::programM2M(const uint64* M2MCntConfig)
 {
     {
         for (auto & pmu : m2mPMUs)

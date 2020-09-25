@@ -1022,10 +1022,13 @@ struct IIOPMUCNTCTLRegister
 
 #define MSR_TSX_FORCE_ABORT (0x10f)
 
-#ifdef _MSC_VER
 // data structure for converting two uint32s <-> uin64
 union cvt_ds
 {
+#ifndef _MSC_VER
+    typedef uint64 UINT64;
+    typedef uint32 DWORD;
+#endif
     UINT64 ui64;
     struct
     {
@@ -1033,8 +1036,6 @@ union cvt_ds
         DWORD high;
     } ui32;
 };
-
-#endif
 
 struct MCFGRecord
 {
