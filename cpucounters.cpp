@@ -1566,22 +1566,46 @@ void PCM::initUncorePMUsDirect()
         case BDX:
             handle->write(MSR_UNCORE_PMON_GLOBAL_CTL, 1ULL << 29ULL);
             break;
+        case IVYTOWN:
+            handle->write(IVT_MSR_UNCORE_PMON_GLOBAL_CTL, 1ULL << 29ULL);
+            break;
         }
-        uboxPMUs.push_back(
-            UncorePMU(
-                std::shared_ptr<MSRRegister>(),
-                std::make_shared<MSRRegister>(handle, UBOX_MSR_PMON_CTL0_ADDR),
-                std::make_shared<MSRRegister>(handle, UBOX_MSR_PMON_CTL1_ADDR),
-                std::shared_ptr<MSRRegister>(),
-                std::shared_ptr<MSRRegister>(),
-                std::make_shared<MSRRegister>(handle, UBOX_MSR_PMON_CTR0_ADDR),
-                std::make_shared<MSRRegister>(handle, UBOX_MSR_PMON_CTR1_ADDR),
-                std::shared_ptr<MSRRegister>(),
-                std::shared_ptr<MSRRegister>(),
-                std::make_shared<MSRRegister>(handle, UCLK_FIXED_CTL_ADDR),
-                std::make_shared<MSRRegister>(handle, UCLK_FIXED_CTR_ADDR)
-            )
-        );
+        if (IVYTOWN == cpu_model || JAKETOWN == cpu_model)
+        {
+            uboxPMUs.push_back(
+                UncorePMU(
+                    std::shared_ptr<MSRRegister>(),
+                    std::make_shared<MSRRegister>(handle, JKTIVT_UBOX_MSR_PMON_CTL0_ADDR),
+                    std::make_shared<MSRRegister>(handle, JKTIVT_UBOX_MSR_PMON_CTL1_ADDR),
+                    std::shared_ptr<MSRRegister>(),
+                    std::shared_ptr<MSRRegister>(),
+                    std::make_shared<MSRRegister>(handle, JKTIVT_UBOX_MSR_PMON_CTR0_ADDR),
+                    std::make_shared<MSRRegister>(handle, JKTIVT_UBOX_MSR_PMON_CTR1_ADDR),
+                    std::shared_ptr<MSRRegister>(),
+                    std::shared_ptr<MSRRegister>(),
+                    std::make_shared<MSRRegister>(handle, JKTIVT_UCLK_FIXED_CTL_ADDR),
+                    std::make_shared<MSRRegister>(handle, JKTIVT_UCLK_FIXED_CTR_ADDR)
+                )
+            );
+        }
+        else
+        {
+            uboxPMUs.push_back(
+                UncorePMU(
+                    std::shared_ptr<MSRRegister>(),
+                    std::make_shared<MSRRegister>(handle, UBOX_MSR_PMON_CTL0_ADDR),
+                    std::make_shared<MSRRegister>(handle, UBOX_MSR_PMON_CTL1_ADDR),
+                    std::shared_ptr<MSRRegister>(),
+                    std::shared_ptr<MSRRegister>(),
+                    std::make_shared<MSRRegister>(handle, UBOX_MSR_PMON_CTR0_ADDR),
+                    std::make_shared<MSRRegister>(handle, UBOX_MSR_PMON_CTR1_ADDR),
+                    std::shared_ptr<MSRRegister>(),
+                    std::shared_ptr<MSRRegister>(),
+                    std::make_shared<MSRRegister>(handle, UCLK_FIXED_CTL_ADDR),
+                    std::make_shared<MSRRegister>(handle, UCLK_FIXED_CTR_ADDR)
+                )
+            );
+        }
         switch (cpu_model)
         {
         case IVYTOWN:
@@ -3819,7 +3843,10 @@ void PCM::programPCU(uint32* PCUCntConf, const uint64 filter)
 
         pcuPMUs[i].initFreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
 
-        *pcuPMUs[i].filter[0] = filter;
+        if (pcuPMUs[i].filter[0].get())
+        {
+            *pcuPMUs[i].filter[0] = filter;
+        }
 
         program(pcuPMUs[i], &PCUCntConf[0], &PCUCntConf[4], UNC_PMON_UNIT_CTL_FRZ_EN);
     }
@@ -3827,39 +3854,45 @@ void PCM::programPCU(uint32* PCUCntConf, const uint64 filter)
 
 PCM::ErrorCode PCM::program(const RawPMUConfigs& allPMUConfigs_)
 {
-    if (MSR.empty() || server_pcicfg_uncore.empty())  return PCM::MSRAccessDenied;
+    if (MSR.empty())  return PCM::MSRAccessDenied;
     RawPMUConfigs allPMUConfigs = allPMUConfigs_;
     constexpr auto globalRegPos = 0;
     if (allPMUConfigs.count("core"))
     {
         // need to program core PMU first
-        EventSelectRegister regs[PERF_MAX_COUNTERS];
+        EventSelectRegister regs[PERF_MAX_CUSTOM_COUNTERS];
         PCM::ExtendedCustomCoreEventDescription conf;
         conf.OffcoreResponseMsrValue[0] = 0;
         conf.OffcoreResponseMsrValue[1] = 0;
+        FixedEventControlRegister fixedReg;
 
         auto corePMUConfig = allPMUConfigs["core"];
-        if (corePMUConfig.size() > (size_t)getMaxCustomCoreEvents())
+        if (corePMUConfig.programmable.size() > (size_t)getMaxCustomCoreEvents())
         {
-            std::cerr << "ERROR: trying to program " << corePMUConfig.size() << " core PMU counters, which exceeds the max num possible ("<< getMaxCustomCoreEvents() << ").";
+            std::cerr << "ERROR: trying to program " << corePMUConfig.programmable.size() << " core PMU counters, which exceeds the max num possible ("<< getMaxCustomCoreEvents() << ").";
             return PCM::UnknownError;
         }
         size_t c = 0;
-        for (; c < corePMUConfig.size() && c < (size_t)getMaxCustomCoreEvents() && c < PERF_MAX_COUNTERS; ++c)
+        for (; c < corePMUConfig.programmable.size() && c < (size_t)getMaxCustomCoreEvents() && c < PERF_MAX_COUNTERS; ++c)
         {
-            regs[c].value = corePMUConfig[c].first[0];
+            regs[c].value = corePMUConfig.programmable[c].first[0];
         }
-        if (corePMUConfig.size() > 0 && corePMUConfig[globalRegPos].first[1] != 0)
+        if (globalRegPos < corePMUConfig.programmable.size())
         {
-            conf.OffcoreResponseMsrValue[0] = corePMUConfig[globalRegPos].first[1];
+            conf.OffcoreResponseMsrValue[0] = corePMUConfig.programmable[globalRegPos].first[1];
+            conf.OffcoreResponseMsrValue[1] = corePMUConfig.programmable[globalRegPos].first[2];
         }
-        if (corePMUConfig.size() > 0 && corePMUConfig[globalRegPos].first[2] != 0)
-        {
-            conf.OffcoreResponseMsrValue[1] = corePMUConfig[globalRegPos].first[2];
-        }
-        conf.fixedCfg = NULL; // default
         conf.nGPCounters = (uint32)c;
         conf.gpCounterCfg = regs;
+        if (corePMUConfig.fixed.empty())
+        {
+            conf.fixedCfg = NULL; // default
+        }
+        else
+        {
+            fixedReg.value = corePMUConfig.fixed[0].first[0];
+            conf.fixedCfg = &fixedReg;
+        }
 
         const auto status = program(PCM::EXT_CUSTOM_CORE_EVENTS, &conf);
         if (status != PCM::Success)
@@ -3872,21 +3905,21 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& allPMUConfigs_)
     {
         const auto & type = pmuConfig.first;
         const auto & events = pmuConfig.second;
-        if (events.empty())
+        if (events.programmable.empty() && events.fixed.empty())
         {
             continue;
         }
-        if (events.size() > ServerUncoreCounterState::maxCounters)
+        if (events.programmable.size() > ServerUncoreCounterState::maxCounters)
         {
-            std::cerr << "ERROR: trying to program " << events.size() << " core PMU counters, which exceeds the max num possible (" << ServerUncoreCounterState::maxCounters << ").";
+            std::cerr << "ERROR: trying to program " << events.programmable.size() << " core PMU counters, which exceeds the max num possible (" << ServerUncoreCounterState::maxCounters << ").";
             return PCM::UnknownError;
         }
         uint32 events32[ServerUncoreCounterState::maxCounters] = { 0,0,0,0 };
         uint64 events64[ServerUncoreCounterState::maxCounters] = { 0,0,0,0 };
-        for (size_t c = 0; c < events.size() && c < ServerUncoreCounterState::maxCounters; ++c)
+        for (size_t c = 0; c < events.programmable.size() && c < ServerUncoreCounterState::maxCounters; ++c)
         {
-            events32[c] = (uint32)events[c].first[0];
-            events64[c] = events[c].first[0];
+            events32[c] = (uint32)events.programmable[c].first[0];
+            events64[c] = events.programmable[c].first[0];
         }
         if (type == "m3upi")
         {
@@ -3913,12 +3946,17 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& allPMUConfigs_)
         {
             for (auto uncore : server_pcicfg_uncore)
             {
-                uncore->programM2M(events32);
+                uncore->programM2M(events64);
             }
         }
         else if (type == "pcu")
         {
-            programPCU(events32, events[globalRegPos].first[1]);
+            uint64 filter = 0;
+            if (globalRegPos < events.programmable.size())
+            {
+                filter = events.programmable[globalRegPos].first[1];
+            }
+            programPCU(events32, filter);
         }
         else if (type == "ubox")
         {
@@ -3926,7 +3964,13 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& allPMUConfigs_)
         }
         else if (type == "cbo" || type == "cha")
         {
-            programCboRaw(events64, events[globalRegPos].first[1], events[globalRegPos].first[2]);
+            uint64 filter0 = 0, filter1 = 0;
+            if (globalRegPos < events.programmable.size())
+            {
+                filter0 = events.programmable[globalRegPos].first[1];
+                filter1 = events.programmable[globalRegPos].first[2];
+            }
+            programCboRaw(events64, filter0, filter1);
         }
         else if (type == "iio")
         {
@@ -4541,6 +4585,7 @@ ServerUncoreCounterState PCM::getServerUncoreCounterState(uint32 socket)
         for (int i = 0; i < 2 && socket < uboxPMUs.size(); ++i)
         {
             result.UBOXCounter[i] = *(uboxPMUs[socket].counterValue[i]);
+            result.UncClocks = getUncoreClocks(socket);
         }
         for (int i = 0; i < ServerUncoreCounterState::maxCounters && socket < pcuPMUs.size(); ++i)
             result.PCUCounter[i] = *pcuPMUs[socket].counterValue[i];
@@ -5194,10 +5239,10 @@ void ServerPCICFGUncore::initDirect(uint32 socket_, const PCM * pcm)
             m2mPMUs.push_back(
                 UncorePMU(
                     std::make_shared<PCICFGRegister32>(handle, M2M_PCI_PMON_BOX_CTL_ADDR),
-                    std::make_shared<PCICFGRegister32>(handle, M2M_PCI_PMON_CTL0_ADDR),
-                    std::make_shared<PCICFGRegister32>(handle, M2M_PCI_PMON_CTL1_ADDR),
-                    std::make_shared<PCICFGRegister32>(handle, M2M_PCI_PMON_CTL2_ADDR),
-                    std::make_shared<PCICFGRegister32>(handle, M2M_PCI_PMON_CTL3_ADDR),
+                    std::make_shared<PCICFGRegister64>(handle, M2M_PCI_PMON_CTL0_ADDR),
+                    std::make_shared<PCICFGRegister64>(handle, M2M_PCI_PMON_CTL1_ADDR),
+                    std::make_shared<PCICFGRegister64>(handle, M2M_PCI_PMON_CTL2_ADDR),
+                    std::make_shared<PCICFGRegister64>(handle, M2M_PCI_PMON_CTL3_ADDR),
                     std::make_shared<PCICFGRegister64>(handle, M2M_PCI_PMON_CTR0_ADDR),
                     std::make_shared<PCICFGRegister64>(handle, M2M_PCI_PMON_CTR1_ADDR),
                     std::make_shared<PCICFGRegister64>(handle, M2M_PCI_PMON_CTR2_ADDR),
@@ -5941,7 +5986,7 @@ void ServerPCICFGUncore::programEDC(const uint32 * EDCCntConfig)
 
 void ServerPCICFGUncore::programM2M()
 {
-    uint32 cfg[4] = {0, 0, 0, 0};
+    uint64 cfg[4] = {0, 0, 0, 0};
     cfg[EventPosition::NM_HIT]    = M2M_PCI_PMON_CTL_EVENT(0x2c) + M2M_PCI_PMON_CTL_UMASK(3);    // UNC_M2M_TAG_HIT.NM_DRD_HIT_* events (CLEAN | DIRTY)
     cfg[EventPosition::M2M_CLOCKTICKS] = 0;                                                      // CLOCKTICKS
     cfg[EventPosition::PMM_READ]  = M2M_PCI_PMON_CTL_EVENT(0x37) + M2M_PCI_PMON_CTL_UMASK(0x8);  // UNC_M2M_IMC_READS.TO_PMM
@@ -5949,7 +5994,7 @@ void ServerPCICFGUncore::programM2M()
     programM2M(cfg);
 }
 
-void ServerPCICFGUncore::programM2M(const uint32* M2MCntConfig)
+void ServerPCICFGUncore::programM2M(const uint64* M2MCntConfig)
 {
     {
         for (auto & pmu : m2mPMUs)
@@ -6586,12 +6631,12 @@ void PCM::programCboRaw(const uint64* events, const uint64 filter0, const uint64
         {
             cboPMUs[i][cbo].initFreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
 
-            if (filter0)
+            if (cboPMUs[i][cbo].filter[0].get())
             {
                 *cboPMUs[i][cbo].filter[0] = filter0;
             }
 
-            if (filter1)
+            if (cboPMUs[i][cbo].filter[1].get())
             {
                 *cboPMUs[i][cbo].filter[1] = filter1;
             }

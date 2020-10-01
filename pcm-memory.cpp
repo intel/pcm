@@ -83,8 +83,9 @@ void print_help(const string prog_name)
     cerr << " Supported <options> are: \n";
     cerr << "  -h    | --help  | /h               => print this help and exit\n";
     cerr << "  -rank=X | /rank=X                  => monitor DIMM rank X. At most 2 out of 8 total ranks can be monitored simultaneously.\n";
-    cerr << "  -pmm                               => monitor PMM memory bandwidth (instead of partial writes).\n";
+    cerr << "  -pmm | /pmm | -pmem | /pmem        => monitor PMM memory bandwidth and DRAM cache hit rate in Memory Mode (default on systems with PMM support).\n";
     cerr << "  -mixed                             => monitor PMM mixed mode (AppDirect + Memory Mode).\n";
+    cerr << "  -partial                           => monitor monitor partial writes instead of PMM (default on systems without PMM support).\n";
     cerr << "  -nc   | --nochannel | /nc          => suppress output for individual channels.\n";
     cerr << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or\n"
          << "                                        to a file, in case filename is provided\n";
@@ -830,13 +831,13 @@ int main(int argc, char * argv[])
     int calibrated = PCM_CALIBRATION_INTERVAL - 2; // keeps track is the clock calibration needed
 #endif
     int rankA = -1, rankB = -1;
-    bool PMM = false;
-    bool PMMMixedMode = false;
     unsigned int numberOfIterations = 0; // number of iterations
 
     string program = string(argv[0]);
 
     PCM * m = PCM::getInstance();
+    bool PMM = m->PMMTrafficMetricsAvailable();
+    bool PMMMixedMode = false;
 
     if (argc > 1) do
     {
@@ -927,7 +928,9 @@ int main(int argc, char * argv[])
         }
 
         if (strncmp(*argv, "-pmm", 4) == 0 ||
-            strncmp(*argv, "/pmm", 4) == 0)
+            strncmp(*argv, "/pmm", 4) == 0 ||
+            strncmp(*argv, "-pmem", 5) == 0 ||
+            strncmp(*argv, "/pmem", 5) == 0 )
         {
             PMM = true;
             continue;
@@ -944,6 +947,14 @@ int main(int argc, char * argv[])
             strncmp(*argv, "/mixed", 6) == 0)
         {
             PMMMixedMode = true;
+            continue;
+        }
+
+        if (strncmp(*argv, "-partial", 8) == 0 ||
+            strncmp(*argv, "/partial", 8) == 0)
+        {
+            PMM = false;
+            PMMMixedMode =false;
             continue;
         }
 #ifdef _MSC_VER
@@ -1108,7 +1119,10 @@ int main(int argc, char * argv[])
         }
 #endif
 
-        MySleepMs(calibrated_delay_ms);
+        if (sysCmd == NULL || numberOfIterations != 0 || m->isBlocked() == false)
+        {
+            MySleepMs(calibrated_delay_ms);
+        }
 
 #ifndef _MSC_VER
         calibrated = (calibrated + 1) % PCM_CALIBRATION_INTERVAL;

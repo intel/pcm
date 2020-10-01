@@ -117,10 +117,12 @@ public:
         offset(offset_)
     {
     }
-    void operator = (uint64 /*val*/) override
+    void operator = (uint64 val) override
     {
-        std::cerr << "PCICFGRegister64 write operation is not supported\n";
-        throw std::exception();
+        cvt_ds cvt;
+        cvt.ui64 = val;
+        handle->write32(offset, cvt.ui32.low);
+        handle->write32(offset + sizeof(uint32), cvt.ui32.high);
     }
     operator uint64 ()  override
     {
@@ -328,7 +330,7 @@ class ServerPCICFGUncore
     PciHandleType * createIntelPerfMonDevice(uint32 groupnr, int32 bus, uint32 dev, uint32 func, bool checkVendor = false);
     void programIMC(const uint32 * MCCntConfig);
     void programEDC(const uint32 * EDCCntConfig);
-    void programM2M(const uint32 * M2MCntConfig);
+    void programM2M(const uint64 * M2MCntConfig);
     void programM2M();
     void programHA(const uint32 * config);
     void programHA();
@@ -1066,7 +1068,11 @@ public:
     // or for cha/cbo {raw event, filter value}, etc
     // + user-supplied name
     typedef std::pair<std::array<uint64, 3>, std::string> RawEventConfig;
-    typedef std::vector<RawEventConfig> RawPMUConfig;
+    struct RawPMUConfig
+    {
+        std::vector<RawEventConfig> programmable;
+        std::vector<RawEventConfig> fixed;
+    };
     typedef std::map<std::string, RawPMUConfig> RawPMUConfigs;
     ErrorCode program(const RawPMUConfigs& allPMUConfigs);
 
@@ -2339,6 +2345,16 @@ uint64 getDRAMConsumedEnergy(const CounterStateType & before, const CounterState
     return after.DRAMEnergyStatus - before.DRAMEnergyStatus;
 }
 
+/*!  \brief Returns uncore clock ticks
+    \param before CPU counter state before the experiment
+    \param after CPU counter state after the experiment
+*/
+template <class CounterStateType>
+uint64 getUncoreClocks(const CounterStateType& before, const CounterStateType& after)
+{
+    return after.UncClocks - before.UncClocks;
+}
+
 /*!  \brief Returns Joules consumed by processor (excluding DRAM)
     \param before CPU counter state before the experiment
     \param after CPU counter state after the experiment
@@ -2409,6 +2425,8 @@ class UncoreCounterState
     friend uint64 getConsumedEnergy(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
     friend uint64 getDRAMConsumedEnergy(const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
+    friend uint64 getUncoreClocks(const CounterStateType& before, const CounterStateType& after);
     template <class CounterStateType>
     friend double getPackageCStateResidency(int state, const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>

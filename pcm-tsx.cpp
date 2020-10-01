@@ -54,24 +54,24 @@ struct TSXEvent
     const char * description;
 };
 
-TSXEvent eventDefinition[] = {
+vector<TSXEvent> eventDefinition = {
     { "RTM_RETIRED.START", 0xC9, 0x01, "Number of times an RTM execution started." },
     { "RTM_RETIRED.COMMIT", 0xC9, 0x02, "Number of times an RTM execution successfully committed" },
     { "RTM_RETIRED.ABORTED", 0xC9, 0x04, "Number of times an RTM execution aborted due to any reasons (multiple categories may count as one)" },
-    { "RTM_RETIRED.ABORTED_MISC1", 0xC9, 0x08, "Number of times an RTM execution aborted due to various memory events" },
-    { "RTM_RETIRED.ABORTED_MISC2", 0xC9, 0x10, "Number of times an RTM execution aborted due to uncommon conditions" },
-    { "RTM_RETIRED.ABORTED_MISC3", 0xC9, 0x20, "Number of times an RTM execution aborted due to Intel TSX-unfriendly instructions" },
-    { "RTM_RETIRED.ABORTED_MISC4", 0xC9, 0x40, "Number of times an RTM execution aborted due to incompatible memory type" },
-    { "RTM_RETIRED.ABORTED_MISC5", 0xC9, 0x80, "Number of times an RTM execution aborted due to none of the previous 4 categories (e.g. interrupt)" },
+    { "RTM_RETIRED.ABORTED_MEM", 0xC9, 0x08, "Number of times an RTM execution aborted due to various memory events" },
+    { "RTM_RETIRED.ABORTED_TIMER", 0xC9, 0x10, "Number of times an RTM execution aborted due to uncommon conditions" },
+    { "RTM_RETIRED.ABORTED_UNFRIENDLY", 0xC9, 0x20, "Number of times an RTM execution aborted due to Intel TSX-unfriendly instructions" },
+    { "RTM_RETIRED.ABORTED_MEMTYPE", 0xC9, 0x40, "Number of times an RTM execution aborted due to incompatible memory type" },
+    { "RTM_RETIRED.ABORTED_EVENTS", 0xC9, 0x80, "Number of times an RTM execution aborted due to none of the previous 4 categories (e.g. interrupt)" },
 
     { "HLE_RETIRED.START", 0xC8, 0x01, "Number of times an HLE execution started." },
     { "HLE_RETIRED.COMMIT", 0xC8, 0x02, "Number of times an HLE execution successfully committed" },
     { "HLE_RETIRED.ABORTED", 0xC8, 0x04, "Number of times an HLE execution aborted due to any reasons (multiple categories may count as one)" },
-    { "HLE_RETIRED.ABORTED_MISC1", 0xC8, 0x08, "Number of times an HLE execution aborted due to various memory events" },
-    { "HLE_RETIRED.ABORTED_MISC2", 0xC8, 0x10, "Number of times an HLE execution aborted due to uncommon conditions" },
-    { "HLE_RETIRED.ABORTED_MISC3", 0xC8, 0x20, "Number of times an HLE execution aborted due to Intel TSX-unfriendly instructions" },
-    { "HLE_RETIRED.ABORTED_MISC4", 0xC8, 0x40, "Number of times an HLE execution aborted due to incompatible memory type" },
-    { "HLE_RETIRED.ABORTED_MISC5", 0xC8, 0x80, "Number of times an HLE execution aborted due to none of the previous 4 categories (e.g. interrupt)" },
+    { "HLE_RETIRED.ABORTED_MEM", 0xC8, 0x08, "Number of times an HLE execution aborted due to various memory events" },
+    { "HLE_RETIRED.ABORTED_TIMER", 0xC8, 0x10, "Number of times an HLE execution aborted due to uncommon conditions" },
+    { "HLE_RETIRED.ABORTED_UNFRIENDLY", 0xC8, 0x20, "Number of times an HLE execution aborted due to Intel TSX-unfriendly instructions" },
+    { "HLE_RETIRED.ABORTED_MEMTYPE", 0xC8, 0x40, "Number of times an HLE execution aborted due to incompatible memory type" },
+    { "HLE_RETIRED.ABORTED_EVENTS", 0xC8, 0x80, "Number of times an HLE execution aborted due to none of the previous 4 categories (e.g. interrupt)" },
 
     { "TX_MEM.ABORT_CONFLICT", 0x54, 0x01, "Number of times a transactional abort was signaled due to a data conflict on a transactionally accessed address" },
     { "TX_MEM.ABORT_CAPACITY_WRITE", 0x54, 0x02, "Number of times a transactional abort was signaled due to limited resources for transactional stores" },
@@ -84,7 +84,74 @@ TSXEvent eventDefinition[] = {
     { "TX_EXEC.MISC1", 0x5D, 0x01, "Counts the number of times a class of instructions that may cause a transactional abort was executed. Since this is the count of execution, it may not always cause a transactional abort." },
     { "TX_EXEC.MISC2", 0x5D, 0x02, "Counts the number of times a class of instructions that may cause a transactional abort was executed inside a transactional region" },
     { "TX_EXEC.MISC3", 0x5D, 0x04, "Counts the number of times an instruction execution caused the nest count supported to be exceeded" },
-    { "TX_EXEC.MISC4", 0x5D, 0x08, "Counts the number of times an HLE XACQUIRE instruction was executed inside an RTM transactional region" }
+    { "TX_EXEC.MISC4", 0x5D, 0x08, "Counts the number of times a XBEGIN instruction was executed inside an HLE transactional region" },
+    { "TX_EXEC.MISC5", 0x5D, 0x10, "Counts the number of times an HLE XACQUIRE instruction was executed inside an RTM transactional region" }
+};
+
+const vector<TSXEvent> sklEventDefinition = {
+    { "RTM_RETIRED.START", 0xC9, 0x01, "Number of times an RTM execution started." },
+    { "RTM_RETIRED.COMMIT", 0xC9, 0x02, "Number of times an RTM execution successfully committed" },
+    { "RTM_RETIRED.ABORTED", 0xC9, 0x04, "Number of times an RTM execution aborted due to any reasons (multiple categories may count as one)" },
+    { "RTM_RETIRED.ABORTED_MEM", 0xC9, 0x08, "Number of times an RTM execution aborted due to various memory events" },
+    { "RTM_RETIRED.ABORTED_TIMER", 0xC9, 0x10, "Number of times an RTM execution aborted due to uncommon conditions" },
+    { "RTM_RETIRED.ABORTED_UNFRIENDLY", 0xC9, 0x20, "Number of times an RTM execution aborted due to Intel TSX-unfriendly instructions" },
+    { "RTM_RETIRED.ABORTED_MEMTYPE", 0xC9, 0x40, "Number of times an RTM execution aborted due to incompatible memory type" },
+    { "RTM_RETIRED.ABORTED_EVENTS", 0xC9, 0x80, "Number of times an RTM execution aborted due to none of the previous 4 categories (e.g. interrupt)" },
+
+    { "HLE_RETIRED.START", 0xC8, 0x01, "Number of times an HLE execution started." },
+    { "HLE_RETIRED.COMMIT", 0xC8, 0x02, "Number of times an HLE execution successfully committed" },
+    { "HLE_RETIRED.ABORTED", 0xC8, 0x04, "Number of times an HLE execution aborted due to any reasons (multiple categories may count as one)" },
+    { "HLE_RETIRED.ABORTED_MEM", 0xC8, 0x08, "Number of times an HLE execution aborted due to various memory events" },
+    { "HLE_RETIRED.ABORTED_TIMER", 0xC8, 0x10, "Number of times an HLE execution aborted due to uncommon conditions" },
+    { "HLE_RETIRED.ABORTED_UNFRIENDLY", 0xC8, 0x20, "Number of times an HLE execution aborted due to Intel TSX-unfriendly instructions" },
+    { "HLE_RETIRED.ABORTED_MEMTYPE", 0xC8, 0x40, "Number of times an HLE execution aborted due to incompatible memory type" },
+    { "HLE_RETIRED.ABORTED_EVENTS", 0xC8, 0x80, "Number of times an HLE execution aborted due to none of the previous 4 categories (e.g. interrupt)" },
+
+    { "TX_MEM.ABORT_CONFLICT", 0x54, 0x01, "Number of times a transactional abort was signaled due to a data conflict on a transactionally accessed address" },
+    { "TX_MEM.ABORT_CAPACITY", 0x54, 0x02, "Number of times a transactional abort was signaled due to a data capacity limitation for transactional reads or writes" },
+    { "TX_MEM.ABORT_HLE_STORE_TO_ELIDED_LOCK", 0x54, 0x04, "Number of times a HLE transactional region aborted due to a non XRELEASE prefixed instruction writing to an elided lock in the elision buffer" },
+    { "TX_MEM.ABORT_HLE_ELISION_BUFFER_NOT_EMPTY", 0x54, 0x08, "Number of times an HLE transactional execution aborted due to NoAllocatedElisionBuffer being nonzero." },
+    { "TX_MEM.ABORT_HLE_ELISION_BUFFER_MISMATCH", 0x54, 0x10, "Number of times an HLE transactional execution aborted due to XRELEASE lock not satisfying the address and value requirements in the elision buffer." },
+    { "TX_MEM.ABORT_HLE_ELISION_BUFFER_UNSUPPORTED_ALIGNMENT", 0x54, 0x20, "Number of times an HLE transactional execution aborted due to an unsupported read alignment from the elision buffer." },
+    { "TX_MEM.HLE_ELISION_BUFFER_FULL", 0x54, 0x40, "Number of times HLE lock could not be elided due to ElisionBufferAvailable being zero." },
+
+    { "TX_EXEC.MISC1", 0x5D, 0x01, "Counts the number of times a class of instructions that may cause a transactional abort was executed. Since this is the count of execution, it may not always cause a transactional abort." },
+    { "TX_EXEC.MISC2", 0x5D, 0x02, "Counts the number of times a class of instructions (e.g., vzeroupper) that may cause a transactional abort was executed inside a transactional region" },
+    { "TX_EXEC.MISC3", 0x5D, 0x04, "Counts the number of times an instruction execution caused the nest count supported to be exceeded" },
+    { "TX_EXEC.MISC4", 0x5D, 0x08, "Counts the number of times a XBEGIN instruction was executed inside an HLE transactional region" },
+    { "TX_EXEC.MISC5", 0x5D, 0x10, "Counts the number of times an HLE XACQUIRE instruction was executed inside an RTM transactional region" }
+};
+
+const vector<TSXEvent> iclEventDefinition = {
+    { "RTM_RETIRED.START", 0xC9, 0x01, "Number of times an RTM execution started." },
+    { "RTM_RETIRED.COMMIT", 0xC9, 0x02, "Number of times an RTM execution successfully committed" },
+    { "RTM_RETIRED.ABORTED", 0xC9, 0x04, "Number of times an RTM execution aborted due to any reasons (multiple categories may count as one)" },
+    { "RTM_RETIRED.ABORTED_MEM", 0xC9, 0x08, "Number of times an RTM execution aborted due to various memory events" },
+    { "RTM_RETIRED.ABORTED_TIMER", 0xC9, 0x10, "Number of times an RTM execution aborted due to uncommon conditions" },
+    { "RTM_RETIRED.ABORTED_UNFRIENDLY", 0xC9, 0x20, "Number of times an RTM execution aborted due to Intel TSX-unfriendly instructions" },
+    { "RTM_RETIRED.ABORTED_MEMTYPE", 0xC9, 0x40, "Number of times an RTM execution aborted due to incompatible memory type" },
+    { "RTM_RETIRED.ABORTED_EVENTS", 0xC9, 0x80, "Number of times an RTM execution aborted due to none of the previous 4 categories (e.g. interrupt)" },
+
+    { "HLE_RETIRED.START", 0xC8, 0x01, "Number of times an HLE execution started." },
+    { "HLE_RETIRED.COMMIT", 0xC8, 0x02, "Number of times an HLE execution successfully committed" },
+    { "HLE_RETIRED.ABORTED", 0xC8, 0x04, "Number of times an HLE execution aborted due to any reasons (multiple categories may count as one)" },
+    { "HLE_RETIRED.ABORTED_MEM", 0xC8, 0x08, "Number of times an HLE execution aborted due to various memory events" },
+    { "HLE_RETIRED.ABORTED_TIMER", 0xC8, 0x10, "Number of times an HLE execution aborted due to uncommon conditions" },
+    { "HLE_RETIRED.ABORTED_UNFRIENDLY", 0xC8, 0x20, "Number of times an HLE execution aborted due to Intel TSX-unfriendly instructions" },
+    { "HLE_RETIRED.ABORTED_MEMTYPE", 0xC8, 0x40, "Number of times an HLE execution aborted due to incompatible memory type" },
+    { "HLE_RETIRED.ABORTED_EVENTS", 0xC8, 0x80, "Number of times an HLE execution aborted due to none of the previous 4 categories (e.g. interrupt)" },
+
+    { "TX_MEM.ABORT_CONFLICT", 0x54, 0x01, "Number of times a transactional abort was signaled due to a data conflict on a transactionally accessed address" },
+    { "TX_MEM.ABORT_CAPACITY_WRITE", 0x54, 0x02, "Speculatively counts the number of TSX aborts due to a data capacity limitation for transactional writes" },
+    { "TX_MEM.ABORT_CAPACITY_READ", 0x54, 0x80, "Speculatively counts the number of TSX aborts due to a data capacity limitation for transactional reads" },
+    { "TX_MEM.ABORT_HLE_STORE_TO_ELIDED_LOCK", 0x54, 0x04, "Number of times a HLE transactional region aborted due to a non XRELEASE prefixed instruction writing to an elided lock in the elision buffer" },
+    { "TX_MEM.ABORT_HLE_ELISION_BUFFER_NOT_EMPTY", 0x54, 0x08, "Number of times an HLE transactional execution aborted due to NoAllocatedElisionBuffer being nonzero." },
+    { "TX_MEM.ABORT_HLE_ELISION_BUFFER_MISMATCH", 0x54, 0x10, "Number of times an HLE transactional execution aborted due to XRELEASE lock not satisfying the address and value requirements in the elision buffer." },
+    { "TX_MEM.ABORT_HLE_ELISION_BUFFER_UNSUPPORTED_ALIGNMENT", 0x54, 0x20, "Number of times an HLE transactional execution aborted due to an unsupported read alignment from the elision buffer." },
+    { "TX_MEM.HLE_ELISION_BUFFER_FULL", 0x54, 0x40, "Number of times HLE lock could not be elided due to ElisionBufferAvailable being zero." },
+
+    { "TX_EXEC.MISC2", 0x5D, 0x02, "Counts the number of times a class of instructions (e.g., vzeroupper) that may cause a transactional abort was executed inside a transactional region" },
+    { "TX_EXEC.MISC3", 0x5D, 0x04, "Counts the number of times an instruction execution caused the nest count supported to be exceeded" }
 };
 
 void print_usage(const string progname)
@@ -101,9 +168,9 @@ void print_usage(const string progname)
          << "                                        to a file, in case filename is provided\n";
     cerr << "  [-e event1] [-e event2] [-e event3]=> optional list of custom TSX events to monitor (up to 4)."
          << "  The list of supported events:\n";
-    for (uint32 i = 0; i < sizeof(eventDefinition) / sizeof(TSXEvent); ++i)
+    for (auto & e: eventDefinition)
     {
-        cerr << eventDefinition[i].name << "\t" << eventDefinition[i].description << "\n";
+        cerr << e.name << "\t" << e.description << "\n";
     }
     cerr << "\n";
     cerr << " Examples:\n";
@@ -171,10 +238,12 @@ void print_basic_stats(const StateType & BeforeState, const StateType & AfterSta
         cout << " N/A\n";
 }
 
+std::vector<int> events;
+
 template <class StateType>
 void print_custom_stats(const StateType & BeforeState, const StateType & AfterState, bool csv)
 {
-    for (int i = 0; i < 4; ++i)
+    for (int i = 0; i < events.size(); ++i)
         if (!csv)
             cout << unit_format(getNumberOfCustomEvents(i, BeforeState, AfterState)) << "    ";
         else
@@ -186,11 +255,10 @@ void print_custom_stats(const StateType & BeforeState, const StateType & AfterSt
 
 int findEvent(const char * name)
 {
-    const int all = sizeof(eventDefinition) / sizeof(TSXEvent);
-    for (int i = 0; i < all; ++i)
+    for (size_t i = 0; i < eventDefinition.size(); ++i)
     {
         if (strcmp(name, eventDefinition[i].name) == 0)
-            return i;
+            return (int)i;
     }
     return -1;
 }
@@ -212,7 +280,6 @@ int main(int argc, char * argv[])
     double delay = -1.0;
     char * sysCmd = NULL;
     char ** sysArgv = NULL;
-    std::vector<int> events;
     int cur_event;
     bool csv = false;
     long diff_usec = 0;                            // deviation of clock is useconds between measurements
@@ -221,6 +288,18 @@ int main(int argc, char * argv[])
     string program = string(argv[0]);
 
     PCM * m = PCM::getInstance();
+    const auto numCtrSupported = m->getMaxCustomCoreEvents();
+    switch (m->getCPUModel())
+    {
+    case PCM::SKL:
+    case PCM::SKX:
+    case PCM::KBL:
+        eventDefinition = sklEventDefinition;
+        break;
+    case PCM::ICL:
+        eventDefinition = iclEventDefinition;
+        break;
+    }
 
     if (argc > 1) do
         {
@@ -251,8 +330,8 @@ int main(int argc, char * argv[])
             {
                 argv++;
                 argc--;
-                if (events.size() >= 4) {
-                    cerr << "At most 4 events are allowed\n";
+                if (events.size() >= numCtrSupported) {
+                    cerr << "At most " << numCtrSupported << " events are allowed\n";
                     exit(EXIT_FAILURE);
                 }
                 cur_event = findEvent(*argv);
@@ -308,9 +387,9 @@ int main(int argc, char * argv[])
 
     PCM::ExtendedCustomCoreEventDescription conf;
     conf.fixedCfg = NULL; // default
-    EventSelectRegister regs[4];
+    EventSelectRegister regs[PERF_MAX_CUSTOM_COUNTERS];
     conf.gpCounterCfg = regs;
-    for (int i = 0; i < 4; ++i)
+    for (int i = 0; i < PERF_MAX_CUSTOM_COUNTERS; ++i)
         regs[i] = def_event_select_reg;
 
     if (events.empty())
@@ -336,7 +415,14 @@ int main(int argc, char * argv[])
         conf.nGPCounters = (uint32) events.size();
         for (unsigned int i = 0; i < events.size(); ++i)
         {
-            regs[i].fields.event_select = eventDefinition[events[i]].event;
+            const auto event = eventDefinition[events[i]].event;
+            if (event == 0x54 && i >= 4)
+            {
+                cerr << "Error: a TX_MEM.* event found in position " << i <<
+                    " which is not supported. Reorder the events in the command line such that TX_MEM events are at positions 0..3.\n";
+                return -1;
+            }
+            regs[i].fields.event_select = event;
             regs[i].fields.umask = eventDefinition[events[i]].umask;
         }
     }
@@ -432,7 +518,10 @@ int main(int argc, char * argv[])
         }
 #endif
 
-        MySleepMs(calibrated_delay_ms);
+        if (sysCmd == NULL || m->isBlocked() == false)
+        {
+            MySleepMs(calibrated_delay_ms);
+        }
 
 #ifndef _MSC_VER
         calibrated = (calibrated + 1) % PCM_CALIBRATION_INTERVAL;
@@ -474,9 +563,23 @@ int main(int argc, char * argv[])
             }
             cout << "\n";
             if (csv)
-                cout << "Core,Event0,Event1,Event2,Event3\n";
+            {
+                cout << "Core";
+                for (unsigned i = 0; i < events.size(); ++i)
+                {
+                    cout << ",Event" << i;
+                }
+                cout << "\n";
+            }
             else
-                cout << "Core | Event0  | Event1  | Event2  | Event3 \n";
+            {
+                cout << "Core ";
+                for (unsigned i = 0; i < events.size(); ++i)
+                {
+                    cout << "| Event" << i << "  ";
+                }
+                cout << "\n";
+            }
         }
         for (uint32 i = 0; i < ncores; ++i)
         {

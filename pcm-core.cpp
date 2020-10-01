@@ -147,8 +147,9 @@ void print_usage(const string progname)
 	template <class StateType>
 void print_custom_stats(const StateType & BeforeState, const StateType & AfterState ,bool csv, uint64 txn_rate)
 {
-	uint64 cycles = getCycles(BeforeState, AfterState);
-	uint64 instr = getInstructionsRetired(BeforeState, AfterState);
+    const uint64 cycles = getCycles(BeforeState, AfterState);
+    const uint64 refCycles = getRefCycles(BeforeState, AfterState);
+    const uint64 instr = getInstructionsRetired(BeforeState, AfterState);
 	if(!csv)
 	{
 		cout << double(instr)/double(cycles);
@@ -156,9 +157,11 @@ void print_custom_stats(const StateType & BeforeState, const StateType & AfterSt
 		{
 			cout << setw(14) << unit_format(instr);
 			cout << setw(11) << unit_format(cycles);
+			cout << setw(12) << unit_format(refCycles);
 		} else {
 			cout << setw(14) << double(instr)/double(txn_rate);
 			cout << setw(11) << double(cycles)/double(txn_rate);
+			cout << setw(12) << double(refCycles) / double(txn_rate);
 		}
 	}
 	else
@@ -166,6 +169,7 @@ void print_custom_stats(const StateType & BeforeState, const StateType & AfterSt
 		cout << double(instr)/double(cycles) << ",";
 		cout << double(instr)/double(txn_rate) << ",";
 		cout << double(cycles)/double(txn_rate) << ",";
+		cout << double(refCycles) / double(txn_rate) << ",";
 	}
     const auto max_ctr = PCM::getInstance()->getMaxCustomCoreEvents();
     for (int i = 0; i < max_ctr; ++i)
@@ -532,8 +536,10 @@ int main(int argc, char * argv[])
 			calibrated_delay_ms = delay_ms - diff_usec/1000.0;
 		}
 #endif
-
-		MySleepMs(calibrated_delay_ms);
+		if (sysCmd == NULL || numberOfIterations != 0 || m->isBlocked() == false)
+		{
+			MySleepMs(calibrated_delay_ms);
+		}
 
 #ifndef _MSC_VER
 		calibrated = (calibrated + 1) % PCM_CALIBRATION_INTERVAL;
@@ -561,7 +567,7 @@ int main(int argc, char * argv[])
 		cout << "\n";
         if (csv)
         {
-            cout << "Core,IPC,Instructions,Cycles";
+            cout << "Core,IPC,Instructions,Cycles,RefCycles";
             for (unsigned i = 0; i < conf.nGPCounters; ++i)
             {
                 cout << ",Event" << i;
@@ -570,7 +576,7 @@ int main(int argc, char * argv[])
         }
         else
         {
-            cout << "Core | IPC | Instructions  |  Cycles  ";
+            cout << "Core | IPC | Instructions  |  Cycles  | RefCycles ";
             for (unsigned i = 0; i < conf.nGPCounters; ++i)
             {
                 cout << "| Event" << i << "  ";
@@ -592,7 +598,7 @@ int main(int argc, char * argv[])
 			cout << "*,";
 		else
 		{
-			cout << "-------------------------------------------------------------------------------------------------------------------\n";
+			cout << "---------------------------------------------------------------------------------------------------------------------------------\n";
 			cout << "   *   ";
 		}
 		print_custom_stats(SysBeforeState, SysAfterState, csv, txn_rate);

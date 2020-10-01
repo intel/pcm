@@ -365,6 +365,7 @@ struct FixedEventControlRegister
         } fields;
         uint64 value;
     };
+    FixedEventControlRegister() : value(0) {}
 };
 
 inline std::ostream & operator << (std::ostream & o, const FixedEventControlRegister & reg)
@@ -727,6 +728,8 @@ constexpr auto M3UPI_PCI_PMON_CTR2_ADDR = (0xB0);
 
 constexpr auto MSR_UNCORE_PMON_GLOBAL_CTL = 0x700;
 
+constexpr auto IVT_MSR_UNCORE_PMON_GLOBAL_CTL = 0x0C00;
+
 #define PCM_INVALID_DEV_ADDR (~(uint32)0UL)
 #define PCM_INVALID_FUNC_ADDR (~(uint32)0UL)
 
@@ -762,6 +765,13 @@ constexpr auto MSR_UNCORE_PMON_GLOBAL_CTL = 0x700;
 #define UBOX_MSR_PMON_CTL1_ADDR (0x706)
 #define UBOX_MSR_PMON_CTR0_ADDR (0x709)
 #define UBOX_MSR_PMON_CTR1_ADDR (0x70a)
+
+constexpr auto JKTIVT_UCLK_FIXED_CTR_ADDR = (0x0C09);
+constexpr auto JKTIVT_UCLK_FIXED_CTL_ADDR = (0x0C08);
+constexpr auto JKTIVT_UBOX_MSR_PMON_CTL0_ADDR = (0x0C10);
+constexpr auto JKTIVT_UBOX_MSR_PMON_CTL1_ADDR = (0x0C11);
+constexpr auto JKTIVT_UBOX_MSR_PMON_CTR0_ADDR = (0x0C16);
+constexpr auto JKTIVT_UBOX_MSR_PMON_CTR1_ADDR = (0x0C17);
 
 #define JKTIVT_PCU_MSR_PMON_CTR3_ADDR (0x0C39)
 #define JKTIVT_PCU_MSR_PMON_CTR2_ADDR (0x0C38)
@@ -1012,10 +1022,13 @@ struct IIOPMUCNTCTLRegister
 
 #define MSR_TSX_FORCE_ABORT (0x10f)
 
-#ifdef _MSC_VER
 // data structure for converting two uint32s <-> uin64
 union cvt_ds
 {
+#ifndef _MSC_VER
+    typedef uint64 UINT64;
+    typedef uint32 DWORD;
+#endif
     UINT64 ui64;
     struct
     {
@@ -1023,8 +1036,6 @@ union cvt_ds
         DWORD high;
     } ui32;
 };
-
-#endif
 
 struct MCFGRecord
 {

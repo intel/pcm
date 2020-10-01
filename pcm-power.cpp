@@ -346,8 +346,10 @@ int main(int argc, char * argv[])
             calibrated_delay_ms = delay_ms - diff_usec / 1000.0;
         }
 #endif
-
-        MySleepMs(calibrated_delay_ms);
+        if (sysCmd == NULL || numberOfIterations != 0 || m->isBlocked() == false)
+        {
+            MySleepMs(calibrated_delay_ms);
+        }
 
 #ifndef _MSC_VER
         calibrated = (calibrated + 1) % PCM_CALIBRATION_INTERVAL;
