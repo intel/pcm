@@ -62,6 +62,7 @@ void print_usage(const string progname)
     cerr << "  event description example: -e core/config=0x30203,name=LD_BLOCKS.STORE_FORWARD/ -e core/fixed,config=0x333/ \n";
     cerr << "                             -e cha/config=0,name=UNC_CHA_CLOCKTICKS/ -e imc/fixed,name=DRAM_CLOCKS/\n";
     cerr << "  -yc   | --yescores  | /yc              => enable specific cores to output\n";
+    cerr << "  -f    | /f                             => enforce flushing each line for interactive output\n";
     print_help_force_rtm_abort_mode(41);
     cerr << " Examples:\n";
     cerr << "  " << progname << " 1                   => print counters every second without core and socket output\n";
@@ -145,6 +146,7 @@ bool addEvent(string eventStr)
 
 bool show_partial_core_output = false;
 bitset<MAX_CORES> ycores;
+bool flushLine = false;
 
 void print(PCM* m, vector<CoreCounterState>& BeforeState, vector<CoreCounterState>& AfterState, vector<ServerUncoreCounterState>& BeforeUncoreState, vector<ServerUncoreCounterState>& AfterUncoreState, const CsvOutputType outputType)
 {
@@ -349,7 +351,14 @@ void print(PCM* m, vector<CoreCounterState>& BeforeState, vector<CoreCounterStat
             std::cerr << "ERROR: unrecognized PMU type \"" << type << "\"\n";
         }
     }
-    cout << "\n";
+    if (flushLine)
+    {
+        cout << endl;
+    }
+    else
+    {
+        cout << "\n";
+    }
 }
 
 void printAll(PCM * m, vector<CoreCounterState>& BeforeState, vector<CoreCounterState>& AfterState, vector<ServerUncoreCounterState>& BeforeUncoreState, vector<ServerUncoreCounterState>& AfterUncoreState)
@@ -423,6 +432,13 @@ int main(int argc, char* argv[])
                     numberOfIterations = (unsigned int)atoi(tmp.c_str());
                 }
             }
+            continue;
+        }
+        else if (
+            strncmp(*argv, "-f", 2) == 0 ||
+            strncmp(*argv, "/f", 2) == 0)
+        {
+            flushLine = true;
             continue;
         }
         else if (strncmp(*argv, "--yescores", 10) == 0 ||
