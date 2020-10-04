@@ -6,3 +6,7 @@
 **Q:** PCM reports "ERROR: QPI LL monitoring device (...) is missing".
 
 **A:** It is likely a BIOS issue. See details [here](https://software.intel.com/content/www/us/en/develop/articles/bios-preventing-access-to-qpi-performance-counters.html)
+
+**Q:** Does PCM work inside a virtual machine.
+
+**A:** PCM does not work inside a virtual machine because it needs access to low-level registers which is typically forbidden inside a virtual machine.
