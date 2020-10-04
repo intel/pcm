@@ -22,3 +22,7 @@
 **Q6:** pcm-memory reports that the CPU is not supported. Can you add support for pcm-memory for my CPU?
 
 **A6:** most likely you have a client CPU which does not have required hardware performance monitoring units. PCM-memory can not work without them.
+
+**Q7:** Can PCM be used for measuring energy, CPU cycles, etc for a particular process or does it measure for the system as a whole?
+
+**A7:** PCM supports measurement for the whole system, per processor, per physical or per logical core. If you need monitoring per-process or user per-thread you can pin your process and/or thread to certain cores and read PCM data for these cores. But keep in mind that the OS can also schedule other processes or threads on this core and this may disturb your measurements. For a precise per-process or per-thread measurement the Intel VTune profiler or Linux perf profiler should be used.
