@@ -10,3 +10,7 @@
 **Q:** Does PCM work inside a virtual machine.
 
 **A:** PCM does not work inside a virtual machine because it needs access to low-level registers which is typically forbidden inside a virtual machine.
+
+**Q:** Does PCM work inside a docker container.
+
+**A:** yes, it does. An example of how to run PCM inside a docker container is located [here](https://github.com/opcm/pcm/blob/master/DOCKER_README.md). The recipe works also for other PCM utilities besides pcm-sensor-server.
