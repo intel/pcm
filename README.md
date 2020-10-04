@@ -63,6 +63,12 @@ Downloading Pre-Compiled PCM Tools
 - Docker: see [instructions on how to use pcm-sensor-server pre-compiled container from docker hub](https://github.com/opcm/pcm/blob/master/DOCKER_README.md).
 
 --------------------------------------------------------------------------------
+Frequently Asked Questions (FAQ)
+--------------------------------------------------------------------------------
+
+PCM's frequently asked questions (FAQ) are located [here](https://github.com/opcm/pcm/blob/master/FAQ.md).
+
+--------------------------------------------------------------------------------
 PCM API documentation
 --------------------------------------------------------------------------------
 
