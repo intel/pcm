@@ -14,3 +14,7 @@
 **Q4:** Does PCM work inside a docker container?
 
 **A4:** yes, it does. An example of how to run PCM inside a docker container is located [here](https://github.com/opcm/pcm/blob/master/DOCKER_README.md). The recipe works also for other PCM utilities besides pcm-sensor-server.
+
+**Q5:** pcm-power reports "Unsupported processor model". Can PCM add support of it?
+
+**A5:** most likely you have a client CPU which does not have required hardware performance monitoring units. PCM-power can not work without them.
