@@ -1,16 +1,16 @@
 
-**Q:** pcm-iio Tool outputs "Server CPU is required for this tool! Program aborted". Is there a way I can monitor my PCIe link bandwidth using one of the PCM utilities?
+**Q1:** pcm-iio Tool outputs "Server CPU is required for this tool! Program aborted". Is there a way I can monitor my PCIe link bandwidth using one of the PCM utilities on client CPU?
 
-**A:** The "IO" metric in pcm.x is the closest capability to monitor I/O PCIe traffic on client CPUs.
+**A1:** The "IO" metric in pcm.x is the closest capability to monitor I/O PCIe traffic on client CPUs.
 
-**Q:** PCM reports "ERROR: QPI LL monitoring device (...) is missing".
+**Q2:** PCM reports "ERROR: QPI LL monitoring device (...) is missing". How to fix it?
 
-**A:** It is likely a BIOS issue. See details [here](https://software.intel.com/content/www/us/en/develop/articles/bios-preventing-access-to-qpi-performance-counters.html)
+**A2:** It is likely a BIOS issue. See details [here](https://software.intel.com/content/www/us/en/develop/articles/bios-preventing-access-to-qpi-performance-counters.html)
 
-**Q:** Does PCM work inside a virtual machine.
+**Q3:** Does PCM work inside a virtual machine?
 
-**A:** PCM does not work inside a virtual machine because it needs access to low-level registers which is typically forbidden inside a virtual machine.
+**A3:** PCM does not work inside a virtual machine because it needs access to low-level registers which is typically forbidden inside a virtual machine.
 
-**Q:** Does PCM work inside a docker container.
+**Q4:** Does PCM work inside a docker container?
 
-**A:** yes, it does. An example of how to run PCM inside a docker container is located [here](https://github.com/opcm/pcm/blob/master/DOCKER_README.md). The recipe works also for other PCM utilities besides pcm-sensor-server.
+**A4:** yes, it does. An example of how to run PCM inside a docker container is located [here](https://github.com/opcm/pcm/blob/master/DOCKER_README.md). The recipe works also for other PCM utilities besides pcm-sensor-server.
