@@ -26,3 +26,16 @@
 **Q7:** Can PCM be used for measuring energy, CPU cycles, etc for a particular process or does it measure for the system as a whole?
 
 **A7:** PCM supports measurement for the whole system, per processor, per physical or per logical core. If you need monitoring per-process or user per-thread you can pin your process and/or thread to certain cores and read PCM data for these cores. But keep in mind that the OS can also schedule other processes or threads on this core and this may disturb your measurements. For a precise per-process or per-thread measurement the Intel VTune profiler or Linux perf profiler should be used.
+
+**Q8** PCM reports
+
+```
+opening /dev/mem failed: errno is 1 (Operation not permitted)
+Can not read memory controller counter information from PCI configuration space. Access to memory bandwidth counters is not possible.
+You must be root to access these SandyBridge/IvyBridge/Haswell counters in PCM. 
+Secure Boot detected. Using Linux perf for uncore PMU programming.
+```
+
+How to fix it?
+
+**A9:** Linux disables access to /dev/mem because Secure Boot is enabled in the BIOS. Disable Secure Boot in the BIOS to enable memory controller statistics (e.g. memory read and write bandwidth).
