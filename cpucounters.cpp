@@ -535,6 +535,7 @@ bool PCM::detectModel()
     cpu_stepping = cpuinfo.array[0] & 0x0f;
 
     if (cpuinfo.reg.ecx & (1UL<<31UL)) {
+        vm = true;
         std::cerr << "Detected a hypervisor/virtualization technology. Some metrics might not be available due to configuration or availability of virtual hardware features.\n";
     }
 

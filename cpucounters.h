@@ -605,6 +605,8 @@ class PCM_API PCM
 
     bool forceRTMAbortMode;
 
+    bool vm = false;
+
 public:
     enum { MAX_C_STATE = 10 }; // max C-state on Intel architecture
 
