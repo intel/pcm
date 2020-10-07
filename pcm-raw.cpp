@@ -84,18 +84,6 @@ bool match(const string& subtoken, const string& sname, uint64* result)
     return false;
 }
 
-vector<string> split(const string & str, const char delim)
-{
-    string token;
-    vector<string> result;
-    istringstream strstr(str);
-    while (getline(strstr, token, delim))
-    {
-        result.push_back(token);
-    }
-    return result;
-}
-
 PCM::RawPMUConfigs allPMUConfigs;
 
 bool addEvent(string eventStr)

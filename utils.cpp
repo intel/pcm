@@ -520,6 +520,18 @@ bool CheckAndForceRTMAbortMode(const char * arg, PCM * m)
     return false;
 }
 
+std::vector<std::string> split(const std::string & str, const char delim)
+{
+    std::string token;
+    std::vector<std::string> result;
+    std::istringstream strstr(str);
+    while (std::getline(strstr, token, delim))
+    {
+        result.push_back(token);
+    }
+    return result;
+}
+
 uint64 read_number(char* str)
 {
     std::istringstream stream(str);

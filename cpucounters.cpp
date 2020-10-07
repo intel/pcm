@@ -549,6 +549,35 @@ bool PCM::detectModel()
 
     pcm_cpuid(7, 0, cpuinfo);
 
+#ifdef __linux__
+    auto checkLinuxCpuinfoFlag = [](const std::string & flag) -> bool
+    {
+        std::ifstream linuxCpuinfo("/proc/cpuinfo");
+        if (linuxCpuinfo.is_open())
+        {
+            std::string line;
+            while (std::getline(linuxCpuinfo, line))
+            {
+                auto tokens = split(line, ':');
+                if (tokens.size() >= 2 && tokens[0].find("flags") == 0)
+                {
+                    for (auto curFlag: split(tokens[1], ' '))
+                    {
+                        if (flag == curFlag)
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+            linuxCpuinfo.close();
+        }
+        return false;
+    };
+    linux_arch_perfmon = checkLinuxCpuinfoFlag("arch_perfmon");
+    std::cerr << "Linux arch_perfmon flag  : " << (linux_arch_perfmon ? "yes" : "no") << "\n";
+#endif
+
     std::cerr << "IBRS and IBPB supported  : " << ((cpuinfo.reg.edx & (1 << 26)) ? "yes" : "no") << "\n";
     std::cerr << "STIBP supported          : " << ((cpuinfo.reg.edx & (1 << 27)) ? "yes" : "no") << "\n";
     std::cerr << "Spec arch caps supported : " << ((cpuinfo.reg.edx & (1 << 29)) ? "yes" : "no") << "\n";
