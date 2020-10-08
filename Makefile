@@ -140,5 +140,7 @@ endif
 
 clean:
 	rm -rf *.x *.o *~ *.d *.a *.so
+ifeq ($(UNAME), Linux)
 	make -C daemon/daemon/Debug clean
 	make -C daemon/client/Debug clean
+endif
