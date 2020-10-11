@@ -513,7 +513,7 @@ bool PCM::detectModel()
     char buffer[1024];
     union {
         char cbuf[16];
-        int  ibuf[16/sizeof(int)];
+        int  ibuf[16 / sizeof(int)];
     } buf;
     PCM_CPUID_INFO cpuinfo;
     pcm_cpuid(0, cpuinfo);
@@ -531,10 +531,10 @@ bool PCM::detectModel()
 
     pcm_cpuid(1, cpuinfo);
     cpu_family = (((cpuinfo.array[0]) >> 8) & 0xf) | ((cpuinfo.array[0] & 0xf00000) >> 16);
-    cpu_model =  (((cpuinfo.array[0]) & 0xf0) >> 4) | ((cpuinfo.array[0] & 0xf0000) >> 12);
+    cpu_model = (((cpuinfo.array[0]) & 0xf0) >> 4) | ((cpuinfo.array[0] & 0xf0000) >> 12);
     cpu_stepping = cpuinfo.array[0] & 0x0f;
 
-    if (cpuinfo.reg.ecx & (1UL<<31UL)) {
+    if (cpuinfo.reg.ecx & (1UL << 31UL)) {
         vm = true;
         std::cerr << "Detected a hypervisor/virtualization technology. Some metrics might not be available due to configuration or availability of virtual hardware features.\n";
     }
@@ -550,7 +550,7 @@ bool PCM::detectModel()
     pcm_cpuid(7, 0, cpuinfo);
 
 #ifdef __linux__
-    auto checkLinuxCpuinfoFlag = [](const std::string & flag) -> bool
+    auto checkLinuxCpuinfoFlag = [](const std::string& flag) -> bool
     {
         std::ifstream linuxCpuinfo("/proc/cpuinfo");
         if (linuxCpuinfo.is_open())
@@ -561,7 +561,7 @@ bool PCM::detectModel()
                 auto tokens = split(line, ':');
                 if (tokens.size() >= 2 && tokens[0].find("flags") == 0)
                 {
-                    for (auto curFlag: split(tokens[1], ' '))
+                    for (auto curFlag : split(tokens[1], ' '))
                     {
                         if (flag == curFlag)
                         {
@@ -576,6 +576,21 @@ bool PCM::detectModel()
     };
     linux_arch_perfmon = checkLinuxCpuinfoFlag("arch_perfmon");
     std::cerr << "Linux arch_perfmon flag  : " << (linux_arch_perfmon ? "yes" : "no") << "\n";
+    if (vm == true && linux_arch_perfmon == false)
+    {
+        std::cerr << "ERROR: vPMU is not enabled in the hypervisor. Please see details in https://software.intel.com/content/www/us/en/develop/documentation/vtune-help/top/set-up-analysis-target/on-virtual-machine.html \n";
+        std::cerr << "       you can force-continue by setting PCM_IGNORE_ARCH_PERFMON=1 environment variable.\n";
+        auto env = std::getenv("PCM_IGNORE_ARCH_PERFMON");
+        auto ignore_arch_perfmon = false;
+        if (env != nullptr && std::string(env) == std::string("1"))
+        {
+            ignore_arch_perfmon = true;
+        }
+        if (!ignore_arch_perfmon)
+        {
+            return false;
+        }
+    }
 #endif
 
     std::cerr << "IBRS and IBPB supported  : " << ((cpuinfo.reg.edx & (1 << 26)) ? "yes" : "no") << "\n";
