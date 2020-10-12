@@ -14,6 +14,8 @@ sed "s#PCMSENSORSERVER#$1#g" telegraf.conf.template > telegraf.conf
 mkdir -p grafana_volume/dashboards
 mkdir -p influxdb_volume
 
+chmod -R 777 *_volume
+
 mkdir -p provisioning/datasources
 cp automatic_influxdb.yml provisioning/datasources/automatic.yml
 
