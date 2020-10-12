@@ -495,7 +495,7 @@ std::string influxDBUncore_Uncore_Counters(const std::string& S, const std::stri
     return influxDB_Counters(S, m, "Uncore_Uncore Counters");
 }
 
-constexpr const char* interval = "[3s]";
+constexpr const char* interval = "[4s]";
 
 std::string prometheusCounters(const std::string& S, const std::string& m, const bool aggregate = true)
 {
