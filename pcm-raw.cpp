@@ -202,7 +202,7 @@ void print(PCM* m, vector<CoreCounterState>& BeforeState, vector<CoreCounterStat
                     for (auto event : events)
                     {
                         choose(outputType,
-                            [m, s, l]() { cout << "SKT" << s << "LINK" << l << ","; },
+                            [s, l]() { cout << "SKT" << s << "LINK" << l << ","; },
                             [&event, &i]() { if (event.second.empty()) cout << "M3UPIEvent" << i << ",";  else cout << event.second << ","; },
                             [&]() { cout << getM3UPICounter(l, i, BeforeUncoreState[s], AfterUncoreState[s]) << ","; });
                         ++i;
@@ -220,7 +220,7 @@ void print(PCM* m, vector<CoreCounterState>& BeforeState, vector<CoreCounterStat
                     for (auto event : events)
                     {
                         choose(outputType,
-                            [m, s, l]() { cout << "SKT" << s << "LINK" << l << ","; },
+                            [s, l]() { cout << "SKT" << s << "LINK" << l << ","; },
                             [&event, &i]() { if (event.second.empty()) cout << "XPIEvent" << i << ",";  else cout << event.second << ","; },
                             [&]() { cout << getXPICounter(l, i, BeforeUncoreState[s], AfterUncoreState[s]) << ","; });
                         ++i;
@@ -237,7 +237,7 @@ void print(PCM* m, vector<CoreCounterState>& BeforeState, vector<CoreCounterStat
                     if (fixedEvents.size())
                     {
                         choose(outputType,
-                            [m, s, ch]() { cout << "SKT" << s << "CHAN" << ch << ","; },
+                            [s, ch]() { cout << "SKT" << s << "CHAN" << ch << ","; },
                             [&fixedEvents]() { cout << "DRAMClocks" << fixedEvents[0].second << ","; },
                             [&]() { cout << getDRAMClocks(ch, BeforeUncoreState[s], AfterUncoreState[s]) << ","; });
                     }
@@ -245,7 +245,7 @@ void print(PCM* m, vector<CoreCounterState>& BeforeState, vector<CoreCounterStat
                     for (auto event : events)
                     {
                         choose(outputType,
-                            [m, s, ch]() { cout << "SKT" << s << "CHAN" << ch << ","; },
+                            [s, ch]() { cout << "SKT" << s << "CHAN" << ch << ","; },
                             [&event, &i]() { if (event.second.empty()) cout << "IMCEvent" << i << ",";  else cout << event.second << ","; },
                             [&]() { cout << getMCCounter(ch, i, BeforeUncoreState[s], AfterUncoreState[s]) << ","; });
                         ++i;
@@ -263,7 +263,7 @@ void print(PCM* m, vector<CoreCounterState>& BeforeState, vector<CoreCounterStat
                     for (auto event : events)
                     {
                         choose(outputType,
-                            [m, s, mc]() { cout << "SKT" << s << "MC" << mc << ","; },
+                            [s, mc]() { cout << "SKT" << s << "MC" << mc << ","; },
                             [&event, &i]() { if (event.second.empty()) cout << "M2MEvent" << i << ",";  else cout << event.second << ","; },
                             [&]() { cout << getM2MCounter(mc, i, BeforeUncoreState[s], AfterUncoreState[s]) << ","; });
                         ++i;
@@ -279,7 +279,7 @@ void print(PCM* m, vector<CoreCounterState>& BeforeState, vector<CoreCounterStat
                 for (auto event : events)
                 {
                     choose(outputType,
-                        [m, s]() { cout << "SKT" << s << ","; },
+                        [s]() { cout << "SKT" << s << ","; },
                         [&event, &i]() { if (event.second.empty()) cout << "PCUEvent" << i << ",";  else cout << event.second << ","; },
                         [&]() { cout << getPCUCounter(i, BeforeUncoreState[s], AfterUncoreState[s]) << ","; });
                     ++i;
@@ -293,7 +293,7 @@ void print(PCM* m, vector<CoreCounterState>& BeforeState, vector<CoreCounterStat
                 if (fixedEvents.size())
                 {
                     choose(outputType,
-                        [m, s]() { cout << "SKT" << s << ","; },
+                        [s]() { cout << "SKT" << s << ","; },
                         [&fixedEvents]() { cout << "UncoreClocks" << fixedEvents[0].second << ","; },
                         [&]() { cout << getUncoreClocks(BeforeUncoreState[s], AfterUncoreState[s]) << ","; });
                 }
@@ -301,7 +301,7 @@ void print(PCM* m, vector<CoreCounterState>& BeforeState, vector<CoreCounterStat
                 for (auto event : events)
                 {
                     choose(outputType,
-                        [m, s]() { cout << "SKT" << s << ","; },
+                        [s]() { cout << "SKT" << s << ","; },
                         [&event, &i]() { if (event.second.empty()) cout << "UBOXEvent" << i << ",";  else cout << event.second << ","; },
                         [&]() { cout << getUBOXCounter(i, BeforeUncoreState[s], AfterUncoreState[s]) << ","; });
                     ++i;
@@ -318,7 +318,7 @@ void print(PCM* m, vector<CoreCounterState>& BeforeState, vector<CoreCounterStat
                     for (auto event : events)
                     {
                         choose(outputType,
-                            [m, s, cbo]() { cout << "SKT" << s << "C" << cbo << ","; },
+                            [s, cbo]() { cout << "SKT" << s << "C" << cbo << ","; },
                             [&event, &i]() { if (event.second.empty()) cout << "CBOEvent" << i << ",";  else cout << event.second << ","; },
                             [&]() { cout << getCBOCounter(cbo, i, BeforeUncoreState[s], AfterUncoreState[s]) << ","; });
                         ++i;
@@ -336,7 +336,7 @@ void print(PCM* m, vector<CoreCounterState>& BeforeState, vector<CoreCounterStat
                     for (auto event : events)
                     {
                         choose(outputType,
-                            [m, s, stack]() { cout << "SKT" << s << "IIO" << stack << ","; },
+                            [s, stack]() { cout << "SKT" << s << "IIO" << stack << ","; },
                             [&event, &i]() { if (event.second.empty()) cout << "IIOEvent" << i << ",";  else cout << event.second << ","; },
                             [&]() { cout << getIIOCounter(stack, i, BeforeUncoreState[s], AfterUncoreState[s]) << ","; });
                         ++i;
