@@ -193,16 +193,16 @@ void * UpdateCounters(void * state)
         pthread_mutex_lock(&(s->CounterMutex));
         for (uint32 core = 0; core < s->m->getNumCores(); ++core) {
             s->cstates1[core] = std::move(s->cstates2[core]);
-            s->cstates2[core] = std::move(s->m->getCoreCounterState(core));
+            s->cstates2[core] = s->m->getCoreCounterState(core);
         }
 
         for (uint32 socket = 0; socket < s->m->getNumSockets(); ++socket) {
             s->skstates1[socket] = std::move(s->skstates2[socket]);
-            s->skstates2[socket] = std::move(s->m->getSocketCounterState(socket));
+            s->skstates2[socket] = s->m->getSocketCounterState(socket);
         }
 
         s->sstate1 = std::move(s->sstate2);
-        s->sstate2 = std::move(s->m->getSystemCounterState());
+        s->sstate2 = s->m->getSystemCounterState();
 
         pthread_mutex_unlock(&(s->CounterMutex));
         sleep(1);

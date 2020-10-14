@@ -2498,8 +2498,8 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
         for (size_t i = 0; i < (size_t)server_pcicfg_uncore.size(); ++i)
         {
             server_pcicfg_uncore[i]->program();
-            qpi_speeds.push_back(std::move(std::async(std::launch::async,
-                &ServerPCICFGUncore::computeQPISpeed, server_pcicfg_uncore[i].get(), socketRefCore[i], cpu_model)));
+            qpi_speeds.push_back(std::async(std::launch::async,
+                &ServerPCICFGUncore::computeQPISpeed, server_pcicfg_uncore[i].get(), socketRefCore[i], cpu_model));
         }
         for (size_t i = 0; i < (size_t)server_pcicfg_uncore.size(); ++i)
         {
@@ -4443,7 +4443,7 @@ void PCM::getAllCounterStates(SystemCounterState & systemState, std::vector<Sock
                     socketStates[topology[core].socket].UncoreCounterState::readAndAggregate(MSR[core]); // read package C state counters
                 }
             );
-            asyncCoreResults.push_back(std::move(task.get_future()));
+            asyncCoreResults.push_back(task.get_future());
             coreTaskQueues[core]->push(task);
         }
         // std::cout << "DEBUG2: " << core << " " << coreStates[core].InstRetiredAny << " \n";
@@ -4459,7 +4459,7 @@ void PCM::getAllCounterStates(SystemCounterState & systemState, std::vector<Sock
                 readAndAggregateEnergyCounters(s, socketStates[s]);
                 readPackageThermalHeadroom(s, socketStates[s]);
             } );
-        asyncCoreResults.push_back(std::move(task.get_future()));
+        asyncCoreResults.push_back(task.get_future());
         coreTaskQueues[refCore]->push(task);
     }
 
@@ -6346,10 +6346,13 @@ void ServerPCICFGUncore::cleanupMemTest(const ServerPCICFGUncore::MemTestParam &
     const auto & memBuffers = param.second;
     for (auto b : memBuffers)
     {
-#ifdef __linux__
+#if defined(__linux__)
         munmap(b, memBufferBlockSize);
 #elif defined(_MSC_VER)
         VirtualFree(b, memBufferBlockSize, MEM_RELEASE);
+#elif defined(__FreeBSD__)
+        (void) b;                  // avoid the unused variable warning
+        (void) memBufferBlockSize; // avoid the unused variable warning
 #else
 #endif
     }
@@ -6396,7 +6399,7 @@ uint64 ServerPCICFGUncore::computeQPISpeed(const uint32 core_nr, const int cpumo
                uint64 endClocks = getQPIClocks((uint32)i);
                cleanupMemTest(param);
 
-               result = ((std::max)(uint64(double(endClocks - startClocks) * PCM::getBytesPerLinkCycle(cpumodel) * double(timerGranularity) / double(endTSC - startTSC)),0ULL));
+               result = (uint64(double(endClocks - startClocks) * PCM::getBytesPerLinkCycle(cpumodel) * double(timerGranularity) / double(endTSC - startTSC)));
                if(cpumodel == PCM::HASWELLX || cpumodel == PCM::BDX) /* BDX_DE does not have QPI. */{
                   result /=2; // HSX runs QPI clocks with doubled speed
                }
@@ -6405,7 +6408,7 @@ uint64 ServerPCICFGUncore::computeQPISpeed(const uint32 core_nr, const int cpumo
          };
          std::vector<std::future<uint64> > getSpeedsAsync;
          for (size_t i = 0; i < getNumQPIPorts(); ++i) {
-             getSpeedsAsync.push_back(std::move(std::async(std::launch::async, getSpeed, i)));
+             getSpeedsAsync.push_back(std::async(std::launch::async, getSpeed, i));
          }
          for (size_t i = 0; i < getNumQPIPorts(); ++i) {
              qpi_speed[i] = (i==1)? qpi_speed[0] : getSpeedsAsync[i].get(); // link 1 does not have own speed register, it runs with the speed of link 0
