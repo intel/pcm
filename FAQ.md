@@ -9,7 +9,7 @@
 
 **Q3:** Does PCM work inside a virtual machine?
 
-**A3:** PCM works inside virtual machines which support vPMU providing a limited set of metrics supported by vPMU. For example on AWS instances this is indicated by the presence of [arch_perfmon](https://instaguide.io/info.html?type=c5.18xlarge) flag: https://instaguide.io/ . Enabling vPMU in hypervisors is documented [in Hardware Event-Based Sampling section](https://software.intel.com/content/www/us/en/develop/documentation/vtune-help/top/set-up-analysis-target/on-virtual-machine.html).
+**A3:** PCM works inside virtual machines which support vPMU (with a limited set of metrics supported by vPMU). For example on AWS instances this is indicated by the presence of [arch_perfmon](https://instaguide.io/info.html?type=c5.18xlarge) flag: https://instaguide.io/ . Enabling vPMU in hypervisors is documented [in Hardware Event-Based Sampling section](https://software.intel.com/content/www/us/en/develop/documentation/vtune-help/top/set-up-analysis-target/on-virtual-machine.html).
 
 **Q4:** Does PCM work inside a docker container?
 
