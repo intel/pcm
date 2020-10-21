@@ -502,23 +502,29 @@ void print_basic_metrics_csv_header(const PCM * m)
         cout << "L2MPI,";
 }
 
-void print_basic_metrics_csv_semicolons(const PCM * m)
+void print_csv_header_helper(string header, int count=1){
+  for(int i = 0; i < count; i++){
+    cout << header << ",";
+  }
+}
+
+void print_basic_metrics_csv_semicolons(const PCM * m, string header)
 {
-    cout << ",,,";    // EXEC;IPC;FREQ;
+    print_csv_header_helper(header, 3);    // EXEC;IPC;FREQ;
     if (m->isActiveRelativeFrequencyAvailable())
-        cout << ",";  // AFREQ;
+        print_csv_header_helper(header);  // AFREQ;
     if (m->isL3CacheMissesAvailable())
-        cout << ",";  // L3MISS;
+        print_csv_header_helper(header);  // L3MISS;
     if (m->isL2CacheMissesAvailable())
-        cout << ",";  // L2MISS;
+        print_csv_header_helper(header);  // L2MISS;
     if (m->isL3CacheHitRatioAvailable())
-        cout << ",";  // L3HIT
+        print_csv_header_helper(header);  // L3HIT
     if (m->isL2CacheHitRatioAvailable())
-        cout << ",";  // L2HIT;
+        print_csv_header_helper(header);  // L2HIT;
     if (m->isL3CacheMissesAvailable())
-        cout << ",";  // L3MPI;
+        print_csv_header_helper(header);  // L3MPI;
     if (m->isL2CacheMissesAvailable())
-        cout << ",";  // L2MPI;
+        print_csv_header_helper(header);  // L2MPI;
 }
 
 void print_csv_header(PCM * m,
@@ -531,67 +537,70 @@ void print_csv_header(PCM * m,
     )
 {
     // print first header line
-    cout << "System,,";
+    string header;
+    header = "System";
+    print_csv_header_helper(header,2);
     if (show_system_output)
     {
-        print_basic_metrics_csv_semicolons(m);
+        print_basic_metrics_csv_semicolons(m,header);
 
         if (m->memoryTrafficMetricsAvailable())
-            cout << ",,";
+            print_csv_header_helper(header,2);
 
         if (m->localMemoryRequestRatioMetricAvailable())
-            cout << ",";
+            print_csv_header_helper(header);
 
         if (m->PMMTrafficMetricsAvailable())
-            cout << ",,";
+            print_csv_header_helper(header,2);
 
         if (m->MCDRAMmemoryTrafficMetricsAvailable())
-            cout << ",,";
+            print_csv_header_helper(header,2);
 
-        cout << ",,,,,,,";
+        print_csv_header_helper(header,7);
         if (m->getNumSockets() > 1) { // QPI info only for multi socket systems
             if (m->incomingQPITrafficMetricsAvailable())
-                cout << ",,";
+                print_csv_header_helper(header,2);
             if (m->outgoingQPITrafficMetricsAvailable())
-                cout << ",";
+                print_csv_header_helper(header);
         }
 
-        cout << "System Core C-States";
+        header = "System Core C-States";
         for (int s = 0; s <= PCM::MAX_C_STATE; ++s)
             if (m->isCoreCStateResidencySupported(s))
-                cout << ",";
-        cout << "System Pack C-States";
+                print_csv_header_helper(header);
+        header = "System Pack C-States";
         for (int s = 0; s <= PCM::MAX_C_STATE; ++s)
             if (m->isPackageCStateResidencySupported(s))
-                cout << ",";
+                print_csv_header_helper(header);
         if (m->packageEnergyMetricsAvailable())
-            cout << ",";
+            print_csv_header_helper(header);
         if (m->dramEnergyMetricsAvailable())
-            cout << ",";
+            print_csv_header_helper(header);
         if (m->LLCReadMissLatencyMetricsAvailable())
-            cout << ",";
+            print_csv_header_helper(header);
     }
 
     if (show_socket_output)
     {
         for (uint32 i = 0; i < m->getNumSockets(); ++i)
         {
-            cout << "Socket" << i << ",";
-            print_basic_metrics_csv_semicolons(m);
+            header = "Socket " + std::to_string(i);
+            print_csv_header_helper(header);
+            print_basic_metrics_csv_semicolons(m,header);
             if (m->L3CacheOccupancyMetricAvailable())
-                cout << ",";
+                print_csv_header_helper(header);
             if (m->CoreLocalMemoryBWMetricAvailable())
-                cout << ",";
+                print_csv_header_helper(header);
             if (m->CoreRemoteMemoryBWMetricAvailable())
-                cout << ",";
+                print_csv_header_helper(header);
             if (m->memoryTrafficMetricsAvailable())
-                cout << ",,";
+                print_csv_header_helper(header,2);
             if (m->localMemoryRequestRatioMetricAvailable())
-                cout << ",";
+                print_csv_header_helper(header);
             if (m->PMMTrafficMetricsAvailable())
-                 cout << ",,";
+                print_csv_header_helper(header,2);
             if (m->MCDRAMmemoryTrafficMetricsAvailable())
-                cout << ",,";
+                print_csv_header_helper(header,2);
         }
 
         if (m->getNumSockets() > 1 && (m->incomingQPITrafficMetricsAvailable())) // QPI info only for multi socket systems
@@ -600,14 +609,12 @@ void print_csv_header(PCM * m,
 
             for (uint32 s = 0; s < m->getNumSockets(); ++s)
             {
-                cout << "SKT" << s << "dataIn";
-                for (uint32 i = 0; i < qpiLinks; ++i)
-                    cout << ",";
+                header = "SKT" + std::to_string(s) + "dataIn";
+                print_csv_header_helper(header,qpiLinks);
                 if (m->qpiUtilizationMetricsAvailable())
                 {
-                    cout << "SKT" << s << "dataIn (percent)";
-                    for (uint32 i = 0; i < qpiLinks; ++i)
-                        cout << ",";
+                    header = "SKT" + std::to_string(s) + "dataIn (percent)";
+                    print_csv_header_helper(header,qpiLinks);
                 }
             }
         }
@@ -618,45 +625,40 @@ void print_csv_header(PCM * m,
 
             for (uint32 s = 0; s < m->getNumSockets(); ++s)
             {
-                cout << "SKT" << s << "trafficOut";
-                for (uint32 i = 0; i < qpiLinks; ++i)
-                    cout << ",";
-                cout << "SKT" << s << "trafficOut (percent)";
-                for (uint32 i = 0; i < qpiLinks; ++i)
-                    cout << ",";
+                header = "SKT" + std::to_string(s) + "trafficOut";
+                print_csv_header_helper(header,qpiLinks);
+                header = "SKT" + std::to_string(s) + "trafficOut (percent)";
+                print_csv_header_helper(header,qpiLinks);
             }
         }
 
 
         for (uint32 i = 0; i < m->getNumSockets(); ++i)
         {
-            cout << "SKT" << i << " Core C-State";
+            header = "SKT" + std::to_string(i) + " Core C-State";
             for (int s = 0; s <= PCM::MAX_C_STATE; ++s)
             if (m->isCoreCStateResidencySupported(s))
-                cout << ",";
-            cout << "SKT" << i << " Package C-State";
+                print_csv_header_helper(header);
+            header = "SKT" + std::to_string(i) + " Package C-State";
             for (int s = 0; s <= PCM::MAX_C_STATE; ++s)
             if (m->isPackageCStateResidencySupported(s))
-                cout << ",";
+                print_csv_header_helper(header);
         }
 
         if (m->packageEnergyMetricsAvailable())
         {
-            cout << "Proc Energy (Joules)";
-            for (uint32 i = 0; i < m->getNumSockets(); ++i)
-                cout << ",";
+            header = "Proc Energy (Joules)";
+            print_csv_header_helper(header,m->getNumSockets());
         }
         if (m->dramEnergyMetricsAvailable())
         {
-            cout << "DRAM Energy (Joules)";
-            for (uint32 i = 0; i < m->getNumSockets(); ++i)
-                cout << ",";
+            header = "DRAM Energy (Joules)";
+            print_csv_header_helper(header,m->getNumSockets());
         }
         if (m->LLCReadMissLatencyMetricsAvailable())
         {
-            cout << "LLCRDMISSLAT (ns)";
-            for (uint32 i = 0; i < m->getNumSockets(); ++i)
-                cout << ",";
+            header = "LLCRDMISSLAT (ns)";
+            print_csv_header_helper(header,m->getNumSockets());
         }
     }
 
@@ -667,19 +669,21 @@ void print_csv_header(PCM * m,
             if (show_partial_core_output && ycores.test(i) == false)
                 continue;
 
-            cout << "Core" << i << " (Socket" << setw(2) << m->getSocketId(i) << ")";
-            print_basic_metrics_csv_semicolons(m);
+            std::stringstream hstream;
+            hstream << "Core" << i << " (Socket" << setw(2) << m->getSocketId(i) << ")";
+            header = hstream.str();
+            print_basic_metrics_csv_semicolons(m,header);
             if (m->L3CacheOccupancyMetricAvailable())
-                cout << ',' ;
+                print_csv_header_helper(header);
             if (m->CoreLocalMemoryBWMetricAvailable())
-                cout << ',' ;
+                print_csv_header_helper(header);
             if (m->CoreRemoteMemoryBWMetricAvailable())
-                cout << ',' ;
+                print_csv_header_helper(header);
 
             for (int s = 0; s <= PCM::MAX_C_STATE; ++s)
                 if (m->isCoreCStateResidencySupported(s))
-                    cout << ",";
-            cout << ","; // TEMP
+                    print_csv_header_helper(header);
+            print_csv_header_helper(header);// TEMP
         }
     }
 
