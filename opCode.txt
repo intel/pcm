@@ -17,7 +17,10 @@ ctr=3,ev_sel=0xc0,umask=0x1,en=1,ch_mask=2,fc_mask=0x7,multiplier=4,divider=1,hn
 ctr=2,ev_sel=0xc0,umask=0x1,en=1,ch_mask=4,fc_mask=0x7,multiplier=4,divider=1,hname=OB write (bytes),vname=Part2 (2nd x8/3rd x4)
 ctr=3,ev_sel=0xc0,umask=0x1,en=1,ch_mask=8,fc_mask=0x7,multiplier=4,divider=1,hname=OB write (bytes),vname=Part3 (4th x4)
 # VTd events
-ctr=0,ev_sel=0x41,umask=0x20,en=1,ch_mask=1,fc_mask=0x7,multiplier=1,divider=1,hname=TLB Miss,vname=Total
-ctr=1,ev_sel=0x41,umask=0x10,en=1,ch_mask=1,fc_mask=0x7,multiplier=1,divider=1,hname=VT-d L3 Miss,vname=Total
+ctr=0,ev_sel=0x41,umask=0x1,en=1,ch_mask=1,fc_mask=0x7,multiplier=1,divider=1,hname=IOTLB Hit,vname=Total
+ctr=1,ev_sel=0x41,umask=0x20,en=1,ch_mask=1,fc_mask=0x7,multiplier=1,divider=1,hname=IOTLB Miss,vname=Total
 ctr=2,ev_sel=0x41,umask=0x02,en=1,ch_mask=4,fc_mask=0x7,multiplier=1,divider=1,hname=VT-d CTXT Miss,vname=Total
-ctr=3,ev_sel=0x84,umask=0x04,en=1,ch_mask=0x10,fc_mask=0x7,multiplier=1,divider=1,hname=VT-d Lookup,vname=Total
+ctr=3,ev_sel=0x41,umask=0x04,en=1,ch_mask=4,fc_mask=0x7,multiplier=1,divider=1,hname=VT-d L1 Miss,vname=Total
+ctr=0,ev_sel=0x41,umask=0x08,en=1,ch_mask=4,fc_mask=0x7,multiplier=1,divider=1,hname=VT-d L2 Miss,vname=Total
+ctr=1,ev_sel=0x41,umask=0x10,en=1,ch_mask=1,fc_mask=0x7,multiplier=1,divider=1,hname=VT-d L3 Miss,vname=Total
+ctr=2,ev_sel=0x84,umask=0x04,en=1,ch_mask=0x10,fc_mask=0x7,multiplier=1,divider=1,hname=VT-d Mem Read,vname=Total
