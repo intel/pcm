@@ -243,7 +243,7 @@ std::vector<int> events;
 template <class StateType>
 void print_custom_stats(const StateType & BeforeState, const StateType & AfterState, bool csv)
 {
-    for (int i = 0; i < events.size(); ++i)
+    for (size_t i = 0; i < events.size(); ++i)
         if (!csv)
             cout << unit_format(getNumberOfCustomEvents(i, BeforeState, AfterState)) << "    ";
         else
@@ -288,7 +288,7 @@ int main(int argc, char * argv[])
     string program = string(argv[0]);
 
     PCM * m = PCM::getInstance();
-    const auto numCtrSupported = m->getMaxCustomCoreEvents();
+    const size_t numCtrSupported = m->getMaxCustomCoreEvents();
     switch (m->getCPUModel())
     {
     case PCM::SKL:

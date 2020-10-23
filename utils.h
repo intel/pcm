@@ -247,6 +247,8 @@ inline void printDateForCSV(const CsvOutputType outputType)
         });
 }
 
+std::vector<std::string> split(const std::string & str, const char delim);
+
 class PCM;
 bool CheckAndForceRTMAbortMode(const char * argv, PCM * m);
 

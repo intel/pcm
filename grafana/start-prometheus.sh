@@ -14,6 +14,8 @@ sed "s#PCMSENSORSERVER#$1#g" prometheus.yml.template > prometheus.yml
 mkdir -p grafana_volume/dashboards
 mkdir -p prometheus_volume
 
+chmod -R 777 *_volume
+
 mkdir -p provisioning/datasources
 cp automatic_prometheus.yml provisioning/datasources/automatic.yml 
 
