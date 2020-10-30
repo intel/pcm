@@ -57,6 +57,7 @@ void print_usage(const string progname)
     cerr << "  -h    | --help  | /h               => print this help and exit\n";
     cerr << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or\n"
          << "                                        to a file, in case filename is provided\n";
+    cerr << "  -i[=number] | /i[=number]          => allow to determine number of iterations\n";
     cerr << " Examples:\n";
     cerr << "  " << progname << " 1                  => print counters every second without core and socket output\n";
     cerr << "  " << progname << " 0.5 -csv=test.log  => twice a second save counter values to test.log in CSV format\n";
@@ -113,6 +114,7 @@ int main(int argc, char * argv[])
     bool csv = false;
     long diff_usec = 0;                            // deviation of clock is useconds between measurements
     int calibrated = PCM_CALIBRATION_INTERVAL - 2; // keeps track is the clock calibration needed
+    MainLoop mainLoop;
     string program = string(argv[0]);
 
     PCM * m = PCM::getInstance();
@@ -140,6 +142,10 @@ int main(int argc, char * argv[])
                         m->setOutput(filename);
                     }
                 }
+                continue;
+            }
+            else if (mainLoop.parseArg(*argv))
+            {
                 continue;
             }
             else if (strncmp(*argv, "--", 2) == 0)
@@ -256,7 +262,7 @@ int main(int argc, char * argv[])
         MySystem(sysCmd, sysArgv);
     }
 
-    while (1)
+    mainLoop([&]()
     {
         if (!csv) cout << flush;
         int delay_ms = int(delay * 1000);
@@ -275,7 +281,7 @@ int main(int argc, char * argv[])
             calibrated_delay_ms = delay_ms - diff_usec / 1000.0;
         }
 #endif
-        if (sysCmd == NULL || m->isBlocked() == false)
+        if (sysCmd == NULL || mainLoop.getNumberOfIterations() != 0 || m->isBlocked() == false)
         {
             MySleepMs(calibrated_delay_ms);
         }
@@ -326,9 +332,10 @@ int main(int argc, char * argv[])
 
         if (m->isBlocked()) {
             // in case PCM was blocked after spawning child application: break monitoring loop here
-            break;
+            return false;
         }
-    }
+        return true;
+    });
 
     exit(EXIT_SUCCESS);
 }
