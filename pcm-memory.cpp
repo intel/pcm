@@ -91,6 +91,7 @@ void print_help(const string prog_name)
          << "                                        to a file, in case filename is provided\n";
     cerr << "  -columns=X | /columns=X            => Number of columns to display the NUMA Nodes, defaults to 2.\n";
     cerr << "  -all | /all                        => Display all channels (even with no traffic)\n";
+    cerr << "  -i[=number] | /i[=number]          => allow to determine number of iterations\n";
 #ifdef _MSC_VER
     cerr << "  --uninstallDriver | --installDriver=> (un)install driver\n";
 #endif

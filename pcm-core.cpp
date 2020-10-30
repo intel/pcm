@@ -136,6 +136,7 @@ void print_usage(const string progname)
     cerr << "  [-e event1] [-e event2] [-e event3] .. => optional list of custom events to monitor\n";
 	cerr << "  event description example: cpu/umask=0x01,event=0x05,name=MISALIGN_MEM_REF.LOADS/ \n";
 	cerr << "  -yc   | --yescores  | /yc              => enable specific cores to output\n";
+	cerr << "  -i[=number] | /i[=number]              => allow to determine number of iterations\n";
     print_help_force_rtm_abort_mode(41);
 	cerr << " Examples:\n";
 	cerr << "  " << progname << " 1                   => print counters every second without core and socket output\n";

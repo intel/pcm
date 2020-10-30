@@ -63,6 +63,7 @@ void print_usage(const string progname)
     cerr << "                             -e cha/config=0,name=UNC_CHA_CLOCKTICKS/ -e imc/fixed,name=DRAM_CLOCKS/\n";
     cerr << "  -yc   | --yescores  | /yc              => enable specific cores to output\n";
     cerr << "  -f    | /f                             => enforce flushing each line for interactive output\n";
+    cerr << "  -i[=number] | /i[=number]              => allow to determine number of iterations\n";
     print_help_force_rtm_abort_mode(41);
     cerr << " Examples:\n";
     cerr << "  " << progname << " 1                   => print counters every second without core and socket output\n";
