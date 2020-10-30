@@ -160,7 +160,7 @@ int main(int argc, char * argv[])
     bool csv = false;
     long diff_usec = 0;                            // deviation of clock is useconds between measurements
     int calibrated = PCM_CALIBRATION_INTERVAL - 2; // keeps track is the clock calibration needed
-    unsigned int numberOfIterations = 0; // number of iterations
+    MainLoop mainLoop;
     string program = string(argv[0]);
 
     PCM * m = PCM::getInstance();
@@ -191,17 +191,8 @@ int main(int argc, char * argv[])
                 continue;
             }
             else
-            if (strncmp(*argv, "-i", 2) == 0 ||
-                strncmp(*argv, "/i", 2) == 0)
+            if (mainLoop.parseArg(*argv))
             {
-                string cmd = string(*argv);
-                size_t found = cmd.find('=', 2);
-                if (found != string::npos) {
-                    string tmp = cmd.substr(found + 1);
-                    if (!tmp.empty()) {
-                    numberOfIterations = (unsigned int)atoi(tmp.c_str());
-                    }
-                }
                 continue;
             }
             else if (strncmp(*argv, "-m", 2) == 0)
@@ -323,9 +314,7 @@ int main(int argc, char * argv[])
         MySystem(sysCmd, sysArgv);
     }
 
-    unsigned int ic = 1;
-
-    while ((ic <= numberOfIterations) || (numberOfIterations == 0))
+    mainLoop([&]()
     {
         cout << "----------------------------------------------------------------------------------------------\n";
 
@@ -346,7 +335,7 @@ int main(int argc, char * argv[])
             calibrated_delay_ms = delay_ms - diff_usec / 1000.0;
         }
 #endif
-        if (sysCmd == NULL || numberOfIterations != 0 || m->isBlocked() == false)
+        if (sysCmd == NULL || mainLoop.getNumberOfIterations() != 0 || m->isBlocked() == false)
         {
             MySleepMs(calibrated_delay_ms);
         }
@@ -525,10 +514,10 @@ int main(int argc, char * argv[])
         if (m->isBlocked()) {
             cout << "----------------------------------------------------------------------------------------------\n";
             // in case PCM was blocked after spawning child application: break monitoring loop here
-            break;
+            return false;
         }
-	++ic;
-    }
+        return true;
+    });
 
     delete[] BeforeState;
     delete[] AfterState;

@@ -1080,7 +1080,7 @@ int main(int argc, char * argv[])
 
     long diff_usec = 0; // deviation of clock is useconds between measurements
     int calibrated = PCM_CALIBRATION_INTERVAL - 2; // keeps track is the clock calibration needed
-    unsigned int numberOfIterations = 0; // number of iterations
+    MainLoop mainLoop;
     std::bitset<MAX_CORES> ycores;
     string program = string(argv[0]);
 
@@ -1182,17 +1182,8 @@ int main(int argc, char * argv[])
             continue;
         }
         else
-        if (strncmp(*argv, "-i", 2) == 0 ||
-            strncmp(*argv, "/i", 2) == 0)
+        if (mainLoop.parseArg(*argv))
         {
-            string cmd = string(*argv);
-            size_t found = cmd.find('=', 2);
-            if (found != string::npos) {
-                string tmp = cmd.substr(found + 1);
-                if (!tmp.empty()) {
-                    numberOfIterations = (unsigned int)atoi(tmp.c_str());
-                }
-            }
             continue;
         }
         else
@@ -1327,9 +1318,7 @@ int main(int argc, char * argv[])
         MySystem(sysCmd, sysArgv);
     }
 
-    unsigned int i = 1;
-
-    while ((i <= numberOfIterations) || (numberOfIterations == 0))
+    mainLoop([&]()
     {
         if (!csv_output) cout << std::flush;
         int delay_ms = int(delay * 1000);
@@ -1349,7 +1338,7 @@ int main(int argc, char * argv[])
         }
 #endif
 
-        if (sysCmd == NULL || numberOfIterations != 0 || m->isBlocked() == false)
+        if (sysCmd == NULL || mainLoop.getNumberOfIterations() != 0 || m->isBlocked() == false)
         {
             MySleepMs(calibrated_delay_ms);
         }
@@ -1397,11 +1386,10 @@ int main(int argc, char * argv[])
 
         if (m->isBlocked()) {
             // in case PCM was blocked after spawning child application: break monitoring loop here
-            break;
+            return false;
         }
-
-        ++i;
-    }
+        return true;
+    });
 
     exit(EXIT_SUCCESS);
 }
