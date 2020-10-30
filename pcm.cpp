@@ -42,7 +42,6 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #define SIZE (10000000)
 #define PCM_DELAY_DEFAULT 1.0 // in seconds
 #define PCM_DELAY_MIN 0.015 // 15 milliseconds is practical on most modern CPUs
-#define PCM_CALIBRATION_INTERVAL 50 // calibrate clock only every 50th iteration
 #define MAX_CORES 4096
 
 using namespace std;
@@ -1078,8 +1077,6 @@ int main(int argc, char * argv[])
     bool allow_multiple_instances = false;
     bool disable_JKT_workaround = false; // as per http://software.intel.com/en-us/articles/performance-impact-when-sampling-certain-llc-events-on-snb-ep-with-vtune
 
-    long diff_usec = 0; // deviation of clock is useconds between measurements
-    int calibrated = PCM_CALIBRATION_INTERVAL - 2; // keeps track is the clock calibration needed
     MainLoop mainLoop;
     std::bitset<MAX_CORES> ycores;
     string program = string(argv[0]);
@@ -1321,34 +1318,9 @@ int main(int argc, char * argv[])
     mainLoop([&]()
     {
         if (!csv_output) cout << std::flush;
-        int delay_ms = int(delay * 1000);
-        int calibrated_delay_ms = delay_ms;
-#ifdef _MSC_VER
-        // compensate slow Windows console output
-        if (TimeAfterSleep) delay_ms -= (uint32)(m->getTickCount() - TimeAfterSleep);
-        if (delay_ms < 0) delay_ms = 0;
-#else
-        // compensation of delay on Linux/UNIX
-        // to make the sampling interval as monotone as possible
-        struct timeval start_ts, end_ts;
-        if (calibrated == 0) {
-            gettimeofday(&end_ts, NULL);
-            diff_usec = (end_ts.tv_sec - start_ts.tv_sec)*1000000.0 + (end_ts.tv_usec - start_ts.tv_usec);
-            calibrated_delay_ms = delay_ms - diff_usec / 1000.0;
-        }
-#endif
 
-        if (sysCmd == NULL || mainLoop.getNumberOfIterations() != 0 || m->isBlocked() == false)
-        {
-            MySleepMs(calibrated_delay_ms);
-        }
+        calibratedSleep(delay, TimeAfterSleep, TimeAfterSleep, sysCmd, mainLoop, m);
 
-#ifndef _MSC_VER
-        calibrated = (calibrated + 1) % PCM_CALIBRATION_INTERVAL;
-        if (calibrated == 0) {
-            gettimeofday(&start_ts, NULL);
-        }
-#endif
         TimeAfterSleep = m->getTickCount();
 
         m->getAllCounterStates(sstate2, sktstate2, cstates2);

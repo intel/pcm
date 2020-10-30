@@ -39,7 +39,6 @@
 
 #define PCM_DELAY_DEFAULT 1.0 // in seconds
 #define PCM_DELAY_MIN 0.015 // 15 milliseconds is practical on most modern CPUs
-#define PCM_CALIBRATION_INTERVAL 50 // calibrate clock only every 50th iteration
 
 #define DEFAULT_DISPLAY_COLUMNS 2
 
@@ -827,10 +826,6 @@ int main(int argc, char * argv[])
     uint32 no_columns = DEFAULT_DISPLAY_COLUMNS; // Default number of columns is 2
     char * sysCmd = NULL;
     char ** sysArgv = NULL;
-#ifndef _MSC_VER
-    long diff_usec = 0; // deviation of clock is useconds between measurements
-    int calibrated = PCM_CALIBRATION_INTERVAL - 2; // keeps track is the clock calibration needed
-#endif
     int rankA = -1, rankB = -1;
     MainLoop mainLoop;
 
@@ -1092,34 +1087,8 @@ int main(int argc, char * argv[])
     mainLoop([&]()
     {
         if(!csv) cout << flush;
-        int delay_ms = int(delay * 1000);
-        int calibrated_delay_ms = delay_ms;
-#ifdef _MSC_VER
-        // compensate slow Windows console output
-        if(AfterTime) delay_ms -= (int)(m->getTickCount() - BeforeTime);
-        if(delay_ms < 0) delay_ms = 0;
-#else
-        // compensation of delay on Linux/UNIX
-        // to make the samling interval as monotone as possible
-        struct timeval start_ts, end_ts;
-        if(calibrated == 0) {
-            gettimeofday(&end_ts, NULL);
-            diff_usec = (end_ts.tv_sec-start_ts.tv_sec)*1000000.0+(end_ts.tv_usec-start_ts.tv_usec);
-            calibrated_delay_ms = delay_ms - diff_usec/1000.0;
-        }
-#endif
 
-        if (sysCmd == NULL || mainLoop.getNumberOfIterations() != 0 || m->isBlocked() == false)
-        {
-            MySleepMs(calibrated_delay_ms);
-        }
-
-#ifndef _MSC_VER
-        calibrated = (calibrated + 1) % PCM_CALIBRATION_INTERVAL;
-        if(calibrated == 0) {
-            gettimeofday(&start_ts, NULL);
-        }
-#endif
+        calibratedSleep(delay, BeforeTime, AfterTime, sysCmd, mainLoop, m);
 
         AfterTime = m->getTickCount();
         for(uint32 i=0; i<m->getNumSockets(); ++i)

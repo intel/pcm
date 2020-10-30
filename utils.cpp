@@ -14,7 +14,7 @@ S FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
 NG, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRI
 CT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-// written by Andrey Semin
+// written by Andrey Semin and many others
 
 #include <iostream>
 #include <cassert>
@@ -25,6 +25,7 @@ CT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
 #else
 #include <sys/wait.h> // for waitpid()
 #include <unistd.h> // for ::sleep
+#include <sys/time.h> // for gettimeofday
 #endif
 #include "utils.h"
 #include "cpucounters.h"
@@ -540,6 +541,44 @@ uint64 read_number(char* str)
     stream >> result;
     return result;
 }
+
+#define PCM_CALIBRATION_INTERVAL 50 // calibrate clock only every 50th iteration
+
+int calibratedSleep(const double delay, const uint64 BeforeTime, const uint64 AfterTime, const char* sysCmd, const MainLoop& mainLoop, PCM* m)
+{
+    static int calibrated = PCM_CALIBRATION_INTERVAL - 2; // keeps track is the clock calibration needed
+    int delay_ms = int(delay * 1000);
+    int calibrated_delay_ms = delay_ms;
+    PCM_UNUSED(BeforeTime);
+    PCM_UNUSED(AfterTime);
+#ifdef _MSC_VER
+    // compensate slow Windows console output
+    if (AfterTime) delay_ms -= (int)(m->getTickCount() - BeforeTime);
+    if (delay_ms < 0) delay_ms = 0;
+#else
+    // compensation of delay on Linux/UNIX
+    // to make the samling interval as monotone as possible
+    struct timeval start_ts, end_ts;
+    if (calibrated == 0) {
+        gettimeofday(&end_ts, NULL);
+        const long diff_usec = (end_ts.tv_sec - start_ts.tv_sec) * 1000000.0 + (end_ts.tv_usec - start_ts.tv_usec);
+        calibrated_delay_ms = delay_ms - diff_usec / 1000.0;
+    }
+#endif
+
+    if (sysCmd == NULL || mainLoop.getNumberOfIterations() != 0 || m->isBlocked() == false)
+    {
+        MySleepMs(calibrated_delay_ms);
+    }
+
+#ifndef _MSC_VER
+    calibrated = (calibrated + 1) % PCM_CALIBRATION_INTERVAL;
+    if (calibrated == 0) {
+        gettimeofday(&start_ts, NULL);
+    }
+#endif
+    return calibrated_delay_ms;
+};
 
 void print_help_force_rtm_abort_mode(const int alignment)
 {
