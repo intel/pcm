@@ -1290,8 +1290,6 @@ int main(int argc, char * argv[])
     std::vector<SocketCounterState> sktstate1, sktstate2;
     SystemCounterState sstate1, sstate2;
     const auto cpu_model = m->getCPUModel();
-    uint64 TimeAfterSleep = 0;
-    PCM_UNUSED(TimeAfterSleep);
 
     if ((sysCmd != NULL) && (delay <= 0.0)) {
         // in case external command is provided in command line, and
@@ -1319,9 +1317,7 @@ int main(int argc, char * argv[])
     {
         if (!csv_output) cout << std::flush;
 
-        calibratedSleep(delay, TimeAfterSleep, TimeAfterSleep, sysCmd, mainLoop, m);
-
-        TimeAfterSleep = m->getTickCount();
+        calibratedSleep(delay, sysCmd, mainLoop, m);
 
         m->getAllCounterStates(sstate2, sktstate2, cstates2);
 

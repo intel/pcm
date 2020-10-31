@@ -524,7 +524,6 @@ int main(int argc, char* argv[])
     print_cpu_details();
 
 
-    uint64 BeforeTime = 0, AfterTime = 0;
     SystemCounterState SysBeforeState, SysAfterState;
     vector<CoreCounterState> BeforeState, AfterState;
     vector<SocketCounterState> DummySocketStates;
@@ -549,7 +548,6 @@ int main(int argc, char* argv[])
     std::cout.precision(2);
     std::cout << std::fixed;
 
-    BeforeTime = m->getTickCount();
     m->getAllCounterStates(SysBeforeState, DummySocketStates, BeforeState);
     for (uint32 s = 0; s < m->getNumSockets(); ++s)
     {
@@ -562,9 +560,8 @@ int main(int argc, char* argv[])
 
     mainLoop([&]()
     {
-        calibratedSleep(delay, BeforeTime, AfterTime, sysCmd, mainLoop, m);
+        calibratedSleep(delay, sysCmd, mainLoop, m);
 
-        AfterTime = m->getTickCount();
         m->getAllCounterStates(SysAfterState, DummySocketStates, AfterState);
         for (uint32 s = 0; s < m->getNumSockets(); ++s)
         {
@@ -576,7 +573,6 @@ int main(int argc, char* argv[])
 
         printAll(m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState);
 
-        swap(BeforeTime, AfterTime);
         swap(BeforeState, AfterState);
         swap(SysBeforeState, SysAfterState);
         swap(BeforeUncoreState, AfterUncoreState);

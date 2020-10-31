@@ -263,7 +263,7 @@ int main(int argc, char * argv[])
     {
         if (!csv) cout << flush;
 
-        calibratedSleep(delay, BeforeTime, AfterTime, sysCmd, mainLoop, m);
+        calibratedSleep(delay, sysCmd, mainLoop, m);
 
         AfterTime = m->getTickCount();
         m->getAllCounterStates(SysAfterState, DummySocketStates, AfterState);

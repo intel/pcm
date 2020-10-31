@@ -318,7 +318,7 @@ int main(int argc, char * argv[])
 
         if (!csv) cout << flush;
 
-        const auto delay_ms = calibratedSleep(delay, BeforeTime, AfterTime, sysCmd, mainLoop, m);
+        const auto delay_ms = calibratedSleep(delay, sysCmd, mainLoop, m);
 
         AfterTime = m->getTickCount();
         for (i = 0; i < m->getNumSockets(); ++i)

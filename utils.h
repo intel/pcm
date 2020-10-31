@@ -296,7 +296,7 @@ public:
     }
 };
 
-int calibratedSleep(const double delay, const uint64 BeforeTime, const uint64 AfterTime, const char* sysCmd, const MainLoop& mainLoop, PCM* m);
+int calibratedSleep(const double delay, const char* sysCmd, const MainLoop& mainLoop, PCM* m);
 
 struct StackedBarItem {
     double fraction;
