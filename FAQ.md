@@ -55,3 +55,18 @@ Secure Boot detected. Using Linux perf for uncore PMU programming.
 How to fix it?
 
 Answer: Linux disables access to /dev/mem because Secure Boot is enabled in the BIOS. Disable Secure Boot in the BIOS to enable memory controller statistics (e.g. memory read and write bandwidth).
+
+## Q9
+
+PCM reports
+```
+Linux Perf: Error on programming ...
+```
+How to fix it?
+
+**Answer:** It is an issue with the Linux kernel perf driver. As a workaround upgrade your Linux kernel to the latest available/possible or run PCM with its own programming logic:
+
+```
+export PCM_NO_PERF=1
+pcm.x -r
+```
