@@ -23,14 +23,29 @@ struct {
 	uint64_t (*pcm_c_get_core_event)(uint32_t core_id, uint32_t event_id);
 } PCM;
 
+#ifndef PCM_DYNAMIC_LIB
+/* Library functions declaration (instead of .h file) */
+int pcm_c_build_core_event(uint8_t, const char *);
+int pcm_c_init();
+void pcm_c_start();
+void pcm_c_stop();
+uint64_t pcm_c_get_cycles(uint32_t);
+uint64_t pcm_c_get_instr(uint32_t);
+uint64_t pcm_c_get_core_event(uint32_t, uint32_t);
+#endif
+
+
 int main(int argc, const char *argv[])
 {
 	int i,a[100],b[100],c[100];
 	int lcore_id;
 
+#ifdef PCM_DYNAMIC_LIB
 	void * handle = dlopen("libpcm.so", RTLD_LAZY);
-	if(!handle)
+	if(!handle) {
+		printf("Abort: could not (dynamically) load shared library \n");
 		return -1;
+	}
 
 	PCM.pcm_c_build_core_event = (int (*)(uint8_t, const char *)) dlsym(handle, "pcm_c_build_core_event");
 	PCM.pcm_c_init = (int (*)()) dlsym(handle, "pcm_c_init");
@@ -39,6 +54,15 @@ int main(int argc, const char *argv[])
 	PCM.pcm_c_get_cycles = (uint64_t (*)(uint32_t)) dlsym(handle, "pcm_c_get_cycles");
 	PCM.pcm_c_get_instr = (uint64_t (*)(uint32_t)) dlsym(handle, "pcm_c_get_instr");
 	PCM.pcm_c_get_core_event = (uint64_t (*)(uint32_t,uint32_t)) dlsym(handle, "pcm_c_get_core_event");
+#else
+	PCM.pcm_c_build_core_event = pcm_c_build_core_event;
+	PCM.pcm_c_init = pcm_c_init;
+	PCM.pcm_c_start = pcm_c_start;
+	PCM.pcm_c_stop = pcm_c_stop;
+	PCM.pcm_c_get_cycles = pcm_c_get_cycles;
+	PCM.pcm_c_get_instr = pcm_c_get_instr;
+	PCM.pcm_c_get_core_event = pcm_c_get_core_event;
+#endif
 
 	if(PCM.pcm_c_init == NULL || PCM.pcm_c_start == NULL || PCM.pcm_c_stop == NULL ||
 			PCM.pcm_c_get_cycles == NULL || PCM.pcm_c_get_instr == NULL ||
