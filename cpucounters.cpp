@@ -6597,7 +6597,7 @@ void PCM::programIIOCounters(IIOPMUCNTCTLRegister rawEvents[4], int IIOStack)
     else
         IIO_units.push_back(IIOStack);
 
-    for (int32 i = 0; (i < num_sockets) && MSR.size(); ++i)
+    for (int32 i = 0; (i < num_sockets) && MSR.size() && iioPMUs.size(); ++i)
     {
         uint32 refCore = socketRefCore[i];
         TemporalThreadAffinity tempThreadAffinity(refCore); // speedup trick for Linux
