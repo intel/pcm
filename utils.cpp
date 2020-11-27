@@ -14,7 +14,7 @@ S FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
 NG, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRI
 CT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-// written by Andrey Semin
+// written by Andrey Semin and many others
 
 #include <iostream>
 #include <cassert>
@@ -540,6 +540,30 @@ uint64 read_number(char* str)
     stream >> result;
     return result;
 }
+
+#define PCM_CALIBRATION_INTERVAL 50 // calibrate clock only every 50th iteration
+
+int calibratedSleep(const double delay, const char* sysCmd, const MainLoop& mainLoop, PCM* m)
+{
+    static uint64 TimeAfterSleep = 0;
+    int delay_ms = int(delay * 1000);
+
+    if (TimeAfterSleep) delay_ms -= (int)(m->getTickCount() - TimeAfterSleep);
+    if (delay_ms < 0) delay_ms = 0;
+
+    if (sysCmd == NULL || mainLoop.getNumberOfIterations() != 0 || m->isBlocked() == false)
+    {
+        if (delay_ms > 0)
+        {
+            // std::cerr << "DEBUG: sleeping for " << std::dec << delay_ms << " ms...\n";
+            MySleepMs(delay_ms);
+        }
+    }
+
+    TimeAfterSleep = m->getTickCount();
+
+    return delay_ms;
+};
 
 void print_help_force_rtm_abort_mode(const int alignment)
 {

@@ -43,7 +43,6 @@
 #include <vector>
 #define PCM_DELAY_DEFAULT 1.0 // in seconds
 #define PCM_DELAY_MIN 0.015 // 15 milliseconds is practical on most modern CPUs
-#define PCM_CALIBRATION_INTERVAL 50 // calibrate clock only every 50th iteration
 #define MAX_CORES 4096
 
 using namespace std;
@@ -136,6 +135,7 @@ void print_usage(const string progname)
     cerr << "  [-e event1] [-e event2] [-e event3] .. => optional list of custom events to monitor\n";
 	cerr << "  event description example: cpu/umask=0x01,event=0x05,name=MISALIGN_MEM_REF.LOADS/ \n";
 	cerr << "  -yc   | --yescores  | /yc              => enable specific cores to output\n";
+	cerr << "  -i[=number] | /i[=number]              => allow to determine number of iterations\n";
     print_help_force_rtm_abort_mode(41);
 	cerr << " Examples:\n";
 	cerr << "  " << progname << " 1                   => print counters every second without core and socket output\n";
@@ -292,10 +292,8 @@ int main(int argc, char * argv[])
 	char **sysArgv = NULL;
 	uint32 cur_event = 0;
 	bool csv = false;
-	long diff_usec = 0; // deviation of clock is useconds between measurements
 	uint64 txn_rate = 1;
-	int calibrated = PCM_CALIBRATION_INTERVAL - 2; // keeps track is the clock calibration needed
-	unsigned int numberOfIterations = 0; // number of iterations
+	MainLoop mainLoop;
 	string program = string(argv[0]);
 	EventSelectRegister regs[PERF_MAX_COUNTERS];
 	PCM::ExtendedCustomCoreEventDescription conf;
@@ -335,17 +333,8 @@ int main(int argc, char * argv[])
 			continue;
 		}
 		else
-		if (strncmp(*argv, "-i", 2) == 0 ||
-			strncmp(*argv, "/i", 2) == 0)
+		if (mainLoop.parseArg(*argv))
 		{
-			string cmd = string(*argv);
-			size_t found = cmd.find('=', 2);
-			if (found != string::npos) {
-				string tmp = cmd.substr(found + 1);
-				if (!tmp.empty()) {
-					numberOfIterations = (unsigned int)atoi(tmp.c_str());
-				}
-			}
 			continue;
 		}
 		else if (strncmp(*argv, "-c",2) == 0 ||
@@ -515,38 +504,12 @@ int main(int argc, char * argv[])
 	}
 
 
-	unsigned int ic = 1;
-
-	while ((ic <= numberOfIterations) || (numberOfIterations == 0))
+	mainLoop([&]()
 	{
 		if(!csv) cout << std::flush;
-		int delay_ms = int(delay * 1000);
-		int calibrated_delay_ms = delay_ms;
-#ifdef _MSC_VER
-		// compensate slow Windows console output
-		if(AfterTime) delay_ms -= (int)(m->getTickCount() - BeforeTime);
-		if(delay_ms < 0) delay_ms = 0;
-#else
-		// compensation of delay on Linux/UNIX
-		// to make the samling interval as monotone as possible
-		struct timeval start_ts, end_ts;
-		if(calibrated == 0) {
-			gettimeofday(&end_ts, NULL);
-			diff_usec = (end_ts.tv_sec-start_ts.tv_sec)*1000000.0+(end_ts.tv_usec-start_ts.tv_usec);
-			calibrated_delay_ms = delay_ms - diff_usec/1000.0;
-		}
-#endif
-		if (sysCmd == NULL || numberOfIterations != 0 || m->isBlocked() == false)
-		{
-			MySleepMs(calibrated_delay_ms);
-		}
 
-#ifndef _MSC_VER
-		calibrated = (calibrated + 1) % PCM_CALIBRATION_INTERVAL;
-		if(calibrated == 0) {
-			gettimeofday(&start_ts, NULL);
-		}
-#endif
+		calibratedSleep(delay, sysCmd, mainLoop, m);
+
 		AfterTime = m->getTickCount();
 		m->getAllCounterStates(SysAfterState, DummySocketStates, AfterState);
 
@@ -611,9 +574,9 @@ int main(int argc, char * argv[])
 
 		if ( m->isBlocked() ) {
 			// in case PCM was blocked after spawning child application: break monitoring loop here
-			break;
+			return false;
 		}
-		++ic;
-	}
+		return true;
+	});
 	exit(EXIT_SUCCESS);
 }

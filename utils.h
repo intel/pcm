@@ -254,6 +254,50 @@ bool CheckAndForceRTMAbortMode(const char * argv, PCM * m);
 
 void print_help_force_rtm_abort_mode(const int alignment);
 
+class MainLoop
+{
+    unsigned numberOfIterations = 0;
+public:
+    MainLoop() {}
+    bool parseArg(const char * arg)
+    {
+        if (strncmp(arg, "-i", 2) == 0 ||
+            strncmp(arg, "/i", 2) == 0)
+        {
+            const auto cmd = std::string(arg);
+            const auto found = cmd.find('=', 2);
+            if (found != std::string::npos) {
+                const auto tmp = cmd.substr(found + 1);
+                if (!tmp.empty()) {
+                    numberOfIterations = (unsigned int)atoi(tmp.c_str());
+                }
+            }
+            return true;
+        }
+        return false;
+    }
+    unsigned getNumberOfIterations() const
+    {
+        return numberOfIterations;
+    }
+    template <class Body>
+    void operator ()(Body body)
+    {
+        unsigned int i = 1;
+        // std::cerr << "DEBUG: numberOfIterations: " << numberOfIterations << "\n";
+        while ((i <= numberOfIterations) || (numberOfIterations == 0))
+        {
+            if (body() == false)
+            {
+                break;
+            }
+            ++i;
+        }
+    }
+};
+
+int calibratedSleep(const double delay, const char* sysCmd, const MainLoop& mainLoop, PCM* m);
+
 struct StackedBarItem {
     double fraction;
     std::string label; // not used currently

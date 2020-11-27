@@ -41,7 +41,6 @@
 #include <vector>
 #define PCM_DELAY_DEFAULT 1.0       // in seconds
 #define PCM_DELAY_MIN 0.015         // 15 milliseconds is practical on most modern CPUs
-#define PCM_CALIBRATION_INTERVAL 50 // calibrate clock only every 50th iteration
 
 using namespace std;
 using namespace pcm;
@@ -57,6 +56,7 @@ void print_usage(const string progname)
     cerr << "  -h    | --help  | /h               => print this help and exit\n";
     cerr << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or\n"
          << "                                        to a file, in case filename is provided\n";
+    cerr << "  -i[=number] | /i[=number]          => allow to determine number of iterations\n";
     cerr << " Examples:\n";
     cerr << "  " << progname << " 1                  => print counters every second without core and socket output\n";
     cerr << "  " << progname << " 0.5 -csv=test.log  => twice a second save counter values to test.log in CSV format\n";
@@ -111,8 +111,7 @@ int main(int argc, char * argv[])
     char * sysCmd = NULL;
     char ** sysArgv = NULL;
     bool csv = false;
-    long diff_usec = 0;                            // deviation of clock is useconds between measurements
-    int calibrated = PCM_CALIBRATION_INTERVAL - 2; // keeps track is the clock calibration needed
+    MainLoop mainLoop;
     string program = string(argv[0]);
 
     PCM * m = PCM::getInstance();
@@ -140,6 +139,10 @@ int main(int argc, char * argv[])
                         m->setOutput(filename);
                     }
                 }
+                continue;
+            }
+            else if (mainLoop.parseArg(*argv))
+            {
                 continue;
             }
             else if (strncmp(*argv, "--", 2) == 0)
@@ -256,36 +259,12 @@ int main(int argc, char * argv[])
         MySystem(sysCmd, sysArgv);
     }
 
-    while (1)
+    mainLoop([&]()
     {
         if (!csv) cout << flush;
-        int delay_ms = int(delay * 1000);
-        int calibrated_delay_ms = delay_ms;
-#ifdef _MSC_VER
-        // compensate slow Windows console output
-        if (AfterTime) delay_ms -= (int)(m->getTickCount() - BeforeTime);
-        if (delay_ms < 0) delay_ms = 0;
-#else
-        // compensation of delay on Linux/UNIX
-        // to make the samling interval as monotone as possible
-        struct timeval start_ts, end_ts;
-        if (calibrated == 0) {
-            gettimeofday(&end_ts, NULL);
-            diff_usec = (end_ts.tv_sec - start_ts.tv_sec) * 1000000.0 + (end_ts.tv_usec - start_ts.tv_usec);
-            calibrated_delay_ms = delay_ms - diff_usec / 1000.0;
-        }
-#endif
-        if (sysCmd == NULL || m->isBlocked() == false)
-        {
-            MySleepMs(calibrated_delay_ms);
-        }
 
-#ifndef _MSC_VER
-        calibrated = (calibrated + 1) % PCM_CALIBRATION_INTERVAL;
-        if (calibrated == 0) {
-            gettimeofday(&start_ts, NULL);
-        }
-#endif
+        calibratedSleep(delay, sysCmd, mainLoop, m);
+
         AfterTime = m->getTickCount();
         m->getAllCounterStates(SysAfterState, DummySocketStates, AfterState);
 
@@ -326,9 +305,10 @@ int main(int argc, char * argv[])
 
         if (m->isBlocked()) {
             // in case PCM was blocked after spawning child application: break monitoring loop here
-            break;
+            return false;
         }
-    }
+        return true;
+    });
 
     exit(EXIT_SUCCESS);
 }

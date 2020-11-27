@@ -42,7 +42,6 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #define SIZE (10000000)
 #define PCM_DELAY_DEFAULT 1.0 // in seconds
 #define PCM_DELAY_MIN 0.015 // 15 milliseconds is practical on most modern CPUs
-#define PCM_CALIBRATION_INTERVAL 50 // calibrate clock only every 50th iteration
 #define MAX_CORES 4096
 
 using namespace std;
@@ -1078,9 +1077,7 @@ int main(int argc, char * argv[])
     bool allow_multiple_instances = false;
     bool disable_JKT_workaround = false; // as per http://software.intel.com/en-us/articles/performance-impact-when-sampling-certain-llc-events-on-snb-ep-with-vtune
 
-    long diff_usec = 0; // deviation of clock is useconds between measurements
-    int calibrated = PCM_CALIBRATION_INTERVAL - 2; // keeps track is the clock calibration needed
-    unsigned int numberOfIterations = 0; // number of iterations
+    MainLoop mainLoop;
     std::bitset<MAX_CORES> ycores;
     string program = string(argv[0]);
 
@@ -1182,17 +1179,8 @@ int main(int argc, char * argv[])
             continue;
         }
         else
-        if (strncmp(*argv, "-i", 2) == 0 ||
-            strncmp(*argv, "/i", 2) == 0)
+        if (mainLoop.parseArg(*argv))
         {
-            string cmd = string(*argv);
-            size_t found = cmd.find('=', 2);
-            if (found != string::npos) {
-                string tmp = cmd.substr(found + 1);
-                if (!tmp.empty()) {
-                    numberOfIterations = (unsigned int)atoi(tmp.c_str());
-                }
-            }
             continue;
         }
         else
@@ -1302,8 +1290,6 @@ int main(int argc, char * argv[])
     std::vector<SocketCounterState> sktstate1, sktstate2;
     SystemCounterState sstate1, sstate2;
     const auto cpu_model = m->getCPUModel();
-    uint64 TimeAfterSleep = 0;
-    PCM_UNUSED(TimeAfterSleep);
 
     if ((sysCmd != NULL) && (delay <= 0.0)) {
         // in case external command is provided in command line, and
@@ -1327,40 +1313,11 @@ int main(int argc, char * argv[])
         MySystem(sysCmd, sysArgv);
     }
 
-    unsigned int i = 1;
-
-    while ((i <= numberOfIterations) || (numberOfIterations == 0))
+    mainLoop([&]()
     {
         if (!csv_output) cout << std::flush;
-        int delay_ms = int(delay * 1000);
-        int calibrated_delay_ms = delay_ms;
-#ifdef _MSC_VER
-        // compensate slow Windows console output
-        if (TimeAfterSleep) delay_ms -= (uint32)(m->getTickCount() - TimeAfterSleep);
-        if (delay_ms < 0) delay_ms = 0;
-#else
-        // compensation of delay on Linux/UNIX
-        // to make the sampling interval as monotone as possible
-        struct timeval start_ts, end_ts;
-        if (calibrated == 0) {
-            gettimeofday(&end_ts, NULL);
-            diff_usec = (end_ts.tv_sec - start_ts.tv_sec)*1000000.0 + (end_ts.tv_usec - start_ts.tv_usec);
-            calibrated_delay_ms = delay_ms - diff_usec / 1000.0;
-        }
-#endif
 
-        if (sysCmd == NULL || numberOfIterations != 0 || m->isBlocked() == false)
-        {
-            MySleepMs(calibrated_delay_ms);
-        }
-
-#ifndef _MSC_VER
-        calibrated = (calibrated + 1) % PCM_CALIBRATION_INTERVAL;
-        if (calibrated == 0) {
-            gettimeofday(&start_ts, NULL);
-        }
-#endif
-        TimeAfterSleep = m->getTickCount();
+        calibratedSleep(delay, sysCmd, mainLoop, m);
 
         m->getAllCounterStates(sstate2, sktstate2, cstates2);
 
@@ -1397,11 +1354,10 @@ int main(int argc, char * argv[])
 
         if (m->isBlocked()) {
             // in case PCM was blocked after spawning child application: break monitoring loop here
-            break;
+            return false;
         }
-
-        ++i;
-    }
+        return true;
+    });
 
     exit(EXIT_SUCCESS);
 }

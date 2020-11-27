@@ -33,7 +33,6 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 #define PCM_DELAY_DEFAULT 1.0       // in seconds
 #define PCM_DELAY_MIN 0.015         // 15 milliseconds is practical on most modern CPUs
-#define PCM_CALIBRATION_INTERVAL 50 // calibrate clock only every 50th iteration
 
 using namespace std;
 using namespace pcm;
@@ -109,6 +108,7 @@ void print_usage(const string progname)
     cerr << "                                        will read counters only after external program finishes\n";
     cerr << " Supported <options> are: \n";
     cerr << "  -h    | --help  | /h               => print this help and exit\n";
+    cerr << "  -i[=number] | /i[=number]          => allow to determine number of iterations\n";
 //    cerr << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or\n"
 //         << "                                        to a file, in case filename is provided\n";
     cerr << "  [-m imc_profile] [-p pcu_profile] [-a freq_band0] [-b freq_band1] [-c freq_band2]\n\n";
@@ -158,9 +158,7 @@ int main(int argc, char * argv[])
     freq_band[2] = default_freq_band[2];
 
     bool csv = false;
-    long diff_usec = 0;                            // deviation of clock is useconds between measurements
-    int calibrated = PCM_CALIBRATION_INTERVAL - 2; // keeps track is the clock calibration needed
-    unsigned int numberOfIterations = 0; // number of iterations
+    MainLoop mainLoop;
     string program = string(argv[0]);
 
     PCM * m = PCM::getInstance();
@@ -191,17 +189,8 @@ int main(int argc, char * argv[])
                 continue;
             }
             else
-            if (strncmp(*argv, "-i", 2) == 0 ||
-                strncmp(*argv, "/i", 2) == 0)
+            if (mainLoop.parseArg(*argv))
             {
-                string cmd = string(*argv);
-                size_t found = cmd.find('=', 2);
-                if (found != string::npos) {
-                    string tmp = cmd.substr(found + 1);
-                    if (!tmp.empty()) {
-                    numberOfIterations = (unsigned int)atoi(tmp.c_str());
-                    }
-                }
                 continue;
             }
             else if (strncmp(*argv, "-m", 2) == 0)
@@ -323,40 +312,13 @@ int main(int argc, char * argv[])
         MySystem(sysCmd, sysArgv);
     }
 
-    unsigned int ic = 1;
-
-    while ((ic <= numberOfIterations) || (numberOfIterations == 0))
+    mainLoop([&]()
     {
         cout << "----------------------------------------------------------------------------------------------\n";
 
         if (!csv) cout << flush;
-        int delay_ms = int(delay * 1000);
-        int calibrated_delay_ms = delay_ms;
-#ifdef _MSC_VER
-        // compensate slow Windows console output
-        if (AfterTime) delay_ms -= (int)(m->getTickCount() - BeforeTime);
-        if (delay_ms < 0) delay_ms = 0;
-#else
-        // compensation of delay on Linux/UNIX
-        // to make the samling interval as monotone as possible
-        struct timeval start_ts, end_ts;
-        if (calibrated == 0) {
-            gettimeofday(&end_ts, NULL);
-            diff_usec = (end_ts.tv_sec - start_ts.tv_sec) * 1000000.0 + (end_ts.tv_usec - start_ts.tv_usec);
-            calibrated_delay_ms = delay_ms - diff_usec / 1000.0;
-        }
-#endif
-        if (sysCmd == NULL || numberOfIterations != 0 || m->isBlocked() == false)
-        {
-            MySleepMs(calibrated_delay_ms);
-        }
 
-#ifndef _MSC_VER
-        calibrated = (calibrated + 1) % PCM_CALIBRATION_INTERVAL;
-        if (calibrated == 0) {
-            gettimeofday(&start_ts, NULL);
-        }
-#endif
+        const auto delay_ms = calibratedSleep(delay, sysCmd, mainLoop, m);
 
         AfterTime = m->getTickCount();
         for (i = 0; i < m->getNumSockets(); ++i)
@@ -525,10 +487,10 @@ int main(int argc, char * argv[])
         if (m->isBlocked()) {
             cout << "----------------------------------------------------------------------------------------------\n";
             // in case PCM was blocked after spawning child application: break monitoring loop here
-            break;
+            return false;
         }
-	++ic;
-    }
+        return true;
+    });
 
     delete[] BeforeState;
     delete[] AfterState;

@@ -2061,6 +2061,7 @@ bool PCM::checkModel()
     if (cpu_model == BROADWELL_XEON_E3) cpu_model = BROADWELL;
     if (cpu_model == SKL_UY) cpu_model = SKL;
     if (cpu_model == KBL_1) cpu_model = KBL;
+    if (cpu_model == CML) cpu_model = KBL;
 
     if(!isCPUModelSupported((int)cpu_model))
     {

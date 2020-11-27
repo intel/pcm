@@ -449,13 +449,13 @@ void build_registers(PCM *m, PCM::ExtendedCustomCoreEventDescription conf, bool 
     m->programServerUncoreLatencyMetrics(enable_pmm);
 }
 
-void collect_data(PCM *m, bool enable_pmm, bool enable_verbose, int delay_ms)
+void collect_data(PCM *m, bool enable_pmm, bool enable_verbose, int delay_ms, MainLoop & mainLoop)
 {
 
     BeforeState = new ServerUncoreCounterState[m->getNumSockets()];
     AfterState = new ServerUncoreCounterState[m->getNumSockets()];
 
-    while (1)
+    mainLoop([&]()
     {
         collect_beforestate_uncore(m);
         collect_beforestate_core(m);
@@ -470,7 +470,8 @@ void collect_data(PCM *m, bool enable_pmm, bool enable_verbose, int delay_ms)
 
         print_all_stats(m, enable_pmm, enable_verbose);
         std::cout << std::flush;
-    }
+        return true;
+    });
 
     delete[] BeforeState;
     delete[] AfterState;
@@ -479,9 +480,10 @@ void collect_data(PCM *m, bool enable_pmm, bool enable_verbose, int delay_ms)
 void print_usage()
 {
     cerr << "\nUsage: \n";
-    cerr << " -h | --help | /h        => Print this help and exit\n";
-    cerr << " --PMM | -pmm            => to enable PMM (Default DDR uncore latency)\n";
-    cerr << " -v | --verbose          => Verbose Output\n";
+    cerr << " -h | --help | /h          => print this help and exit\n";
+    cerr << " --PMM | -pmm              => to enable PMM (Default DDR uncore latency)\n";
+    cerr << " -i[=number] | /i[=number] => allow to determine number of iterations\n";
+    cerr << " -v | --verbose            => verbose Output\n";
     cerr << "\n";
 }
 
@@ -493,6 +495,7 @@ int main(int argc, char * argv[])
     bool enable_pmm = false;
     bool enable_verbose = false;
     int delay_ms = 1000;
+    MainLoop mainLoop;
     if(argc > 1) do
     {
         argv++;
@@ -504,6 +507,10 @@ int main(int argc, char * argv[])
         {
             print_usage();
             exit(EXIT_FAILURE);
+        }
+        else if (mainLoop.parseArg(*argv))
+        {
+            continue;
         }
         else if (strncmp(*argv, "--PMM",6) == 0 || strncmp(*argv, "-pmm", 5) == 0)
         {
@@ -528,7 +535,7 @@ int main(int argc, char * argv[])
     PCM * m = PCM::getInstance();
 
     build_registers(m, conf, enable_pmm, enable_verbose);
-    collect_data(m, enable_pmm, enable_verbose, delay_ms);
+    collect_data(m, enable_pmm, enable_verbose, delay_ms, mainLoop);
 
     exit(EXIT_SUCCESS);
 }

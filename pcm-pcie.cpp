@@ -36,7 +36,6 @@
 
 #define PCM_DELAY_DEFAULT 1.0 // in seconds
 #define PCM_DELAY_MIN 0.015 // 15 milliseconds is practical on most modern CPUs
-#define PCM_CALIBRATION_INTERVAL 50 // calibrate clock only every 50th iteration
 
 using namespace std;
 
@@ -79,6 +78,7 @@ void print_usage(const string progname)
     cerr << "  -B                                 => Estimate PCIe B/W (in Bytes/sec) by multiplying\n";
     cerr << "                                        the number of transfers by the cache line size (=64 bytes).\n";
     cerr << "  -e                                 => print additional PCIe LLC miss/hit statistics.\n";
+    cerr << "  -i[=number] | /i[=number]          => allow to determine number of iterations\n";
     cerr << " It overestimates the bandwidth under traffic with many partial cache line transfers.\n";
     cerr << "\n";
     print_events();
@@ -130,7 +130,7 @@ int main(int argc, char * argv[])
 	bool print_additional_info = false;
     char * sysCmd = NULL;
     char ** sysArgv = NULL;
-    unsigned int numberOfIterations = 0; // number of iterations
+    MainLoop mainLoop;
 
     string program = string(argv[0]);
 
@@ -163,17 +163,8 @@ int main(int argc, char * argv[])
             continue;
         }
 	else
-        if (strncmp(*argv, "-i", 2) == 0 ||
-            strncmp(*argv, "/i", 2) == 0)
+        if (mainLoop.parseArg(*argv))
         {
-            string cmd = string(*argv);
-            size_t found = cmd.find('=', 2);
-            if (found != string::npos) {
-                string tmp = cmd.substr(found + 1);
-                if (!tmp.empty()) {
-                    numberOfIterations = (unsigned int)atoi(tmp.c_str());
-                }
-            }
             continue;
         }
         else
@@ -249,8 +240,7 @@ int main(int argc, char * argv[])
     }
 
     // ================================== Begin Printing Output ==================================
-    unsigned int ic = 1;
-    while ((ic <= numberOfIterations) || (numberOfIterations == 0))
+    mainLoop([&]()
     {
         if (!csv) cout << flush;
 
@@ -266,10 +256,10 @@ int main(int argc, char * argv[])
         platform->cleanup();
 
         if (m->isBlocked())
-            break;
+            return false;
 
-        ++ic;
-    }
+        return true;
+    });
     // ================================== End Printing Output ==================================
 
     exit(EXIT_SUCCESS);
