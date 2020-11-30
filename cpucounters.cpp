@@ -2592,6 +2592,9 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
             ctrl_reg.fields.reserved1 = 0;
         }
 
+        MSR[i]->write(INST_RETIRED_ANY_ADDR, 0);
+        MSR[i]->write(CPU_CLK_UNHALTED_THREAD_ADDR, 0);
+        MSR[i]->write(CPU_CLK_UNHALTED_REF_ADDR, 0);
         MSR[i]->write(IA32_CR_FIXED_CTR_CTRL, ctrl_reg.value);
     }
 
