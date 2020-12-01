@@ -2031,35 +2031,35 @@ class BasicCounterState
     friend uint64 getSMICount(const CounterStateType & before, const CounterStateType & after);
 
 protected:
-    uint64 InstRetiredAny;
-    uint64 CpuClkUnhaltedThread;
-    uint64 CpuClkUnhaltedRef;
+    checked_uint64 InstRetiredAny;
+    checked_uint64 CpuClkUnhaltedThread;
+    checked_uint64 CpuClkUnhaltedRef;
     // dont put any additional fields between Event 0-Event 3 because getNumberOfCustomEvents assumes there are none
     union {
-        uint64 L3Miss;
-        uint64 Event0;
-        uint64 ArchLLCMiss;
+        checked_uint64 L3Miss;
+        checked_uint64 Event0;
+        checked_uint64 ArchLLCMiss;
     };
     union {
-        uint64 L3UnsharedHit;
-        uint64 Event1;
-        uint64 ArchLLCRef;
-        uint64 SKLL3Hit;
+        checked_uint64 L3UnsharedHit;
+        checked_uint64 Event1;
+        checked_uint64 ArchLLCRef;
+        checked_uint64 SKLL3Hit;
     };
     union {
-        uint64 L2HitM;
-        uint64 Event2;
-        uint64 SKLL2Miss;
+        checked_uint64 L2HitM;
+        checked_uint64 Event2;
+        checked_uint64 SKLL2Miss;
     };
     union {
-        uint64 L2Hit;
-        uint64 Event3;
+        checked_uint64 L2Hit;
+        checked_uint64 Event3;
     };
-    uint64 Event4, Event5, Event6, Event7;
-    uint64* getEventsPtr() { return &Event0; };
-    const uint64* getEventsPtr() const { return &Event0; };
-    uint64& Event(size_t i) { return getEventsPtr()[i]; };
-    const uint64& Event(size_t i) const { return getEventsPtr()[i]; };
+    checked_uint64 Event4, Event5, Event6, Event7;
+    checked_uint64* getEventsPtr() { return &Event0; };
+    const checked_uint64* getEventsPtr() const { return &Event0; };
+    checked_uint64& Event(size_t i) { return getEventsPtr()[i]; };
+    const checked_uint64& Event(size_t i) const { return getEventsPtr()[i]; };
     uint64 InvariantTSC; // invariant time stamp counter
     uint64 CStateResidency[PCM::MAX_C_STATE + 1];
     int32 ThermalHeadroom;
@@ -2070,9 +2070,6 @@ protected:
 
 public:
     BasicCounterState() :
-        InstRetiredAny(0),
-        CpuClkUnhaltedThread(0),
-        CpuClkUnhaltedRef(0),
         InvariantTSC(0),
         ThermalHeadroom(PCM_INVALID_THERMAL_HEADROOM),
         L3Occupancy(0),
@@ -2081,7 +2078,7 @@ public:
         SMICount(0)
     {
         memset(CStateResidency, 0, sizeof(CStateResidency));
-        memset(getEventsPtr(), 0, sizeof(uint64) * PERF_MAX_CUSTOM_COUNTERS);
+        memset(getEventsPtr(), 0, sizeof(checked_uint64) * PERF_MAX_CUSTOM_COUNTERS);
     }
     virtual ~BasicCounterState() { }
 
@@ -2810,7 +2807,7 @@ double getExecUsage(const CounterStateType & before, const CounterStateType & af
 template <class CounterStateType>
 uint64 getInstructionsRetired(const CounterStateType & now) // instructions
 {
-    return now.InstRetiredAny;
+    return now.InstRetiredAny.getRawData_NoOverflowProtection();
 }
 
 /*! \brief Computes the number core clock cycles when signal on a specific core is running (not halted)
@@ -2862,7 +2859,7 @@ uint64 getRefCycles(const CounterStateType & before, const CounterStateType & af
 template <class CounterStateType>
 uint64 getCycles(const CounterStateType & now) // clocks
 {
-    return now.CpuClkUnhaltedThread;
+    return now.CpuClkUnhaltedThread.getRawData_NoOverflowProtection();
 }
 
 /*! \brief Computes average number of retired instructions per core cycle for the entire system combining instruction counts from logical cores to corresponding physical cores
@@ -3192,7 +3189,7 @@ inline double getCoreCStateResidency(int state, const CounterStateType & before,
 template <class CounterStateType>
 inline uint64 getCoreCStateResidency(int state, const CounterStateType& now)
 {
-    if (state == 0) return now.CpuClkUnhaltedRef;
+    if (state == 0) return now.CpuClkUnhaltedRef.getRawData_NoOverflowProtection();
 
     return now.BasicCounterState::CStateResidency[state];
 }

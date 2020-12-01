@@ -2672,6 +2672,7 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
             value |= (1ULL << j); // enable all custom counters (if > 4)
         }
 
+        MSR[i]->write(IA32_PERF_GLOBAL_OVF_CTRL, value);
         MSR[i]->write(IA32_CR_PERF_GLOBAL_CTRL, value);
     }
     return PCM::Success;
@@ -3655,6 +3656,7 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
 
     PCM * m = PCM::getInstance();
     const int32 core_gen_counter_num_max = m->getMaxCustomCoreEvents();
+    uint64 overflows = 0;
 
     const auto corruptedCountersMask = m->checkCustomCoreProgramming(msr);
     // reading core PMU counters
@@ -3674,13 +3676,27 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
     else
 #endif
     {
-        msr->read(INST_RETIRED_ANY_ADDR, &cInstRetiredAny);
-        msr->read(CPU_CLK_UNHALTED_THREAD_ADDR, &cCpuClkUnhaltedThread);
-        msr->read(CPU_CLK_UNHALTED_REF_ADDR, &cCpuClkUnhaltedRef);
-        for (int i = 0; i < core_gen_counter_num_max; ++i)
+        uint64 overflows_after = 0;
+
+        do
         {
-            msr->read(IA32_PMC0 + i, &cCustomEvents[i]);
-        }
+            msr->read(IA32_PERF_GLOBAL_STATUS, &overflows); // read overflows
+            // std::cerr << "Debug " << core_id << " IA32_PERF_GLOBAL_STATUS: " << overflows << std::endl;
+
+            msr->read(INST_RETIRED_ANY_ADDR, &cInstRetiredAny);
+            msr->read(CPU_CLK_UNHALTED_THREAD_ADDR, &cCpuClkUnhaltedThread);
+            msr->read(CPU_CLK_UNHALTED_REF_ADDR, &cCpuClkUnhaltedRef);
+            for (int i = 0; i < core_gen_counter_num_max; ++i)
+            {
+                msr->read(IA32_PMC0 + i, &cCustomEvents[i]);
+            }
+
+            msr->read(IA32_PERF_GLOBAL_STATUS, &overflows_after); // read overflows again
+            // std::cerr << "Debug " << core_id << " IA32_PERF_GLOBAL_STATUS: " << overflows << std::endl;
+
+        } while (overflows != overflows_after); // repeat the reading if an overflow happened during the reading
+
+        msr->write(IA32_PERF_GLOBAL_OVF_CTRL, overflows); // clear overflows
     }
 
     for (int i = 0; i < core_gen_counter_num_max; ++i)
@@ -3713,12 +3729,12 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
 
     msr->read(MSR_SMI_COUNT, &cSMICount);
 
-    InstRetiredAny += m->extractCoreFixedCounterValue(cInstRetiredAny);
-    CpuClkUnhaltedThread += m->extractCoreFixedCounterValue(cCpuClkUnhaltedThread);
-    CpuClkUnhaltedRef += m->extractCoreFixedCounterValue(cCpuClkUnhaltedRef);
+    InstRetiredAny += checked_uint64(m->extractCoreFixedCounterValue(cInstRetiredAny), extract_bits(overflows, 32, 32));
+    CpuClkUnhaltedThread += checked_uint64(m->extractCoreFixedCounterValue(cCpuClkUnhaltedThread), extract_bits(overflows, 33, 33));
+    CpuClkUnhaltedRef += checked_uint64(m->extractCoreFixedCounterValue(cCpuClkUnhaltedRef), extract_bits(overflows, 34, 34));
     for (int i = 0; i < core_gen_counter_num_max; ++i)
     {
-        Event(i) += m->extractCoreGenCounterValue(cCustomEvents[i]);
+        Event(i) += checked_uint64(m->extractCoreGenCounterValue(cCustomEvents[i]), extract_bits(overflows, i, i));
     }
     //std::cout << "Scaling Factor " << m->L3ScalingFactor;
     cL3Occupancy = m->extractQOSMonitoring(cL3Occupancy);

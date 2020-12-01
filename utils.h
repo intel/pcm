@@ -150,7 +150,29 @@ public:
 };
 #endif
 
+class checked_uint64 // uint64 with checking for overflows when computing differences
+{
+    uint64 data;
+    uint64 overflows;
+public:
+    checked_uint64() : data(0), overflows(0) {}
+    checked_uint64(const uint64 d, const uint64 o) : data(d), overflows(o) {}
+    const checked_uint64& operator += (const checked_uint64& o)
+    {
+        data += o.data;
+        overflows += o.overflows;
+        return *this;
+    }
 
+    uint64 operator - (const checked_uint64& o) const
+    {
+        // computing data - o.data
+        constexpr uint64 counter_width = 48;
+        return data + overflows * (1ULL << counter_width) - o.data;
+    }
+
+    uint64 getRawData_NoOverflowProtection() const { return data; }
+};
 
 // a secure (but partial) alternative for sscanf
 // see example usage in pcm-core.cpp

@@ -56,6 +56,9 @@ typedef signed int int32;
 #define IA32_PERFEVTSEL2_ADDR           (IA32_PERFEVTSEL0_ADDR + 2)
 #define IA32_PERFEVTSEL3_ADDR           (IA32_PERFEVTSEL0_ADDR + 3)
 
+constexpr auto IA32_PERF_GLOBAL_STATUS = 0x38E;
+constexpr auto IA32_PERF_GLOBAL_OVF_CTRL = 0x390;
+
 #define PERF_MAX_FIXED_COUNTERS          (3)
 #define PERF_MAX_CUSTOM_COUNTERS         (8)
 #define PERF_MAX_COUNTERS               (PERF_MAX_FIXED_COUNTERS + PERF_MAX_CUSTOM_COUNTERS)
