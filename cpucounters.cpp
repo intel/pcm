@@ -353,6 +353,8 @@ uint64 extract_bits(uint64 myin, uint32 beg, uint32 end)
 
 uint64 PCM::extractCoreGenCounterValue(uint64 val)
 {
+    if (canUsePerf) return val;
+
     if(core_gen_counter_width)
         return extract_bits(val, 0, core_gen_counter_width-1);
 
@@ -361,6 +363,8 @@ uint64 PCM::extractCoreGenCounterValue(uint64 val)
 
 uint64 PCM::extractCoreFixedCounterValue(uint64 val)
 {
+    if (canUsePerf) return val;
+
     if(core_fixed_counter_width)
         return extract_bits(val, 0, core_fixed_counter_width-1);
 
