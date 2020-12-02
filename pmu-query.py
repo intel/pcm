@@ -42,7 +42,7 @@ if filename == None:
     if platform.system() == 'CYGWIN_NT-6.1':
         p = subprocess.Popen(['./pcm-core.exe -c'],stdout=subprocess.PIPE,shell=True) 
     elif platform.system() == 'Windows':
-        p = subprocess.Popen(['pcm-core.exe -c'],stdout=subprocess.PIPE,shell=True)
+        p = subprocess.Popen(['pcm-core.exe', '-c'],stdout=subprocess.PIPE,shell=True)
     else:
         p = subprocess.Popen(['./pcm-core.x -c'],stdout=subprocess.PIPE,shell=True)
 
