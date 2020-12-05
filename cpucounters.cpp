@@ -1408,6 +1408,7 @@ void PCM::printSystemTopology() const
     {
         std::cerr << "Physical cores per socket: " << num_phys_cores_per_socket << "\n";
     }
+    std::cerr << "Last level cache slices per socket: " << getMaxNumOfCBoxes() << "\n";
     std::cerr << "Core PMU (perfmon) version: " << perfmon_version << "\n";
     std::cerr << "Number of core PMU generic (programmable) counters: " << core_gen_counter_num_max << "\n";
     std::cerr << "Width of generic (programmable) counters: " << core_gen_counter_width << " bits\n";
