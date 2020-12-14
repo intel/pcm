@@ -116,6 +116,10 @@ nice:
 
 prefix=/usr
 
+ifneq ($(DESTDIR),)
+	prefix=${DESTDIR}/usr
+endif
+
 install: all
 	mkdir -p                                     ${prefix}/sbin/
 	install -s -m 755 pcm-core.x                 ${prefix}/sbin/pcm-core
