@@ -1,0 +1,13 @@
+Source: opcm
+Section: unknown
+Priority: optional
+Maintainer: opcm <processor.counter.monitor@gmail.com>
+Build-Depends: debhelper (>= 10)
+Standards-Version: 4.1.2
+Homepage: https://github.com/opcm/pcm/
+
+Package: opcm
+Architecture: amd64
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Processor Counter Monitor (PCM)
+ Processor Counter Monitor (PCM) is an application programming interface (API) and a set of tools based on the API to monitor performance and energy metrics of Intel® Core™, Xeon®, Atom™ and Xeon Phi™ processors. PCM works on Linux, Windows, Mac OS X, FreeBSD and DragonFlyBSD operating systems.
