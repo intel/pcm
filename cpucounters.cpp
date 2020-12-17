@@ -4910,6 +4910,8 @@ bool PCM::useLinuxPerfForUncore() const
     static bool printed = false;
     bool secureBoot = isSecureBoot();
 #ifdef PCM_USE_PERF
+    const auto imcIDs = enumeratePerfPMUs("imc", 100);
+    std::cout << "INFO: Linux perf interface to program uncore PMUs is " << (imcIDs.empty()?"NOT ":"") << "present\n";
     const char * perf_env = std::getenv("PCM_USE_UNCORE_PERF");
     if (perf_env != NULL && std::string(perf_env) == std::string("1"))
     {
