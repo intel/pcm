@@ -39,6 +39,8 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <sys/cpuctl.h>
 #endif
 
+#include <mutex>
+
 namespace pcm {
 
 #ifdef _MSC_VER
@@ -236,6 +238,11 @@ MsrHandle::~MsrHandle()
 
 int32 MsrHandle::write(uint64 msr_number, uint64 value)
 {
+#if 0
+    static std::mutex m;
+    std::lock_guard<std::mutex> g(m);
+    std::cout << "DEBUG: writing MSR 0x" << std::hex << msr_number << " value 0x" << value << " on cpu " << std::dec << cpu_id << std::endl;
+#endif
     return ::pwrite(fd, (const void *)&value, sizeof(uint64), msr_number);
 }
 
