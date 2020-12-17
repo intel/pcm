@@ -4907,7 +4907,12 @@ bool PCM::isSecureBoot() const
 
 bool PCM::useLinuxPerfForUncore() const
 {
-    static bool printed = false;
+    static int use = -1;
+    if (use != -1)
+    {
+        return 1 == use;
+    }
+    use = 0;
     bool secureBoot = isSecureBoot();
 #ifdef PCM_USE_PERF
     const auto imcIDs = enumeratePerfPMUs("imc", 100);
@@ -4915,26 +4920,23 @@ bool PCM::useLinuxPerfForUncore() const
     const char * perf_env = std::getenv("PCM_USE_UNCORE_PERF");
     if (perf_env != NULL && std::string(perf_env) == std::string("1"))
     {
-        if (!printed) std::cout << "INFO: using Linux perf interface to program uncore PMUs because env variable PCM_USE_UNCORE_PERF=1\n";
-        printed = true;
-        return true;
+        std::cout << "INFO: using Linux perf interface to program uncore PMUs because env variable PCM_USE_UNCORE_PERF=1\n";
+        use = 1;
     }
     if (secureBoot)
     {
-        if (!printed) std::cout << "Secure Boot detected. Using Linux perf for uncore PMU programming.\n";
-        printed = true;
-        return true;
+        std::cout << "INFO: Secure Boot detected. Using Linux perf for uncore PMU programming.\n";
+        use = 1;
     }
     else
 #endif
     {
         if (secureBoot)
         {
-            if (!printed) std::cerr << "ERROR: Secure Boot detected. Recompile PCM with -DPCM_USE_PERF or disable Secure Boot.\n";
-            printed = true;
+            std::cerr << "ERROR: Secure Boot detected. Recompile PCM with -DPCM_USE_PERF or disable Secure Boot.\n";
         }
     }
-    return false;
+    return 1 == use;
 }
 
 ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
