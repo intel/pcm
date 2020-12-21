@@ -67,6 +67,8 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #endif
 #endif
 
+#include "resctrl.h"
+
 namespace pcm {
 
 #ifdef _MSC_VER
@@ -580,6 +582,10 @@ class PCM_API PCM
 
     std::vector<std::shared_ptr<CounterWidthExtender> > memory_bw_local;
     std::vector<std::shared_ptr<CounterWidthExtender> > memory_bw_total;
+#ifdef __linux__
+    Resctrl resctrl;
+#endif
+    bool useResctrl;
 
     std::shared_ptr<ClientBW> clientBW;
     std::shared_ptr<CounterWidthExtender> clientImcReads;
@@ -810,7 +816,7 @@ private:
 
     bool PMUinUse();
     void cleanupPMU();
-    void freeRMID();
+    void cleanupRDT();
     bool decrementInstanceSemaphore(); // returns true if it was the last instance
 
 #ifdef __APPLE__
@@ -843,10 +849,12 @@ private:
     *
     *       \returns nothing
     */
-    void initRMID();
+    void initRDT();
     /*!
-     *      \brief initializes each core event MSR with an RMID for QOS event (L3 cache monitoring or memory bandwidth monitoring)
+     *      \brief Initializes RDT
      *
+     *      Initializes RDT infrastructure through resctrl Linux driver or direct MSR programming.
+     *      For the latter: initializes each core event MSR with an RMID for QOS event (L3 cache monitoring or memory bandwidth monitoring)
      *      \returns nothing
     */
     void initQOSevent(const uint64 event, const int32 core);
@@ -2078,7 +2086,10 @@ public:
         SMICount(0)
     {
         memset(CStateResidency, 0, sizeof(CStateResidency));
-        memset(getEventsPtr(), 0, sizeof(checked_uint64) * PERF_MAX_CUSTOM_COUNTERS);
+        Event0 = checked_uint64(); // default c-tor does not work for unions
+        Event1 = checked_uint64(); // default c-tor does not work for unions
+        Event2 = checked_uint64(); // default c-tor does not work for unions
+        Event3 = checked_uint64(); // default c-tor does not work for unions
     }
     virtual ~BasicCounterState() { }
 

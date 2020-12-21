@@ -50,7 +50,7 @@ CXX=c++
 LIB= -lpthread -lc++
 endif
 
-COMMON_OBJS = msr.o cpucounters.o pci.o mmio.o client_bw.o utils.o topology.o dashboard.o debug.o threadpool.o
+COMMON_OBJS = msr.o cpucounters.o pci.o mmio.o client_bw.o utils.o topology.o dashboard.o debug.o threadpool.o resctrl.o
 EXE_OBJS = $(EXE:.x=.o)
 OBJS = $(COMMON_OBJS) $(EXE_OBJS)
 
@@ -110,9 +110,6 @@ memoptest.x: memoptest.cpp
 
 dashboardtest.x: dashboardtest.cpp $(COMMON_OBJS)
 	$(CXX) -o $@ $^ $(LIB)
-
-nice:
-	uncrustify --replace -c ~/uncrustify.cfg *.cpp *.h WinMSRDriver/Win7/*.h WinMSRDriver/Win7/*.c WinMSRDriver/WinXP/*.h WinMSRDriver/WinXP/*.c  PCM_Win/*.h PCM_Win/*.cpp  
 
 prefix=/usr
 
