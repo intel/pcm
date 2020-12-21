@@ -2086,7 +2086,10 @@ public:
         SMICount(0)
     {
         memset(CStateResidency, 0, sizeof(CStateResidency));
-        memset(getEventsPtr(), 0, sizeof(checked_uint64) * PERF_MAX_CUSTOM_COUNTERS);
+        Event0 = checked_uint64(); // default c-tor does not work for unions
+        Event1 = checked_uint64(); // default c-tor does not work for unions
+        Event2 = checked_uint64(); // default c-tor does not work for unions
+        Event3 = checked_uint64(); // default c-tor does not work for unions
     }
     virtual ~BasicCounterState() { }
 

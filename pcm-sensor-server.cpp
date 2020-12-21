@@ -288,21 +288,21 @@ public:
     CoreCounterState const getCoreCounter( std::shared_ptr<Aggregator> ag, uint32 tid ) const {
         CoreCounterState ccs;
         if ( nullptr == ag.get() )
-            return std::move( ccs );
+            return ccs;
         return std::move( ag->coreCounterStates()[tid] );
     }
 
     SocketCounterState const getSocketCounter( std::shared_ptr<Aggregator> ag, uint32 sid ) const {
         SocketCounterState socs;
         if ( nullptr == ag.get() )
-            return std::move( socs );
+            return socs;
         return std::move( ag->socketCounterStates()[sid] );
     }
 
     SystemCounterState getSystemCounter( std::shared_ptr<Aggregator> ag ) const {
         SystemCounterState sycs;
         if ( nullptr == ag.get() )
-            return std::move( sycs );
+            return sycs;
         return std::move( ag->systemCounterState() );
     }
 
@@ -548,21 +548,21 @@ public:
     CoreCounterState const getCoreCounter( std::shared_ptr<Aggregator> ag, uint32 tid ) const {
         CoreCounterState ccs;
         if ( nullptr == ag.get() )
-            return std::move( ccs );
+            return ccs;
         return std::move( ag->coreCounterStates()[tid] );
     }
 
     SocketCounterState const getSocketCounter( std::shared_ptr<Aggregator> ag, uint32 sid ) const {
         SocketCounterState socs;
         if ( nullptr == ag.get() )
-            return std::move( socs );
+            return socs;
         return std::move( ag->socketCounterStates()[sid] );
     }
 
     SystemCounterState getSystemCounter( std::shared_ptr<Aggregator> ag ) const {
         SystemCounterState sycs;
         if ( nullptr == ag.get() )
-            return std::move( sycs );
+            return sycs;
         return std::move( ag->systemCounterState() );
     }
 
