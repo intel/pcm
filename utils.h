@@ -318,6 +318,12 @@ public:
     }
 };
 
+#ifdef __linux__
+FILE * tryOpen(const char * path, const char * mode);
+std::string readSysFS(const char * path, bool silent);
+bool writeSysFS(const char * path, const std::string & value, bool silent);
+#endif
+
 int calibratedSleep(const double delay, const char* sysCmd, const MainLoop& mainLoop, PCM* m);
 
 struct StackedBarItem {

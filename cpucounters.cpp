@@ -650,7 +650,9 @@ bool PCM::isRDTDisabled() const
 bool PCM::QOSMetricAvailable() const
 {
     if (isRDTDisabled()) return false;
-    if (isSecureBoot()) return false; // TODO: use perf rdt driver
+#ifndef __linux__
+    if (isSecureBoot()) return false;
+#endif
     PCM_CPUID_INFO cpuinfo;
     pcm_cpuid(0x7,0,cpuinfo);
     return (cpuinfo.reg.ebx & (1<<12))?true:false;
@@ -659,7 +661,9 @@ bool PCM::QOSMetricAvailable() const
 bool PCM::L3QOSMetricAvailable() const
 {
     if (isRDTDisabled()) return false;
-    if (isSecureBoot()) return false; // TODO:: use perf rdt driver
+#ifndef __linux__
+    if (isSecureBoot()) return false;
+#endif
     PCM_CPUID_INFO cpuinfo;
     pcm_cpuid(0xf,0,cpuinfo);
     return (cpuinfo.reg.edx & (1<<1))?true:false;
@@ -703,10 +707,34 @@ unsigned PCM::getMaxRMID() const
     return maxRMID;
 }
 
-void PCM::initRMID()
+void PCM::initRDT()
 {
     if (!(QOSMetricAvailable() && L3QOSMetricAvailable()))
         return;
+#ifdef __linux__
+    auto env = std::getenv("PCM_USE_RESCTRL");
+    if (env != nullptr && std::string(env) == std::string("1"))
+    {
+        std::cout << "INFO: using Linux resctrl driver for RDT metrics (L3OCC, LMB, RMB) because environment variable PCM_USE_RESCTRL=1\n";
+        resctrl.init();
+        useResctrl = true;
+        return;
+    }
+    if (resctrl.isMounted())
+    {
+        std::cout << "INFO: using Linux resctrl driver for RDT metrics (L3OCC, LMB, RMB) because resctrl driver is mounted.\n";
+        resctrl.init();
+        useResctrl = true;
+        return;
+    }
+    if (isSecureBoot())
+    {
+        std::cout << "INFO: using Linux resctrl driver for RDT metrics (L3OCC, LMB, RMB) because Secure Boot mode is enabled.\n";
+        resctrl.init();
+        useResctrl = true;
+        return;
+    }
+#endif
     unsigned maxRMID;
     /* Calculate maximum number of RMID supported by socket */
     maxRMID = getMaxRMID();
@@ -1901,6 +1929,10 @@ PCM::PCM() :
     allow_multiple_instances(false),
     programmed_pmu(false),
     joulesPerEnergyUnit(0),
+#ifdef __linux__
+    resctrl(*this),
+#endif
+    useResctrl(false),
     disable_JKT_workaround(false),
     blocked(false),
     coreCStateMsr(NULL),
@@ -1958,8 +1990,7 @@ PCM::PCM() :
 
     initUncoreObjects();
 
-    // Initialize RMID to the cores for QOS monitoring
-    initRMID();
+    initRDT();
 
     readCPUMicrocodeLevel();
 
@@ -3353,11 +3384,18 @@ void PCM::resetPMU()
     std::cerr << " Zeroed PMU registers\n";
 #endif
 }
-void PCM::freeRMID()
+void PCM::cleanupRDT()
 {
     if(!(QOSMetricAvailable() && L3QOSMetricAvailable())) {
         return;
     }
+#ifdef __linux__
+    if (useResctrl)
+    {
+        resctrl.cleanup();
+        return;
+    }
+#endif
 
     for(int32 core = 0; core < num_cores; core ++ )
     {
@@ -3419,7 +3457,7 @@ void PCM::cleanup()
     disableForceRTMAbortMode();
 
     cleanupUncorePMUs();
-    freeRMID();
+    cleanupRDT();
 #ifdef __linux__
     if (needToRestoreNMIWatchdog)
     {
@@ -3710,12 +3748,12 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
     }
 
     // std::cout << "DEBUG1: " << msr->getCoreId() << " " << cInstRetiredAny << " \n";
-    if(m->L3CacheOccupancyMetricAvailable())
+    if (m->L3CacheOccupancyMetricAvailable() && m->useResctrl == false)
     {
         msr->lock();
         uint64 event = 1;
         m->initQOSevent(event, core_id);
-        msr->read(IA32_QM_CTR,&cL3Occupancy);
+        msr->read(IA32_QM_CTR, &cL3Occupancy);
         //std::cout << "readAndAggregate reading IA32_QM_CTR " << std::dec << cL3Occupancy << std::dec << "\n";
         msr->unlock();
     }
@@ -3741,9 +3779,18 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
     {
         Event(i) += checked_uint64(m->extractCoreGenCounterValue(cCustomEvents[i]), extract_bits(overflows, i, i));
     }
-    //std::cout << "Scaling Factor " << m->L3ScalingFactor;
-    cL3Occupancy = m->extractQOSMonitoring(cL3Occupancy);
-    L3Occupancy = (cL3Occupancy==PCM_INVALID_QOS_MONITORING_DATA)? PCM_INVALID_QOS_MONITORING_DATA : (uint64)((double)(cL3Occupancy * m->L3ScalingFactor) / 1024.0);
+#ifdef __linux__
+    if (m->useResctrl)
+    {
+        L3Occupancy = m->resctrl.getL3OCC(core_id) / 1024;
+    }
+    else
+#endif
+    {
+        //std::cout << "Scaling Factor " << m->L3ScalingFactor;
+        cL3Occupancy = m->extractQOSMonitoring(cL3Occupancy);
+        L3Occupancy = (cL3Occupancy==PCM_INVALID_QOS_MONITORING_DATA)? PCM_INVALID_QOS_MONITORING_DATA : (uint64)((double)(cL3Occupancy * m->L3ScalingFactor) / 1024.0);
+    }
     for(int i=0; i <= int(PCM::MAX_C_STATE);++i)
         CStateResidency[i] += cCStateResidency[i];
     ThermalHeadroom = extractThermalHeadroom(thermStatus);
@@ -4153,6 +4200,20 @@ SystemCounterState PCM::getSystemCounterState()
 template <class CounterStateType>
 void PCM::readAndAggregateMemoryBWCounters(const uint32 core, CounterStateType & result)
 {
+#ifdef __linux__
+    if (useResctrl)
+    {
+        if (CoreLocalMemoryBWMetricAvailable())
+        {
+            result.MemoryBWLocal += resctrl.getMBL(core);
+        }
+        if (CoreRemoteMemoryBWMetricAvailable())
+        {
+            result.MemoryBWTotal += resctrl.getMBT(core);
+        }
+        return;
+    }
+#endif
      uint64 cMemoryBWLocal = 0;
      uint64 cMemoryBWTotal = 0;
 
