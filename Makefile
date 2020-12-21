@@ -111,9 +111,6 @@ memoptest.x: memoptest.cpp
 dashboardtest.x: dashboardtest.cpp $(COMMON_OBJS)
 	$(CXX) -o $@ $^ $(LIB)
 
-nice:
-	uncrustify --replace -c ~/uncrustify.cfg *.cpp *.h WinMSRDriver/Win7/*.h WinMSRDriver/Win7/*.c WinMSRDriver/WinXP/*.h WinMSRDriver/WinXP/*.c  PCM_Win/*.h PCM_Win/*.cpp  
-
 prefix=/usr
 
 install: all
