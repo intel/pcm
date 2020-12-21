@@ -43,10 +43,8 @@ namespace pcm
             return;
         }
         const auto numCores = pcm.getNumCores();
-        fileLock.resize(numCores);
         for (unsigned int c = 0; c < numCores; ++c)
         {
-            fileLock[c] = std::unique_ptr<std::mutex>(new std::mutex);
             if (pcm.isCoreOnline(c))
             {
                 const auto C = std::to_string(c);
@@ -65,7 +63,7 @@ namespace pcm
                 }
                 const auto cpus_listFilename = dir + "/cpus_list";
                 writeSysFS(cpus_listFilename.c_str(), C, false);
-                auto openMetricFiles = [&dir, c] (PCM & pcm, const std::string & metric, FileMapType & fileMap)
+                auto generateMetricFiles = [&dir, c] (PCM & pcm, const std::string & metric, FileMapType & fileMap)
                 {
                     auto getMetricFilename = [] (const std::string & dir, const uint64 s, const std::string & metric)
                     {
@@ -75,29 +73,20 @@ namespace pcm
                     };
                     for (uint64 s = 0; s < pcm.getNumSockets(); ++s)
                     {
-                        auto occupancyPath = getMetricFilename(dir, s, metric);
-                        auto f = tryOpen(occupancyPath.c_str(), "r");
-                        if (!f)
-                        {
-                            std::cerr << "ERROR: can't open "<< occupancyPath << "\n";
-                        }
-                        else
-                        {
-                            fileMap[c].push_back(f);
-                        }
+                        fileMap[c].push_back(getMetricFilename(dir, s, metric));
                     }
                 };
                 if (pcm.L3CacheOccupancyMetricAvailable())
                 {
-                    openMetricFiles(pcm, "llc_occupancy", L3OCC);
+                    generateMetricFiles(pcm, "llc_occupancy", L3OCC);
                 }
                 if (pcm.CoreLocalMemoryBWMetricAvailable())
                 {
-                    openMetricFiles(pcm, "mbm_local_bytes", MBL);
+                    generateMetricFiles(pcm, "mbm_local_bytes", MBL);
                 }
                 if (pcm.CoreRemoteMemoryBWMetricAvailable())
                 {
-                    openMetricFiles(pcm, "mbm_total_bytes", MBT);
+                    generateMetricFiles(pcm, "mbm_total_bytes", MBT);
                 }
             }
         }
@@ -118,21 +107,14 @@ namespace pcm
     }
     size_t Resctrl::getMetric(Resctrl::FileMapType & fileMap, int core)
     {
-        if (core >= (int)fileLock.size()) return 0;
         auto files = fileMap[core];
         size_t result = 0;
-        std::lock_guard<std::mutex> _(*fileLock[core]);
         for (auto f : files)
         {
-            rewind(f);
-            char buffer[1024];
-            if (NULL == fgets(buffer, 1024, f))
+            const auto data = readSysFS(f.c_str(), false);
+            if (data.empty() == false)
             {
-                std::cerr << "ERROR: Can not read from " << f << "\n";
-            }
-            else 
-            {
-                result += atoll(buffer);
+                result += atoll(data.c_str());
             }
         }
         return result;

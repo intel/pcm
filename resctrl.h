@@ -34,9 +34,8 @@ namespace pcm
     class Resctrl
     {
         PCM & pcm;
-        typedef std::unordered_map<int, std::vector<FILE *> > FileMapType;
+        typedef std::unordered_map<int, std::vector<std::string> > FileMapType;
         FileMapType L3OCC, MBL, MBT;
-        std::vector<std::unique_ptr<std::mutex> > fileLock;
         Resctrl() = delete;
         size_t getMetric(FileMapType & fileMap, int core);
         static constexpr auto PCMPath = "/sys/fs/resctrl/mon_groups/pcm";

@@ -4205,11 +4205,11 @@ void PCM::readAndAggregateMemoryBWCounters(const uint32 core, CounterStateType &
     {
         if (CoreLocalMemoryBWMetricAvailable())
         {
-            result.MemoryBWLocal += resctrl.getMBL(core);
+            result.MemoryBWLocal += resctrl.getMBL(core) / (1024*1024);
         }
         if (CoreRemoteMemoryBWMetricAvailable())
         {
-            result.MemoryBWTotal += resctrl.getMBT(core);
+            result.MemoryBWTotal += resctrl.getMBT(core) / (1024*1024);
         }
         return;
     }
