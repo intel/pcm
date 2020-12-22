@@ -116,6 +116,16 @@ namespace pcm
             {
                 result += atoll(data.c_str());
             }
+            else
+            {
+                static std::mutex lock;
+                std::lock_guard<std::mutex> _(lock);
+                std::cerr << "Error reading " << f << ". Error: " << strerror(errno) << "\n";
+                if (errno == 24)
+                {
+                    std::cerr << "try executing 'ulimit -n 10000' to increase the limit on the number of open files.\n";
+                }
+            }
         }
         return result;
     }
