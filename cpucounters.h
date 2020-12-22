@@ -2042,32 +2042,18 @@ protected:
     checked_uint64 InstRetiredAny;
     checked_uint64 CpuClkUnhaltedThread;
     checked_uint64 CpuClkUnhaltedRef;
-    // dont put any additional fields between Event 0-Event 3 because getNumberOfCustomEvents assumes there are none
-    union {
-        checked_uint64 L3Miss;
-        checked_uint64 Event0;
-        checked_uint64 ArchLLCMiss;
+    checked_uint64 Event[PERF_MAX_CUSTOM_COUNTERS];
+    enum
+    {
+               L3MissPos = 0,
+          ArchLLCMissPos = 0,
+        L3UnsharedHitPos = 1,
+           ArchLLCRefPos = 1,
+             SKLL3HitPos = 1,
+               L2HitMPos = 2,
+            SKLL2MissPos = 2,
+                L2HitPos = 3
     };
-    union {
-        checked_uint64 L3UnsharedHit;
-        checked_uint64 Event1;
-        checked_uint64 ArchLLCRef;
-        checked_uint64 SKLL3Hit;
-    };
-    union {
-        checked_uint64 L2HitM;
-        checked_uint64 Event2;
-        checked_uint64 SKLL2Miss;
-    };
-    union {
-        checked_uint64 L2Hit;
-        checked_uint64 Event3;
-    };
-    checked_uint64 Event4, Event5, Event6, Event7;
-    checked_uint64* getEventsPtr() { return &Event0; };
-    const checked_uint64* getEventsPtr() const { return &Event0; };
-    checked_uint64& Event(size_t i) { return getEventsPtr()[i]; };
-    const checked_uint64& Event(size_t i) const { return getEventsPtr()[i]; };
     uint64 InvariantTSC; // invariant time stamp counter
     uint64 CStateResidency[PCM::MAX_C_STATE + 1];
     int32 ThermalHeadroom;
@@ -2086,10 +2072,6 @@ public:
         SMICount(0)
     {
         memset(CStateResidency, 0, sizeof(CStateResidency));
-        Event0 = checked_uint64(); // default c-tor does not work for unions
-        Event1 = checked_uint64(); // default c-tor does not work for unions
-        Event2 = checked_uint64(); // default c-tor does not work for unions
-        Event3 = checked_uint64(); // default c-tor does not work for unions
     }
     virtual ~BasicCounterState() { }
 
@@ -2104,7 +2086,7 @@ public:
         CpuClkUnhaltedRef += o.CpuClkUnhaltedRef;
         for (int i = 0; i < PERF_MAX_CUSTOM_COUNTERS; ++i)
         {
-            Event(i) += o.Event(i);
+            Event[i] += o.Event[i];
         }
         InvariantTSC += o.InvariantTSC;
         for (int i = 0; i <= (int)PCM::MAX_C_STATE; ++i)
@@ -3018,7 +3000,7 @@ template <class CounterStateType>
 uint64 getL3CacheMisses(const CounterStateType & before, const CounterStateType & after)
 {
     if (!PCM::getInstance()->isL3CacheMissesAvailable()) return 0;
-    return after.L3Miss - before.L3Miss;
+    return after.Event[BasicCounterState::L3MissPos] - before.Event[BasicCounterState::L3MissPos];
 }
 
 /*! \brief Computes number of L2 cache misses
@@ -3034,15 +3016,15 @@ uint64 getL2CacheMisses(const CounterStateType & before, const CounterStateType 
     auto pcm = PCM::getInstance();
     if (pcm->isL2CacheMissesAvailable() == false) return 0ULL;
     if (pcm->useSkylakeEvents()) {
-        return after.SKLL2Miss - before.SKLL2Miss;
+        return after.Event[BasicCounterState::SKLL2MissPos] - before.Event[BasicCounterState::SKLL2MissPos];
     }
     if (pcm->isAtom() || pcm->getCPUModel() == PCM::KNL)
     {
-        return after.ArchLLCMiss - before.ArchLLCMiss;
+        return after.Event[BasicCounterState::ArchLLCMissPos] - before.Event[BasicCounterState::ArchLLCMissPos];
     }
-    uint64 L3Miss = after.L3Miss - before.L3Miss;
-    uint64 L3UnsharedHit = after.L3UnsharedHit - before.L3UnsharedHit;
-    uint64 L2HitM = after.L2HitM - before.L2HitM;
+    uint64 L3Miss = after.Event[BasicCounterState::L3MissPos] - before.Event[BasicCounterState::L3MissPos];
+    uint64 L3UnsharedHit = after.Event[BasicCounterState::L3UnsharedHitPos] - before.Event[BasicCounterState::L3UnsharedHitPos];
+    uint64 L2HitM = after.Event[BasicCounterState::L2HitMPos] - before.Event[BasicCounterState::L2HitMPos];
     return L2HitM + L3UnsharedHit + L3Miss;
 }
 
@@ -3060,11 +3042,11 @@ uint64 getL2CacheHits(const CounterStateType & before, const CounterStateType & 
     if (pcm->isL2CacheHitsAvailable() == false) return 0ULL;
     if (pcm->isAtom() || pcm->getCPUModel() == PCM::KNL)
     {
-        uint64 L2Miss = after.ArchLLCMiss - before.ArchLLCMiss;
-        uint64 L2Ref = after.ArchLLCRef - before.ArchLLCRef;
+        uint64 L2Miss = after.Event[BasicCounterState::ArchLLCMissPos] - before.Event[BasicCounterState::ArchLLCMissPos];
+        uint64 L2Ref = after.Event[BasicCounterState::ArchLLCRefPos] - before.Event[BasicCounterState::ArchLLCRefPos];
         return L2Ref - L2Miss;
     }
-    return after.L2Hit - before.L2Hit;
+    return after.Event[BasicCounterState::L2HitPos] - before.Event[BasicCounterState::L2HitPos];
 }
 
 /*! \brief Computes L3 Cache Occupancy
@@ -3112,7 +3094,7 @@ template <class CounterStateType>
 uint64 getL3CacheHitsNoSnoop(const CounterStateType & before, const CounterStateType & after)
 {
     if (!PCM::getInstance()->isL3CacheHitsNoSnoopAvailable()) return 0;
-    return after.L3UnsharedHit - before.L3UnsharedHit;
+    return after.Event[BasicCounterState::L3UnsharedHitPos] - before.Event[BasicCounterState::L3UnsharedHitPos];
 }
 
 /*! \brief Computes number of L3 cache hits where snooping in sibling L2 caches had to be done
@@ -3127,9 +3109,9 @@ uint64 getL3CacheHitsSnoop(const CounterStateType & before, const CounterStateTy
 {
     if (!PCM::getInstance()->isL3CacheHitsSnoopAvailable()) return 0;
     if (PCM::getInstance()->useSkylakeEvents()) {
-        return after.SKLL3Hit - before.SKLL3Hit;
+        return after.Event[BasicCounterState::SKLL3HitPos] - before.Event[BasicCounterState::SKLL3HitPos];
     }
-    return after.L2HitM - before.L2HitM;
+    return after.Event[BasicCounterState::L2HitMPos] - before.Event[BasicCounterState::L2HitMPos];
 }
 
 
@@ -3367,7 +3349,7 @@ uint64 getSMICount(const CounterStateType & before, const CounterStateType & aft
 template <class CounterStateType>
 uint64 getNumberOfCustomEvents(int32 eventCounterNr, const CounterStateType & before, const CounterStateType & after)
 {
-    return after.Event(eventCounterNr) - before.Event(eventCounterNr);
+    return after.Event[eventCounterNr] - before.Event[eventCounterNr];
 }
 
 /*! \brief Get estimation of QPI data traffic per incoming QPI link

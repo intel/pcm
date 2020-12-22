@@ -3777,7 +3777,7 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
     CpuClkUnhaltedRef += checked_uint64(m->extractCoreFixedCounterValue(cCpuClkUnhaltedRef), extract_bits(overflows, 34, 34));
     for (int i = 0; i < core_gen_counter_num_max; ++i)
     {
-        Event(i) += checked_uint64(m->extractCoreGenCounterValue(cCustomEvents[i]), extract_bits(overflows, i, i));
+        Event[i] += checked_uint64(m->extractCoreGenCounterValue(cCustomEvents[i]), extract_bits(overflows, i, i));
     }
 #ifdef __linux__
     if (m->useResctrl)
