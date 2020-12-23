@@ -532,6 +532,8 @@ class PCM_API PCM
     friend class Aggregator;
     friend class ServerPCICFGUncore;
     PCM();     // forbidden to call directly because it is a singleton
+    PCM(const PCM &) = delete;
+    PCM & operator = (const PCM &) = delete;
 
     int32 cpu_family;
     int32 cpu_model;
