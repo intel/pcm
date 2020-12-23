@@ -17,6 +17,20 @@ build_linux:gcc5:
       - g++ --version
       - make -j
 
+build_linux:gcc10:
+   image: "ubuntu:groovy"
+   stage: build
+   script:
+      - g++ --version
+      - make -j
+
+build_linux:gcc9:
+   image: "ubuntu:focal"
+   stage: build
+   script:
+      - g++ --version
+      - make -j
+
 build_linux:gcc7:
    image: "ubuntu:bionic"
    stage: build
