@@ -4004,7 +4004,7 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& allPMUConfigs_)
             return PCM::UnknownError;
         }
         size_t c = 0;
-        for (; c < corePMUConfig.programmable.size() && c < (size_t)getMaxCustomCoreEvents() && c < PERF_MAX_COUNTERS; ++c)
+        for (; c < corePMUConfig.programmable.size() && c < (size_t)getMaxCustomCoreEvents() && c < PERF_MAX_CUSTOM_COUNTERS; ++c)
         {
             regs[c].value = corePMUConfig.programmable[c].first[0];
         }
