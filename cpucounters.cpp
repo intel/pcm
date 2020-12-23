@@ -6762,9 +6762,9 @@ void PCM::programCbo(const uint64 * events, const uint32 opCode, const uint32 nc
             if((HASWELLX == cpu_model || BDX_DE == cpu_model || BDX == cpu_model || SKX == cpu_model) && llc_lookup_tid_filter != 0)
                 *cboPMUs[i][cbo].filter[0] = llc_lookup_tid_filter;
 
-            PCM::program(cboPMUs[i][cbo], events, events + 4, UNC_PMON_UNIT_CTL_FRZ_EN);
+            PCM::program(cboPMUs[i][cbo], events, events + ServerUncoreCounterState::maxCounters, UNC_PMON_UNIT_CTL_FRZ_EN);
 
-            for (int c = 0; c < 4; ++c)
+            for (int c = 0; c < ServerUncoreCounterState::maxCounters; ++c)
             {
                 *cboPMUs[i][cbo].counterValue[c] = 0;
             }
@@ -6877,7 +6877,8 @@ void PCM::initLLCReadMissLatencyEvents(uint64 * events, uint32 & opCode)
 
 void PCM::programCbo()
 {
-    uint64 events[4] = {0, 0, 0, 0};
+    uint64 events[ServerUncoreCounterState::maxCounters];
+    std::fill(events, events + ServerUncoreCounterState::maxCounters, 0);
     uint32 opCode = 0;
 
     initLLCReadMissLatencyEvents(events, opCode);
