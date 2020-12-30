@@ -1522,7 +1522,7 @@ public:
                 authority = fullURL.substr( authorityPos+2, authorityEndPos - (authorityPos + 2) );
                 DBG( 3, "authority: '", authority, "'" );
 
-                size_t atPos = authority.find( '@' );
+                const size_t atPos = authority.find( '@' );
                 bool atFound = (atPos != std::string::npos);
                 if ( atFound ) {
                     if ( atPos == 0 )
@@ -1551,8 +1551,7 @@ public:
                     url.hasUser_ = true;
                     // delete user/pass including the at
                     authority.erase( 0, atPos+1 );
-                } else
-                    atPos = 0;
+                }
 
                 // Instead of all the logic it is easier to work on substrings
 
