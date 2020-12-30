@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <dlfcn.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 int pcm_getcpu()
 {
@@ -39,6 +40,12 @@ int main(int argc, const char *argv[])
 {
 	int i,a[100],b[100],c[100];
 	int lcore_id;
+    for (i=0; i < 100; ++i)
+    {
+        a[i] = rand();
+        b[i] = rand();
+        c[i] = rand();
+    }
 
 #ifdef PCM_DYNAMIC_LIB
 	void * handle = dlopen("libpcm.so", RTLD_LAZY);
