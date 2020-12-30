@@ -192,8 +192,7 @@ std::string read_ndctl_info( std::ofstream& logfile ) {
         exit(50);
     }
     std::stringstream ndctl;
-    int pid;
-    if ( (pid = fork()) == 0 ) {
+    if ( fork() == 0 ) {
         // child, writes to pipe, close read-end
         close( pipes[0] );
         dup2( pipes[1], fileno(stdout) );
