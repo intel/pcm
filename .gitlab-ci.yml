@@ -26,6 +26,14 @@ build_linux:gcc10:
       - g++ --version
       - make -j
 
+build_linux:clang_scan:
+   image: "ubuntu:groovy"
+   stage: build
+   before_script:
+      - apt-get update -qq && apt-get install -qq -y make clang clang-tools perl g++
+   script:
+      - scan-build --status-bugs make -j
+
 build_linux:gcc9:
    image: "ubuntu:focal"
    stage: build
