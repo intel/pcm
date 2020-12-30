@@ -47,8 +47,8 @@ endif
 # Tool invocations
 daemon: pre-build $(OBJS)
 	@echo 'Building target: $@'
-	@echo 'Invoking: GCC C++ Linker'
-	g++  -o "daemon" $(OBJS) $(USER_OBJS) $(LIBS)
+	@echo 'Invoking: C++ Linker'
+	$(CXX)  -o "daemon" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
@@ -61,7 +61,7 @@ pre-build: $(USER_OBJS)
 
 %.o: ../../../%.cpp
 	-@echo 'Build PCM'
-	-g++ ${CXXFLAGS} -c $< -o $@ -std=c++11
+	-$(CXX) ${CXXFLAGS} -c $< -o $@ -std=c++11
 	-@echo ' '
 
 .PHONY: all clean dependents

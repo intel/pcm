@@ -1,4 +1,3 @@
-CC=g++
 CFLAGS=-c -Wall -std=c++11
 LDFLAGS=
 SOURCES=main.cpp
@@ -9,10 +8,10 @@ RM=rm
 all: $(SOURCES) $(EXECUTABLE)
 	
 $(EXECUTABLE): $(OBJECTS)
-	$(CC) $(LDFLAGS) $(OBJECTS) -o $@
+	$(CXX) $(LDFLAGS) $(OBJECTS) -o $@
 
 .cpp.o:
-	$(CC) $(CFLAGS) $< -o $@
+	$(CXX) $(CFLAGS) $< -o $@
 
 clean:
 	-$(RM) $(OBJECTS) $(EXECUTABLE)

@@ -106,7 +106,7 @@ c_example_shlib.x: c_example.c libpcm.so
 	@rm -f $*.d.tmp
 
 memoptest.x: memoptest.cpp
-	g++ -Wall -g -O0 -std=c++11 memoptest.cpp -o memoptest.x
+	$(CXX) -Wall -g -O0 -std=c++11 memoptest.cpp -o memoptest.x
 
 dashboardtest.x: dashboardtest.cpp $(COMMON_OBJS)
 	$(CXX) -o $@ $^ $(LIB)
