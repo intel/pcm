@@ -281,6 +281,7 @@ PCM * PCM::getInstance()
 
 uint32 build_bit_ui(uint32 beg, uint32 end)
 {
+    assert(end <= 31);
     uint32 myll = 0;
     if (end == 31)
     {
