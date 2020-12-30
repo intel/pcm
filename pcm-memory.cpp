@@ -526,7 +526,7 @@ void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 /*elapsedTime*/, const 
                             << setw(8) << PMM_MM_Ratio(md, skt) << ',';
                    });
         }
-        if (m->getCPUModel() != PCM::KNL)
+        if (m->MCDRAMmemoryTrafficMetricsAvailable() == false)
         {
             if (md->PMM == false && md->PMMMixedMode == false)
             {
@@ -661,9 +661,8 @@ void calculate_bandwidth(PCM *m, const ServerUncoreCounterState uncState1[], con
 			return (float)(nEvents * 64 / 1000000.0 / (elapsedTime / 1000.0));
 		};
 
-        switch (m->getCPUModel())
+        if (m->MCDRAMmemoryTrafficMetricsAvailable())
         {
-        case PCM::KNL:
             for (uint32 channel = 0; channel < max_edc_channels; ++channel)
             {
                 if (skipInactiveChannels && getEDCCounter(channel, ServerPCICFGUncore::EventPosition::READ, uncState1[skt], uncState2[skt]) == 0.0 && getEDCCounter(channel, ServerPCICFGUncore::EventPosition::WRITE, uncState1[skt], uncState2[skt]) == 0.0)
@@ -679,8 +678,9 @@ void calculate_bandwidth(PCM *m, const ServerUncoreCounterState uncState1[], con
                 md.EDC_Rd_socket[skt] += md.EDC_Rd_socket_chan[skt][channel];
                 md.EDC_Wr_socket[skt] += md.EDC_Wr_socket_chan[skt][channel];
             }
-            /* fall-through */
-        default:
+        }
+
+        {
             for (uint32 channel = 0; channel < max_imc_channels; ++channel)
             {
                 uint64 reads = 0, writes = 0, pmmReads = 0, pmmWrites = 0, pmmMemoryModeCleanMisses = 0, pmmMemoryModeDirtyMisses = 0;
