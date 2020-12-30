@@ -360,7 +360,7 @@ void display_bandwidth(PCM *m, memdata_t *md, const uint32 no_columns, const boo
                         else
                         {
                             EDC_Rd = -1.0;
-                            EDC_Rd = -1.0;
+                            EDC_Wr = -1.0;
                         }
 
                         if (iMC_Rd >= 0.0 && iMC_Wr >= 0.0 && EDC_Rd >= 0.0 && EDC_Wr >= 0.0)
