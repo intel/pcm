@@ -341,7 +341,7 @@ namespace PCMDaemon {
 
 		//Store shm id in a file (shmIdLocation_)
 		FILE *fp = fopen (shmIdLocation_.c_str(), "w");
-		if (fp < 0)
+		if (!fp)
 		{
 			std::cerr << "Failed to create/write to shared memory key location: " << shmIdLocation_ << "\n";
 			exit(EXIT_FAILURE);

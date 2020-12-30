@@ -106,7 +106,7 @@ namespace PCMDaemon {
 	{
 		int sharedMemoryId;
 		FILE *fp = fopen (shmIdLocation_.c_str(), "r");
-		if (fp <= 0)
+		if (!fp)
 		{
 			std::cerr << "Failed to open to shared memory key location: " << shmIdLocation_ << "\n";
 			exit(EXIT_FAILURE);
