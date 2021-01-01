@@ -34,6 +34,14 @@ build_linux:clang_scan:
    script:
       - scan-build --status-bugs make -j
 
+cppcheck:
+   image: "ubuntu:groovy"
+   stage: build
+   before_script:
+      - apt-get update -qq && apt-get install -qq -y cppcheck
+   script:
+      - sh cppcheck.sh . 10
+
 build_linux:gcc9:
    image: "ubuntu:focal"
    stage: build
