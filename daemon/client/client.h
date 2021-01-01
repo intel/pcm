@@ -38,7 +38,7 @@ namespace PCMDaemon {
 		int pollIntervalMs_;
 		std::string shmIdLocation_;
 		bool shmAttached_;
-		PCMDaemon::SharedPCMState* sharedPCMState_;
+		PCMDaemon::SharedPCMState* sharedPCMState_ = nullptr;
 		PCMDaemon::uint64 lastUpdatedClientTsc_;
 	};
 
