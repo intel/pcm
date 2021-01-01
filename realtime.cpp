@@ -79,7 +79,7 @@ template <class DS>
 void measure(DS & ds, size_t repeat, size_t nelements)
 {
     SystemCounterState before_sstate, after_sstate;
-    double before_ts, after_ts;
+    double before_ts = 0.0, after_ts;
 
     // warm up
     std::find(ds.begin(), ds.end(), nelements);

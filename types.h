@@ -27,6 +27,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <istream>
 #include <sstream>
 #include <iomanip>
+#include <string.h>
 
 #ifdef _MSC_VER
 #include <windows.h>
@@ -1047,6 +1048,10 @@ struct MCFGRecord
     unsigned char startBusNumber;
     unsigned char endBusNumber;
     char reserved[4];
+    MCFGRecord()
+    {
+           memset(this, 0, sizeof(MCFGRecord));
+    }
     void print()
     {
         std::cout << "BaseAddress=" << (std::hex) << "0x" << baseAddress << " PCISegmentGroupNumber=0x" << PCISegmentGroupNumber <<
