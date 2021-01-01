@@ -1,5 +1,5 @@
 
-cppcheck $1 --force -j $2 2> cppcheck.out
+cppcheck $1 --force -iPCM-Service_Win -j $2 2> cppcheck.out
 
 if [ -s cppcheck.out ]
 then
