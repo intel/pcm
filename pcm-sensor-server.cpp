@@ -2720,7 +2720,7 @@ public:
     }
 
 private:
-    SSL_CTX* sslCTX_;
+    SSL_CTX* sslCTX_ = nullptr;
     std::string certificateFile_;
     std::string privateKeyFile_;
 };
