@@ -31,8 +31,8 @@ inline double my_timestamp()
 
 struct T
 {
-    int key[1];
-    int data[15];
+    int key[1] = { 0 };
+    int data[15] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
     T() { }
     T(int a) { key[0] = a; }
@@ -46,7 +46,8 @@ struct T
 template <class DS>
 void Memory_intensive_task(DS & ds)
 {
-    std::find(ds.begin(), ds.end(), ds.size());
+    volatile const auto result = std::find(ds.begin(), ds.end(), ds.size());
+    (result);
 }
 
 
