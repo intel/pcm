@@ -848,7 +848,7 @@ protected:
 #endif
             bytesSent= ::send( socketFD_, (void*)outputBuffer_, bytesToSend, MSG_NOSIGNAL );
             if ( -1 == bytesSent ) {
-                strerror( errno );
+                std::cerr << strerror( errno ) << "\n";
                 return traits_type::eof();
             }
 #if defined (USE_SSL)
@@ -2651,7 +2651,7 @@ void HTTPServer::run() {
         socklen_t sa_len = sizeof( struct sockaddr_in );
         int retval = ::accept( serverSocket_, (struct sockaddr*)&clientAddress, &sa_len );
         if ( -1 == retval ) {
-            ::strerror( errno );
+            std::cerr << ::strerror( errno ) << "\n";
             continue;
         }
         clientSocketFD = retval;
@@ -2661,7 +2661,7 @@ void HTTPServer::run() {
         ::memset( ipbuf, 0, 16 );
         char const * resbuf = ::inet_ntop( AF_INET, &(clientAddress.sin_addr), ipbuf, INET_ADDRSTRLEN );
         if ( nullptr == resbuf ) {
-            ::strerror( errno );
+            std::cerr << ::strerror( errno ) << "\n";
             ::close( clientSocketFD );
             continue;
         }
@@ -2738,7 +2738,7 @@ void HTTPSServer::run() {
         socklen_t sa_len = sizeof( struct sockaddr_in );
         int retval = ::accept( serverSocket_, (struct sockaddr*)&clientAddress, &sa_len );
         if ( -1 == retval ) {
-            ::strerror( errno );
+            std::cerr << strerror( errno ) << "\n";
             continue;
         }
         clientSocketFD = retval;
@@ -2756,7 +2756,7 @@ void HTTPSServer::run() {
         memset( ipbuf, 0, 16 );
         char const * resbuf = ::inet_ntop( AF_INET, &(clientAddress.sin_addr), ipbuf, INET_ADDRSTRLEN );
         if ( nullptr == resbuf ) {
-            ::strerror( errno );
+            std::cerr << strerror( errno ) << "\n";
             ::close( clientSocketFD );
             continue;
         }
