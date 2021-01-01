@@ -40,7 +40,7 @@ cppcheck:
    before_script:
       - apt-get update -qq && apt-get install -qq -y cppcheck
    script:
-      - sh cppcheck.sh . 10
+      - sh cppcheck.sh . 28
 
 build_linux:gcc9:
    image: "ubuntu:focal"
