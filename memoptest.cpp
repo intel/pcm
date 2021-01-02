@@ -79,8 +79,7 @@ void stream_write_task(Y * p, Y * e, int value)
 template <class Y>
 void read_intensive_task(Y * p, Y * e, int value)
 {
-    volatile const auto result = std::find(p, e, -1);
-    (result);
+    std::find(p, e, -1); // cppcheck-suppress ignoredReturnValue
 }
 
 

@@ -30,7 +30,7 @@ int main()
     for (i = 0; i < NUM_CORES; ++i)
     {
         cpu_msr[i] = new MsrHandle(i);
-        assert(cpu_msr >= 0);
+        assert(cpu_msr[i]);
 
         FixedEventControlRegister ctrl_reg;
         res = cpu_msr[i]->read(IA32_CR_FIXED_CTR_CTRL, &ctrl_reg.value);

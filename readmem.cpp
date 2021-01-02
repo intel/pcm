@@ -46,8 +46,7 @@ struct T
 template <class DS>
 void Memory_intensive_task(DS & ds)
 {
-    volatile const auto result = std::find(ds.begin(), ds.end(), ds.size());
-    (result);
+    std::find(ds.begin(), ds.end(), ds.size()); // cppcheck-suppress ignoredReturnValue
 }
 
 
