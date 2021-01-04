@@ -34,6 +34,15 @@ build_linux:clang_scan:
    script:
       - scan-build --status-bugs make -j
 
+build_windows:
+   stage: build
+   before_script:
+     - 'call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars64.bat"'
+   script:
+     - 'msbuild pcm-all.sln /p:Configuration=Release;Platform=x64 /t:Clean,Build /m'
+   tags:
+     - windows
+
 cppcheck:
    image: "ubuntu:groovy"
    stage: build
