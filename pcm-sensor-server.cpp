@@ -1358,9 +1358,7 @@ public:
             if ( prop.name_ == str )
                 return prop.type_;
         }
-        if ( str.find( "X-", 0 ) != std::string::npos )
-            return CustomHeader;
-        throw std::runtime_error( "headerType: Headername not found" );
+        return CustomHeader;
     }
     static char listSeparatorChar( std::string const & headerName ) {
         static HTTPHeaderProperties props;
@@ -1368,9 +1366,7 @@ public:
             if ( prop.name_ == headerName )
                 return prop.listSeparatorChar_;
         }
-        if ( headerName.find( "X-", 0 ) != std::string::npos )
-            return ',';
-        throw std::runtime_error( "listSeparatorChar: Headername not found" );
+        return ',';
     }
     static std::string const& headerTypeAsString( enum HeaderType ht ) {
         static HTTPHeaderProperties props;
