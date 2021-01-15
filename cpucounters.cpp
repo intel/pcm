@@ -2055,7 +2055,7 @@ bool PCM::isSocketOnline(int32 socket_id) const
     return socketRefCore[socket_id] != -1;
 }
 
-bool PCM::isCPUModelSupported(int model_)
+bool PCM::isCPUModelSupported(const int model_)
 {
     return (   model_ == NEHALEM_EP
             || model_ == NEHALEM_EX
@@ -2074,7 +2074,10 @@ bool PCM::isCPUModelSupported(int model_)
             || model_ == BROADWELL
             || model_ == KNL
             || model_ == SKL
+            || model_ == SKL_UY
             || model_ == KBL
+            || model_ == KBL_1
+            || model_ == CML
             || model_ == ICL
             || model_ == SKX
            );
@@ -2086,9 +2089,6 @@ bool PCM::checkModel()
     if (cpu_model == ATOM_2) cpu_model = ATOM;
     if (cpu_model == HASWELL_ULT || cpu_model == HASWELL_2) cpu_model = HASWELL;
     if (cpu_model == BROADWELL_XEON_E3) cpu_model = BROADWELL;
-    if (cpu_model == SKL_UY) cpu_model = SKL;
-    if (cpu_model == KBL_1) cpu_model = KBL;
-    if (cpu_model == CML) cpu_model = KBL;
 
     if(!isCPUModelSupported((int)cpu_model))
     {
@@ -3254,8 +3254,14 @@ const char * PCM::getUArchCodename(const int32 cpu_model_param) const
             return "Broadwell";
         case SKL:
             return "Skylake";
+        case SKL_UY:
+            return "Skylake U/Y";
         case KBL:
             return "Kabylake";
+        case KBL_1:
+            return "Kabylake/Whiskey Lake";
+        case CML:
+            return "Comet Lake";
         case ICL:
             return "Icelake";
         case SKX:

@@ -832,7 +832,7 @@ private:
     void computeQPISpeedBeckton(int core_nr);
     void destroyMSR();
     void computeNominalFrequency();
-    static bool isCPUModelSupported(int model_);
+    static bool isCPUModelSupported(const int model_);
     std::string getSupportedUarchCodenames() const;
     std::string getUnsupportedMessage() const;
     bool detectModel();
