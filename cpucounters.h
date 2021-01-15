@@ -1428,6 +1428,7 @@ public:
     //! \return max number of instructions per cycle
     uint32 getMaxIPC() const
     {
+        if (ICL == cpu_model) return 5;
         switch (cpu_model)
         {
         case DENVERTON:
