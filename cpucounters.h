@@ -1262,6 +1262,26 @@ public:
         END_OF_MODEL_LIST = 0x0ffff
     };
 
+#define PCM_SKL_PATH_CASES \
+        case PCM::SKL_UY:  \
+        case PCM::KBL:     \
+        case PCM::KBL_1:   \
+        case PCM::CML:     \
+        case PCM::ICL:     \
+        case PCM::SKL:
+
+private:
+    bool useSKLPath() const
+    {
+        switch (cpu_model)
+        {
+            PCM_SKL_PATH_CASES
+                return true;
+        }
+        return false;
+    }
+public:
+
     //! \brief Reads CPU model id
     //! \return CPU model ID
     uint32 getCPUModel() const { return (uint32)cpu_model; }
@@ -1426,9 +1446,7 @@ public:
         case BROADWELL:
         case BDX_DE:
         case BDX:
-        case SKL:
-        case KBL:
-        case ICL:
+        PCM_SKL_PATH_CASES
         case SKX:
             return 4;
         case KNL:
@@ -1680,9 +1698,7 @@ public:
                  || cpu_model == PCM::BDX_DE
                  || cpu_model == PCM::BDX
                  || cpu_model == PCM::KNL
-                 || cpu_model == PCM::SKL
-                 || cpu_model == PCM::KBL
-                 || cpu_model == PCM::ICL
+                 || useSKLPath()
                  || cpu_model == PCM::SKX
                );
     }
@@ -1764,9 +1780,7 @@ public:
             || cpu_model == PCM::IVY_BRIDGE
             || cpu_model == PCM::HASWELL
             || cpu_model == PCM::BROADWELL
-            || cpu_model == PCM::SKL
-            || cpu_model == PCM::KBL
-            || cpu_model == PCM::ICL
+            || useSKLPath()
             );
     }
 
@@ -1783,7 +1797,7 @@ public:
             cpu_model == PCM::HASWELLX
             || cpu_model == PCM::BDX
             || cpu_model == PCM::SKX
-            || cpu_model == PCM::SKL
+            || useSKLPath()
             );
     }
 
@@ -1872,9 +1886,7 @@ public:
 
     bool useSkylakeEvents() const
     {
-        return    PCM::SKL == cpu_model
-               || PCM::KBL == cpu_model
-               || PCM::ICL == cpu_model
+        return    useSKLPath()
                || PCM::SKX == cpu_model
                ;
     }
@@ -1885,9 +1897,7 @@ public:
             || cpu_model == IVY_BRIDGE
             || cpu_model == HASWELL
             || cpu_model == BROADWELL
-            || cpu_model == SKL
-            || cpu_model == KBL
-            || cpu_model == ICL
+            || useSKLPath()
             ;
     }
 

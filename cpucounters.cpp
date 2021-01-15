@@ -847,11 +847,7 @@ void PCM::initCStateSupportTables()
             PCM_CSTATE_ARRAY(pkgCStateMsr, PCM_PARAM_PROTECT({0, 0, 0x60D, 0, 0, 0, 0x3F9, 0, 0, 0, 0}) );
         case HASWELL_ULT:
         case BROADWELL:
-        case SKL:
-        case SKL_UY:
-        case KBL:
-        case KBL_1:
-        case ICL:
+        PCM_SKL_PATH_CASES
         case BROADWELL_XEON_E3:
             PCM_CSTATE_ARRAY(pkgCStateMsr, PCM_PARAM_PROTECT({0, 0, 0x60D, 0x3F8, 0, 0, 0x3F9, 0x3FA, 0x630, 0x631, 0x632}) );
 
@@ -891,11 +887,7 @@ void PCM::initCStateSupportTables()
         case CHERRYTRAIL:
         case APOLLO_LAKE:
         case DENVERTON:
-        case SKL_UY:
-        case SKL:
-        case KBL:
-        case KBL_1:
-        case ICL:
+        PCM_SKL_PATH_CASES
             PCM_CSTATE_ARRAY(coreCStateMsr, PCM_PARAM_PROTECT({0, 0, 0, 0x3FC, 0, 0, 0x3FD, 0x3FE, 0, 0, 0}) );
         case KNL:
             PCM_CSTATE_ARRAY(coreCStateMsr, PCM_PARAM_PROTECT({0, 0, 0, 0, 0, 0, 0x3FF, 0, 0, 0, 0}) );
@@ -1504,9 +1496,7 @@ bool PCM::detectNominalFrequency()
                || cpu_model == AVOTON
                || cpu_model == APOLLO_LAKE
                || cpu_model == DENVERTON
-               || cpu_model == SKL
-               || cpu_model == KBL
-               || cpu_model == ICL
+               || useSKLPath()
                || cpu_model == KNL
                || cpu_model == SKX
                ) ? (100000000ULL) : (133333333ULL);
@@ -2365,10 +2355,8 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
         }
         else
         switch ( cpu_model ) {
-            case SKL:
+            PCM_SKL_PATH_CASES
             case SKX:
-            case KBL:
-            case ICL:
                 assert(useSkylakeEvents());
                 coreEventDesc[0].event_number = SKL_MEM_LOAD_RETIRED_L3_MISS_EVTNR;
                 coreEventDesc[0].umask_value = SKL_MEM_LOAD_RETIRED_L3_MISS_UMASK;
