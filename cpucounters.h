@@ -1255,6 +1255,7 @@ public:
         KBL_1 = 142,
         CML = 166,
         ICL = 126,
+        TGL = 140,
         BDX = 79,
         KNL = 87,
         SKL = 94,
@@ -1268,6 +1269,7 @@ public:
         case PCM::KBL_1:   \
         case PCM::CML:     \
         case PCM::ICL:     \
+        case PCM::TGL:     \
         case PCM::SKL:
 
 private:

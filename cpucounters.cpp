@@ -2079,6 +2079,7 @@ bool PCM::isCPUModelSupported(const int model_)
             || model_ == KBL_1
             || model_ == CML
             || model_ == ICL
+            || model_ == TGL
             || model_ == SKX
            );
 }
@@ -3264,6 +3265,8 @@ const char * PCM::getUArchCodename(const int32 cpu_model_param) const
             return "Comet Lake";
         case ICL:
             return "Icelake";
+        case TGL:
+            return "Tiger Lake";
         case SKX:
             if (cpu_model_param >= 0)
             {
