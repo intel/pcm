@@ -11,7 +11,9 @@ int pcm_getcpu()
        "mov %%ecx, %0\n\t":
        "=r" (id) :: "%rax", "%rcx", "%rdx");
     // processor ID is in ECX: https://www.felixcloutier.com/x86/rdtscp
-    return id;
+    // Linux encodes the NUMA node starting at bit 12, so remove the NUMA bits
+    // when returning the CPU integer by masking with 0xFFF.
+    return id & 0xFFF;
 }
 
 struct {
