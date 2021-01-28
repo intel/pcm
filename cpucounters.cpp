@@ -2187,11 +2187,13 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
         canUsePerf = false;
         std::cerr << "Usage of Linux perf events is disabled through PCM_NO_PERF environment variable. Using direct PMU programming...\n";
     }
+/*
     if(num_online_cores < num_cores)
     {
         canUsePerf = false;
         std::cerr << "PCM does not support using Linux perf API on systems with offlined cores. Falling-back to direct PMU programming.\n";
     }
+*/
     else if(PERF_COUNT_HW_MAX <= PCM_PERF_COUNT_HW_REF_CPU_CYCLES)
     {
         canUsePerf = false;
@@ -2494,6 +2496,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
     // Version for linux/windows/freebsd/dragonflybsd
     for (int i = 0; i < (int)num_cores; ++i)
     {
+        if (isCoreOnline(i) == false) continue;
         TemporalThreadAffinity tempThreadAffinity(i, false); // speedup trick for Linux
 
         const auto status = programCoreCounters(i, mode_, pExtDesc, lastProgrammedCustomCounters[i]);
