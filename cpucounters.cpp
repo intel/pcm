@@ -2090,6 +2090,7 @@ bool PCM::checkModel()
     if (cpu_model == ATOM_2) cpu_model = ATOM;
     if (cpu_model == HASWELL_ULT || cpu_model == HASWELL_2) cpu_model = HASWELL;
     if (cpu_model == BROADWELL_XEON_E3) cpu_model = BROADWELL;
+    if (cpu_model == CML_1) cpu_model = CML;
 
     if(!isCPUModelSupported((int)cpu_model))
     {
