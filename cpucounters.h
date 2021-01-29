@@ -1256,6 +1256,7 @@ public:
         CML = 166,
         CML_1 = 165,
         ICL = 126,
+        ICL_1 = 125,
         TGL = 140,
         BDX = 79,
         KNL = 87,
