@@ -1258,6 +1258,7 @@ public:
         ICL = 126,
         ICL_1 = 125,
         TGL = 140,
+        TGL_1 = 141,
         BDX = 79,
         KNL = 87,
         SKL = 94,
