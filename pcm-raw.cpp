@@ -372,7 +372,7 @@ int main(int argc, char* argv[])
 #endif
 
     cerr << "\n";
-    cerr << " Processor Counter Monitor: Core Monitoring Utility \n";
+    cerr << " Processor Counter Monitor: Raw Event Monitoring Utility \n";
     cerr << "\n";
 
     double delay = -1.0;

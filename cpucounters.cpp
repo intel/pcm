@@ -281,6 +281,7 @@ PCM * PCM::getInstance()
 
 uint32 build_bit_ui(uint32 beg, uint32 end)
 {
+    assert(end <= 31);
     uint32 myll = 0;
     if (end == 31)
     {
@@ -353,6 +354,8 @@ uint64 extract_bits(uint64 myin, uint32 beg, uint32 end)
 
 uint64 PCM::extractCoreGenCounterValue(uint64 val)
 {
+    if (canUsePerf) return val;
+
     if(core_gen_counter_width)
         return extract_bits(val, 0, core_gen_counter_width-1);
 
@@ -361,6 +364,8 @@ uint64 PCM::extractCoreGenCounterValue(uint64 val)
 
 uint64 PCM::extractCoreFixedCounterValue(uint64 val)
 {
+    if (canUsePerf) return val;
+
     if(core_fixed_counter_width)
         return extract_bits(val, 0, core_fixed_counter_width-1);
 
@@ -646,7 +651,9 @@ bool PCM::isRDTDisabled() const
 bool PCM::QOSMetricAvailable() const
 {
     if (isRDTDisabled()) return false;
-    if (isSecureBoot()) return false; // TODO: use perf rdt driver
+#ifndef __linux__
+    if (isSecureBoot()) return false;
+#endif
     PCM_CPUID_INFO cpuinfo;
     pcm_cpuid(0x7,0,cpuinfo);
     return (cpuinfo.reg.ebx & (1<<12))?true:false;
@@ -655,7 +662,9 @@ bool PCM::QOSMetricAvailable() const
 bool PCM::L3QOSMetricAvailable() const
 {
     if (isRDTDisabled()) return false;
-    if (isSecureBoot()) return false; // TODO:: use perf rdt driver
+#ifndef __linux__
+    if (isSecureBoot()) return false;
+#endif
     PCM_CPUID_INFO cpuinfo;
     pcm_cpuid(0xf,0,cpuinfo);
     return (cpuinfo.reg.edx & (1<<1))?true:false;
@@ -672,7 +681,7 @@ bool PCM::L3CacheOccupancyMetricAvailable() const
 
 bool PCM::CoreLocalMemoryBWMetricAvailable() const
 {
-    if (cpu_model == SKX) return false; // SKZ4 errata
+    if (cpu_model == SKX && cpu_stepping < 5) return false; // SKZ4 errata
     PCM_CPUID_INFO cpuinfo;
     if (!(QOSMetricAvailable() && L3QOSMetricAvailable()))
             return false;
@@ -682,7 +691,7 @@ bool PCM::CoreLocalMemoryBWMetricAvailable() const
 
 bool PCM::CoreRemoteMemoryBWMetricAvailable() const
 {
-    if (cpu_model == SKX) return false; // SKZ4 errata
+    if (cpu_model == SKX && cpu_stepping < 5) return false; // SKZ4 errata
     PCM_CPUID_INFO cpuinfo;
     if (!(QOSMetricAvailable() && L3QOSMetricAvailable()))
         return false;
@@ -699,10 +708,34 @@ unsigned PCM::getMaxRMID() const
     return maxRMID;
 }
 
-void PCM::initRMID()
+void PCM::initRDT()
 {
     if (!(QOSMetricAvailable() && L3QOSMetricAvailable()))
         return;
+#ifdef __linux__
+    auto env = std::getenv("PCM_USE_RESCTRL");
+    if (env != nullptr && std::string(env) == std::string("1"))
+    {
+        std::cout << "INFO: using Linux resctrl driver for RDT metrics (L3OCC, LMB, RMB) because environment variable PCM_USE_RESCTRL=1\n";
+        resctrl.init();
+        useResctrl = true;
+        return;
+    }
+    if (resctrl.isMounted())
+    {
+        std::cout << "INFO: using Linux resctrl driver for RDT metrics (L3OCC, LMB, RMB) because resctrl driver is mounted.\n";
+        resctrl.init();
+        useResctrl = true;
+        return;
+    }
+    if (isSecureBoot())
+    {
+        std::cout << "INFO: using Linux resctrl driver for RDT metrics (L3OCC, LMB, RMB) because Secure Boot mode is enabled.\n";
+        resctrl.init();
+        useResctrl = true;
+        return;
+    }
+#endif
     unsigned maxRMID;
     /* Calculate maximum number of RMID supported by socket */
     maxRMID = getMaxRMID();
@@ -814,11 +847,7 @@ void PCM::initCStateSupportTables()
             PCM_CSTATE_ARRAY(pkgCStateMsr, PCM_PARAM_PROTECT({0, 0, 0x60D, 0, 0, 0, 0x3F9, 0, 0, 0, 0}) );
         case HASWELL_ULT:
         case BROADWELL:
-        case SKL:
-        case SKL_UY:
-        case KBL:
-        case KBL_1:
-        case ICL:
+        PCM_SKL_PATH_CASES
         case BROADWELL_XEON_E3:
             PCM_CSTATE_ARRAY(pkgCStateMsr, PCM_PARAM_PROTECT({0, 0, 0x60D, 0x3F8, 0, 0, 0x3F9, 0x3FA, 0x630, 0x631, 0x632}) );
 
@@ -858,11 +887,7 @@ void PCM::initCStateSupportTables()
         case CHERRYTRAIL:
         case APOLLO_LAKE:
         case DENVERTON:
-        case SKL_UY:
-        case SKL:
-        case KBL:
-        case KBL_1:
-        case ICL:
+        PCM_SKL_PATH_CASES
             PCM_CSTATE_ARRAY(coreCStateMsr, PCM_PARAM_PROTECT({0, 0, 0, 0x3FC, 0, 0, 0x3FD, 0x3FE, 0, 0, 0}) );
         case KNL:
             PCM_CSTATE_ARRAY(coreCStateMsr, PCM_PARAM_PROTECT({0, 0, 0, 0, 0, 0, 0x3FF, 0, 0, 0, 0}) );
@@ -1404,6 +1429,7 @@ void PCM::printSystemTopology() const
     {
         std::cerr << "Physical cores per socket: " << num_phys_cores_per_socket << "\n";
     }
+    std::cerr << "Last level cache slices per socket: " << getMaxNumOfCBoxes() << "\n";
     std::cerr << "Core PMU (perfmon) version: " << perfmon_version << "\n";
     std::cerr << "Number of core PMU generic (programmable) counters: " << core_gen_counter_num_max << "\n";
     std::cerr << "Width of generic (programmable) counters: " << core_gen_counter_width << " bits\n";
@@ -1470,9 +1496,7 @@ bool PCM::detectNominalFrequency()
                || cpu_model == AVOTON
                || cpu_model == APOLLO_LAKE
                || cpu_model == DENVERTON
-               || cpu_model == SKL
-               || cpu_model == KBL
-               || cpu_model == ICL
+               || useSKLPath()
                || cpu_model == KNL
                || cpu_model == SKX
                ) ? (100000000ULL) : (133333333ULL);
@@ -1896,6 +1920,10 @@ PCM::PCM() :
     allow_multiple_instances(false),
     programmed_pmu(false),
     joulesPerEnergyUnit(0),
+#ifdef __linux__
+    resctrl(*this),
+#endif
+    useResctrl(false),
     disable_JKT_workaround(false),
     blocked(false),
     coreCStateMsr(NULL),
@@ -1953,8 +1981,7 @@ PCM::PCM() :
 
     initUncoreObjects();
 
-    // Initialize RMID to the cores for QOS monitoring
-    initRMID();
+    initRDT();
 
     readCPUMicrocodeLevel();
 
@@ -2028,7 +2055,7 @@ bool PCM::isSocketOnline(int32 socket_id) const
     return socketRefCore[socket_id] != -1;
 }
 
-bool PCM::isCPUModelSupported(int model_)
+bool PCM::isCPUModelSupported(const int model_)
 {
     return (   model_ == NEHALEM_EP
             || model_ == NEHALEM_EX
@@ -2047,8 +2074,12 @@ bool PCM::isCPUModelSupported(int model_)
             || model_ == BROADWELL
             || model_ == KNL
             || model_ == SKL
+            || model_ == SKL_UY
             || model_ == KBL
+            || model_ == KBL_1
+            || model_ == CML
             || model_ == ICL
+            || model_ == TGL
             || model_ == SKX
            );
 }
@@ -2059,9 +2090,9 @@ bool PCM::checkModel()
     if (cpu_model == ATOM_2) cpu_model = ATOM;
     if (cpu_model == HASWELL_ULT || cpu_model == HASWELL_2) cpu_model = HASWELL;
     if (cpu_model == BROADWELL_XEON_E3) cpu_model = BROADWELL;
-    if (cpu_model == SKL_UY) cpu_model = SKL;
-    if (cpu_model == KBL_1) cpu_model = KBL;
-    if (cpu_model == CML) cpu_model = KBL;
+    if (cpu_model == CML_1) cpu_model = CML;
+    if (cpu_model == ICL_1) cpu_model = ICL;
+    if (cpu_model == TGL_1) cpu_model = TGL;
 
     if(!isCPUModelSupported((int)cpu_model))
     {
@@ -2159,11 +2190,13 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
         canUsePerf = false;
         std::cerr << "Usage of Linux perf events is disabled through PCM_NO_PERF environment variable. Using direct PMU programming...\n";
     }
+/*
     if(num_online_cores < num_cores)
     {
         canUsePerf = false;
         std::cerr << "PCM does not support using Linux perf API on systems with offlined cores. Falling-back to direct PMU programming.\n";
     }
+*/
     else if(PERF_COUNT_HW_MAX <= PCM_PERF_COUNT_HW_REF_CPU_CYCLES)
     {
         canUsePerf = false;
@@ -2328,10 +2361,8 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
         }
         else
         switch ( cpu_model ) {
-            case SKL:
+            PCM_SKL_PATH_CASES
             case SKX:
-            case KBL:
-            case ICL:
                 assert(useSkylakeEvents());
                 coreEventDesc[0].event_number = SKL_MEM_LOAD_RETIRED_L3_MISS_EVTNR;
                 coreEventDesc[0].umask_value = SKL_MEM_LOAD_RETIRED_L3_MISS_UMASK;
@@ -2468,6 +2499,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
     // Version for linux/windows/freebsd/dragonflybsd
     for (int i = 0; i < (int)num_cores; ++i)
     {
+        if (isCoreOnline(i) == false) continue;
         TemporalThreadAffinity tempThreadAffinity(i, false); // speedup trick for Linux
 
         const auto status = programCoreCounters(i, mode_, pExtDesc, lastProgrammedCustomCounters[i]);
@@ -2592,6 +2624,9 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
             ctrl_reg.fields.reserved1 = 0;
         }
 
+        MSR[i]->write(INST_RETIRED_ANY_ADDR, 0);
+        MSR[i]->write(CPU_CLK_UNHALTED_THREAD_ADDR, 0);
+        MSR[i]->write(CPU_CLK_UNHALTED_REF_ADDR, 0);
         MSR[i]->write(IA32_CR_FIXED_CTR_CTRL, ctrl_reg.value);
     }
 
@@ -2669,6 +2704,7 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
             value |= (1ULL << j); // enable all custom counters (if > 4)
         }
 
+        MSR[i]->write(IA32_PERF_GLOBAL_OVF_CTRL, value);
         MSR[i]->write(IA32_CR_PERF_GLOBAL_CTRL, value);
     }
     return PCM::Success;
@@ -3225,10 +3261,18 @@ const char * PCM::getUArchCodename(const int32 cpu_model_param) const
             return "Broadwell";
         case SKL:
             return "Skylake";
+        case SKL_UY:
+            return "Skylake U/Y";
         case KBL:
             return "Kabylake";
+        case KBL_1:
+            return "Kabylake/Whiskey Lake";
+        case CML:
+            return "Comet Lake";
         case ICL:
             return "Icelake";
+        case TGL:
+            return "Tiger Lake";
         case SKX:
             if (cpu_model_param >= 0)
             {
@@ -3344,11 +3388,18 @@ void PCM::resetPMU()
     std::cerr << " Zeroed PMU registers\n";
 #endif
 }
-void PCM::freeRMID()
+void PCM::cleanupRDT()
 {
     if(!(QOSMetricAvailable() && L3QOSMetricAvailable())) {
         return;
     }
+#ifdef __linux__
+    if (useResctrl)
+    {
+        resctrl.cleanup();
+        return;
+    }
+#endif
 
     for(int32 core = 0; core < num_cores; core ++ )
     {
@@ -3410,7 +3461,7 @@ void PCM::cleanup()
     disableForceRTMAbortMode();
 
     cleanupUncorePMUs();
-    freeRMID();
+    cleanupRDT();
 #ifdef __linux__
     if (needToRestoreNMIWatchdog)
     {
@@ -3652,6 +3703,7 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
 
     PCM * m = PCM::getInstance();
     const int32 core_gen_counter_num_max = m->getMaxCustomCoreEvents();
+    uint64 overflows = 0;
 
     const auto corruptedCountersMask = m->checkCustomCoreProgramming(msr);
     // reading core PMU counters
@@ -3671,13 +3723,27 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
     else
 #endif
     {
-        msr->read(INST_RETIRED_ANY_ADDR, &cInstRetiredAny);
-        msr->read(CPU_CLK_UNHALTED_THREAD_ADDR, &cCpuClkUnhaltedThread);
-        msr->read(CPU_CLK_UNHALTED_REF_ADDR, &cCpuClkUnhaltedRef);
-        for (int i = 0; i < core_gen_counter_num_max; ++i)
+        uint64 overflows_after = 0;
+
+        do
         {
-            msr->read(IA32_PMC0 + i, &cCustomEvents[i]);
-        }
+            msr->read(IA32_PERF_GLOBAL_STATUS, &overflows); // read overflows
+            // std::cerr << "Debug " << core_id << " IA32_PERF_GLOBAL_STATUS: " << overflows << std::endl;
+
+            msr->read(INST_RETIRED_ANY_ADDR, &cInstRetiredAny);
+            msr->read(CPU_CLK_UNHALTED_THREAD_ADDR, &cCpuClkUnhaltedThread);
+            msr->read(CPU_CLK_UNHALTED_REF_ADDR, &cCpuClkUnhaltedRef);
+            for (int i = 0; i < core_gen_counter_num_max; ++i)
+            {
+                msr->read(IA32_PMC0 + i, &cCustomEvents[i]);
+            }
+
+            msr->read(IA32_PERF_GLOBAL_STATUS, &overflows_after); // read overflows again
+            // std::cerr << "Debug " << core_id << " IA32_PERF_GLOBAL_STATUS: " << overflows << std::endl;
+
+        } while (overflows != overflows_after); // repeat the reading if an overflow happened during the reading
+
+        msr->write(IA32_PERF_GLOBAL_OVF_CTRL, overflows); // clear overflows
     }
 
     for (int i = 0; i < core_gen_counter_num_max; ++i)
@@ -3686,12 +3752,12 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
     }
 
     // std::cout << "DEBUG1: " << msr->getCoreId() << " " << cInstRetiredAny << " \n";
-    if(m->L3CacheOccupancyMetricAvailable())
+    if (m->L3CacheOccupancyMetricAvailable() && m->useResctrl == false)
     {
         msr->lock();
         uint64 event = 1;
         m->initQOSevent(event, core_id);
-        msr->read(IA32_QM_CTR,&cL3Occupancy);
+        msr->read(IA32_QM_CTR, &cL3Occupancy);
         //std::cout << "readAndAggregate reading IA32_QM_CTR " << std::dec << cL3Occupancy << std::dec << "\n";
         msr->unlock();
     }
@@ -3710,16 +3776,25 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
 
     msr->read(MSR_SMI_COUNT, &cSMICount);
 
-    InstRetiredAny += m->extractCoreFixedCounterValue(cInstRetiredAny);
-    CpuClkUnhaltedThread += m->extractCoreFixedCounterValue(cCpuClkUnhaltedThread);
-    CpuClkUnhaltedRef += m->extractCoreFixedCounterValue(cCpuClkUnhaltedRef);
+    InstRetiredAny += checked_uint64(m->extractCoreFixedCounterValue(cInstRetiredAny), extract_bits(overflows, 32, 32));
+    CpuClkUnhaltedThread += checked_uint64(m->extractCoreFixedCounterValue(cCpuClkUnhaltedThread), extract_bits(overflows, 33, 33));
+    CpuClkUnhaltedRef += checked_uint64(m->extractCoreFixedCounterValue(cCpuClkUnhaltedRef), extract_bits(overflows, 34, 34));
     for (int i = 0; i < core_gen_counter_num_max; ++i)
     {
-        Event(i) += m->extractCoreGenCounterValue(cCustomEvents[i]);
+        Event[i] += checked_uint64(m->extractCoreGenCounterValue(cCustomEvents[i]), extract_bits(overflows, i, i));
     }
-    //std::cout << "Scaling Factor " << m->L3ScalingFactor;
-    cL3Occupancy = m->extractQOSMonitoring(cL3Occupancy);
-    L3Occupancy = (cL3Occupancy==PCM_INVALID_QOS_MONITORING_DATA)? PCM_INVALID_QOS_MONITORING_DATA : (uint64)((double)(cL3Occupancy * m->L3ScalingFactor) / 1024.0);
+#ifdef __linux__
+    if (m->useResctrl)
+    {
+        L3Occupancy = m->resctrl.getL3OCC(core_id) / 1024;
+    }
+    else
+#endif
+    {
+        //std::cout << "Scaling Factor " << m->L3ScalingFactor;
+        cL3Occupancy = m->extractQOSMonitoring(cL3Occupancy);
+        L3Occupancy = (cL3Occupancy==PCM_INVALID_QOS_MONITORING_DATA)? PCM_INVALID_QOS_MONITORING_DATA : (uint64)((double)(cL3Occupancy * m->L3ScalingFactor) / 1024.0);
+    }
     for(int i=0; i <= int(PCM::MAX_C_STATE);++i)
         CStateResidency[i] += cCStateResidency[i];
     ThermalHeadroom = extractThermalHeadroom(thermStatus);
@@ -3933,7 +4008,7 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& allPMUConfigs_)
             return PCM::UnknownError;
         }
         size_t c = 0;
-        for (; c < corePMUConfig.programmable.size() && c < (size_t)getMaxCustomCoreEvents() && c < PERF_MAX_COUNTERS; ++c)
+        for (; c < corePMUConfig.programmable.size() && c < (size_t)getMaxCustomCoreEvents() && c < PERF_MAX_CUSTOM_COUNTERS; ++c)
         {
             regs[c].value = corePMUConfig.programmable[c].first[0];
         }
@@ -4129,6 +4204,20 @@ SystemCounterState PCM::getSystemCounterState()
 template <class CounterStateType>
 void PCM::readAndAggregateMemoryBWCounters(const uint32 core, CounterStateType & result)
 {
+#ifdef __linux__
+    if (useResctrl)
+    {
+        if (CoreLocalMemoryBWMetricAvailable())
+        {
+            result.MemoryBWLocal += resctrl.getMBL(core) / (1024*1024);
+        }
+        if (CoreRemoteMemoryBWMetricAvailable())
+        {
+            result.MemoryBWTotal += resctrl.getMBT(core) / (1024*1024);
+        }
+        return;
+    }
+#endif
      uint64 cMemoryBWLocal = 0;
      uint64 cMemoryBWTotal = 0;
 
@@ -4883,32 +4972,36 @@ bool PCM::isSecureBoot() const
 
 bool PCM::useLinuxPerfForUncore() const
 {
-    static bool printed = false;
+    static int use = -1;
+    if (use != -1)
+    {
+        return 1 == use;
+    }
+    use = 0;
     bool secureBoot = isSecureBoot();
 #ifdef PCM_USE_PERF
+    const auto imcIDs = enumeratePerfPMUs("imc", 100);
+    std::cout << "INFO: Linux perf interface to program uncore PMUs is " << (imcIDs.empty()?"NOT ":"") << "present\n";
     const char * perf_env = std::getenv("PCM_USE_UNCORE_PERF");
     if (perf_env != NULL && std::string(perf_env) == std::string("1"))
     {
-        if (!printed) std::cout << "INFO: using Linux perf interface to program uncore PMUs because env variable PCM_USE_UNCORE_PERF=1\n";
-        printed = true;
-        return true;
+        std::cout << "INFO: using Linux perf interface to program uncore PMUs because env variable PCM_USE_UNCORE_PERF=1\n";
+        use = 1;
     }
     if (secureBoot)
     {
-        if (!printed) std::cout << "Secure Boot detected. Using Linux perf for uncore PMU programming.\n";
-        printed = true;
-        return true;
+        std::cout << "INFO: Secure Boot detected. Using Linux perf for uncore PMU programming.\n";
+        use = 1;
     }
     else
 #endif
     {
         if (secureBoot)
         {
-            if (!printed) std::cerr << "ERROR: Secure Boot detected. Recompile PCM with -DPCM_USE_PERF or disable Secure Boot.\n";
-            printed = true;
+            std::cerr << "ERROR: Secure Boot detected. Recompile PCM with -DPCM_USE_PERF or disable Secure Boot.\n";
         }
     }
-    return false;
+    return 1 == use;
 }
 
 ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
@@ -6597,7 +6690,7 @@ void PCM::programIIOCounters(IIOPMUCNTCTLRegister rawEvents[4], int IIOStack)
     else
         IIO_units.push_back(IIOStack);
 
-    for (int32 i = 0; (i < num_sockets) && MSR.size(); ++i)
+    for (int32 i = 0; (i < num_sockets) && MSR.size() && iioPMUs.size(); ++i)
     {
         uint32 refCore = socketRefCore[i];
         TemporalThreadAffinity tempThreadAffinity(refCore); // speedup trick for Linux
@@ -6673,9 +6766,9 @@ void PCM::programCbo(const uint64 * events, const uint32 opCode, const uint32 nc
             if((HASWELLX == cpu_model || BDX_DE == cpu_model || BDX == cpu_model || SKX == cpu_model) && llc_lookup_tid_filter != 0)
                 *cboPMUs[i][cbo].filter[0] = llc_lookup_tid_filter;
 
-            PCM::program(cboPMUs[i][cbo], events, events + 4, UNC_PMON_UNIT_CTL_FRZ_EN);
+            PCM::program(cboPMUs[i][cbo], events, events + ServerUncoreCounterState::maxCounters, UNC_PMON_UNIT_CTL_FRZ_EN);
 
-            for (int c = 0; c < 4; ++c)
+            for (int c = 0; c < ServerUncoreCounterState::maxCounters; ++c)
             {
                 *cboPMUs[i][cbo].counterValue[c] = 0;
             }
@@ -6788,7 +6881,8 @@ void PCM::initLLCReadMissLatencyEvents(uint64 * events, uint32 & opCode)
 
 void PCM::programCbo()
 {
-    uint64 events[4] = {0, 0, 0, 0};
+    uint64 events[ServerUncoreCounterState::maxCounters];
+    std::fill(events, events + ServerUncoreCounterState::maxCounters, 0);
     uint32 opCode = 0;
 
     initLLCReadMissLatencyEvents(events, opCode);

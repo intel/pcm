@@ -67,6 +67,8 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #endif
 #endif
 
+#include "resctrl.h"
+
 namespace pcm {
 
 #ifdef _MSC_VER
@@ -530,6 +532,8 @@ class PCM_API PCM
     friend class Aggregator;
     friend class ServerPCICFGUncore;
     PCM();     // forbidden to call directly because it is a singleton
+    PCM(const PCM &) = delete;
+    PCM & operator = (const PCM &) = delete;
 
     int32 cpu_family;
     int32 cpu_model;
@@ -580,6 +584,10 @@ class PCM_API PCM
 
     std::vector<std::shared_ptr<CounterWidthExtender> > memory_bw_local;
     std::vector<std::shared_ptr<CounterWidthExtender> > memory_bw_total;
+#ifdef __linux__
+    Resctrl resctrl;
+#endif
+    bool useResctrl;
 
     std::shared_ptr<ClientBW> clientBW;
     std::shared_ptr<CounterWidthExtender> clientImcReads;
@@ -810,7 +818,7 @@ private:
 
     bool PMUinUse();
     void cleanupPMU();
-    void freeRMID();
+    void cleanupRDT();
     bool decrementInstanceSemaphore(); // returns true if it was the last instance
 
 #ifdef __APPLE__
@@ -824,7 +832,7 @@ private:
     void computeQPISpeedBeckton(int core_nr);
     void destroyMSR();
     void computeNominalFrequency();
-    static bool isCPUModelSupported(int model_);
+    static bool isCPUModelSupported(const int model_);
     std::string getSupportedUarchCodenames() const;
     std::string getUnsupportedMessage() const;
     bool detectModel();
@@ -843,10 +851,12 @@ private:
     *
     *       \returns nothing
     */
-    void initRMID();
+    void initRDT();
     /*!
-     *      \brief initializes each core event MSR with an RMID for QOS event (L3 cache monitoring or memory bandwidth monitoring)
+     *      \brief Initializes RDT
      *
+     *      Initializes RDT infrastructure through resctrl Linux driver or direct MSR programming.
+     *      For the latter: initializes each core event MSR with an RMID for QOS event (L3 cache monitoring or memory bandwidth monitoring)
      *      \returns nothing
     */
     void initQOSevent(const uint64 event, const int32 core);
@@ -1244,13 +1254,38 @@ public:
         KBL = 158,
         KBL_1 = 142,
         CML = 166,
+        CML_1 = 165,
         ICL = 126,
+        ICL_1 = 125,
+        TGL = 140,
+        TGL_1 = 141,
         BDX = 79,
         KNL = 87,
         SKL = 94,
         SKX = 85,
         END_OF_MODEL_LIST = 0x0ffff
     };
+
+#define PCM_SKL_PATH_CASES \
+        case PCM::SKL_UY:  \
+        case PCM::KBL:     \
+        case PCM::KBL_1:   \
+        case PCM::CML:     \
+        case PCM::ICL:     \
+        case PCM::TGL:     \
+        case PCM::SKL:
+
+private:
+    bool useSKLPath() const
+    {
+        switch (cpu_model)
+        {
+            PCM_SKL_PATH_CASES
+                return true;
+        }
+        return false;
+    }
+public:
 
     //! \brief Reads CPU model id
     //! \return CPU model ID
@@ -1398,6 +1433,7 @@ public:
     //! \return max number of instructions per cycle
     uint32 getMaxIPC() const
     {
+        if (ICL == cpu_model || TGL == cpu_model) return 5;
         switch (cpu_model)
         {
         case DENVERTON:
@@ -1416,9 +1452,7 @@ public:
         case BROADWELL:
         case BDX_DE:
         case BDX:
-        case SKL:
-        case KBL:
-        case ICL:
+        PCM_SKL_PATH_CASES
         case SKX:
             return 4;
         case KNL:
@@ -1670,9 +1704,7 @@ public:
                  || cpu_model == PCM::BDX_DE
                  || cpu_model == PCM::BDX
                  || cpu_model == PCM::KNL
-                 || cpu_model == PCM::SKL
-                 || cpu_model == PCM::KBL
-                 || cpu_model == PCM::ICL
+                 || useSKLPath()
                  || cpu_model == PCM::SKX
                );
     }
@@ -1754,9 +1786,7 @@ public:
             || cpu_model == PCM::IVY_BRIDGE
             || cpu_model == PCM::HASWELL
             || cpu_model == PCM::BROADWELL
-            || cpu_model == PCM::SKL
-            || cpu_model == PCM::KBL
-            || cpu_model == PCM::ICL
+            || useSKLPath()
             );
     }
 
@@ -1773,7 +1803,7 @@ public:
             cpu_model == PCM::HASWELLX
             || cpu_model == PCM::BDX
             || cpu_model == PCM::SKX
-            || cpu_model == PCM::SKL
+            || useSKLPath()
             );
     }
 
@@ -1862,9 +1892,7 @@ public:
 
     bool useSkylakeEvents() const
     {
-        return    PCM::SKL == cpu_model
-               || PCM::KBL == cpu_model
-               || PCM::ICL == cpu_model
+        return    useSKLPath()
                || PCM::SKX == cpu_model
                ;
     }
@@ -1875,9 +1903,7 @@ public:
             || cpu_model == IVY_BRIDGE
             || cpu_model == HASWELL
             || cpu_model == BROADWELL
-            || cpu_model == SKL
-            || cpu_model == KBL
-            || cpu_model == ICL
+            || useSKLPath()
             ;
     }
 
@@ -2031,35 +2057,21 @@ class BasicCounterState
     friend uint64 getSMICount(const CounterStateType & before, const CounterStateType & after);
 
 protected:
-    uint64 InstRetiredAny;
-    uint64 CpuClkUnhaltedThread;
-    uint64 CpuClkUnhaltedRef;
-    // dont put any additional fields between Event 0-Event 3 because getNumberOfCustomEvents assumes there are none
-    union {
-        uint64 L3Miss;
-        uint64 Event0;
-        uint64 ArchLLCMiss;
+    checked_uint64 InstRetiredAny;
+    checked_uint64 CpuClkUnhaltedThread;
+    checked_uint64 CpuClkUnhaltedRef;
+    checked_uint64 Event[PERF_MAX_CUSTOM_COUNTERS];
+    enum
+    {
+               L3MissPos = 0,
+          ArchLLCMissPos = 0,
+        L3UnsharedHitPos = 1,
+           ArchLLCRefPos = 1,
+             SKLL3HitPos = 1,
+               L2HitMPos = 2,
+            SKLL2MissPos = 2,
+                L2HitPos = 3
     };
-    union {
-        uint64 L3UnsharedHit;
-        uint64 Event1;
-        uint64 ArchLLCRef;
-        uint64 SKLL3Hit;
-    };
-    union {
-        uint64 L2HitM;
-        uint64 Event2;
-        uint64 SKLL2Miss;
-    };
-    union {
-        uint64 L2Hit;
-        uint64 Event3;
-    };
-    uint64 Event4, Event5, Event6, Event7;
-    uint64* getEventsPtr() { return &Event0; };
-    const uint64* getEventsPtr() const { return &Event0; };
-    uint64& Event(size_t i) { return getEventsPtr()[i]; };
-    const uint64& Event(size_t i) const { return getEventsPtr()[i]; };
     uint64 InvariantTSC; // invariant time stamp counter
     uint64 CStateResidency[PCM::MAX_C_STATE + 1];
     int32 ThermalHeadroom;
@@ -2070,9 +2082,6 @@ protected:
 
 public:
     BasicCounterState() :
-        InstRetiredAny(0),
-        CpuClkUnhaltedThread(0),
-        CpuClkUnhaltedRef(0),
         InvariantTSC(0),
         ThermalHeadroom(PCM_INVALID_THERMAL_HEADROOM),
         L3Occupancy(0),
@@ -2081,7 +2090,6 @@ public:
         SMICount(0)
     {
         memset(CStateResidency, 0, sizeof(CStateResidency));
-        memset(getEventsPtr(), 0, sizeof(uint64) * PERF_MAX_CUSTOM_COUNTERS);
     }
     virtual ~BasicCounterState() { }
 
@@ -2096,7 +2104,7 @@ public:
         CpuClkUnhaltedRef += o.CpuClkUnhaltedRef;
         for (int i = 0; i < PERF_MAX_CUSTOM_COUNTERS; ++i)
         {
-            Event(i) += o.Event(i);
+            Event[i] += o.Event[i];
         }
         InvariantTSC += o.InvariantTSC;
         for (int i = 0; i <= (int)PCM::MAX_C_STATE; ++i)
@@ -2810,7 +2818,7 @@ double getExecUsage(const CounterStateType & before, const CounterStateType & af
 template <class CounterStateType>
 uint64 getInstructionsRetired(const CounterStateType & now) // instructions
 {
-    return now.InstRetiredAny;
+    return now.InstRetiredAny.getRawData_NoOverflowProtection();
 }
 
 /*! \brief Computes the number core clock cycles when signal on a specific core is running (not halted)
@@ -2862,7 +2870,7 @@ uint64 getRefCycles(const CounterStateType & before, const CounterStateType & af
 template <class CounterStateType>
 uint64 getCycles(const CounterStateType & now) // clocks
 {
-    return now.CpuClkUnhaltedThread;
+    return now.CpuClkUnhaltedThread.getRawData_NoOverflowProtection();
 }
 
 /*! \brief Computes average number of retired instructions per core cycle for the entire system combining instruction counts from logical cores to corresponding physical cores
@@ -3010,7 +3018,7 @@ template <class CounterStateType>
 uint64 getL3CacheMisses(const CounterStateType & before, const CounterStateType & after)
 {
     if (!PCM::getInstance()->isL3CacheMissesAvailable()) return 0;
-    return after.L3Miss - before.L3Miss;
+    return after.Event[BasicCounterState::L3MissPos] - before.Event[BasicCounterState::L3MissPos];
 }
 
 /*! \brief Computes number of L2 cache misses
@@ -3026,15 +3034,15 @@ uint64 getL2CacheMisses(const CounterStateType & before, const CounterStateType 
     auto pcm = PCM::getInstance();
     if (pcm->isL2CacheMissesAvailable() == false) return 0ULL;
     if (pcm->useSkylakeEvents()) {
-        return after.SKLL2Miss - before.SKLL2Miss;
+        return after.Event[BasicCounterState::SKLL2MissPos] - before.Event[BasicCounterState::SKLL2MissPos];
     }
     if (pcm->isAtom() || pcm->getCPUModel() == PCM::KNL)
     {
-        return after.ArchLLCMiss - before.ArchLLCMiss;
+        return after.Event[BasicCounterState::ArchLLCMissPos] - before.Event[BasicCounterState::ArchLLCMissPos];
     }
-    uint64 L3Miss = after.L3Miss - before.L3Miss;
-    uint64 L3UnsharedHit = after.L3UnsharedHit - before.L3UnsharedHit;
-    uint64 L2HitM = after.L2HitM - before.L2HitM;
+    uint64 L3Miss = after.Event[BasicCounterState::L3MissPos] - before.Event[BasicCounterState::L3MissPos];
+    uint64 L3UnsharedHit = after.Event[BasicCounterState::L3UnsharedHitPos] - before.Event[BasicCounterState::L3UnsharedHitPos];
+    uint64 L2HitM = after.Event[BasicCounterState::L2HitMPos] - before.Event[BasicCounterState::L2HitMPos];
     return L2HitM + L3UnsharedHit + L3Miss;
 }
 
@@ -3052,11 +3060,11 @@ uint64 getL2CacheHits(const CounterStateType & before, const CounterStateType & 
     if (pcm->isL2CacheHitsAvailable() == false) return 0ULL;
     if (pcm->isAtom() || pcm->getCPUModel() == PCM::KNL)
     {
-        uint64 L2Miss = after.ArchLLCMiss - before.ArchLLCMiss;
-        uint64 L2Ref = after.ArchLLCRef - before.ArchLLCRef;
+        uint64 L2Miss = after.Event[BasicCounterState::ArchLLCMissPos] - before.Event[BasicCounterState::ArchLLCMissPos];
+        uint64 L2Ref = after.Event[BasicCounterState::ArchLLCRefPos] - before.Event[BasicCounterState::ArchLLCRefPos];
         return L2Ref - L2Miss;
     }
-    return after.L2Hit - before.L2Hit;
+    return after.Event[BasicCounterState::L2HitPos] - before.Event[BasicCounterState::L2HitPos];
 }
 
 /*! \brief Computes L3 Cache Occupancy
@@ -3104,7 +3112,7 @@ template <class CounterStateType>
 uint64 getL3CacheHitsNoSnoop(const CounterStateType & before, const CounterStateType & after)
 {
     if (!PCM::getInstance()->isL3CacheHitsNoSnoopAvailable()) return 0;
-    return after.L3UnsharedHit - before.L3UnsharedHit;
+    return after.Event[BasicCounterState::L3UnsharedHitPos] - before.Event[BasicCounterState::L3UnsharedHitPos];
 }
 
 /*! \brief Computes number of L3 cache hits where snooping in sibling L2 caches had to be done
@@ -3119,9 +3127,9 @@ uint64 getL3CacheHitsSnoop(const CounterStateType & before, const CounterStateTy
 {
     if (!PCM::getInstance()->isL3CacheHitsSnoopAvailable()) return 0;
     if (PCM::getInstance()->useSkylakeEvents()) {
-        return after.SKLL3Hit - before.SKLL3Hit;
+        return after.Event[BasicCounterState::SKLL3HitPos] - before.Event[BasicCounterState::SKLL3HitPos];
     }
-    return after.L2HitM - before.L2HitM;
+    return after.Event[BasicCounterState::L2HitMPos] - before.Event[BasicCounterState::L2HitMPos];
 }
 
 
@@ -3192,7 +3200,7 @@ inline double getCoreCStateResidency(int state, const CounterStateType & before,
 template <class CounterStateType>
 inline uint64 getCoreCStateResidency(int state, const CounterStateType& now)
 {
-    if (state == 0) return now.CpuClkUnhaltedRef;
+    if (state == 0) return now.CpuClkUnhaltedRef.getRawData_NoOverflowProtection();
 
     return now.BasicCounterState::CStateResidency[state];
 }
@@ -3359,7 +3367,7 @@ uint64 getSMICount(const CounterStateType & before, const CounterStateType & aft
 template <class CounterStateType>
 uint64 getNumberOfCustomEvents(int32 eventCounterNr, const CounterStateType & before, const CounterStateType & after)
 {
-    return after.Event(eventCounterNr) - before.Event(eventCounterNr);
+    return after.Event[eventCounterNr] - before.Event[eventCounterNr];
 }
 
 /*! \brief Get estimation of QPI data traffic per incoming QPI link

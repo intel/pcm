@@ -27,6 +27,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <istream>
 #include <sstream>
 #include <iomanip>
+#include <string.h>
 
 #ifdef _MSC_VER
 #include <windows.h>
@@ -55,6 +56,9 @@ typedef signed int int32;
 #define IA32_PERFEVTSEL1_ADDR           (IA32_PERFEVTSEL0_ADDR + 1)
 #define IA32_PERFEVTSEL2_ADDR           (IA32_PERFEVTSEL0_ADDR + 2)
 #define IA32_PERFEVTSEL3_ADDR           (IA32_PERFEVTSEL0_ADDR + 3)
+
+constexpr auto IA32_PERF_GLOBAL_STATUS = 0x38E;
+constexpr auto IA32_PERF_GLOBAL_OVF_CTRL = 0x390;
 
 #define PERF_MAX_FIXED_COUNTERS          (3)
 #define PERF_MAX_CUSTOM_COUNTERS         (8)
@@ -1044,6 +1048,10 @@ struct MCFGRecord
     unsigned char startBusNumber;
     unsigned char endBusNumber;
     char reserved[4];
+    MCFGRecord()
+    {
+           memset(this, 0, sizeof(MCFGRecord));
+    }
     void print()
     {
         std::cout << "BaseAddress=" << (std::hex) << "0x" << baseAddress << " PCISegmentGroupNumber=0x" << PCISegmentGroupNumber <<

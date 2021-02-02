@@ -33,8 +33,8 @@ inline double my_timestamp()
 
 struct T
 {
-    int key[1];
-    int data[3];
+    int key[1] = { 0 };
+    int data[3] = { 0, 0, 0 };
 
     T() { }
     T(int a) { key[0] = a; }
@@ -79,7 +79,7 @@ void stream_write_task(Y * p, Y * e, int value)
 template <class Y>
 void read_intensive_task(Y * p, Y * e, int value)
 {
-    std::find(p, e, -1);
+    std::find(p, e, -1); // cppcheck-suppress ignoredReturnValue
 }
 
 

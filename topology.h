@@ -286,6 +286,8 @@ public:
 };
 
 class Socket : public SystemObject {
+    Socket(const Socket &) = delete;
+    Socket & operator = (const Socket &) = delete;
 public:
     Socket( PCM* m, int32 apicID, int32 logicalID );
     virtual ~Socket() {

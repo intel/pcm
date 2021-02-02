@@ -45,7 +45,7 @@
 using namespace std;
 using namespace pcm;
 
-const uint32 max_sockets = 256;
+constexpr uint32 max_sockets = 256;
 uint32 max_imc_channels = ServerUncoreCounterState::maxChannels;
 const uint32 max_edc_channels = ServerUncoreCounterState::maxChannels;
 const uint32 max_imc_controllers = ServerUncoreCounterState::maxControllers;
@@ -336,13 +336,13 @@ void display_bandwidth(PCM *m, memdata_t *md, const uint32 no_columns, const boo
                     \r|--       DDR4 Channel Monitoring     --||--      MCDRAM Channel Monitoring    --|\n\
                     \r|---------------------------------------||---------------------------------------|\n\
                     \r";
-                uint32 max_channels = max_imc_channels <= max_edc_channels ? max_edc_channels : max_imc_channels;
+                const uint32 max_channels = (std::max)(max_edc_channels, max_imc_channels);
                 if (show_channel_output)
                 {
                     float iMC_Rd, iMC_Wr, EDC_Rd, EDC_Wr;
                     for (uint64 channel = 0; channel < max_channels; ++channel)
                     {
-                        if (channel <= max_imc_channels)
+                        if (channel < max_imc_channels)
                         {
                             iMC_Rd = md->iMC_Rd_socket_chan[skt][channel];
                             iMC_Wr = md->iMC_Wr_socket_chan[skt][channel];
@@ -352,7 +352,7 @@ void display_bandwidth(PCM *m, memdata_t *md, const uint32 no_columns, const boo
                             iMC_Rd = -1.0;
                             iMC_Wr = -1.0;
                         }
-                        if (channel <= max_edc_channels)
+                        if (channel < max_edc_channels)
                         {
                             EDC_Rd = md->EDC_Rd_socket_chan[skt][channel];
                             EDC_Wr = md->EDC_Wr_socket_chan[skt][channel];
@@ -360,7 +360,7 @@ void display_bandwidth(PCM *m, memdata_t *md, const uint32 no_columns, const boo
                         else
                         {
                             EDC_Rd = -1.0;
-                            EDC_Rd = -1.0;
+                            EDC_Wr = -1.0;
                         }
 
                         if (iMC_Rd >= 0.0 && iMC_Wr >= 0.0 && EDC_Rd >= 0.0 && EDC_Wr >= 0.0)
@@ -526,7 +526,7 @@ void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 /*elapsedTime*/, const 
                             << setw(8) << PMM_MM_Ratio(md, skt) << ',';
                    });
         }
-        if (m->getCPUModel() != PCM::KNL)
+        if (m->MCDRAMmemoryTrafficMetricsAvailable() == false)
         {
             if (md->PMM == false && md->PMMMixedMode == false)
             {
@@ -640,7 +640,7 @@ void calculate_bandwidth(PCM *m, const ServerUncoreCounterState uncState1[], con
     md.PMM = PMM;
     md.PMMMixedMode = PMMMixedMode;
 
-    for(uint32 skt = 0; skt < m->getNumSockets(); ++skt)
+    for(uint32 skt = 0; skt < max_sockets; ++skt)
     {
         md.iMC_Rd_socket[skt] = 0.0;
         md.iMC_Wr_socket[skt] = 0.0;
@@ -654,6 +654,10 @@ void calculate_bandwidth(PCM *m, const ServerUncoreCounterState uncState1[], con
 		{
 			md.M2M_NM_read_hit_rate[skt][i] = 0.;
 		}
+    }
+
+    for(uint32 skt = 0; skt < m->getNumSockets(); ++skt)
+    {
 		const uint32 numChannels1 = (uint32)m->getMCChannels(skt, 0); // number of channels in the first controller
 
 		auto toBW = [&elapsedTime](const uint64 nEvents)
@@ -661,9 +665,8 @@ void calculate_bandwidth(PCM *m, const ServerUncoreCounterState uncState1[], con
 			return (float)(nEvents * 64 / 1000000.0 / (elapsedTime / 1000.0));
 		};
 
-        switch (m->getCPUModel())
+        if (m->MCDRAMmemoryTrafficMetricsAvailable())
         {
-        case PCM::KNL:
             for (uint32 channel = 0; channel < max_edc_channels; ++channel)
             {
                 if (skipInactiveChannels && getEDCCounter(channel, ServerPCICFGUncore::EventPosition::READ, uncState1[skt], uncState2[skt]) == 0.0 && getEDCCounter(channel, ServerPCICFGUncore::EventPosition::WRITE, uncState1[skt], uncState2[skt]) == 0.0)
@@ -679,8 +682,9 @@ void calculate_bandwidth(PCM *m, const ServerUncoreCounterState uncState1[], con
                 md.EDC_Rd_socket[skt] += md.EDC_Rd_socket_chan[skt][channel];
                 md.EDC_Wr_socket[skt] += md.EDC_Wr_socket_chan[skt][channel];
             }
-            /* fall-through */
-        default:
+        }
+
+        {
             for (uint32 channel = 0; channel < max_imc_channels; ++channel)
             {
                 uint64 reads = 0, writes = 0, pmmReads = 0, pmmWrites = 0, pmmMemoryModeCleanMisses = 0, pmmMemoryModeDirtyMisses = 0;

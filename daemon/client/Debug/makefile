@@ -42,8 +42,8 @@ all: client
 # Tool invocations
 client: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
-	@echo 'Invoking: GCC C++ Linker'
-	g++ -o "client" $(OBJS) $(USER_OBJS) $(LIBS)
+	@echo 'Invoking: C++ Linker'
+	$(CXX) -o "client" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 

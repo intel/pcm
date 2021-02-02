@@ -62,30 +62,30 @@ namespace PCMDaemon {
 	typedef struct PCMSystem PCMSystem;
 
 	struct PCMCoreCounter {
-		uint64 coreId;
-		int32 socketId;
-		double instructionsPerCycle;
-		uint64 cycles;
-		uint64 instructionsRetired;
-		double execUsage;
-		double relativeFrequency;
-		double activeRelativeFrequency;
-		uint64 l3CacheMisses;
-		uint64 l3CacheReference;
-		uint64 l2CacheMisses;
-		double l3CacheHitRatio;
-		double l2CacheHitRatio;
-		double l3CacheMPI;
-		double l2CacheMPI;
+		uint64 coreId = 0;
+		int32 socketId = 0;
+		double instructionsPerCycle = 0.;
+		uint64 cycles = 0;
+		uint64 instructionsRetired = 0;
+		double execUsage = 0.;
+		double relativeFrequency = 0.;
+		double activeRelativeFrequency = 0.;
+		uint64 l3CacheMisses = 0;
+		uint64 l3CacheReference = 0;
+		uint64 l2CacheMisses = 0;
+		double l3CacheHitRatio = 0.;
+		double l2CacheHitRatio = 0.;
+		double l3CacheMPI = 0.;
+		double l2CacheMPI = 0.;
 		bool l3CacheOccupancyAvailable;
 		uint64 l3CacheOccupancy;
 		bool localMemoryBWAvailable;
 		uint64 localMemoryBW;
 		bool remoteMemoryBWAvailable;
 		uint64 remoteMemoryBW;
-		uint64 localMemoryAccesses;
-		uint64 remoteMemoryAccesses;
-		int32 thermalHeadroom;
+		uint64 localMemoryAccesses = 0;
+		uint64 remoteMemoryAccesses = 0;
+		int32 thermalHeadroom = 0;
 
 	public:
 		PCMCoreCounter() :
@@ -131,7 +131,7 @@ namespace PCMDaemon {
 	typedef struct PCMMemoryChannelCounter PCMMemoryChannelCounter;
 
 	struct PCMMemorySocketCounter {
-		uint64 socketId;
+		uint64 socketId = 0;
 		PCMMemoryChannelCounter channels[MEMORY_MAX_IMC_CHANNELS];
 		uint32 numOfChannels;
 		float read;
@@ -191,7 +191,7 @@ namespace PCMDaemon {
 	typedef struct PCMQPILinkCounter PCMQPILinkCounter;
 
 	struct PCMQPISocketCounter {
-		uint64 socketId;
+		uint64 socketId = 0;
 		PCMQPILinkCounter links[QPI_MAX_LINKS];
 		uint64 total;
 

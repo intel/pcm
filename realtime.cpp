@@ -79,10 +79,10 @@ template <class DS>
 void measure(DS & ds, size_t repeat, size_t nelements)
 {
     SystemCounterState before_sstate, after_sstate;
-    double before_ts, after_ts;
+    double before_ts = 0.0, after_ts;
 
     // warm up
-    std::find(ds.begin(), ds.end(), nelements);
+    std::find(ds.begin(), ds.end(), nelements);  // cppcheck-suppress ignoredReturnValue
 
     double before1_ts;
 #if 0
@@ -99,7 +99,7 @@ void measure(DS & ds, size_t repeat, size_t nelements)
     }
 #endif
 
-    for (int j = 0; j < repeat; ++j) std::find(ds.begin(), ds.end(), nelements);
+    for (int j = 0; j < repeat; ++j) std::find(ds.begin(), ds.end(), nelements);  // cppcheck-suppress ignoredReturnValue
 
     // stop measuring
     after_sstate = getSystemCounterState();
@@ -143,8 +143,8 @@ typedef int T;
 
 struct T
 {
-    int key[1];
-    int data[15];
+    int key[1] = { 0 };
+    int data[15] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };;
 
     T() { }
     T(int a) { key[0] = a; }

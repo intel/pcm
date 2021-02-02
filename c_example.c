@@ -1,16 +1,19 @@
 #include <stdio.h>
 #include <dlfcn.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 int pcm_getcpu()
 {
-    int id = -1;
-    asm volatile (
-       "rdtscp\n\t"
-       "mov %%ecx, %0\n\t":
-       "=r" (id) :: "%rax", "%rcx", "%rdx");
-    // processor ID is in ECX: https://www.felixcloutier.com/x86/rdtscp
-    return id;
+	int id = -1;
+	asm volatile (
+		"rdtscp\n\t"
+		"mov %%ecx, %0\n\t":
+		"=r" (id) :: "%rax", "%rcx", "%rdx");
+	// processor ID is in ECX: https://www.felixcloutier.com/x86/rdtscp
+	// Linux encodes the NUMA node starting at bit 12, so remove the NUMA
+	// bits when returning the CPU integer by masking with 0xFFF.
+	return id & 0xFFF;
 }
 
 struct {
@@ -38,7 +41,16 @@ uint64_t pcm_c_get_core_event(uint32_t, uint32_t);
 int main(int argc, const char *argv[])
 {
 	int i,a[100],b[100],c[100];
+	uint32_t total = 0;
 	int lcore_id;
+
+	/* Seed for predictable rand() results */
+	srand(0);
+	for (i=0; i < 100; ++i) {
+		a[i] = rand();
+		b[i] = rand();
+		c[i] = rand();
+	}
 
 #ifdef PCM_DYNAMIC_LIB
 	void * handle = dlopen("libpcm.so", RTLD_LAZY);
@@ -85,11 +97,18 @@ int main(int argc, const char *argv[])
 			return -2;
 	}
 
+	printf("[c_example] Initializing PCM measurements:\n");
 	PCM.pcm_c_init();
+
+	printf("[c_example] Calling PCM start()\n");
 	PCM.pcm_c_start();
 	for(i=0;i<10000;i++)
-            c[i%100] = 4 * a[i%100] + b[i%100];
+		c[i%100] = 4 * a[i%100] + b[i%100];
+	for(i=0;i<100;i++)
+		total += c[i];
 	PCM.pcm_c_stop();
+
+	printf("[c_example] PCM measurment stopped, compute result %u\n", total);
 
 	lcore_id = pcm_getcpu();
 	printf("C:%lu I:%lu, IPC:%3.2f\n",

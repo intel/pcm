@@ -45,8 +45,8 @@ class AsynchronCounterState {
 
     friend void * UpdateCounters(void *);
 
-//	AsynchronCounterState(const& AsynchronCounterState); //unimplemeted
-//	const& AsynchronCounterState operator=(const& AsynchronCounterState); //unimplemented
+    AsynchronCounterState(const AsynchronCounterState &) = delete;
+    const AsynchronCounterState & operator = (const AsynchronCounterState &) = delete;
 
 public:
     AsynchronCounterState()

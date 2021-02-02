@@ -53,7 +53,7 @@ protected:
             wcscat_s(driver_filename, MAX_PATH, L"\\winpmem_x64.sys");
             if (GetFileAttributes(driver_filename) == INVALID_FILE_ATTRIBUTES)
             {
-                std::cerr << "ERROR: winpmem_x64.sys not found in current directory. Download it from https://github.com/google/rekall/raw/master/tools/pmem/resources/winpmem/winpmem_x64.sys .\n";
+                std::cerr << "ERROR: winpmem_x64.sys not found in current directory. Download it from https://github.com/Velocidex/WinPmem/blob/master/kernel/binaries/winpmem_x64.sys .\n";
                 std::cerr << "ERROR: Memory bandwidth statistics will not be available.\n";
             }
             break;
@@ -61,7 +61,7 @@ protected:
             wcscat_s(driver_filename, MAX_PATH, L"\\winpmem_x86.sys");
             if (GetFileAttributes(driver_filename) == INVALID_FILE_ATTRIBUTES)
             {
-                std::cerr << "ERROR: winpmem_x86.sys not found in current directory. Download it from https://github.com/google/rekall/raw/master/tools/pmem/resources/winpmem/winpmem_x86.sys .\n";
+                std::cerr << "ERROR: winpmem_x86.sys not found in current directory. Download it from https://github.com/Velocidex/WinPmem/blob/master/kernel/binaries/winpmem_x86.sys .\n";
                 std::cerr << "ERROR: Memory bandwidth statistics will not be available.\n";
             }
             break;

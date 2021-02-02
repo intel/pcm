@@ -32,6 +32,8 @@ namespace PCMDaemon {
 		Daemon(int argc, char *argv[]);
 		~Daemon();
 		int run();
+        Daemon (const Daemon &) = delete;
+        Daemon & operator = (const Daemon &) = delete;
 	private:
 		void setupPCM();
 		void checkAccessAndProgramPCM();
