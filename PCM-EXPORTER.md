@@ -4,8 +4,8 @@
 pcm-sensor-server is a collector exposing Intel processor metrics over http in JSON or Prometheus (exporter text based) format. Also [available as a docker container](https://github.com/opcm/pcm/blob/master/DOCKER_README.md).
 
 Installation on target system to be analyzed:
-1.  Build: `make pcm-sensor-server.x`
-2.  As root start pcm-sensor-server.x: `sudo ./pcm-sensor-server.x`
+1.  [Build](https://github.com/opcm/pcm#building-pcm-tools) or [download](https://github.com/opcm/pcm#downloading-pre-compiled-pcm-tools) pcm tools
+2.  As root, start pcm-sensor-server.x: `sudo ./pcm-sensor-server.x`
 
 Alternatively one can start [pcm-sensor-server as a container from docker hub](https://github.com/opcm/pcm/blob/master/DOCKER_README.md).
 
