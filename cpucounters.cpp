@@ -2413,6 +2413,17 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
                 coreEventDesc[2].umask_value = MEM_LOAD_UOPS_LLC_HIT_RETIRED_XSNP_UMASK;
                 coreEventDesc[3].event_number = MEM_LOAD_UOPS_RETIRED_L2_HIT_EVTNR;
                 coreEventDesc[3].umask_value = MEM_LOAD_UOPS_RETIRED_L2_HIT_UMASK;
+                if (core_gen_counter_num_max == 3)
+                {
+                    L3CacheHitRatioAvailable = true;
+                    L3CacheMissesAvailable = true;
+                    L2CacheMissesAvailable = true;
+                    L3CacheHitsNoSnoopAvailable = true;
+                    L3CacheHitsSnoopAvailable = true;
+                    L3CacheHitsAvailable = true;
+                    core_gen_counter_num_used = 3;
+                    break;
+                }
                 L2CacheHitRatioAvailable = true;
                 L3CacheHitRatioAvailable = true;
                 L3CacheMissesAvailable = true;
