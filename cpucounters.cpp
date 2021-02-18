@@ -457,6 +457,11 @@ void PCM::readCoreCounterConfig(const bool complainAboutMSR)
             core_fixed_counter_num_max = extract_bits_ui(cpuinfo.array[3], 0, 4);
             core_fixed_counter_width = extract_bits_ui(cpuinfo.array[3], 5, 12);
         }
+        else if (1 == perfmon_version)
+        {
+            core_fixed_counter_num_max = 3;
+            core_fixed_counter_width = core_gen_counter_width;
+        }
         if (isForceRTMAbortModeAvailable())
         {
             uint64 TSXForceAbort = 0;
@@ -1433,7 +1438,7 @@ void PCM::printSystemTopology() const
     std::cerr << "Core PMU (perfmon) version: " << perfmon_version << "\n";
     std::cerr << "Number of core PMU generic (programmable) counters: " << core_gen_counter_num_max << "\n";
     std::cerr << "Width of generic (programmable) counters: " << core_gen_counter_width << " bits\n";
-    if (perfmon_version > 1)
+    if (perfmon_version > 0)
     {
         std::cerr << "Number of core PMU fixed counters: " << core_fixed_counter_num_max << "\n";
         std::cerr << "Width of fixed counters: " << core_fixed_counter_width << " bits\n";
