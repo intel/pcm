@@ -16,6 +16,9 @@
 
 DOXYFILE = Doxyfile
 
+INPUT += README.md
+USE_MDFILE_AS_MAINPAGE = README.md
+
 # Specify external repository to link documentation with.
 # This is similar to Doxygen's TAGFILES option, but will automatically link to
 # tags of other repositories already using CodeDocs. List each repository to
