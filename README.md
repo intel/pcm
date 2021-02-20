@@ -91,4 +91,4 @@ Custom compilation options
 --------------------------------------------------------------------------------
 The list of custom compilation options is located [here](https://github.com/opcm/pcm/blob/master/CUSTOM-COMPILE-OPTIONS.md)
 
-[![HitCount](http://hits.dwyl.com/opcm/pcm.svg)](http://hits.dwyl.com/opcm/pcm)
+
