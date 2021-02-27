@@ -25,7 +25,7 @@ PCM provides a number of command-line utilities for real-time monitoring:
 
 - **pcm** : basic processor monitoring utility (instructions per cycle, core frequency (including Intel(r) Turbo Boost Technology), memory and Intel(r) Quick Path Interconnect bandwidth, local and remote memory bandwidth, cache misses, core and CPU package sleep C-state residency, core and CPU package thermal headroom, cache utilization, CPU and memory energy consumption)
 ![pcm output](https://raw.githubusercontent.com/wiki/opcm/pcm/pcm.x.jpg)
-- **pcm-sensor-server** : pcm collector exposing metrics over http in JSON or Prometheus (exporter text based) format. Also available as a [docker container](https://github.com/opcm/pcm/blob/master/DOCKER_README.md)
+- **pcm-sensor-server** : pcm collector exposing metrics over http in JSON or Prometheus (exporter text based) format ([how-to](https://github.com/opcm/pcm/blob/master/PCM-EXPORTER.md)). Also available as a [docker container](https://github.com/opcm/pcm/blob/master/DOCKER_README.md)
 - **pcm-memory** : monitor memory bandwidth (per-channel and per-DRAM DIMM rank)
 ![pcm-memory output](https://raw.githubusercontent.com/wiki/opcm/pcm/pcm-memory.x.JPG)
 - **pcm-latency** : monitor L1 cache miss and DDR/PMM memory latency
@@ -36,7 +36,7 @@ PCM provides a number of command-line utilities for real-time monitoring:
 - **pcm-power** : monitor sleep and energy states of processor, Intel(r) Quick Path Interconnect, DRAM memory, reasons of CPU frequency throttling and other energy-related metrics
 - **pcm-tsx**: monitor performance metrics for Intel(r) Transactional Synchronization Extensions
 - **pcm-core** and **pmu-query**: query and monitor arbitrary processor core events
-- **pcm-raw**(NEW): [program arbitrary **core** and **uncore** events by specifying raw register event ID encoding](https://github.com/opcm/pcm/blob/master/PCM_RAW_README.md)
+- **pcm-raw**: [program arbitrary **core** and **uncore** events by specifying raw register event ID encoding](https://github.com/opcm/pcm/blob/master/PCM_RAW_README.md)
 - **pcm-bw-histogram**: collect memory bandwidth utilization histogram
 
 Graphical front ends:
@@ -62,7 +62,9 @@ Building PCM Tools
 Downloading Pre-Compiled PCM Tools
 --------------------------------------------------------------------------------
 
-- Linux: precompiled RPMs (binary and source) and DEBs are available [here](https://download.opensuse.org/repositories/home:/opcm/)
+- Linux:
+  * openSUSE: `sudo zypper install pcm`
+  * RPMs and DEBs with the *latest* PCM version for RHEL/SLE/Ubuntu/Debian/openSUSE/etc distributions (binary and source) are available [here](https://download.opensuse.org/repositories/home:/opcm/)
 - Windows: download PCM binaries as [appveyor build service](https://ci.appveyor.com/project/opcm/pcm/history) artifacts and required Visual C++ Redistributable from [www.microsoft.com](https://www.microsoft.com/en-us/download/details.aspx?id=48145). Additional drivers are needed, see [WINDOWS_HOWTO.md](https://github.com/opcm/pcm/blob/master/WINDOWS_HOWTO.md).
 - Docker: see [instructions on how to use pcm-sensor-server pre-compiled container from docker hub](https://github.com/opcm/pcm/blob/master/DOCKER_README.md).
 
@@ -88,3 +90,5 @@ The list of PCM environment variables is located [here](https://github.com/opcm/
 Custom compilation options
 --------------------------------------------------------------------------------
 The list of custom compilation options is located [here](https://github.com/opcm/pcm/blob/master/CUSTOM-COMPILE-OPTIONS.md)
+
+
