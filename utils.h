@@ -340,4 +340,21 @@ void drawStackedBar(const std::string & label, std::vector<StackedBarItem> & h, 
 
 uint64 read_number(char* str);
 
+union PCM_CPUID_INFO
+{
+    int array[4];
+    struct { unsigned int eax, ebx, ecx, edx; } reg;
+};
+
+inline void pcm_cpuid(int leaf, PCM_CPUID_INFO& info)
+{
+#ifdef _MSC_VER
+    // version for Windows
+    __cpuid(info.array, leaf);
+#else
+    __asm__ __volatile__("cpuid" : \
+        "=a" (info.reg.eax), "=b" (info.reg.ebx), "=c" (info.reg.ecx), "=d" (info.reg.edx) : "a" (leaf));
+#endif
+}
+
 } // namespace pcm

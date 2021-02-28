@@ -414,22 +414,7 @@ int32 extractThermalHeadroom(uint64 val)
 
 uint64 get_frequency_from_cpuid();
 
-union PCM_CPUID_INFO
-{
-    int array[4];
-    struct { unsigned int eax, ebx, ecx, edx; } reg;
-};
 
-void pcm_cpuid(int leaf, PCM_CPUID_INFO & info)
-{
-    #ifdef _MSC_VER
-    // version for Windows
-    __cpuid(info.array, leaf);
-    #else
-    __asm__ __volatile__ ("cpuid" : \
-                          "=a" (info.reg.eax), "=b" (info.reg.ebx), "=c" (info.reg.ecx), "=d" (info.reg.edx) : "a" (leaf));
-    #endif
-}
 
 /* Adding the new version of cpuid with leaf and subleaf as an input */
 void pcm_cpuid(const unsigned leaf, const unsigned subleaf, PCM_CPUID_INFO & info)
