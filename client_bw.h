@@ -26,16 +26,27 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 namespace pcm {
 
-class ClientBW
-{
-    std::shared_ptr<MMIORange> mmioRange;
-public:
-    ClientBW();
+    class FreeRunningBWCounters
+    {
+    public:
+        virtual uint64 getImcReads() { return 0; }
+        virtual uint64 getImcWrites() { return 0; }
+        virtual uint64 getIoRequests() { return 0; }
+        virtual uint64 getPMMReads() { return 0; }
+        virtual uint64 getPMMWrites() { return 0; }
+        virtual ~FreeRunningBWCounters() {}
+    };
 
-    uint64 getImcReads();
-    uint64 getImcWrites();
-    uint64 getIoRequests();
-};
+    class ClientBW : public FreeRunningBWCounters
+    {
+        std::shared_ptr<MMIORange> mmioRange;
+    public:
+        ClientBW();
+
+        uint64 getImcReads() override;
+        uint64 getImcWrites() override;
+        uint64 getIoRequests() override;
+    };
 
 } // namespace pcm
 

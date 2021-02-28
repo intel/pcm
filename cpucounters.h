@@ -589,7 +589,7 @@ class PCM_API PCM
 #endif
     bool useResctrl;
 
-    std::shared_ptr<ClientBW> clientBW;
+    std::shared_ptr<FreeRunningBWCounters> clientBW;
     std::shared_ptr<CounterWidthExtender> clientImcReads;
     std::shared_ptr<CounterWidthExtender> clientImcWrites;
     std::shared_ptr<CounterWidthExtender> clientIoRequests;

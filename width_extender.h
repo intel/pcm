@@ -59,26 +59,17 @@ public:
         }
     };
 
-    struct ClientImcReadsCounter : public AbstractRawCounter
+    template <uint64 (FreeRunningBWCounters::*F)()>
+    struct ClientImcCounter : public AbstractRawCounter
     {
-        std::shared_ptr<ClientBW> clientBW;
-        ClientImcReadsCounter(std::shared_ptr<ClientBW> clientBW_) : clientBW(clientBW_) { }
-        uint64 operator () () { return clientBW->getImcReads(); }
+        std::shared_ptr<FreeRunningBWCounters> clientBW;
+        ClientImcCounter(std::shared_ptr<FreeRunningBWCounters> clientBW_) : clientBW(clientBW_) { }
+        uint64 operator () () { return (clientBW.get()->*F)(); }
     };
 
-    struct ClientImcWritesCounter : public AbstractRawCounter
-    {
-        std::shared_ptr<ClientBW> clientBW;
-        ClientImcWritesCounter(std::shared_ptr<ClientBW> clientBW_) : clientBW(clientBW_) { }
-        uint64 operator () () { return clientBW->getImcWrites(); }
-    };
-
-    struct ClientIoRequestsCounter : public AbstractRawCounter
-    {
-        std::shared_ptr<ClientBW> clientBW;
-        ClientIoRequestsCounter(std::shared_ptr<ClientBW> clientBW_) : clientBW(clientBW_) { }
-        uint64 operator () () { return clientBW->getIoRequests(); }
-    };
+    typedef ClientImcCounter<&FreeRunningBWCounters::getImcReads> ClientImcReadsCounter;
+    typedef ClientImcCounter<&FreeRunningBWCounters::getImcWrites> ClientImcWritesCounter;
+    typedef ClientImcCounter<&FreeRunningBWCounters::getIoRequests> ClientIoRequestsCounter;
 
     struct MBLCounter : public AbstractRawCounter
     {
