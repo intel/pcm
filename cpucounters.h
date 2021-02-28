@@ -1781,6 +1781,7 @@ public:
 
     bool memoryIOTrafficMetricAvailable() const
     {
+        if (cpu_model == TGL) return false;
         return (
             cpu_model == PCM::SANDY_BRIDGE
             || cpu_model == PCM::IVY_BRIDGE

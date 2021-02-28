@@ -22,6 +22,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 */
 
 #include <memory>
+#include <array>
 #include "mmio.h"
 
 namespace pcm {
@@ -35,6 +36,17 @@ namespace pcm {
         virtual uint64 getPMMReads() { return 0; }
         virtual uint64 getPMMWrites() { return 0; }
         virtual ~FreeRunningBWCounters() {}
+    };
+
+    class TGLClientBW : public FreeRunningBWCounters
+    {
+        std::array<std::shared_ptr<MMIORange>, 2> mmioRange;
+        int model;
+    public:
+        TGLClientBW();
+
+        uint64 getImcReads() override;
+        uint64 getImcWrites() override;
     };
 
     class ClientBW : public FreeRunningBWCounters

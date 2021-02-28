@@ -1594,7 +1594,14 @@ void PCM::initUncoreObjects()
        // initialize memory bandwidth counting
        try
        {
-           clientBW = std::make_shared<ClientBW>();
+           switch (cpu_model)
+           {
+           case TGL:
+               clientBW = std::make_shared<TGLClientBW>();
+               break;
+           default:
+               clientBW = std::make_shared<ClientBW>();
+           }
            clientImcReads = std::make_shared<CounterWidthExtender>(
                new CounterWidthExtender::ClientImcReadsCounter(clientBW), 32, 10000);
            clientImcWrites = std::make_shared<CounterWidthExtender>(
