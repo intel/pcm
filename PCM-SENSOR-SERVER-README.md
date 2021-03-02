@@ -1,19 +1,20 @@
-# Gobal PCM Event	events
+# Global PCM Event      events
 
-|     Event Name              |                                 Description                                    |
-|-----------------------------|--------------------------------------------------------------------------------|
-| Measurement_Interval_in_us  |  Measurement interval, how many us took for the last measurement to take place |
-| Number_of_sockets           |                        Number of CPU sockets in the system                     |
+|     Event Name              |                                Description                                  |
+|-----------------------------|-----------------------------------------------------------------------------|
+| Measurement_Interval_in_us  |             How many us elapsed to complete the last measurement            |
+| Number_of_sockets           |                     Number of CPU sockets in the system                     |
 
 
 # Core Counters per socket
 
-OS_ID denotes the socket id, core id and thread id of the following events.
+OS_ID is the OS assigned ID of the logical CPU and denotes the socket id, core id and thread id (so logical core
+of the following events.
 
-The follwing events are followed by the same {socket="socket id",core="core id",thread="thread id"} as the OS_ID
-of their section with source="socket/core/thread" appended that denotes what the quanity of the event accounts for.
+The events bellow are followed by the same {socket="socket id",core="core id",thread="thread id"} as the OS_ID
+of their section with source="socket/core/thread" appended that denotes what the quantity of the event accounts for.
 For example Instructions_Retired_Any{socket="0",core="1",thread="1",source="core"} refers to Instructions_Retired_Any
-for socket 0, core 1, thread 1, and accounts for the total retired instructions of the specified core.
+for socket 0, core 1, thread 1, and accounts for the total instructions retired of the specified core.
 
 |          Event                                 |                   Description                                |
 |------------------------------------------------|--------------------------------------------------------------|
@@ -31,16 +32,15 @@ for socket 0, core 1, thread 1, and accounts for the total retired instructions 
 |   L3_Cache_Occupancy                           |   Computes L3 Cache Occupancy                                |
 |   Invariant_TSC                                |   Invariant_TSC                                              |
 |   SMI_Count                                    |   SMI (System Management Interrupt) count                    |
-|   Invariant_TSC                                |   Calculates the invariant TSC clocks (The invariant TSC     |
+|   Invariant_TSC                                |   Calculates the invariant TSC clocks (the invariant TSC     |
 |                                                |   means that the TSC continues at a fixed rate regardless of |
 |                                                |   the C-state or frequency of the processor as long as the   |
 |                                                |   processor remains in the ACPI S0 state.                    |
-|   Thermal_Headroom                             |   Celcius degrees before reaching TjMax temperatue           |
+|   Thermal_Headroom                             |   Celsius degrees before reaching TjMax temperatue           |
 |   CStateResidency                              |   This is the percentage of time that the core (or the whole |
 |                                                |   package) spends in a particular level of C-state           |                                                                                                                                            |
 
 References:
 
-https://software.intel.com/content/www/us/en/develop/articles/intel-performance-counter-monitor.html 
+https://software.intel.com/content/www/us/en/develop/articles/intel-performance-counter-monitor.html
 https://software.intel.com/content/dam/develop/external/us/en/documents-tps/325384-sdm-vol-3abcd.pdf - Chapter 18 Performance Monitoring
-
