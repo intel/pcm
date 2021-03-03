@@ -10,7 +10,7 @@
 
 OS_ID is the OS assigned ID of the logical CPU core and denotes the socket id, core id and thread id.
 
-The events bellow are followed by the same {socket="socket id",core="core id",thread="thread id"} as
+The events below are followed by the same {socket="socket id",core="core id",thread="thread id"} as
 the OS_ID of their section with source="socket/core/thread" appended that denotes what the quantity
 of the event accounts for.
 
