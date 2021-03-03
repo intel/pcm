@@ -8,13 +8,15 @@
 
 # Core Counters per socket
 
-OS_ID is the OS assigned ID of the logical CPU and denotes the socket id, core id and thread id (so logical core
-of the following events.
+OS_ID is the OS assigned ID of the logical CPU core and denotes the socket id, core id and thread id.
 
-The events bellow are followed by the same {socket="socket id",core="core id",thread="thread id"} as the OS_ID
-of their section with source="socket/core/thread" appended that denotes what the quantity of the event accounts for.
-For example Instructions_Retired_Any{socket="0",core="1",thread="1",source="core"} refers to Instructions_Retired_Any
-for socket 0, core 1, thread 1, and accounts for the total instructions retired of the specified core.
+The events bellow are followed by the same {socket="socket id",core="core id",thread="thread id"} as
+the OS_ID of their section with source="socket/core/thread" appended that denotes what the quantity
+of the event accounts for.
+
+For example Instructions_Retired_Any{socket="0",core="1",thread="1",source="core"} refers to 
+Instructions_Retired_Any for socket 0, core 1, thread 1, and accounts for the total instructions
+retired of the specified core.
 
 |          Event                                 |                   Description                                |
 |------------------------------------------------|--------------------------------------------------------------|
@@ -30,13 +32,12 @@ for socket 0, core 1, thread 1, and accounts for the total instructions retired 
 |   L2_Cache_Misses                              |   Total number of L2 Cache misses                            |
 |   L2_Cache_Hits                                |   Total number of L3 Cache hits                              |
 |   L3_Cache_Occupancy                           |   Computes L3 Cache Occupancy                                |
-|   Invariant_TSC                                |   Invariant_TSC                                              |
 |   SMI_Count                                    |   SMI (System Management Interrupt) count                    |
 |   Invariant_TSC                                |   Calculates the invariant TSC clocks (the invariant TSC     |
 |                                                |   means that the TSC continues at a fixed rate regardless of |
 |                                                |   the C-state or frequency of the processor as long as the   |
 |                                                |   processor remains in the ACPI S0 state.                    |
-|   Thermal_Headroom                             |   Celsius degrees before reaching TjMax temperatue           |
+|   Thermal_Headroom                             |   Celsius degrees before reaching TjMax temperature          |
 |   CStateResidency                              |   This is the percentage of time that the core (or the whole |
 |                                                |   package) spends in a particular level of C-state           |                                                                                                                                            |
 
