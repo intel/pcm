@@ -16,7 +16,8 @@ BuildRequires:  gcc-c++
 %description
 
 Processor Counter Monitor (PCM) is an application programming interface (API) and a set of tools based on the API to monitor performance and energy metrics of Intel(r) Core(tm), Xeon(r), Atom(tm) and Xeon Phi(tm) processors. PCM works on Linux, Windows, Mac OS X, FreeBSD and DragonFlyBSD operating systems.
- 
+
+%global debug_package %{nil}
 
 %prep
 %setup -n pcm-master
