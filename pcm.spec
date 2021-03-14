@@ -61,7 +61,7 @@ rm -rf $RPM_BUILD_ROOT
 %changelog
 * Tue Aug 25 2020 - roman.dementiev@intel.com
         Add pcm-raw under %files
-* Tue Apr 01 2020 - otto.g.bruggeman@intel.com
+* Wed Apr 01 2020 - otto.g.bruggeman@intel.com
         Add pcm-sensor-server under %files
 * Mon Nov 25 2019 - roman.dementiev@intel.com
         call make install and use %{_sbindir} or %{_bindir}
