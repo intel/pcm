@@ -506,7 +506,6 @@ private:
 private:
     Indent            indentation;
     std::pair<std::shared_ptr<Aggregator>,std::shared_ptr<Aggregator>> aggPair_;
-    std::stringstream ss;
 
     const char BEGIN_OBJECT = '{';
     const char END_OBJECT = '}';
@@ -761,7 +760,6 @@ private:
 
 private:
     std::pair<std::shared_ptr<Aggregator>,std::shared_ptr<Aggregator>> aggPair_;
-    std::stringstream ss;
     std::vector<std::string> hierarchy_;
 };
 
