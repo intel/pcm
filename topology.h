@@ -55,6 +55,15 @@ class ClientUncore;
 
 class Visitor {
 public:
+    Visitor() {
+        // Set the floatingpoint format to fixed. Setting the number of decimal digits to 3.
+        ss << std::fixed << std::setprecision(3);
+    }
+
+    Visitor(const Visitor &) = delete;
+    Visitor & operator = (const Visitor &) = delete;
+
+public:
     virtual void dispatch( SystemRoot const & ) = 0;
     virtual void dispatch( Socket* )        = 0;
     virtual void dispatch( Core* )          = 0;
@@ -63,6 +72,9 @@ public:
     virtual void dispatch( ClientUncore* )  = 0;
 
     virtual ~Visitor() {};
+
+protected:
+    std::stringstream ss;
 };
 
 class SystemObject
