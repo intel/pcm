@@ -56,7 +56,8 @@ class ClientUncore;
 class Visitor {
 public:
     Visitor() {
-        ss << std::fixed; // Set the floatingpoint format to fixed. Default number of decimal digits is 6 which is good enough.
+        // Set the floatingpoint format to fixed. Setting the number of decimal digits to 3.
+        ss << std::fixed << std::setprecision(3);
     }
 
     Visitor(const Visitor &) = delete;
