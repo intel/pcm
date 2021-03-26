@@ -113,6 +113,8 @@ public:
     }
 };
 
+const char * defaultDataSource = "null";
+
 class Panel
 {
     int x, y, w, h;
@@ -125,7 +127,9 @@ protected:
         std::string result;
         result += R"PCMDELIMITER(
     {
-      "datasource": null,
+      "datasource": )PCMDELIMITER";
+        result += defaultDataSource;
+        result += R"PCMDELIMITER(,
       "interval": "2s",
       "gridPos": {
 )PCMDELIMITER";
@@ -495,7 +499,7 @@ std::string influxDBUncore_Uncore_Counters(const std::string& S, const std::stri
     return influxDB_Counters(S, m, "Uncore_Uncore Counters");
 }
 
-constexpr const char* interval = "[4s]";
+const char* interval = "[4s]";
 
 std::string prometheusCounters(const std::string& S, const std::string& m, const bool aggregate = true)
 {
@@ -507,9 +511,12 @@ std::string prometheusCounters(const std::string& m)
     return std::string("rate(") + prometheusMetric(m) + prometheusSystem() + interval + ")";
 }
 
+std::mutex dashboardGenMutex;
+
 std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int nc)
 {
     auto pcm = PCM::getInstance();
+    std::lock_guard<std::mutex> dashboardGenGuard(dashboardGenMutex);
     const size_t NumSockets = (ns < 0) ? pcm->getNumSockets() : ns;
     const size_t NumUPILinksPerSocket = (nu < 0) ? pcm->getQPILinksPerSocket() : nu;
     const size_t maxCState = (nc < 0) ? PCM::MAX_C_STATE : nc;
@@ -518,6 +525,17 @@ std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int
     const int width = 15;
     const int max_width = 24;
     int y = 0;
+
+    if (type == Prometheus_Default)
+    {
+        interval = "[60s]";
+        defaultDataSource = "\"prometheus\"";
+    }
+    else
+    {
+        interval = "[4s]";
+        defaultDataSource = "null";
+    }
     char buffer[64];
     std::string hostname = "unknown hostname";
     if (gethostname(buffer, 63) == 0)
