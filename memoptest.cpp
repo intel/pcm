@@ -79,7 +79,8 @@ void stream_write_task(Y * p, Y * e, int value)
 template <class Y>
 void read_intensive_task(Y * p, Y * e, int value)
 {
-    std::find(p, e, -1); // cppcheck-suppress ignoredReturnValue
+    // cppcheck-suppress ignoredReturnValue
+    std::find(p, e, -1);
 }
 
 
