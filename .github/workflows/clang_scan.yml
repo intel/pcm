@@ -28,5 +28,6 @@ jobs:
       # Runs a set of commands using the runners shell
       - name: scan-build
         run: |
-          apt-get update -qq && apt-get install -qq -y make clang clang-tools perl g++
+          sudo apt-get update -qq
+          sudo apt-get install -qq -y make clang clang-tools perl g++
           scan-build --status-bugs make -j
