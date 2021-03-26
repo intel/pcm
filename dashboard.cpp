@@ -511,9 +511,12 @@ std::string prometheusCounters(const std::string& m)
     return std::string("rate(") + prometheusMetric(m) + prometheusSystem() + interval + ")";
 }
 
+std::mutex dashboardGenMutex;
+
 std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int nc)
 {
     auto pcm = PCM::getInstance();
+    std::lock_guard<std::mutex> dashboardGenGuard(dashboardGenMutex);
     const size_t NumSockets = (ns < 0) ? pcm->getNumSockets() : ns;
     const size_t NumUPILinksPerSocket = (nu < 0) ? pcm->getQPILinksPerSocket() : nu;
     const size_t maxCState = (nc < 0) ? PCM::MAX_C_STATE : nc;
@@ -527,6 +530,11 @@ std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int
     {
         interval = "[60s]";
         defaultDataSource = "\"prometheus\"";
+    }
+    else
+    {
+        interval = "[4s]";
+        defaultDataSource = "null";
     }
     char buffer[64];
     std::string hostname = "unknown hostname";
