@@ -882,7 +882,7 @@ protected:
         return bytesSent;
     }
 
-    virtual int sync() {
+    int sync() override {
         int_type ret = writeToSocket();
         if ( traits_type::eof() == ret )
             return -1;
