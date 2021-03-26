@@ -1428,6 +1428,10 @@ void PCM::printSystemTopology() const
         std::cerr << "Number of core PMU fixed counters: " << core_fixed_counter_num_max << "\n";
         std::cerr << "Width of fixed counters: " << core_fixed_counter_width << " bits\n";
     }
+    if (perfmon_version < 2 && vm == true)
+    {
+        std::cerr << "Warning: detected an unsupported virtualized environment: the hypervisor has limited the core PMU (perfmon) version to " << perfmon_version << "\n";
+    }
 }
 
 bool PCM::initMSR()
