@@ -796,7 +796,7 @@ public:
     }
 
     virtual ~basic_socketbuf() {
-        sync();
+        basic_socketbuf::sync();
 #if defined (USE_SSL)
         if ( nullptr != ssl_ ) {
             SSL_free( ssl_ );
