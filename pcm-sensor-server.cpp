@@ -2999,7 +2999,7 @@ void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & re
     }
     default:
         std::string body( "406 Not Acceptable. Server can only serve \"" );
-        body += req.url().path_ + "\" as application/json, text/plain (prometheus format).";
+        body += req.url().path_ + "\" as application/json, \"text/plain; version=0.0.4\" (prometheus format).";
         resp.createResponse( TextPlain, body, RC_406_NotAcceptable );
     }
 }
