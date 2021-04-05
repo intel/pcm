@@ -304,9 +304,6 @@ void print_output(PCM * m,
         }
         cout << "\n";
 
-        drawStackedBar(" Core    C-state distribution", CoreCStateStackedBar, 80);
-        drawStackedBar(" Package C-state distribution", PackageCStateStackedBar, 80);
-
         if (m->getNumCores() == m->getNumOnlineCores())
         {
             cout << "\n PHYSICAL CORE IPC                 : " << getCoreIPC(sstate1, sstate2) << " => corresponds to " << 100. * (getCoreIPC(sstate1, sstate2) / double(m->getMaxIPC())) << " % utilization for cores in active state";
