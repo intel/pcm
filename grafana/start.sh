@@ -23,7 +23,7 @@ echo Downloading PCM dashboard
 curl -o grafana_volume/dashboards/pcm-dashboard.json $1/dashboard
 
 echo Starting influxdb
-docker run -d --name influxdb -p 8083:8083 -p 8086:8086 -v $PWD/influxdb_volume:/var/lib/influxdb influxdb
+docker run -d --name influxdb -p 8083:8083 -p 8086:8086 -v $PWD/influxdb_volume:/var/lib/influxdb influxdb:1.8.0-alpine
 echo Starting telegraf
 docker run -d --name telegraf --link=influxdb -v $PWD/telegraf.conf:/etc/telegraf/telegraf.conf:ro telegraf
 echo Starting grafana
