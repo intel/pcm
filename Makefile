@@ -18,8 +18,9 @@ ifeq ($(UNAME), Linux)
 EXE += daemon-binaries
 endif
 
-CFLAGS += -Wall -g -O3 -Wno-unknown-pragmas -fPIC
-CXXFLAGS += $(CFLAGS) -std=c++11
+COMMON_FLAGS = -Wall -g -O3 -Wno-unknown-pragmas -fPIC
+CFLAGS += $(COMMON_FLAGS)
+CXXFLAGS += $(COMMON_FLAGS) -std=c++11
 
 # uncomment if your Linux kernel supports access to /dev/mem from user space
 # CXXFLAGS += -DPCM_USE_PCI_MM_LINUX
@@ -30,9 +31,10 @@ CXXFLAGS += -DPCM_USE_PERF
 endif
 
 ifeq ($(UNAME), Linux)
-LIB= -pthread -lrt
+CFLAGS += -pthread
+LIB= -lpthread -lrt
 EXE += pcm-sensor-server.x
-CXXFLAGS += -Wextra
+CXXFLAGS += -Wextra -pthread
 OPENSSL_LIB=
 # Disabling until we can properly check for dependencies, enable
 # yourself if you have the required headers and library installed
@@ -76,21 +78,21 @@ libPCM.a: $(COMMON_OBJS)
 	ar -rcs $@ $^
 
 %.x: %.o $(COMMON_OBJS)
-	$(CXX) $(LDFLAGS) -o $@ $^ $(LIB)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $^ $(LIB)
 
 pcm-sensor-server.o: pcm-sensor-server.cpp favicon.ico.h
 
 pcm-sensor-server.x: pcm-sensor-server.o $(COMMON_OBJS)
-	$(CXX) $(LDFLAGS) -o $@ $^ $(LIB) $(OPENSSL_LIB)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $^ $(LIB) $(OPENSSL_LIB)
 
 libpcm.so: $(COMMON_OBJS) pcm-core.o
-	$(CXX) $(LDFLAGS) $(CXXFLAGS) -DPCM_SILENT -shared $^ $(LIB) -o $@
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -DPCM_SILENT -shared $^ $(LIB) -o $@
 
 c_example.x: c_example.c libpcm.so
-	$(CC) $(CFLAGS) -DPCM_DYNAMIC_LIB $< -ldl -Wl,-rpath,$(shell pwd) -o $@
+	$(CC) $(CFLAGS) $(LDFLAGS) -DPCM_DYNAMIC_LIB $< -ldl -Wl,-rpath,$(shell pwd) -o $@
 
 c_example_shlib.x: c_example.c libpcm.so
-	$(CC) $(CFLAGS) $< -L./ -Wl,-rpath,$(shell pwd) -lpcm -o $@
+	$(CC) $(CFLAGS) $(LDFLAGS) $< -L./ -Wl,-rpath,$(shell pwd) -lpcm -o $@
 
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $*.cpp -o $*.o
@@ -113,7 +115,7 @@ memoptest.x: memoptest.cpp
 	$(CXX) -Wall -g -O0 -std=c++11 memoptest.cpp -o memoptest.x
 
 dashboardtest.x: dashboardtest.cpp $(COMMON_OBJS)
-	$(CXX) -o $@ $^ $(LIB)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $^ $(LIB)
 
 prefix=/usr
 
