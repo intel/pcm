@@ -25,7 +25,7 @@ void printTitle(std::string title)
 	std::cout << std::setw(26) << std::left << title;
 }
 
-int main(int argc, char *argv[])
+int main(int /*argc*/, char *argv[])
 {
 	PCMDaemon::Client client;
 	// client.setSharedMemoryIdLocation("/tmp/test-file");
