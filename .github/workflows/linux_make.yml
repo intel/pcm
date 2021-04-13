@@ -13,6 +13,6 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: make install
-      run: make install
+    - name: make
+      run: make -j
 
