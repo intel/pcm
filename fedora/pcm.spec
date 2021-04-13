@@ -50,7 +50,6 @@ FreeBSD and DragonFlyBSD operating systems.
 %{_sbindir}/%{name}-daemon
 %{_sbindir}/%{name}-bw-histogram
 %{_datadir}/%{name}/
-%{_datadir}/%{name}/opCode.txt
 
 %changelog
 * Tue Apr 13 2021 Roman Dementiev <roman.dementiev@intel.com> 0.1-7
