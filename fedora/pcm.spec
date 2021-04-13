@@ -1,19 +1,13 @@
-%global commit 9c4f43e78a8b6814f7e8385d423cc7258c6fbe0d
-%global gittag 202101
-%global shortcommit %(c=%{commit}; echo ${c:0:7})
-%global baserelease 1
-
 Name:           pcm
-Version:        202101
-Release:        %{baserelease}%{?dist}
+Version:        202103
+Release:        1%{?dist}
 Summary:        Processor Counter Monitor
-Group:          System/Monitoring
 License:        BSD
 Url:            https://github.com/opcm/pcm
-Source:         https://github.com/opcm/pcm/archive/%{gittag}/%{name}-%{version}.tar.gz
+Source0:        %{url}/archive/%{version}/%{name}-%{version}.tar.gz
 BuildRequires:  gcc
 BuildRequires:  gcc-c++
-
+BuildRequires:  make
 ExclusiveArch:  %{ix86} x86_64
 
 %description
@@ -24,53 +18,60 @@ performance and energy metrics of Intel(r) Core(tm), Xeon(r), Atom(tm)
 and Xeon Phi(tm) processors. PCM works on Linux, Windows, Mac OS X,
 FreeBSD and DragonFlyBSD operating systems.
 
-%global debug_package %{nil}
-
 %prep
-%setup -q -n pcm-%{version}
+%autosetup
 
 %build
-CFLAGS="%{optflags}" make -j
+%set_build_flags
+%make_build
 
 %install
-rm -rf $RPM_BUILD_ROOT
-make install prefix=$RPM_BUILD_ROOT/%{_bindir}/..
+%make_install
 
 %files
-%doc license.txt LINUX_HOWTO.txt
-%{_sbindir}/pcm-core
-%{_sbindir}/pcm-iio
-%{_sbindir}/pcm-latency
-%{_sbindir}/pcm-lspci
-%{_sbindir}/pcm-memory
-%{_sbindir}/pcm-msr
-%{_sbindir}/pcm-numa
-%{_sbindir}/pcm-pcicfg
-%{_sbindir}/pcm-pcie
-%{_sbindir}/pcm-power
-%{_sbindir}/pcm-sensor
-%{_sbindir}/pcm-sensor-server
-%{_sbindir}/pcm-tsx
-%{_sbindir}/pcm-raw
-%{_sbindir}/pcm
-%{_bindir}/pcm-client
-%{_sbindir}/pcm-daemon
-%{_sbindir}/pcm-bw-histogram
-%dir /usr/share/pcm
-%{_datadir}/pcm/opCode.txt
+%license license.txt
+%doc LINUX_HOWTO.txt README.md FAQ.md
+%{_sbindir}/%{name}-core
+%{_sbindir}/%{name}-iio
+%{_sbindir}/%{name}-latency
+%{_sbindir}/%{name}-lspci
+%{_sbindir}/%{name}-memory
+%{_sbindir}/%{name}-msr
+%{_sbindir}/%{name}-numa
+%{_sbindir}/%{name}-pcicfg
+%{_sbindir}/%{name}-pcie
+%{_sbindir}/%{name}-power
+%{_sbindir}/%{name}-sensor
+%{_sbindir}/%{name}-sensor-server
+%{_sbindir}/%{name}-tsx
+%{_sbindir}/%{name}-raw
+%{_sbindir}/%{name}
+%{_bindir}/%{name}-client
+%{_sbindir}/%{name}-daemon
+%{_sbindir}/%{name}-bw-histogram
+%{_datadir}/%{name}/
+%{_datadir}/%{name}/opCode.txt
 
 %changelog
-* Fri Mar 26 2021 William Cohen <wcohen@redhat.com>
+* Tue Apr 13 2021 Roman Dementiev <roman.dementiev@intel.com> 0.1-7
+- Implement suggestions from Fedora review.
+
+* Fri Mar 26 2021 William Cohen <wcohen@redhat.com> 0.1-6
 - Clean up pcm.spec.
 
-* Tue Aug 25 2020 - roman.dementiev@intel.com
-        Add pcm-raw under %files
-* Wed Apr 01 2020 - otto.g.bruggeman@intel.com
-        Add pcm-sensor-server under %files
-* Mon Nov 25 2019 - roman.dementiev@intel.com
-        call make install and use %{_sbindir} or %{_bindir}
-* Mon Oct 21 2019 - roman.dementiev@intel.com
-        add opCode file to /usr/share/pcm
-        use "install" to copy pcm-bw-histogram.sh
-* Fri Oct 18 2019 - roman.dementiev@intel.com
-        created spec file
+* Tue Aug 25 2020 - roman.dementiev@intel.com 0.1-5
+- Add pcm-raw under %files
+
+* Wed Apr 01 2020 - otto.g.bruggeman@intel.com 0.1-4
+- Add pcm-sensor-server under %files
+
+* Mon Nov 25 2019 - roman.dementiev@intel.com 0.1-3
+- call make install and use %{_sbindir} or %{_bindir}
+
+* Mon Oct 21 2019 - roman.dementiev@intel.com 0.1-2
+- add opCode file to /usr/share/pcm
+- use "install" to copy pcm-bw-histogram.sh
+
+* Fri Oct 18 2019 - roman.dementiev@intel.com 0.1-1
+- created spec file
+
