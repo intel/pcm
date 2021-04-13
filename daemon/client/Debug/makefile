@@ -43,7 +43,7 @@ all: client
 client: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: C++ Linker'
-	$(CXX) ${CXXFLAGS} -o "client" $(OBJS) $(USER_OBJS) $(LIBS)
+	$(CXX) ${LDFLAGS} -o "client" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
