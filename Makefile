@@ -52,7 +52,7 @@ LIB= -lpthread -lc++
 endif
 
 # export some variables
-export CFLAGS CXXFLAGS
+export CFLAGS CXXFLAGS LDFLAGS
 
 COMMON_OBJS = msr.o cpucounters.o pci.o mmio.o client_bw.o utils.o topology.o dashboard.o debug.o threadpool.o resctrl.o
 EXE_OBJS = $(EXE:.x=.o)
