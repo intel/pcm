@@ -43,7 +43,7 @@ all: daemon
 daemon: pre-build $(OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: C++ Linker'
-	$(CXX) ${CXXFLAGS} -o "daemon" $(OBJS) $(USER_OBJS) $(LIBS)
+	$(CXX) ${LDFLAGS} -o "daemon" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
