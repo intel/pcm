@@ -125,25 +125,25 @@ endif
 
 install: all
 	mkdir -p                                     ${prefix}/sbin/
-	install -s -m 755 pcm-core.x                 ${prefix}/sbin/pcm-core
-	install -s -m 755 pcm-iio.x                  ${prefix}/sbin/pcm-iio
-	install -s -m 755 pcm-latency.x              ${prefix}/sbin/pcm-latency
-	install -s -m 755 pcm-lspci.x                ${prefix}/sbin/pcm-lspci
-	install -s -m 755 pcm-memory.x               ${prefix}/sbin/pcm-memory
-	install -s -m 755 pcm-msr.x                  ${prefix}/sbin/pcm-msr
-	install -s -m 755 pcm-numa.x                 ${prefix}/sbin/pcm-numa
-	install -s -m 755 pcm-pcicfg.x               ${prefix}/sbin/pcm-pcicfg
-	install -s -m 755 pcm-pcie.x                 ${prefix}/sbin/pcm-pcie
-	install -s -m 755 pcm-power.x                ${prefix}/sbin/pcm-power
-	install -s -m 755 pcm-sensor.x               ${prefix}/sbin/pcm-sensor
-	install -s -m 755 pcm-tsx.x                  ${prefix}/sbin/pcm-tsx
-	install -s -m 755 pcm-raw.x                  ${prefix}/sbin/pcm-raw
-	install -s -m 755 pcm.x                      ${prefix}/sbin/pcm
+	install -m 755 pcm-core.x                 ${prefix}/sbin/pcm-core
+	install -m 755 pcm-iio.x                  ${prefix}/sbin/pcm-iio
+	install -m 755 pcm-latency.x              ${prefix}/sbin/pcm-latency
+	install -m 755 pcm-lspci.x                ${prefix}/sbin/pcm-lspci
+	install -m 755 pcm-memory.x               ${prefix}/sbin/pcm-memory
+	install -m 755 pcm-msr.x                  ${prefix}/sbin/pcm-msr
+	install -m 755 pcm-numa.x                 ${prefix}/sbin/pcm-numa
+	install -m 755 pcm-pcicfg.x               ${prefix}/sbin/pcm-pcicfg
+	install -m 755 pcm-pcie.x                 ${prefix}/sbin/pcm-pcie
+	install -m 755 pcm-power.x                ${prefix}/sbin/pcm-power
+	install -m 755 pcm-sensor.x               ${prefix}/sbin/pcm-sensor
+	install -m 755 pcm-tsx.x                  ${prefix}/sbin/pcm-tsx
+	install -m 755 pcm-raw.x                  ${prefix}/sbin/pcm-raw
+	install -m 755 pcm.x                      ${prefix}/sbin/pcm
 ifeq ($(UNAME), Linux)
 	mkdir -p                                     ${prefix}/bin/
-	install -s -m 755 daemon/client/Debug/client ${prefix}/bin/pcm-client
-	install -s -m 755 daemon/daemon/Debug/daemon ${prefix}/sbin/pcm-daemon
-	install -s -m 755 pcm-sensor-server.x        ${prefix}/sbin/pcm-sensor-server
+	install -m 755 daemon/client/Debug/client ${prefix}/bin/pcm-client
+	install -m 755 daemon/daemon/Debug/daemon ${prefix}/sbin/pcm-daemon
+	install -m 755 pcm-sensor-server.x        ${prefix}/sbin/pcm-sensor-server
 endif
 	install -m 755 pcm-bw-histogram.sh           ${prefix}/sbin/pcm-bw-histogram
 	mkdir -p                                     ${prefix}/share/pcm/
