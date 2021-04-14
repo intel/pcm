@@ -1,0 +1,19 @@
+name: Mac OS X build
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+
+    runs-on: macos-11.0
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: make
+      run: |
+        cd MacMSRDriver && make kext library && cd ..
+        make install prefix=.
