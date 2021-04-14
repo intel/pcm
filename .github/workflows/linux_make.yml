@@ -14,5 +14,5 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: make
-      run: make -j
+      run: make install prefix=. -j
 
