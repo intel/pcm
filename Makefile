@@ -147,7 +147,7 @@ ifeq ($(UNAME), Linux)
 endif
 	install -m 755 pcm-bw-histogram.sh           ${prefix}/sbin/pcm-bw-histogram
 	mkdir -p                                     ${prefix}/share/pcm/
-	install -m 644 opCode.txt                    ${prefix}/share/pcm/
+	install -m 644 opCode*.txt                   ${prefix}/share/pcm/
 
 clean:
 	rm -rf *.x *.o *~ *.d *.a *.so
