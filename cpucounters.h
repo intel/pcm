@@ -33,7 +33,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include "types.h"
 #include "msr.h"
 #include "pci.h"
-#include "client_bw.h"
+#include "bw.h"
 #include "width_extender.h"
 #include "exceptions/unsupported_processor_exception.hpp"
 
@@ -43,7 +43,9 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <string>
 #include <memory>
 #include <map>
+#include <unordered_map>
 #include <string.h>
+#include <assert.h>
 
 #ifdef PCM_USE_PERF
 #include <linux/perf_event.h>
@@ -296,6 +298,14 @@ public:
     void resetUnfreeze(const uint32 extra);
 };
 
+enum ServerUncoreMemoryMetrics
+{
+    PartialWrites,
+    Pmem,
+    PmemMemoryMode,
+    PmemMixedMode
+};
+
 //! Object to access uncore counters in a socket/processor with microarchitecture codename SandyBridge-EP (Jaketown) or Ivytown-EP or Ivytown-EX
 class ServerPCICFGUncore
 {
@@ -320,11 +330,9 @@ class ServerPCICFGUncore
     std::vector<std::pair<uint32, uint32> > M2MRegisterLocation; // M2MRegisterLocation: (device, function)
     std::vector<std::pair<uint32, uint32> > HARegisterLocation;  // HARegisterLocation: (device, function)
 
-    static Mutex socket2busMutex;
     static std::vector<std::pair<uint32, uint32> > socket2iMCbus;
     static std::vector<std::pair<uint32, uint32> > socket2UPIbus;
     static std::vector<std::pair<uint32, uint32> > socket2M2Mbus;
-    void initSocket2Bus(std::vector<std::pair<uint32, uint32> > & socket2bus, uint32 device, uint32 function, const uint32 DEV_IDS[], uint32 devIdsSize);
 
     ServerPCICFGUncore();                                         // forbidden
     ServerPCICFGUncore(ServerPCICFGUncore &);                     // forbidden
@@ -416,9 +424,8 @@ public:
     //! \brief Program memory counters (disables programming performance counters)
     //! \param rankA count DIMM rank1 statistics (disables memory channel monitoring)
     //! \param rankB count DIMM rank2 statistics (disables memory channel monitoring)
-    //! \param PMM monitor PMM bandwidth instead of partial writes
-    //! \param Program events for PMM mixed mode (AppDirect + MemoryMode)
-    void programServerUncoreMemoryMetrics(const int rankA = -1, const int rankB = -1, const bool PMM = false, const bool PMMMixedMode = false);
+    //! \brief metrics metric set (see the ServerUncoreMemoryMetrics enum)
+    void programServerUncoreMemoryMetrics(const ServerUncoreMemoryMetrics & metrics, const int rankA = -1, const int rankB = -1);
 
     //! \brief Get number of QPI LL clocks on a QPI port
     //! \param port QPI port number
@@ -594,6 +601,8 @@ class PCM_API PCM
     std::shared_ptr<CounterWidthExtender> clientImcWrites;
     std::shared_ptr<CounterWidthExtender> clientIoRequests;
 
+    std::vector<std::shared_ptr<ServerBW> > serverBW;
+
     bool disable_JKT_workaround;
     bool blocked;              // track if time-driven counter update is running or not: PCM is blocked
 
@@ -613,6 +622,8 @@ class PCM_API PCM
 
     bool forceRTMAbortMode;
 
+    std::vector<uint64> FrontendBoundSlots, BadSpeculationSlots, BackendBoundSlots, RetiringSlots;
+    bool isFixedCounterSupported(unsigned c);
     bool vm = false;
     bool linux_arch_perfmon = false;
 
@@ -792,17 +803,24 @@ private:
     void readPerfData(uint32 core, std::vector<uint64> & data);
 
     enum {
-        PERF_INST_RETIRED_ANY_POS = 0,
+        PERF_INST_RETIRED_POS = 0,
         PERF_CPU_CLK_UNHALTED_THREAD_POS = 1,
         PERF_CPU_CLK_UNHALTED_REF_POS = 2,
         PERF_GEN_EVENT_0_POS = 3,
         PERF_GEN_EVENT_1_POS = 4,
         PERF_GEN_EVENT_2_POS = 5,
-        PERF_GEN_EVENT_3_POS = 6
+        PERF_GEN_EVENT_3_POS = 6,
+        PERF_TOPDOWN_SLOTS_POS = PERF_GEN_EVENT_0_POS + PERF_MAX_CUSTOM_COUNTERS,
+        PERF_TOPDOWN_FRONTEND_POS = PERF_TOPDOWN_SLOTS_POS + 1,
+        PERF_TOPDOWN_BADSPEC_POS = PERF_TOPDOWN_SLOTS_POS + 2,
+        PERF_TOPDOWN_BACKEND_POS = PERF_TOPDOWN_SLOTS_POS + 3,
+        PERF_TOPDOWN_RETIRING_POS = PERF_TOPDOWN_SLOTS_POS + 4
     };
 
+    std::unordered_map<int, int> perfTopDownPos;
+
     enum {
-        PERF_GROUP_LEADER_COUNTER = PERF_INST_RETIRED_ANY_POS
+        PERF_GROUP_LEADER_COUNTER = PERF_INST_RETIRED_POS
     };
 #endif
     std::ofstream * outfile;       // output file stream
@@ -895,8 +913,12 @@ private:
         Iterator curEvent = eventsBegin;
         for (int c = 0; curEvent != eventsEnd; ++c, ++curEvent)
         {
-            *pmu.counterControl[c] = MC_CH_PCI_PMON_CTL_EN;
-            *pmu.counterControl[c] = MC_CH_PCI_PMON_CTL_EN | *curEvent;
+            auto ctrl = pmu.counterControl[c];
+            if (ctrl.get() != nullptr)
+            {
+                *ctrl = MC_CH_PCI_PMON_CTL_EN;
+                *ctrl = MC_CH_PCI_PMON_CTL_EN | *curEvent;
+            }
         }
         if (extra)
         {
@@ -928,6 +950,9 @@ private:
     bool isRDTDisabled() const;
 
 public:
+    //! check if TMA level 1 metrics are supported
+    bool isHWTMAL1Supported() const;
+
     enum EventPosition
     {
         TOR_OCCUPANCY = 0,
@@ -1062,11 +1087,10 @@ public:
     */
     ErrorCode programServerUncorePowerMetrics(int mc_profile, int pcu_profile, int * freq_bands = NULL);
 
-    /*! \brief Programs uncore memory counters on microarchitectures codename SandyBridge-EP and later Xeon uarch
+    /*  \brief Program memory counters (disables programming performance counters)
         \param rankA count DIMM rank1 statistics (disables memory channel monitoring)
         \param rankB count DIMM rank2 statistics (disables memory channel monitoring)
-        \param PMM monitor PMM bandwidth instead of partial writes
-        \param Program events for PMM mixed mode (AppDirect + MemoryMode)
+        \brief metrics metric set (see the ServerUncoreMemoryMetrics enum)
 
         Call this method before you start using the memory counter routines on microarchitecture codename SandyBridge-EP and later Xeon uarch
 
@@ -1075,7 +1099,7 @@ public:
         program PMUs: Intel(r) VTune(tm), Intel(r) Performance Tuning Utility (PTU). This code may make
         VTune or PTU measurements invalid. VTune or PTU measurement may make measurement with this code invalid. Please enable either usage of these routines or VTune/PTU/etc.
     */
-    ErrorCode programServerUncoreMemoryMetrics(int rankA = -1, int rankB = -1, bool PMM = false, bool PMMMixedMode = false);
+    ErrorCode programServerUncoreMemoryMetrics(const ServerUncoreMemoryMetrics & metrics, int rankA = -1, int rankB = -1);
 
     // vector of IDs. E.g. for core {raw event} or {raw event, offcore response1 msr value, } or {raw event, offcore response1 msr value, offcore response2}
     // or for cha/cbo {raw event, filter value}, etc
@@ -1263,6 +1287,8 @@ public:
         KNL = 87,
         SKL = 94,
         SKX = 85,
+        ICX_D = 108,
+        ICX = 106,
         END_OF_MODEL_LIST = 0x0ffff
     };
 
@@ -1337,6 +1363,7 @@ public:
         case BDX_DE:
         case BDX:
         case SKX:
+        case ICX:
             return (server_pcicfg_uncore.size() && server_pcicfg_uncore[0].get()) ? (server_pcicfg_uncore[0]->getNumQPIPorts()) : 0;
         }
         return 0;
@@ -1359,6 +1386,7 @@ public:
         case HASWELLX:
         case BDX_DE:
         case SKX:
+        case ICX:
         case BDX:
         case KNL:
             return (server_pcicfg_uncore.size() && server_pcicfg_uncore[0].get()) ? (server_pcicfg_uncore[0]->getNumMC()) : 0;
@@ -1383,6 +1411,7 @@ public:
         case HASWELLX:
         case BDX_DE:
         case SKX:
+        case ICX:
         case BDX:
         case KNL:
             return (server_pcicfg_uncore.size() && server_pcicfg_uncore[0].get()) ? (server_pcicfg_uncore[0]->getNumMCChannels()) : 0;
@@ -1409,6 +1438,7 @@ public:
         case HASWELLX:
         case BDX_DE:
         case SKX:
+        case ICX:
         case BDX:
         case KNL:
             return (socket < server_pcicfg_uncore.size() && server_pcicfg_uncore[socket].get()) ? (server_pcicfg_uncore[socket]->getNumMCChannels(controller)) : 0;
@@ -1457,6 +1487,8 @@ public:
             return 4;
         case KNL:
             return 2;
+        case ICX:
+            return 5;
         }
         if (isAtom())
         {
@@ -1479,6 +1511,7 @@ public:
         case KNL:
             return 1000000000ULL; // 1 GHz
         case SKX:
+        case ICX:
             return 1100000000ULL; // 1.1 GHz
         }
         return 0;
@@ -1499,6 +1532,7 @@ public:
         case BDX:
         case BDX_DE:
         case SKX:
+        case ICX:
         case KNL:
             return true;
         default:
@@ -1606,7 +1640,7 @@ public:
     //! \param llc_lookup_tid_filter filter for LLC lookup event filter and TID filter (core and thread ID)
     //! \param loc match on local node target
     //! \param rem match on remote node target
-    void programCbo(const uint64 * events, const uint32 opCode, const uint32 nc_ = 0, const uint32 llc_lookup_tid_filter = 0, const uint32 loc = 1, const uint32 rem = 1);
+    void programCbo(const uint64 * events, const uint32 opCode = 0, const uint32 nc_ = 0, const uint32 llc_lookup_tid_filter = 0, const uint32 loc = 1, const uint32 rem = 1);
 
     //! \brief Program CBO (or CHA on SKX+) counters
     //! \param events array with four raw event values
@@ -1617,12 +1651,12 @@ public:
     //! \brief Get the state of PCIe counter(s)
     //! \param socket_ socket of the PCIe controller
     //! \return State of PCIe counter(s)
-    PCIeCounterState getPCIeCounterState(const uint32 socket_);
+    PCIeCounterState getPCIeCounterState(const uint32 socket_, const uint32 ctr_ = 0);
 
     //! \brief Program uncore IIO events
     //! \param rawEvents events to program (raw format)
     //! \param IIOStack id of the IIO stack to program (-1 for all, if parameter omitted)
-    void programIIOCounters(IIOPMUCNTCTLRegister rawEvents[4], int IIOStack = -1);
+    void programIIOCounters(uint64 rawEvents[4], int IIOStack = -1);
 
     //! \brief Get the state of IIO counter
     //! \param socket socket of the IIO stack
@@ -1706,6 +1740,7 @@ public:
                  || cpu_model == PCM::KNL
                  || useSKLPath()
                  || cpu_model == PCM::SKX
+                 || cpu_model == PCM::ICX
                );
     }
 
@@ -1719,6 +1754,7 @@ public:
           || cpu_model == PCM::BDX
           || cpu_model == PCM::KNL
           || cpu_model == PCM::SKX
+          || cpu_model == PCM::ICX
           );
     }
 
@@ -1738,6 +1774,7 @@ public:
             ||  cpu_model == PCM::HASWELLX
             ||  cpu_model == PCM::BDX
             ||  cpu_model == PCM::SKX
+            ||  cpu_model == PCM::ICX
             );
     }
 
@@ -1750,6 +1787,7 @@ public:
             ||  cpu_model == PCM::JAKETOWN
             ||  cpu_model == PCM::IVYTOWN
             || (cpu_model == PCM::SKX && cpu_stepping > 1)
+            ||  cpu_model == PCM::ICX
                );
     }
 
@@ -1758,6 +1796,7 @@ public:
         return cpu_model == PCM::HASWELLX
             || cpu_model == PCM::BDX
             || cpu_model == PCM::SKX
+            || cpu_model == PCM::ICX
             ;
     }
 
@@ -1794,7 +1833,8 @@ public:
     bool IIOEventsAvailable() const
     {
         return (
-            cpu_model == PCM::SKX
+               cpu_model == PCM::SKX
+            || cpu_model == PCM::ICX
         );
     }
 
@@ -1804,6 +1844,7 @@ public:
             cpu_model == PCM::HASWELLX
             || cpu_model == PCM::BDX
             || cpu_model == PCM::SKX
+            || cpu_model == PCM::ICX
             || useSKLPath()
             );
     }
@@ -1812,6 +1853,7 @@ public:
     {
         return (
             cpu_model == PCM::SKX
+            || cpu_model == PCM::ICX
             );
     }
 
@@ -1820,6 +1862,7 @@ public:
         return (
             isCLX()
                     ||  isCPX()
+                     || cpu_model == PCM::ICX
         );
     }
 
@@ -1836,6 +1879,7 @@ public:
 #else
             || ((SKX == cpu_model) && (num_sockets == 1))
 #endif
+            || ICX == cpu_model
                );
     }
 
@@ -1853,7 +1897,8 @@ public:
             || cpu_model == PCM::IVYTOWN
             || cpu_model == PCM::HASWELLX
             || cpu_model == PCM::BDX_DE
-          ||  cpu_model == PCM::SKX
+            || cpu_model == PCM::SKX
+            || cpu_model == PCM::ICX
             || cpu_model == PCM::BDX
             || cpu_model == PCM::KNL
             );
@@ -1866,11 +1911,17 @@ public:
                );
     }
 
-    bool hasUPI() const // Intel(r) Ultra Path Interconnect
+    static bool hasUPI(const int32 cpu_model_) // Intel(r) Ultra Path Interconnect
     {
         return (
-            cpu_model == PCM::SKX
+            cpu_model_ == PCM::SKX
+         || cpu_model_ == PCM::ICX
                );
+    }
+
+    bool hasUPI() const
+    {
+        return hasUPI(cpu_model);
     }
 
     const char * xPI() const
@@ -1885,6 +1936,7 @@ public:
     {
         return (
             cpu_model == PCM::SKX
+         || cpu_model == PCM::ICX
                );
     }
 
@@ -1895,6 +1947,7 @@ public:
     {
         return    useSKLPath()
                || PCM::SKX == cpu_model
+               || PCM::ICX == cpu_model
                ;
     }
 
@@ -1910,7 +1963,7 @@ public:
 
     static double getBytesPerFlit(int32 cpu_model_)
     {
-        if(cpu_model_ == PCM::SKX)
+        if (hasUPI(cpu_model_))
         {
             // 172 bits per UPI flit
             return 172./8.;
@@ -1926,7 +1979,7 @@ public:
 
     static double getDataBytesPerFlit(int32 cpu_model_)
     {
-        if(cpu_model_ == PCM::SKX)
+        if (hasUPI(cpu_model_))
         {
             // 9 UPI flits to transfer 64 bytes
             return 64./9.;
@@ -1942,7 +1995,7 @@ public:
 
     static double getFlitsPerLinkCycle(int32 cpu_model_)
     {
-        if(cpu_model_ == PCM::SKX)
+        if (hasUPI(cpu_model_))
         {
             // 5 UPI flits sent every 6 link cycles
             return 5./6.;
@@ -2056,6 +2109,16 @@ class BasicCounterState
     friend uint64 getCoreCStateResidency(int state, const CounterStateType& now);
     template <class CounterStateType>
     friend uint64 getSMICount(const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
+    friend uint64 getAllSlots(const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
+    friend double getBackendBound(const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
+    friend double getFrontendBound(const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
+    friend double getBadSpeculation(const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
+    friend double getRetiring(const CounterStateType & before, const CounterStateType & after);
 
 protected:
     checked_uint64 InstRetiredAny;
@@ -2080,6 +2143,7 @@ protected:
     uint64 MemoryBWLocal;
     uint64 MemoryBWTotal;
     uint64 SMICount;
+    uint64 FrontendBoundSlots, BadSpeculationSlots, BackendBoundSlots, RetiringSlots;
 
 public:
     BasicCounterState() :
@@ -2088,7 +2152,11 @@ public:
         L3Occupancy(0),
         MemoryBWLocal(0),
         MemoryBWTotal(0),
-        SMICount(0)
+        SMICount(0),
+	FrontendBoundSlots(0),
+	BadSpeculationSlots(0),
+	BackendBoundSlots(0),
+	RetiringSlots(0)
     {
         memset(CStateResidency, 0, sizeof(CStateResidency));
     }
@@ -2115,6 +2183,17 @@ public:
         MemoryBWLocal += o.MemoryBWLocal;
         MemoryBWTotal += o.MemoryBWTotal;
         SMICount += o.SMICount;
+        // std::cout << "before PCM debug aggregate "<< FrontendBoundSlots << " " << BadSpeculationSlots << " " << BackendBoundSlots << " " <<RetiringSlots << std::endl;
+        BasicCounterState old = *this;
+        FrontendBoundSlots += o.FrontendBoundSlots;
+        BadSpeculationSlots += o.BadSpeculationSlots;
+        BackendBoundSlots += o.BackendBoundSlots;
+        RetiringSlots += o.RetiringSlots;
+        //std::cout << "after PCM debug aggregate "<< FrontendBoundSlots << " " << BadSpeculationSlots << " " << BackendBoundSlots << " " <<RetiringSlots << std::endl;
+        assert(FrontendBoundSlots >= old.FrontendBoundSlots);
+        assert(BadSpeculationSlots >= old.BadSpeculationSlots);
+        assert(BackendBoundSlots >= old.BackendBoundSlots);
+        assert(RetiringSlots >= old.RetiringSlots);
         return *this;
     }
 
@@ -2203,7 +2282,13 @@ double getNormalizedQPIL1Cycles(uint32 port, const CounterStateType & before, co
 template <class CounterStateType>
 uint64 getDRAMClocks(uint32 channel, const CounterStateType & before, const CounterStateType & after)
 {
-    return after.DRAMClocks[channel] - before.DRAMClocks[channel];
+    const auto clk = after.DRAMClocks[channel] - before.DRAMClocks[channel];
+    const auto cpu_model = PCM::getInstance()->getCPUModel();
+    if (cpu_model == PCM::ICX)
+    {
+        return 2 * clk;
+    }
+    return clk;
 }
 
 /*! \brief Returns MCDRAM clock ticks
@@ -2358,6 +2443,26 @@ uint64 getDRAMConsumedEnergy(const CounterStateType & before, const CounterState
     return after.DRAMEnergyStatus - before.DRAMEnergyStatus;
 }
 
+
+/*!  \brief Returns free running counter if it exists, -1 otherwise
+ *   \param counter name of the counter
+ *   \param before CPU counter state before the experiment
+ *   \param after CPU counter state after the experiment
+ */
+template <class CounterStateType>
+int64 getFreeRunningCounter(const typename CounterStateType::FreeRunningCounterID & counter, const CounterStateType & before, const CounterStateType & after)
+{
+    const auto beforeIt = before.freeRunningCounter.find(counter);
+    const auto afterIt = after.freeRunningCounter.find(counter);
+    if (beforeIt != before.freeRunningCounter.end() &&
+        afterIt != after.freeRunningCounter.end())
+    {
+        return afterIt->second - beforeIt->second;
+    }
+    return -1;
+}
+
+
 /*!  \brief Returns uncore clock ticks
     \param before CPU counter state before the experiment
     \param after CPU counter state after the experiment
@@ -2390,13 +2495,15 @@ double getDRAMConsumedJoules(const CounterStateType & before, const CounterState
 {
     PCM * m = PCM::getInstance();
     if (!m) return -1.;
-    double dram_joules_per_energy_unit;
+    double dram_joules_per_energy_unit = 0.;
+    const auto cpu_model = m->getCPUModel();
 
-    if (PCM::HASWELLX == m->getCPUModel()
-        || PCM::BDX_DE == m->getCPUModel()
-        || PCM::BDX == m->getCPUModel()
-        || PCM::SKX == m->getCPUModel()
-        || PCM::KNL == m->getCPUModel()
+    if (PCM::HASWELLX == cpu_model
+        || PCM::BDX_DE == cpu_model
+        || PCM::BDX == cpu_model
+        || PCM::SKX == cpu_model
+        || PCM::ICX == cpu_model
+        || PCM::KNL == cpu_model
         ) {
 /* as described in sections 5.3.2 (DRAM_POWER_INFO) and 5.3.3 (DRAM_ENERGY_STATUS) of
  * Volume 2 (Registers) of
@@ -2521,8 +2628,8 @@ class ServerUncoreCounterState : public UncoreCounterState
 {
 public:
     enum {
-        maxControllers = 2,
-        maxChannels = 8,
+        maxControllers = 4,
+        maxChannels = 12,
         maxXPILinks = 6,
         maxCBOs = 128,
         maxIIOStacks = 16,
@@ -2533,6 +2640,13 @@ public:
         xPI_TxL0P_POWER_CYCLES = 0,
         xPI_L1_POWER_CYCLES = 2,
         xPI_CLOCKTICKS = 3
+    };
+    enum FreeRunningCounterID
+    {
+        ImcReads,
+        ImcWrites,
+        PMMReads,
+        PMMWrites
     };
 private:
     std::array<std::array<uint64, maxCounters>, maxXPILinks> xPICounter;
@@ -2546,6 +2660,7 @@ private:
     std::array<std::array<uint64, maxCounters>, maxControllers> M2MCounter; // M2M/iMC boxes x counter
     std::array<std::array<uint64, maxCounters>, maxChannels> EDCCounter; // EDC controller X counter
     std::array<uint64, maxCounters> PCUCounter;
+    std::unordered_map<int, uint64> freeRunningCounter;
     int32 PackageThermalHeadroom;
     uint64 InvariantTSC;    // invariant time stamp counter
     friend class PCM;
@@ -2577,22 +2692,24 @@ private:
     friend uint64 getDRAMConsumedEnergy(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
     friend uint64 getInvariantTSC(const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
+    friend int64 getFreeRunningCounter(const typename CounterStateType::FreeRunningCounterID &, const CounterStateType & before, const CounterStateType & after);
 
 public:
     //! Returns current thermal headroom below TjMax
     int32 getPackageThermalHeadroom() const { return PackageThermalHeadroom; }
     ServerUncoreCounterState() :
-        xPICounter{},
-        M3UPICounter{},
-        CBOCounter{},
-        IIOCounter{},
-        UBOXCounter{},
-        DRAMClocks{},
-        MCDRAMClocks{},
-        MCCounter{},
-        M2MCounter{},
-        EDCCounter{},
-        PCUCounter{},
+        xPICounter{{}},
+        M3UPICounter{{}},
+        CBOCounter{{}},
+        IIOCounter{{}},
+        UBOXCounter{{}},
+        DRAMClocks{{}},
+        MCDRAMClocks{{}},
+        MCCounter{{}},
+        M2MCounter{{}},
+        EDCCounter{{}},
+        PCUCounter{{}},
         PackageThermalHeadroom(0),
         InvariantTSC(0)
     {
@@ -3611,7 +3728,7 @@ inline double getLocalMemoryRequestRatio(const CounterStateType & before, const 
     if (PCM::getInstance()->localMemoryRequestRatioMetricAvailable() == false) return -1.;
     const auto all = after.UncHARequests - before.UncHARequests;
     const auto local = after.UncHALocalRequests - before.UncHALocalRequests;
-    // std::cout << "DEBUG "<< 64*all/1e6 << " " << 64*local/1e6 << "\n";
+    // std::cout << "PCM DEBUG "<< 64*all/1e6 << " " << 64*local/1e6 << "\n";
     return double(local)/double(all);
 }
 
@@ -3635,6 +3752,62 @@ inline double getLLCReadMissLatency(const CounterStateType & before, const Count
     auto * m = PCM::getInstance();
     const double seconds = double(getInvariantTSC(before, after)) / double(m->getNumCores()/m->getNumSockets()) / double(m->getNominalFrequency());
     return 1e9*seconds*(occupancy/inserts)/unc_clocks;
+}
+
+template <class CounterStateType>
+inline uint64 getAllSlots(const CounterStateType & before, const CounterStateType & after)
+{
+    const int64 a = after.BackendBoundSlots - before.BackendBoundSlots;
+    const int64 b = after.FrontendBoundSlots - before.FrontendBoundSlots;
+    const int64 c = after.BadSpeculationSlots - before.BadSpeculationSlots;
+    const int64 d = after.RetiringSlots - before.RetiringSlots;
+    // std::cout << "before DEBUG: " << before.FrontendBoundSlots << " " << before.BadSpeculationSlots << " "<< before.BackendBoundSlots << " " << before.RetiringSlots << std::endl;
+    // std::cout << "after DEBUG: " <<  after.FrontendBoundSlots << " " << after.BadSpeculationSlots << " " << after.BackendBoundSlots << " " << after.RetiringSlots << std::endl;
+    assert(a >= 0);
+    assert(b >= 0);
+    assert(c >= 0);
+    assert(d >= 0);
+    return a + b + c + d;
+}
+
+//! \brief Returns unutilized pipeline slots where no uop was delivered due to lack of back-end resources as range 0..1
+template <class CounterStateType>
+inline double getBackendBound(const CounterStateType & before, const CounterStateType & after)
+{
+//    std::cout << "DEBUG: "<< after.BackendBoundSlots - before.BackendBoundSlots << " " << getAllSlots(before, after) << std::endl;
+    if (PCM::getInstance()->isHWTMAL1Supported())
+        return double(after.BackendBoundSlots - before.BackendBoundSlots)/double(getAllSlots(before, after));
+    return 0.;
+}
+
+//! \brief Returns unutilized pipeline slots where Front-end did not deliver a uop while back-end is ready as range 0..1
+template <class CounterStateType>
+inline double getFrontendBound(const CounterStateType & before, const CounterStateType & after)
+{
+//    std::cout << "DEBUG: "<< after.FrontendBoundSlots - before.FrontendBoundSlots << " " << getAllSlots(before, after) << std::endl;
+    if (PCM::getInstance()->isHWTMAL1Supported())
+        return double(after.FrontendBoundSlots - before.FrontendBoundSlots)/double(getAllSlots(before, after));
+    return 0.;
+}
+
+//! \brief Returns wasted pipeline slots due to incorrect speculation, covering whole penalty: Utilized by uops that do not retire, or Recovery Bubbles (unutilized slots) as range 0..1
+template <class CounterStateType>
+inline double getBadSpeculation(const CounterStateType & before, const CounterStateType & after)
+{
+//    std::cout << "DEBUG: "<< after.BadSpeculationSlots - before.BadSpeculationSlots << " " << getAllSlots(before, after) << std::endl;
+    if (PCM::getInstance()->isHWTMAL1Supported())
+        return double(after.BadSpeculationSlots - before.BadSpeculationSlots)/double(getAllSlots(before, after));
+    return 0.;
+}
+
+//! \brief Returns pipeline slots utilized by uops that eventually retire (commit)
+template <class CounterStateType>
+inline double getRetiring(const CounterStateType & before, const CounterStateType & after)
+{
+//    std::cout << "DEBUG: "<< after.RetiringSlots - before.RetiringSlots << " " << getAllSlots(before, after) << std::endl;
+    if (PCM::getInstance()->isHWTMAL1Supported())
+        return double(after.RetiringSlots - before.RetiringSlots)/double(getAllSlots(before, after));
+    return 0.;
 }
 
 } // namespace pcm

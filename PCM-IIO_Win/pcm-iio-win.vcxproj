@@ -156,7 +156,7 @@
     <ClCompile Include="..\msr.cpp" />
     <ClCompile Include="..\pci.cpp" />
     <ClCompile Include="..\winpmem\winpmem.cpp" />
-    <ClCompile Include="..\client_bw.cpp" /> <ClCompile Include="..\mmio.cpp" />
+    <ClCompile Include="..\bw.cpp" /> <ClCompile Include="..\mmio.cpp" />
     <ClCompile Include="..\freegetopt\getopt.cpp" />
     <ClCompile Include="pcm-iio-win.cpp" />
     <ClCompile Include="stdafx.cpp" />
@@ -173,7 +173,7 @@
     <ClInclude Include="..\topology.h" />
     <ClInclude Include="..\msr.h" />
     <ClInclude Include="..\pci.h" />
-    <ClInclude Include="..\client_bw.h" /> <ClInclude Include="..\mmio.h" />
+    <ClInclude Include="..\bw.h" /> <ClInclude Include="..\mmio.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="..\types.h" />
     <ClInclude Include="windriver.h" />

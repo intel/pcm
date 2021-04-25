@@ -93,6 +93,8 @@ void print_usage(const string progname)
 IPlatform *IPlatform::getPlatform(PCM *m, bool csv, bool print_bandwidth, bool print_additional_info, uint32 delay)
 {
     switch (m->getCPUModel()) {
+        case PCM::ICX:
+            return new WhitleyPlatform(m, csv, print_bandwidth, print_additional_info, delay);
         case PCM::SKX:
             return new PurleyPlatform(m, csv, print_bandwidth, print_additional_info, delay);
         case PCM::BDX_DE:

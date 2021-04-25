@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2009-2013, Intel Corporation
+Copyright (c) 2009-2019, Intel Corporation
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -15,7 +15,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 //
 
 #include <iostream>
-#include "client_bw.h"
+#include "bw.h"
 #include "pci.h"
 #include "utils.h"
 
@@ -98,6 +98,83 @@ uint64 ClientBW::getImcWrites()
 uint64 ClientBW::getIoRequests()
 {
     return mmioRange->read32(PCM_CLIENT_IMC_DRAM_IO_REQESTS - PCM_CLIENT_IMC_EVENT_BASE);
+}
+
+#define PCM_SERVER_IMC_DRAM_DATA_READS  (0x2290)
+#define PCM_SERVER_IMC_DRAM_DATA_WRITES (0x2298)
+#define PCM_SERVER_IMC_PMM_DATA_READS   (0x22a0)
+#define PCM_SERVER_IMC_PMM_DATA_WRITES  (0x22a8)
+#define PCM_SERVER_IMC_MMAP_SIZE        (0x4000)
+
+std::vector<size_t> getServerMemBars(const uint32 numIMC, const uint32 root_segment_ubox0, const uint32 root_bus_ubox0)
+{
+    std::vector<size_t> result;
+    PciHandleType ubox0Handle(root_segment_ubox0, root_bus_ubox0, SERVER_UBOX0_REGISTER_DEV_ADDR, SERVER_UBOX0_REGISTER_FUNC_ADDR);
+    uint32 mmioBase = 0;
+    ubox0Handle.read32(0xd0, &mmioBase);
+    for (uint32 i = 0; i < numIMC; ++i)
+    {
+        uint32 memOffset = 0;
+        ubox0Handle.read32(0xd8 + i * 4, &memOffset);
+        size_t memBar = ((mmioBase & ((1ULL << 29ULL) - 1ULL)) << 23ULL) |
+            ((memOffset & ((1ULL << 11ULL) - 1ULL)) << 12ULL);
+        if (memBar == 0)
+        {
+            std::cerr << "ERROR: memBar " << i << " is zero." << std::endl;
+            throw std::exception();
+        }
+        result.push_back(memBar);
+    }
+    return result;
+}
+
+ServerBW::ServerBW(const uint32 numIMC, const uint32 root_segment_ubox0, const uint32 root_bus_ubox0)
+{
+    auto memBars = getServerMemBars(numIMC, root_segment_ubox0, root_bus_ubox0);
+    for (auto & memBar: memBars)
+    {
+        mmioRanges.push_back(std::make_shared<MMIORange>(memBar, PCM_SERVER_IMC_MMAP_SIZE));
+    }
+}
+
+uint64 ServerBW::getImcReads()
+{
+    uint64 result = 0;
+    for (auto & mmio: mmioRanges)
+    {
+        result += mmio->read64(PCM_SERVER_IMC_DRAM_DATA_READS);
+    }
+    return result;
+}
+
+uint64 ServerBW::getImcWrites()
+{
+    uint64 result = 0;
+    for (auto & mmio : mmioRanges)
+    {
+        result += mmio->read64(PCM_SERVER_IMC_DRAM_DATA_WRITES);
+    }
+    return result;
+}
+
+uint64 ServerBW::getPMMReads()
+{
+    uint64 result = 0;
+    for (auto & mmio : mmioRanges)
+    {
+        result += mmio->read64(PCM_SERVER_IMC_PMM_DATA_READS);
+    }
+    return result;
+}
+
+uint64 ServerBW::getPMMWrites()
+{
+    uint64 result = 0;
+    for (auto & mmio : mmioRanges)
+    {
+        result += mmio->read64(PCM_SERVER_IMC_PMM_DATA_WRITES);
+    }
+    return result;
 }
 
 } // namespace pcm

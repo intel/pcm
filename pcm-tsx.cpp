@@ -296,6 +296,7 @@ int main(int argc, char * argv[])
         eventDefinition = sklEventDefinition;
         break;
     case PCM::ICL:
+    case PCM::ICX:
         eventDefinition = iclEventDefinition;
         break;
     }

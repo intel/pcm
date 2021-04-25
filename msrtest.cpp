@@ -64,7 +64,7 @@ int main()
 
     for (i = 0; i < NUM_CORES; ++i)
     {
-        res = cpu_msr[i]->read(INST_RETIRED_ANY_ADDR, &counters_before[i][0]);
+        res = cpu_msr[i]->read(INST_RETIRED_ADDR, &counters_before[i][0]);
         assert(res >= 0);
         res = cpu_msr[i]->read(CPU_CLK_UNHALTED_THREAD_ADDR, &counters_before[i][1]);
         assert(res >= 0);
@@ -75,7 +75,7 @@ int main()
     ::sleep(1);
     for (i = 0; i < NUM_CORES; ++i)
     {
-        res = cpu_msr[i]->read(INST_RETIRED_ANY_ADDR, &counters_after[i][0]);
+        res = cpu_msr[i]->read(INST_RETIRED_ADDR, &counters_after[i][0]);
         assert(res >= 0);
         res = cpu_msr[i]->read(CPU_CLK_UNHALTED_THREAD_ADDR, &counters_after[i][1]);
         assert(res >= 0);

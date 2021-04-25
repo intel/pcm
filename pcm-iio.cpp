@@ -21,6 +21,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #else
 #include <unistd.h>
 #endif
+#include <memory>
 #include <fstream>
 #include <stdlib.h>
 #include <stdexcept>      // std::length_error
@@ -46,6 +47,15 @@ static const std::string iio_stack_names[6] = {
     "IIO Stack 3 - PCIe2          ",
     "IIO Stack 4 - MCP0           ",
     "IIO Stack 5 - MCP1           "
+};
+
+static const std::string icx_iio_stack_names[6] = {
+    "IIO Stack 0 - CBDMA/DMI      ",
+    "IIO Stack 1 - PCIe1          ",
+    "IIO Stack 2 - PCIe2          ",
+    "IIO Stack 3 - PCIe3          ",
+    "IIO Stack 4 - PCIe4          ",
+    "IIO Stack 5 - PCIe5          "
 };
 
 map<string,PCM::PerfmonField> opcodeFieldMap;
@@ -262,12 +272,13 @@ void display(const vector<string> &buff)
     std::cout << std::flush;
 }
 
-void discover_pci_tree(const vector<uint32_t> & busno, uint8_t socket_id, vector<struct iio_skx> &v_iio_skx)
+void discover_pci_tree(const vector<uint32_t> & busno, uint8_t socket_id, vector<struct iio_skx> &v_iio_skx, PCM * m)
 {
     struct iio_skx iio_skx;
     uint32 cpubusno = 0;
 
     if (PciHandleType::exists(0, (uint32)busno[socket_id], 8, 2)) {
+        //14nm
         iio_skx.socket_id = socket_id;
         PciHandleType h(0, busno[socket_id], 8, 2);
         h.read32(0xcc, &cpubusno); // CPUBUSNO register
@@ -295,29 +306,75 @@ void discover_pci_tree(const vector<uint32_t> & busno, uint8_t socket_id, vector
                     probe_pci(pci);
             }
         }
+    }
+    else if (PciHandleType::exists(0, (uint32)busno[socket_id], 2, 0)) {
+        //10nm wave1
+        uint32 busvalid = 0;
+        iio_skx.socket_id = socket_id;
+        PciHandleType h(0, busno[socket_id], 2, 0);
+        h.read32(0x104, &cpubusno); // CPUBUSNO register
+        iio_skx.stacks[0].busno = cpubusno & 0xff;
+        iio_skx.stacks[1].busno = (cpubusno >> 8) & 0xff;
+        iio_skx.stacks[2].busno = (cpubusno >> 16) & 0xff;
+        iio_skx.stacks[3].busno = (cpubusno >> 24) & 0xff;
+        h.read32(0x108, &cpubusno); // CPUBUSNO1 register
+        iio_skx.stacks[4].busno = cpubusno & 0xff;
+        iio_skx.stacks[5].busno = (cpubusno >> 8) & 0xff;
+        h.read32(0x110, &busvalid);
+
         for (uint8_t stack = 0; stack < 6; stack++) {
+            if (m->getCPUModel() == PCM::ICX)
+                iio_skx.stacks[stack].stack_name = icx_iio_stack_names[stack];
             for (uint8_t part = 0; part < 4; part++) {
-                struct pci p = iio_skx.stacks[stack].parts[part].root_pci_dev;
-                if (!p.exist)
-                    continue;
-                for (uint8_t b = p.secondary_bus_number; b <= p.subordinate_bus_number; b++) { /* FIXME: for 0:0.0, we may need to scan from secondary switch down */
-                    for (uint8_t d = 0; d < 32; d++) {
-                        for (uint8_t f = 0; f < 8; f++) {
-                            struct pci pci;
-                            pci.exist = false;
-                            pci.bdf.busno = b;
-                            pci.bdf.devno = d;
-                            pci.bdf.funcno = f;
-                            probe_pci(&pci);
-                            if (pci.exist)
-                                iio_skx.stacks[stack].parts[part].child_pci_devs.push_back(pci);
-                        }
+                if (((busvalid & (1 << stack))) == 0) {
+                    iio_skx.stacks[stack].parts[part].root_pci_dev.exist = false;
+                }
+                else {
+                    if (PciHandleType::exists(0, (uint32)iio_skx.stacks[stack].busno, 0, 0)) {
+                        uint32 reg = 0;
+                        PciHandleType h(0, (uint32)iio_skx.stacks[stack].busno, 0, 0);
+                        h.read32(0x802, &reg);
+                        iio_skx.stacks[stack].flipped = (reg & 0x4)?true:false;
+                    }
+                    if (m->getCPUModel() == PCM::ICX) {
+                        struct pci *pci = &iio_skx.stacks[stack].parts[part].root_pci_dev;
+                        struct bdf *bdf = &pci->bdf;
+                        bdf->busno = iio_skx.stacks[stack].busno;
+                        bdf->devno = (part + 2);
+                        bdf->funcno = 0;
+                        probe_pci(pci);
                     }
                 }
             }
         }
-        v_iio_skx.push_back(iio_skx);
     }
+    else {
+        cerr << "No access to PCICFG" << endl;
+        exit(EXIT_FAILURE);
+    }
+
+    for (uint8_t stack = 0; stack < 6; stack++) {
+        for (uint8_t part = 0; part < 4; part++) {
+            struct pci p = iio_skx.stacks[stack].parts[part].root_pci_dev;
+            if (!p.exist)
+                continue;
+            for (uint8_t b = p.secondary_bus_number; b <= p.subordinate_bus_number; b++) { /* FIXME: for 0:0.0, we may need to scan from secondary switch down */
+                for (uint8_t d = 0; d < 32; d++) {
+                    for (uint8_t f = 0; f < 8; f++) {
+                        struct pci pci;
+                        pci.exist = false;
+                        pci.bdf.busno = b;
+                        pci.bdf.devno = d;
+                        pci.bdf.funcno = f;
+                        probe_pci(&pci);
+                        if (pci.exist)
+                            iio_skx.stacks[stack].parts[part].child_pci_devs.push_back(pci);
+                    }
+                }
+            }
+        }
+    }
+    v_iio_skx.push_back(iio_skx);
 }
 
 std::string dos2unix(std::string in)
@@ -329,11 +386,25 @@ std::string dos2unix(std::string in)
     return in;
 }
 
-vector<struct counter> load_events(const char* fn)
+ccr* get_ccr(PCM* m, uint64_t& ccr)
+{
+    switch (m->getCPUModel())
+    {
+        case PCM::SKX:
+            return new skx_ccr(ccr);
+        case PCM::ICX:
+            return new icx_ccr(ccr);
+        default:
+            cerr << "Skylake Server CPU is required for this tool! Program aborted" << endl;
+            exit(EXIT_FAILURE);
+    }
+}
+
+vector<struct counter> load_events(PCM * m, const char* fn)
 {
     vector<struct counter> v;
     struct counter ctr;
-    ctr.Opcodes.value = 0;
+    std::unique_ptr<ccr> pccr(get_ccr(m, ctr.ccr));
 
     std::ifstream in(fn);
     std::string line, item;
@@ -352,6 +423,7 @@ vector<struct counter> load_events(const char* fn)
     while (std::getline(in, line)) {
         /* Ignore anyline with # */
         //TODO: substring until #, if len == 0, skip, else parse normally
+        pccr->set_ccr_value(0);
         if (line.find("#") != std::string::npos)
             continue;
         /* If line does not have any deliminator, we ignore it as well */
@@ -401,40 +473,38 @@ vector<struct counter> load_events(const char* fn)
                     ctr.idx = (int)numValue;
                     break;
                 case PCM::OPCODE:
-                    ctr.Opcodes.value = numValue;
                     break;
                 case PCM::EVENT_SELECT:
-                    ctr.Opcodes.fields.event_select = numValue;
+                    pccr->set_event_select(numValue);
                     break;
                 case PCM::UMASK:
-                    ctr.Opcodes.fields.umask = numValue;
+                    pccr->set_umask(numValue);
                     break;
                 case PCM::RESET:
-                    ctr.Opcodes.fields.reset = numValue;
+                    pccr->set_reset(numValue);
                     break;
                 case PCM::EDGE_DET:
-                    ctr.Opcodes.fields.edge_det = numValue;
+                    pccr->set_edge(numValue);
                     break;
                 case PCM::IGNORED:
-                    ctr.Opcodes.fields.ignored = numValue;
-                    break;
+		    break;
                 case PCM::OVERFLOW_ENABLE:
-                    ctr.Opcodes.fields.overflow_enable = numValue;
+                    pccr->set_ov_en(numValue);
                     break;
                 case PCM::ENABLE:
-                    ctr.Opcodes.fields.enable = numValue;
+                    pccr->set_enable(numValue);
                     break;
                 case PCM::INVERT:
-                    ctr.Opcodes.fields.invert = numValue;
+                    pccr->set_invert(numValue);
                     break;
                 case PCM::THRESH:
-                    ctr.Opcodes.fields.thresh = numValue;
+                    pccr->set_thresh(numValue);
                     break;
                 case PCM::CH_MASK:
-                    ctr.Opcodes.fields.ch_mask = numValue;
+                    pccr->set_ch_mask(numValue);
                     break;
                 case PCM::FC_MASK:
-                    ctr.Opcodes.fields.fc_mask = numValue;
+                    pccr->set_fc_mask(numValue);
                     break;
                 //TODO: double type for multipler. drop divider variable
                 case PCM::MULTIPLIER:
@@ -451,7 +521,7 @@ vector<struct counter> load_events(const char* fn)
         }
         v.push_back(ctr);
         //cout << "Finish parsing: " << line << " size:" << v.size() << "\n";
-        cout << line << " " << std::hex << ctr.Opcodes.value << std::dec << "\n";
+        cout << line << " " << std::hex << ctr.ccr << std::dec << "\n";
     }
     cout << std::flush;
 
@@ -463,7 +533,8 @@ vector<struct counter> load_events(const char* fn)
 result_content get_IIO_Samples(PCM *m, vector<struct iio_skx> iio_skx_v, struct counter ctr, uint32_t delay_ms)
 {
     IIOCounterState *before, *after;
-    IIOPMUCNTCTLRegister rawEvents[4];
+    uint64 rawEvents[4] = {0};
+    std::unique_ptr<ccr> pccr(get_ccr(m, ctr.ccr));
     std::vector<int32> IIO_units;
     IIO_units.push_back((int32)PCM::IIO_CBDMA);
     IIO_units.push_back((int32)PCM::IIO_PCIe0);
@@ -471,7 +542,7 @@ result_content get_IIO_Samples(PCM *m, vector<struct iio_skx> iio_skx_v, struct 
     IIO_units.push_back((int32)PCM::IIO_PCIe2);
     IIO_units.push_back((int32)PCM::IIO_MCP0);
     IIO_units.push_back((int32)PCM::IIO_MCP1);
-    rawEvents[ctr.idx] = ctr.Opcodes;
+    rawEvents[ctr.idx] = pccr->get_ccr_value();
     before = new IIOCounterState[iio_skx_v.size() * IIO_units.size()];
     after = new IIOCounterState[iio_skx_v.size() * IIO_units.size()];
 
@@ -512,15 +583,39 @@ void collect_data(PCM *m, vector<struct iio_skx> iio_skx_v, vector<struct counte
     }
 }
 
-int main(int /*argc*/, char * /*argv*/[])
+/**
+ * For debug only
+ */
+void print_PCIeMapping(vector<struct iio_skx> iio_skx_, const PCIDB & pciDB)
+{
+    for (auto it = iio_skx_.begin(); it != iio_skx_.end(); ++it)
+    {
+        printf("Socket %d\n", (*it).socket_id);
+        for (int stack = 0; stack < 6; stack++) {
+            printf("\t%s root bus: 0x%x", (*it).stacks[stack].stack_name.c_str(), (*it).stacks[stack].busno);
+            printf((*it).stacks[stack].flipped ? "\tflipped: true\n" : "\tflipped: false\n");
+            for (uint32_t p = 0; p < 4; p++) {
+                vector<struct pci> pp = (*it).stacks[stack].parts[p].child_pci_devs;
+                uint8_t level = 1;
+                for (std::vector<struct pci>::const_iterator iunit = pp.begin(); iunit != pp.end(); ++iunit)
+                {
+                    uint64_t header_width = 100;
+                    string row = build_pci_header(pciDB, (uint32_t)header_width, *iunit, -1, level);
+                    printf("\t\t%s\n", row.c_str());
+                    if (iunit->header_type == 1)
+                        level += 1;
+                }
+            }
+        }
+    }
+}
+
+int main()
 {
     set_signal_handlers();
     std::cout << "\n Processor Counter Monitor " << PCM_VERSION << "\n";
     std::cout << "\n This utility measures Skylake-SP IIO information\n\n";
-#define TEST_VAR 1
-#if TEST_VAR == 1
-    string ev_file_name = "opCode.txt";
-#endif
+
     vector<int> skt_list;
     vector<int> stack_list;
     vector<struct iio_skx> iio_skx_v;
@@ -531,7 +626,13 @@ int main(int /*argc*/, char * /*argv*/[])
 
     PCM * m = PCM::getInstance();
     print_cpu_details();
-    if(!(m->IIOEventsAvailable()))
+    string ev_file_name;
+    if ( m->getCPUModel() == PCM::SKX ||
+         m->getCPUModel() == PCM::ICX) 
+    {
+        ev_file_name = "opCode-" + std::to_string(m->getCPUModel()) + ".txt";
+    }
+    else
     {
         cerr << "Skylake Server CPU is required for this tool! Program aborted\n";
         exit(EXIT_FAILURE);
@@ -560,7 +661,7 @@ int main(int /*argc*/, char * /*argv*/[])
     opcodeFieldMap["divider"] = PCM::DIVIDER;
     opcodeFieldMap["ctr"] = PCM::COUNTER_INDEX;
 
-    counters = load_events(ev_file_name.c_str());
+    counters = load_events(m, ev_file_name.c_str());
     //print_nameMap();
     //TODO: Taking from cli
 
@@ -587,8 +688,13 @@ int main(int /*argc*/, char * /*argv*/[])
     }
     for(uint32 s=0; s < m->getNumSockets();++s) {
         skt_list.push_back(s);
-        discover_pci_tree(busno, s, iio_skx_v);
+        discover_pci_tree(busno, s, iio_skx_v, m);
     }
+    /* Debug only:
+    print_PCIeMapping(iio_skx_v, pciDB);
+    return 0;
+    */
+
     stack_list.push_back(PCM::IIO_CBDMA);
     stack_list.push_back(PCM::IIO_PCIe0);
     stack_list.push_back(PCM::IIO_PCIe1);
@@ -600,5 +706,9 @@ int main(int /*argc*/, char * /*argv*/[])
         collect_data(m, iio_skx_v, counters);
         display_buffer = build_display(iio_skx_v, counters, skt_list, stack_list, pciDB);
         display(display_buffer);
+        if (m->getCPUModel() == PCM::ICX)
+        {
+            std::cerr << "WARNING: The IIO stack <-> device mapping might not be incorrect. Will be addressed in a later version." << std::endl;
+        }
     };
 }

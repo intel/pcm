@@ -541,6 +541,18 @@ uint64 read_number(char* str)
     return result;
 }
 
+// emulates scanf %i for hex 0x prefix otherwise assumes dec (no oct support)
+bool match(const std::string& subtoken, const std::string& sname, uint64* result)
+{
+    if (pcm_sscanf(subtoken) >> s_expect(sname + "0x") >> std::hex >> *result)
+        return true;
+
+    if (pcm_sscanf(subtoken) >> s_expect(sname) >> std::dec >> *result)
+        return true;
+
+    return false;
+}
+
 #define PCM_CALIBRATION_INTERVAL 50 // calibrate clock only every 50th iteration
 
 int calibratedSleep(const double delay, const char* sysCmd, const MainLoop& mainLoop, PCM* m)
