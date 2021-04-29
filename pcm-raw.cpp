@@ -71,19 +71,6 @@ void print_usage(const string progname)
     cerr << "\n";
 }
 
-
-// emulates scanf %i for hex 0x prefix otherwise assumes dec (no oct support)
-bool match(const string& subtoken, const string& sname, uint64* result)
-{
-    if (pcm_sscanf(subtoken) >> s_expect(sname + "0x") >> std::hex >> *result)
-        return true;
-
-    if (pcm_sscanf(subtoken) >> s_expect(sname) >> std::dec >> *result)
-        return true;
-
-    return false;
-}
-
 PCM::RawPMUConfigs allPMUConfigs;
 
 bool addEvent(string eventStr)

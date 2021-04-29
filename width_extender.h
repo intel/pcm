@@ -23,7 +23,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <stdlib.h>
 #include "cpucounters.h"
 #include "utils.h"
-#include "client_bw.h"
+#include "bw.h"
 #include "mutex.h"
 #include <memory>
 #ifndef _MSC_VER

@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <fstream>
+#include <memory>
 #include "cpucounters.h"
 
 #if defined(_MSC_VER)
@@ -31,6 +32,184 @@ typedef std::map<std::pair<h_id,v_id>,uint64_t> ctr_data;
 typedef std::vector<ctr_data> stack_content;
 typedef std::vector<stack_content> result_content;
 
+class ccr {
+        public:
+                virtual uint64_t get_event_select() const = 0;
+                virtual void set_event_select(uint64_t value) = 0;
+                virtual uint64_t get_umask() const  = 0;
+                virtual void set_umask(uint64_t value) = 0;
+                virtual uint64_t get_reset() const = 0;
+                virtual void set_reset(uint64_t value) = 0;
+                virtual uint64_t get_edge() const  = 0;
+                virtual void set_edge(uint64_t value) = 0;
+                virtual uint64_t get_ov_en() const  = 0;
+                virtual void set_ov_en(uint64_t value) = 0;
+                virtual uint64_t get_enable() const  = 0;
+                virtual void set_enable(uint64_t value) = 0;
+                virtual uint64_t get_invert() const = 0;
+                virtual void set_invert(uint64_t value) = 0;
+                virtual uint64_t get_thresh() const  = 0;
+                virtual void set_thresh(uint64_t value) = 0;
+                virtual uint64_t get_ch_mask() const = 0;
+                virtual void set_ch_mask(uint64_t value) = 0;
+                virtual uint64_t get_fc_mask() const  = 0;
+                virtual void set_fc_mask(uint64_t value) = 0;
+                virtual uint64_t get_ccr_value() const  = 0;
+                virtual void set_ccr_value(uint64_t value) = 0;
+                virtual ~ccr() {};
+};
+
+class skx_ccr: public ccr {
+        public:
+                skx_ccr(uint64_t &v){
+                        ccr_value = &v;
+                }
+                virtual uint64_t get_event_select() const  {
+                        return (*ccr_value & 0xFF);
+                }
+                virtual void set_event_select(uint64_t value) {
+                        *ccr_value |= value;
+                }
+                virtual uint64_t get_umask() const  {
+                        return ((*ccr_value >> 8) & 0xFF);
+                }
+                virtual void set_umask(uint64_t value) {
+                        *ccr_value |= (value << 8);
+                }
+                virtual uint64_t get_reset() const  {
+                        return ((*ccr_value >> 17) & 0x01);
+                }
+                virtual void set_reset(uint64_t value) {
+                        *ccr_value |= (value << 17);
+                }
+                virtual uint64_t get_edge() const  {
+                        return ((*ccr_value >> 18) & 0x01);
+                }
+                virtual void set_edge(uint64_t value) {
+                        *ccr_value |= (value << 18);
+                }
+                virtual uint64_t get_ov_en() const  {
+                        return ((*ccr_value >> 20) & 0x01);
+                }
+                virtual void set_ov_en(uint64_t value) {
+                        *ccr_value |= (value << 20);
+                }
+                virtual uint64_t get_enable() const  {
+                        return ((*ccr_value >> 22) & 0x01);
+                }
+                virtual void set_enable(uint64_t value) {
+                        *ccr_value |= (value << 22);
+                }
+                virtual uint64_t get_invert() const  {
+                        return ((*ccr_value >> 23) & 0x01);
+                }
+                virtual void set_invert(uint64_t value) {
+                        *ccr_value |= (value << 23);
+                }
+                virtual uint64_t get_thresh() const  {
+                        return ((*ccr_value >> 24) & 0xFFF);
+                }
+                virtual void set_thresh(uint64_t value) {
+                        *ccr_value |= (value << 24);
+                }
+                virtual uint64_t get_ch_mask() const  {
+                        return ((*ccr_value >> 36) & 0xFF);
+                }
+                virtual void set_ch_mask(uint64_t value) {
+                        *ccr_value |= (value << 36);
+                }
+                virtual uint64_t get_fc_mask() const  {
+                        return ((*ccr_value >> 44) & 0x07);
+                }
+                virtual void set_fc_mask(uint64_t value) {
+                        *ccr_value |= (value << 44);
+                }
+                virtual uint64_t get_ccr_value() const {
+                        return *ccr_value;
+                }
+                virtual void set_ccr_value(uint64_t value) {
+                        *ccr_value = value;
+                }
+
+        private:
+                uint64_t* ccr_value = NULL;
+};
+
+class icx_ccr: public ccr {
+         public:
+                 icx_ccr(uint64_t &v){
+                         ccr_value = &v;
+                 }
+                 virtual uint64_t get_event_select() const  {
+                         return (*ccr_value & 0xFF);
+                 }
+                 virtual void set_event_select(uint64_t value) {
+                         *ccr_value |= value;
+                 }
+                 virtual uint64_t get_umask() const  {
+                         return ((*ccr_value >> 8) & 0xFF);
+                 }
+                 virtual void set_umask(uint64_t value) {
+                         *ccr_value |= (value << 8);
+                 }
+                 virtual uint64_t get_reset() const  {
+                         return ((*ccr_value >> 17) & 0x01);
+                 }
+                 virtual void set_reset(uint64_t value) {
+                         *ccr_value |= (value << 17);
+                 }
+                 virtual uint64_t get_edge() const  {
+                         return ((*ccr_value >> 18) & 0x01);
+                 }
+                 virtual void set_edge(uint64_t value) {
+                         *ccr_value |= (value << 18);
+                 }
+                 virtual uint64_t get_ov_en() const  {
+                         return ((*ccr_value >> 20) & 0x01);
+                 }
+                 virtual void set_ov_en(uint64_t value) {
+                         *ccr_value |= (value << 20);
+                 }
+                 virtual uint64_t get_enable() const  {
+                         return ((*ccr_value >> 22) & 0x01);
+                 }
+                 virtual void set_enable(uint64_t value) {
+                         *ccr_value |= (value << 22);
+                 }
+                 virtual uint64_t get_invert() const  {
+                         return ((*ccr_value >> 23) & 0x01);
+                 }
+                 virtual void set_invert(uint64_t value) {
+                         *ccr_value |= (value << 23);
+                 }
+                 virtual uint64_t get_thresh() const  {
+                         return ((*ccr_value >> 24) & 0xFFF);
+                 }
+                 virtual void set_thresh(uint64_t value) {
+                         *ccr_value |= (value << 24);
+                 }
+                 virtual uint64_t get_ch_mask() const  {
+                         return ((*ccr_value >> 36) & 0xFFF);
+                 }
+                 virtual void set_ch_mask(uint64_t value) {
+                         *ccr_value |= (value << 36);
+                 }
+                 virtual uint64_t get_fc_mask() const  {
+                         return ((*ccr_value >> 48) & 0x07);
+                 }
+                 virtual void set_fc_mask(uint64_t value) {
+                         *ccr_value |= (value << 48);
+                 }
+                 virtual uint64_t get_ccr_value() const {
+                         return *ccr_value;
+                 }
+                 virtual void set_ccr_value(uint64_t value) {
+                         *ccr_value = value;
+                 }
+
+         private:
+                 uint64_t* ccr_value = NULL;
+ };
 struct bdf {
     uint8_t busno;
     uint8_t devno;
@@ -77,7 +256,7 @@ struct pci {
 struct counter {
   std::string h_event_name;
   std::string v_event_name;
-    IIOPMUCNTCTLRegister Opcodes;
+    uint64_t ccr;
     int idx; /* Some counters need to be placed in specific index */
     int multiplier;
     int divider;
@@ -95,6 +274,7 @@ struct iio_skx {
         uint8_t busno; /* holding busno for each IIO stack */
         std::string stack_name;
         std::vector<uint64_t> values;
+        bool flipped = false;
     } stacks[6]; /* iio stack 0, 1, 2, 3, 4, 5 */
     uint32_t socket_id;
 };

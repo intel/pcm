@@ -13,15 +13,15 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 // written by Roman Dementiev
 //
 
-#ifndef CPUCounters_CLIENTBW_H
-#define CPUCounters_CLIENTBW_H
+#pragma once
 
-/*!     \file client_bw.h
-        \brief Interface to access client bandwidth counters
+/*!     \file bw.h
+        \brief Interfaces to access free-running bandwidth counters
 
 */
 
 #include <memory>
+#include <vector>
 #include <array>
 #include "mmio.h"
 
@@ -60,6 +60,20 @@ namespace pcm {
         uint64 getIoRequests() override;
     };
 
-} // namespace pcm
+std::vector<size_t> getServerMemBars(const uint32 numIMC, const uint32 root_segment_ubox0, const uint32 root_bus_ubox0);
 
-#endif
+class ServerBW
+{
+    std::vector<std::shared_ptr<MMIORange> > mmioRanges;
+
+    ServerBW();
+public:
+    ServerBW(const uint32 numIMC, const uint32 root_segment_ubox0, const uint32 root_bus_ubox0);
+
+    uint64 getImcReads();
+    uint64 getImcWrites();
+    uint64 getPMMReads();
+    uint64 getPMMWrites();
+};
+
+} // namespace pcm
