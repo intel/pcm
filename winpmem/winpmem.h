@@ -90,9 +90,9 @@ class WinPmem {
 static TCHAR driver_filename[MAX_PATH];
 
 // ioctl to get memory ranges from our driver.
-#define PMEM_CTRL_IOCTRL CTL_CODE(0x22, 0x101, 0, 3)
-#define PMEM_WRITE_ENABLE CTL_CODE(0x22, 0x102, 0, 3)
-#define PMEM_INFO_IOCTRL CTL_CODE(0x22, 0x103, 0, 3)
+#define PMEM_CTRL_IOCTRL CTL_CODE(0x22, 0x101, 3, 3)
+#define PMEM_WRITE_ENABLE CTL_CODE(0x22, 0x102, 3, 3)
+#define PMEM_INFO_IOCTRL CTL_CODE(0x22, 0x103, 3, 3)
 
 // Available modes
 #define PMEM_MODE_IOSPACE 0
