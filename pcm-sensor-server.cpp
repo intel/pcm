@@ -506,7 +506,6 @@ private:
 private:
     Indent            indentation;
     std::pair<std::shared_ptr<Aggregator>,std::shared_ptr<Aggregator>> aggPair_;
-    std::stringstream ss;
 
     const char BEGIN_OBJECT = '{';
     const char END_OBJECT = '}';
@@ -761,7 +760,6 @@ private:
 
 private:
     std::pair<std::shared_ptr<Aggregator>,std::shared_ptr<Aggregator>> aggPair_;
-    std::stringstream ss;
     std::vector<std::string> hierarchy_;
 };
 
@@ -798,7 +796,7 @@ public:
     }
 
     virtual ~basic_socketbuf() {
-        sync();
+        basic_socketbuf::sync();
 #if defined (USE_SSL)
         if ( nullptr != ssl_ ) {
             SSL_free( ssl_ );
@@ -2897,6 +2895,7 @@ void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & re
       <li>/metrics : The Prometheus server does not send an Accept header to decide what format to return so it got its own endpoint that will always return data in the Prometheus format. pcm-sensor-server is sending the header \"Content-Type: text/plain; version=0.0.4\" as required. This /metrics endpoints mimics the same behavior as / and data is thus absolute, not relative.</li>\n\
       <li>/dashboard/influxdb : This will return JSON for a Grafana dashboard with InfluxDB backend that holds all counters. Please see the documentation for more information.</li>\n\
       <li>/dashboard/prometheus : This will return JSON for a Grafana dashboard with Prometheus backend that holds all counters. Please see the documentation for more information.</li>\n\
+      <li>/dashboard/prometheus/default : Same as /dashboard/prometheus but tuned for existing installations with default Prometheus scrape period of 15 seconds and the rate of 1 minute in Grafana. Please see the documentation for more information.</li>\n\
       <li>/dashboard : same as /dashboard/influxdb </li>\n\
       <li>/favicon.ico : This will return a small favicon.ico as requested by many browsers.</li>\n\
     </ul>\n\
@@ -2921,6 +2920,11 @@ void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & re
     else if (url.path_ == "/dashboard/prometheus") {
         DBG(3, "client requesting /dashboard path: '", url.path_, "'");
         resp.createResponse(ApplicationJSON, getPCMDashboardJSON(Prometheus), RC_200_OK);
+        return;
+    }
+    else if (url.path_ == "/dashboard/prometheus/default") {
+        DBG(3, "client requesting /dashboard path: '", url.path_, "'");
+        resp.createResponse(ApplicationJSON, getPCMDashboardJSON(Prometheus_Default), RC_200_OK);
         return;
     } else if ( 0 == url.path_.rfind( "/persecond", 0 ) ) {
         DBG( 3, "client requesting /persecond path: '", url.path_, "'" );
@@ -2995,7 +2999,7 @@ void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & re
     }
     default:
         std::string body( "406 Not Acceptable. Server can only serve \"" );
-        body += req.url().path_ + "\" as application/json, text/plain (prometheus format).";
+        body += req.url().path_ + "\" as application/json, \"text/plain; version=0.0.4\" (prometheus format).";
         resp.createResponse( TextPlain, body, RC_406_NotAcceptable );
     }
 }

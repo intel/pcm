@@ -13,3 +13,4 @@ services:
            - SYS_RAWIO
        devices:
            - /dev/cpu
+           - /dev/mem

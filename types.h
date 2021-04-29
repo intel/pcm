@@ -47,9 +47,11 @@ typedef signed int int32;
         System Programming Guide, Part 2", Appendix A "PERFORMANCE-MONITORING EVENTS"
 */
 
-#define INST_RETIRED_ANY_ADDR           (0x309)
+#define INST_RETIRED_ADDR           (0x309)
 #define CPU_CLK_UNHALTED_THREAD_ADDR    (0x30A)
 #define CPU_CLK_UNHALTED_REF_ADDR       (0x30B)
+#define TOPDOWN_SLOTS_ADDR              (0x30C)
+#define PERF_METRICS_ADDR               (0x329)
 #define IA32_CR_PERF_GLOBAL_CTRL        (0x38F)
 #define IA32_CR_FIXED_CTR_CTRL          (0x38D)
 #define IA32_PERFEVTSEL0_ADDR           (0x186)
@@ -62,7 +64,8 @@ constexpr auto IA32_PERF_GLOBAL_OVF_CTRL = 0x390;
 
 #define PERF_MAX_FIXED_COUNTERS          (3)
 #define PERF_MAX_CUSTOM_COUNTERS         (8)
-#define PERF_MAX_COUNTERS               (PERF_MAX_FIXED_COUNTERS + PERF_MAX_CUSTOM_COUNTERS)
+#define PERF_TOPDOWN_COUNTERS           (5)
+#define PERF_MAX_COUNTERS               (PERF_MAX_FIXED_COUNTERS + PERF_MAX_CUSTOM_COUNTERS + PERF_TOPDOWN_COUNTERS)
 
 #define IA32_DEBUGCTL                   (0x1D9)
 
@@ -364,8 +367,13 @@ struct FixedEventControlRegister
             uint64 usr2 : 1;
             uint64 any_thread2 : 1;
             uint64 enable_pmi2 : 1;
+	    // CTR3
+            uint64 os3 : 1;
+            uint64 usr3 : 1;
+            uint64 any_thread3 : 1;
+            uint64 enable_pmi3 : 1;
 
-            uint64 reserved1 : 52;
+            uint64 reserved1 : 48;
         } fields;
         uint64 value;
     };
@@ -560,6 +568,8 @@ struct BecktonUncorePMUCNTCTLRegister
 #define SKX_MC1_CH2_REGISTER_FUNC_ADDR (2)
 #define SKX_MC1_CH3_REGISTER_FUNC_ADDR (-1) //Does not exist
 
+#define SERVER_UBOX0_REGISTER_DEV_ADDR  (0)
+#define SERVER_UBOX0_REGISTER_FUNC_ADDR (1)
 
 #define KNL_MC1_CH0_REGISTER_DEV_ADDR (9)
 #define KNL_MC1_CH1_REGISTER_DEV_ADDR (9)
@@ -651,6 +661,23 @@ struct BecktonUncorePMUCNTCTLRegister
 #define KNX_EDC_CH_PCI_PMON_CTR1_ADDR (0xA08)
 #define KNX_EDC_CH_PCI_PMON_CTR0_ADDR (0xA00)
 
+#define SERVER_MC_CH_PMON_REAL_BASE_ADDR   (0x22800)
+#define SERVER_MC_CH_PMON_BASE_ALIGN_DELTA (0x00800)
+#define SERVER_MC_CH_PMON_BASE_ADDR        (SERVER_MC_CH_PMON_REAL_BASE_ADDR - SERVER_MC_CH_PMON_BASE_ALIGN_DELTA)
+#define SERVER_MC_CH_PMON_STEP             (0x4000)
+#define SERVER_MC_CH_PMON_SIZE             (0x1000)
+#define SERVER_MC_CH_PMON_BOX_CTL_OFFSET   (0x00 + SERVER_MC_CH_PMON_BASE_ALIGN_DELTA)
+#define SERVER_MC_CH_PMON_CTL0_OFFSET      (0x40 + SERVER_MC_CH_PMON_BASE_ALIGN_DELTA)
+#define SERVER_MC_CH_PMON_CTL1_OFFSET      (SERVER_MC_CH_PMON_CTL0_OFFSET + 4*1)
+#define SERVER_MC_CH_PMON_CTL2_OFFSET      (SERVER_MC_CH_PMON_CTL0_OFFSET + 4*2)
+#define SERVER_MC_CH_PMON_CTL3_OFFSET      (SERVER_MC_CH_PMON_CTL0_OFFSET + 4*3)
+#define SERVER_MC_CH_PMON_CTR0_OFFSET      (0x08 + SERVER_MC_CH_PMON_BASE_ALIGN_DELTA)
+#define SERVER_MC_CH_PMON_CTR1_OFFSET      (SERVER_MC_CH_PMON_CTR0_OFFSET + 8*1)
+#define SERVER_MC_CH_PMON_CTR2_OFFSET      (SERVER_MC_CH_PMON_CTR0_OFFSET + 8*2)
+#define SERVER_MC_CH_PMON_CTR3_OFFSET      (SERVER_MC_CH_PMON_CTR0_OFFSET + 8*3)
+#define SERVER_MC_CH_PMON_FIXED_CTL_OFFSET (0x54 + SERVER_MC_CH_PMON_BASE_ALIGN_DELTA)
+#define SERVER_MC_CH_PMON_FIXED_CTR_OFFSET (0x38 + SERVER_MC_CH_PMON_BASE_ALIGN_DELTA)
+
 #define JKTIVT_QPI_PORT0_REGISTER_DEV_ADDR  (8)
 #define JKTIVT_QPI_PORT0_REGISTER_FUNC_ADDR (2)
 #define JKTIVT_QPI_PORT1_REGISTER_DEV_ADDR  (9)
@@ -679,6 +706,13 @@ struct BecktonUncorePMUCNTCTLRegister
 #define CPX_QPI_PORT5_REGISTER_DEV_ADDR  (16)
 #define CPX_QPI_PORT5_REGISTER_FUNC_ADDR (4)
 
+#define ICX_QPI_PORT0_REGISTER_DEV_ADDR  (2)
+#define ICX_QPI_PORT0_REGISTER_FUNC_ADDR (1)
+#define ICX_QPI_PORT1_REGISTER_DEV_ADDR  (3)
+#define ICX_QPI_PORT1_REGISTER_FUNC_ADDR (1)
+#define ICX_QPI_PORT2_REGISTER_DEV_ADDR  (4)
+#define ICX_QPI_PORT2_REGISTER_FUNC_ADDR (1)
+
 #define QPI_PORT0_MISC_REGISTER_FUNC_ADDR (0)
 #define QPI_PORT1_MISC_REGISTER_FUNC_ADDR (0)
 #define QPI_PORT2_MISC_REGISTER_FUNC_ADDR (0)
@@ -703,22 +737,50 @@ constexpr auto CPX_M3UPI_PORT4_REGISTER_FUNC_ADDR = (1);
 constexpr auto CPX_M3UPI_PORT5_REGISTER_DEV_ADDR = (0x14);
 constexpr auto CPX_M3UPI_PORT5_REGISTER_FUNC_ADDR = (2);
 
+constexpr auto ICX_M3UPI_PORT0_REGISTER_DEV_ADDR = (5);
+constexpr auto ICX_M3UPI_PORT1_REGISTER_DEV_ADDR = (6);
+constexpr auto ICX_M3UPI_PORT2_REGISTER_DEV_ADDR = (7);
+constexpr auto ICX_M3UPI_PORT0_REGISTER_FUNC_ADDR = (1);
+constexpr auto ICX_M3UPI_PORT1_REGISTER_FUNC_ADDR = (1);
+constexpr auto ICX_M3UPI_PORT2_REGISTER_FUNC_ADDR = (1);
+
 #define SKX_M2M_0_REGISTER_DEV_ADDR  (8)
 #define SKX_M2M_0_REGISTER_FUNC_ADDR (0)
 #define SKX_M2M_1_REGISTER_DEV_ADDR  (9)
 #define SKX_M2M_1_REGISTER_FUNC_ADDR (0)
 
-#define M2M_PCI_PMON_BOX_CTL_ADDR (0x258)
+#define SERVER_M2M_0_REGISTER_DEV_ADDR  (12)
+#define SERVER_M2M_0_REGISTER_FUNC_ADDR (0)
+#define SERVER_M2M_1_REGISTER_DEV_ADDR  (13)
+#define SERVER_M2M_1_REGISTER_FUNC_ADDR (0)
+#define SERVER_M2M_2_REGISTER_DEV_ADDR  (14)
+#define SERVER_M2M_2_REGISTER_FUNC_ADDR (0)
+#define SERVER_M2M_3_REGISTER_DEV_ADDR  (15)
+#define SERVER_M2M_3_REGISTER_FUNC_ADDR (0)
 
-#define M2M_PCI_PMON_CTL0_ADDR (0x228)
-#define M2M_PCI_PMON_CTL1_ADDR (0x230)
-#define M2M_PCI_PMON_CTL2_ADDR (0x238)
-#define M2M_PCI_PMON_CTL3_ADDR (0x240)
+#define SKX_M2M_PCI_PMON_BOX_CTL_ADDR (0x258)
 
-#define M2M_PCI_PMON_CTR0_ADDR (0x200)
-#define M2M_PCI_PMON_CTR1_ADDR (0x208)
-#define M2M_PCI_PMON_CTR2_ADDR (0x210)
-#define M2M_PCI_PMON_CTR3_ADDR (0x218)
+#define SKX_M2M_PCI_PMON_CTL0_ADDR (0x228)
+#define SKX_M2M_PCI_PMON_CTL1_ADDR (0x230)
+#define SKX_M2M_PCI_PMON_CTL2_ADDR (0x238)
+#define SKX_M2M_PCI_PMON_CTL3_ADDR (0x240)
+
+#define SKX_M2M_PCI_PMON_CTR0_ADDR (0x200)
+#define SKX_M2M_PCI_PMON_CTR1_ADDR (0x208)
+#define SKX_M2M_PCI_PMON_CTR2_ADDR (0x210)
+#define SKX_M2M_PCI_PMON_CTR3_ADDR (0x218)
+
+#define SERVER_M2M_PCI_PMON_BOX_CTL_ADDR (0x438)
+
+#define SERVER_M2M_PCI_PMON_CTL0_ADDR (0x468)
+#define SERVER_M2M_PCI_PMON_CTL1_ADDR (SERVER_M2M_PCI_PMON_CTL0_ADDR + 1*8)
+#define SERVER_M2M_PCI_PMON_CTL2_ADDR (SERVER_M2M_PCI_PMON_CTL0_ADDR + 2*8)
+#define SERVER_M2M_PCI_PMON_CTL3_ADDR (SERVER_M2M_PCI_PMON_CTL0_ADDR + 3*8)
+
+#define SERVER_M2M_PCI_PMON_CTR0_ADDR (0x440)
+#define SERVER_M2M_PCI_PMON_CTR1_ADDR (SERVER_M2M_PCI_PMON_CTR0_ADDR + 1*8)
+#define SERVER_M2M_PCI_PMON_CTR2_ADDR (SERVER_M2M_PCI_PMON_CTR0_ADDR + 2*8)
+#define SERVER_M2M_PCI_PMON_CTR3_ADDR (SERVER_M2M_PCI_PMON_CTR0_ADDR + 3*8)
 
 constexpr auto M3UPI_PCI_PMON_BOX_CTL_ADDR = (0xF4);
 
@@ -729,6 +791,18 @@ constexpr auto M3UPI_PCI_PMON_CTL2_ADDR = (0xE0);
 constexpr auto M3UPI_PCI_PMON_CTR0_ADDR = (0xA0);
 constexpr auto M3UPI_PCI_PMON_CTR1_ADDR = (0xA8);
 constexpr auto M3UPI_PCI_PMON_CTR2_ADDR = (0xB0);
+
+constexpr auto ICX_M3UPI_PCI_PMON_BOX_CTL_ADDR = (0xA0);
+
+constexpr auto ICX_M3UPI_PCI_PMON_CTL0_ADDR = (0xD8);
+constexpr auto ICX_M3UPI_PCI_PMON_CTL1_ADDR = (0xDC);
+constexpr auto ICX_M3UPI_PCI_PMON_CTL2_ADDR = (0xE0);
+constexpr auto ICX_M3UPI_PCI_PMON_CTL3_ADDR = (0xE4);
+
+constexpr auto ICX_M3UPI_PCI_PMON_CTR0_ADDR = (0xA8);
+constexpr auto ICX_M3UPI_PCI_PMON_CTR1_ADDR = (0xB0);
+constexpr auto ICX_M3UPI_PCI_PMON_CTR2_ADDR = (0xB8);
+constexpr auto ICX_M3UPI_PCI_PMON_CTR3_ADDR = (0xC0);
 
 constexpr auto MSR_UNCORE_PMON_GLOBAL_CTL = 0x700;
 
@@ -762,6 +836,18 @@ constexpr auto IVT_MSR_UNCORE_PMON_GLOBAL_CTL = 0x0C00;
 #define U_L_PCI_PMON_CTR2_ADDR (0x328)
 #define U_L_PCI_PMON_CTR1_ADDR (0x320)
 #define U_L_PCI_PMON_CTR0_ADDR (0x318)
+
+#define ICX_UPI_PCI_PMON_BOX_CTL_ADDR (0x318)
+
+#define ICX_UPI_PCI_PMON_CTL3_ADDR (0x368)
+#define ICX_UPI_PCI_PMON_CTL2_ADDR (0x360)
+#define ICX_UPI_PCI_PMON_CTL1_ADDR (0x358)
+#define ICX_UPI_PCI_PMON_CTL0_ADDR (0x350)
+
+#define ICX_UPI_PCI_PMON_CTR3_ADDR (0x338)
+#define ICX_UPI_PCI_PMON_CTR2_ADDR (0x330)
+#define ICX_UPI_PCI_PMON_CTR1_ADDR (0x328)
+#define ICX_UPI_PCI_PMON_CTR0_ADDR (0x320)
 
 #define UCLK_FIXED_CTR_ADDR (0x704)
 #define UCLK_FIXED_CTL_ADDR (0x703)
@@ -901,6 +987,29 @@ constexpr auto JKTIVT_UBOX_MSR_PMON_CTR1_ADDR = (0x0C17);
 #define KNL_CHA0_MSR_PMON_CTR2       0x0E0A // CHA 0 PMON Counter 2
 #define KNL_CHA0_MSR_PMON_CTR3       0x0E0B // CHA 0 PMON Counter 3
 
+static const uint32 ICX_CHA_MSR_PMON_BOX_CTL[] = {
+    0x0E00, 0x0E0E, 0x0E1C, 0x0E2A, 0x0E38, 0x0E46, 0x0E54, 0x0E62, 0x0E70, 0x0E7E, 0x0E8C, 0x0E9A,
+    0x0EA8, 0x0EB6, 0x0EC4, 0x0ED2, 0x0EE0, 0x0EEE, 0x0F0A, 0x0F18, 0x0F26, 0x0F34, 0x0F42, 0x0F50,
+    0x0F5E, 0x0F6C, 0x0F7A, 0x0F88, 0x0F96, 0x0FA4, 0x0FB2, 0x0FC0, 0x0FCE, 0x0FDC, 0x0B60, 0x0B6E,
+    0x0B7C, 0x0B8A, 0x0B98, 0x0BA6, 0x0BB4, 0x0BC2
+};
+
+#define SERVER_CHA_MSR_PMON_CTL0_OFFSET        (1)
+/*
+#define SERVER_CHA_MSR_PMON_CTL1_OFFSET        (2)
+#define SERVER_CHA_MSR_PMON_CTL2_OFFSET        (3)
+#define SERVER_CHA_MSR_PMON_CTL3_OFFSET        (4)
+*/
+
+#define SERVER_CHA_MSR_PMON_BOX_FILTER_OFFSET  (5)
+
+#define SERVER_CHA_MSR_PMON_CTR0_OFFSET        (8)
+/*
+#define SERVER_CHA_MSR_PMON_CTR1_OFFSET        (9)
+#define SERVER_CHA_MSR_PMON_CTR2_OFFSET        (10)
+#define SERVER_CHA_MSR_PMON_CTR3_OFFSET        (11)
+*/
+
 #define CBO_MSR_PMON_CTL_EVENT(x) (x << 0)
 #define CBO_MSR_PMON_CTL_UMASK(x) (x << 8)
 #define CBO_MSR_PMON_CTL_RST    (1 << 17)
@@ -909,6 +1018,7 @@ constexpr auto JKTIVT_UBOX_MSR_PMON_CTR1_ADDR = (0x0C17);
 #define CBO_MSR_PMON_CTL_EN (1 << 22)
 #define CBO_MSR_PMON_CTL_INVERT (1 << 23)
 #define CBO_MSR_PMON_CTL_THRESH(x) (x << 24UL)
+#define UNC_PMON_CTL_UMASK_EXT(x) (uint64(x) << 32ULL)
 
 #define JKT_CBO_MSR_PMON_BOX_FILTER_OPC(x) (x << 23UL)
 #define IVTHSX_CBO_MSR_PMON_BOX_FILTER1_OPC(x) (x << 20UL)
@@ -932,12 +1042,23 @@ constexpr auto JKTIVT_UBOX_MSR_PMON_CTR1_ADDR = (0x0C17);
 #define SKX_CHA_TOR_INSERTS_UMASK_HIT(x) (x << 4)
 #define SKX_CHA_TOR_INSERTS_UMASK_MISS(x) (x << 5)
 
+/*ICX UmaskExt Filter*/
+#define ICX_CHA_UMASK_EXT(x)   (x << 32UL)
+
 #define SKX_IIO_CBDMA_UNIT_STATUS   (0x0A47)
 #define SKX_IIO_CBDMA_UNIT_CTL      (0x0A40)
 #define SKX_IIO_CBDMA_CTR0          (0x0A41)
 #define SKX_IIO_CBDMA_CLK           (0x0A45)
 #define SKX_IIO_CBDMA_CTL0          (0x0A48)
 #define SKX_IIO_PM_REG_STEP         (0x0020)
+
+#define ICX_IIO_CBDMA_UNIT_STATUS   (0x0A57)
+#define ICX_IIO_CTL_REG_OFFSET      (0x0008)
+#define ICX_IIO_CTR_REG_OFFSET      (0x0001)
+//Adding array for ICX IIO
+static const uint32 ICX_IIO_UNIT_CTL[] = {
+    0x0B20, 0x0A50, 0x0A70, 0x0A90, 0x0AE0, 0x0B00
+};
 
 #define IIO_MSR_PMON_CTL_EVENT(x)   ((x) << 0)
 #define IIO_MSR_PMON_CTL_UMASK(x)   ((x) << 8)
@@ -949,6 +1070,17 @@ constexpr auto JKTIVT_UBOX_MSR_PMON_CTR1_ADDR = (0x0C17);
 #define IIO_MSR_PMON_CTL_THRESH(x)  ((x) << 24ULL)
 #define IIO_MSR_PMON_CTL_CH_MASK(x) ((x) << 36ULL)
 #define IIO_MSR_PMON_CTL_FC_MASK(x) ((x) << 44ULL)
+
+#define ICX_IIO_MSR_PMON_CTL_EVENT(x)   ((x) << 0)
+#define ICX_IIO_MSR_PMON_CTL_UMASK(x)   ((x) << 8)
+#define ICX_IIO_MSR_PMON_CTL_RST        (1 << 17)
+#define ICX_IIO_MSR_PMON_CTL_EDGE_DET   (1 << 18)
+#define ICX_IIO_MSR_PMON_CTL_OV_EN      (1 << 20)
+#define ICX_IIO_MSR_PMON_CTL_EN         (1 << 22)
+#define ICX_IIO_MSR_PMON_CTL_INVERT     (1 << 23)
+#define ICX_IIO_MSR_PMON_CTL_THRESH(x)  ((x) << 24ULL)
+#define ICX_IIO_MSR_PMON_CTL_CH_MASK(x) ((x) << 36ULL)
+#define ICX_IIO_MSR_PMON_CTL_FC_MASK(x) ((x) << 48ULL)
 
 #define M2M_PCI_PMON_CTL_EVENT(x)   ((x) << 0)
 #define M2M_PCI_PMON_CTL_UMASK(x)   ((x) << 8)
@@ -1003,6 +1135,32 @@ struct IIOPMUCNTCTLRegister
     operator uint64() { return value; }
 };
 
+struct ICX_IIOPMUCNTCTLRegister
+{
+    union
+    {
+        struct
+        {
+            uint64 event_select : 8;
+            uint64 umask : 8;
+            uint64 reserved1 : 1;
+            uint64 reset : 1;
+            uint64 edge_det : 1;
+            uint64 ignored : 1;
+            uint64 overflow_enable : 1;
+            uint64 reserved2 : 1;
+            uint64 enable : 1;
+            uint64 invert : 1;
+            uint64 thresh : 12;
+            uint64 ch_mask : 12;
+            uint64 fc_mask : 3;
+            uint64 reservedX : 13;
+        } fields;
+        uint64 value;
+    };
+    ICX_IIOPMUCNTCTLRegister() : value(0) { }
+};
+
 #define MSR_PACKAGE_THERM_STATUS (0x01B1)
 #define MSR_IA32_THERM_STATUS    (0x019C)
 #define PCM_INVALID_THERMAL_HEADROOM ((std::numeric_limits<int32>::min)())
@@ -1025,6 +1183,8 @@ struct IIOPMUCNTCTLRegister
 #define MSR_IA32_ARCH_CAPABILITIES (0x10A)
 
 #define MSR_TSX_FORCE_ABORT (0x10f)
+
+#define MSR_PERF_CAPABILITIES (0x345)
 
 // data structure for converting two uint32s <-> uin64
 union cvt_ds

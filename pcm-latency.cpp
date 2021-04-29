@@ -309,12 +309,14 @@ void print_core_stats(PCM *m, unsigned int core_size_per_socket, vector<vector<v
     }
     cout << "\n";
 
+    cout << "Average latency per socket";
     printHeader();
 
     for (unsigned int s = 0; s < m->getNumSockets(); ++s)
     {
         cout << "Socket" << s << ": " << core_latency[L1].socket[s].latency << "\n";
     }
+    cout << "\n";
 }
 
 void print_all_stats(PCM *m, bool enable_pmm, bool enable_verbose)

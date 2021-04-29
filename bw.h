@@ -13,30 +13,67 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 // written by Roman Dementiev
 //
 
-#ifndef CPUCounters_CLIENTBW_H
-#define CPUCounters_CLIENTBW_H
+#pragma once
 
-/*!     \file client_bw.h
-        \brief Interface to access client bandwidth counters
+/*!     \file bw.h
+        \brief Interfaces to access free-running bandwidth counters
 
 */
 
 #include <memory>
+#include <vector>
+#include <array>
 #include "mmio.h"
 
 namespace pcm {
 
-class ClientBW
+    class FreeRunningBWCounters
+    {
+    public:
+        virtual uint64 getImcReads() { return 0; }
+        virtual uint64 getImcWrites() { return 0; }
+        virtual uint64 getIoRequests() { return 0; }
+        virtual uint64 getPMMReads() { return 0; }
+        virtual uint64 getPMMWrites() { return 0; }
+        virtual ~FreeRunningBWCounters() {}
+    };
+
+    class TGLClientBW : public FreeRunningBWCounters
+    {
+        std::array<std::shared_ptr<MMIORange>, 2> mmioRange;
+        int model;
+    public:
+        TGLClientBW();
+
+        uint64 getImcReads() override;
+        uint64 getImcWrites() override;
+    };
+
+    class ClientBW : public FreeRunningBWCounters
+    {
+        std::shared_ptr<MMIORange> mmioRange;
+    public:
+        ClientBW();
+
+        uint64 getImcReads() override;
+        uint64 getImcWrites() override;
+        uint64 getIoRequests() override;
+    };
+
+std::vector<size_t> getServerMemBars(const uint32 numIMC, const uint32 root_segment_ubox0, const uint32 root_bus_ubox0);
+
+class ServerBW
 {
-    std::shared_ptr<MMIORange> mmioRange;
+    std::vector<std::shared_ptr<MMIORange> > mmioRanges;
+
+    ServerBW();
 public:
-    ClientBW();
+    ServerBW(const uint32 numIMC, const uint32 root_segment_ubox0, const uint32 root_bus_ubox0);
 
     uint64 getImcReads();
     uint64 getImcWrites();
-    uint64 getIoRequests();
+    uint64 getPMMReads();
+    uint64 getPMMWrites();
 };
 
 } // namespace pcm
-
-#endif

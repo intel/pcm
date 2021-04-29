@@ -312,6 +312,21 @@ void print_output(PCM * m,
             cout << "\n PHYSICAL CORE IPC                 : " << getCoreIPC(sstate1, sstate2) << " => corresponds to " << 100. * (getCoreIPC(sstate1, sstate2) / double(m->getMaxIPC())) << " % utilization for cores in active state";
             cout << "\n Instructions per nominal CPU cycle: " << getTotalExecUsage(sstate1, sstate2) << " => corresponds to " << 100. * (getTotalExecUsage(sstate1, sstate2) / double(m->getMaxIPC())) << " % core utilization over time interval\n";
         }
+        if (m->isHWTMAL1Supported())
+        {
+            cout << " Pipeline stalls: Frontend bound: " << int(100. * getFrontendBound(sstate1, sstate2)) <<
+                " %, bad Speculation: " << int(100. * getBadSpeculation(sstate1, sstate2)) <<
+                " %, Backend bound: " << int(100. * getBackendBound(sstate1, sstate2)) <<
+                " %, Retiring: " << int(100. * getRetiring(sstate1, sstate2)) << " %\n";
+
+            std::vector<StackedBarItem> TMAStackedBar;
+            TMAStackedBar.push_back(StackedBarItem(getFrontendBound(sstate1, sstate2), "", 'F'));
+            TMAStackedBar.push_back(StackedBarItem(getBadSpeculation(sstate1, sstate2), "", 'S'));
+            TMAStackedBar.push_back(StackedBarItem(getBackendBound(sstate1, sstate2), "", 'B'));
+            TMAStackedBar.push_back(StackedBarItem(getRetiring(sstate1, sstate2), "", 'R'));
+            drawStackedBar(" Pipeline stall distribution ", TMAStackedBar, 80);
+            cout << "\n";
+        }
         cout << " SMI count: " << getSMICount(sstate1, sstate2) << "\n";
     }
 
@@ -499,6 +514,8 @@ void print_basic_metrics_csv_header(const PCM * m)
         cout << "L3MPI,";
     if (m->isL2CacheMissesAvailable())
         cout << "L2MPI,";
+    if (m->isHWTMAL1Supported())
+        cout << "Frontend_bound(%),Bad_Speculation(%),Backend_Bound(%),Retiring(%),";
 }
 
 void print_csv_header_helper(string header, int count=1){
@@ -524,6 +541,8 @@ void print_basic_metrics_csv_semicolons(const PCM * m, string header)
         print_csv_header_helper(header);  // L3MPI;
     if (m->isL2CacheMissesAvailable())
         print_csv_header_helper(header);  // L2MPI;
+    if (m->isHWTMAL1Supported())
+        cout << ",,,,"; // Frontend_bound(%),Bad_Speculation(%),Backend_Bound(%),Retiring(%)
 }
 
 void print_csv_header(PCM * m,
@@ -851,6 +870,13 @@ void print_basic_metrics_csv(const PCM * m, const State & state1, const State & 
         cout << ',' << double(getL3CacheMisses(state1, state2)) / getInstructionsRetired(state1, state2);
     if (m->isL2CacheMissesAvailable())
         cout << ',' << double(getL2CacheMisses(state1, state2)) / getInstructionsRetired(state1, state2);
+    if (m->isHWTMAL1Supported())
+    {
+        cout << ',' << int(100. * getFrontendBound(state1, state2));
+        cout << ',' << int(100. * getBadSpeculation(state1, state2));
+        cout << ',' << int(100. * getBackendBound(state1, state2));
+        cout << ',' << int(100. * getRetiring(state1, state2));
+    }
     if (print_last_semicolon)
         cout << ",";
 }

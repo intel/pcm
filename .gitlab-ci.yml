@@ -27,7 +27,7 @@ build_linux:gcc10:
       - make -j
 
 build_linux:clang_scan:
-   image: "ubuntu:groovy"
+   image: "ubuntu:latest"
    stage: build
    before_script:
       - apt-get update -qq && apt-get install -qq -y make clang clang-tools perl g++
@@ -44,12 +44,12 @@ build_windows:
      - windows
 
 cppcheck:
-   image: "ubuntu:groovy"
+   image: "ubuntu:latest"
    stage: build
    before_script:
       - apt-get update -qq && apt-get install -qq -y cppcheck
    script:
-      - sh cppcheck.sh . 28
+      - sh cppcheck.sh . `getconf _NPROCESSORS_ONLN`
 
 build_linux:gcc9:
    image: "ubuntu:focal"

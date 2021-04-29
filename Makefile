@@ -53,10 +53,10 @@ CXX=c++
 LIB= -lpthread -lc++
 endif
 
+COMMON_OBJS = msr.o cpucounters.o pci.o mmio.o bw.o utils.o topology.o dashboard.o debug.o threadpool.o resctrl.o
 # export some variables
 export CFLAGS CXXFLAGS LDFLAGS
 
-COMMON_OBJS = msr.o cpucounters.o pci.o mmio.o client_bw.o utils.o topology.o dashboard.o debug.o threadpool.o resctrl.o
 EXE_OBJS = $(EXE:.x=.o)
 OBJS = $(COMMON_OBJS) $(EXE_OBJS)
 
@@ -147,7 +147,7 @@ ifeq ($(UNAME), Linux)
 endif
 	install -m 755 pcm-bw-histogram.sh           ${prefix}/sbin/pcm-bw-histogram
 	mkdir -p                                     ${prefix}/share/pcm/
-	install -m 644 opCode.txt                    ${prefix}/share/pcm/
+	install -m 644 opCode*.txt                   ${prefix}/share/pcm/
 
 clean:
 	rm -rf *.x *.o *~ *.d *.a *.so
