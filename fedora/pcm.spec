@@ -1,5 +1,5 @@
 Name:           pcm
-Version:        202103
+Version:        202104
 Release:        1%{?dist}
 Summary:        Processor Counter Monitor
 License:        BSD
