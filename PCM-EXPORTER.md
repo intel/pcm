@@ -26,6 +26,6 @@ Valid Options:
     -h|--help            : This information
 ```
 
-The PCM exporter can be used together with Grafana to obtain these Intel processor metrics (see [how-to](https://github.com/opcm/pcm/edit/master/grafana/README.md)):
+The PCM exporter can be used together with Grafana to obtain these Intel processor metrics (see [how-to](https://github.com/opcm/pcm/blob/master/grafana/README.md)):
 
 ![pcm grafana output](https://raw.githubusercontent.com/wiki/opcm/pcm/pcm-dashboard-full.png)
