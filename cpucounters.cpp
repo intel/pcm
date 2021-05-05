@@ -2701,7 +2701,14 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
             i /* core id */, leader_counter /* group leader */, 0)) <= 0)
         {
             std::cerr << "Linux Perf: Error when programming " << eventName << ", error: " << strerror(errno) << "\n";
-            if (errno == 24) std::cerr << "try executing 'ulimit -n 10000' to increase the limit on the number of open files.\n";
+            if (24 == errno)
+            {
+                std::cerr << "try executing 'ulimit -n 10000' to increase the limit on the number of open files.\n";
+            }
+            else
+            {
+                std::cerr << "try running with environment variable PCM_NO_PERF=1\n";
+            }
             decrementInstanceSemaphore();
             return false;
         }
