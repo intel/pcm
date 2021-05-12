@@ -23,6 +23,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #endif
 #include "types.h"
 #include "msr.h"
+#include "utils.h"
 #include <assert.h>
 
 #ifdef _MSC_VER
@@ -214,6 +215,16 @@ int32 MsrHandle::read(uint64 msr_number, uint64 * value)
 // here comes a Linux version
 MsrHandle::MsrHandle(uint32 cpu) : fd(-1), cpu_id(cpu)
 {
+    constexpr auto allowWritesPath = "/sys/module/msr/parameters/allow_writes";
+    static bool writesEnabled = false;
+    if (writesEnabled == false)
+    {
+        if (readSysFS(allowWritesPath, true).length() > 0)
+        {
+            writeSysFS(allowWritesPath, "on", false);
+        }
+        writesEnabled = true;
+    }
     char * path = new char[200];
     snprintf(path, 200, "/dev/cpu/%d/msr", cpu);
     int handle = ::open(path, O_RDWR);
