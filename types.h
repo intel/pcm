@@ -994,6 +994,10 @@ static const uint32 ICX_CHA_MSR_PMON_BOX_CTL[] = {
     0x0B7C, 0x0B8A, 0x0B98, 0x0BA6, 0x0BB4, 0x0BC2
 };
 
+static const uint32 SNR_CHA_MSR_PMON_BOX_CTL[] = {
+    0x1C00, 0x1C10, 0x1C20, 0x1C30, 0x1C40, 0x1C50
+};
+
 #define SERVER_CHA_MSR_PMON_CTL0_OFFSET        (1)
 /*
 #define SERVER_CHA_MSR_PMON_CTL1_OFFSET        (2)
@@ -1055,10 +1059,24 @@ static const uint32 ICX_CHA_MSR_PMON_BOX_CTL[] = {
 #define ICX_IIO_CBDMA_UNIT_STATUS   (0x0A57)
 #define ICX_IIO_CTL_REG_OFFSET      (0x0008)
 #define ICX_IIO_CTR_REG_OFFSET      (0x0001)
-//Adding array for ICX IIO
+/*
+ * M2IOSF MSRs in order:
+ * M2IOSF0 - PCIe0 stack
+ * M2IOSF1 - PCIe1 stack
+ * M2IOSF2 - MCP stack
+ * M2IOSF3 - PCIe2 stack
+ * M2IOSF4 - PCIe3 stack
+ * M2IOSF5 - CBDMA/DMI stack
+ */
 static const uint32 ICX_IIO_UNIT_CTL[] = {
-    0x0B20, 0x0A50, 0x0A70, 0x0A90, 0x0AE0, 0x0B00
+    0x0A50, 0x0A70, 0x0A90, 0x0AE0, 0x0B00, 0x0B20
 };
+
+#define SNR_IIO_CBDMA_UNIT_STATUS   (0x1E07)
+#define SNR_IIO_CBDMA_UNIT_CTL      (0x1E00)
+#define SNR_IIO_CBDMA_CTR0          (0x1E01)
+#define SNR_IIO_CBDMA_CTL0          (0x1E08)
+#define SNR_IIO_PM_REG_STEP         (0x0010)
 
 #define IIO_MSR_PMON_CTL_EVENT(x)   ((x) << 0)
 #define IIO_MSR_PMON_CTL_UMASK(x)   ((x) << 8)

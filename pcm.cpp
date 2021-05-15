@@ -1354,26 +1354,6 @@ int main(int argc, char * argv[])
             print_output(m, cstates1, cstates2, sktstate1, sktstate2, ycores, sstate1, sstate2,
             cpu_model, show_core_output, show_partial_core_output, show_socket_output, show_system_output);
 
-        // sanity checks
-        if (m->isAtom() || cpu_model == PCM::KNL)
-        {
-            assert(getNumberOfCustomEvents(0, sstate1, sstate2) == getL2CacheMisses(sstate1, sstate2));
-            assert(getNumberOfCustomEvents(1, sstate1, sstate2) == getL2CacheMisses(sstate1, sstate2) + getL2CacheHits(sstate1, sstate2));
-        }
-        else
-        {
-            assert(getNumberOfCustomEvents(0, sstate1, sstate2) == getL3CacheMisses(sstate1, sstate2));
-            if (m->useSkylakeEvents()) {
-                assert(getNumberOfCustomEvents(1, sstate1, sstate2) == getL3CacheHits(sstate1, sstate2));
-                assert(getNumberOfCustomEvents(2, sstate1, sstate2) == getL2CacheMisses(sstate1, sstate2));
-            }
-            else {
-                assert(getNumberOfCustomEvents(1, sstate1, sstate2) == getL3CacheHitsNoSnoop(sstate1, sstate2));
-                assert(getNumberOfCustomEvents(2, sstate1, sstate2) == getL3CacheHitsSnoop(sstate1, sstate2));
-            }
-            assert(getNumberOfCustomEvents(3, sstate1, sstate2) == getL2CacheHits(sstate1, sstate2));
-        }
-
         std::swap(sstate1, sstate2);
         std::swap(sktstate1, sktstate2);
         std::swap(cstates1, cstates2);

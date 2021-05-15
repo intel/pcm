@@ -214,6 +214,7 @@ struct bdf {
     uint8_t busno;
     uint8_t devno;
     uint8_t funcno;
+    bdf () : busno(0), devno(0), funcno(0) {}
 };
 
 struct pci {
@@ -251,6 +252,7 @@ struct pci {
         };
         uint32_t link_info;
     };
+    pci () : exist(false), offset_0(0), header_type(0), offset_18(0), link_info(0) {}
 };
 
 struct counter {
@@ -276,6 +278,34 @@ struct iio_skx {
         std::vector<uint64_t> values;
         bool flipped = false;
     } stacks[6]; /* iio stack 0, 1, 2, 3, 4, 5 */
+    uint32_t socket_id;
+};
+
+struct iio_bifurcated_part {
+    int part_id;
+    /* single device represent root port */
+    struct pci root_pci_dev;
+    /* Contain child switch and end-point devices */
+    std::vector<struct pci> child_pci_devs;
+};
+
+struct iio_stack {
+    std::vector<struct iio_bifurcated_part> parts;
+    uint32_t iio_unit_id;
+    std::string stack_name;
+    std::vector<uint64_t> values;
+    bool flipped = false;
+    /* holding busno for each IIO stack */
+    uint8_t busno;
+};
+
+bool operator<(const iio_stack& lh, const iio_stack& rh)
+{
+    return lh.iio_unit_id < rh.iio_unit_id;
+}
+
+struct iio_stacks_on_socket {
+    std::vector<struct iio_stack> stacks;
     uint32_t socket_id;
 };
 
@@ -325,35 +355,38 @@ void probe_capability_pci_express(struct pci *p, uint32_t cap_ptr)
     }
 }
 
-void probe_pci(struct pci *p)
+bool probe_pci(struct pci *p)
 {
     uint32 value;
+    p->exist = false;
     struct bdf *bdf = &p->bdf;
     if (PciHandleType::exists(0, bdf->busno, bdf->devno, bdf->funcno)) {
-        p->exist = true;
         PciHandleType h(0, bdf->busno, bdf->devno, bdf->funcno);
-        h.read32(0x0, &value); //VID:DID
-        if (value == (std::numeric_limits<unsigned int>::max)()) // invalid VID::DID
-        {
-            p->exist = false;
-            return;
-        }
-        p->offset_0 = value;
-        h.read32(0xc, &value);
-        p->header_type = (value >> 16) & 0x7f;
-        if (p->header_type == 0) {
-            h.read32(0x4, &value); //Status register
-            if (value & 0x100000) {//Capability list == true
-                h.read32(0x34, &value); //Capability pointer
-                probe_capability_pci_express(p, value);
+        // VID:DID
+        h.read32(0x0, &value);
+        // Invalid VID::DID
+        if (value != (std::numeric_limits<unsigned int>::max)()) {
+            p->offset_0 = value;
+            h.read32(0xc, &value);
+            p->header_type = (value >> 16) & 0x7f;
+            if (p->header_type == 0) {
+                // Status register
+                h.read32(0x4, &value);
+                // Capability list == true
+                if (value & 0x100000) {
+                    // Capability pointer
+                    h.read32(0x34, &value);
+                    probe_capability_pci_express(p, value);
+                }
+            } else if (p->header_type == 1) {
+                h.read32(0x18, &value);
+                p->offset_18 = value;
             }
-        } else if (p->header_type == 1) {
-            h.read32(0x18, &value);
-            p->offset_18 = value;
+            p->exist = true;
         }
     }
-    else
-        p->exist = false;
+
+    return p->exist;
 }
 
 /*

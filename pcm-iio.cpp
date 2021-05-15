@@ -39,6 +39,21 @@ using namespace pcm;
 
 #define PCM_DELAY_DEFAULT 3.0 // in seconds
 
+#define QAT_DID 0x18DA
+#define NIS_DID 0x18D1
+#define HQM_DID 0x270B
+
+#define ROOT_BUSES_OFFSET   0xCC
+#define ROOT_BUSES_OFFSET_2 0xD0
+
+#define SKX_SOCKETID_UBOX_DID 0x2014
+#define SKX_UBOX_DEVICE_NUM   0x08
+#define SKX_UBOX_FUNCTION_NUM 0x02
+#define SKX_BUS_NUM_STRIDE    8
+//the below LNID and GID applies to Skylake Server
+#define SKX_UNC_SOCKETID_UBOX_LNID_OFFSET 0xC0
+#define SKX_UNC_SOCKETID_UBOX_GID_OFFSET  0xD4
+
 const uint8_t max_sockets = 4;
 static const std::string iio_stack_names[6] = {
     "IIO Stack 0 - CBDMA/DMI      ",
@@ -49,18 +64,76 @@ static const std::string iio_stack_names[6] = {
     "IIO Stack 5 - MCP1           "
 };
 
-static const std::string icx_iio_stack_names[6] = {
+static const std::string skx_iio_stack_names[6] = {
     "IIO Stack 0 - CBDMA/DMI      ",
+    "IIO Stack 1 - PCIe0          ",
+    "IIO Stack 2 - PCIe1          ",
+    "IIO Stack 3 - PCIe2          ",
+    "IIO Stack 4 - MCP0           ",
+    "IIO Stack 5 - MCP1           "
+};
+
+static const std::string icx_iio_stack_names[6] = {
+    "IIO Stack 0 - PCIe0          ",
     "IIO Stack 1 - PCIe1          ",
-    "IIO Stack 2 - PCIe2          ",
-    "IIO Stack 3 - PCIe3          ",
-    "IIO Stack 4 - PCIe4          ",
-    "IIO Stack 5 - PCIe5          "
+    "IIO Stack 2 - MCP            ",
+    "IIO Stack 3 - PCIe2          ",
+    "IIO Stack 4 - PCIe3          ",
+    "IIO Stack 5 - CBDMA/DMI      "
+};
+
+static const std::string snr_iio_stack_names[5] = {
+    "IIO Stack 0 - QAT            ",
+    "IIO Stack 1 - CBDMA/DMI      ",
+    "IIO Stack 2 - NIS            ",
+    "IIO Stack 3 - HQM            ",
+    "IIO Stack 4 - PCIe           "
+};
+
+#define ICX_CBDMA_DMI_SAD_ID 0
+#define ICX_MCP_SAD_ID       3
+
+#define ICX_PCH_PART_ID   0
+#define ICX_CBDMA_PART_ID 3
+
+#define SNR_ICX_SAD_CONTROL_CFG_OFFSET 0x3F4
+#define SNR_ICX_MESH2IIO_MMAP_DID      0x09A2
+
+#define ICX_ROOT_PORT_A_DID 0x347A
+#define ICX_VMD_PCI_DEVNO   0x00
+#define ICX_VMD_PCI_FUNCNO  0x05
+
+static const std::map<int, int> icx_sad_to_pmu_id_mapping = {
+    { ICX_CBDMA_DMI_SAD_ID, 5 },
+    { 1,                    0 },
+    { 2,                    1 },
+    { ICX_MCP_SAD_ID,       2 },
+    { 4,                    3 },
+    { 5,                    4 }
+};
+
+#define SNR_ACCELERATOR_PART_ID 4
+
+#define SNR_ROOT_PORT_A_DID 0x334A
+
+#define SNR_CBDMA_DMI_SAD_ID 0
+#define SNR_PCIE_GEN3_SAD_ID 1
+#define SNR_HQM_SAD_ID       2
+#define SNR_NIS_SAD_ID       3
+#define SNR_QAT_SAD_ID       4
+
+static const std::map<int, int> snr_sad_to_pmu_id_mapping = {
+    { SNR_CBDMA_DMI_SAD_ID, 1 },
+    { SNR_PCIE_GEN3_SAD_ID, 4 },
+    { SNR_HQM_SAD_ID      , 3 },
+    { SNR_NIS_SAD_ID      , 2 },
+    { SNR_QAT_SAD_ID      , 0 }
 };
 
 map<string,PCM::PerfmonField> opcodeFieldMap;
 //TODO: add description for this nameMap
 map<string,std::pair<h_id,std::map<string,v_id>>> nameMap;
+//TODO: remove binding to stacks amount
 result_content results(max_sockets, stack_content(6, ctr_data()));
 
 struct data{
@@ -195,20 +268,18 @@ string build_pci_header(const PCIDB & pciDB, uint32_t column_width, struct pci p
     return s;
 }
 
-vector<string> build_display(vector<struct iio_skx> iio_skx_v, vector<struct counter> &ctrs, vector<int> skt_list, vector<int> stack_list, const PCIDB & pciDB)
+vector<string> build_display(vector<struct iio_stacks_on_socket>& iios, vector<struct counter>& ctrs, const PCIDB& pciDB)
 {
     vector<string> buffer;
     vector<string> headers;
     vector<struct data> data;
     uint64_t header_width;
     string row;
-
-    for (vector<int>::const_iterator skt_unit = skt_list.begin(); skt_unit != skt_list.end(); ++skt_unit) {
-        buffer.push_back("Socket" + std::to_string(*skt_unit));
-        struct iio_skx iio_skx = iio_skx_v[*skt_unit];
-        for (vector<int>::const_iterator stack_unit = stack_list.begin(); stack_unit != stack_list.end(); ++stack_unit) {
-            uint32_t s = *stack_unit;
-            headers = combine_stack_name_and_counter_names(iio_skx.stacks[s].stack_name);
+    for (auto socket = iios.cbegin(); socket != iios.cend(); ++socket) {
+        buffer.push_back("Socket" + std::to_string(socket->socket_id));
+        for (auto stack = socket->stacks.cbegin(); stack != socket->stacks.cend(); ++stack) {
+            auto stack_id = stack->iio_unit_id;
+            headers = combine_stack_name_and_counter_names(stack->stack_name);
             //Print first row
             row = std::accumulate(headers.begin(), headers.end(), string(" "), a_header_footer);
             header_width = row.size();
@@ -222,17 +293,17 @@ vector<string> build_display(vector<struct iio_skx> iio_skx_v, vector<struct cou
             //Print data
             std::map<uint32_t,map<uint32_t,struct counter*>> v_sort;
             //re-organize data collection to be row wise
-            for (vector<struct counter>::iterator cunit = ctrs.begin(); cunit != ctrs.end(); ++cunit) {
-                v_sort[cunit->v_id][cunit->h_id] = &(*cunit);
+            for (std::vector<struct counter>::iterator counter = ctrs.begin(); counter != ctrs.end(); ++counter) {
+                v_sort[counter->v_id][counter->h_id] = &(*counter);
             }
-            for (map<uint32_t,map<uint32_t,struct counter*>>::const_iterator vunit = v_sort.begin(); vunit != v_sort.end(); ++vunit) {
+            for (std::map<uint32_t,map<uint32_t,struct counter*>>::const_iterator vunit = v_sort.cbegin(); vunit != v_sort.cend(); ++vunit) {
                 map<uint32_t, struct counter*> h_array = vunit->second;
                 uint32_t vv_id = vunit->first;
                 vector<uint64_t> h_data;
                 string v_name = h_array[0]->v_event_name;
-                for (map<uint32_t,struct counter*>::const_iterator hunit = h_array.begin(); hunit != h_array.end(); ++hunit) {
+                for (map<uint32_t,struct counter*>::const_iterator hunit = h_array.cbegin(); hunit != h_array.cend(); ++hunit) {
                     uint32_t hh_id = hunit->first;
-                    uint64_t raw_data = hunit->second->data[0][*skt_unit][s][std::pair<h_id,v_id>(hh_id,vv_id)];
+                    uint64_t raw_data = hunit->second->data[0][socket->socket_id][stack_id][std::pair<h_id,v_id>(hh_id,vv_id)];
                     h_data.push_back(raw_data);
                 }
                 data = prepare_data(h_data, headers);
@@ -241,19 +312,16 @@ vector<string> build_display(vector<struct iio_skx> iio_skx_v, vector<struct cou
                 row += std::accumulate(data.begin(), data.end(), string("|"), a_data);
                 buffer.push_back(row);
             }
-
             //Print deliminator
             row = std::accumulate(headers.begin(), headers.end(), string("|"), a_header_footer);
             buffer.push_back(row);
             //Print pcie devices
-            for (uint32_t p = 0; p < 4; p++) {
-                vector<struct pci> pp = iio_skx.stacks[s].parts[p].child_pci_devs;
+            for (const auto& part : stack->parts) {
                 uint8_t level = 1;
-                for (std::vector<struct pci>::const_iterator iunit = pp.begin(); iunit != pp.end(); ++iunit)
-                {
-                    row = build_pci_header(pciDB, (uint32_t)header_width, *iunit, -1, level);
+                for (const auto& pci_device : part.child_pci_devs) {
+                    row = build_pci_header(pciDB, (uint32_t)header_width, pci_device, -1, level);
                     buffer.push_back(row);
-                    if (iunit->header_type == 1)
+                    if (pci_device.header_type == 1)
                         level += 1;
                 }
             }
@@ -272,109 +340,459 @@ void display(const vector<string> &buff)
     std::cout << std::flush;
 }
 
-void discover_pci_tree(const vector<uint32_t> & busno, uint8_t socket_id, vector<struct iio_skx> &v_iio_skx, PCM * m)
+class IPlatformMapping {
+private:
+public:
+    virtual ~IPlatformMapping() {};
+    static IPlatformMapping* getPlatformMapping(int cpu_model);
+    virtual bool pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios, uint32_t sockets_count) = 0;
+};
+
+// Mapping for SkyLake Server.
+class PurleyPlatformMapping: public IPlatformMapping {
+private:
+    void getUboxBusNumbers(std::vector<uint32_t>& ubox);
+public:
+    PurleyPlatformMapping() = default;
+    ~PurleyPlatformMapping() = default;
+    bool pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios, uint32_t sockets_count) override;
+};
+
+void PurleyPlatformMapping::getUboxBusNumbers(std::vector<uint32_t>& ubox)
 {
-    struct iio_skx iio_skx;
-    uint32 cpubusno = 0;
+    for (uint16_t bus = 0; bus < 256; bus++) {
+        for (uint8_t device = 0; device < 32; device++) {
+            for (uint8_t function = 0; function < 8; function++) {
+                struct pci pci_dev;
+                pci_dev.bdf.busno = bus;
+                pci_dev.bdf.devno = device;
+                pci_dev.bdf.funcno = function;
+                if (probe_pci(&pci_dev)) {
+                    if ((pci_dev.vendor_id == PCM_INTEL_PCI_VENDOR_ID) && (pci_dev.device_id == SKX_SOCKETID_UBOX_DID)) {
+                        ubox.push_back(bus);
+                    }
+                }
+            }
+        }
+    }
+}
 
-    if (PciHandleType::exists(0, (uint32)busno[socket_id], 8, 2)) {
-        //14nm
-        iio_skx.socket_id = socket_id;
-        PciHandleType h(0, busno[socket_id], 8, 2);
-        h.read32(0xcc, &cpubusno); // CPUBUSNO register
-        iio_skx.stacks[0].busno = cpubusno & 0xff;
-        iio_skx.stacks[1].busno = (cpubusno >> 8) & 0xff;
-        iio_skx.stacks[2].busno = (cpubusno >> 16) & 0xff;
-        iio_skx.stacks[3].busno = (cpubusno >> 24) & 0xff;
-        h.read32(0xd0, &cpubusno); // CPUBUSNO1 register
-        iio_skx.stacks[4].busno = cpubusno & 0xff;
-        iio_skx.stacks[5].busno = (cpubusno >> 8) & 0xff;
+bool PurleyPlatformMapping::pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios, uint32_t sockets_count)
+{
+    std::vector<uint32_t> ubox;
+    getUboxBusNumbers(ubox);
+    if (ubox.empty()) {
+        cerr << "UBOXs were not found! Program aborted" << endl;
+        return false;
+    }
 
-        for (uint8_t stack = 0; stack < 6; stack++) {
-            uint8_t busno = iio_skx.stacks[stack].busno;
-            iio_skx.stacks[stack].stack_name = iio_stack_names[stack];
-            //std::cout << "stack" << unsigned(stack) << std::hex << ":0x" << unsigned(busno) << std::dec << ",(" << unsigned(busno) << ")\n";
-            for (uint8_t part = 0; part < 4; part++) {
-                struct pci *pci = &iio_skx.stacks[stack].parts[part].root_pci_dev;
+    for (uint32_t socket_id = 0; socket_id < sockets_count; socket_id++) {
+        if (!PciHandleType::exists(0, ubox[socket_id], SKX_UBOX_DEVICE_NUM, SKX_UBOX_FUNCTION_NUM)) {
+            cerr << "No access to PCICFG\n" << endl;
+            return false;
+        }
+        uint64 cpubusno = 0;
+        struct iio_stacks_on_socket iio_on_socket;
+        iio_on_socket.socket_id = socket_id;
+        PciHandleType h(0, ubox[socket_id], SKX_UBOX_DEVICE_NUM, SKX_UBOX_FUNCTION_NUM);
+        h.read64(ROOT_BUSES_OFFSET, &cpubusno);
+
+        iio_on_socket.stacks.reserve(6);
+        for (int stack_id = 0; stack_id < 6; stack_id++) {
+            struct iio_stack stack;
+            stack.iio_unit_id = stack_id;
+            stack.busno = (uint8_t)(cpubusno >> (stack_id * SKX_BUS_NUM_STRIDE));
+            stack.stack_name = skx_iio_stack_names[stack_id];
+            for (uint8_t part_id = 0; part_id < 4; part_id++) {
+                struct iio_bifurcated_part part;
+                part.part_id = part_id;
+                struct pci *pci = &part.root_pci_dev;
                 struct bdf *bdf = &pci->bdf;
-                bdf->busno = busno;
-                bdf->devno = part;
+                bdf->busno = stack.busno;
+                bdf->devno = part_id;
                 bdf->funcno = 0;
-                if (stack != 0 && busno == 0) /* This is a workaround to catch some IIO stack does not exist */
+                /* This is a workaround to catch some IIO stack does not exist */
+                if (stack_id != 0 && stack.busno == 0) {
                     pci->exist = false;
-                else
-                    probe_pci(pci);
+                }
+                else if (probe_pci(pci)) {
+                    /* FIXME: for 0:0.0, we may need to scan from secondary switch down */
+                    for (uint8_t bus = pci->secondary_bus_number; bus <= pci->subordinate_bus_number; bus++) {
+                        for (uint8_t device = 0; device < 32; device++) {
+                            for (uint8_t function = 0; function < 8; function++) {
+                                struct pci child_pci_dev;
+                                child_pci_dev.bdf.busno = bus;
+                                child_pci_dev.bdf.devno = device;
+                                child_pci_dev.bdf.funcno = function;
+                                if (probe_pci(&child_pci_dev)) {
+                                    part.child_pci_devs.push_back(child_pci_dev);
+                                }
+                            }
+                        }
+                    }
+                }
+                stack.parts.push_back(part);
+            }
+
+            iio_on_socket.stacks.push_back(stack);
+        }
+        iios.push_back(iio_on_socket);
+    }
+
+    return true;
+}
+
+class IPlatformMapping10Nm: public IPlatformMapping {
+private:
+public:
+    bool getSadIdRootBusMap(uint32_t socket_id, std::map<uint8_t, uint8_t>& sad_id_bus_map);
+};
+
+bool IPlatformMapping10Nm::getSadIdRootBusMap(uint32_t socket_id, std::map<uint8_t, uint8_t>& sad_id_bus_map)
+{
+    for (uint16_t bus = 0; bus < 256; bus++) {
+        for (uint8_t device = 0; device < 32; device++) {
+            for (uint8_t function = 0; function < 8; function++) {
+                struct pci pci_dev;
+                pci_dev.bdf.busno = bus;
+                pci_dev.bdf.devno = device;
+                pci_dev.bdf.funcno = function;
+                if (probe_pci(&pci_dev) && (pci_dev.vendor_id == PCM_INTEL_PCI_VENDOR_ID)
+                    && (pci_dev.device_id == SNR_ICX_MESH2IIO_MMAP_DID)) {
+
+                    PciHandleType h(0, bus, device, function);
+                    std::uint32_t sad_ctrl_cfg;
+                    h.read32(SNR_ICX_SAD_CONTROL_CFG_OFFSET, &sad_ctrl_cfg);
+                    if (sad_ctrl_cfg == (std::numeric_limits<uint32_t>::max)()) {
+                        cerr << "Could not read SAD_CONTROL_CFG" << endl;
+                        return false;
+                    }
+
+                    if ((sad_ctrl_cfg & 0xf) == socket_id) {
+                        uint8_t sid = (sad_ctrl_cfg >> 4) & 0x7;
+                        sad_id_bus_map.insert(std::pair<uint8_t, uint8_t>(sid, (uint8_t)bus));
+                    }
+                }
             }
         }
     }
-    else if (PciHandleType::exists(0, (uint32)busno[socket_id], 2, 0)) {
-        //10nm wave1
-        uint32 busvalid = 0;
-        iio_skx.socket_id = socket_id;
-        PciHandleType h(0, busno[socket_id], 2, 0);
-        h.read32(0x104, &cpubusno); // CPUBUSNO register
-        iio_skx.stacks[0].busno = cpubusno & 0xff;
-        iio_skx.stacks[1].busno = (cpubusno >> 8) & 0xff;
-        iio_skx.stacks[2].busno = (cpubusno >> 16) & 0xff;
-        iio_skx.stacks[3].busno = (cpubusno >> 24) & 0xff;
-        h.read32(0x108, &cpubusno); // CPUBUSNO1 register
-        iio_skx.stacks[4].busno = cpubusno & 0xff;
-        iio_skx.stacks[5].busno = (cpubusno >> 8) & 0xff;
-        h.read32(0x110, &busvalid);
 
-        for (uint8_t stack = 0; stack < 6; stack++) {
-            if (m->getCPUModel() == PCM::ICX)
-                iio_skx.stacks[stack].stack_name = icx_iio_stack_names[stack];
-            for (uint8_t part = 0; part < 4; part++) {
-                if (((busvalid & (1 << stack))) == 0) {
-                    iio_skx.stacks[stack].parts[part].root_pci_dev.exist = false;
-                }
-                else {
-                    if (PciHandleType::exists(0, (uint32)iio_skx.stacks[stack].busno, 0, 0)) {
-                        uint32 reg = 0;
-                        PciHandleType h(0, (uint32)iio_skx.stacks[stack].busno, 0, 0);
-                        h.read32(0x802, &reg);
-                        iio_skx.stacks[stack].flipped = (reg & 0x4)?true:false;
-                    }
-                    if (m->getCPUModel() == PCM::ICX) {
-                        struct pci *pci = &iio_skx.stacks[stack].parts[part].root_pci_dev;
-                        struct bdf *bdf = &pci->bdf;
-                        bdf->busno = iio_skx.stacks[stack].busno;
-                        bdf->devno = (part + 2);
-                        bdf->funcno = 0;
-                        probe_pci(pci);
-                    }
-                }
-            }
+    if (sad_id_bus_map.empty()) {
+        cerr << "Could not find Root Port bus numbers" << endl;
+        return false;
+    }
+
+    return true;
+}
+
+// Mapping for IceLake Server.
+class WhitleyPlatformMapping: public IPlatformMapping10Nm {
+private:
+public:
+    WhitleyPlatformMapping() = default;
+    ~WhitleyPlatformMapping() = default;
+    bool pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios, uint32_t sockets_count) override;
+};
+
+bool WhitleyPlatformMapping::pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios, uint32_t sockets_count)
+{
+    for (uint32_t socket = 0; socket < sockets_count; socket++) {
+        struct iio_stacks_on_socket iio_on_socket;
+        iio_on_socket.socket_id = socket;
+        std::map<uint8_t, uint8_t> sad_id_bus_map;
+        if (!getSadIdRootBusMap(socket, sad_id_bus_map)) {
+            return false;
         }
-    }
-    else {
-        cerr << "No access to PCICFG" << endl;
-        exit(EXIT_FAILURE);
-    }
 
-    for (uint8_t stack = 0; stack < 6; stack++) {
-        for (uint8_t part = 0; part < 4; part++) {
-            struct pci p = iio_skx.stacks[stack].parts[part].root_pci_dev;
-            if (!p.exist)
+        {
+            struct iio_stack stack;
+            stack.iio_unit_id = icx_sad_to_pmu_id_mapping.at(ICX_MCP_SAD_ID);
+            stack.stack_name = icx_iio_stack_names[stack.iio_unit_id];
+            iio_on_socket.stacks.push_back(stack);
+        }
+
+        for (auto sad_id_bus_pair = sad_id_bus_map.cbegin(); sad_id_bus_pair != sad_id_bus_map.cend(); ++sad_id_bus_pair) {
+            int sad_id = sad_id_bus_pair->first;
+            if (icx_sad_to_pmu_id_mapping.find(sad_id) ==
+                icx_sad_to_pmu_id_mapping.end()) {
+                cerr << "Unknown SAD ID: " << sad_id << endl;
+                return false;
+            }
+
+            if (sad_id == ICX_MCP_SAD_ID) {
                 continue;
-            for (uint8_t b = p.secondary_bus_number; b <= p.subordinate_bus_number; b++) { /* FIXME: for 0:0.0, we may need to scan from secondary switch down */
-                for (uint8_t d = 0; d < 32; d++) {
-                    for (uint8_t f = 0; f < 8; f++) {
-                        struct pci pci;
-                        pci.exist = false;
-                        pci.bdf.busno = b;
-                        pci.bdf.devno = d;
-                        pci.bdf.funcno = f;
-                        probe_pci(&pci);
-                        if (pci.exist)
-                            iio_skx.stacks[stack].parts[part].child_pci_devs.push_back(pci);
+            }
+
+            struct iio_stack stack;
+            int root_bus = sad_id_bus_pair->second;
+            if (sad_id == ICX_CBDMA_DMI_SAD_ID) {
+                // There is one DMA Controller on each socket
+                stack.iio_unit_id = icx_sad_to_pmu_id_mapping.at(sad_id);
+                stack.busno = root_bus;
+                stack.stack_name = icx_iio_stack_names[stack.iio_unit_id];
+
+                // PCH is on socket 0 only
+                if (socket == 0) {
+                    struct iio_bifurcated_part pch_part;
+                    struct pci *pci = &pch_part.root_pci_dev;
+                    struct bdf *bdf = &pci->bdf;
+                    pch_part.part_id = ICX_PCH_PART_ID;
+                    bdf->busno = root_bus;
+                    bdf->devno = 0x00;
+                    bdf->funcno = 0x00;
+                    probe_pci(pci);
+                    // Probe child devices only under PCH part.
+                    for (uint8_t bus = pci->secondary_bus_number; bus <= pci->subordinate_bus_number; bus++) {
+                        for (uint8_t device = 0; device < 32; device++) {
+                            for (uint8_t function = 0; function < 8; function++) {
+                                struct pci child_pci_dev;
+                                child_pci_dev.bdf.busno = bus;
+                                child_pci_dev.bdf.devno = device;
+                                child_pci_dev.bdf.funcno = function;
+                                if (probe_pci(&child_pci_dev)) {
+                                    pch_part.child_pci_devs.push_back(child_pci_dev);
+                                }
+                            }
+                        }
+                    }
+                    stack.parts.push_back(pch_part);
+                }
+
+                struct iio_bifurcated_part part;
+                part.part_id = ICX_CBDMA_PART_ID;
+                struct pci *pci = &part.root_pci_dev;
+                struct bdf *bdf = &pci->bdf;
+                bdf->busno = root_bus;
+                bdf->devno = 0x01;
+                bdf->funcno = 0x00;
+                probe_pci(pci);
+                stack.parts.push_back(part);
+
+                iio_on_socket.stacks.push_back(stack);
+                continue;
+            }
+            stack.busno = root_bus;
+            stack.iio_unit_id = icx_sad_to_pmu_id_mapping.at(sad_id);
+            stack.stack_name = icx_iio_stack_names[stack.iio_unit_id];
+            for (int slot = 2; slot < 6; slot++) {
+                struct pci pci;
+                pci.bdf.busno = root_bus;
+                pci.bdf.devno = slot;
+                pci.bdf.funcno = 0x00;
+                if (!probe_pci(&pci)) {
+                    continue;
+                }
+                int part_id = pci.device_id - ICX_ROOT_PORT_A_DID;
+                if ((part_id < 0) || (part_id > 4)) {
+                    cerr << "Invalid part ID " << part_id << endl;
+                    return false;
+                }
+                struct iio_bifurcated_part part;
+                part.part_id = part_id;
+                part.root_pci_dev = pci;
+
+                for (uint8_t bus = pci.secondary_bus_number; bus <= pci.subordinate_bus_number; bus++) {
+                    for (uint8_t device = 0; device < 32; device++) {
+                        for (uint8_t function = 0; function < 8; function++) {
+                            struct pci child_pci_dev;
+                            child_pci_dev.bdf.busno = bus;
+                            child_pci_dev.bdf.devno = device;
+                            child_pci_dev.bdf.funcno = function;
+                            if (probe_pci(&child_pci_dev)) {
+                                part.child_pci_devs.push_back(child_pci_dev);
+                            }
+                        }
+                    }
+                }
+                stack.parts.push_back(part);
+            }
+            iio_on_socket.stacks.push_back(stack);
+        }
+        std::sort(iio_on_socket.stacks.begin(), iio_on_socket.stacks.end());
+        iios.push_back(iio_on_socket);
+    }
+    return true;
+}
+
+// Mapping for Snowridge.
+class JacobsvillePlatformMapping: public IPlatformMapping10Nm {
+private:
+public:
+    JacobsvillePlatformMapping() = default;
+    ~JacobsvillePlatformMapping() = default;
+    bool pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios, uint32_t sockets_count) override;
+    bool JacobsvilleAccelerators(const std::pair<uint8_t, uint8_t>& sad_id_bus_pair, struct iio_stack& stack);
+};
+
+bool JacobsvillePlatformMapping::JacobsvilleAccelerators(const std::pair<uint8_t, uint8_t>& sad_id_bus_pair, struct iio_stack& stack)
+{
+    uint16_t expected_dev_id;
+    auto sad_id = sad_id_bus_pair.first;
+    switch (sad_id) {
+    case SNR_HQM_SAD_ID:
+        expected_dev_id = HQM_DID;
+        break;
+    case SNR_NIS_SAD_ID:
+        expected_dev_id = NIS_DID;
+        break;
+    case SNR_QAT_SAD_ID:
+        expected_dev_id = QAT_DID;
+        break;
+    default:
+        return false;
+    }
+    stack.iio_unit_id = snr_sad_to_pmu_id_mapping.at(sad_id);
+    stack.stack_name = snr_iio_stack_names[stack.iio_unit_id];
+    for (uint16_t bus = sad_id_bus_pair.second; bus < 256; bus++) {
+        for (uint8_t device = 0; device < 32; device++) {
+            for (uint8_t function = 0; function < 8; function++) {
+                struct pci pci_dev;
+                pci_dev.bdf.busno = bus;
+                pci_dev.bdf.devno = device;
+                pci_dev.bdf.funcno = function;
+                if (probe_pci(&pci_dev)) {
+                    if (expected_dev_id == pci_dev.device_id) {
+                        struct iio_bifurcated_part part;
+                        part.part_id = SNR_ACCELERATOR_PART_ID;
+                        part.root_pci_dev = pci_dev;
+                        stack.busno = bus;
+                        stack.parts.push_back(part);
+                        return true;
                     }
                 }
             }
         }
     }
-    v_iio_skx.push_back(iio_skx);
+    return false;
+}
+
+bool JacobsvillePlatformMapping::pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios, uint32_t sockets_count)
+{
+    std::map<uint8_t, uint8_t> sad_id_bus_map;
+    PCM_UNUSED(sockets_count);
+    if (!getSadIdRootBusMap(0, sad_id_bus_map)) {
+        return false;
+    }
+    struct iio_stacks_on_socket iio_on_socket;
+    iio_on_socket.socket_id = 0;
+    if (sad_id_bus_map.size() != snr_sad_to_pmu_id_mapping.size()) {
+        cerr << "Found unexpected number of stacks: " << sad_id_bus_map.size() << ", expected: " << snr_sad_to_pmu_id_mapping.size() << endl;
+        return false;
+    }
+
+    for (auto sad_id_bus_pair = sad_id_bus_map.cbegin(); sad_id_bus_pair != sad_id_bus_map.cend(); ++sad_id_bus_pair) {
+        int sad_id = sad_id_bus_pair->first;
+        struct iio_stack stack;
+        switch (sad_id) {
+        case SNR_CBDMA_DMI_SAD_ID:
+            {
+                int root_bus = sad_id_bus_pair->second;
+                stack.iio_unit_id = snr_sad_to_pmu_id_mapping.at(sad_id);
+                stack.stack_name = snr_iio_stack_names[stack.iio_unit_id];
+                stack.busno = root_bus;
+                // DMA Controller
+                struct iio_bifurcated_part part;
+                part.part_id = 0;
+                struct pci pci_dev;
+                pci_dev.bdf.busno = root_bus;
+                pci_dev.bdf.devno = 0x01;
+                pci_dev.bdf.funcno = 0x00;
+                probe_pci(&pci_dev);
+                part.root_pci_dev = pci_dev;
+                stack.parts.push_back(part);
+
+                part.part_id = 4;
+                pci_dev.bdf.busno = root_bus;
+                pci_dev.bdf.devno = 0x00;
+                pci_dev.bdf.funcno = 0x00;
+                probe_pci(&pci_dev);
+                for (uint8_t bus = pci_dev.secondary_bus_number; bus <= pci_dev.subordinate_bus_number; bus++) {
+                    for (uint8_t device = 0; device < 32; device++) {
+                        for (uint8_t function = 0; function < 8; function++) {
+                            struct pci child_pci_dev;
+                            child_pci_dev.bdf.busno = bus;
+                            child_pci_dev.bdf.devno = device;
+                            child_pci_dev.bdf.funcno = function;
+                            if (probe_pci(&child_pci_dev)) {
+                                part.child_pci_devs.push_back(child_pci_dev);
+                            }
+                        }
+                    }
+                }
+                part.root_pci_dev = pci_dev;
+                stack.parts.push_back(part);
+            }
+            break;
+        case SNR_PCIE_GEN3_SAD_ID:
+            {
+                int root_bus = sad_id_bus_pair->second;
+                stack.busno = root_bus;
+                stack.iio_unit_id = snr_sad_to_pmu_id_mapping.at(sad_id);
+                stack.stack_name = snr_iio_stack_names[stack.iio_unit_id];
+                for (int slot = 4; slot < 8; slot++) {
+                    struct pci pci_dev;
+                    pci_dev.bdf.busno = root_bus;
+                    pci_dev.bdf.devno = slot;
+                    pci_dev.bdf.funcno = 0x00;
+                    if (!probe_pci(&pci_dev)) {
+                        continue;
+                    }
+                    int part_id = 4 + pci_dev.device_id - SNR_ROOT_PORT_A_DID;
+                    if ((part_id < 0) || (part_id > 4)) {
+                        cerr << "Invalid part ID " << part_id << endl;
+                        return false;
+                    }
+                    struct iio_bifurcated_part part;
+                    part.part_id = part_id;
+                    part.root_pci_dev = pci_dev;
+                    for (uint8_t bus = pci_dev.secondary_bus_number; bus <= pci_dev.subordinate_bus_number; bus++) {
+                        for (uint8_t device = 0; device < 32; device++) {
+                            for (uint8_t function = 0; function < 8; function++) {
+                                struct pci child_pci_dev;
+                                child_pci_dev.bdf.busno = bus;
+                                child_pci_dev.bdf.devno = device;
+                                child_pci_dev.bdf.funcno = function;
+                                if (probe_pci(&child_pci_dev)) {
+                                    part.child_pci_devs.push_back(child_pci_dev);
+                                }
+                            }
+                        }
+                    }
+                    stack.parts.push_back(part);
+                }
+            }
+            break;
+        case SNR_HQM_SAD_ID:
+        case SNR_NIS_SAD_ID:
+        case SNR_QAT_SAD_ID:
+            JacobsvilleAccelerators(*sad_id_bus_pair, stack);
+            break;
+        default:
+            cerr << "Unknown SAD ID: " << sad_id << endl;
+            return false;
+        }
+        iio_on_socket.stacks.push_back(stack);
+    }
+
+    std::sort(iio_on_socket.stacks.begin(), iio_on_socket.stacks.end());
+
+    iios.push_back(iio_on_socket);
+
+    return true;
+}
+
+IPlatformMapping* IPlatformMapping::getPlatformMapping(int cpu_model)
+{
+    switch (cpu_model) {
+    case PCM::SKX:
+        return new PurleyPlatformMapping();
+    case PCM::ICX:
+        return new WhitleyPlatformMapping();
+    case PCM::SNOWRIDGE:
+        return new JacobsvillePlatformMapping();
+    default:
+        return nullptr;
+    }
 }
 
 std::string dos2unix(std::string in)
@@ -393,6 +811,7 @@ ccr* get_ccr(PCM* m, uint64_t& ccr)
         case PCM::SKX:
             return new skx_ccr(ccr);
         case PCM::ICX:
+        case PCM::SNOWRIDGE:
             return new icx_ccr(ccr);
         default:
             cerr << "Skylake Server CPU is required for this tool! Program aborted" << endl;
@@ -530,40 +949,33 @@ vector<struct counter> load_events(PCM * m, const char* fn)
     return v;
 }
 
-result_content get_IIO_Samples(PCM *m, vector<struct iio_skx> iio_skx_v, struct counter ctr, uint32_t delay_ms)
+result_content get_IIO_Samples(PCM *m, const std::vector<struct iio_stacks_on_socket>& iios, struct counter ctr, uint32_t delay_ms)
 {
     IIOCounterState *before, *after;
     uint64 rawEvents[4] = {0};
     std::unique_ptr<ccr> pccr(get_ccr(m, ctr.ccr));
-    std::vector<int32> IIO_units;
-    IIO_units.push_back((int32)PCM::IIO_CBDMA);
-    IIO_units.push_back((int32)PCM::IIO_PCIe0);
-    IIO_units.push_back((int32)PCM::IIO_PCIe1);
-    IIO_units.push_back((int32)PCM::IIO_PCIe2);
-    IIO_units.push_back((int32)PCM::IIO_MCP0);
-    IIO_units.push_back((int32)PCM::IIO_MCP1);
     rawEvents[ctr.idx] = pccr->get_ccr_value();
-    before = new IIOCounterState[iio_skx_v.size() * IIO_units.size()];
-    after = new IIOCounterState[iio_skx_v.size() * IIO_units.size()];
+    int stacks_count = iios[0].stacks.size();
+    before = new IIOCounterState[iios.size() * stacks_count];
+    after = new IIOCounterState[iios.size() * stacks_count];
 
-    m->programIIOCounters(rawEvents, -1);
-    for (vector<struct iio_skx>::const_iterator socket = iio_skx_v.begin(); socket != iio_skx_v.end(); ++socket) {
-        for (vector<int32>::const_iterator stack = IIO_units.begin(); stack != IIO_units.end(); ++stack) {
-            uint32_t idx = (uint32_t)IIO_units.size()*socket->socket_id + *stack;
-            before[idx] = m->getIIOCounterState(socket->socket_id, *stack, ctr.idx);
+    m->programIIOCounters(rawEvents);
+    for (auto socket = iios.cbegin(); socket != iios.cend(); ++socket) {
+        for (auto stack = socket->stacks.cbegin(); stack != socket->stacks.cend(); ++stack) {
+            auto iio_unit_id = stack->iio_unit_id;
+            uint32_t idx = (uint32_t)stacks_count * socket->socket_id + iio_unit_id;
+            before[idx] = m->getIIOCounterState(socket->socket_id, iio_unit_id, ctr.idx);
         }
     }
     MySleepMs(delay_ms);
-    for (vector<struct iio_skx>::const_iterator socket = iio_skx_v.begin(); socket != iio_skx_v.end(); ++socket) {
-        struct iio_skx iio_skx = *socket;
-        //iio_skx.stacks[*stack].values.clear();
-        for (vector<int32>::const_iterator stack = IIO_units.begin(); stack != IIO_units.end(); ++stack) {
-            uint32_t idx = (uint32_t)IIO_units.size()*socket->socket_id + *stack;
-            after[idx] = m->getIIOCounterState(socket->socket_id, *stack, ctr.idx);
+    for (auto socket = iios.cbegin(); socket != iios.cend(); ++socket) {
+        for (auto stack = socket->stacks.cbegin(); stack != socket->stacks.cend(); ++stack) {
+            auto iio_unit_id = stack->iio_unit_id;
+            uint32_t idx = (uint32_t)stacks_count * socket->socket_id + iio_unit_id;
+            after[idx] = m->getIIOCounterState(socket->socket_id, iio_unit_id, ctr.idx);
             uint64_t raw_result = getNumberOfEvents(before[idx], after[idx]);
             uint64_t trans_result = uint64_t (raw_result * ctr.multiplier / (double) ctr.divider * (1000 / (double) delay_ms));
-            results[iio_skx.socket_id][*stack][std::pair<h_id,v_id>(ctr.h_id,ctr.v_id)] = trans_result;
-            //cout << "skt:" << iio_skx.socket_id << " stack:" << *stack << " h_id:" << ctr.h_id << " v_id:" << ctr.v_id << " res:" << raw_result << " trans:" << trans_result << "\n";
+            results[socket->socket_id][iio_unit_id][std::pair<h_id,v_id>(ctr.h_id,ctr.v_id)] = trans_result;
         }
     }
     delete[] before;
@@ -571,39 +983,38 @@ result_content get_IIO_Samples(PCM *m, vector<struct iio_skx> iio_skx_v, struct 
     return results;
 }
 
-void collect_data(PCM *m, vector<struct iio_skx> iio_skx_v, vector<struct counter> &ctrs)
+void collect_data(PCM *m, vector<struct iio_stacks_on_socket>& iios, vector<struct counter>& ctrs)
 {
-    result_content s;
     uint32_t delay_ms = (uint32_t)(PCM_DELAY_DEFAULT / ctrs.size() * 1000);
-    //cout << "delay_ms:" << delay_ms << "\n";
-    for (vector<struct counter>::iterator cunit = ctrs.begin(); cunit != ctrs.end(); ++cunit) {
-        cunit->data.clear();
-        s = get_IIO_Samples(m, iio_skx_v, *cunit, delay_ms);
-        cunit->data.push_back(s);
+    for (auto counter = ctrs.begin(); counter != ctrs.end(); ++counter) {
+        counter->data.clear();
+        result_content sample = get_IIO_Samples(m, iios, *counter, delay_ms);
+        counter->data.push_back(sample);
     }
 }
 
 /**
  * For debug only
  */
-void print_PCIeMapping(vector<struct iio_skx> iio_skx_, const PCIDB & pciDB)
+void print_PCIeMapping(const std::vector<struct iio_stacks_on_socket>& iios, const PCIDB & pciDB)
 {
-    for (auto it = iio_skx_.begin(); it != iio_skx_.end(); ++it)
-    {
+    for (auto it = iios.begin(); it != iios.end(); ++it) {
         printf("Socket %d\n", (*it).socket_id);
         for (int stack = 0; stack < 6; stack++) {
-            printf("\t%s root bus: 0x%x", (*it).stacks[stack].stack_name.c_str(), (*it).stacks[stack].busno);
-            printf((*it).stacks[stack].flipped ? "\tflipped: true\n" : "\tflipped: false\n");
-            for (uint32_t p = 0; p < 4; p++) {
-                vector<struct pci> pp = (*it).stacks[stack].parts[p].child_pci_devs;
-                uint8_t level = 1;
-                for (std::vector<struct pci>::const_iterator iunit = pp.begin(); iunit != pp.end(); ++iunit)
-                {
-                    uint64_t header_width = 100;
-                    string row = build_pci_header(pciDB, (uint32_t)header_width, *iunit, -1, level);
-                    printf("\t\t%s\n", row.c_str());
-                    if (iunit->header_type == 1)
-                        level += 1;
+            for (auto stack : it->stacks) {
+                printf("\t%s root bus: 0x%x", stack.stack_name.c_str(), stack.busno);
+                printf(stack.flipped ? "\tflipped: true\n" : "\tflipped: false\n");
+                for (auto part : stack.parts) {
+                    vector<struct pci> pp = part.child_pci_devs;
+                    uint8_t level = 1;
+                    for (std::vector<struct pci>::const_iterator iunit = pp.begin(); iunit != pp.end(); ++iunit)
+                    {
+                        uint64_t header_width = 100;
+                        string row = build_pci_header(pciDB, (uint32_t)header_width, *iunit, -1, level);
+                        printf("\t\t%s\n", row.c_str());
+                        if (iunit->header_type == 1)
+                            level += 1;
+                    }
                 }
             }
         }
@@ -616,9 +1027,6 @@ int main()
     std::cout << "\n Processor Counter Monitor " << PCM_VERSION << "\n";
     std::cout << "\n This utility measures Skylake-SP IIO information\n\n";
 
-    vector<int> skt_list;
-    vector<int> stack_list;
-    vector<struct iio_skx> iio_skx_v;
     vector<struct counter> counters;
     vector<string> display_buffer;
     PCIDB pciDB;
@@ -627,23 +1035,17 @@ int main()
     PCM * m = PCM::getInstance();
     print_cpu_details();
     string ev_file_name;
-    if ( m->getCPUModel() == PCM::SKX ||
-         m->getCPUModel() == PCM::ICX) 
+    if (m->IIOEventsAvailable())
     {
         ev_file_name = "opCode-" + std::to_string(m->getCPUModel()) + ".txt";
     }
     else
     {
-        cerr << "Skylake Server CPU is required for this tool! Program aborted\n";
-        exit(EXIT_FAILURE);
-    }
-    if(m->getNumSockets() > max_sockets)
-    {
-        cerr << "Only systems with up to " << (int)max_sockets << " sockets are supported! Program aborted\n";
+        cerr << "This CPU is not supported by PCM IIO tool! Program aborted\n";
         exit(EXIT_FAILURE);
     }
 
-    opcodeFieldMap["opcode"] =PCM::OPCODE;
+    opcodeFieldMap["opcode"] = PCM::OPCODE;
     opcodeFieldMap["ev_sel"] = PCM::EVENT_SELECT;
     opcodeFieldMap["umask"] = PCM::UMASK;
     opcodeFieldMap["reset"] = PCM::RESET;
@@ -665,50 +1067,31 @@ int main()
     //print_nameMap();
     //TODO: Taking from cli
 
-    vector<uint32_t> busno;
+    //TODO: remove binding to max sockets count.
+    if (m->getNumSockets() > max_sockets) {
+        cerr << "Only systems with up to " << max_sockets << " sockets are supported! Program aborted\n";
+        exit(EXIT_FAILURE);
+    }
 
-    switch(m->getNumSockets())
-    {
-        case 1:
-        case 2:
-            {   // TODO: do a proper bus scan
-                vector<uint32_t> _{0x0, 0x80};
-                busno = _;
-            }
-            break;
-        case 4:
-            {
-                vector<uint32_t> _{0x0, 0x40, 0x80, 0xc0};
-                busno = _;
-            }
-            break;
-        default:
-            cerr << "Only systems with " <<m->getNumSockets()<< " sockets are not supported! Program aborted\n";
-            exit(EXIT_FAILURE);
+    auto mapping = IPlatformMapping::getPlatformMapping(m->getCPUModel());
+    if (!mapping) {
+        cerr << "Failed to discover pci tree: unknown platform" << endl;
+        exit(EXIT_FAILURE);
     }
-    for(uint32 s=0; s < m->getNumSockets();++s) {
-        skt_list.push_back(s);
-        discover_pci_tree(busno, s, iio_skx_v, m);
+
+    std::vector<struct iio_stacks_on_socket> iios;
+    if (!mapping->pciTreeDiscover(iios, m->getNumSockets())) {
+        exit(EXIT_FAILURE);
     }
+
     /* Debug only:
-    print_PCIeMapping(iio_skx_v, pciDB);
+    print_PCIeMapping(iios, pciDB);
     return 0;
     */
 
-    stack_list.push_back(PCM::IIO_CBDMA);
-    stack_list.push_back(PCM::IIO_PCIe0);
-    stack_list.push_back(PCM::IIO_PCIe1);
-    stack_list.push_back(PCM::IIO_PCIe2);
-    stack_list.push_back(PCM::IIO_MCP0);
-    stack_list.push_back(PCM::IIO_MCP1);
-
     while (1) {
-        collect_data(m, iio_skx_v, counters);
-        display_buffer = build_display(iio_skx_v, counters, skt_list, stack_list, pciDB);
+        collect_data(m, iios, counters);
+        display_buffer = build_display(iios, counters, pciDB);
         display(display_buffer);
-        if (m->getCPUModel() == PCM::ICX)
-        {
-            std::cerr << "WARNING: The IIO stack <-> device mapping might not be incorrect. Will be addressed in a later version." << std::endl;
-        }
     };
 }

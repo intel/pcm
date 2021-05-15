@@ -732,6 +732,38 @@ public:
         IIO_STACK_COUNT = 6
     };
 
+    // Offsets/enumeration of IIO stacks Skylake server.
+    enum SkylakeIIOStacks {
+        SKX_IIO_CBDMA_DMI   = 0,
+        SKX_IIO_PCIe0       = 1,
+        SKX_IIO_PCIe1       = 2,
+        SKX_IIO_PCIe2       = 3,
+        SKX_IIO_MCP0        = 4,
+        SKX_IIO_MCP1        = 5,
+        SKX_IIO_STACK_COUNT = 6
+    };
+
+     // Offsets/enumeration of IIO stacks for IceLake server.
+    enum IcelakeIIOStacks {
+        ICX_IIO_PCIe0       = 0,
+        ICX_IIO_PCIe1       = 1,
+        ICX_IIO_MCP0        = 2,
+        ICX_IIO_PCIe2       = 3,
+        ICX_IIO_PCIe3       = 4,
+        ICX_IIO_CBDMA_DMI   = 5,
+        ICX_IIO_STACK_COUNT = 6
+    };
+
+    // Offsets/enumeration of IIO stacks for IceLake server.
+    enum SnowridgeIIOStacks {
+        SNR_IIO_QAT         = 0,
+        SNR_IIO_CBDMA_DMI   = 1,
+        SNR_IIO_NIS         = 2,
+        SNR_IIO_HQM         = 3,
+        SNR_IIO_PCIe0       = 4,
+        SNR_IIO_STACK_COUNT = 5
+    };
+
     struct SimplePCIeDevInfo
     {
         enum PCIeWidthMode width;
@@ -1259,6 +1291,7 @@ public:
         CHERRYTRAIL = 76,
         APOLLO_LAKE = 92,
         DENVERTON = 95,
+        SNOWRIDGE = 134,
         CLARKDALE = 37,
         WESTMERE_EP = 44,
         NEHALEM_EX = 46,
@@ -1414,6 +1447,7 @@ public:
         case ICX:
         case BDX:
         case KNL:
+        case SNOWRIDGE:
             return (server_pcicfg_uncore.size() && server_pcicfg_uncore[0].get()) ? (server_pcicfg_uncore[0]->getNumMCChannels()) : 0;
         }
         return 0;
@@ -1441,6 +1475,7 @@ public:
         case ICX:
         case BDX:
         case KNL:
+        case SNOWRIDGE:
             return (socket < server_pcicfg_uncore.size() && server_pcicfg_uncore[socket].get()) ? (server_pcicfg_uncore[socket]->getNumMCChannels(controller)) : 0;
         }
         return 0;
@@ -1466,6 +1501,8 @@ public:
         if (ICL == cpu_model || TGL == cpu_model) return 5;
         switch (cpu_model)
         {
+        case SNOWRIDGE:
+            return 4;
         case DENVERTON:
             return 3;
         case NEHALEM_EP:
@@ -1512,6 +1549,7 @@ public:
             return 1000000000ULL; // 1 GHz
         case SKX:
         case ICX:
+        case SNOWRIDGE:
             return 1100000000ULL; // 1.1 GHz
         }
         return 0;
@@ -1533,6 +1571,7 @@ public:
         case BDX_DE:
         case SKX:
         case ICX:
+        case SNOWRIDGE:
         case KNL:
             return true;
         default:
@@ -1711,6 +1750,7 @@ public:
             || cpu_model_ == CHERRYTRAIL
             || cpu_model_ == APOLLO_LAKE
             || cpu_model_ == DENVERTON
+            // || cpu_model_ == SNOWRIDGE do not use Atom code for SNOWRIDGE
             ;
     }
 
@@ -1733,6 +1773,7 @@ public:
                  || cpu_model == PCM::BAYTRAIL
                  || cpu_model == PCM::APOLLO_LAKE
                  || cpu_model == PCM::DENVERTON
+                 || cpu_model == PCM::SNOWRIDGE
                  || cpu_model == PCM::HASWELLX
                  || cpu_model == PCM::BROADWELL
                  || cpu_model == PCM::BDX_DE
@@ -1807,10 +1848,8 @@ public:
 
     bool memoryTrafficMetricsAvailable() const
     {
-        return !(
-            isAtom()
-            || cpu_model == PCM::CLARKDALE
-            );
+        return (!(isAtom() || cpu_model == PCM::CLARKDALE))
+               ;
     }
 
     bool MCDRAMmemoryTrafficMetricsAvailable() const
@@ -1835,6 +1874,7 @@ public:
         return (
                cpu_model == PCM::SKX
             || cpu_model == PCM::ICX
+	    || cpu_model  == PCM::SNOWRIDGE
         );
     }
 
@@ -1863,6 +1903,7 @@ public:
             isCLX()
                     ||  isCPX()
                      || cpu_model == PCM::ICX
+                     || cpu_model == PCM::SNOWRIDGE
         );
     }
 
@@ -1880,6 +1921,7 @@ public:
             || ((SKX == cpu_model) && (num_sockets == 1))
 #endif
             || ICX == cpu_model
+            || SNOWRIDGE == cpu_model
                );
     }
 
@@ -1894,6 +1936,7 @@ public:
     {
         return (
             cpu_model == PCM::JAKETOWN
+            || cpu_model == PCM::SNOWRIDGE
             || cpu_model == PCM::IVYTOWN
             || cpu_model == PCM::HASWELLX
             || cpu_model == PCM::BDX_DE
@@ -2284,7 +2327,7 @@ uint64 getDRAMClocks(uint32 channel, const CounterStateType & before, const Coun
 {
     const auto clk = after.DRAMClocks[channel] - before.DRAMClocks[channel];
     const auto cpu_model = PCM::getInstance()->getCPUModel();
-    if (cpu_model == PCM::ICX)
+    if (cpu_model == PCM::ICX || cpu_model == PCM::SNOWRIDGE)
     {
         return 2 * clk;
     }
@@ -3151,10 +3194,11 @@ uint64 getL2CacheMisses(const CounterStateType & before, const CounterStateType 
 {
     auto pcm = PCM::getInstance();
     if (pcm->isL2CacheMissesAvailable() == false) return 0ULL;
-    if (pcm->useSkylakeEvents()) {
+    const auto cpu_model = pcm->getCPUModel();
+    if (pcm->useSkylakeEvents() || cpu_model == PCM::SNOWRIDGE) {
         return after.Event[BasicCounterState::SKLL2MissPos] - before.Event[BasicCounterState::SKLL2MissPos];
     }
-    if (pcm->isAtom() || pcm->getCPUModel() == PCM::KNL)
+    if (pcm->isAtom() || cpu_model == PCM::KNL)
     {
         return after.Event[BasicCounterState::ArchLLCMissPos] - before.Event[BasicCounterState::ArchLLCMissPos];
     }
@@ -3243,8 +3287,17 @@ uint64 getL3CacheHitsNoSnoop(const CounterStateType & before, const CounterState
 template <class CounterStateType>
 uint64 getL3CacheHitsSnoop(const CounterStateType & before, const CounterStateType & after)
 {
-    if (!PCM::getInstance()->isL3CacheHitsSnoopAvailable()) return 0;
-    if (PCM::getInstance()->useSkylakeEvents()) {
+    auto pcm = PCM::getInstance();
+    if (!pcm->isL3CacheHitsSnoopAvailable()) return 0;
+    const auto cpu_model = pcm->getCPUModel();
+    if (cpu_model == PCM::SNOWRIDGE)
+    {
+        const int64 misses = getL3CacheMisses(before, after);
+        const int64 refs = after.Event[BasicCounterState::ArchLLCRefPos] - before.Event[BasicCounterState::ArchLLCRefPos];
+        const int64 hits = refs - misses;
+        return (hits > 0)? hits : 0;
+    }
+    if (pcm->useSkylakeEvents()) {
         return after.Event[BasicCounterState::SKLL3HitPos] - before.Event[BasicCounterState::SKLL3HitPos];
     }
     return after.Event[BasicCounterState::L2HitMPos] - before.Event[BasicCounterState::L2HitMPos];

@@ -757,6 +757,7 @@ void PCM::initRDT()
         return;
     }
 #endif
+    std::cout << "Initializing RMIDs" << std::endl;
     unsigned maxRMID;
     /* Calculate maximum number of RMID supported by socket */
     maxRMID = getMaxRMID();
@@ -844,6 +845,7 @@ void PCM::initCStateSupportTables()
         case CHERRYTRAIL:
         case APOLLO_LAKE:
         case DENVERTON:
+	case SNOWRIDGE:
             PCM_CSTATE_ARRAY(pkgCStateMsr, PCM_PARAM_PROTECT({0, 0, 0x3F8, 0, 0x3F9, 0, 0x3FA, 0, 0, 0, 0 }) );
         case NEHALEM_EP:
         case NEHALEM:
@@ -910,6 +912,7 @@ void PCM::initCStateSupportTables()
         case APOLLO_LAKE:
         case DENVERTON:
         PCM_SKL_PATH_CASES
+	case SNOWRIDGE:
         case ICX:
             PCM_CSTATE_ARRAY(coreCStateMsr, PCM_PARAM_PROTECT({0, 0, 0, 0x3FC, 0, 0, 0x3FD, 0x3FE, 0, 0, 0}) );
         case KNL:
@@ -1551,6 +1554,7 @@ bool PCM::detectNominalFrequency()
                || cpu_model == APOLLO_LAKE
                || cpu_model == DENVERTON
                || useSKLPath()
+               || cpu_model == SNOWRIDGE
                || cpu_model == KNL
                || cpu_model == SKX
                || cpu_model == ICX
@@ -1699,7 +1703,7 @@ void PCM::initUncoreObjects()
            #endif
        }
     }
-    if (cpu_model == ICX)
+    if (cpu_model == ICX || cpu_model == SNOWRIDGE)
     {
         initSocket2Ubox0Bus();
         for (size_t s = 0; s < (size_t)num_sockets && s < socket2UBOX0bus.size() && s < server_pcicfg_uncore.size(); ++s)
@@ -1825,20 +1829,13 @@ void PCM::initUncorePMUsDirect()
         }
     }
     // init IIO addresses
-    std::vector<int32> IIO_units;
-    IIO_units.push_back((int32)IIO_CBDMA);
-    IIO_units.push_back((int32)IIO_PCIe0);
-    IIO_units.push_back((int32)IIO_PCIe1);
-    IIO_units.push_back((int32)IIO_PCIe2);
-    IIO_units.push_back((int32)IIO_MCP0);
-    IIO_units.push_back((int32)IIO_MCP1);
     if (getCPUModel() == PCM::SKX)
     {
         iioPMUs.resize(num_sockets);
         for (uint32 s = 0; s < (uint32)num_sockets; ++s)
         {
             auto & handle = MSR[socketRefCore[s]];
-            for (const auto & unit: IIO_units)
+            for (int unit = 0; unit < SKX_IIO_STACK_COUNT; ++unit)
             {
                 iioPMUs[s][unit] = UncorePMU(
                     std::make_shared<MSRRegister>(handle, SKX_IIO_CBDMA_UNIT_CTL + SKX_IIO_PM_REG_STEP * unit),
@@ -1854,14 +1851,13 @@ void PCM::initUncorePMUsDirect()
             }
         }
     }
-    // Calculate IIO CTL and CTR MSRs using UNIT CTL base address
-    if (getCPUModel() == PCM::ICX)
+    else if (getCPUModel() == PCM::ICX)
     {
         iioPMUs.resize(num_sockets);
         for (uint32 s = 0; s < (uint32)num_sockets; ++s)
         {
             auto & handle = MSR[socketRefCore[s]];
-            for (const auto & unit: IIO_units)
+            for (int unit = 0; unit < ICX_IIO_STACK_COUNT; ++unit)
             {
                 iioPMUs[s][unit] = UncorePMU(
                     std::make_shared<MSRRegister>(handle, ICX_IIO_UNIT_CTL[unit]),
@@ -1873,6 +1869,28 @@ void PCM::initUncorePMUsDirect()
                     std::make_shared<MSRRegister>(handle, ICX_IIO_UNIT_CTL[unit] + ICX_IIO_CTR_REG_OFFSET + 1),
                     std::make_shared<MSRRegister>(handle, ICX_IIO_UNIT_CTL[unit] + ICX_IIO_CTR_REG_OFFSET + 2),
                     std::make_shared<MSRRegister>(handle, ICX_IIO_UNIT_CTL[unit] + ICX_IIO_CTR_REG_OFFSET + 3)
+                );
+            }
+        }
+    }
+    else if (getCPUModel() == PCM::SNOWRIDGE)
+    {
+        iioPMUs.resize(num_sockets);
+        for (uint32 s = 0; s < (uint32)num_sockets; ++s)
+        {
+            auto & handle = MSR[socketRefCore[s]];
+            for (int unit = 0; unit < SNR_IIO_STACK_COUNT; ++unit)
+            {
+                iioPMUs[s][unit] = UncorePMU(
+                    std::make_shared<MSRRegister>(handle, SNR_IIO_CBDMA_UNIT_CTL + SNR_IIO_PM_REG_STEP * unit),
+                    std::make_shared<MSRRegister>(handle, SNR_IIO_CBDMA_CTL0 + SNR_IIO_PM_REG_STEP * unit + 0),
+                    std::make_shared<MSRRegister>(handle, SNR_IIO_CBDMA_CTL0 + SNR_IIO_PM_REG_STEP * unit + 1),
+                    std::make_shared<MSRRegister>(handle, SNR_IIO_CBDMA_CTL0 + SNR_IIO_PM_REG_STEP * unit + 2),
+                    std::make_shared<MSRRegister>(handle, SNR_IIO_CBDMA_CTL0 + SNR_IIO_PM_REG_STEP * unit + 3),
+                    std::make_shared<MSRRegister>(handle, SNR_IIO_CBDMA_CTR0 + SNR_IIO_PM_REG_STEP * unit + 0),
+                    std::make_shared<MSRRegister>(handle, SNR_IIO_CBDMA_CTR0 + SNR_IIO_PM_REG_STEP * unit + 1),
+                    std::make_shared<MSRRegister>(handle, SNR_IIO_CBDMA_CTR0 + SNR_IIO_PM_REG_STEP * unit + 2),
+                    std::make_shared<MSRRegister>(handle, SNR_IIO_CBDMA_CTR0 + SNR_IIO_PM_REG_STEP * unit + 3)
                 );
             }
         }
@@ -2178,6 +2196,7 @@ bool PCM::isCPUModelSupported(const int model_)
             || model_ == WESTMERE_EP
             || model_ == WESTMERE_EX
             || isAtom(model_)
+            || model_ == SNOWRIDGE
             || model_ == CLARKDALE
             || model_ == SANDY_BRIDGE
             || model_ == JAKETOWN
@@ -2484,6 +2503,24 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
         }
         else
         switch ( cpu_model ) {
+            case SNOWRIDGE:
+                coreEventDesc[0].event_number = ARCH_LLC_MISS_EVTNR;
+                coreEventDesc[0].umask_value = ARCH_LLC_MISS_UMASK;
+                coreEventDesc[1].event_number = ARCH_LLC_REFERENCE_EVTNR;
+                coreEventDesc[1].umask_value = ARCH_LLC_REFERENCE_UMASK;
+                coreEventDesc[2].event_number = SKL_MEM_LOAD_RETIRED_L2_MISS_EVTNR;
+                coreEventDesc[2].umask_value = SKL_MEM_LOAD_RETIRED_L2_MISS_UMASK;
+                coreEventDesc[3].event_number = SKL_MEM_LOAD_RETIRED_L2_HIT_EVTNR;
+                coreEventDesc[3].umask_value = SKL_MEM_LOAD_RETIRED_L2_HIT_UMASK;
+                L2CacheHitRatioAvailable = true;
+                L3CacheHitRatioAvailable = true;
+                L3CacheMissesAvailable = true;
+                L2CacheMissesAvailable = true;
+                L2CacheHitsAvailable = true;
+                L3CacheHitsSnoopAvailable = true;
+                L3CacheHitsAvailable = true;
+                core_gen_counter_num_used = 4;
+                break;
             PCM_SKL_PATH_CASES
             case SKX:
             case ICX:
@@ -3421,6 +3458,8 @@ const char * PCM::getUArchCodename(const int32 cpu_model_param) const
             return "Apollo Lake";
         case DENVERTON:
             return "Denverton";
+        case SNOWRIDGE:
+            return "Snowridge";
         case NEHALEM_EP:
         case NEHALEM:
             return "Nehalem/Nehalem-EP";
@@ -4114,12 +4153,12 @@ PCM::ErrorCode PCM::programServerUncorePowerMetrics(int mc_profile, int pcu_prof
     case 3:
          PCUCntConf[1] =  PCU_MSR_PMON_CTL_EVENT(0x04); // Thermal frequency limit cycles: FREQ_MAX_LIMIT_THERMAL_CYCLES
          PCUCntConf[2] =  PCU_MSR_PMON_CTL_EVENT(0x05); // Power frequency limit cycles: FREQ_MAX_POWER_CYCLES
-         PCUCntConf[3] =  PCU_MSR_PMON_CTL_EVENT(0x07); // Clipped frequency limit cycles: FREQ_MAX_CURRENT_CYCLES (not supported on SKX and ICX)
+         PCUCntConf[3] =  PCU_MSR_PMON_CTL_EVENT(0x07); // Clipped frequency limit cycles: FREQ_MAX_CURRENT_CYCLES (not supported on SKX and ICX and SNOWRIDGE)
          break;
-    case 4: // not supported on SKX and ICX
+    case 4: // not supported on SKX and ICX and SNOWRIDGE
          PCUCntConf[1] =  PCU_MSR_PMON_CTL_EVENT(0x06); // OS frequency limit cycles: FREQ_MAX_OS_CYCLES
          PCUCntConf[2] =  PCU_MSR_PMON_CTL_EVENT(0x05); // Power frequency limit cycles: FREQ_MAX_POWER_CYCLES
-         PCUCntConf[3] =  PCU_MSR_PMON_CTL_EVENT(0x07); // Clipped frequency limit cycles: FREQ_MAX_CURRENT_CYCLES (not supported on SKX and ICX)
+         PCUCntConf[3] =  PCU_MSR_PMON_CTL_EVENT(0x07); // Clipped frequency limit cycles: FREQ_MAX_CURRENT_CYCLES (not supported on SKX and ICX and SNOWRIDGE)
          break;
     case 5:
          if(JAKETOWN == cpu_model)
@@ -4130,7 +4169,7 @@ PCM::ErrorCode PCM::programServerUncorePowerMetrics(int mc_profile, int pcu_prof
          {
              PCUCntConf[1] =  PCU_MSR_PMON_CTL_EVENT(0x60) + PCU_MSR_PMON_CTL_EDGE_DET ; // number of frequency transitions
              PCUCntConf[2] =  PCU_MSR_PMON_CTL_EVENT(0x60) ; // cycles spent changing frequency: FREQ_TRANS_CYCLES
-         } else if (HASWELLX == cpu_model || BDX_DE == cpu_model || BDX == cpu_model || SKX == cpu_model || ICX == cpu_model)
+         } else if (HASWELLX == cpu_model || BDX_DE == cpu_model || BDX == cpu_model || SKX == cpu_model || ICX == cpu_model || SNOWRIDGE == cpu_model)
          {
              PCUCntConf[1] =  PCU_MSR_PMON_CTL_EVENT(0x74) + PCU_MSR_PMON_CTL_EDGE_DET ; // number of frequency transitions
              PCUCntConf[2] =  PCU_MSR_PMON_CTL_EVENT(0x74) ; // cycles spent changing frequency: FREQ_TRANS_CYCLES
@@ -4149,10 +4188,10 @@ PCM::ErrorCode PCM::programServerUncorePowerMetrics(int mc_profile, int pcu_prof
          {
              PCUCntConf[2] =  PCU_MSR_PMON_CTL_EVENT(0x2B) + PCU_MSR_PMON_CTL_EDGE_DET ; // PC2 transitions
              PCUCntConf[3] =  PCU_MSR_PMON_CTL_EVENT(0x2D) + PCU_MSR_PMON_CTL_EDGE_DET ; // PC6 transitions
-         } else if (HASWELLX == cpu_model || BDX_DE == cpu_model || BDX == cpu_model || SKX == cpu_model || ICX == cpu_model)
+         } else if (HASWELLX == cpu_model || BDX_DE == cpu_model || BDX == cpu_model || SKX == cpu_model || ICX == cpu_model || SNOWRIDGE == cpu_model)
          {
-             PCUCntConf[0] =  PCU_MSR_PMON_CTL_EVENT(0x4E)                             ; // PC1e residenicies (not supported on SKX and ICX)
-             PCUCntConf[1] =  PCU_MSR_PMON_CTL_EVENT(0x4E) + PCU_MSR_PMON_CTL_EDGE_DET ; // PC1 transitions (not supported on SKX and ICX)
+             PCUCntConf[0] =  PCU_MSR_PMON_CTL_EVENT(0x4E)                             ; // PC1e residenicies (not supported on SKX and ICX and SNOWRIDGE)
+             PCUCntConf[1] =  PCU_MSR_PMON_CTL_EVENT(0x4E) + PCU_MSR_PMON_CTL_EDGE_DET ; // PC1 transitions (not supported on SKX and ICX and SNOWRIDGE)
              PCUCntConf[2] =  PCU_MSR_PMON_CTL_EVENT(0x2B) + PCU_MSR_PMON_CTL_EDGE_DET ; // PC2 transitions
              PCUCntConf[3] =  PCU_MSR_PMON_CTL_EVENT(0x2D) + PCU_MSR_PMON_CTL_EDGE_DET ; // PC6 transitions
          } else
@@ -5442,6 +5481,13 @@ void ServerPCICFGUncore::initRegisterLocations(const PCM * pcm)
         PCM_PCICFG_EDC_INIT(6, ECLK, KNL)
         PCM_PCICFG_EDC_INIT(7, ECLK, KNL)
     }
+    else if (cpu_model == PCM::SNOWRIDGE)
+    {
+        PCM_PCICFG_M2M_INIT(0, SERVER)
+        PCM_PCICFG_M2M_INIT(1, SERVER)
+        PCM_PCICFG_M2M_INIT(2, SERVER)
+        PCM_PCICFG_M2M_INIT(3, SERVER)
+    }
     else
     {
         std::cerr << "Error: Uncore PMU for processor with model id " << cpu_model << " is not supported.\n";
@@ -5623,7 +5669,7 @@ void ServerPCICFGUncore::initDirect(uint32 socket_, const PCM * pcm)
 
         for (auto & handle : m2mHandles)
         {
-            if (cpu_model == PCM::ICX)
+            if (cpu_model == PCM::ICX || cpu_model == PCM::SNOWRIDGE)
             {
                 m2mPMUs.push_back(
                     UncorePMU(
@@ -5658,7 +5704,14 @@ void ServerPCICFGUncore::initDirect(uint32 socket_, const PCM * pcm)
         }
     }
 
-    if(cpu_model == PCM::ICX)
+    int numChannels = 0;
+
+    if (cpu_model == PCM::SNOWRIDGE || cpu_model == PCM::ICX)
+    {
+        numChannels = 2;
+    }
+
+    if (numChannels > 0)
     {
         initSocket2Ubox0Bus();
         if (socket_ < socket2UBOX0bus.size())
@@ -5666,7 +5719,6 @@ void ServerPCICFGUncore::initDirect(uint32 socket_, const PCM * pcm)
             auto memBars = getServerMemBars((uint32)m2mPMUs.size(), socket2UBOX0bus[socket_].first, socket2UBOX0bus[socket_].second);
             for (auto & memBar : memBars)
             {
-                const int numChannels = 2;
                 for (int channel = 0; channel < numChannels; ++channel)
                 {
                     auto handle = std::make_shared<MMIORange>(memBar + SERVER_MC_CH_PMON_BASE_ADDR + channel * SERVER_MC_CH_PMON_STEP, SERVER_MC_CH_PMON_SIZE, false);
@@ -6188,6 +6240,7 @@ void ServerPCICFGUncore::programServerUncoreMemoryMetrics(const ServerUncoreMemo
             EDCCntConfig[EventPosition::READ] = MC_CH_PCI_PMON_CTL_EVENT(0x01) + MC_CH_PCI_PMON_CTL_UMASK(1);  // monitor reads on counter 0: RPQ
             EDCCntConfig[EventPosition::WRITE] = MC_CH_PCI_PMON_CTL_EVENT(0x02) + MC_CH_PCI_PMON_CTL_UMASK(1);  // monitor reads on counter 1: WPQ
             break;
+        case PCM::SNOWRIDGE:
         case PCM::ICX:
             if (metrics == PmemMemoryMode)
             {
@@ -6230,6 +6283,7 @@ void ServerPCICFGUncore::programServerUncoreMemoryMetrics(const ServerUncoreMemo
             MCCntConfig[EventPosition::WRITE_RANK_B] = MC_CH_PCI_PMON_CTL_EVENT((0xb8 + rankB)) + MC_CH_PCI_PMON_CTL_UMASK(16); // WR_CAS_RANK(rankB) all banks
             break;
         case PCM::ICX:
+        case PCM::SNOWRIDGE:
             MCCntConfig[EventPosition::READ_RANK_A] = MC_CH_PCI_PMON_CTL_EVENT((0xb0 + rankA)) + MC_CH_PCI_PMON_CTL_UMASK(0x28); // RD_CAS_RANK(rankA) all banks
             MCCntConfig[EventPosition::WRITE_RANK_A] = MC_CH_PCI_PMON_CTL_EVENT((0xb8 + rankA)) + MC_CH_PCI_PMON_CTL_UMASK(0x28); // WR_CAS_RANK(rankA) all banks
             MCCntConfig[EventPosition::READ_RANK_B] = MC_CH_PCI_PMON_CTL_EVENT((0xb0 + rankB)) + MC_CH_PCI_PMON_CTL_UMASK(0x28); // RD_CAS_RANK(rankB) all banks
@@ -6268,6 +6322,7 @@ void ServerPCICFGUncore::program()
         EDCCntConfig[EventPosition::READ] = MC_CH_PCI_PMON_CTL_EVENT(0x01) + MC_CH_PCI_PMON_CTL_UMASK(1);  // monitor reads on counter 0: RPQ
         EDCCntConfig[EventPosition::WRITE] = MC_CH_PCI_PMON_CTL_EVENT(0x02) + MC_CH_PCI_PMON_CTL_UMASK(1);  // monitor reads on counter 1: WPQ
         break;
+    case PCM::SNOWRIDGE:
     case PCM::ICX:
         MCCntConfig[EventPosition::READ] = MC_CH_PCI_PMON_CTL_EVENT(0x04) + MC_CH_PCI_PMON_CTL_UMASK(0x0f);  // monitor reads on counter 0: CAS_COUNT.RD
         MCCntConfig[EventPosition::WRITE] = MC_CH_PCI_PMON_CTL_EVENT(0x04) + MC_CH_PCI_PMON_CTL_UMASK(0x30); // monitor writes on counter 1: CAS_COUNT.WR
@@ -6493,7 +6548,7 @@ void ServerPCICFGUncore::program_power_metrics(int mc_profile)
 
     uint32 MCCntConfig[4] = {0,0,0,0};
     unsigned int UNC_M_POWER_CKE_CYCLES = 0x83;
-    if (cpu_model == PCM::ICX)
+    if (cpu_model == PCM::ICX || cpu_model == PCM::SNOWRIDGE)
     {
         UNC_M_POWER_CKE_CYCLES = 0x47;
     }
@@ -6985,7 +7040,7 @@ uint64 PCM::CX_MSR_PMON_CTRY(uint32 Cbo, uint32 Ctr) const
     {
         return HSX_C0_MSR_PMON_CTR0 + ((HSX_CBO_MSR_STEP)*Cbo) + Ctr;
     }
-    else if (ICX == cpu_model)
+    else if (ICX == cpu_model || SNOWRIDGE == cpu_model)
     {
         return CX_MSR_PMON_BOX_CTL(Cbo) + SERVER_CHA_MSR_PMON_CTR0_OFFSET + Ctr;
     }
@@ -7036,7 +7091,7 @@ uint64 PCM::CX_MSR_PMON_CTLY(uint32 Cbo, uint32 Ctl) const
     {
         return HSX_C0_MSR_PMON_CTL0 + ((HSX_CBO_MSR_STEP)*Cbo) + Ctl;
     }
-    else if (ICX == cpu_model)
+    else if (ICX == cpu_model || SNOWRIDGE == cpu_model)
     {
         return CX_MSR_PMON_BOX_CTL(Cbo) + SERVER_CHA_MSR_PMON_CTL0_OFFSET + Ctl;
     }
@@ -7060,6 +7115,10 @@ uint64 PCM::CX_MSR_PMON_BOX_CTL(uint32 Cbo) const
     {
         return ICX_CHA_MSR_PMON_BOX_CTL[Cbo];
     }
+    else if (SNOWRIDGE == cpu_model)
+    {
+        return SNR_CHA_MSR_PMON_BOX_CTL[Cbo];
+    }
     return 0;
 }
 
@@ -7082,6 +7141,10 @@ uint32 PCM::getMaxNumOfCBoxes() const
         uint32 NCUPMONConfig = 0x702;
         MSR[refCore]->read(NCUPMONConfig, &val);
         num = (uint32)(val & 63);
+    }
+    else if (SNOWRIDGE == cpu_model)
+    {
+        num = (uint32)num_phys_cores_per_socket / 4;
     }
     else
     {
@@ -7135,12 +7198,24 @@ void PCM::programIIOCounters(uint64 rawEvents[4], int IIOStack)
     std::vector<int32> IIO_units;
     if (IIOStack == -1)
     {
-        IIO_units.push_back((int32)IIO_CBDMA);
-        IIO_units.push_back((int32)IIO_PCIe0);
-        IIO_units.push_back((int32)IIO_PCIe1);
-        IIO_units.push_back((int32)IIO_PCIe2);
-        IIO_units.push_back((int32)IIO_MCP0);
-        IIO_units.push_back((int32)IIO_MCP1);
+        int stacks_count;
+        switch (getCPUModel())
+        {
+        case PCM::ICX:
+            stacks_count = ICX_IIO_STACK_COUNT;
+            break;
+        case PCM::SNOWRIDGE:
+            stacks_count = SNR_IIO_STACK_COUNT;
+            break;
+        case PCM::SKX:
+        default:
+            stacks_count = SKX_IIO_STACK_COUNT;
+            break;
+        }
+        IIO_units.reserve(stacks_count);
+        for (int stack = 0; stack < stacks_count; ++stack) {
+            IIO_units.push_back(stack);
+        }
     }
     else
         IIO_units.push_back(IIOStack);
@@ -7174,6 +7249,7 @@ void PCM::programPCIeEventGroup(eventGroup_t &eventGroup)
     switch (cpu_model)
     {
         case PCM::ICX:
+        case PCM::SNOWRIDGE:
             for (uint32 idx = 0; idx < eventGroup.size(); ++idx)
                 events[idx] = eventGroup[idx];
             programCbo(events);
@@ -7221,7 +7297,7 @@ void PCM::programCbo(const uint64 * events, const uint32 opCode, const uint32 nc
         {
             cboPMUs[i][cbo].initFreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
 
-            if (ICX != cpu_model)
+            if (ICX != cpu_model && SNOWRIDGE != cpu_model)
                 programCboOpcodeFilter(opCode, cboPMUs[i][cbo], nc_, 0, loc, rem);
 
             if((HASWELLX == cpu_model || BDX_DE == cpu_model || BDX == cpu_model || SKX == cpu_model) && llc_lookup_tid_filter != 0)
@@ -7327,17 +7403,23 @@ void PCM::initLLCReadMissLatencyEvents(uint64 * events, uint32 & opCode)
     switch (cpu_model)
     {
         case ICX:
+        case SNOWRIDGE:
             umask = 1ULL;
             break;
         case SKX:
             umask = (uint64)(SKX_CHA_TOR_INSERTS_UMASK_IRQ(1)) + (uint64)(SKX_CHA_TOR_INSERTS_UMASK_MISS(1));
-	    break;
+            break;
     }
 
     uint64 umask_ext = 0;
-    if (ICX == cpu_model)
+    switch (cpu_model)
     {
-        umask_ext = 0xC817FE;
+        case ICX:
+            umask_ext = 0xC817FE;
+            break;
+        case SNOWRIDGE:
+            umask_ext = 0xC827FE;
+            break;
     }
 
     const uint64 all_umasks = CBO_MSR_PMON_CTL_UMASK(umask) + UNC_PMON_CTL_UMASK_EXT(umask_ext);
