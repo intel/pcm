@@ -94,6 +94,7 @@ IPlatform *IPlatform::getPlatform(PCM *m, bool csv, bool print_bandwidth, bool p
 {
     switch (m->getCPUModel()) {
         case PCM::ICX:
+        case PCM::SNOWRIDGE:
             return new WhitleyPlatform(m, csv, print_bandwidth, print_additional_info, delay);
         case PCM::SKX:
             return new PurleyPlatform(m, csv, print_bandwidth, print_additional_info, delay);

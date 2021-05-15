@@ -404,13 +404,13 @@ int main(int argc, char * argv[])
                           << "; PCUClocks: " << getPCUClocks(BeforeState[socket], AfterState[socket])
                           << "; Thermal freq limit cycles: " << getNormalizedPCUCounter(1, BeforeState[socket], AfterState[socket]) * 100. << " %"
                           << "; Power freq limit cycles:" << getNormalizedPCUCounter(2, BeforeState[socket], AfterState[socket]) * 100. << " %";
-                if(cpu_model != PCM::SKX && cpu_model != PCM::ICX)
+                if(cpu_model != PCM::SKX && cpu_model != PCM::ICX && cpu_model != PCM::SNOWRIDGE)
                     cout << "; Clipped freq limit cycles:" << getNormalizedPCUCounter(3, BeforeState[socket], AfterState[socket]) * 100. << " %";
                 cout << "\n";
                 break;
 
             case 4:
-                if (cpu_model == PCM::SKX || cpu_model == PCM::ICX)
+                if (cpu_model == PCM::SKX || cpu_model == PCM::ICX || cpu_model == PCM::SNOWRIDGE)
                 {
                     cout << "This PCU profile is not supported on your processor\n";
                     break;
@@ -440,7 +440,7 @@ int main(int argc, char * argv[])
                     cout << "; PC1e+ residency: " << getNormalizedPCUCounter(0, BeforeState[socket], AfterState[socket], m) * 100. << " %"
                         "; PC1e+ transition count: " << getPCUCounter(1, BeforeState[socket], AfterState[socket]) << " ";
 
-                if (cpu_model == PCM::IVYTOWN || cpu_model == PCM::HASWELLX || PCM::BDX_DE == cpu_model || PCM::SKX == cpu_model || PCM::ICX == cpu_model)
+                if (cpu_model == PCM::IVYTOWN || cpu_model == PCM::HASWELLX || PCM::BDX_DE == cpu_model || PCM::SKX == cpu_model || PCM::ICX == cpu_model || cpu_model == PCM::SNOWRIDGE)
                 {
                     cout << "; PC2 residency: " << getPackageCStateResidency(2, BeforeState[socket], AfterState[socket]) * 100. << " %";
                     cout << "; PC2 transitions: " << getPCUCounter(2, BeforeState[socket], AfterState[socket]) << " ";
