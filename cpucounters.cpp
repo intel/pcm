@@ -3882,29 +3882,33 @@ CoreCounterState getCoreCounterState(uint32 core)
 #ifdef PCM_USE_PERF
 void PCM::readPerfData(uint32 core, std::vector<uint64> & outData)
 {
-    if(perfEventHandle[core][PERF_GROUP_LEADER_COUNTER] < 0)
+    auto readPerfDataHelper = [this](const uint32 core, std::vector<uint64>& outData, const uint32 leader, const uint32 num_counters)
     {
-        std::fill(outData.begin(), outData.end(), 0);
-        return;
-    }
-    uint64 data[1 + PERF_MAX_COUNTERS];
-    const auto num_counters = core_fixed_counter_num_used + core_gen_counter_num_used +
-        ((isHWTMAL1Supported() && perfSupportsTopDown()) ? PERF_TOPDOWN_COUNTERS : 0);
-    const int32 bytes2read =  sizeof(uint64)*(1 + num_counters);
-    int result = ::read(perfEventHandle[core][PERF_GROUP_LEADER_COUNTER], data, bytes2read );
-    // data layout: nr counters; counter 0, counter 1, counter 2,...
-    if(result != bytes2read)
-    {
-       std::cerr << "Error while reading perf data. Result is " << result << "\n";
-       std::cerr << "Check if you run other competing Linux perf clients.\n";
-    } else if(data[0] != num_counters)
-    {
-       std::cerr << "Number of counters read from perf is wrong. Elements read: " << data[0] << "\n";
-    }
-    else
-    {  // copy all counters, they start from position 1 in data
-       std::copy((data + 1), (data + 1) + data[0], outData.begin());
-    }
+        if (perfEventHandle[core][leader] < 0)
+        {
+            std::fill(outData.begin(), outData.end(), 0);
+            return;
+        }
+        uint64 data[1 + PERF_MAX_COUNTERS];
+        const int32 bytes2read = sizeof(uint64) * (1 + num_counters);
+        int result = ::read(perfEventHandle[core][leader], data, bytes2read);
+        // data layout: nr counters; counter 0, counter 1, counter 2,...
+        if (result != bytes2read)
+        {
+            std::cerr << "Error while reading perf data. Result is " << result << "\n";
+            std::cerr << "Check if you run other competing Linux perf clients.\n";
+        }
+        else if (data[0] != num_counters)
+        {
+            std::cerr << "Number of counters read from perf is wrong. Elements read: " << data[0] << "\n";
+        }
+        else
+        {  // copy all counters, they start from position 1 in data
+            std::copy((data + 1), (data + 1) + data[0], outData.begin());
+        }
+    };
+    readPerfDataHelper(core, outData, PERF_GROUP_LEADER_COUNTER, core_fixed_counter_num_used + core_gen_counter_num_used +
+        ((isHWTMAL1Supported() && perfSupportsTopDown()) ? PERF_TOPDOWN_COUNTERS : 0));
 }
 #endif
 
