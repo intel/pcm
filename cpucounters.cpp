@@ -2910,6 +2910,7 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
                                           std::make_pair(perfFrontEndPath, PERF_TOPDOWN_FRONTEND_POS),
                                           std::make_pair(perfRetiringPath, PERF_TOPDOWN_RETIRING_POS)};
             int readPos = core_fixed_counter_num_used + core_gen_counter_num_used;
+            leader_counter = -1;
             for (auto event : topDownEvents)
             {
                 uint64 eventSel = 0, umask = 0;
@@ -2934,6 +2935,7 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
                 {
                     return PCM::UnknownError;
                 }
+                leader_counter = perfEventHandle[i][PERF_TOPDOWN_SLOTS_POS];
                 perfTopDownPos[event.second] = readPos++;
             }
         }
@@ -3907,8 +3909,13 @@ void PCM::readPerfData(uint32 core, std::vector<uint64> & outData)
             std::copy((data + 1), (data + 1) + data[0], outData.begin());
         }
     };
-    readPerfDataHelper(core, outData, PERF_GROUP_LEADER_COUNTER, core_fixed_counter_num_used + core_gen_counter_num_used +
-        ((isHWTMAL1Supported() && perfSupportsTopDown()) ? PERF_TOPDOWN_COUNTERS : 0));
+    readPerfDataHelper(core, outData, PERF_GROUP_LEADER_COUNTER, core_fixed_counter_num_used + core_gen_counter_num_used);
+    if (isHWTMAL1Supported() && perfSupportsTopDown())
+    {
+        std::vector<uint64> outTopDownData(outData.size(), 0);
+        readPerfDataHelper(core, outTopDownData, PERF_TOPDOWN_GROUP_LEADER_COUNTER, PERF_TOPDOWN_COUNTERS);
+        std::copy(outTopDownData.begin(), outTopDownData.begin() + PERF_TOPDOWN_COUNTERS, outData.begin() + core_fixed_counter_num_used + core_gen_counter_num_used);
+    }
 }
 #endif
 

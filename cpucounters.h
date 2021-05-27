@@ -852,7 +852,8 @@ private:
     std::unordered_map<int, int> perfTopDownPos;
 
     enum {
-        PERF_GROUP_LEADER_COUNTER = PERF_INST_RETIRED_POS
+        PERF_GROUP_LEADER_COUNTER = PERF_INST_RETIRED_POS,
+        PERF_TOPDOWN_GROUP_LEADER_COUNTER = PERF_TOPDOWN_SLOTS_POS
     };
 #endif
     std::ofstream * outfile;       // output file stream
