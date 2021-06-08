@@ -3409,7 +3409,13 @@ bool PCM::PMUinUse()
 
             if (event_select_reg.fields.event_select != 0 || event_select_reg.fields.apic_int != 0)
             {
-                std::cerr << "WARNING: Core " << i <<" IA32_PERFEVTSEL0_ADDR is not zeroed " << event_select_reg.value << "\n";
+                std::cerr << "WARNING: Core " << i <<" IA32_PERFEVTSEL" << j << "_ADDR is not zeroed " << event_select_reg.value << "\n";
+
+                if (needToRestoreNMIWatchdog == true && event_select_reg.fields.event_select == 0x3C && event_select_reg.fields.umask == 0)
+                {
+                    // NMI watchdog did not clear its event, ignore it
+                    continue;
+                }
                 return true;
             }
         }
