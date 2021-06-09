@@ -3431,7 +3431,10 @@ bool PCM::PMUinUse()
         if(ctrl_reg.fields.enable_pmi0 || ctrl_reg.fields.enable_pmi1 || ctrl_reg.fields.enable_pmi2)
         {
             std::cerr << "WARNING: Core " << i << " fixed ctrl:" << ctrl_reg.value << "\n";
-            return true;
+            if (needToRestoreNMIWatchdog == false) // if NMI watchdog did not clear the fields, ignore it
+            {
+                return true;
+            }
         }
         // either os=0,usr=0 (not running) or os=1,usr=1 (fits PCM modus) are ok, other combinations are not
         if(ctrl_reg.fields.os0 != ctrl_reg.fields.usr0 ||
