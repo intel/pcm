@@ -1315,6 +1315,7 @@ public:
         CML_1 = 165,
         ICL = 126,
         ICL_1 = 125,
+        RKL = 167,
         TGL = 140,
         TGL_1 = 141,
         BDX = 79,
@@ -1332,6 +1333,7 @@ public:
         case PCM::KBL_1:   \
         case PCM::CML:     \
         case PCM::ICL:     \
+        case PCM::RKL:     \
         case PCM::TGL:     \
         case PCM::SKL:
 
@@ -1499,7 +1501,7 @@ public:
     //! \return max number of instructions per cycle
     uint32 getMaxIPC() const
     {
-        if (ICL == cpu_model || TGL == cpu_model) return 5;
+        if (ICL == cpu_model || TGL == cpu_model || RKL == cpu_model) return 5;
         switch (cpu_model)
         {
         case SNOWRIDGE:
