@@ -619,6 +619,7 @@ void print_csv_header(PCM * m,
                 print_csv_header_helper(header,2);
             if (m->MCDRAMmemoryTrafficMetricsAvailable())
                 print_csv_header_helper(header,2);
+            print_csv_header_helper(header,7); //ACYC,TIME(ticks),PhysIPC,PhysIPC%,INSTnom,INSTnom%,
         }
 
         if (m->getNumSockets() > 1 && (m->incomingQPITrafficMetricsAvailable())) // QPI info only for multi socket systems
@@ -702,6 +703,7 @@ void print_csv_header(PCM * m,
                 if (m->isCoreCStateResidencySupported(s))
                     print_csv_header_helper(header);
             print_csv_header_helper(header);// TEMP
+            print_csv_header_helper(header,7); //ACYC,TIME(ticks),PhysIPC,PhysIPC%,INSTnom,INSTnom%,
         }
     }
 
@@ -768,6 +770,7 @@ void print_csv_header(PCM * m,
              if (m->MCDRAMmemoryTrafficMetricsAvailable())
                  cout << "MCDRAM_READ,MCDRAM_WRITE,";
              cout << "TEMP,";
+             cout << "INST,ACYC,TIME(ticks),PhysIPC,PhysIPC%,INSTnom,INSTnom%,";
         }
 
         if (m->getNumSockets() > 1 && (m->incomingQPITrafficMetricsAvailable())) // QPI info only for multi socket systems
@@ -845,6 +848,7 @@ void print_csv_header(PCM * m,
                     cout << "C" << s << "res%,";
 
             cout << "TEMP,";
+            cout << "INST,ACYC,TIME(ticks),PhysIPC,PhysIPC%,INSTnom,INSTnom%,";
         }
     }
 }
@@ -993,6 +997,16 @@ void print_csv(PCM * m,
                 cout << ',' << getBytesReadFromEDC(sktstate1[i], sktstate2[i]) / double(1e9) <<
                 ',' << getBytesWrittenToEDC(sktstate1[i], sktstate2[i]) / double(1e9);
             cout << ',' << temp_format(sktstate2[i].getThermalHeadroom()) << ',';
+
+            cout << float_format(getInstructionsRetired(sktstate1[i], sktstate2[i])) << ","
+                << float_format(getCycles(sktstate1[i], sktstate2[i])) << ","
+                // FIXME: Wrong counters
+                << float_format(getInvariantTSC(cstates1[0], cstates2[0])) << ","
+                << getCoreIPC(sktstate1[i], sktstate2[i]) << ","
+                << 100. * (getCoreIPC(sktstate1[i], sktstate2[i]) / double(m->getMaxIPC())) << ","
+                << getTotalExecUsage(sktstate1[i], sktstate2[i]) << ","
+                << 100. * (getTotalExecUsage(sktstate1[i], sktstate2[i]) / double(m->getMaxIPC())) << ",";
+
         }
 
         if (m->getNumSockets() > 1 && (m->incomingQPITrafficMetricsAvailable())) // QPI info only for multi socket systems
@@ -1068,6 +1082,15 @@ void print_csv(PCM * m,
                     cout << getCoreCStateResidency(s, cstates1[i], cstates2[i]) * 100 << ",";
 
             cout << temp_format(cstates2[i].getThermalHeadroom()) << ',';
+
+            cout << float_format(getInstructionsRetired(cstates1[i], cstates2[i])) << ","
+                << float_format(getCycles(cstates1[i], cstates2[i])) << ","
+                // FIXME: Wrong counters
+                << float_format(getInvariantTSC(cstates1[0], cstates2[0])) << ","
+                << getCoreIPC(cstates1[i], cstates2[i]) << ","
+                << 100. * (getCoreIPC(cstates1[i], cstates2[i]) / double(m->getMaxIPC())) << ","
+                << getTotalExecUsage(cstates1[i], cstates2[i]) << ","
+                << 100. * (getTotalExecUsage(cstates1[i], cstates2[i]) / double(m->getMaxIPC())) << ",";
         }
     }
 }
