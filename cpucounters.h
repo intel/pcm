@@ -3045,7 +3045,8 @@ uint64 getCycles(const CounterStateType & now) // clocks
     \param after CPU counter state after the experiment
     \return IPC
 */
-inline double getCoreIPC(const SystemCounterState & before, const SystemCounterState & after) // instructions per cycle
+template <class CounterStateType>
+inline double getCoreIPC(const CounterStateType & before, const CounterStateType & after) // instructions per cycle
 {
     double ipc = getIPC(before, after);
     PCM * m = PCM::getInstance();
@@ -3053,7 +3054,6 @@ inline double getCoreIPC(const SystemCounterState & before, const SystemCounterS
         return ipc * double(m->getThreadsPerCore());
     return -1;
 }
-
 
 /*! \brief Computes average number of retired instructions per time intervall for the entire system combining instruction counts from logical cores to corresponding physical cores
 
@@ -3063,7 +3063,8 @@ inline double getCoreIPC(const SystemCounterState & before, const SystemCounterS
     \param after CPU counter state after the experiment
     \return usage
 */
-inline double getTotalExecUsage(const SystemCounterState & before, const SystemCounterState & after) // usage
+template <class CounterStateType>
+inline double getTotalExecUsage(const CounterStateType & before, const CounterStateType & after) // usage
 {
     double usage = getExecUsage(before, after);
     PCM * m = PCM::getInstance();
