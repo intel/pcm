@@ -654,12 +654,14 @@ uint64 GrantleyPlatform::event(uint socket, eventFilter filter, uint idx)
 {
     uint64 event = 0;
     if(filter == HIT)
-        event = eventSample[socket][2 * idx + 1] -
-                eventSample[socket][2 * idx];
-        else if (filter == MISS)
-            event = eventSample[socket][2 * idx];
-        else if (filter == TOTAL)
-            event = eventSample[socket][2 * idx + 1];
+        if (eventSample[socket][2 * idx] < eventSample[socket][2 * idx + 1])
+            event = eventSample[socket][2 * idx + 1] - eventSample[socket][2 * idx];
+        else
+            event = 0;
+    else if (filter == MISS)
+        event = eventSample[socket][2 * idx];
+    else if (filter == TOTAL)
+        event = eventSample[socket][2 * idx + 1];
 
     return event;
 }
@@ -761,13 +763,14 @@ uint64 BromolowPlatform::event(uint socket, eventFilter filter, uint idx)
 {
     uint64 event = 0;
     if(filter == HIT)
-        event = eventSample[socket][2 * idx + 1] -
-                eventSample[socket][2 * idx];
-        else if (filter == MISS)
-            event = eventSample[socket][2 * idx];
-        else if (filter == TOTAL)
-            event = eventSample[socket][2 * idx + 1];
-
+        if (eventSample[socket][2 * idx] < eventSample[socket][2 * idx + 1])
+            event = eventSample[socket][2 * idx + 1] - eventSample[socket][2 * idx];
+        else
+            event = 0;
+    else if (filter == MISS)
+        event = eventSample[socket][2 * idx];
+    else if (filter == TOTAL)
+        event = eventSample[socket][2 * idx + 1];
 
     return event;
 }
