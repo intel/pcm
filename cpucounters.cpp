@@ -216,7 +216,7 @@ public:
 class TemporalThreadAffinity  // speedup trick for Linux, FreeBSD, DragonFlyBSD, Windows
 {
     TemporalThreadAffinity(); // forbiden
-#if defined(__linux__) || defined(__FreeBSD__) || (defined(__DragonFly__) && __DragonFly_version >= 400707)
+#if defined(__FreeBSD__) || (defined(__DragonFly__) && __DragonFly_version >= 400707)
     cpu_set_t old_affinity;
 
 public:
@@ -237,6 +237,38 @@ public:
     ~TemporalThreadAffinity()
     {
         pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &old_affinity);
+    }
+    bool supported() const { return true; }
+
+#elif defined(__linux__)
+    cpu_set_t * old_affinity;
+    static constexpr auto maxCPUs = 8192;
+    const size_t set_size;
+
+public:
+    TemporalThreadAffinity(const uint32 core_id, bool checkStatus = true)
+        : set_size(CPU_ALLOC_SIZE(maxCPUs))
+    {
+        old_affinity = CPU_ALLOC(maxCPUs);
+        assert(old_affinity);
+        pthread_getaffinity_np(pthread_self(), set_size, old_affinity);
+
+        cpu_set_t * new_affinity = CPU_ALLOC(maxCPUs);
+        assert(new_affinity);
+        CPU_ZERO_S(set_size, new_affinity);
+        CPU_SET_S(core_id, set_size, new_affinity);
+        const auto res = pthread_setaffinity_np(pthread_self(), set_size, new_affinity);
+        CPU_FREE(new_affinity);
+        if (res != 0 && checkStatus)
+        {
+            std::cerr << "ERROR: pthread_setaffinity_np for core " << core_id << " failed with code " << res << "\n";
+            throw std::exception();
+        }
+    }
+    ~TemporalThreadAffinity()
+    {
+        pthread_setaffinity_np(pthread_self(), set_size, old_affinity);
+        CPU_FREE(old_affinity);
     }
     bool supported() const { return true; }
 #elif defined(_MSC_VER)
