@@ -3,7 +3,7 @@ name: Docker Build
 on:
   push:
     branches: 
-        - test-github-docker-build
+        - master
 
 jobs:
   build:
@@ -44,6 +44,6 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: |
-            opcm/pcm:test-github-docker-build
+            opcm/pcm:latest
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache
