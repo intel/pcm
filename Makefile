@@ -131,6 +131,7 @@ install: all
 	install -m 755 pcm-lspci.x                ${prefix}/sbin/pcm-lspci
 	install -m 755 pcm-memory.x               ${prefix}/sbin/pcm-memory
 	install -m 755 pcm-msr.x                  ${prefix}/sbin/pcm-msr
+	install -m 755 pcm-mmio.x                 ${prefix}/sbin/pcm-mmio
 	install -m 755 pcm-numa.x                 ${prefix}/sbin/pcm-numa
 	install -m 755 pcm-pcicfg.x               ${prefix}/sbin/pcm-pcicfg
 	install -m 755 pcm-pcie.x                 ${prefix}/sbin/pcm-pcie
