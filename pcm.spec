@@ -43,6 +43,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_sbindir}/pcm-lspci
 %{_sbindir}/pcm-memory
 %{_sbindir}/pcm-msr
+%{_sbindir}/pcm-mmio
 %{_sbindir}/pcm-numa
 %{_sbindir}/pcm-pcicfg
 %{_sbindir}/pcm-pcie
