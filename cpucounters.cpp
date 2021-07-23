@@ -216,7 +216,7 @@ public:
 class TemporalThreadAffinity  // speedup trick for Linux, FreeBSD, DragonFlyBSD, Windows
 {
     TemporalThreadAffinity(); // forbiden
-#if defined(__linux__) || defined(__FreeBSD__) || (defined(__DragonFly__) && __DragonFly_version >= 400707)
+#if defined(__FreeBSD__) || (defined(__DragonFly__) && __DragonFly_version >= 400707)
     cpu_set_t old_affinity;
 
 public:
@@ -237,6 +237,38 @@ public:
     ~TemporalThreadAffinity()
     {
         pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &old_affinity);
+    }
+    bool supported() const { return true; }
+
+#elif defined(__linux__)
+    cpu_set_t * old_affinity;
+    static constexpr auto maxCPUs = 8192;
+    const size_t set_size;
+
+public:
+    TemporalThreadAffinity(const uint32 core_id, bool checkStatus = true)
+        : set_size(CPU_ALLOC_SIZE(maxCPUs))
+    {
+        old_affinity = CPU_ALLOC(maxCPUs);
+        assert(old_affinity);
+        pthread_getaffinity_np(pthread_self(), set_size, old_affinity);
+
+        cpu_set_t * new_affinity = CPU_ALLOC(maxCPUs);
+        assert(new_affinity);
+        CPU_ZERO_S(set_size, new_affinity);
+        CPU_SET_S(core_id, set_size, new_affinity);
+        const auto res = pthread_setaffinity_np(pthread_self(), set_size, new_affinity);
+        CPU_FREE(new_affinity);
+        if (res != 0 && checkStatus)
+        {
+            std::cerr << "ERROR: pthread_setaffinity_np for core " << core_id << " failed with code " << res << "\n";
+            throw std::exception();
+        }
+    }
+    ~TemporalThreadAffinity()
+    {
+        pthread_setaffinity_np(pthread_self(), set_size, old_affinity);
+        CPU_FREE(old_affinity);
     }
     bool supported() const { return true; }
 #elif defined(_MSC_VER)
@@ -1091,7 +1123,7 @@ bool PCM::discoverSystemTopology()
 
     auto populateEntry = [&smtMaskWidth, &coreMaskWidth, &l2CacheMaskShift](TopologyEntry & entry, const int apic_id)
     {
-        entry.thread_id = extract_bits_ui(apic_id, 0, smtMaskWidth - 1);
+        entry.thread_id = smtMaskWidth ? extract_bits_ui(apic_id, 0, smtMaskWidth - 1) : 0;
         entry.core_id = extract_bits_ui(apic_id, smtMaskWidth, smtMaskWidth + coreMaskWidth - 1);
         entry.socket = extract_bits_ui(apic_id, smtMaskWidth + coreMaskWidth, 31);
         entry.tile_id = extract_bits_ui(apic_id, l2CacheMaskShift, 31);
@@ -2214,6 +2246,7 @@ bool PCM::isCPUModelSupported(const int model_)
             || model_ == KBL_1
             || model_ == CML
             || model_ == ICL
+            || model_ == RKL
             || model_ == TGL
             || model_ == SKX
             || model_ == ICX
@@ -2910,6 +2943,7 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
                                           std::make_pair(perfFrontEndPath, PERF_TOPDOWN_FRONTEND_POS),
                                           std::make_pair(perfRetiringPath, PERF_TOPDOWN_RETIRING_POS)};
             int readPos = core_fixed_counter_num_used + core_gen_counter_num_used;
+            leader_counter = -1;
             for (auto event : topDownEvents)
             {
                 uint64 eventSel = 0, umask = 0;
@@ -2934,6 +2968,7 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
                 {
                     return PCM::UnknownError;
                 }
+                leader_counter = perfEventHandle[i][PERF_TOPDOWN_SLOTS_POS];
                 perfTopDownPos[event.second] = readPos++;
             }
         }
@@ -3407,7 +3442,13 @@ bool PCM::PMUinUse()
 
             if (event_select_reg.fields.event_select != 0 || event_select_reg.fields.apic_int != 0)
             {
-                std::cerr << "WARNING: Core " << i <<" IA32_PERFEVTSEL0_ADDR is not zeroed " << event_select_reg.value << "\n";
+                std::cerr << "WARNING: Core " << i <<" IA32_PERFEVTSEL" << j << "_ADDR is not zeroed " << event_select_reg.value << "\n";
+
+                if (needToRestoreNMIWatchdog == true && event_select_reg.fields.event_select == 0x3C && event_select_reg.fields.umask == 0)
+                {
+                    // NMI watchdog did not clear its event, ignore it
+                    continue;
+                }
                 return true;
             }
         }
@@ -3423,7 +3464,10 @@ bool PCM::PMUinUse()
         if(ctrl_reg.fields.enable_pmi0 || ctrl_reg.fields.enable_pmi1 || ctrl_reg.fields.enable_pmi2)
         {
             std::cerr << "WARNING: Core " << i << " fixed ctrl:" << ctrl_reg.value << "\n";
-            return true;
+            if (needToRestoreNMIWatchdog == false) // if NMI watchdog did not clear the fields, ignore it
+            {
+                return true;
+            }
         }
         // either os=0,usr=0 (not running) or os=1,usr=1 (fits PCM modus) are ok, other combinations are not
         if(ctrl_reg.fields.os0 != ctrl_reg.fields.usr0 ||
@@ -3505,6 +3549,8 @@ const char * PCM::getUArchCodename(const int32 cpu_model_param) const
             return "Comet Lake";
         case ICL:
             return "Icelake";
+        case RKL:
+            return "Rocket Lake";
         case TGL:
             return "Tiger Lake";
         case SKX:
@@ -3882,28 +3928,37 @@ CoreCounterState getCoreCounterState(uint32 core)
 #ifdef PCM_USE_PERF
 void PCM::readPerfData(uint32 core, std::vector<uint64> & outData)
 {
-    if(perfEventHandle[core][PERF_GROUP_LEADER_COUNTER] < 0)
+    auto readPerfDataHelper = [this](const uint32 core, std::vector<uint64>& outData, const uint32 leader, const uint32 num_counters)
     {
-        std::fill(outData.begin(), outData.end(), 0);
-        return;
-    }
-    uint64 data[1 + PERF_MAX_COUNTERS];
-    const auto num_counters = core_fixed_counter_num_used + core_gen_counter_num_used +
-        ((isHWTMAL1Supported() && perfSupportsTopDown()) ? PERF_TOPDOWN_COUNTERS : 0);
-    const int32 bytes2read =  sizeof(uint64)*(1 + num_counters);
-    int result = ::read(perfEventHandle[core][PERF_GROUP_LEADER_COUNTER], data, bytes2read );
-    // data layout: nr counters; counter 0, counter 1, counter 2,...
-    if(result != bytes2read)
+        if (perfEventHandle[core][leader] < 0)
+        {
+            std::fill(outData.begin(), outData.end(), 0);
+            return;
+        }
+        uint64 data[1 + PERF_MAX_COUNTERS];
+        const int32 bytes2read = sizeof(uint64) * (1 + num_counters);
+        int result = ::read(perfEventHandle[core][leader], data, bytes2read);
+        // data layout: nr counters; counter 0, counter 1, counter 2,...
+        if (result != bytes2read)
+        {
+            std::cerr << "Error while reading perf data. Result is " << result << "\n";
+            std::cerr << "Check if you run other competing Linux perf clients.\n";
+        }
+        else if (data[0] != num_counters)
+        {
+            std::cerr << "Number of counters read from perf is wrong. Elements read: " << data[0] << "\n";
+        }
+        else
+        {  // copy all counters, they start from position 1 in data
+            std::copy((data + 1), (data + 1) + data[0], outData.begin());
+        }
+    };
+    readPerfDataHelper(core, outData, PERF_GROUP_LEADER_COUNTER, core_fixed_counter_num_used + core_gen_counter_num_used);
+    if (isHWTMAL1Supported() && perfSupportsTopDown())
     {
-       std::cerr << "Error while reading perf data. Result is " << result << "\n";
-       std::cerr << "Check if you run other competing Linux perf clients.\n";
-    } else if(data[0] != num_counters)
-    {
-       std::cerr << "Number of counters read from perf is wrong. Elements read: " << data[0] << "\n";
-    }
-    else
-    {  // copy all counters, they start from position 1 in data
-       std::copy((data + 1), (data + 1) + data[0], outData.begin());
+        std::vector<uint64> outTopDownData(outData.size(), 0);
+        readPerfDataHelper(core, outTopDownData, PERF_TOPDOWN_GROUP_LEADER_COUNTER, PERF_TOPDOWN_COUNTERS);
+        std::copy(outTopDownData.begin(), outTopDownData.begin() + PERF_TOPDOWN_COUNTERS, outData.begin() + core_fixed_counter_num_used + core_gen_counter_num_used);
     }
 }
 #endif

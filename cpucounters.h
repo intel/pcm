@@ -852,7 +852,8 @@ private:
     std::unordered_map<int, int> perfTopDownPos;
 
     enum {
-        PERF_GROUP_LEADER_COUNTER = PERF_INST_RETIRED_POS
+        PERF_GROUP_LEADER_COUNTER = PERF_INST_RETIRED_POS,
+        PERF_TOPDOWN_GROUP_LEADER_COUNTER = PERF_TOPDOWN_SLOTS_POS
     };
 #endif
     std::ofstream * outfile;       // output file stream
@@ -1314,6 +1315,7 @@ public:
         CML_1 = 165,
         ICL = 126,
         ICL_1 = 125,
+        RKL = 167,
         TGL = 140,
         TGL_1 = 141,
         BDX = 79,
@@ -1331,6 +1333,7 @@ public:
         case PCM::KBL_1:   \
         case PCM::CML:     \
         case PCM::ICL:     \
+        case PCM::RKL:     \
         case PCM::TGL:     \
         case PCM::SKL:
 
@@ -1498,7 +1501,7 @@ public:
     //! \return max number of instructions per cycle
     uint32 getMaxIPC() const
     {
-        if (ICL == cpu_model || TGL == cpu_model) return 5;
+        if (ICL == cpu_model || TGL == cpu_model || RKL == cpu_model) return 5;
         switch (cpu_model)
         {
         case SNOWRIDGE:
@@ -3042,7 +3045,8 @@ uint64 getCycles(const CounterStateType & now) // clocks
     \param after CPU counter state after the experiment
     \return IPC
 */
-inline double getCoreIPC(const SystemCounterState & before, const SystemCounterState & after) // instructions per cycle
+template <class CounterStateType>
+inline double getCoreIPC(const CounterStateType & before, const CounterStateType & after) // instructions per cycle
 {
     double ipc = getIPC(before, after);
     PCM * m = PCM::getInstance();
@@ -3050,7 +3054,6 @@ inline double getCoreIPC(const SystemCounterState & before, const SystemCounterS
         return ipc * double(m->getThreadsPerCore());
     return -1;
 }
-
 
 /*! \brief Computes average number of retired instructions per time intervall for the entire system combining instruction counts from logical cores to corresponding physical cores
 
@@ -3060,7 +3063,8 @@ inline double getCoreIPC(const SystemCounterState & before, const SystemCounterS
     \param after CPU counter state after the experiment
     \return usage
 */
-inline double getTotalExecUsage(const SystemCounterState & before, const SystemCounterState & after) // usage
+template <class CounterStateType>
+inline double getTotalExecUsage(const CounterStateType & before, const CounterStateType & after) // usage
 {
     double usage = getExecUsage(before, after);
     PCM * m = PCM::getInstance();
