@@ -37,7 +37,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 using namespace std;
 using namespace pcm;
 
-#define PCM_DELAY_DEFAULT 3000 // in milliseconds
+#define PCM_DELAY_DEFAULT 3.0 // in seconds
 
 #define QAT_DID 0x18DA
 #define NIS_DID 0x18D1
@@ -1033,9 +1033,9 @@ result_content get_IIO_Samples(PCM *m, const std::vector<struct iio_stacks_on_so
     return results;
 }
 
-void collect_data(PCM *m, const uint32_t delay, vector<struct iio_stacks_on_socket>& iios, vector<struct counter>& ctrs)
+void collect_data(PCM *m, const double delay, vector<struct iio_stacks_on_socket>& iios, vector<struct counter>& ctrs)
 {
-    uint32_t delay_ms = delay / ctrs.size();
+    const uint32_t delay_ms = uint32_t(delay * 1000 / ctrs.size());
     for (auto counter = ctrs.begin(); counter != ctrs.end(); ++counter) {
         counter->data.clear();
         result_content sample = get_IIO_Samples(m, iios, *counter, delay_ms);
@@ -1074,15 +1074,16 @@ void print_PCIeMapping(const std::vector<struct iio_stacks_on_socket>& iios, con
 void print_usage(const string progname)
 {
     cerr << "\n Usage: \n " << progname << " --help | [interval] [options] \n";
-    cerr << "   <interval>                           => time interval in ms to sample performance counters.\n";
-    cerr << "                                        If not specified - 3000 is used";
+    cerr << "   <interval>                           => time interval in seconds (floating point number is accepted)\n";
+    cerr << "                                        to sample performance counters.\n";
+    cerr << "                                        If not specified - 3.0 is used\n";
     cerr << " Supported <options> are: \n";
     cerr << "  -h    | --help  | /h               => print this help and exit\n";
     cerr << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or\n"
          << "                                        to a file, in case filename is provided\n";
     cerr << " Examples:\n";
-    cerr << "  " << progname << " 1000               => print counters every second\n";
-    cerr << "  " << progname << " 500 -csv=test.log  => twice a second save counter values to test.log in CSV format\n";
+    cerr << "  " << progname << " 1.0                => print counters every second\n";
+    cerr << "  " << progname << " 0.5 -csv=test.log  => twice a second save counter values to test.log in CSV format\n";
     cerr << "\n";
 }
 
@@ -1099,7 +1100,7 @@ int main(int argc, char * argv[])
     load_PCIDB(pciDB);
     bool csv = false;
     std::string output_file;
-    uint32_t delay = PCM_DELAY_DEFAULT;
+    double delay = PCM_DELAY_DEFAULT;
     PCM * m = PCM::getInstance();
 
     while (argc > 1) {
@@ -1127,12 +1128,19 @@ int main(int argc, char * argv[])
         {
             // any other options positional that is a floating point number is treated as <delay>,
             // while the other options are ignored with a warning issues to stderr
-            uint32_t delay_input;
+            double delay_input;
             istringstream is_str_stream(*argv);
             is_str_stream >> noskipws >> delay_input;
             if (is_str_stream.eof() && !is_str_stream.fail()) {
+                if (delay_input < 0) {
+                    cerr << "Unvalid delay specified: \"" << *argv << "\". Delay should be positive.\n"; 
+                    print_usage(program);
+                    exit(EXIT_FAILURE);
+                }
                 delay = delay_input;
-            } else {
+            }
+            else
+            {
                 cerr << "WARNING: unknown command-line option: \"" << *argv << "\". Ignoring it.\n";
                 print_usage(program);
                 exit(EXIT_FAILURE);
