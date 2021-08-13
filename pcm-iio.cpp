@@ -333,11 +333,71 @@ vector<string> build_display(vector<struct iio_stacks_on_socket>& iios, vector<s
     return buffer;
 }
 
-void display(const vector<string> &buff)
+std::string build_csv_row(const std::vector<std::string>& chunks, const std::string& delimiter)
+{
+    return std::accumulate(chunks.begin(), chunks.end(), std::string(""),
+                           [delimiter](const string &left, const string &right){
+                               return left.empty() ? right : left + delimiter + right;
+                           });
+}
+
+vector<string> build_csv(vector<struct iio_stacks_on_socket>& iios, vector<struct counter>& ctrs,
+    const bool human_readable, const std::string& csv_delimiter)
+{
+    vector<string> result;
+    vector<string> current_row;
+    auto header = combine_stack_name_and_counter_names("Name");
+    header.insert(header.begin(), "Socket");
+    result.push_back(build_csv_row(header, csv_delimiter));
+    std::map<uint32_t,map<uint32_t,struct counter*>> v_sort;
+    //re-organize data collection to be row wise
+    size_t max_name_width = 0;
+    for (std::vector<struct counter>::iterator counter = ctrs.begin(); counter != ctrs.end(); ++counter) {
+        v_sort[counter->v_id][counter->h_id] = &(*counter);
+        max_name_width = (std::max)(max_name_width, counter->v_event_name.size());
+    }
+
+    for (auto socket = iios.cbegin(); socket != iios.cend(); ++socket) {
+        for (auto stack = socket->stacks.cbegin(); stack != socket->stacks.cend(); ++stack) {
+            const std::string socket_name = "Socket" + std::to_string(socket->socket_id);
+
+            std::string stack_name = stack->stack_name;
+            if (!human_readable) {
+                stack_name.erase(stack_name.find_last_not_of(' ') + 1);
+            }
+
+            const uint32_t stack_id = stack->iio_unit_id;
+            //Print data
+            for (std::map<uint32_t,map<uint32_t,struct counter*>>::const_iterator vunit = v_sort.cbegin(); vunit != v_sort.cend(); ++vunit) {
+                map<uint32_t, struct counter*> h_array = vunit->second;
+                uint32_t vv_id = vunit->first;
+                vector<uint64_t> h_data;
+                string v_name = h_array[0]->v_event_name;
+                if (human_readable) {
+                    v_name += string(max_name_width - (v_name.size()), ' ');
+                }
+
+                current_row.clear();
+                current_row.push_back(socket_name);
+                current_row.push_back(stack_name);
+                current_row.push_back(v_name);
+                for (map<uint32_t,struct counter*>::const_iterator hunit = h_array.cbegin(); hunit != h_array.cend(); ++hunit) {
+                    uint32_t hh_id = hunit->first;
+                    uint64_t raw_data = hunit->second->data[0][socket->socket_id][stack_id][std::pair<h_id,v_id>(hh_id,vv_id)];
+                    current_row.push_back(human_readable ? unit_format(raw_data) : std::to_string(raw_data));
+                }
+                result.push_back(build_csv_row(current_row, csv_delimiter));
+            }
+        }
+    }
+    return result;
+}
+
+void display(const vector<string> &buff, std::ostream& stream)
 {
     for (std::vector<string>::const_iterator iunit = buff.begin(); iunit != buff.end(); ++iunit)
-        std::cout << *iunit << "\n";
-    std::cout << std::flush;
+        stream << *iunit << "\n";
+    stream << std::flush;
 }
 
 class IPlatformMapping {
@@ -983,9 +1043,9 @@ result_content get_IIO_Samples(PCM *m, const std::vector<struct iio_stacks_on_so
     return results;
 }
 
-void collect_data(PCM *m, vector<struct iio_stacks_on_socket>& iios, vector<struct counter>& ctrs)
+void collect_data(PCM *m, const double delay, vector<struct iio_stacks_on_socket>& iios, vector<struct counter>& ctrs)
 {
-    uint32_t delay_ms = (uint32_t)(PCM_DELAY_DEFAULT / ctrs.size() * 1000);
+    const uint32_t delay_ms = uint32_t(delay * 1000 / ctrs.size());
     for (auto counter = ctrs.begin(); counter != ctrs.end(); ++counter) {
         counter->data.clear();
         result_content sample = get_IIO_Samples(m, iios, *counter, delay_ms);
@@ -1021,18 +1081,121 @@ void print_PCIeMapping(const std::vector<struct iio_stacks_on_socket>& iios, con
     }
 }
 
-int main()
+bool check_argument_equals(const char* arg, std::initializer_list<const char*> arg_names)
+{
+    const auto arg_len = strlen(arg);
+    for (const auto arg_name: arg_names) {
+        if (arg_len == strlen(arg_name) && strncmp(arg, arg_name, arg_len) == 0) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool extract_argument_value(const char* arg, std::initializer_list<const char*> arg_names, std::string& value)
+{
+    const auto arg_len = strlen(arg);
+    for (const auto arg_name: arg_names) {
+        const auto arg_name_len = strlen(arg_name);
+        if (arg_len > arg_name_len && strncmp(arg, arg_name, arg_name_len) == 0 && arg[arg_name_len] == '=') {
+            value = arg + arg_name_len + 1;
+            const auto last_pos = value.find_last_not_of("\"");
+            if (last_pos != string::npos) {
+                value.erase(last_pos + 1);
+            }
+            const auto first_pos = value.find_first_not_of("\"");
+            if (first_pos != string::npos) {
+                value.erase(0, first_pos);
+            }
+
+            return true;
+        }
+    }
+
+    return false;
+}
+
+void print_usage(const string& progname)
+{
+    cerr << "\n Usage: \n " << progname << " --help | [interval] [options] \n";
+    cerr << "   <interval>                           => time interval in seconds (floating point number is accepted)\n";
+    cerr << "                                        to sample performance counters.\n";
+    cerr << "                                        If not specified - 3.0 is used\n";
+    cerr << " Supported <options> are: \n";
+    cerr << "  -h    | --help  | /h               => print this help and exit\n";
+    cerr << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or\n"
+         << "                                        to a file, in case filename is provided\n";
+    cerr << "  -csv-delimiter=<value>  | /csv-delimiter=<value>   => set custom csv delimiter\n";
+    cerr << "  -human-readable | /human-readable  => use human readable format for output (for csv only)\n";
+    cerr << " Examples:\n";
+    cerr << "  " << progname << " 1.0                   => print counters every second\n";
+    cerr << "  " << progname << " 0.5 -csv=test.log     => twice a second save counter values to test.log in CSV format\n";
+    cerr << "  " << progname << " -csv -human-readable  => every 3 second print counters in human-readable CSV format\n";
+    cerr << "\n";
+}
+
+int main(int argc, char * argv[])
 {
     set_signal_handlers();
     std::cout << "\n Processor Counter Monitor " << PCM_VERSION << "\n";
     std::cout << "\n This utility measures Skylake-SP IIO information\n\n";
 
+    string program = string(argv[0]);
+
     vector<struct counter> counters;
-    vector<string> display_buffer;
     PCIDB pciDB;
     load_PCIDB(pciDB);
-
+    bool csv = false;
+    bool human_readable = false;
+    std::string csv_delimiter = ",";
+    std::string output_file;
+    double delay = PCM_DELAY_DEFAULT;
     PCM * m = PCM::getInstance();
+
+    while (argc > 1) {
+        argv++;
+        argc--;
+        std::string arg_value;
+        if (check_argument_equals(*argv, {"--help", "-h", "/h"})) {
+            print_usage(program);
+            exit(EXIT_FAILURE);
+        }
+        else if (extract_argument_value(*argv, {"-csv-delimiter", "/csv-delimiter"}, arg_value)) {
+            csv_delimiter = std::move(arg_value);
+        }
+        else if (check_argument_equals(*argv, {"-csv", "/csv"})) {
+            csv = true;
+        }
+        else if (extract_argument_value(*argv, {"-csv", "/csv"}, arg_value)) {
+            csv = true;
+            output_file = std::move(arg_value);
+        }
+        else if (check_argument_equals(*argv, {"-human-readable", "/human-readable"})) {
+            human_readable = true;
+        }
+        else {
+            // any other options positional that is a floating point number is treated as <delay>,
+            // while the other options are ignored with a warning issues to stderr
+            double delay_input;
+            istringstream is_str_stream(*argv);
+            is_str_stream >> noskipws >> delay_input;
+            if (is_str_stream.eof() && !is_str_stream.fail()) {
+                if (delay_input < 0) {
+                    cerr << "Unvalid delay specified: \"" << *argv << "\". Delay should be positive.\n";
+                    print_usage(program);
+                    exit(EXIT_FAILURE);
+                }
+                delay = delay_input;
+            }
+            else {
+                cerr << "WARNING: unknown command-line option: \"" << *argv << "\". Ignoring it.\n";
+                print_usage(program);
+                exit(EXIT_FAILURE);
+            }
+        }
+    }
+
     print_cpu_details();
     string ev_file_name;
     if (m->IIOEventsAvailable())
@@ -1088,10 +1251,18 @@ int main()
     print_PCIeMapping(iios, pciDB);
     return 0;
     */
+    std::ostream* output = &std::cout;
+    std::fstream file_stream;
+    if (!output_file.empty()) {
+        file_stream.open(output_file.c_str(), std::ios_base::out);
+        output = &file_stream;
+    }
 
     while (1) {
-        collect_data(m, iios, counters);
-        display_buffer = build_display(iios, counters, pciDB);
-        display(display_buffer);
+        collect_data(m, delay, iios, counters);
+        vector<string> display_buffer = csv ?
+            build_csv(iios, counters, human_readable, csv_delimiter) :
+            build_display(iios, counters, pciDB);
+        display(display_buffer, *output);
     };
 }
