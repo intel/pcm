@@ -333,28 +333,28 @@ vector<string> build_display(vector<struct iio_stacks_on_socket>& iios, vector<s
     return buffer;
 }
 
-std::string build_csv_row(const std::vector<std::string>& chunks, const std::string& delimeter) 
+std::string build_csv_row(const std::vector<std::string>& chunks, const std::string& delimiter)
 {
-    return std::accumulate(chunks.begin(), chunks.end(), std::string(""), 
-                           [delimeter](const string &left, const string &right){
-                               return left.empty() ? right : left + delimeter + right;
+    return std::accumulate(chunks.begin(), chunks.end(), std::string(""),
+                           [delimiter](const string &left, const string &right){
+                               return left.empty() ? right : left + delimiter + right;
                            });
 }
 
-vector<string> build_csv(vector<struct iio_stacks_on_socket>& iios, vector<struct counter>& ctrs, 
-    const bool human_readable, const std::string& csv_delimeter)
+vector<string> build_csv(vector<struct iio_stacks_on_socket>& iios, vector<struct counter>& ctrs,
+    const bool human_readable, const std::string& csv_delimiter)
 {
     vector<string> result;
     vector<string> current_row;
     auto header = combine_stack_name_and_counter_names("Name");
     header.insert(header.begin(), "Socket");
-    result.push_back(build_csv_row(header, csv_delimeter));
+    result.push_back(build_csv_row(header, csv_delimiter));
     std::map<uint32_t,map<uint32_t,struct counter*>> v_sort;
     //re-organize data collection to be row wise
     size_t max_name_width = 0;
     for (std::vector<struct counter>::iterator counter = ctrs.begin(); counter != ctrs.end(); ++counter) {
         v_sort[counter->v_id][counter->h_id] = &(*counter);
-        max_name_width = std::max(max_name_width, counter->v_event_name.size());
+        max_name_width = (std::max)(max_name_width, counter->v_event_name.size());
     }
 
     for (auto socket = iios.cbegin(); socket != iios.cend(); ++socket) {
@@ -362,7 +362,7 @@ vector<string> build_csv(vector<struct iio_stacks_on_socket>& iios, vector<struc
             const std::string socket_name = "Socket" + std::to_string(socket->socket_id);
 
             std::string stack_name = stack->stack_name;
-            if (!human_readable) { 
+            if (!human_readable) {
                 stack_name.erase(stack_name.find_last_not_of(' ') + 1);
             }
 
@@ -386,7 +386,7 @@ vector<string> build_csv(vector<struct iio_stacks_on_socket>& iios, vector<struc
                     uint64_t raw_data = hunit->second->data[0][socket->socket_id][stack_id][std::pair<h_id,v_id>(hh_id,vv_id)];
                     current_row.push_back(human_readable ? unit_format(raw_data) : std::to_string(raw_data));
                 }
-                result.push_back(build_csv_row(current_row, csv_delimeter));
+                result.push_back(build_csv_row(current_row, csv_delimiter));
             }
         }
     }
@@ -1126,7 +1126,7 @@ void print_usage(const string& progname)
     cerr << "  -h    | --help  | /h               => print this help and exit\n";
     cerr << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or\n"
          << "                                        to a file, in case filename is provided\n";
-    cerr << "  -csv-delimeter=<value>  | /csv-delimeter=<value>   => set custom csv delimeter\n";
+    cerr << "  -csv-delimiter=<value>  | /csv-delimiter=<value>   => set custom csv delimiter\n";
     cerr << "  -human-readable | /human-readable  => use human readable format for output (for csv only)\n";
     cerr << " Examples:\n";
     cerr << "  " << progname << " 1.0                   => print counters every second\n";
@@ -1161,12 +1161,12 @@ int main(int argc, char * argv[])
             print_usage(program);
             exit(EXIT_FAILURE);
         }
-        else if (extract_argument_value(*argv, {"-csv-delimeter", "/csv-delimeter"}, arg_value)) {
+        else if (extract_argument_value(*argv, {"-csv-delimiter", "/csv-delimiter"}, arg_value)) {
             csv_delimiter = std::move(arg_value);
         }
         else if (check_argument_equals(*argv, {"-csv", "/csv"})) {
             csv = true;
-        }        
+        }
         else if (extract_argument_value(*argv, {"-csv", "/csv"}, arg_value)) {
             csv = true;
             output_file = std::move(arg_value);
@@ -1182,7 +1182,7 @@ int main(int argc, char * argv[])
             is_str_stream >> noskipws >> delay_input;
             if (is_str_stream.eof() && !is_str_stream.fail()) {
                 if (delay_input < 0) {
-                    cerr << "Unvalid delay specified: \"" << *argv << "\". Delay should be positive.\n"; 
+                    cerr << "Unvalid delay specified: \"" << *argv << "\". Delay should be positive.\n";
                     print_usage(program);
                     exit(EXIT_FAILURE);
                 }
@@ -1260,8 +1260,8 @@ int main(int argc, char * argv[])
 
     while (1) {
         collect_data(m, delay, iios, counters);
-        vector<string> display_buffer = csv ? 
-            build_csv(iios, counters, human_readable, csv_delimiter) : 
+        vector<string> display_buffer = csv ?
+            build_csv(iios, counters, human_readable, csv_delimiter) :
             build_display(iios, counters, pciDB);
         display(display_buffer, *output);
     };
