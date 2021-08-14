@@ -1,10 +1,10 @@
-FROM fedora:33 as builder
+FROM redhat/ubi8 as builder
 
 RUN dnf -y install gcc-c++ git findutils make
 COPY . /tmp/pcm
 RUN cd /tmp/pcm && make
 
-FROM fedora:33
+FROM redhat/ubi8
 COPY --from=builder /tmp/pcm/*.x /usr/local/bin/
 ENV PCM_NO_PERF=1
 
