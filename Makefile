@@ -73,7 +73,9 @@ daemon-binaries:
 
 klocwork: $(EXE)
 
+ifneq ($(MAKECMDGOALS),clean)
 -include $(OBJS:.o=.d)
+endif
 libPCM.a: $(COMMON_OBJS)
 	ar -rcs $@ $^
 
