@@ -68,8 +68,8 @@ all: $(EXE) lib
 lib: libPCM.a
 
 daemon-binaries:
-	make -C daemon/daemon/Debug
-	make -C daemon/client/Debug
+	$(MAKE) -C daemon/daemon/Debug
+	$(MAKE) -C daemon/client/Debug
 
 klocwork: $(EXE)
 
@@ -153,6 +153,6 @@ endif
 clean:
 	rm -rf *.x *.o *~ *.d *.a *.so
 ifeq ($(UNAME), Linux)
-	make -C daemon/daemon/Debug clean
-	make -C daemon/client/Debug clean
+	$(MAKE) -C daemon/daemon/Debug clean
+	$(MAKE) -C daemon/client/Debug clean
 endif
