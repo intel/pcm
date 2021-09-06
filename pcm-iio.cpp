@@ -99,7 +99,6 @@ static const std::string snr_iio_stack_names[5] = {
 #define SNR_ICX_SAD_CONTROL_CFG_OFFSET 0x3F4
 #define SNR_ICX_MESH2IIO_MMAP_DID      0x09A2
 
-#define ICX_ROOT_PORT_A_DID 0x347A
 #define ICX_VMD_PCI_DEVNO   0x00
 #define ICX_VMD_PCI_FUNCNO  0x05
 
@@ -642,13 +641,8 @@ bool WhitleyPlatformMapping::pciTreeDiscover(std::vector<struct iio_stacks_on_so
                 if (!probe_pci(&pci)) {
                     continue;
                 }
-                int part_id = pci.device_id - ICX_ROOT_PORT_A_DID;
-                if ((part_id < 0) || (part_id > 4)) {
-                    cerr << "Invalid part ID " << part_id << endl;
-                    return false;
-                }
                 struct iio_bifurcated_part part;
-                part.part_id = part_id;
+                part.part_id = slot - 2;
                 part.root_pci_dev = pci;
 
                 for (uint8_t bus = pci.secondary_bus_number; bus <= pci.subordinate_bus_number; bus++) {

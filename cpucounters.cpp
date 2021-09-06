@@ -7651,6 +7651,13 @@ void PCM::setupCustomCoreEventsForNuma(PCM::ExtendedCustomCoreEventDescription& 
         // OFFCORE_RESPONSE.ALL_REQUESTS.L3_MISS_REMOTE_(HOP0,HOP1,HOP2P)_DRAM.ANY_SNOOP
         conf.OffcoreResponseMsrValue[1] = 0x3FC0008FFF | (1 << 27) | (1 << 28) | (1 << 29);
         break;
+    case PCM::ICX:
+        std::cout << "INFO: Monitored accesses include demand + L2 cache prefetcher, code read and RFO.\n";
+        // OCR.READS_TO_CORE.LOCAL_DRAM
+        conf.OffcoreResponseMsrValue[0] = 0x0104000477;
+        // OCR.READS_TO_CORE.REMOTE_DRAM
+        conf.OffcoreResponseMsrValue[1] = 0x0730000477;
+        break;
     default:
         throw UnsupportedProcessorException();
     }
