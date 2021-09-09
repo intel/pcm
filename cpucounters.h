@@ -868,8 +868,8 @@ private:
         std::vector<EventSelectRegister> & programmedCustomCounters);
 
     bool PMUinUse();
-    void cleanupPMU();
-    void cleanupRDT();
+    void cleanupPMU(const bool silent = false);
+    void cleanupRDT(const bool silent = false);
     bool decrementInstanceSemaphore(); // returns true if it was the last instance
 
 #ifdef __APPLE__
@@ -961,7 +961,7 @@ private:
     void programPCU(uint32 * events, const uint64 filter);
     void programUBOX(const uint64* events);
 
-    void cleanupUncorePMUs();
+    void cleanupUncorePMUs(const bool silent = false);
 
     bool isCLX() const // Cascade Lake-SP
     {
@@ -1144,7 +1144,7 @@ public:
         std::vector<RawEventConfig> fixed;
     };
     typedef std::map<std::string, RawPMUConfig> RawPMUConfigs;
-    ErrorCode program(const RawPMUConfigs& allPMUConfigs);
+    ErrorCode program(const RawPMUConfigs& curPMUConfigs);
 
     //! \brief Freezes uncore event counting (works only on microarchitecture codename SandyBridge-EP and IvyTown)
     void freezeServerUncoreCounters();
@@ -1163,7 +1163,7 @@ public:
             One needs to call this method when your program finishes or/and you are not going to use the
             performance counting routines anymore.
 */
-    void cleanup();
+    void cleanup(const bool silent = false);
 
     /*! \brief Forces PMU reset
 

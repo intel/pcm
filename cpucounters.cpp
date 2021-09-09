@@ -3574,7 +3574,7 @@ const char * PCM::getUArchCodename(const int32 cpu_model_param) const
     return "unknown";
 }
 
-void PCM::cleanupPMU()
+void PCM::cleanupPMU(const bool silent)
 {
 #ifdef PCM_USE_PERF
     if(canUsePerf)
@@ -3603,11 +3603,11 @@ void PCM::cleanupPMU()
         enableJKTWorkaround(false);
 
 #ifndef PCM_SILENT
-    std::cerr << " Zeroed PMU registers\n";
+    if (!silent) std::cerr << " Zeroed PMU registers\n";
 #endif
 }
 
-void PCM::cleanupUncorePMUs()
+void PCM::cleanupUncorePMUs(const bool silent)
 {
     for (auto & sPMUs : iioPMUs)
     {
@@ -3632,7 +3632,7 @@ void PCM::cleanupUncorePMUs()
         uncore->cleanupPMUs();
     }
 #ifndef PCM_SILENT
-    std::cerr << " Zeroed uncore PMU registers\n";
+    if (!silent) std::cerr << " Zeroed uncore PMU registers\n";
 #endif
 }
 
@@ -3670,7 +3670,7 @@ void PCM::resetPMU()
     std::cerr << " Zeroed PMU registers\n";
 #endif
 }
-void PCM::cleanupRDT()
+void PCM::cleanupRDT(const bool silent)
 {
     if(!(QOSMetricAvailable() && L3QOSMetricAvailable())) {
         return;
@@ -3708,7 +3708,7 @@ void PCM::cleanupRDT()
     }
 
 
-    std::cerr << " Freeing up all RMIDs\n";
+    if (!silent) std::cerr << " Freeing up all RMIDs\n";
 }
 
 void PCM::setOutput(const std::string filename)
@@ -3729,21 +3729,21 @@ void PCM::restoreOutput()
         outfile->close();
 }
 
-void PCM::cleanup()
+void PCM::cleanup(const bool silent)
 {
     InstanceLock lock(allow_multiple_instances);
 
     if (MSR.empty()) return;
 
-    std::cerr << "Cleaning up\n";
+    if (!silent) std::cerr << "Cleaning up\n";
 
     if (decrementInstanceSemaphore())
-        cleanupPMU();
+        cleanupPMU(silent);
 
     disableForceRTMAbortMode();
 
-    cleanupUncorePMUs();
-    cleanupRDT();
+    cleanupUncorePMUs(silent);
+    cleanupRDT(silent);
 #ifdef __linux__
     if (needToRestoreNMIWatchdog)
     {
@@ -4326,12 +4326,12 @@ void PCM::programPCU(uint32* PCUCntConf, const uint64 filter)
     }
 }
 
-PCM::ErrorCode PCM::program(const RawPMUConfigs& allPMUConfigs_)
+PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_)
 {
     if (MSR.empty())  return PCM::MSRAccessDenied;
-    RawPMUConfigs allPMUConfigs = allPMUConfigs_;
+    RawPMUConfigs curPMUConfigs = curPMUConfigs_;
     constexpr auto globalRegPos = 0;
-    if (allPMUConfigs.count("core"))
+    if (curPMUConfigs.count("core"))
     {
         // need to program core PMU first
         EventSelectRegister regs[PERF_MAX_CUSTOM_COUNTERS];
@@ -4340,7 +4340,7 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& allPMUConfigs_)
         conf.OffcoreResponseMsrValue[1] = 0;
         FixedEventControlRegister fixedReg;
 
-        auto corePMUConfig = allPMUConfigs["core"];
+        auto corePMUConfig = curPMUConfigs["core"];
         if (corePMUConfig.programmable.size() > (size_t)getMaxCustomCoreEvents())
         {
             std::cerr << "ERROR: trying to program " << corePMUConfig.programmable.size() << " core PMU counters, which exceeds the max num possible ("<< getMaxCustomCoreEvents() << ").";
@@ -4373,9 +4373,9 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& allPMUConfigs_)
         {
             return status;
         }
-        allPMUConfigs.erase("core");
+        curPMUConfigs.erase("core");
     }
-    for (auto pmuConfig : allPMUConfigs)
+    for (auto pmuConfig : curPMUConfigs)
     {
         const auto & type = pmuConfig.first;
         const auto & events = pmuConfig.second;
