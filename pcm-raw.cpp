@@ -63,6 +63,7 @@ void print_usage(const string progname)
     cerr << "  -yc   | --yescores  | /yc              => enable specific cores to output\n";
     cerr << "  -f    | /f                             => enforce flushing each line for interactive output\n";
     cerr << "  -i[=number] | /i[=number]              => allow to determine number of iterations\n";
+    cerr << "  -tr | /tr                              => transpose output (print single event data in a row)\n";
     print_help_force_rtm_abort_mode(41);
     cerr << " Examples:\n";
     cerr << "  " << progname << " 1                   => print counters every second without core and socket output\n";
@@ -122,9 +123,141 @@ bool addEvent(string eventStr)
 bool show_partial_core_output = false;
 bitset<MAX_CORES> ycores;
 bool flushLine = false;
+bool transpose = false;
+
+void printRowBegin(const std::string & EventName, const std::vector<CoreCounterState>& BeforeState, const std::vector<CoreCounterState>& AfterState, PCM* m)
+{
+    printDateForCSV(CsvOutputType::Data);
+    cout << EventName << "," << (1000ULL * getInvariantTSC(BeforeState[0], AfterState[0])) / m->getNominalFrequency();
+}
+
+
+template <class MetricFunc>
+void printRow(const std::string & EventName, MetricFunc metricFunc, const std::vector<CoreCounterState>& BeforeState, const std::vector<CoreCounterState>& AfterState, PCM* m)
+{
+    printRowBegin(EventName, BeforeState, AfterState, m);
+    for (uint32 core = 0; core < m->getNumCores(); ++core)
+    {
+        if (!(m->isCoreOnline(core) == false || (show_partial_core_output && ycores.test(core) == false)))
+        {
+            cout << "," << metricFunc(BeforeState[core], AfterState[core]);
+        }
+    }
+    cout << "\n";
+};
+
+typedef uint64 (*UncoreMetricFunc)(const uint32 u, const uint32 i,  const ServerUncoreCounterState& before, const ServerUncoreCounterState& after);
+typedef uint64(*UncoreFixedMetricFunc)(const uint32 u, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after);
+
+uint64 nullFixedMetricFunc(const uint32, const ServerUncoreCounterState&, const ServerUncoreCounterState&)
+{
+    return ~0ULL;
+}
+
+void printTransposed(PCM* m, vector<CoreCounterState>& BeforeState, vector<CoreCounterState>& AfterState, vector<ServerUncoreCounterState>& BeforeUncoreState, vector<ServerUncoreCounterState>& AfterUncoreState, const CsvOutputType outputType)
+{
+    if (outputType == CsvOutputType::Data)
+    {
+        for (auto typeEvents : allPMUConfigs)
+        {
+            const auto& type = typeEvents.first;
+            const auto& events = typeEvents.second.programmable;
+            const auto& fixedEvents = typeEvents.second.fixed;
+            auto printUncoreRows = [&](UncoreMetricFunc metricFunc, const uint32 maxUnit, const std::string & fixedName = std::string("<invalid-fixed-event-name>"), UncoreFixedMetricFunc fixedMetricFunc = nullFixedMetricFunc)
+            {
+                if (fixedEvents.size())
+                {
+                    printRowBegin(fixedName, BeforeState, AfterState, m);
+                    for (uint32 s = 0; s < m->getNumSockets(); ++s)
+                    {
+                        for (uint32 u = 0; u < maxUnit; ++u)
+                        {
+                            cout << "," << fixedMetricFunc(u, BeforeUncoreState[s], AfterUncoreState[s]);
+                        }
+                    }
+                    cout << "\n";
+                }
+                uint32 i = 0;
+                for (auto event : events)
+                {
+                    const std::string name = (event.second.empty()) ? (type + "Event" + std::to_string(i)) : event.second;
+                    printRowBegin(name, BeforeState, AfterState, m);
+                    for (uint32 s = 0; s < m->getNumSockets(); ++s)
+                    {
+                        for (uint32 u = 0; u < maxUnit; ++u)
+                        {
+                            cout << "," << metricFunc(u, i, BeforeUncoreState[s], AfterUncoreState[s]);
+                        }
+                    }
+                    cout << "\n";
+                    ++i;
+                }
+            };
+            if (type == "core")
+            {
+                if (fixedEvents.size())
+                {
+                    printRow("InstructionsRetired", [](const CoreCounterState& before, const CoreCounterState& after) { return getInstructionsRetired(before, after); }, BeforeState, AfterState, m);
+                    printRow("Cycles", [](const CoreCounterState& before, const CoreCounterState& after) { return getCycles(before, after); }, BeforeState, AfterState, m);
+                    printRow("RefCycles", [](const CoreCounterState& before, const CoreCounterState& after) { return getRefCycles(before, after); }, BeforeState, AfterState, m);
+                }
+                uint32 i = 0;
+                for (auto event : events)
+                {
+                    const std::string name = (event.second.empty()) ? (type + "Event" + std::to_string(i)) : event.second;
+                    printRow(name, [&i](const CoreCounterState& before, const CoreCounterState& after) { return getNumberOfCustomEvents(i, before, after); }, BeforeState, AfterState, m);
+                    ++i;
+                }
+            }
+            else if (type == "m3upi")
+            {
+                printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getM3UPICounter(u, i, before, after); }, (uint32) m->getQPILinksPerSocket());
+            }
+            else if (type == "xpi" || type == "upi" || type == "qpi")
+            {
+                printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getXPICounter(u, i, before, after); }, (uint32) m->getQPILinksPerSocket());
+            }
+            else if (type == "imc")
+            {
+                printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getMCCounter(u, i, before, after); }, (uint32)m->getMCChannelsPerSocket(),
+                                "DRAMClocks", [](const uint32 u, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getDRAMClocks(u, before, after); });
+            }
+            else if (type == "m2m")
+            {
+                printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getM2MCounter(u, i, before, after); }, (uint32)m->getMCPerSocket());
+            }
+            else if (type == "pcu")
+            {
+                printUncoreRows([](const uint32, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getPCUCounter(i, before, after); }, 1U);
+            }
+            else if (type == "ubox")
+            {
+                printUncoreRows([](const uint32, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getUBOXCounter(i, before, after); }, 1U,
+                    "UncoreClocks", [](const uint32, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getUncoreClocks(before, after); });
+            }
+            else if (type == "cbo" || type == "cha")
+            {
+                printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getCBOCounter(u, i, before, after); }, (uint32)m->getMaxNumOfCBoxes());
+            }
+            else if (type == "iio")
+            {
+                printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getIIOCounter(u, i, before, after); }, (uint32)m->getMaxNumOfIIOStacks());
+            }
+            else
+            {
+                std::cerr << "ERROR: unrecognized PMU type \"" << type << "\"\n";
+            }
+        }
+    }
+}
 
 void print(PCM* m, vector<CoreCounterState>& BeforeState, vector<CoreCounterState>& AfterState, vector<ServerUncoreCounterState>& BeforeUncoreState, vector<ServerUncoreCounterState>& AfterUncoreState, const CsvOutputType outputType)
 {
+    if (transpose)
+    {
+        printTransposed(m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, outputType);
+        return;
+    }
     printDateForCSV(outputType);
     if (BeforeState.size() > 0 && AfterState.size() > 0)
     {
@@ -403,6 +536,13 @@ int main(int argc, char* argv[])
             strncmp(*argv, "/f", 2) == 0)
         {
             flushLine = true;
+            continue;
+        }
+        else if (
+            strncmp(*argv, "-tr", 3) == 0 ||
+            strncmp(*argv, "/tr", 3) == 0)
+        {
+            transpose = true;
             continue;
         }
         else if (strncmp(*argv, "--yescores", 10) == 0 ||
