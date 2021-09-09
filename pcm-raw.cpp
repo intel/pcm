@@ -248,6 +248,10 @@ void printTransposed(PCM* m, vector<CoreCounterState>& BeforeState, vector<CoreC
                 std::cerr << "ERROR: unrecognized PMU type \"" << type << "\"\n";
             }
         }
+        if (flushLine)
+        {
+            cout.flush();
+        }
     }
 }
 
