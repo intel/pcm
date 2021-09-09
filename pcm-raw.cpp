@@ -668,7 +668,19 @@ int main(int argc, char* argv[])
 
     print_cpu_details();
 
-    // cout << "Processed " << PMUConfigs.size() << " event groups\n";
+    size_t nGroups = 0;
+    for (const auto group : PMUConfigs)
+    {
+        if (!group.empty()) ++nGroups;
+    }
+
+    cout << "Collecting " << nGroups << " event groups\n";
+
+    if (nGroups > 1)
+    {
+        transpose = true;
+        cout << "Enforcing transposed event output because the number of event groups > 1\n";
+    }
 
     auto programPMUs = [&m](const PCM::RawPMUConfigs & config)
     {
