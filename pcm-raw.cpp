@@ -64,6 +64,8 @@ void print_usage(const string progname)
     cerr << "  -f    | /f                             => enforce flushing each line for interactive output\n";
     cerr << "  -i[=number] | /i[=number]              => allow to determine number of iterations\n";
     cerr << "  -tr | /tr                              => transpose output (print single event data in a row)\n";
+    cerr << "  -el event_list.txt | /tr event_list.txt  => read event list from event_list.txt file, \n";
+    cerr << "                                              each line represents an event group collected together\n";
     print_help_force_rtm_abort_mode(41);
     cerr << " Examples:\n";
     cerr << "  " << progname << " 1                   => print counters every second without core and socket output\n";
@@ -72,9 +74,7 @@ void print_usage(const string progname)
     cerr << "\n";
 }
 
-PCM::RawPMUConfigs allPMUConfigs;
-
-bool addEvent(string eventStr)
+bool addEvent(PCM::RawPMUConfigs & curPMUConfigs, string eventStr)
 {
     PCM::RawEventConfig config = { {0,0,0}, "" };
     const auto typeConfig = split(eventStr, '/');
@@ -114,9 +114,36 @@ bool addEvent(string eventStr)
     }
     cout << "parsed "<< (fixed?"fixed ":"")<<"event " << pmuName << ": \"" << hex << config.second << "\" : {0x" << hex << config.first[0] << ", 0x" << config.first[1] << ", 0x" << config.first[2] << "}\n" << dec;
     if (fixed)
-        allPMUConfigs[pmuName].fixed.push_back(config);
+        curPMUConfigs[pmuName].fixed.push_back(config);
     else
-        allPMUConfigs[pmuName].programmable.push_back(config);
+        curPMUConfigs[pmuName].programmable.push_back(config);
+    return true;
+}
+
+bool addEvents(std::vector<PCM::RawPMUConfigs>& PMUConfigs, string fn)
+{
+    std::ifstream in(fn);
+    std::string line, item;
+
+    if (!in.is_open())
+    {
+        cerr << "ERROR: File " << fn << " can't be open. \n";
+        return false;
+    }
+    while (std::getline(in, line))
+    {
+        PCM::RawPMUConfigs curConfig;
+        auto events = split(line, ' ');
+        for (auto event : events)
+        {
+            if (addEvent(curConfig, event) == false)
+            {
+                return false;
+            }
+        }
+        PMUConfigs.push_back(curConfig);
+    }
+    in.close();
     return true;
 }
 
@@ -154,11 +181,11 @@ uint64 nullFixedMetricFunc(const uint32, const ServerUncoreCounterState&, const 
     return ~0ULL;
 }
 
-void printTransposed(PCM* m, vector<CoreCounterState>& BeforeState, vector<CoreCounterState>& AfterState, vector<ServerUncoreCounterState>& BeforeUncoreState, vector<ServerUncoreCounterState>& AfterUncoreState, const CsvOutputType outputType)
+void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<CoreCounterState>& BeforeState, vector<CoreCounterState>& AfterState, vector<ServerUncoreCounterState>& BeforeUncoreState, vector<ServerUncoreCounterState>& AfterUncoreState, const CsvOutputType outputType)
 {
     if (outputType == CsvOutputType::Data)
     {
-        for (auto typeEvents : allPMUConfigs)
+        for (auto typeEvents : curPMUConfigs)
         {
             const auto& type = typeEvents.first;
             const auto& events = typeEvents.second.programmable;
@@ -248,14 +275,18 @@ void printTransposed(PCM* m, vector<CoreCounterState>& BeforeState, vector<CoreC
                 std::cerr << "ERROR: unrecognized PMU type \"" << type << "\"\n";
             }
         }
+        if (flushLine)
+        {
+            cout.flush();
+        }
     }
 }
 
-void print(PCM* m, vector<CoreCounterState>& BeforeState, vector<CoreCounterState>& AfterState, vector<ServerUncoreCounterState>& BeforeUncoreState, vector<ServerUncoreCounterState>& AfterUncoreState, const CsvOutputType outputType)
+void print(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<CoreCounterState>& BeforeState, vector<CoreCounterState>& AfterState, vector<ServerUncoreCounterState>& BeforeUncoreState, vector<ServerUncoreCounterState>& AfterUncoreState, const CsvOutputType outputType)
 {
     if (transpose)
     {
-        printTransposed(m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, outputType);
+        printTransposed(curPMUConfigs, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, outputType);
         return;
     }
     printDateForCSV(outputType);
@@ -266,7 +297,7 @@ void print(PCM* m, vector<CoreCounterState>& BeforeState, vector<CoreCounterStat
             []() { cout << "ms,"; },
             [&]() { cout << (1000ULL * getInvariantTSC(BeforeState[0], AfterState[0])) / m->getNominalFrequency() << ","; });
     }
-    for (auto typeEvents : allPMUConfigs)
+    for (auto typeEvents : curPMUConfigs)
     {
         const auto & type = typeEvents.first;
         const auto & events = typeEvents.second.programmable;
@@ -469,16 +500,16 @@ void print(PCM* m, vector<CoreCounterState>& BeforeState, vector<CoreCounterStat
     }
 }
 
-void printAll(PCM * m, vector<CoreCounterState>& BeforeState, vector<CoreCounterState>& AfterState, vector<ServerUncoreCounterState>& BeforeUncoreState, vector<ServerUncoreCounterState>& AfterUncoreState)
+void printAll(const PCM::RawPMUConfigs& curPMUConfigs, PCM * m, vector<CoreCounterState>& BeforeState, vector<CoreCounterState>& AfterState, vector<ServerUncoreCounterState>& BeforeUncoreState, vector<ServerUncoreCounterState>& AfterUncoreState)
 {
     static bool displayHeader = true;
     if (displayHeader)
     {
-        print(m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, Header1);
-        print(m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, Header2);
+        print(curPMUConfigs, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, Header1);
+        print(curPMUConfigs, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, Header2);
         displayHeader = false;
     }
-    print(m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, Data);
+    print(curPMUConfigs, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, Data);
 }
 
 int main(int argc, char* argv[])
@@ -495,6 +526,7 @@ int main(int argc, char* argv[])
     cerr << " Processor Counter Monitor: Raw Event Monitoring Utility \n";
     cerr << "\n";
 
+    std::vector<PCM::RawPMUConfigs> PMUConfigs(1);
     double delay = -1.0;
     char* sysCmd = NULL;
     char** sysArgv = NULL;
@@ -582,11 +614,21 @@ int main(int argc, char* argv[])
             }
             continue;
         }
+        else if (strncmp(*argv, "-el", 3) == 0 || strncmp(*argv, "/el", 3) == 0)
+        {
+            argv++;
+            argc--;
+            if (addEvents(PMUConfigs, *argv) == false)
+            {
+                exit(EXIT_FAILURE);
+            }
+            continue;
+        }
         else if (strncmp(*argv, "-e", 2) == 0)
         {
             argv++;
             argc--;
-            if (addEvent(*argv) == false)
+            if (addEvent(PMUConfigs[0], *argv) == false)
             {
                 exit(EXIT_FAILURE);
             }
@@ -624,32 +666,36 @@ int main(int argc, char* argv[])
             }
     } while (argc > 1); // end of command line parsing loop
 
-    PCM::ErrorCode status = m->program(allPMUConfigs);
-    switch (status)
-    {
-    case PCM::Success:
-        break;
-    case PCM::MSRAccessDenied:
-        cerr << "Access to Processor Counter Monitor has denied (no MSR or PCI CFG space access).\n";
-        exit(EXIT_FAILURE);
-    case PCM::PMUBusy:
-        cerr << "Access to Processor Counter Monitor has denied (Performance Monitoring Unit is occupied by other application). Try to stop the application that uses PMU.\n";
-        cerr << "Alternatively you can try to reset PMU configuration at your own risk. Try to reset? (y/n)\n";
-        char yn;
-        std::cin >> yn;
-        if ('y' == yn)
-        {
-            m->resetPMU();
-            cerr << "PMU configuration has been reset. Try to rerun the program again.\n";
-        }
-        exit(EXIT_FAILURE);
-    default:
-        cerr << "Access to Processor Counter Monitor has denied (Unknown error).\n";
-        exit(EXIT_FAILURE);
-    }
-
     print_cpu_details();
 
+    // cout << "Processed " << PMUConfigs.size() << " event groups\n";
+
+    auto programPMUs = [&m](const PCM::RawPMUConfigs & config)
+    {
+        PCM::ErrorCode status = m->program(config);
+        switch (status)
+        {
+        case PCM::Success:
+            break;
+        case PCM::MSRAccessDenied:
+            cerr << "Access to Processor Counter Monitor has denied (no MSR or PCI CFG space access).\n";
+            exit(EXIT_FAILURE);
+        case PCM::PMUBusy:
+            cerr << "Access to Processor Counter Monitor has denied (Performance Monitoring Unit is occupied by other application). Try to stop the application that uses PMU.\n";
+            cerr << "Alternatively you can try to reset PMU configuration at your own risk. Try to reset? (y/n)\n";
+            char yn;
+            std::cin >> yn;
+            if ('y' == yn)
+            {
+                m->resetPMU();
+                cerr << "PMU configuration has been reset. Try to rerun the program again.\n";
+            }
+            exit(EXIT_FAILURE);
+        default:
+            cerr << "Access to Processor Counter Monitor has denied (Unknown error).\n";
+            exit(EXIT_FAILURE);
+        }
+    };
 
     SystemCounterState SysBeforeState, SysAfterState;
     vector<CoreCounterState> BeforeState, AfterState;
@@ -675,40 +721,41 @@ int main(int argc, char* argv[])
     std::cout.precision(2);
     std::cout << std::fixed;
 
-    m->getAllCounterStates(SysBeforeState, DummySocketStates, BeforeState);
-    for (uint32 s = 0; s < m->getNumSockets(); ++s)
-    {
-        BeforeUncoreState[s] = m->getServerUncoreCounterState(s);
-    }
-
     if (sysCmd != NULL) {
         MySystem(sysCmd, sysArgv);
     }
 
     mainLoop([&]()
     {
-        calibratedSleep(delay, sysCmd, mainLoop, m);
+         for (const auto group : PMUConfigs)
+         {
+                if (group.empty()) continue;
+                programPMUs(group);
+                m->getAllCounterStates(SysBeforeState, DummySocketStates, BeforeState);
+                for (uint32 s = 0; s < m->getNumSockets(); ++s)
+                {
+                    BeforeUncoreState[s] = m->getServerUncoreCounterState(s);
+                }
 
-        m->getAllCounterStates(SysAfterState, DummySocketStates, AfterState);
-        for (uint32 s = 0; s < m->getNumSockets(); ++s)
-        {
-            AfterUncoreState[s] = m->getServerUncoreCounterState(s);
-        }
+                calibratedSleep(delay, sysCmd, mainLoop, m);
 
-        //cout << "Time elapsed: " << dec << fixed << AfterTime - BeforeTime << " ms\n";
-        //cout << "Called sleep function for " << dec << fixed << delay_ms << " ms\n";
+                m->getAllCounterStates(SysAfterState, DummySocketStates, AfterState);
+                for (uint32 s = 0; s < m->getNumSockets(); ++s)
+                {
+                    AfterUncoreState[s] = m->getServerUncoreCounterState(s);
+                }
 
-        printAll(m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState);
+                //cout << "Time elapsed: " << dec << fixed << AfterTime - BeforeTime << " ms\n";
+                //cout << "Called sleep function for " << dec << fixed << delay_ms << " ms\n";
 
-        swap(BeforeState, AfterState);
-        swap(SysBeforeState, SysAfterState);
-        swap(BeforeUncoreState, AfterUncoreState);
-
-        if (m->isBlocked()) {
-            // in case PCM was blocked after spawning child application: break monitoring loop here
-            return false;
-        }
-        return true;
+                printAll(group, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState);
+                m->cleanup(true);
+         }
+         if (m->isBlocked()) {
+             // in case PCM was blocked after spawning child application: break monitoring loop here
+             return false;
+         }
+         return true;
     });
     exit(EXIT_SUCCESS);
 }
