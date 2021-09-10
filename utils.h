@@ -30,6 +30,7 @@ CT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
 #include "types.h"
 #include <vector>
 #include <math.h>
+#include <assert.h>
 
 #ifndef _MSC_VER
 #include <csignal>
@@ -358,6 +359,80 @@ inline void pcm_cpuid(int leaf, PCM_CPUID_INFO& info)
     __asm__ __volatile__("cpuid" : \
         "=a" (info.reg.eax), "=b" (info.reg.ebx), "=c" (info.reg.ecx), "=d" (info.reg.edx) : "a" (leaf));
 #endif
+}
+
+
+inline uint32 build_bit_ui(uint32 beg, uint32 end)
+{
+    assert(end <= 31);
+    uint32 myll = 0;
+    if (end == 31)
+    {
+        myll = (uint32)(-1);
+    }
+    else
+    {
+        myll = (1 << (end + 1)) - 1;
+    }
+    myll = myll >> beg;
+    return myll;
+}
+
+inline uint32 extract_bits_ui(uint32 myin, uint32 beg, uint32 end)
+{
+    uint32 myll = 0;
+    uint32 beg1, end1;
+
+    // Let the user reverse the order of beg & end.
+    if (beg <= end)
+    {
+        beg1 = beg;
+        end1 = end;
+    }
+    else
+    {
+        beg1 = end;
+        end1 = beg;
+    }
+    myll = myin >> beg1;
+    myll = myll & build_bit_ui(beg1, end1);
+    return myll;
+}
+
+inline uint64 build_bit(uint32 beg, uint32 end)
+{
+    uint64 myll = 0;
+    if (end == 63)
+    {
+        myll = static_cast<uint64>(-1);
+    }
+    else
+    {
+        myll = (1LL << (end + 1)) - 1;
+    }
+    myll = myll >> beg;
+    return myll;
+}
+
+inline uint64 extract_bits(uint64 myin, uint32 beg, uint32 end)
+{
+    uint64 myll = 0;
+    uint32 beg1, end1;
+
+    // Let the user reverse the order of beg & end.
+    if (beg <= end)
+    {
+        beg1 = beg;
+        end1 = end;
+    }
+    else
+    {
+        beg1 = end;
+        end1 = beg;
+    }
+    myll = myin >> beg1;
+    myll = myll & build_bit(beg1, end1);
+    return myll;
 }
 
 } // namespace pcm
