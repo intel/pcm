@@ -36,6 +36,8 @@ CT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
 #include <csignal>
 #include <ctime>
 #include <cmath>
+#else
+#include <intrin.h>
 #endif
 
 namespace pcm {
@@ -342,7 +344,7 @@ void drawStackedBar(const std::string & label, std::vector<StackedBarItem> & h, 
 // emulates scanf %i for hex 0x prefix otherwise assumes dec (no oct support)
 bool match(const std::string& subtoken, const std::string& sname, uint64* result);
 
-uint64 read_number(char* str);
+uint64 read_number(const char* str);
 
 union PCM_CPUID_INFO
 {

@@ -32,8 +32,13 @@
 #include <string>
 #include <assert.h>
 #include <bitset>
+#include <regex>
+#include <unordered_map>
 #include "cpucounters.h"
 #include "utils.h"
+#pragma warning(push, 0)
+#include "simdjson/simdjson.h"
+#pragma warning(pop)
 #ifdef _MSC_VER
 #include "freegetopt/getopt.h"
 #endif
@@ -45,6 +50,7 @@
 
 using namespace std;
 using namespace pcm;
+using namespace simdjson;
 
 void print_usage(const string progname)
 {
@@ -60,6 +66,7 @@ void print_usage(const string progname)
     cerr << "  [-e event1] [-e event2] [-e event3] .. => list of custom events to monitor\n";
     cerr << "  event description example: -e core/config=0x30203,name=LD_BLOCKS.STORE_FORWARD/ -e core/fixed,config=0x333/ \n";
     cerr << "                             -e cha/config=0,name=UNC_CHA_CLOCKTICKS/ -e imc/fixed,name=DRAM_CLOCKS/\n";
+    cerr << "                             -e NAME where the NAME is an event from https://download.01.org/perfmon/ event lists\n";
     cerr << "  -yc   | --yescores  | /yc              => enable specific cores to output\n";
     cerr << "  -f    | /f                             => enforce flushing each line for interactive output\n";
     cerr << "  -i[=number] | /i[=number]              => allow to determine number of iterations\n";
@@ -74,8 +81,212 @@ void print_usage(const string progname)
     cerr << "\n";
 }
 
+std::vector<std::shared_ptr<simdjson::dom::parser> > JSONparsers;
+std::unordered_map<std::string, simdjson::dom::object> PMUEventMap;
+std::unordered_map<std::string, simdjson::dom::element> PMURegisterDeclarations;
+
+bool initPMUEventMap()
+{
+    static bool inited = false;
+
+    if (inited == true)
+    {
+        return true;
+    }
+    inited = true;
+    const auto mapfile = "mapfile.csv";
+    std::ifstream in(mapfile);
+    std::string line, item;
+
+    if (!in.is_open())
+    {
+        cerr << "ERROR: File " << mapfile << " can't be open. \n";
+        return false;
+    }
+    int32 FMSPos = -1;
+    int32 FilenamePos = -1;
+    int32 EventTypetPos = -1;
+    if (std::getline(in, line))
+    {
+        auto header = split(line, ',');
+        for (int32 i = 0; i < (int32)header.size(); ++i)
+        {
+            if (header[i] == "Family-model")
+            {
+                FMSPos = i;
+            }
+            else if (header[i] == "Filename")
+            {
+                FilenamePos = i;
+            }
+            else if (header[i] == "EventType")
+            {
+                EventTypetPos = i;
+            }
+        }
+    }
+    else
+    {
+        cerr << "Can't read first line from " << mapfile << " \n";
+        return false;
+    }
+    // cout << FMSPos << " " << FilenamePos << " " << EventTypetPos << "\n";
+    assert(FMSPos > 0);
+    assert(FilenamePos > 0);
+    assert(EventTypetPos > 0);
+    const std::string ourFMS = PCM::getInstance()->getCPUFamilyModelString();
+    // cout << "Our FMS: " << ourFMS << "\n";
+    std::map<std::string, std::string> eventFiles;
+    while (std::getline(in, line))
+    {
+        auto tokens = split(line, ',');
+        assert(FMSPos < (int32)tokens.size());
+        assert(FilenamePos < (int32)tokens.size());
+        assert(EventTypetPos < (int32)tokens.size());
+        std::regex FMSRegex(tokens[FMSPos]);
+        std::cmatch FMSMatch;
+        if (std::regex_search(ourFMS.c_str(), FMSMatch, FMSRegex))
+        {
+            cout << tokens[FMSPos] << " " << tokens[EventTypetPos] << " " << tokens[FilenamePos] << " matched\n";
+            eventFiles[tokens[EventTypetPos]] = tokens[FilenamePos];
+        }
+    }
+    in.close();
+
+    if (eventFiles.empty())
+    {
+        cerr << "ERROR: CPU " << ourFMS << "not found in " << mapfile << "\n";
+        return false;
+    }
+
+    for (const auto evfile : eventFiles)
+    {
+        std::string path = std::string(".") + evfile.second;
+        try {
+
+            cout << evfile.first << " " << evfile.second << "\n";
+
+            if (evfile.first == "core" || evfile.first == "uncore")
+            {
+                JSONparsers.push_back(std::make_shared<simdjson::dom::parser>());
+                for (simdjson::dom::object eventObj : JSONparsers.back()->load(path)) {
+                    // cout << "Event ----------------\n";
+                    const std::string EventName{eventObj["EventName"].get_c_str()};
+                    if (EventName.empty())
+                    {
+                        cerr << "Did not find EventName in JSON object:\n";
+                        for (const auto keyValue : eventObj)
+                        {
+                            cout << "key: " << keyValue.key << " value: " << keyValue.value << "\n";
+                        }
+                    }
+                    else
+                    {
+                        PMUEventMap[EventName] = eventObj;
+                    }
+                }
+            }
+        }
+        catch (std::exception& e)
+        {
+            cerr << "Error while opening and/or parsing " << path << " : " << e.what() << "\n";
+        }
+    }
+    return true;
+}
+
+bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string eventStr)
+{
+    if (initPMUEventMap() == false)
+    {
+        cerr << "ERROR: PMU Event map can not be initialized\n";
+        return false;
+    }
+
+    if (PMUEventMap.find(eventStr) == PMUEventMap.end())
+    {
+        cerr << "ERROR: event " << eventStr << " could not be found in event database.\n";
+        return false;
+    }
+
+    const auto eventObj = PMUEventMap[eventStr];
+    std::string pmuName;
+    PCM::RawEventConfig config = { {0,0,0}, "" };
+    bool fixed = false;
+
+    if (eventObj.at_key("Unit").error() == NO_SUCH_FIELD)
+    {
+        pmuName = "core";
+        if (PMURegisterDeclarations.find(pmuName) == PMURegisterDeclarations.end())
+        {
+            // declaration not loaded yet
+            std::string path = std::string("PMURegisterDeclarations/") + PCM::getInstance()->getCPUFamilyModelString() + "." + pmuName + ".json";
+            try {
+
+                JSONparsers.push_back(std::make_shared<simdjson::dom::parser>());
+                PMURegisterDeclarations[pmuName] = JSONparsers.back()->load(path);
+            }
+            catch (std::exception& e)
+            {
+                cerr << "Error while opening and/or parsing " << path << " : " << e.what() << "\n";
+                return false;
+            }
+        }
+
+        config.second = eventStr;
+
+        try {
+
+            for (const auto keyValue : PMURegisterDeclarations[pmuName].get_object())
+            {
+                // cout << "Setting " << keyValue.key << " : " << keyValue.value << "\n";
+                simdjson::dom::object innerobj = keyValue.value;
+                // cout << "   config: " << uint64_t(innerobj["Config"]) << "\n";
+                // cout << "   FirstBit: " << uint64_t(innerobj["Position"]) << "\n";
+                std::string keyStr{ keyValue.key.begin(), keyValue.key.end() };
+                std::string fieldStr{ eventObj[keyStr].get_c_str() };
+                fieldStr.erase(std::remove(fieldStr.begin(), fieldStr.end(), '\"'), fieldStr.end());
+                // cout << " field value is " << fieldStr << " " << read_number(fieldStr.c_str()) <<  "\n";
+                config.first[uint64_t(innerobj["Config"])] |= read_number(fieldStr.c_str()) << uint64_t(innerobj["Position"]);
+            }
+            config.first[0] |= 0x30000; // count for user-space and kernel
+
+            curPMUConfigs[pmuName].programmable.push_back(config);
+        }
+        catch (std::exception& e)
+        {
+            cerr << "Error while setting a register field for event " << eventStr << " : " << e.what() << "\n";
+            for (const auto keyValue : eventObj)
+            {
+                std::cout << keyValue.key << " : " << keyValue.value << "\n";
+            }
+            return false;
+        }
+    }
+    else
+    {
+        const std::string unit{eventObj["Unit"].get_c_str()};
+        std::cout << eventStr << " is uncore event for unit " << unit << "\n";
+    }
+
+    /*
+    for (const auto keyValue : eventObj)
+    {
+        cout << keyValue.key << " : " << keyValue.value << "\n";
+    }
+    */
+
+    cout << "parsed " << (fixed ? "fixed " : "") << "event " << pmuName << ": \"" << hex << config.second << "\" : {0x" << hex << config.first[0] << ", 0x" << config.first[1] << ", 0x" << config.first[2] << "}\n" << dec;
+
+    return true;
+}
+
 bool addEvent(PCM::RawPMUConfigs & curPMUConfigs, string eventStr)
 {
+    if (eventStr.find('/') == string::npos)
+    {
+        return addEventFromDB(curPMUConfigs, eventStr);
+    }
     PCM::RawEventConfig config = { {0,0,0}, "" };
     const auto typeConfig = split(eventStr, '/');
     if (typeConfig.size() < 2)
