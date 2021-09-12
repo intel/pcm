@@ -54,7 +54,6 @@
 
 using namespace std;
 using namespace pcm;
-using namespace simdjson;
 
 void print_usage(const string progname)
 {
@@ -88,6 +87,7 @@ void print_usage(const string progname)
 }
 
 #ifndef PCM_GCC_6_OR_BELOW
+using namespace simdjson;
 
 std::vector<std::shared_ptr<simdjson::dom::parser> > JSONparsers;
 std::unordered_map<std::string, simdjson::dom::object> PMUEventMap;
