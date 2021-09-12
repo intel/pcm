@@ -222,13 +222,13 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string eventStr)
     PCM::RawEventConfig config = { {0,0,0}, "" };
     bool fixed = false;
 
-    if (eventObj.at_key("Unit").error() == NO_SUCH_FIELD)
+    if (eventObj["Unit"].error() == NO_SUCH_FIELD)
     {
         pmuName = "core";
+        const std::string path = std::string("PMURegisterDeclarations/") + PCM::getInstance()->getCPUFamilyModelString() + "." + pmuName + ".json";
         if (PMURegisterDeclarations.find(pmuName) == PMURegisterDeclarations.end())
         {
             // declaration not loaded yet
-            std::string path = std::string("PMURegisterDeclarations/") + PCM::getInstance()->getCPUFamilyModelString() + "." + pmuName + ".json";
             try {
 
                 JSONparsers.push_back(std::make_shared<simdjson::dom::parser>());
@@ -245,19 +245,34 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string eventStr)
 
         try {
 
-            for (const auto keyValue : PMURegisterDeclarations[pmuName].get_object())
+            for (const auto registerKeyValue : PMURegisterDeclarations[pmuName].get_object())
             {
-                // cout << "Setting " << keyValue.key << " : " << keyValue.value << "\n";
-                simdjson::dom::object innerobj = keyValue.value;
-                // cout << "   config: " << uint64_t(innerobj["Config"]) << "\n";
-                // cout << "   FirstBit: " << uint64_t(innerobj["Position"]) << "\n";
-                std::string keyStr{ keyValue.key.begin(), keyValue.key.end() };
-                std::string fieldStr{ eventObj[keyStr].get_c_str() };
-                fieldStr.erase(std::remove(fieldStr.begin(), fieldStr.end(), '\"'), fieldStr.end());
-                // cout << " field value is " << fieldStr << " " << read_number(fieldStr.c_str()) <<  "\n";
-                config.first[uint64_t(innerobj["Config"])] |= read_number(fieldStr.c_str()) << uint64_t(innerobj["Position"]);
+                // cout << "Setting " << registerKeyValue.key << " : " << registerKeyValue.value << "\n";
+                simdjson::dom::object fieldDescriptionObj = registerKeyValue.value;
+                // cout << "   config: " << uint64_t(fieldDescriptionObj["Config"]) << "\n";
+                // cout << "   FirstBit: " << uint64_t(fieldDescriptionObj["Position"]) << "\n";
+                std::string fieldNameStr{ registerKeyValue.key.begin(), registerKeyValue.key.end() };
+                if (eventObj[fieldNameStr].error() == NO_SUCH_FIELD)
+                {
+                    // cerr << fieldNameStr << " not found\n";
+                    if (fieldDescriptionObj["DefaultValue"].error() == NO_SUCH_FIELD)
+                    {
+                        cerr << "ERROR: DefaultValue not provided for field \"" << fieldNameStr << "\" in " << path << "\n";
+                        return false;
+                    }
+                    else
+                    {
+                        config.first[uint64_t(fieldDescriptionObj["Config"])] |= uint64_t(fieldDescriptionObj["DefaultValue"]) << uint64_t(fieldDescriptionObj["Position"]);
+                    }
+                }
+                else
+                {
+                    std::string fieldValueStr{ eventObj[fieldNameStr].get_c_str() };
+                    fieldValueStr.erase(std::remove(fieldValueStr.begin(), fieldValueStr.end(), '\"'), fieldValueStr.end());
+                    // cout << " field value is " << fieldValueStr << " " << read_number(fieldValueStr.c_str()) <<  "\n";
+                    config.first[uint64_t(fieldDescriptionObj["Config"])] |= read_number(fieldValueStr.c_str()) << uint64_t(fieldDescriptionObj["Position"]);
+                }
             }
-            config.first[0] |= 0x30000; // count for user-space and kernel
 
             curPMUConfigs[pmuName].programmable.push_back(config);
         }
