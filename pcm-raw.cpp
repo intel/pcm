@@ -36,9 +36,13 @@
 #include <unordered_map>
 #include "cpucounters.h"
 #include "utils.h"
+#include "gccversion.h"
+#ifndef PCM_GCC_6_OR_BELOW
 #pragma warning(push, 0)
 #include "simdjson/simdjson.h"
 #pragma warning(pop)
+#endif
+
 #ifdef _MSC_VER
 #include "freegetopt/getopt.h"
 #endif
@@ -66,7 +70,9 @@ void print_usage(const string progname)
     cerr << "  [-e event1] [-e event2] [-e event3] .. => list of custom events to monitor\n";
     cerr << "  event description example: -e core/config=0x30203,name=LD_BLOCKS.STORE_FORWARD/ -e core/fixed,config=0x333/ \n";
     cerr << "                             -e cha/config=0,name=UNC_CHA_CLOCKTICKS/ -e imc/fixed,name=DRAM_CLOCKS/\n";
+#ifndef PCM_GCC_6_OR_BELOW
     cerr << "                             -e NAME where the NAME is an event from https://download.01.org/perfmon/ event lists\n";
+#endif
     cerr << "  -yc   | --yescores  | /yc              => enable specific cores to output\n";
     cerr << "  -f    | /f                             => enforce flushing each line for interactive output\n";
     cerr << "  -i[=number] | /i[=number]              => allow to determine number of iterations\n";
@@ -80,6 +86,8 @@ void print_usage(const string progname)
     cerr << "  " << progname << " /csv 5 2>/dev/null  => one sampe every 5 seconds, and discard all diagnostic output\n";
     cerr << "\n";
 }
+
+#ifndef PCM_GCC_6_OR_BELOW
 
 std::vector<std::shared_ptr<simdjson::dom::parser> > JSONparsers;
 std::unordered_map<std::string, simdjson::dom::object> PMUEventMap;
@@ -281,12 +289,16 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string eventStr)
     return true;
 }
 
+#endif
+
 bool addEvent(PCM::RawPMUConfigs & curPMUConfigs, string eventStr)
 {
+#ifndef PCM_GCC_6_OR_BELOW
     if (eventStr.find('/') == string::npos)
     {
         return addEventFromDB(curPMUConfigs, eventStr);
     }
+#endif
     PCM::RawEventConfig config = { {0,0,0}, "" };
     const auto typeConfig = split(eventStr, '/');
     if (typeConfig.size() < 2)
