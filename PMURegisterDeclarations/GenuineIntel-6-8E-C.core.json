@@ -1,8 +1,8 @@
 {
-	"EventCode": {"Config": 0, "Position": 0},
-        "UMask": {"Config": 0, "Position": 8},
-        "CounterMask": {"Config": 0, "Position": 24},
-        "Invert": {"Config": 0, "Position": 23},
-        "AnyThread": {"Config": 0, "Position": 21},
-        "EdgeDetect": {"Config": 0, "Position": 18}
+    "EventCode":   {"Config": 0, "Position": 0},
+    "UMask":       {"Config": 0, "Position": 8},
+    "CounterMask": {"Config": 0, "Position": 24},
+    "Invert":      {"Config": 0, "Position": 23},
+    "AnyThread":   {"Config": 0, "Position": 21},
+    "EdgeDetect":  {"Config": 0, "Position": 18}
 }
