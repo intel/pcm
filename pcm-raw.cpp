@@ -329,6 +329,8 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, const string & fullEventS
                 config.first[cfg] |= (value & mask) << pos; // set
             };
 
+            std::regex CounterMaskRegex("c(0x[0-9a-fA-F]+|[[:digit:]]+)");
+            std::regex EdgeDetectRegex("e(0x[0-9a-fA-F]+|[[:digit:]]+)");
             while (mod != EventTokens.end())
             {
                 const auto assigment = split(*mod, '=');
@@ -342,13 +344,13 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, const string & fullEventS
                     setField("User", 1);
                     setField("OS", 0);
                 }
-                else if (mod->length() >= 2 && (*mod)[0] == 'c')
+                else if (std::regex_match(mod->c_str(), CounterMaskRegex))
                 {
                     // Counter Mask modifier
                     const std::string CounterMaskStr{ mod->begin() + 1, mod->end() };
                     setField("CounterMask", read_number(CounterMaskStr.c_str()));
                 }
-                else if (mod->length() >= 2 && (*mod)[0] == 'e')
+                else if (std::regex_match(mod->c_str(), EdgeDetectRegex))
                 {
                     // Edge Detect modifier
                     const std::string Str{ mod->begin() + 1, mod->end() };
