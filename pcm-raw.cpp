@@ -242,7 +242,7 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, const string & fullEventS
     std::string pmuName;
     PCM::RawEventConfig config = { {0,0,0}, "" };
     bool fixed = false;
-    config.second = eventStr;
+    config.second = fullEventStr;
 
     if (eventObj["Unit"].error() == NO_SUCH_FIELD)
     {
