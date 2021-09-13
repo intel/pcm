@@ -319,45 +319,40 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, const string & fullEventS
                 }
             }
 
+            auto setField = [&PMUDeclObj, &config](const char* field, const uint64 value)
+            {
+                const auto pos = int64_t(PMUDeclObj[field]["Position"]);
+                const auto cfg = uint64_t(PMUDeclObj[field]["Config"]);
+                const auto width = uint64_t(PMUDeclObj[field]["Width"]);
+                const uint64 mask = (1ULL << width) - 1ULL; // 1 -> 1b, 2 -> 11b, 3 -> 111b
+                config.first[cfg] &= ~(mask << pos); // clear
+                config.first[cfg] |= (value & mask) << pos; // set
+            };
+
             while (mod != EventTokens.end())
             {
                 const auto assigment = split(*mod, '=');
                 if (*mod == "SUP")
                 {
-                    const auto userPos = int64_t(PMUDeclObj["User"]["Position"]);
-                    const auto userConfig = uint64_t(PMUDeclObj["User"]["Config"]);
-                    config.first[userConfig] &= ~(1ULL << userPos); // clear user bit
-                    const auto osPos = int64_t(PMUDeclObj["OS"]["Position"]);
-                    const auto osConfig = uint64_t(PMUDeclObj["OS"]["Config"]);
-                    config.first[osConfig] |= (1ULL << osPos); // set os bit
+                    setField("User", 0);
+                    setField("OS", 1);
                 }
                 else if (*mod == "USER")
                 {
-                    const auto userPos = int64_t(PMUDeclObj["User"]["Position"]);
-                    const auto userConfig = uint64_t(PMUDeclObj["User"]["Config"]);
-                    config.first[userConfig] |= (1ULL << userPos); // set user bit
-                    const auto osPos = int64_t(PMUDeclObj["OS"]["Position"]);
-                    const auto osConfig = uint64_t(PMUDeclObj["OS"]["Config"]);
-                    config.first[osConfig] &= ~(1ULL << osPos); // clear os bit
+                    setField("User", 1);
+                    setField("OS", 0);
                 }
                 else if (mod->length() >= 2 && (*mod)[0] == 'c')
                 {
                     // Counter Mask modifier
                     const std::string CounterMaskStr{ mod->begin() + 1, mod->end() };
-                    const auto CounterMask = read_number(CounterMaskStr.c_str());
-                    const auto cmaskPos = int64_t(PMUDeclObj["CounterMask"]["Position"]);
-                    const auto cmaskConfig = uint64_t(PMUDeclObj["CounterMask"]["Config"]);
-                    config.first[cmaskConfig] |= CounterMask << cmaskPos;
+                    setField("CounterMask", read_number(CounterMaskStr.c_str()));
                 }
                 else if (mod->length() >= 2 && (*mod)[0] == 'e')
                 {
                     // Edge Detect modifier
                     const std::string Str{ mod->begin() + 1, mod->end() };
-                    const auto value = read_number(Str.c_str());
-                    const auto pos = int64_t(PMUDeclObj["EdgeDetect"]["Position"]);
-                    const auto Config = uint64_t(PMUDeclObj["EdgeDetect"]["Config"]);
-                    config.first[Config] &= ~(1ULL << pos); // clear bit
-                    config.first[Config] |= value << pos; // clear bit
+                    setField("EdgeDetect", read_number(Str.c_str()));
                 }
                 else if (assigment.size() == 2 && assigment[0] == "request")
                 {
