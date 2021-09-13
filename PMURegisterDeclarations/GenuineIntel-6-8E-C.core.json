@@ -1,15 +1,50 @@
 {
-    "EventCode":   {"Config": 0, "Position": 0},
-    "UMask":       {"Config": 0, "Position": 8},
-    "User":        {"Config": 0, "Position": 16, "DefaultValue": 1},
-    "OS":          {"Config": 0, "Position": 17, "DefaultValue": 1},
-    "EdgeDetect":  {"Config": 0, "Position": 18},
-    "PinControl":  {"Config": 0, "Position": 19, "DefaultValue": 0},
-    "APICInt":     {"Config": 0, "Position": 20, "DefaultValue": 0},
-    "AnyThread":   {"Config": 0, "Position": 21},
-    "Enable":      {"Config": 0, "Position": 22, "DefaultValue": 1},
-    "Invert":      {"Config": 0, "Position": 23},
-    "CounterMask": {"Config": 0, "Position": 24},
-    "InTX":        {"Config": 0, "Position": 25, "DefaultValue": 0},
-    "InTXCheckpointed": {"Config": 0, "Position": 26, "DefaultValue": 0}
+    "programmable" : {
+        "EventCode":   {"Config": 0, "Position": 0},
+        "UMask":       {"Config": 0, "Position": 8},
+        "User":        {"Config": 0, "Position": 16, "DefaultValue": 1},
+        "OS":          {"Config": 0, "Position": 17, "DefaultValue": 1},
+        "EdgeDetect":  {"Config": 0, "Position": 18},
+        "PinControl":  {"Config": 0, "Position": 19, "DefaultValue": 0},
+        "APICInt":     {"Config": 0, "Position": 20, "DefaultValue": 0},
+        "AnyThread":   {"Config": 0, "Position": 21},
+        "Enable":      {"Config": 0, "Position": 22, "DefaultValue": 1},
+        "Invert":      {"Config": 0, "Position": 23},
+        "CounterMask": {"Config": 0, "Position": 24},
+        "InTX":        {"Config": 0, "Position": 25, "DefaultValue": 0},
+        "InTXCheckpointed": {"Config": 0, "Position": 26, "DefaultValue": 0}
+    },
+    "fixed0" : {
+        "OS":          {"Config": 0, "Position": 0, "DefaultValue": 1},
+        "User":        {"Config": 0, "Position": 1, "DefaultValue": 1},
+        "AnyThread":   {"Config": 0, "Position": 2},
+        "EnablePMI":   {"Config": 0, "Position": 3, "DefaultValue": 0},
+        "EventCode":   {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
+        "UMask":       {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
+        "EdgeDetect":  {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
+        "Invert":      {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
+        "CounterMask": {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"}
+    },
+    "fixed1" : {
+        "OS":          {"Config": 0, "Position": 4, "DefaultValue": 1},
+        "User":        {"Config": 0, "Position": 5, "DefaultValue": 1},
+        "AnyThread":   {"Config": 0, "Position": 6},
+        "EnablePMI":   {"Config": 0, "Position": 7, "DefaultValue": 0},
+        "EventCode":   {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
+        "UMask":       {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
+        "EdgeDetect":  {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
+        "Invert":      {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
+        "CounterMask": {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"}
+    },
+    "fixed2" : {
+        "OS":          {"Config": 0, "Position": 8, "DefaultValue": 1},
+        "User":        {"Config": 0, "Position": 9, "DefaultValue": 1},
+        "AnyThread":   {"Config": 0, "Position": 10},
+        "EnablePMI":   {"Config": 0, "Position": 11, "DefaultValue": 0},
+        "EventCode":   {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
+        "UMask":       {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
+        "EdgeDetect":  {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
+        "Invert":      {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
+        "CounterMask": {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"}
+    }
 }

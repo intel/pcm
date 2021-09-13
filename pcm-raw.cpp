@@ -221,6 +221,7 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string eventStr)
     std::string pmuName;
     PCM::RawEventConfig config = { {0,0,0}, "" };
     bool fixed = false;
+    config.second = eventStr;
 
     if (eventObj["Unit"].error() == NO_SUCH_FIELD)
     {
@@ -240,18 +241,41 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string eventStr)
                 return false;
             }
         }
-
-        config.second = eventStr;
+        std::string CounterStr{eventObj["Counter"].get_c_str()};
+        // cout << "Counter: " << CounterStr << "\n";
+        int fixedCounter = -1;
+        if (pcm_sscanf(CounterStr) >> s_expect("Fixed counter ") >> fixedCounter)
+        {
+            // cout << "Requested fixed counter " << fixedCounter << "\n";
+            fixed = true;
+        }
+        else
+        {
+            // cout << "Requested programmable counter\n";
+        }
 
         try {
-
-            for (const auto registerKeyValue : PMURegisterDeclarations[pmuName].get_object())
+            simdjson::dom::object PMUDeclObj;
+            if (fixed)
+            {
+                PMUDeclObj = PMURegisterDeclarations[pmuName][std::string("fixed") + std::to_string(fixedCounter)].get_object();
+            }
+            else
+            {
+                PMUDeclObj = PMURegisterDeclarations[pmuName]["programmable"].get_object();
+            }
+            for (const auto registerKeyValue : PMUDeclObj)
             {
                 // cout << "Setting " << registerKeyValue.key << " : " << registerKeyValue.value << "\n";
                 simdjson::dom::object fieldDescriptionObj = registerKeyValue.value;
                 // cout << "   config: " << uint64_t(fieldDescriptionObj["Config"]) << "\n";
-                // cout << "   FirstBit: " << uint64_t(fieldDescriptionObj["Position"]) << "\n";
+                // cout << "   Position: " << uint64_t(fieldDescriptionObj["Position"]) << "\n";
                 std::string fieldNameStr{ registerKeyValue.key.begin(), registerKeyValue.key.end() };
+                const int64_t position = int64_t(fieldDescriptionObj["Position"]);
+                if (position == -1)
+                {
+                    continue; // field ignored
+                }
                 if (eventObj[fieldNameStr].error() == NO_SUCH_FIELD)
                 {
                     // cerr << fieldNameStr << " not found\n";
@@ -262,7 +286,7 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string eventStr)
                     }
                     else
                     {
-                        config.first[uint64_t(fieldDescriptionObj["Config"])] |= uint64_t(fieldDescriptionObj["DefaultValue"]) << uint64_t(fieldDescriptionObj["Position"]);
+                        config.first[uint64_t(fieldDescriptionObj["Config"])] |= uint64_t(fieldDescriptionObj["DefaultValue"]) << position;
                     }
                 }
                 else
@@ -270,11 +294,18 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string eventStr)
                     std::string fieldValueStr{ eventObj[fieldNameStr].get_c_str() };
                     fieldValueStr.erase(std::remove(fieldValueStr.begin(), fieldValueStr.end(), '\"'), fieldValueStr.end());
                     // cout << " field value is " << fieldValueStr << " " << read_number(fieldValueStr.c_str()) <<  "\n";
-                    config.first[uint64_t(fieldDescriptionObj["Config"])] |= read_number(fieldValueStr.c_str()) << uint64_t(fieldDescriptionObj["Position"]);
+                    config.first[uint64_t(fieldDescriptionObj["Config"])] |= read_number(fieldValueStr.c_str()) << position;
                 }
             }
 
-            curPMUConfigs[pmuName].programmable.push_back(config);
+            if (fixed)
+            {
+                curPMUConfigs[pmuName].fixed.push_back(config);
+            }
+            else
+            {
+                curPMUConfigs[pmuName].programmable.push_back(config);
+            }
         }
         catch (std::exception& e)
         {
@@ -460,14 +491,23 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<Cor
             };
             if (type == "core")
             {
-                if (fixedEvents.size())
+                const char * names[] = {"InstructionsRetired" , "Cycles", "RefCycles"};
+                typedef uint64 (*FuncType) (const CoreCounterState& before, const CoreCounterState& after);
+                static FuncType func[] = { [](const CoreCounterState& before, const CoreCounterState& after) { return getInstructionsRetired(before, after); },
+                              [](const CoreCounterState& before, const CoreCounterState& after) { return getCycles(before, after); },
+                              [](const CoreCounterState& before, const CoreCounterState& after) { return getRefCycles(before, after); } };
+                for (const auto event : fixedEvents)
                 {
-                    printRow("InstructionsRetired", [](const CoreCounterState& before, const CoreCounterState& after) { return getInstructionsRetired(before, after); }, BeforeState, AfterState, m);
-                    printRow("Cycles", [](const CoreCounterState& before, const CoreCounterState& after) { return getCycles(before, after); }, BeforeState, AfterState, m);
-                    printRow("RefCycles", [](const CoreCounterState& before, const CoreCounterState& after) { return getRefCycles(before, after); }, BeforeState, AfterState, m);
+                    for (uint32 cnt = 0; cnt < 3; ++cnt)
+                    {
+                        if (extract_bits(event.first[0], 4U * cnt, 1U + 4U * cnt))
+                        {
+                            printRow(event.second.empty() ? names[cnt] : event.second, func[cnt], BeforeState, AfterState, m);
+                        }
+                    }
                 }
                 uint32 i = 0;
-                for (auto event : events)
+                for (const auto event : events)
                 {
                     const std::string name = (event.second.empty()) ? (type + "Event" + std::to_string(i)) : event.second;
                     printRow(name, [&i](const CoreCounterState& before, const CoreCounterState& after) { return getNumberOfCustomEvents(i, before, after); }, BeforeState, AfterState, m);
@@ -547,18 +587,24 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<CoreCounterSt
                 if (m->isCoreOnline(core) == false || (show_partial_core_output && ycores.test(core) == false))
                     continue;
 
-                if (fixedEvents.size())
+                const char* names[] = { "InstructionsRetired" , "Cycles", "RefCycles" };
+                const uint64 values[] = { getInstructionsRetired(BeforeState[core], AfterState[core]), getCycles(BeforeState[core], AfterState[core]), getRefCycles(BeforeState[core], AfterState[core]) };
+                for (const auto event : fixedEvents)
                 {
-                    auto print = [&](const char* metric, const uint64 value)
+                    auto print = [&](const std::string & metric, const uint64 value)
                     {
                         choose(outputType,
                             [m, core]() { cout << "SKT" << m->getSocketId(core) << "CORE" << core << ","; },
-                            [&fixedEvents,&metric]() { cout << metric << fixedEvents[0].second << ","; },
-                            [&]() { cout << value << ","; });
+                            [&metric]() { cout << metric << ","; },
+                            [&value]() { cout << value << ","; });
                     };
-                    print("InstructionsRetired", getInstructionsRetired(BeforeState[core], AfterState[core]));
-                    print("Cycles", getCycles(BeforeState[core], AfterState[core]));
-                    print("RefCycles", getRefCycles(BeforeState[core], AfterState[core]));
+                    for (uint32 cnt = 0; cnt < 3; ++cnt)
+                    {
+                        if (extract_bits(event.first[0], 4U * cnt, 1U + 4U * cnt))
+                        {
+                            print(event.second.empty() ? names[cnt] : event.second, values[cnt]);
+                        }
+                    }
                 }
                 int i = 0;
                 for (auto event : events)

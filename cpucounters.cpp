@@ -4293,7 +4293,11 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_)
         }
         else
         {
-            fixedReg.value = corePMUConfig.fixed[0].first[0];
+            fixedReg.value = 0;
+            for (auto cfg : corePMUConfig.fixed)
+            {
+                fixedReg.value |= cfg.first[0];
+            }
             conf.fixedCfg = &fixedReg;
         }
 
