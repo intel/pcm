@@ -1737,7 +1737,24 @@ void PCM::initUncoreObjects()
     }
     if (cpu_model == ICX || cpu_model == SNOWRIDGE)
     {
-        initSocket2Ubox0Bus();
+        bool failed = false;
+        try
+        {
+            initSocket2Ubox0Bus();
+        }
+        catch (std::exception & e)
+        {
+            std::cerr << e.what() << "\n";
+            failed = true;
+        }
+        catch (...)
+        {
+            failed = true;
+        }
+        if (failed)
+        {
+            std::cerr << "Can not read PCI configuration space bus mapping. Access to uncore counters is disabled.\n";
+        }
         for (size_t s = 0; s < (size_t)num_sockets && s < socket2UBOX0bus.size() && s < server_pcicfg_uncore.size(); ++s)
         {
             serverBW.push_back(std::make_shared<ServerBW>(server_pcicfg_uncore[s]->getNumMC(), socket2UBOX0bus[s].first, socket2UBOX0bus[s].second));
