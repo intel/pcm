@@ -203,19 +203,40 @@ bool initPMUEventMap()
     return true;
 }
 
-bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string eventStr)
+bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, const string & fullEventStr)
 {
     if (initPMUEventMap() == false)
     {
         cerr << "ERROR: PMU Event map can not be initialized\n";
         return false;
     }
+    if (fullEventStr.empty())
+    {
+        return true;
+    }
+    // cerr << "Parsing event " << fullEventStr << "\n";
+    // cerr << "size: " << fullEventStr.size() << "\n";
+    const auto EventTokens = split(fullEventStr, ':');
+    assert(!EventTokens.empty());
+
+    const auto eventStr = EventTokens[0];
+
+    // cerr << "size: " << eventStr.size() << "\n";
+
+    if (eventStr == "MSR_EVENT")
+    {
+        std::cerr << fullEventStr << " event is not supported. Ignoring the event.\n";
+        return true;
+    }
 
     if (PMUEventMap.find(eventStr) == PMUEventMap.end())
     {
-        cerr << "ERROR: event " << eventStr << " could not be found in event database.\n";
-        return false;
+        cerr << "ERROR: event " << eventStr << " could not be found in event database. Ignoring the event.\n";
+        return true;
     }
+
+    auto mod = EventTokens.begin();
+    ++mod;
 
     const auto eventObj = PMUEventMap[eventStr];
     std::string pmuName;
@@ -298,6 +319,64 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string eventStr)
                 }
             }
 
+            while (mod != EventTokens.end())
+            {
+                const auto assigment = split(*mod, '=');
+                if (*mod == "SUP")
+                {
+                    const auto userPos = int64(PMUDeclObj["User"]["Position"]);
+                    const auto userConfig = uint64_t(PMUDeclObj["User"]["Config"]);
+                    config.first[userConfig] &= ~(1ULL << userPos); // clear user bit
+                    const auto osPos = int64(PMUDeclObj["OS"]["Position"]);
+                    const auto osConfig = uint64_t(PMUDeclObj["OS"]["Config"]);
+                    config.first[osConfig] |= (1ULL << osPos); // set os bit
+                }
+                else if (*mod == "USER")
+                {
+                    const auto userPos = int64(PMUDeclObj["User"]["Position"]);
+                    const auto userConfig = uint64_t(PMUDeclObj["User"]["Config"]);
+                    config.first[userConfig] |= (1ULL << userPos); // set user bit
+                    const auto osPos = int64(PMUDeclObj["OS"]["Position"]);
+                    const auto osConfig = uint64_t(PMUDeclObj["OS"]["Config"]);
+                    config.first[osConfig] &= ~(1ULL << osPos); // clear os bit
+                }
+                else if (mod->length() >= 2 && (*mod)[0] == 'c')
+                {
+                    // Counter Mask modifier
+                    const std::string CounterMaskStr{ mod->begin() + 1, mod->end() };
+                    const auto CounterMask = read_number(CounterMaskStr.c_str());
+                    const auto cmaskPos = int64(PMUDeclObj["CounterMask"]["Position"]);
+                    const auto cmaskConfig = uint64_t(PMUDeclObj["CounterMask"]["Config"]);
+                    config.first[cmaskConfig] |= CounterMask << cmaskPos;
+                }
+                else if (mod->length() >= 2 && (*mod)[0] == 'e')
+                {
+                    // Edge Detect modifier
+                    const std::string Str{ mod->begin() + 1, mod->end() };
+                    const auto value = read_number(Str.c_str());
+                    const auto pos = int64(PMUDeclObj["EdgeDetect"]["Position"]);
+                    const auto Config = uint64_t(PMUDeclObj["EdgeDetect"]["Config"]);
+                    config.first[Config] &= ~(1ULL << pos); // clear bit
+                    config.first[Config] |= value << pos; // clear bit
+                }
+                else if (assigment.size() == 2 && assigment[0] == "request")
+                {
+                    cerr << "Unsupported event modifier: " << *mod << " in event " << fullEventStr << "\n";
+                    return true;
+                }
+                else if (assigment.size() == 2 && assigment[0] == "response")
+                {
+                    cerr << "Unsupported event modifier: " << *mod << " in event " << fullEventStr << "\n";
+                    return true;
+                }
+                else
+                {
+                    cerr << "Unsupported event modifier: " << *mod << " in event " << fullEventStr << "\n";
+                    return false;
+                }
+                ++mod;
+            }
+
             if (fixed)
             {
                 curPMUConfigs[pmuName].fixed.push_back(config);
@@ -330,7 +409,7 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string eventStr)
     }
     */
 
-    cout << "parsed " << (fixed ? "fixed " : "") << "event " << pmuName << ": \"" << hex << config.second << "\" : {0x" << hex << config.first[0] << ", 0x" << config.first[1] << ", 0x" << config.first[2] << "}\n" << dec;
+    cout << "parsed " << (fixed ? "fixed " : "") <<  pmuName << " event : \"" << hex << config.second << "\" : {0x" << hex << config.first[0] << ", 0x" << config.first[1] << ", 0x" << config.first[2] << "}\n" << dec;
 
     return true;
 }
@@ -381,7 +460,7 @@ bool addEvent(PCM::RawPMUConfigs & curPMUConfigs, string eventStr)
             return false;
         }
     }
-    cout << "parsed "<< (fixed?"fixed ":"")<<"event " << pmuName << ": \"" << hex << config.second << "\" : {0x" << hex << config.first[0] << ", 0x" << config.first[1] << ", 0x" << config.first[2] << "}\n" << dec;
+    cout << "parsed "<< (fixed?"fixed ":"")<< " " << pmuName << " event: \"" << hex << config.second << "\" : {0x" << hex << config.first[0] << ", 0x" << config.first[1] << ", 0x" << config.first[2] << "}\n" << dec;
     if (fixed)
         curPMUConfigs[pmuName].fixed.push_back(config);
     else
@@ -402,9 +481,17 @@ bool addEvents(std::vector<PCM::RawPMUConfigs>& PMUConfigs, string fn)
     while (std::getline(in, line))
     {
         PCM::RawPMUConfigs curConfig;
+        // cerr << "Parsing line " << line << "\n";
         auto events = split(line, ' ');
-        for (auto event : events)
+        // cerr << "events size " << events.size() << "\n";
+        /*
+        for (const auto event : events)
         {
+            cerr << event << ",\n";
+        } */
+        for (const auto event : events)
+        {
+            // cerr << "adding event " << event << "\n";
             if (addEvent(curConfig, event) == false)
             {
                 return false;
