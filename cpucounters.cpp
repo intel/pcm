@@ -3396,6 +3396,7 @@ bool PCM::PMUinUse()
                 return true;
             }
         }
+#if 0
         // either os=0,usr=0 (not running) or os=1,usr=1 (fits PCM modus) are ok, other combinations are not
         if(ctrl_reg.fields.os0 != ctrl_reg.fields.usr0 ||
            ctrl_reg.fields.os1 != ctrl_reg.fields.usr1 ||
@@ -3404,6 +3405,7 @@ bool PCM::PMUinUse()
            std::cerr << "WARNING: Core " << i << " fixed ctrl:" << ctrl_reg.value << "\n";
            return true;
         }
+#endif
     }
     //std::cout << std::flush
     return false;
