@@ -324,19 +324,19 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, const string & fullEventS
                 const auto assigment = split(*mod, '=');
                 if (*mod == "SUP")
                 {
-                    const auto userPos = int64(PMUDeclObj["User"]["Position"]);
+                    const auto userPos = int64_t(PMUDeclObj["User"]["Position"]);
                     const auto userConfig = uint64_t(PMUDeclObj["User"]["Config"]);
                     config.first[userConfig] &= ~(1ULL << userPos); // clear user bit
-                    const auto osPos = int64(PMUDeclObj["OS"]["Position"]);
+                    const auto osPos = int64_t(PMUDeclObj["OS"]["Position"]);
                     const auto osConfig = uint64_t(PMUDeclObj["OS"]["Config"]);
                     config.first[osConfig] |= (1ULL << osPos); // set os bit
                 }
                 else if (*mod == "USER")
                 {
-                    const auto userPos = int64(PMUDeclObj["User"]["Position"]);
+                    const auto userPos = int64_t(PMUDeclObj["User"]["Position"]);
                     const auto userConfig = uint64_t(PMUDeclObj["User"]["Config"]);
                     config.first[userConfig] |= (1ULL << userPos); // set user bit
-                    const auto osPos = int64(PMUDeclObj["OS"]["Position"]);
+                    const auto osPos = int64_t(PMUDeclObj["OS"]["Position"]);
                     const auto osConfig = uint64_t(PMUDeclObj["OS"]["Config"]);
                     config.first[osConfig] &= ~(1ULL << osPos); // clear os bit
                 }
@@ -345,7 +345,7 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, const string & fullEventS
                     // Counter Mask modifier
                     const std::string CounterMaskStr{ mod->begin() + 1, mod->end() };
                     const auto CounterMask = read_number(CounterMaskStr.c_str());
-                    const auto cmaskPos = int64(PMUDeclObj["CounterMask"]["Position"]);
+                    const auto cmaskPos = int64_t(PMUDeclObj["CounterMask"]["Position"]);
                     const auto cmaskConfig = uint64_t(PMUDeclObj["CounterMask"]["Config"]);
                     config.first[cmaskConfig] |= CounterMask << cmaskPos;
                 }
@@ -354,7 +354,7 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, const string & fullEventS
                     // Edge Detect modifier
                     const std::string Str{ mod->begin() + 1, mod->end() };
                     const auto value = read_number(Str.c_str());
-                    const auto pos = int64(PMUDeclObj["EdgeDetect"]["Position"]);
+                    const auto pos = int64_t(PMUDeclObj["EdgeDetect"]["Position"]);
                     const auto Config = uint64_t(PMUDeclObj["EdgeDetect"]["Config"]);
                     config.first[Config] &= ~(1ULL << pos); // clear bit
                     config.first[Config] |= value << pos; // clear bit
