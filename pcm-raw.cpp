@@ -344,6 +344,14 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, const string & fullEventS
                     setField("User", 1);
                     setField("OS", 0);
                 }
+                else if (*mod == "tx")
+                {
+                    setField("InTX", 1);
+                }
+                else if (*mod == "cp")
+                {
+                    setField("InTXCheckpointed", 1);
+                }
                 else if (std::regex_match(mod->c_str(), CounterMaskRegex))
                 {
                     // Counter Mask modifier
