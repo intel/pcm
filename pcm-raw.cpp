@@ -513,17 +513,17 @@ bitset<MAX_CORES> ycores;
 bool flushLine = false;
 bool transpose = false;
 
-void printRowBegin(const std::string & EventName, const std::vector<CoreCounterState>& BeforeState, const std::vector<CoreCounterState>& AfterState, PCM* m)
+void printRowBegin(const std::string & EventName, const CoreCounterState & BeforeState, const CoreCounterState & AfterState, PCM* m)
 {
     printDateForCSV(CsvOutputType::Data);
-    cout << EventName << "," << (1000ULL * getInvariantTSC(BeforeState[0], AfterState[0])) / m->getNominalFrequency();
+    cout << EventName << "," << (1000ULL * getInvariantTSC(BeforeState, AfterState)) / m->getNominalFrequency() << "," << getInvariantTSC(BeforeState, AfterState);
 }
 
 
 template <class MetricFunc>
 void printRow(const std::string & EventName, MetricFunc metricFunc, const std::vector<CoreCounterState>& BeforeState, const std::vector<CoreCounterState>& AfterState, PCM* m)
 {
-    printRowBegin(EventName, BeforeState, AfterState, m);
+    printRowBegin(EventName, BeforeState[0], AfterState[0], m);
     for (uint32 core = 0; core < m->getNumCores(); ++core)
     {
         if (!(m->isCoreOnline(core) == false || (show_partial_core_output && ycores.test(core) == false)))
@@ -555,7 +555,7 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<Cor
             {
                 if (fixedEvents.size())
                 {
-                    printRowBegin(fixedName, BeforeState, AfterState, m);
+                    printRowBegin(fixedName, BeforeState[0], AfterState[0], m);
                     for (uint32 s = 0; s < m->getNumSockets(); ++s)
                     {
                         for (uint32 u = 0; u < maxUnit; ++u)
@@ -569,7 +569,7 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<Cor
                 for (auto event : events)
                 {
                     const std::string name = (event.second.empty()) ? (type + "Event" + std::to_string(i)) : event.second;
-                    printRowBegin(name, BeforeState, AfterState, m);
+                    printRowBegin(name, BeforeState[0], AfterState[0], m);
                     for (uint32 s = 0; s < m->getNumSockets(); ++s)
                     {
                         for (uint32 u = 0; u < maxUnit; ++u)
