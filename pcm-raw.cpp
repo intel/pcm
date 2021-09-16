@@ -77,7 +77,8 @@ void print_usage(const string progname)
     cerr << "  -i[=number] | /i[=number]              => allow to determine number of iterations\n";
     cerr << "  -tr | /tr                              => transpose output (print single event data in a row)\n";
     cerr << "  -el event_list.txt | /tr event_list.txt  => read event list from event_list.txt file, \n";
-    cerr << "                                              each line represents an event group collected together\n";
+    cerr << "                                              each line represents an event,\n";
+    cerr << "                                              event groups are separated by a semicolon\n";
     print_help_force_rtm_abort_mode(41);
     cerr << " Examples:\n";
     cerr << "  " << progname << " 1                   => print counters every second without core and socket output\n";
@@ -209,10 +210,6 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, const string & fullEventS
     {
         cerr << "ERROR: PMU Event map can not be initialized\n";
         return false;
-    }
-    if (fullEventStr.empty())
-    {
-        return true;
     }
     // cerr << "Parsing event " << fullEventStr << "\n";
     // cerr << "size: " << fullEventStr.size() << "\n";
@@ -423,6 +420,10 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, const string & fullEventS
 
 bool addEvent(PCM::RawPMUConfigs & curPMUConfigs, string eventStr)
 {
+    if (eventStr.empty())
+    {
+        return true;
+    }
 #ifndef PCM_GCC_6_OR_BELOW
     if (eventStr.find('/') == string::npos)
     {
@@ -483,28 +484,44 @@ bool addEvents(std::vector<PCM::RawPMUConfigs>& PMUConfigs, string fn)
         cerr << "ERROR: File " << fn << " can't be open. \n";
         return false;
     }
+    PCM::RawPMUConfigs curConfig;
+    auto doFinishGroup = [&curConfig, &PMUConfigs]()
+    {
+        if (!curConfig.empty())
+        {
+            cout << "Adding new group \n";
+            PMUConfigs.push_back(curConfig);
+            curConfig.clear();
+        }
+    };
     while (std::getline(in, line))
     {
-        PCM::RawPMUConfigs curConfig;
-        // cerr << "Parsing line " << line << "\n";
-        auto events = split(line, ' ');
-        // cerr << "events size " << events.size() << "\n";
-        /*
-        for (const auto event : events)
+        if (line.empty() || line[0] == '#')
         {
-            cerr << event << ",\n";
-        } */
-        for (const auto event : events)
-        {
-            // cerr << "adding event " << event << "\n";
-            if (addEvent(curConfig, event) == false)
-            {
-                return false;
-            }
+            continue;
         }
-        PMUConfigs.push_back(curConfig);
+        const auto last = line[line.size() - 1];
+        bool finishGroup = false;
+        if (last == ',')
+        {
+            line.resize(line.size() - 1);
+        }
+        else if (last == ';')
+        {
+            line.resize(line.size() - 1);
+            finishGroup = true;
+        }
+        if (addEvent(curConfig, line) == false)
+        {
+            return false;
+        }
+        if (finishGroup)
+        {
+            doFinishGroup();
+        }
     }
     in.close();
+    doFinishGroup();
     return true;
 }
 
