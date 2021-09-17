@@ -308,6 +308,12 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
         fixed = (pcm_sscanf(CounterStr) >> s_expect("Fixed counter ") >> fixedCounter) ? true : false;
 
         try {
+            auto PMUObj = (*PMURegisterDeclarations)[pmuName];
+            if (PMUObj.error() == NO_SUCH_FIELD)
+            {
+                cerr << "ERROR: PMU \"" << pmuName << "\" not found for event " << fullEventStr << " in " << path << ", ignoring the event.\n";
+                return true;
+            }
             simdjson::dom::object PMUDeclObj;
             if (fixed)
             {
