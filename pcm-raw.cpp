@@ -927,7 +927,7 @@ int main(int argc, char* argv[])
     char** sysArgv = NULL;
     MainLoop mainLoop;
     string program = string(argv[0]);
-
+    bool forceRTMAbortMode = false;
     PCM* m = PCM::getInstance();
 
     if (argc > 1) do
@@ -1026,6 +1026,7 @@ int main(int argc, char* argv[])
         else
             if (CheckAndForceRTMAbortMode(*argv, m))
             {
+                forceRTMAbortMode = true;
                 continue;
             }
             else if (
@@ -1083,7 +1084,7 @@ int main(int argc, char* argv[])
 
     auto programPMUs = [&m](const PCM::RawPMUConfigs & config)
     {
-        PCM::ErrorCode status = m->program(config);
+        PCM::ErrorCode status = m->program(config, true);
         switch (status)
         {
         case PCM::Success:
@@ -1141,6 +1142,10 @@ int main(int argc, char* argv[])
          for (const auto group : PMUConfigs)
          {
                 if (group.empty()) continue;
+                if (forceRTMAbortMode)
+                {
+                    m->enableForceRTMAbortMode(true);
+                }
                 programPMUs(group);
                 m->getAllCounterStates(SysBeforeState, DummySocketStates, BeforeState);
                 for (uint32 s = 0; s < m->getNumSockets(); ++s)
