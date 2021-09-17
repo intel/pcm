@@ -110,6 +110,7 @@ bool initPMUEventMap()
     if (!in.is_open())
     {
         cerr << "ERROR: File " << mapfile << " can't be open. \n";
+        cerr << "       Download it from https://download.01.org/perfmon/mapfile.csv \n";
         return false;
     }
     int32 FMSPos = -1;
