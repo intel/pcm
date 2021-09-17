@@ -213,7 +213,7 @@ bool initPMUEventMap()
     return true;
 }
 
-bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, const string & fullEventStr)
+bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
 {
     if (initPMUEventMap() == false)
     {
@@ -222,6 +222,18 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, const string & fullEventS
     }
     // cerr << "Parsing event " << fullEventStr << "\n";
     // cerr << "size: " << fullEventStr.size() << "\n";
+    while (fullEventStr.empty() == false && fullEventStr.back() == ' ')
+    {
+        fullEventStr.resize(fullEventStr.size() - 1); // remove trailing spaces
+    }
+    while (fullEventStr.empty() == false && fullEventStr.front() == ' ')
+    {
+        fullEventStr = fullEventStr.substr(1); // remove leading spaces
+    }
+    if (fullEventStr.empty())
+    {
+        return true;
+    }
     const auto EventTokens = split(fullEventStr, ':');
     assert(!EventTokens.empty());
 
