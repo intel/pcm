@@ -1060,7 +1060,11 @@ int main(int argc, char* argv[])
     {
         if (!group.empty()) ++nGroups;
     }
-
+    if (nGroups == 0)
+    {
+        cout << "No events specified. Exiting.\n";
+        exit(EXIT_FAILURE);
+    }
     cout << "Collecting " << nGroups << " event groups\n";
 
     if (nGroups > 1)
