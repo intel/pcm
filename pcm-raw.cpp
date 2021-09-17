@@ -177,7 +177,7 @@ bool initPMUEventMap()
 
             cout << evfile.first << " " << evfile.second << "\n";
 
-            if (evfile.first == "core" || evfile.first == "uncore")
+            if (evfile.first == "core" || evfile.first == "uncore" || evfile.first == "uncore experimental")
             {
                 JSONparsers.push_back(std::make_shared<simdjson::dom::parser>());
                 for (simdjson::dom::object eventObj : JSONparsers.back()->load(path)) {
@@ -202,6 +202,7 @@ bool initPMUEventMap()
         {
             cerr << "Error while opening and/or parsing " << path << " : " << e.what() << "\n";
             cerr << "Make sure you have downloaded " << evfile.second << " from https://download.01.org/perfmon/" + evfile.second + " \n";
+            return false;
         }
     }
     if (PMUEventMap.empty())
