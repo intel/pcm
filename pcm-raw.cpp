@@ -266,9 +266,29 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, const string & fullEventS
         }
     }
 
-    if (eventObj["Unit"].error() == NO_SUCH_FIELD)
+    static std::map<std::string, std::string> pmuNameMap = {
+        {std::string("cbo"), std::string("cha")},
+        {std::string("upi"), std::string("xpi")},
+        {std::string("upi ll"), std::string("xpi")},
+        {std::string("qpi"), std::string("xpi")},
+        {std::string("qpi ll"), std::string("xpi")}
+    };
+
+    const auto unitObj = eventObj["Unit"];
+    if (unitObj.error() == NO_SUCH_FIELD)
     {
         pmuName = "core";
+    }
+    else
+    {
+        std::string unit{ unitObj.get_c_str() };
+        std::transform(unit.begin(), unit.end(), unit.begin(), [](unsigned char c) { return std::tolower(c); });
+        // std::cout << eventStr << " is uncore event for unit " << unit << "\n";
+        pmuName = (pmuNameMap.find(unit) == pmuNameMap.end()) ? unit : pmuNameMap[unit];
+    }
+    if (1)
+    {
+        // cerr << "pmuName: " << pmuName << " full event "<< fullEventStr << " \n";
         std::string CounterStr{eventObj["Counter"].get_c_str()};
         // cout << "Counter: " << CounterStr << "\n";
         int fixedCounter = -1;
@@ -323,12 +343,14 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, const string & fullEventS
                 const auto pos = int64_t(PMUDeclObj[field]["Position"]);
                 const auto cfg = uint64_t(PMUDeclObj[field]["Config"]);
                 const auto width = uint64_t(PMUDeclObj[field]["Width"]);
-                const uint64 mask = (1ULL << width) - 1ULL; // 1 -> 1b, 2 -> 11b, 3 -> 111b
+                assert (width <= 64);
+                const uint64 mask = (width == 64)? (~0ULL) : ((1ULL << width) - 1ULL); // 1 -> 1b, 2 -> 11b, 3 -> 111b
                 config.first[cfg] &= ~(mask << pos); // clear
                 config.first[cfg] |= (value & mask) << pos; // set
             };
 
             std::regex CounterMaskRegex("c(0x[0-9a-fA-F]+|[[:digit:]]+)");
+            std::regex UmaskRegex("u(0x[0-9a-fA-F]+|[[:digit:]]+)");
             std::regex EdgeDetectRegex("e(0x[0-9a-fA-F]+|[[:digit:]]+)");
             while (mod != EventTokens.end())
             {
@@ -363,6 +385,12 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, const string & fullEventS
                     const std::string Str{ mod->begin() + 1, mod->end() };
                     setField("EdgeDetect", read_number(Str.c_str()));
                 }
+                else if (std::regex_match(mod->c_str(), UmaskRegex))
+                {
+                    // UMask modifier
+                    const std::string Str{ mod->begin() + 1, mod->end() };
+                    setField("UMask", read_number(Str.c_str()));
+                }
                 else if (assigment.size() == 2 && assigment[0] == "request")
                 {
                     cerr << "Unsupported event modifier: " << *mod << " in event " << fullEventStr << "\n";
@@ -372,6 +400,18 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, const string & fullEventS
                 {
                     cerr << "Unsupported event modifier: " << *mod << " in event " << fullEventStr << "\n";
                     return true;
+                }
+                else if (assigment.size() == 2 && assigment[0] == "filter0")
+                {
+                    setField("Filter0", read_number(assigment[1].c_str()));
+                }
+                else if (assigment.size() == 2 && assigment[0] == "filter1")
+                {
+                    setField("Filter1", read_number(assigment[1].c_str()));
+                }
+                else if (assigment.size() == 2 && assigment[0] == "t")
+                {
+                    setField("Threshold", read_number(assigment[1].c_str()));
                 }
                 else
                 {
@@ -392,18 +432,13 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, const string & fullEventS
         }
         catch (std::exception& e)
         {
-            cerr << "Error while setting a register field for event " << eventStr << " : " << e.what() << "\n";
+            cerr << "Error while setting a register field for event " << fullEventStr << " : " << e.what() << "\n";
             for (const auto keyValue : eventObj)
             {
                 std::cout << keyValue.key << " : " << keyValue.value << "\n";
             }
             return false;
         }
-    }
-    else
-    {
-        const std::string unit{eventObj["Unit"].get_c_str()};
-        std::cout << eventStr << " is uncore event for unit " << unit << "\n";
     }
 
     /*
