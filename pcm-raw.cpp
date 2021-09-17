@@ -346,7 +346,7 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
                     else
                     {
                         const auto cfg = uint64_t(fieldDescriptionObj["Config"]);
-                        if (cfg >= config.first.size()) throw std::exception("Config field value is out of bounds");
+                        if (cfg >= config.first.size()) throw std::runtime_error("Config field value is out of bounds");
                         config.first[cfg] |= uint64_t(fieldDescriptionObj["DefaultValue"]) << position;
                     }
                 }
@@ -356,7 +356,7 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
                     fieldValueStr.erase(std::remove(fieldValueStr.begin(), fieldValueStr.end(), '\"'), fieldValueStr.end());
                     // cout << " field value is " << fieldValueStr << " " << read_number(fieldValueStr.c_str()) <<  "\n";
                     const auto cfg = uint64_t(fieldDescriptionObj["Config"]);
-                    if (cfg >= config.first.size()) throw std::exception("Config field value is out of bounds");
+                    if (cfg >= config.first.size()) throw std::runtime_error("Config field value is out of bounds");
                     config.first[cfg] |= read_number(fieldValueStr.c_str()) << position;
                 }
             }
@@ -365,7 +365,7 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
             {
                 const auto pos = int64_t(PMUDeclObj[field]["Position"]);
                 const auto cfg = uint64_t(PMUDeclObj[field]["Config"]);
-                if (cfg >= config.first.size()) throw std::exception("Config field value is out of bounds");
+                if (cfg >= config.first.size()) throw std::runtime_error("Config field value is out of bounds");
                 const auto width = uint64_t(PMUDeclObj[field]["Width"]);
                 assert (width <= 64);
                 const uint64 mask = (width == 64)? (~0ULL) : ((1ULL << width) - 1ULL); // 1 -> 1b, 2 -> 11b, 3 -> 111b
