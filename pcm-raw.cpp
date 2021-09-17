@@ -264,15 +264,7 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, const string & fullEventS
         std::string CounterStr{eventObj["Counter"].get_c_str()};
         // cout << "Counter: " << CounterStr << "\n";
         int fixedCounter = -1;
-        if (pcm_sscanf(CounterStr) >> s_expect("Fixed counter ") >> fixedCounter)
-        {
-            // cout << "Requested fixed counter " << fixedCounter << "\n";
-            fixed = true;
-        }
-        else
-        {
-            // cout << "Requested programmable counter\n";
-        }
+        fixed = (pcm_sscanf(CounterStr) >> s_expect("Fixed counter ") >> fixedCounter) ? true : false;
 
         try {
             simdjson::dom::object PMUDeclObj;
