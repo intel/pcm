@@ -76,7 +76,7 @@ void print_usage(const string progname)
     cerr << "  -f    | /f                             => enforce flushing each line for interactive output\n";
     cerr << "  -i[=number] | /i[=number]              => allow to determine number of iterations\n";
     cerr << "  -tr | /tr                              => transpose output (print single event data in a row)\n";
-    cerr << "  -el event_list.txt | /tr event_list.txt  => read event list from event_list.txt file, \n";
+    cerr << "  -el event_list.txt | /el event_list.txt  => read event list from event_list.txt file, \n";
     cerr << "                                              each line represents an event,\n";
     cerr << "                                              event groups are separated by a semicolon\n";
     print_help_force_rtm_abort_mode(41);
