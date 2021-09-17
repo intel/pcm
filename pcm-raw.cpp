@@ -92,7 +92,7 @@ using namespace simdjson;
 
 std::vector<std::shared_ptr<simdjson::dom::parser> > JSONparsers;
 std::unordered_map<std::string, simdjson::dom::object> PMUEventMap;
-std::unordered_map<std::string, simdjson::dom::element> PMURegisterDeclarations;
+std::shared_ptr<simdjson::dom::element> PMURegisterDeclarations;
 
 bool initPMUEventMap()
 {
@@ -241,24 +241,26 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, const string & fullEventS
     bool fixed = false;
     config.second = fullEventStr;
 
+    const std::string path = std::string("PMURegisterDeclarations/") + PCM::getInstance()->getCPUFamilyModelString() + ".json";
+    if (PMURegisterDeclarations.get() == nullptr)
+    {
+        // declaration not loaded yet
+        try {
+
+            JSONparsers.push_back(std::make_shared<simdjson::dom::parser>());
+            PMURegisterDeclarations = std::make_shared<simdjson::dom::element>();
+            *PMURegisterDeclarations = JSONparsers.back()->load(path);
+        }
+        catch (std::exception& e)
+        {
+            cerr << "Error while opening and/or parsing " << path << " : " << e.what() << "\n";
+            return false;
+        }
+    }
+
     if (eventObj["Unit"].error() == NO_SUCH_FIELD)
     {
         pmuName = "core";
-        const std::string path = std::string("PMURegisterDeclarations/") + PCM::getInstance()->getCPUFamilyModelString() + "." + pmuName + ".json";
-        if (PMURegisterDeclarations.find(pmuName) == PMURegisterDeclarations.end())
-        {
-            // declaration not loaded yet
-            try {
-
-                JSONparsers.push_back(std::make_shared<simdjson::dom::parser>());
-                PMURegisterDeclarations[pmuName] = JSONparsers.back()->load(path);
-            }
-            catch (std::exception& e)
-            {
-                cerr << "Error while opening and/or parsing " << path << " : " << e.what() << "\n";
-                return false;
-            }
-        }
         std::string CounterStr{eventObj["Counter"].get_c_str()};
         // cout << "Counter: " << CounterStr << "\n";
         int fixedCounter = -1;
@@ -276,11 +278,11 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, const string & fullEventS
             simdjson::dom::object PMUDeclObj;
             if (fixed)
             {
-                PMUDeclObj = PMURegisterDeclarations[pmuName][std::string("fixed") + std::to_string(fixedCounter)].get_object();
+                PMUDeclObj = (*PMURegisterDeclarations)[pmuName][std::string("fixed") + std::to_string(fixedCounter)].get_object();
             }
             else
             {
-                PMUDeclObj = PMURegisterDeclarations[pmuName]["programmable"].get_object();
+                PMUDeclObj = (*PMURegisterDeclarations)[pmuName]["programmable"].get_object();
             }
             for (const auto registerKeyValue : PMUDeclObj)
             {
