@@ -959,13 +959,6 @@ int main(int argc, char* argv[])
             continue;
         }
         else if (
-            strncmp(*argv, "-f", 2) == 0 ||
-            strncmp(*argv, "/f", 2) == 0)
-        {
-            flushLine = true;
-            continue;
-        }
-        else if (
             strncmp(*argv, "-tr", 3) == 0 ||
             strncmp(*argv, "/tr", 3) == 0)
         {
@@ -1033,6 +1026,13 @@ int main(int argc, char* argv[])
         else
             if (CheckAndForceRTMAbortMode(*argv, m))
             {
+                continue;
+            }
+            else if (
+                strncmp(*argv, "-f", 2) == 0 ||
+                strncmp(*argv, "/f", 2) == 0)
+            {
+                flushLine = true;
                 continue;
             }
             else if (strncmp(*argv, "--", 2) == 0)
