@@ -48,5 +48,58 @@
             "Invert":      {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
             "CounterMask": {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"}
         }
+    },
+    "cha" : {
+        "programmable" : {
+            "EventCode":   {"Config": 0, "Position": 0, "Width": 8},
+            "UMask":       {"Config": 0, "Position": 8, "Width": 8},
+            "EdgeDetect":  {"Config": 0, "Position": 18, "Width": 1, "DefaultValue": 0},
+            "Threshold":   {"Config": 0, "Position": 24, "Width": 8, "DefaultValue": 0},
+            "Filter0":     {"Config": 1, "Position": 0, "Width": 64, "DefaultValue": 0},
+            "Filter1":     {"Config": 2, "Position": 0, "Width": 64, "DefaultValue": 0}
+        }
+    },
+    "imc" : {
+        "programmable" : {
+            "EventCode":   {"Config": 0, "Position": 0, "Width": 8},
+            "UMask":       {"Config": 0, "Position": 8, "Width": 8},
+            "EdgeDetect":  {"Config": 0, "Position": 18, "Width": 1, "DefaultValue": 0},
+            "Threshold":   {"Config": 0, "Position": 24, "Width": 8, "DefaultValue": 0}
+        }
+    },
+    "xpi" : {
+        "__comment" :  "this is for UPI LL and QPI LL uncore PMUs",
+        "programmable" : {
+            "EventCode":   {"Config": 0, "Position": 0, "Width": 8},
+            "UMask":       {"Config": 0, "Position": 8, "Width": 8},
+            "EdgeDetect":  {"Config": 0, "Position": 18, "Width": 1, "DefaultValue": 0},
+            "Threshold":   {"Config": 0, "Position": 24, "Width": 8, "DefaultValue": 0}
+        }
+    },
+    "m2m" : {
+        "programmable" : {
+            "EventCode":   {"Config": 0, "Position": 0, "Width": 8},
+            "UMask":       {"Config": 0, "Position": 8, "Width": 8},
+            "EdgeDetect":  {"Config": 0, "Position": 18, "Width": 1, "DefaultValue": 0},
+            "Threshold":   {"Config": 0, "Position": 24, "Width": 8, "DefaultValue": 0}
+        }
+    },
+    "m3upi" : {
+        "programmable" : {
+            "EventCode":   {"Config": 0, "Position": 0, "Width": 8},
+            "UMask":       {"Config": 0, "Position": 8, "Width": 8},
+            "EdgeDetect":  {"Config": 0, "Position": 18, "Width": 1, "DefaultValue": 0},
+            "Threshold":   {"Config": 0, "Position": 24, "Width": 8, "DefaultValue": 0}
+        }
+    },
+    "iio" : {
+        "programmable" : {
+            "EventCode":   {"Config": 0, "Position": 0, "Width": 8},
+            "UMask":       {"Config": 0, "Position": 8, "Width": 8},
+            "EdgeDetect":  {"Config": 0, "Position": 18, "Width": 1, "DefaultValue": 0},
+            "Threshold":   {"Config": 0, "Position": 24, "Width": 12, "DefaultValue": 0},
+            "PortMask":    {"Config": 0, "Position": 36, "Width": 8},
+            "FCMask":      {"Config": 0, "Position": 44, "Width": 3}
+        }
     }
 }
