@@ -110,7 +110,7 @@ bool initPMUEventMap()
     if (!in.is_open())
     {
         cerr << "ERROR: File " << mapfile << " can't be open. \n";
-        cerr << "       Download it from https://download.01.org/perfmon/mapfile.csv \n";
+        cerr << "       Download it from https://download.01.org/perfmon/" << mapfile << " \n";
         return false;
     }
     int32 FMSPos = -1;
@@ -147,6 +147,7 @@ bool initPMUEventMap()
     const std::string ourFMS = PCM::getInstance()->getCPUFamilyModelString();
     // cout << "Our FMS: " << ourFMS << "\n";
     std::map<std::string, std::string> eventFiles;
+    cout << "Matched event files:\n";
     while (std::getline(in, line))
     {
         auto tokens = split(line, ',');
@@ -157,7 +158,7 @@ bool initPMUEventMap()
         std::cmatch FMSMatch;
         if (std::regex_search(ourFMS.c_str(), FMSMatch, FMSRegex))
         {
-            cout << tokens[FMSPos] << " " << tokens[EventTypetPos] << " " << tokens[FilenamePos] << " matched\n";
+            cout << tokens[FMSPos] << " " << tokens[EventTypetPos] << " " << tokens[FilenamePos] << "\n";
             eventFiles[tokens[EventTypetPos]] = tokens[FilenamePos];
         }
     }
@@ -200,8 +201,14 @@ bool initPMUEventMap()
         catch (std::exception& e)
         {
             cerr << "Error while opening and/or parsing " << path << " : " << e.what() << "\n";
+            cerr << "Make sure you have downloaded " << evfile.second << " from https://download.01.org/perfmon/" + evfile.second + " \n";
         }
     }
+    if (PMUEventMap.empty())
+    {
+        return false;
+    }
+
     return true;
 }
 
