@@ -141,9 +141,9 @@ bool initPMUEventMap()
         return false;
     }
     // cout << FMSPos << " " << FilenamePos << " " << EventTypetPos << "\n";
-    assert(FMSPos > 0);
-    assert(FilenamePos > 0);
-    assert(EventTypetPos > 0);
+    assert(FMSPos >= 0);
+    assert(FilenamePos >= 0);
+    assert(EventTypetPos >= 0);
     const std::string ourFMS = PCM::getInstance()->getCPUFamilyModelString();
     // cout << "Our FMS: " << ourFMS << "\n";
     std::map<std::string, std::string> eventFiles;
