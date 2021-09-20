@@ -4,7 +4,7 @@ _For support of systems with more than _**_64_**_ logical cores you need to comp
 
 Command-line utility:
 
-1.Compile the windows MSR driver (msr.sys) with Windows DDK Kit (see the sources in the WinMSRDriver directory). For Windows 7 you have to sign the msr.sys driver additionally ([http://msdn.microsoft.com/en-us/library/ms537361(VS.85).aspx](%22http://)).
+1.Compile the windows MSR driver (msr.sys) with Windows DDK Kit (see the sources in the WinMSRDriver directory). For Windows 7 and later versions you have to sign the msr.sys driver additionally ([http://msdn.microsoft.com/en-us/library/ms537361(VS.85).aspx](%22http://)).
 
 2.Build the pcm.exe utility in the PCM_Win using Microsoft Visual Studio
 
@@ -20,7 +20,7 @@ Alternatively you can achieve the same using the “Properties” Windows menu o
 
 Graphical Perfmon front end:
 
-1.Compile the windows MSR driver (msr.sys) with Windows DDK Kit (see the sources in the WinMSRDriver directory). For Windows 7 you have to sign the msr.sys driver additionally ([http://msdn.microsoft.com/en-us/library/ms537361(VS.85).aspx](http://msdn.microsoft.com/en-us/library/ms537361(VS.85).aspx)).
+1.Compile the windows MSR driver (msr.sys) with Windows DDK Kit (see the sources in the WinMSRDriver directory). For Windows 7 and later versions you have to sign the msr.sys driver additionally ([http://msdn.microsoft.com/en-us/library/ms537361(VS.85).aspx](http://msdn.microsoft.com/en-us/library/ms537361(VS.85).aspx)).
 
 2.Copy msr.sys into the c:\windows\system32 directory
 
