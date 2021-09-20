@@ -33,6 +33,8 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <windows.h>
 #endif
 
+#include <assert.h>
+
 namespace pcm {
 
 #ifdef _MSC_VER
@@ -76,11 +78,11 @@ protected:
     }
 };
 
-std::shared_ptr<WinPmem> MMIORange::pmem;
-Mutex MMIORange::mutex;
-bool MMIORange::writeSupported;
+std::shared_ptr<WinPmem> WinPmemMMIORange::pmem;
+Mutex WinPmemMMIORange::mutex;
+bool WinPmemMMIORange::writeSupported;
 
-MMIORange::MMIORange(uint64 baseAddr_, uint64 /* size_ */, bool readonly_) : startAddr(baseAddr_), readonly(readonly_)
+WinPmemMMIORange::WinPmemMMIORange(uint64 baseAddr_, uint64 /* size_ */, bool readonly_) : startAddr(baseAddr_), readonly(readonly_)
 {
     mutex.lock();
     if (pmem.get() == NULL)
@@ -91,6 +93,77 @@ MMIORange::MMIORange(uint64 baseAddr_, uint64 /* size_ */, bool readonly_) : sta
         writeSupported = pmem->toggle_write_mode() >= 0; // since it is a global object enable write mode just in case someone needs it
     }
     mutex.unlock();
+}
+
+MMIORange::MMIORange(uint64 baseAddr_, uint64 size_, bool readonly_)
+{
+    auto hDriver = CreateFile(L"\\\\.\\RDMSR", GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+    if (hDriver != INVALID_HANDLE_VALUE)
+    {
+        // ULONG64 result;
+        DWORD reslength = 0;
+        uint64 result = 0;
+        const BOOL status = DeviceIoControl(hDriver, IO_CTL_MMAP_SUPPORT, NULL, 0, &result, sizeof(uint64), &reslength, NULL);
+        CloseHandle(hDriver);
+        if (status == TRUE && reslength == sizeof(uint64) && result == 1)
+        {
+            impl = std::make_shared<OwnMMIORange>(baseAddr_, size_, readonly_);
+            return;
+        }
+        else
+        {
+            std::cerr << "MSR.sys does not support mmap operations\n";
+        }
+    }
+
+    impl = std::make_shared<WinPmemMMIORange>(baseAddr_, size_, readonly_);
+}
+
+OwnMMIORange::OwnMMIORange(uint64 baseAddr_, uint64 size_, bool /* readonly_ */)
+{
+    hDriver = CreateFile(L"\\\\.\\RDMSR", GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+    MMAP_Request req{};
+    uint64 result = 0;
+    DWORD reslength = 0;
+    req.address.QuadPart = baseAddr_;
+    req.size = size_;
+    const BOOL status = DeviceIoControl(hDriver, IO_CTL_MMAP, &req, sizeof(MMAP_Request), &result, sizeof(uint64), &reslength, NULL);
+    if (status == FALSE || result == 0)
+    {
+        std::cerr << "Error mapping address 0x" << std::hex << req.address.QuadPart << " with size " << std::dec << req.size << "\n";
+        throw std::runtime_error("OwnMMIORange error");
+    }
+    mmapAddr = (char*)result;
+}
+
+uint32 OwnMMIORange::read32(uint64 offset)
+{
+    return *((uint32*)(mmapAddr + offset));
+}
+
+uint64 OwnMMIORange::read64(uint64 offset)
+{
+    return *((uint64*)(mmapAddr + offset));
+}
+
+void OwnMMIORange::write32(uint64 offset, uint32 val)
+{
+    *((uint32*)(mmapAddr + offset)) = val;
+}
+void OwnMMIORange::write64(uint64 offset, uint64 val)
+{
+    *((uint64*)(mmapAddr + offset)) = val;
+}
+
+OwnMMIORange::~OwnMMIORange()
+{
+    MMAP_Request req{};
+    uint64 result = 0;
+    DWORD reslength = 0;
+    req.address.QuadPart = (LONGLONG)mmapAddr;
+    req.size = 0;
+    DeviceIoControl(hDriver, IO_CTL_MUNMAP, &req, sizeof(MMAP_Request), &result, sizeof(uint64), &reslength, NULL);
+    CloseHandle(hDriver);
 }
 
 #elif __APPLE__

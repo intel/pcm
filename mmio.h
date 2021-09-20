@@ -26,6 +26,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #ifdef _MSC_VER
 #include "windows.h"
 #include "winpmem\winpmem.h"
+#include "Winmsrdriver\msrstruct.h"
 #else
 #include <unistd.h>
 #endif
@@ -36,9 +37,19 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 namespace pcm {
 
 #ifdef _MSC_VER
-class MMIORange
-{
 
+class MMIORangeInterface
+{
+public:
+    virtual uint32 read32(uint64 offset) = 0;
+    virtual uint64 read64(uint64 offset) = 0;
+    virtual void write32(uint64 offset, uint32 val) = 0;
+    virtual void write64(uint64 offset, uint64 val) = 0;
+    virtual ~MMIORangeInterface() {}
+};
+
+class WinPmemMMIORange : public MMIORangeInterface
+{
     static std::shared_ptr<WinPmem> pmem;
     static Mutex mutex;
     static bool writeSupported;
@@ -70,7 +81,7 @@ class MMIORange
     }
     const bool readonly;
 public:
-    MMIORange(uint64 baseAddr_, uint64 size_, bool readonly_ = true);
+    WinPmemMMIORange(uint64 baseAddr_, uint64 size_, bool readonly_ = true);
     uint32 read32(uint64 offset)
     {
         uint32 result = 0;
@@ -90,6 +101,42 @@ public:
     void write64(uint64 offset, uint64 val)
     {
         writeInternal(offset, val);
+    }
+};
+
+class OwnMMIORange : public MMIORangeInterface
+{
+    HANDLE hDriver;
+    char * mmapAddr;
+public:
+    OwnMMIORange(uint64 baseAddr_, uint64 size_, bool readonly_ = true);
+    uint32 read32(uint64 offset);
+    uint64 read64(uint64 offset);
+    void write32(uint64 offset, uint32 val);
+    void write64(uint64 offset, uint64 val);
+    ~OwnMMIORange();
+};
+
+class MMIORange
+{
+    std::shared_ptr<MMIORangeInterface> impl;
+public:
+    MMIORange(uint64 baseAddr_, uint64 size_, bool readonly_ = true);
+    uint32 read32(uint64 offset)
+    {
+        return impl->read32(offset);
+    }
+    uint64 read64(uint64 offset)
+    {
+        return impl->read64(offset);
+    }
+    void write32(uint64 offset, uint32 val)
+    {
+        impl->write32(offset, val);
+    }
+    void write64(uint64 offset, uint64 val)
+    {
+        impl->write64(offset, val);
     }
 };
 

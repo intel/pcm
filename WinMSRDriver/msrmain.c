@@ -28,6 +28,10 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #define NT_DEVICE_NAME L"\\Driver\\RDMSR"
 #define DOS_DEVICE_NAME L"\\DosDevices\\RDMSR"
 
+struct DeviceExtension
+{
+    HANDLE devMemHandle;
+};
 
 DRIVER_INITIALIZE DriverEntry;
 
@@ -58,6 +62,9 @@ DriverEntry(
     UNICODE_STRING UnicodeString;
     UNICODE_STRING dosDeviceName;
     PDEVICE_OBJECT MSRSystemDeviceObject = NULL;
+    struct DeviceExtension * pExt = NULL;
+    UNICODE_STRING devMemPath;
+    OBJECT_ATTRIBUTES attr;
 
     UNREFERENCED_PARAMETER(RegistryPath);
 
@@ -65,7 +72,7 @@ DriverEntry(
     RtlInitUnicodeString(&dosDeviceName, DOS_DEVICE_NAME);
 
     status = IoCreateDevice(DriverObject,
-                            0,
+                            sizeof(struct DeviceExtension),
                             &UnicodeString,
                             FILE_DEVICE_UNKNOWN,
                             FILE_DEVICE_SECURE_OPEN,
@@ -81,6 +88,15 @@ DriverEntry(
     DriverObject->MajorFunction[IRP_MJ_CREATE] = dummyFunction;
     DriverObject->MajorFunction[IRP_MJ_DEVICE_CONTROL] = deviceControl;
 
+    pExt = DriverObject->DeviceObject->DeviceExtension;
+    RtlInitUnicodeString(&devMemPath, L"\\Device\\PhysicalMemory");
+    InitializeObjectAttributes(&attr, &devMemPath, OBJ_KERNEL_HANDLE, (HANDLE)NULL, (PSECURITY_DESCRIPTOR)NULL);
+    status = ZwOpenSection(&pExt->devMemHandle, SECTION_MAP_READ | SECTION_MAP_WRITE, &attr);
+    if (!NT_SUCCESS(status))
+    {
+        DbgPrint("Error: failed ZwOpenSection(devMemHandle) => %08X\n", status);
+        return status;
+    }
 
     IoCreateSymbolicLink(&dosDeviceName, &UnicodeString);
 
@@ -128,14 +144,19 @@ NTSTATUS deviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
     PIO_STACK_LOCATION IrpStackLocation = NULL;
     struct MSR_Request * input_msr_req = NULL;
     struct PCICFG_Request * input_pcicfg_req = NULL;
+    struct MMAP_Request* input_mmap_req = NULL;
     ULONG64 * output = NULL;
     GROUP_AFFINITY old_affinity, new_affinity;
     ULONG inputSize = 0;
     PCI_SLOT_NUMBER slot;
     unsigned size = 0;
     PROCESSOR_NUMBER ProcNumber;
+    struct DeviceExtension* pExt = NULL;
+    LARGE_INTEGER offset;
+    SIZE_T mmapSize = 0;
+    PVOID baseAddress = NULL;
 
-    UNREFERENCED_PARAMETER(DeviceObject);
+    pExt = DeviceObject->DeviceExtension;
 
     PAGED_CODE();
 
@@ -150,6 +171,7 @@ NTSTATUS deviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
         {
             input_msr_req = (struct MSR_Request *)Irp->AssociatedIrp.SystemBuffer;
             input_pcicfg_req = (struct PCICFG_Request *)Irp->AssociatedIrp.SystemBuffer;
+            input_mmap_req = (struct MMAP_Request*)Irp->AssociatedIrp.SystemBuffer;
             output = (ULONG64 *)Irp->AssociatedIrp.SystemBuffer;
 
             memset(&ProcNumber, 0, sizeof(PROCESSOR_NUMBER));
@@ -187,6 +209,27 @@ NTSTATUS deviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
                 *output = __readmsr(input_msr_req->msr_address);
                 KeRevertToUserGroupAffinityThread(&old_affinity);
                 Irp->IoStatus.Information = sizeof(ULONG64);                         // result size
+                break;
+            case IO_CTL_MMAP_SUPPORT:
+                *output = 1;
+                Irp->IoStatus.Information = sizeof(ULONG64); // result size
+                break;
+            case IO_CTL_MMAP:
+                offset = input_mmap_req->address;
+                mmapSize = input_mmap_req->size;
+                status = ZwMapViewOfSection(pExt->devMemHandle, ZwCurrentProcess(), &baseAddress, 0L, PAGE_SIZE, &offset, &mmapSize, ViewUnmap, 0, PAGE_READWRITE);
+                if (status != STATUS_SUCCESS || baseAddress == NULL)
+                {
+                    DbgPrint("Error: ZwMapViewOfSection failed, %lld %lld (%ld).\n", offset.QuadPart, mmapSize, status);
+                }
+                else
+                {
+                    *output = (ULONG64)baseAddress;
+                    Irp->IoStatus.Information = sizeof(PVOID); // result size
+                }
+                break;
+            case IO_CTL_MUNMAP:
+                status = ZwUnmapViewOfSection(ZwCurrentProcess(), (PVOID) input_mmap_req->address.QuadPart);
                 break;
             case IO_CTL_PCICFG_WRITE:
                 if (inputSize < sizeof(struct PCICFG_Request) || (input_pcicfg_req->bytes != 4 && input_pcicfg_req->bytes != 8))
