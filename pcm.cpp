@@ -708,7 +708,8 @@ void print_csv_header(PCM * m,
     }
 
     // print second header line
-    cout << "\nDate,Time,";
+    cout << "\n";
+    printDateForCSV(Header2);
     if (show_system_output)
     {
         print_basic_metrics_csv_header(m);
@@ -911,22 +912,8 @@ void print_csv(PCM * m,
     const bool show_system_output
     )
 {
-#ifndef _MSC_VER
-    struct timeval timestamp;
-    gettimeofday(&timestamp, NULL);
-#endif
-    tm tt = pcm_localtime();
-    char old_fill = cout.fill('0');
-    cout.precision(3);
-    cout << "\n" << setw(4) << 1900 + tt.tm_year << '-' << setw(2) << 1 + tt.tm_mon << '-'
-        << setw(2) << tt.tm_mday << ',' << setw(2) << tt.tm_hour << ':'
-        << setw(2) << tt.tm_min << ':' << setw(2) << tt.tm_sec
-#ifdef _MSC_VER
-        << ',';
-#else
-        << "." << setw(3) << ceil(timestamp.tv_usec / 1000) << ',';
-#endif
-    cout.fill(old_fill);
+    cout << "\n";
+    printDateForCSV(CsvOutputType::Data);
 
     if (show_system_output)
     {
