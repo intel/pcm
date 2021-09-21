@@ -22,7 +22,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
         Include this header file if you want to access CPU counters (core and uncore - including memory controller chips and QPI)
 */
 
-#define PCM_VERSION " ($Format:%ci ID=%h$)"
+#include "version.h"
 
 #ifndef PCM_API
 #define PCM_API
