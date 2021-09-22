@@ -241,7 +241,7 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
 
     // cerr << "size: " << eventStr.size() << "\n";
 
-    if (eventStr == "MSR_EVENT" || eventStr == "TOPDOWN.SLOTS")
+    if (eventStr == "MSR_EVENT")
     {
         std::cerr << fullEventStr << " event is not supported yet. Ignoring the event.\n";
         return true;
@@ -405,6 +405,9 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
                 {
                     unsupported();
                     return true;
+                }
+                else if (*mod == "perf_metrics")
+                {
                 }
                 else if (std::regex_match(mod->c_str(), CounterMaskRegex))
                 {
@@ -633,6 +636,8 @@ uint64 nullFixedMetricFunc(const uint32, const ServerUncoreCounterState&, const 
     return ~0ULL;
 }
 
+const char* fixedCoreEventNames[] = { "InstructionsRetired" , "Cycles", "RefCycles", "TopDownSlots" };
+
 void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<CoreCounterState>& BeforeState, vector<CoreCounterState>& AfterState, vector<ServerUncoreCounterState>& BeforeUncoreState, vector<ServerUncoreCounterState>& AfterUncoreState, const CsvOutputType outputType)
 {
     if (outputType == CsvOutputType::Data)
@@ -674,18 +679,19 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<Cor
             };
             if (type == "core")
             {
-                const char * names[] = {"InstructionsRetired" , "Cycles", "RefCycles"};
                 typedef uint64 (*FuncType) (const CoreCounterState& before, const CoreCounterState& after);
                 static FuncType func[] = { [](const CoreCounterState& before, const CoreCounterState& after) { return getInstructionsRetired(before, after); },
                               [](const CoreCounterState& before, const CoreCounterState& after) { return getCycles(before, after); },
-                              [](const CoreCounterState& before, const CoreCounterState& after) { return getRefCycles(before, after); } };
+                              [](const CoreCounterState& before, const CoreCounterState& after) { return getRefCycles(before, after); },
+                              [](const CoreCounterState& before, const CoreCounterState& after) { return getAllSlotsRaw(before, after); }
+                };
                 for (const auto event : fixedEvents)
                 {
-                    for (uint32 cnt = 0; cnt < 3; ++cnt)
+                    for (uint32 cnt = 0; cnt < 4; ++cnt)
                     {
                         if (extract_bits(event.first[0], 4U * cnt, 1U + 4U * cnt))
                         {
-                            printRow(event.second.empty() ? names[cnt] : event.second, func[cnt], BeforeState, AfterState, m);
+                            printRow(event.second.empty() ? fixedCoreEventNames[cnt] : event.second, func[cnt], BeforeState, AfterState, m);
                         }
                     }
                 }
@@ -770,8 +776,12 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<CoreCounterSt
                 if (m->isCoreOnline(core) == false || (show_partial_core_output && ycores.test(core) == false))
                     continue;
 
-                const char* names[] = { "InstructionsRetired" , "Cycles", "RefCycles" };
-                const uint64 values[] = { getInstructionsRetired(BeforeState[core], AfterState[core]), getCycles(BeforeState[core], AfterState[core]), getRefCycles(BeforeState[core], AfterState[core]) };
+                const uint64 values[] = {
+                    getInstructionsRetired(BeforeState[core], AfterState[core]),
+                    getCycles(BeforeState[core], AfterState[core]),
+                    getRefCycles(BeforeState[core], AfterState[core]),
+                    getAllSlotsRaw(BeforeState[core], AfterState[core])
+                };
                 for (const auto event : fixedEvents)
                 {
                     auto print = [&](const std::string & metric, const uint64 value)
@@ -781,11 +791,11 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<CoreCounterSt
                             [&metric]() { cout << metric << ","; },
                             [&value]() { cout << value << ","; });
                     };
-                    for (uint32 cnt = 0; cnt < 3; ++cnt)
+                    for (uint32 cnt = 0; cnt < 4; ++cnt)
                     {
                         if (extract_bits(event.first[0], 4U * cnt, 1U + 4U * cnt))
                         {
-                            print(event.second.empty() ? names[cnt] : event.second, values[cnt]);
+                            print(event.second.empty() ? fixedCoreEventNames[cnt] : event.second, values[cnt]);
                         }
                     }
                 }

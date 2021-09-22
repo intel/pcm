@@ -622,7 +622,7 @@ class PCM_API PCM
 
     bool forceRTMAbortMode;
 
-    std::vector<uint64> FrontendBoundSlots, BadSpeculationSlots, BackendBoundSlots, RetiringSlots;
+    std::vector<uint64> FrontendBoundSlots, BadSpeculationSlots, BackendBoundSlots, RetiringSlots, AllSlotsRaw;
     bool isFixedCounterSupported(unsigned c);
     bool vm = false;
     bool linux_arch_perfmon = false;
@@ -2156,6 +2156,8 @@ class BasicCounterState
     template <class CounterStateType>
     friend uint64 getSMICount(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
+    friend uint64 getAllSlotsRaw(const CounterStateType& before, const CounterStateType& after);
+    template <class CounterStateType>
     friend uint64 getAllSlots(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
     friend double getBackendBound(const CounterStateType & before, const CounterStateType & after);
@@ -2189,7 +2191,7 @@ protected:
     uint64 MemoryBWLocal;
     uint64 MemoryBWTotal;
     uint64 SMICount;
-    uint64 FrontendBoundSlots, BadSpeculationSlots, BackendBoundSlots, RetiringSlots;
+    uint64 FrontendBoundSlots, BadSpeculationSlots, BackendBoundSlots, RetiringSlots, AllSlotsRaw;
 
 public:
     BasicCounterState() :
@@ -2199,10 +2201,11 @@ public:
         MemoryBWLocal(0),
         MemoryBWTotal(0),
         SMICount(0),
-	FrontendBoundSlots(0),
-	BadSpeculationSlots(0),
-	BackendBoundSlots(0),
-	RetiringSlots(0)
+    FrontendBoundSlots(0),
+    BadSpeculationSlots(0),
+    BackendBoundSlots(0),
+    RetiringSlots(0),
+    AllSlotsRaw(0)
     {
         memset(CStateResidency, 0, sizeof(CStateResidency));
     }
@@ -2235,6 +2238,7 @@ public:
         BadSpeculationSlots += o.BadSpeculationSlots;
         BackendBoundSlots += o.BackendBoundSlots;
         RetiringSlots += o.RetiringSlots;
+        AllSlotsRaw += o.AllSlotsRaw;
         //std::cout << "after PCM debug aggregate "<< FrontendBoundSlots << " " << BadSpeculationSlots << " " << BackendBoundSlots << " " <<RetiringSlots << std::endl;
         assert(FrontendBoundSlots >= old.FrontendBoundSlots);
         assert(BadSpeculationSlots >= old.BadSpeculationSlots);
@@ -3825,6 +3829,12 @@ inline uint64 getAllSlots(const CounterStateType & before, const CounterStateTyp
     assert(c >= 0);
     assert(d >= 0);
     return a + b + c + d;
+}
+
+template <class CounterStateType>
+inline uint64 getAllSlotsRaw(const CounterStateType& before, const CounterStateType& after)
+{
+    return after.AllSlotsRaw - before.AllSlotsRaw;
 }
 
 //! \brief Returns unutilized pipeline slots where no uop was delivered due to lack of back-end resources as range 0..1

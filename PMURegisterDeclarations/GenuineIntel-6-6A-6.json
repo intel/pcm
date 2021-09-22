@@ -43,6 +43,16 @@
             "EdgeDetect":  {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
             "Invert":      {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
             "CounterMask": {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"}
+        },
+        "fixed3" : {
+            "OS":          {"Config": 0, "Position": 12, "Width": 1, "DefaultValue": 1},
+            "User":        {"Config": 0, "Position": 13, "Width": 1, "DefaultValue": 1},
+            "EnablePMI":   {"Config": 0, "Position": 15, "Width": 1, "DefaultValue": 0},
+            "EventCode":   {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
+            "UMask":       {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
+            "EdgeDetect":  {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
+            "Invert":      {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
+            "CounterMask": {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"}
         }
     },
     "cha" : {

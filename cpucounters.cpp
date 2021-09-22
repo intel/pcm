@@ -1402,6 +1402,7 @@ bool PCM::discoverSystemTopology()
     BadSpeculationSlots.resize(num_cores, 0);
     BackendBoundSlots.resize(num_cores, 0);
     RetiringSlots.resize(num_cores, 0);
+    AllSlotsRaw.resize(num_cores, 0);
 
 #if 0
     std::cerr << "Socket reference cores:\n";
@@ -2891,6 +2892,7 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
                 setEvent(reg, eventSel, umask);
                 e.type = PERF_TYPE_RAW;
                 e.config = (1ULL << 63ULL) + reg.value;
+                // std::cerr << "Programming perf event " << std::hex << e.config << "\n";
                 if (programPerfEvent(event.second, std::string("event ") + event.first + " " + eventDesc) == false)
                 {
                     return PCM::UnknownError;
@@ -3924,6 +3926,7 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
     uint64 cBadSpeculationSlots = 0;
     uint64 cBackendBoundSlots = 0;
     uint64 cRetiringSlots = 0;
+    uint64 cAllSlotsRaw = 0;
     const int32 core_id = msr->getCoreId();
     TemporalThreadAffinity tempThreadAffinity(core_id); // speedup trick for Linux
 
@@ -3951,8 +3954,8 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
             cBadSpeculationSlots =  perfData[m->perfTopDownPos[PCM::PERF_TOPDOWN_BADSPEC_POS]];
             cBackendBoundSlots =    perfData[m->perfTopDownPos[PCM::PERF_TOPDOWN_BACKEND_POS]];
             cRetiringSlots =        perfData[m->perfTopDownPos[PCM::PERF_TOPDOWN_RETIRING_POS]];
-//          uint64 slots =          perfData[m->perfTopDownPos[PCM::PERF_TOPDOWN_SLOTS_POS]];
-//          if (core_id == 0) std::cout << "DEBUG: "<< slots << " " << cFrontendBoundSlots << " " << cBadSpeculationSlots << " " << cBackendBoundSlots << " " << cRetiringSlots << std::endl;
+            cAllSlotsRaw =          perfData[m->perfTopDownPos[PCM::PERF_TOPDOWN_SLOTS_POS]];
+//          if (core_id == 0) std::cout << "DEBUG: "<< cAllSlotsRaw << " " << cFrontendBoundSlots << " " << cBadSpeculationSlots << " " << cBackendBoundSlots << " " << cRetiringSlots << std::endl;
         }
     }
     else
@@ -3996,6 +3999,7 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
             cBadSpeculationSlots = m->BadSpeculationSlots[core_id] += uint64((double(cBadSpeculationSlots) / total) * double(slots));
             cBackendBoundSlots = m->BackendBoundSlots[core_id] += uint64((double(cBackendBoundSlots) / total) * double(slots));
             cRetiringSlots = m->RetiringSlots[core_id] += uint64((double(cRetiringSlots) / total) * double(slots));
+            cAllSlotsRaw = m->AllSlotsRaw[core_id] += slots;
             // std::cout << "DEBUG: "<< slots << " " << cFrontendBoundSlots << " " << cBadSpeculationSlots << " " << cBackendBoundSlots << " " << cRetiringSlots << std::endl;
             msr->unlock();
         }
@@ -4058,6 +4062,7 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
     BadSpeculationSlots += cBadSpeculationSlots;
     BackendBoundSlots   += cBackendBoundSlots;
     RetiringSlots       += cRetiringSlots;
+    AllSlotsRaw         += cAllSlotsRaw;
 }
 
 PCM::ErrorCode PCM::programServerUncoreLatencyMetrics(bool enable_pmm)
