@@ -1,4 +1,4 @@
 
 
-cat "$1" | tail +5 |  head  -n -1 
+cat "$1" | sed  '0,/^#.*group/d' |  head  -n -1
 
