@@ -1932,15 +1932,15 @@ bool isNMIWatchdogEnabled()
     return (std::atoi(watchdog.c_str()) == 1);
 }
 
-void disableNMIWatchdog()
+void disableNMIWatchdog(const bool silent)
 {
-    std::cerr << "Disabling NMI watchdog since it consumes one hw-PMU counter.\n";
+    if (!silent) std::cerr << "Disabling NMI watchdog since it consumes one hw-PMU counter.\n";
     writeSysFS(PCM_NMI_WATCHDOG_PATH, "0");
 }
 
-void enableNMIWatchdog()
+void enableNMIWatchdog(const bool silent)
 {
-    std::cerr << " Re-enabling NMI watchdog.\n";
+    if (!silent) std::cerr << " Re-enabling NMI watchdog.\n";
     writeSysFS(PCM_NMI_WATCHDOG_PATH, "1");
 }
 #endif
@@ -2263,7 +2263,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
 #ifdef __linux__
     if (isNMIWatchdogEnabled())
     {
-        disableNMIWatchdog();
+        disableNMIWatchdog(silent);
         needToRestoreNMIWatchdog = true;
     }
 #endif
@@ -3676,7 +3676,7 @@ void PCM::cleanup(const bool silent)
 #ifdef __linux__
     if (needToRestoreNMIWatchdog)
     {
-        enableNMIWatchdog();
+        enableNMIWatchdog(silent);
         needToRestoreNMIWatchdog = false;
     }
 #endif
