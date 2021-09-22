@@ -241,9 +241,9 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
 
     // cerr << "size: " << eventStr.size() << "\n";
 
-    if (eventStr == "MSR_EVENT")
+    if (eventStr == "MSR_EVENT" || eventStr == "TOPDOWN.SLOTS")
     {
-        std::cerr << fullEventStr << " event is not supported. Ignoring the event.\n";
+        std::cerr << fullEventStr << " event is not supported yet. Ignoring the event.\n";
         return true;
     }
 
@@ -373,6 +373,10 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
                 config.first[cfg] |= (value & mask) << pos; // set
             };
 
+            auto unsupported = [&]()
+            {
+               cerr << "Unsupported event modifier: " << *mod << " in event " << fullEventStr << "\n";
+            };
             std::regex CounterMaskRegex("c(0x[0-9a-fA-F]+|[[:digit:]]+)");
             std::regex UmaskRegex("u(0x[0-9a-fA-F]+|[[:digit:]]+)");
             std::regex EdgeDetectRegex("e(0x[0-9a-fA-F]+|[[:digit:]]+)");
@@ -397,6 +401,11 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
                 {
                     setField("InTXCheckpointed", 1);
                 }
+                else if (*mod == "percore")
+                {
+                    unsupported();
+                    return true;
+                }
                 else if (std::regex_match(mod->c_str(), CounterMaskRegex))
                 {
                     // Counter Mask modifier
@@ -417,12 +426,12 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
                 }
                 else if (assigment.size() == 2 && assigment[0] == "request")
                 {
-                    cerr << "Unsupported event modifier: " << *mod << " in event " << fullEventStr << "\n";
+                    unsupported();
                     return true;
                 }
                 else if (assigment.size() == 2 && assigment[0] == "response")
                 {
-                    cerr << "Unsupported event modifier: " << *mod << " in event " << fullEventStr << "\n";
+                    unsupported();
                     return true;
                 }
                 else if (assigment.size() == 2 && assigment[0] == "filter0")
@@ -437,9 +446,13 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
                 {
                     setField("Threshold", read_number(assigment[1].c_str()));
                 }
+                else if (assigment.size() == 2 && assigment[0] == "umask_ext")
+                {
+                    setField("UMaskExt", read_number(assigment[1].c_str()));
+                }
                 else
                 {
-                    cerr << "Unsupported event modifier: " << *mod << " in event " << fullEventStr << "\n";
+                    unsupported();
                     return false;
                 }
                 ++mod;
