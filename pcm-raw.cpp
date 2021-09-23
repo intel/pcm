@@ -408,6 +408,7 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
                 }
                 else if (*mod == "perf_metrics")
                 {
+                    setField("PerfMetrics", 1);
                 }
                 else if (std::regex_match(mod->c_str(), CounterMaskRegex))
                 {
@@ -637,6 +638,9 @@ uint64 nullFixedMetricFunc(const uint32, const ServerUncoreCounterState&, const 
 }
 
 const char* fixedCoreEventNames[] = { "InstructionsRetired" , "Cycles", "RefCycles", "TopDownSlots" };
+const char* topdownEventNames[] = { "FrontendBound" , "BadSpeculation", "BackendBound", "Retiring" };
+constexpr uint32 PerfMetricsConfig = 2;
+constexpr uint64 PerfMetricsMask = 1ULL;
 
 void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<CoreCounterState>& BeforeState, vector<CoreCounterState>& AfterState, vector<ServerUncoreCounterState>& BeforeUncoreState, vector<ServerUncoreCounterState>& AfterUncoreState, const CsvOutputType outputType)
 {
@@ -680,10 +684,15 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<Cor
             if (type == "core")
             {
                 typedef uint64 (*FuncType) (const CoreCounterState& before, const CoreCounterState& after);
-                static FuncType func[] = { [](const CoreCounterState& before, const CoreCounterState& after) { return getInstructionsRetired(before, after); },
+                static FuncType funcFixed[] = { [](const CoreCounterState& before, const CoreCounterState& after) { return getInstructionsRetired(before, after); },
                               [](const CoreCounterState& before, const CoreCounterState& after) { return getCycles(before, after); },
                               [](const CoreCounterState& before, const CoreCounterState& after) { return getRefCycles(before, after); },
                               [](const CoreCounterState& before, const CoreCounterState& after) { return getAllSlotsRaw(before, after); }
+                };
+                static FuncType funcTopDown[] = { [](const CoreCounterState& before, const CoreCounterState& after) { return uint64(getFrontendBound(before, after) * getAllSlots(before, after)); },
+                              [](const CoreCounterState& before, const CoreCounterState& after) { return uint64(getBadSpeculation(before, after) * getAllSlots(before, after)); },
+                              [](const CoreCounterState& before, const CoreCounterState& after) { return uint64(getBackendBound(before, after) * getAllSlots(before, after)); },
+                              [](const CoreCounterState& before, const CoreCounterState& after) { return uint64(getRetiring(before, after) * getAllSlots(before, after)); }
                 };
                 for (const auto event : fixedEvents)
                 {
@@ -691,7 +700,14 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<Cor
                     {
                         if (extract_bits(event.first[0], 4U * cnt, 1U + 4U * cnt))
                         {
-                            printRow(event.second.empty() ? fixedCoreEventNames[cnt] : event.second, func[cnt], BeforeState, AfterState, m);
+                            printRow(event.second.empty() ? fixedCoreEventNames[cnt] : event.second, funcFixed[cnt], BeforeState, AfterState, m);
+                            if (cnt == 3 && (event.first[PerfMetricsConfig] & PerfMetricsMask))
+                            {
+                                for (uint32 t = 4; t < 4; ++t)
+                                {
+                                    printRow(event.second.empty() ? topdownEventNames[t] : event.second, funcTopDown[t], BeforeState, AfterState, m);
+                                }
+                            }
                         }
                     }
                 }
@@ -776,11 +792,17 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<CoreCounterSt
                 if (m->isCoreOnline(core) == false || (show_partial_core_output && ycores.test(core) == false))
                     continue;
 
-                const uint64 values[] = {
+                const uint64 fixedCtrValues[] = {
                     getInstructionsRetired(BeforeState[core], AfterState[core]),
                     getCycles(BeforeState[core], AfterState[core]),
                     getRefCycles(BeforeState[core], AfterState[core]),
                     getAllSlotsRaw(BeforeState[core], AfterState[core])
+                };
+                const uint64 topdownCtrValues[] = {
+                    uint64(getFrontendBound(BeforeState[core], AfterState[core]) * getAllSlots(BeforeState[core], AfterState[core])),
+                    uint64(getBadSpeculation(BeforeState[core], AfterState[core]) * getAllSlots(BeforeState[core], AfterState[core])),
+                    uint64(getBackendBound(BeforeState[core], AfterState[core]) * getAllSlots(BeforeState[core], AfterState[core])),
+                    uint64(getRetiring(BeforeState[core], AfterState[core]) * getAllSlots(BeforeState[core], AfterState[core]))
                 };
                 for (const auto event : fixedEvents)
                 {
@@ -795,7 +817,14 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<CoreCounterSt
                     {
                         if (extract_bits(event.first[0], 4U * cnt, 1U + 4U * cnt))
                         {
-                            print(event.second.empty() ? fixedCoreEventNames[cnt] : event.second, values[cnt]);
+                            print(event.second.empty() ? fixedCoreEventNames[cnt] : event.second, fixedCtrValues[cnt]);
+                            if (cnt == 3 && (event.first[PerfMetricsConfig] & PerfMetricsMask))
+                            {
+                                for (uint32 t = 4; t < 4; ++t)
+                                {
+                                    print(event.second.empty() ? topdownEventNames[t] : event.second, topdownCtrValues[t]);
+                                }
+                            }
                         }
                     }
                 }
