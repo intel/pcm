@@ -638,9 +638,10 @@ uint64 nullFixedMetricFunc(const uint32, const ServerUncoreCounterState&, const 
 }
 
 const char* fixedCoreEventNames[] = { "InstructionsRetired" , "Cycles", "RefCycles", "TopDownSlots" };
-const char* topdownEventNames[] = { "FrontendBound" , "BadSpeculation", "BackendBound", "Retiring" };
+const char* topdownEventNames[] = { "PERF_METRICS.FRONTEND_BOUND" , "PERF_METRICS.BAD_SPECULATION", "PERF_METRICS.BACKEND_BOUND", "PERF_METRICS.RETIRING" };
 constexpr uint32 PerfMetricsConfig = 2;
 constexpr uint64 PerfMetricsMask = 1ULL;
+constexpr uint64 maxPerfMetricsValue = 255ULL;
 
 void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<CoreCounterState>& BeforeState, vector<CoreCounterState>& AfterState, vector<ServerUncoreCounterState>& BeforeUncoreState, vector<ServerUncoreCounterState>& AfterUncoreState, const CsvOutputType outputType)
 {
@@ -689,10 +690,10 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<Cor
                               [](const CoreCounterState& before, const CoreCounterState& after) { return getRefCycles(before, after); },
                               [](const CoreCounterState& before, const CoreCounterState& after) { return getAllSlotsRaw(before, after); }
                 };
-                static FuncType funcTopDown[] = { [](const CoreCounterState& before, const CoreCounterState& after) { return uint64(getFrontendBound(before, after) * getAllSlots(before, after)); },
-                              [](const CoreCounterState& before, const CoreCounterState& after) { return uint64(getBadSpeculation(before, after) * getAllSlots(before, after)); },
-                              [](const CoreCounterState& before, const CoreCounterState& after) { return uint64(getBackendBound(before, after) * getAllSlots(before, after)); },
-                              [](const CoreCounterState& before, const CoreCounterState& after) { return uint64(getRetiring(before, after) * getAllSlots(before, after)); }
+                static FuncType funcTopDown[] = { [](const CoreCounterState& before, const CoreCounterState& after) { return uint64(getFrontendBound(before, after) * maxPerfMetricsValue); },
+                              [](const CoreCounterState& before, const CoreCounterState& after) { return uint64(getBadSpeculation(before, after) * maxPerfMetricsValue); },
+                              [](const CoreCounterState& before, const CoreCounterState& after) { return uint64(getBackendBound(before, after) * maxPerfMetricsValue); },
+                              [](const CoreCounterState& before, const CoreCounterState& after) { return uint64(getRetiring(before, after) * maxPerfMetricsValue); }
                 };
                 for (const auto event : fixedEvents)
                 {
@@ -703,9 +704,9 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<Cor
                             printRow(event.second.empty() ? fixedCoreEventNames[cnt] : event.second, funcFixed[cnt], BeforeState, AfterState, m);
                             if (cnt == 3 && (event.first[PerfMetricsConfig] & PerfMetricsMask))
                             {
-                                for (uint32 t = 4; t < 4; ++t)
+                                for (uint32 t = 0; t < 4; ++t)
                                 {
-                                    printRow(event.second.empty() ? topdownEventNames[t] : event.second, funcTopDown[t], BeforeState, AfterState, m);
+                                    printRow(topdownEventNames[t], funcTopDown[t], BeforeState, AfterState, m);
                                 }
                             }
                         }
@@ -799,10 +800,10 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<CoreCounterSt
                     getAllSlotsRaw(BeforeState[core], AfterState[core])
                 };
                 const uint64 topdownCtrValues[] = {
-                    uint64(getFrontendBound(BeforeState[core], AfterState[core]) * getAllSlots(BeforeState[core], AfterState[core])),
-                    uint64(getBadSpeculation(BeforeState[core], AfterState[core]) * getAllSlots(BeforeState[core], AfterState[core])),
-                    uint64(getBackendBound(BeforeState[core], AfterState[core]) * getAllSlots(BeforeState[core], AfterState[core])),
-                    uint64(getRetiring(BeforeState[core], AfterState[core]) * getAllSlots(BeforeState[core], AfterState[core]))
+                    uint64(getFrontendBound(BeforeState[core], AfterState[core]) * maxPerfMetricsValue),
+                    uint64(getBadSpeculation(BeforeState[core], AfterState[core]) * maxPerfMetricsValue),
+                    uint64(getBackendBound(BeforeState[core], AfterState[core]) * maxPerfMetricsValue),
+                    uint64(getRetiring(BeforeState[core], AfterState[core]) * maxPerfMetricsValue)
                 };
                 for (const auto event : fixedEvents)
                 {
@@ -820,9 +821,9 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<CoreCounterSt
                             print(event.second.empty() ? fixedCoreEventNames[cnt] : event.second, fixedCtrValues[cnt]);
                             if (cnt == 3 && (event.first[PerfMetricsConfig] & PerfMetricsMask))
                             {
-                                for (uint32 t = 4; t < 4; ++t)
+                                for (uint32 t = 0; t < 4; ++t)
                                 {
-                                    print(event.second.empty() ? topdownEventNames[t] : event.second, topdownCtrValues[t]);
+                                    print(topdownEventNames[t], topdownCtrValues[t]);
                                 }
                             }
                         }

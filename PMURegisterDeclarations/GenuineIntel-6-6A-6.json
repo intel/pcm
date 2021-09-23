@@ -42,8 +42,7 @@
             "UMask":       {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
             "EdgeDetect":  {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
             "Invert":      {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
-            "CounterMask": {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
-            "PerfMetrics": {"Config": 2, "Position": 0, "Width": 1, "DefaultValue": 0, "__comment": "fake field to tell the collector to also print the L1 top-down metrics, not just raw slots count"}
+            "CounterMask": {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"}
         },
         "fixed3" : {
             "OS":          {"Config": 0, "Position": 12, "Width": 1, "DefaultValue": 1},
@@ -53,7 +52,8 @@
             "UMask":       {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
             "EdgeDetect":  {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
             "Invert":      {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
-            "CounterMask": {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"}
+            "CounterMask": {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
+            "PerfMetrics": {"Config": 2, "Position": 0, "Width": 1, "DefaultValue": 0, "__comment": "fake field to tell the collector to also print the L1 top-down metrics, not just raw slots count"}
         }
     },
     "cha" : {
