@@ -311,79 +311,6 @@ PCM * PCM::getInstance()
     return instance = new PCM();
 }
 
-uint32 build_bit_ui(uint32 beg, uint32 end)
-{
-    assert(end <= 31);
-    uint32 myll = 0;
-    if (end == 31)
-    {
-        myll = (uint32)(-1);
-    }
-    else
-    {
-        myll = (1 << (end + 1)) - 1;
-    }
-    myll = myll >> beg;
-    return myll;
-}
-
-uint32 extract_bits_ui(uint32 myin, uint32 beg, uint32 end)
-{
-    uint32 myll = 0;
-    uint32 beg1, end1;
-
-    // Let the user reverse the order of beg & end.
-    if (beg <= end)
-    {
-        beg1 = beg;
-        end1 = end;
-    }
-    else
-    {
-        beg1 = end;
-        end1 = beg;
-    }
-    myll = myin >> beg1;
-    myll = myll & build_bit_ui(beg1, end1);
-    return myll;
-}
-
-uint64 build_bit(uint32 beg, uint32 end)
-{
-    uint64 myll = 0;
-    if (end == 63)
-    {
-        myll = static_cast<uint64>(-1);
-    }
-    else
-    {
-        myll = (1LL << (end + 1)) - 1;
-    }
-    myll = myll >> beg;
-    return myll;
-}
-
-uint64 extract_bits(uint64 myin, uint32 beg, uint32 end)
-{
-    uint64 myll = 0;
-    uint32 beg1, end1;
-
-    // Let the user reverse the order of beg & end.
-    if (beg <= end)
-    {
-        beg1 = beg;
-        end1 = end;
-    }
-    else
-    {
-        beg1 = end;
-        end1 = beg;
-    }
-    myll = myin >> beg1;
-    myll = myll & build_bit(beg1, end1);
-    return myll;
-}
-
 uint64 PCM::extractCoreGenCounterValue(uint64 val)
 {
     if (canUsePerf) return val;
@@ -1475,6 +1402,7 @@ bool PCM::discoverSystemTopology()
     BadSpeculationSlots.resize(num_cores, 0);
     BackendBoundSlots.resize(num_cores, 0);
     RetiringSlots.resize(num_cores, 0);
+    AllSlotsRaw.resize(num_cores, 0);
 
 #if 0
     std::cerr << "Socket reference cores:\n";
@@ -2022,15 +1950,15 @@ bool isNMIWatchdogEnabled()
     return (std::atoi(watchdog.c_str()) == 1);
 }
 
-void disableNMIWatchdog()
+void disableNMIWatchdog(const bool silent)
 {
-    std::cerr << "Disabling NMI watchdog since it consumes one hw-PMU counter.\n";
+    if (!silent) std::cerr << "Disabling NMI watchdog since it consumes one hw-PMU counter.\n";
     writeSysFS(PCM_NMI_WATCHDOG_PATH, "0");
 }
 
-void enableNMIWatchdog()
+void enableNMIWatchdog(const bool silent)
 {
-    std::cerr << " Re-enabling NMI watchdog.\n";
+    if (!silent) std::cerr << " Re-enabling NMI watchdog.\n";
     writeSysFS(PCM_NMI_WATCHDOG_PATH, "1");
 }
 #endif
@@ -2348,12 +2276,12 @@ perf_event_attr PCM_init_perf_event_attr(bool group = true)
 }
 #endif
 
-PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter_)
+PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter_, const bool silent)
 {
 #ifdef __linux__
     if (isNMIWatchdogEnabled())
     {
-        disableNMIWatchdog();
+        disableNMIWatchdog(silent);
         needToRestoreNMIWatchdog = true;
     }
 #endif
@@ -2370,12 +2298,12 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
     ExtendedCustomCoreEventDescription * pExtDesc = (ExtendedCustomCoreEventDescription *)parameter_;
 
 #ifdef PCM_USE_PERF
-    std::cerr << "Trying to use Linux perf events...\n";
+    if (!silent) std::cerr << "Trying to use Linux perf events...\n";
     const char * no_perf_env = std::getenv("PCM_NO_PERF");
     if (no_perf_env != NULL && std::string(no_perf_env) == std::string("1"))
     {
         canUsePerf = false;
-        std::cerr << "Usage of Linux perf events is disabled through PCM_NO_PERF environment variable. Using direct PMU programming...\n";
+        if (!silent) std::cerr << "Usage of Linux perf events is disabled through PCM_NO_PERF environment variable. Using direct PMU programming...\n";
     }
 /*
     if(num_online_cores < num_cores)
@@ -2387,12 +2315,12 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
     else if(PERF_COUNT_HW_MAX <= PCM_PERF_COUNT_HW_REF_CPU_CYCLES)
     {
         canUsePerf = false;
-        std::cerr << "Can not use Linux perf because your Linux kernel does not support PERF_COUNT_HW_REF_CPU_CYCLES event. Falling-back to direct PMU programming.\n";
+        if (!silent) std::cerr << "Can not use Linux perf because your Linux kernel does not support PERF_COUNT_HW_REF_CPU_CYCLES event. Falling-back to direct PMU programming.\n";
     }
     else if(EXT_CUSTOM_CORE_EVENTS == mode_ && pExtDesc && pExtDesc->fixedCfg)
     {
         canUsePerf = false;
-        std::cerr << "Can not use Linux perf because non-standard fixed counter configuration requested. Falling-back to direct PMU programming.\n";
+        if (!silent) std::cerr << "Can not use Linux perf because non-standard fixed counter configuration requested. Falling-back to direct PMU programming.\n";
     }
     else if(EXT_CUSTOM_CORE_EVENTS == mode_ && pExtDesc && (pExtDesc->OffcoreResponseMsrValue[0] || pExtDesc->OffcoreResponseMsrValue[1]))
     {
@@ -2400,13 +2328,13 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
         if (offcore_rsp_format != "config1:0-63\n")
         {
             canUsePerf = false;
-            std::cerr << "Can not use Linux perf because OffcoreResponse usage is not supported. Falling-back to direct PMU programming.\n";
+            if (!silent) std::cerr << "Can not use Linux perf because OffcoreResponse usage is not supported. Falling-back to direct PMU programming.\n";
         }
     }
     if (isHWTMAL1Supported() == true && perfSupportsTopDown() == false)
     {
         canUsePerf = false;
-        std::cerr << "Installed Linux kernel perf does not support hardware top-down level-1 counters. Using direct PMU programming instead.\n";
+        if (!silent) std::cerr << "Installed Linux kernel perf does not support hardware top-down level-1 counters. Using direct PMU programming instead.\n";
     }
 #endif
 
@@ -2437,7 +2365,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
         }
         if (prevValue > 0)  // already programmed since another instance exists
         {
-            std::cerr << "Number of PCM instances: " << (prevValue + 1) << "\n";
+            if (!silent) std::cerr << "Number of PCM instances: " << (prevValue + 1) << "\n";
             if (hasPCICFGUncore() && max_qpi_speed==0)
             for (size_t i = 0; i < (size_t)server_pcicfg_uncore.size(); ++i)
                 if (server_pcicfg_uncore[i].get())
@@ -2466,7 +2394,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
 
         if (curValue > 1)  // already programmed since another instance exists
         {
-            std::cerr << "Number of PCM instances: " << curValue << "\n";
+            if (!silent) std::cerr << "Number of PCM instances: " << curValue << "\n";
             if (hasPCICFGUncore() && max_qpi_speed==0)
             for (int i = 0; i < (int)server_pcicfg_uncore.size(); ++i) {
                 if(server_pcicfg_uncore[i].get())
@@ -2742,7 +2670,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
         }
     }
 
-    if(canUsePerf)
+    if (canUsePerf && !silent)
     {
         std::cerr << "Successfully programmed on-core PMU using Linux perf\n";
     }
@@ -2764,7 +2692,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
 	programCbo();
     }
 
-    reportQPISpeed();
+    if (!silent) reportQPISpeed();
 
     return PCM::Success;
 }
@@ -2981,6 +2909,7 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
                 setEvent(reg, eventSel, umask);
                 e.type = PERF_TYPE_RAW;
                 e.config = (1ULL << 63ULL) + reg.value;
+                // std::cerr << "Programming perf event " << std::hex << e.config << "\n";
                 if (programPerfEvent(event.second, std::string("event ") + event.first + " " + eventDesc) == false)
                 {
                     return PCM::UnknownError;
@@ -3241,7 +3170,7 @@ std::string PCM::getCPUFamilyModelString()
     return result;
 }
 
-void PCM::enableForceRTMAbortMode()
+void PCM::enableForceRTMAbortMode(const bool silent)
 {
     // std::cout << "enableForceRTMAbortMode(): forceRTMAbortMode=" << forceRTMAbortMode << "\n";
     if (!forceRTMAbortMode)
@@ -3258,7 +3187,7 @@ void PCM::enableForceRTMAbortMode()
                 }
             }
             readCoreCounterConfig(true); // re-read core_gen_counter_num_max from CPUID
-            std::cerr << "The number of custom counters is now " << core_gen_counter_num_max << "\n";
+            if (!silent) std::cerr << "The number of custom counters is now " << core_gen_counter_num_max << "\n";
             if (core_gen_counter_num_max < 4)
             {
                 std::cerr << "PCM Warning: the number of custom counters did not increase (" << core_gen_counter_num_max << ")\n";
@@ -3273,7 +3202,7 @@ bool PCM::isForceRTMAbortModeEnabled() const
     return forceRTMAbortMode;
 }
 
-void PCM::disableForceRTMAbortMode()
+void PCM::disableForceRTMAbortMode(const bool silent)
 {
     // std::cout << "disableForceRTMAbortMode(): forceRTMAbortMode=" << forceRTMAbortMode << "\n";
     if (forceRTMAbortMode)
@@ -3288,7 +3217,7 @@ void PCM::disableForceRTMAbortMode()
             }
         }
         readCoreCounterConfig(true); // re-read core_gen_counter_num_max from CPUID
-        std::cerr << "The number of custom counters is now " << core_gen_counter_num_max << "\n";
+        if (!silent) std::cerr << "The number of custom counters is now " << core_gen_counter_num_max << "\n";
         if (core_gen_counter_num_max != 3)
         {
             std::cerr << "PCM Warning: the number of custom counters is not 3 (" << core_gen_counter_num_max << ")\n";
@@ -3486,6 +3415,7 @@ bool PCM::PMUinUse()
                 return true;
             }
         }
+#if 0
         // either os=0,usr=0 (not running) or os=1,usr=1 (fits PCM modus) are ok, other combinations are not
         if(ctrl_reg.fields.os0 != ctrl_reg.fields.usr0 ||
            ctrl_reg.fields.os1 != ctrl_reg.fields.usr1 ||
@@ -3494,6 +3424,7 @@ bool PCM::PMUinUse()
            std::cerr << "WARNING: Core " << i << " fixed ctrl:" << ctrl_reg.value << "\n";
            return true;
         }
+#endif
     }
     //std::cout << std::flush
     return false;
@@ -3757,14 +3688,14 @@ void PCM::cleanup(const bool silent)
     if (decrementInstanceSemaphore())
         cleanupPMU(silent);
 
-    disableForceRTMAbortMode();
+    disableForceRTMAbortMode(silent);
 
     cleanupUncorePMUs(silent);
     cleanupRDT(silent);
 #ifdef __linux__
     if (needToRestoreNMIWatchdog)
     {
-        enableNMIWatchdog();
+        enableNMIWatchdog(silent);
         needToRestoreNMIWatchdog = false;
     }
 #endif
@@ -4012,6 +3943,7 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
     uint64 cBadSpeculationSlots = 0;
     uint64 cBackendBoundSlots = 0;
     uint64 cRetiringSlots = 0;
+    uint64 cAllSlotsRaw = 0;
     const int32 core_id = msr->getCoreId();
     TemporalThreadAffinity tempThreadAffinity(core_id); // speedup trick for Linux
 
@@ -4039,8 +3971,8 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
             cBadSpeculationSlots =  perfData[m->perfTopDownPos[PCM::PERF_TOPDOWN_BADSPEC_POS]];
             cBackendBoundSlots =    perfData[m->perfTopDownPos[PCM::PERF_TOPDOWN_BACKEND_POS]];
             cRetiringSlots =        perfData[m->perfTopDownPos[PCM::PERF_TOPDOWN_RETIRING_POS]];
-//          uint64 slots =          perfData[m->perfTopDownPos[PCM::PERF_TOPDOWN_SLOTS_POS]];
-//          if (core_id == 0) std::cout << "DEBUG: "<< slots << " " << cFrontendBoundSlots << " " << cBadSpeculationSlots << " " << cBackendBoundSlots << " " << cRetiringSlots << std::endl;
+            cAllSlotsRaw =          perfData[m->perfTopDownPos[PCM::PERF_TOPDOWN_SLOTS_POS]];
+//          if (core_id == 0) std::cout << "DEBUG: "<< cAllSlotsRaw << " " << cFrontendBoundSlots << " " << cBadSpeculationSlots << " " << cBackendBoundSlots << " " << cRetiringSlots << std::endl;
         }
     }
     else
@@ -4084,6 +4016,7 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
             cBadSpeculationSlots = m->BadSpeculationSlots[core_id] += uint64((double(cBadSpeculationSlots) / total) * double(slots));
             cBackendBoundSlots = m->BackendBoundSlots[core_id] += uint64((double(cBackendBoundSlots) / total) * double(slots));
             cRetiringSlots = m->RetiringSlots[core_id] += uint64((double(cRetiringSlots) / total) * double(slots));
+            cAllSlotsRaw = m->AllSlotsRaw[core_id] += slots;
             // std::cout << "DEBUG: "<< slots << " " << cFrontendBoundSlots << " " << cBadSpeculationSlots << " " << cBackendBoundSlots << " " << cRetiringSlots << std::endl;
             msr->unlock();
         }
@@ -4146,6 +4079,7 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
     BadSpeculationSlots += cBadSpeculationSlots;
     BackendBoundSlots   += cBackendBoundSlots;
     RetiringSlots       += cRetiringSlots;
+    AllSlotsRaw         += cAllSlotsRaw;
 }
 
 PCM::ErrorCode PCM::programServerUncoreLatencyMetrics(bool enable_pmm)
@@ -4343,7 +4277,7 @@ void PCM::programPCU(uint32* PCUCntConf, const uint64 filter)
     }
 }
 
-PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_)
+PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool silent)
 {
     if (MSR.empty())  return PCM::MSRAccessDenied;
     RawPMUConfigs curPMUConfigs = curPMUConfigs_;
@@ -4381,11 +4315,15 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_)
         }
         else
         {
-            fixedReg.value = corePMUConfig.fixed[0].first[0];
+            fixedReg.value = 0;
+            for (auto cfg : corePMUConfig.fixed)
+            {
+                fixedReg.value |= cfg.first[0];
+            }
             conf.fixedCfg = &fixedReg;
         }
 
-        const auto status = program(PCM::EXT_CUSTOM_CORE_EVENTS, &conf);
+        const auto status = program(PCM::EXT_CUSTOM_CORE_EVENTS, &conf, silent);
         if (status != PCM::Success)
         {
             return status;

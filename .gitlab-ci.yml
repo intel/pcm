@@ -32,7 +32,7 @@ build_linux:clang_scan:
    before_script:
       - apt-get update -qq && apt-get install -qq -y make clang clang-tools perl g++
    script:
-      - scan-build --status-bugs make -j
+      - scan-build --exclude simdjson --status-bugs make -j
 
 build_windows:
    stage: build
