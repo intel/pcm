@@ -152,7 +152,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\cpucounters.cpp" />
-    <ClCompile Include="..\simdjson\simdjson.cpp" />
+    <ClCompile Include="..\simdjson_wrapper.cpp" />
     <ClCompile Include="..\topology.cpp" />
     <ClCompile Include="..\msr.cpp" />
     <ClCompile Include="..\pci.cpp" />

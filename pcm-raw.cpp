@@ -36,12 +36,7 @@
 #include <unordered_map>
 #include "cpucounters.h"
 #include "utils.h"
-#include "gccversion.h"
-#ifndef PCM_GCC_6_OR_BELOW
-#pragma warning(push, 0)
-#include "simdjson/simdjson.h"
-#pragma warning(pop)
-#endif
+#include "simdjson_wrapper.h"
 
 #ifdef _MSC_VER
 #include "freegetopt/getopt.h"
@@ -69,7 +64,7 @@ void print_usage(const string progname)
     cerr << "  [-e event1] [-e event2] [-e event3] .. => list of custom events to monitor\n";
     cerr << "  event description example: -e core/config=0x30203,name=LD_BLOCKS.STORE_FORWARD/ -e core/fixed,config=0x333/ \n";
     cerr << "                             -e cha/config=0,name=UNC_CHA_CLOCKTICKS/ -e imc/fixed,name=DRAM_CLOCKS/\n";
-#ifndef PCM_GCC_6_OR_BELOW
+#ifdef PCM_SIMDJSON_AVAILABLE
     cerr << "                             -e NAME where the NAME is an event from https://download.01.org/perfmon/ event lists\n";
 #endif
     cerr << "  -yc   | --yescores  | /yc              => enable specific cores to output\n";
@@ -87,7 +82,7 @@ void print_usage(const string progname)
     cerr << "\n";
 }
 
-#ifndef PCM_GCC_6_OR_BELOW
+#ifdef PCM_SIMDJSON_AVAILABLE
 using namespace simdjson;
 
 std::vector<std::shared_ptr<simdjson::dom::parser> > JSONparsers;
@@ -502,7 +497,7 @@ bool addEvent(PCM::RawPMUConfigs & curPMUConfigs, string eventStr)
     {
         return true;
     }
-#ifndef PCM_GCC_6_OR_BELOW
+#ifdef PCM_SIMDJSON_AVAILABLE
     if (eventStr.find('/') == string::npos)
     {
         return addEventFromDB(curPMUConfigs, eventStr);
