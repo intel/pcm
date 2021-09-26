@@ -318,7 +318,7 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
             {
                 PMUDeclObj = (*PMURegisterDeclarations)[pmuName]["programmable"].get_object();
             }
-            for (const auto registerKeyValue : PMUDeclObj)
+            for (const auto & registerKeyValue : PMUDeclObj)
             {
                 // cout << "Setting " << registerKeyValue.key << " : " << registerKeyValue.value << "\n";
                 simdjson::dom::object fieldDescriptionObj = registerKeyValue.value;
@@ -469,7 +469,7 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
         catch (std::exception& e)
         {
             cerr << "Error while setting a register field for event " << fullEventStr << " : " << e.what() << "\n";
-            for (const auto keyValue : eventObj)
+            for (const auto & keyValue : eventObj)
             {
                 std::cout << keyValue.key << " : " << keyValue.value << "\n";
             }
@@ -523,12 +523,24 @@ bool addEvent(PCM::RawPMUConfigs & curPMUConfigs, string eventStr)
     }
     const auto configArray = split(configStr, ',');
     bool fixed = false;
-    for (auto item : configArray)
+    for (const auto & item : configArray)
     {
-        if (match(item, "config=", &config.first[0])) {}
-        else if (match(item, "config1=", &config.first[1])) {}
-        else if (match(item, "config2=", &config.first[2])) {}
-        else if (pcm_sscanf(item) >> s_expect("name=") >> setw(255) >> config.second) {}
+        if (match(item, "config=", &config.first[0]))
+        {
+            // matched and initialized config 0
+        }
+        else if (match(item, "config1=", &config.first[1]))
+        {
+            // matched and initialized config 1
+        }
+        else if (match(item, "config2=", &config.first[2]))
+        {
+            // matched and initialized config 2
+        }
+        else if (pcm_sscanf(item) >> s_expect("name=") >> setw(255) >> config.second)
+        {
+            // matched and initialized name
+        }
         else if (item == "fixed")
         {
             fixed = true;

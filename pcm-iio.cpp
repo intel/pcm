@@ -475,7 +475,7 @@ bool PurleyPlatformMapping::pciTreeDiscover(std::vector<struct iio_stacks_on_soc
                     pci->exist = false;
                 }
                 else if (probe_pci(pci)) {
-                    /* FIXME: for 0:0.0, we may need to scan from secondary switch down */
+                    /* FIXME: for 0:0.0, we may need to scan from secondary switch down; lgtm [cpp/fixme-comment] */
                     for (uint8_t bus = pci->secondary_bus_number; bus <= pci->subordinate_bus_number; bus++) {
                         for (uint8_t device = 0; device < 32; device++) {
                             for (uint8_t function = 0; function < 8; function++) {

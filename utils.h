@@ -317,7 +317,7 @@ public:
         return numberOfIterations;
     }
     template <class Body>
-    void operator ()(Body body)
+    void operator ()(const Body & body)
     {
         unsigned int i = 1;
         // std::cerr << "DEBUG: numberOfIterations: " << numberOfIterations << "\n";

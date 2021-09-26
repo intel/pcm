@@ -2896,8 +2896,14 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
                 const auto tokens = split(eventDesc, ',');
                 for (auto token : tokens)
                 {
-                    if (match(token, "event=", &eventSel)) {}
-                    else if (match(token, "umask=", &umask)) {}
+                    if (match(token, "event=", &eventSel))
+                    {
+                        // found and matched event, wrote value to 'eventSel'
+                    }
+                    else if (match(token, "umask=", &umask))
+                    {
+                        // found and matched umask, wrote value to 'umask'
+                    }
                     else
                     {
                         std::cerr << "ERROR: unknown token " << token << " in event description \"" << eventDesc << "\" from " << event.first << "\n";

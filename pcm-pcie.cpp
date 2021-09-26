@@ -229,7 +229,7 @@ int main(int argc, char * argv[])
     cerr << "Update every " << delay << " seconds\n";
 
     unique_ptr<IPlatform> platform(IPlatform::getPlatform(m, csv, print_bandwidth,
-                                    print_additional_info, (uint)delay)); // FIXME: do we support only integer delay?
+                                    print_additional_info, (uint)delay)); // FIXME: do we support only integer delay? ; lgtm [cpp/fixme-comment]
 
     if (!platform)
     {

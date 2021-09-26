@@ -26,7 +26,7 @@ except getopt.GetoptError, err:
     print("parse error: %s\n" %(str(err)))
     exit(-2)
 
-if filename == None:
+if filename is None:
     map_file_raw=urllib2.urlopen('https://download.01.org/perfmon/mapfile.csv')
     map_dict = csv.DictReader(map_file_raw)
     map_file = []

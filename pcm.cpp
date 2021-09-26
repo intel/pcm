@@ -987,7 +987,6 @@ void print_csv(PCM * m,
 
             cout << float_format(getInstructionsRetired(sktstate1[i], sktstate2[i])) << ","
                 << float_format(getCycles(sktstate1[i], sktstate2[i])) << ","
-                // FIXME: Wrong counters
                 << float_format(getInvariantTSC(cstates1[0], cstates2[0])) << ","
                 << getCoreIPC(sktstate1[i], sktstate2[i]) << ","
                 << 100. * (getCoreIPC(sktstate1[i], sktstate2[i]) / double(m->getMaxIPC())) << ","
@@ -1072,7 +1071,6 @@ void print_csv(PCM * m,
 
             cout << float_format(getInstructionsRetired(cstates1[i], cstates2[i])) << ","
                 << float_format(getCycles(cstates1[i], cstates2[i])) << ","
-                // FIXME: Wrong counters
                 << float_format(getInvariantTSC(cstates1[0], cstates2[0])) << ","
                 << getCoreIPC(cstates1[i], cstates2[i]) << ","
                 << 100. * (getCoreIPC(cstates1[i], cstates2[i]) / double(m->getMaxIPC())) << ","
