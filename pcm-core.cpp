@@ -400,7 +400,7 @@ int main(int argc, char * argv[])
 			try {
 				build_event(*argv,&regs[cur_event],cur_event);
 				cur_event++;
-			} catch (const char * /* str */) {
+			} catch (...) {
 				exit(EXIT_FAILURE);
 			}
 
