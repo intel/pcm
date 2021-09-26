@@ -532,7 +532,7 @@ std::vector<std::string> split(const std::string & str, const char delim)
     return result;
 }
 
-uint64 read_number(char* str)
+uint64 read_number(const char* str)
 {
     std::istringstream stream(str);
     if (strstr(str, "x")) stream >> std::hex;

@@ -53,7 +53,7 @@ CXX=c++
 LIB= -lpthread -lc++
 endif
 
-COMMON_OBJS = msr.o cpucounters.o pci.o mmio.o bw.o utils.o topology.o dashboard.o debug.o threadpool.o resctrl.o
+COMMON_OBJS = msr.o cpucounters.o pci.o mmio.o bw.o utils.o topology.o dashboard.o debug.o threadpool.o resctrl.o simdjson_wrapper.o
 # export some variables
 export CFLAGS CXXFLAGS LDFLAGS
 

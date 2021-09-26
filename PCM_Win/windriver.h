@@ -68,7 +68,7 @@ public:
     }
 
     Driver(const std::wstring& driverPath) :
-        Driver(driverPath, L"PCM Test MSR", L"PCM Test MSR Driver")
+        Driver(driverPath, L"PCM MSR", L"PCM MSR Driver")
     {
     }
 

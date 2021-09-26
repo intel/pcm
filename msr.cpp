@@ -30,7 +30,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 #include <windows.h>
 #include "utils.h"
-#include "Winmsrdriver\win7\msrstruct.h"
+#include "Winmsrdriver\msrstruct.h"
 #include "winring0/OlsApiInitExt.h"
 
 #endif
