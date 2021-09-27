@@ -290,7 +290,7 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
     else
     {
         std::string unit{ unitObj.get_c_str() };
-        std::transform(unit.begin(), unit.end(), unit.begin(), [](unsigned char c) { return std::tolower(c); });
+        std::transform(unit.begin(), unit.end(), unit.begin(), [](unsigned char c) { return std::tolower(c, std::locale()); });
         // std::cout << eventStr << " is uncore event for unit " << unit << "\n";
         pmuName = (pmuNameMap.find(unit) == pmuNameMap.end()) ? unit : pmuNameMap[unit];
     }
