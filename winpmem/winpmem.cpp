@@ -86,7 +86,7 @@ WinPmem::~WinPmem() {
   }
 }
 
-void WinPmem::LogError(TCHAR *message) {
+void WinPmem::LogError(const TCHAR *message) {
   _tcsncpy_s(last_error, message, sizeof(last_error));
   if (suppress_output) return;
 

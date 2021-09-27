@@ -71,7 +71,7 @@ class WinPmem {
  protected:
   virtual int load_driver_() = 0;
 
-  virtual void LogError(TCHAR *message);
+  virtual void LogError(const TCHAR *message);
   virtual void Log(const TCHAR *message, ...);
 
   // The file handle to the pmem device.
