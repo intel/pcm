@@ -31,6 +31,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 struct DeviceExtension
 {
     HANDLE devMemHandle;
+    HANDLE counterSetHandle;
 };
 
 DRIVER_INITIALIZE DriverEntry;
@@ -97,6 +98,7 @@ DriverEntry(
         DbgPrint("Error: failed ZwOpenSection(devMemHandle) => %08X\n", status);
         return status;
     }
+    pExt->counterSetHandle = NULL;
 
     IoCreateSymbolicLink(&dosDeviceName, &UnicodeString);
 
@@ -230,6 +232,30 @@ NTSTATUS deviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
                 break;
             case IO_CTL_MUNMAP:
                 status = ZwUnmapViewOfSection(ZwCurrentProcess(), (PVOID) input_mmap_req->address.QuadPart);
+                break;
+            case IO_CTL_PMU_ALLOC_SUPPORT:
+                *output = 1;
+                Irp->IoStatus.Information = sizeof(ULONG64); // result size
+                break;
+            case IO_CTL_PMU_ALLOC:
+                if (pExt->counterSetHandle == NULL)
+                {
+                    status = HalAllocateHardwareCounters(NULL, 0, NULL, &(pExt->counterSetHandle));
+                }
+                *output = status;
+                Irp->IoStatus.Information = sizeof(ULONG64); // result size
+                break;
+            case IO_CTL_PMU_FREE:
+                if (pExt->counterSetHandle != NULL)
+                {
+                    status = HalFreeHardwareCounters(pExt->counterSetHandle);
+                    if (status == STATUS_SUCCESS)
+                    {
+                        pExt->counterSetHandle = NULL;
+                    }
+                }
+                *output = status;
+                Irp->IoStatus.Information = sizeof(ULONG64); // result size
                 break;
             case IO_CTL_PCICFG_WRITE:
                 if (inputSize < sizeof(struct PCICFG_Request) || (input_pcicfg_req->bytes != 4 && input_pcicfg_req->bytes != 8))

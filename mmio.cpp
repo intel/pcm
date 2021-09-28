@@ -101,7 +101,6 @@ MMIORange::MMIORange(uint64 baseAddr_, uint64 size_, bool readonly_)
     auto hDriver = openMSRDriver();
     if (hDriver != INVALID_HANDLE_VALUE)
     {
-        // ULONG64 result;
         DWORD reslength = 0;
         uint64 result = 0;
         const BOOL status = DeviceIoControl(hDriver, IO_CTL_MMAP_SUPPORT, NULL, 0, &result, sizeof(uint64), &reslength, NULL);

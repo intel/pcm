@@ -3432,6 +3432,31 @@ bool PCM::PMUinUse()
         }
 #endif
     }
+#ifdef _MSC_VER
+    // try to check if PMU is reserved using MSR driver
+    auto hDriver = openMSRDriver();
+    if (hDriver != INVALID_HANDLE_VALUE)
+    {
+        DWORD reslength = 0;
+        uint64 result = 0;
+        BOOL status = DeviceIoControl(hDriver, IO_CTL_PMU_ALLOC_SUPPORT, NULL, 0, &result, sizeof(uint64), &reslength, NULL);
+        if (status == TRUE && reslength == sizeof(uint64) && result == 1)
+        {
+            status = DeviceIoControl(hDriver, IO_CTL_PMU_ALLOC, NULL, 0, &result, sizeof(uint64), &reslength, NULL);
+            if (status == FALSE)
+            {
+                std::cerr << "PMU can not be allocated with msr.sys driver. Error code is " << ((reslength == sizeof(uint64)) ? std::to_string(result) : "unknown") << " \n";
+                CloseHandle(hDriver);
+                return true;
+            }
+            else
+            {
+                // std::cerr << "Successfully allocated PMU through msr.sys" << " \n";
+            }
+        }
+        CloseHandle(hDriver);
+    }
+#endif
     //std::cout << std::flush
     return false;
 }
@@ -3703,6 +3728,25 @@ void PCM::cleanup(const bool silent)
     {
         enableNMIWatchdog(silent);
         needToRestoreNMIWatchdog = false;
+    }
+#endif
+#ifdef _MSC_VER
+    // free PMU using MSR driver
+    auto hDriver = openMSRDriver();
+    if (hDriver != INVALID_HANDLE_VALUE)
+    {
+        DWORD reslength = 0;
+        uint64 result = 0;
+        BOOL status = DeviceIoControl(hDriver, IO_CTL_PMU_ALLOC_SUPPORT, NULL, 0, &result, sizeof(uint64), &reslength, NULL);
+        if (status == TRUE && reslength == sizeof(uint64) && result == 1)
+        {
+            status = DeviceIoControl(hDriver, IO_CTL_PMU_FREE, NULL, 0, &result, sizeof(uint64), &reslength, NULL);
+            if (status == FALSE)
+            {
+                std::cerr << "PMU can not be freed with msr.sys driver. Error code is " << ((reslength == sizeof(uint64)) ? std::to_string(result) : "unknown") << " \n";
+            }
+        }
+        CloseHandle(hDriver);
     }
 #endif
 }
