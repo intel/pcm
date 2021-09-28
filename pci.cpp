@@ -35,7 +35,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include "Winmsrdriver\msrstruct.h"
 #include "winring0/OlsDef.h"
 #include "winring0/OlsApiInitExt.h"
-
+#include "utils.h"
 #endif
 
 #if defined (__FreeBSD__) || defined(__DragonFly__)
@@ -60,7 +60,7 @@ PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 functi
         throw std::exception();
     }
 
-    hDriver = CreateFile(L"\\\\.\\RDMSR", GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+    hDriver = openMSRDriver();
 
     if (hDriver == INVALID_HANDLE_VALUE && hOpenLibSys == NULL)
         throw std::exception();
@@ -80,7 +80,7 @@ bool PciHandle::exists(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 func
         return ReadPciConfigDwordEx(addr, 0, &result)?true:false;
     }
 
-    HANDLE tempHandle = CreateFile(L"\\\\.\\RDMSR", GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+    HANDLE tempHandle = openMSRDriver();
     if (tempHandle == INVALID_HANDLE_VALUE)
         return false;
 

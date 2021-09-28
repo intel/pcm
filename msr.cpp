@@ -51,7 +51,7 @@ extern HMODULE hOpenLibSys;
 // here comes an implementatation for Windows
 MsrHandle::MsrHandle(uint32 cpu) : cpu_id(cpu)
 {
-    hDriver = CreateFile(L"\\\\.\\RDMSR", GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+    hDriver = openMSRDriver();
 
     if (hDriver == INVALID_HANDLE_VALUE && hOpenLibSys == NULL)
         throw std::exception();

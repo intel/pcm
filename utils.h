@@ -448,4 +448,11 @@ inline uint64 extract_bits(uint64 myin, uint32 beg, uint32 end)
     return myll;
 }
 
+#ifdef _MSC_VER
+inline HANDLE openMSRDriver()
+{
+    return CreateFile(L"\\\\.\\RDMSR", GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+}
+#endif
+
 } // namespace pcm
