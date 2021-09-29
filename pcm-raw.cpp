@@ -66,6 +66,7 @@ void print_usage(const string progname)
     cerr << "                             -e cha/config=0,name=UNC_CHA_CLOCKTICKS/ -e imc/fixed,name=DRAM_CLOCKS/\n";
 #ifdef PCM_SIMDJSON_AVAILABLE
     cerr << "                             -e NAME where the NAME is an event from https://download.01.org/perfmon/ event lists\n";
+    cerr << "  -ep path | /ep path                    => path to event list directory (default is the current directory)\n";
 #endif
     cerr << "  -yc   | --yescores  | /yc              => enable specific cores to output\n";
     cerr << "  -f    | /f                             => enforce flushing each line for interactive output\n";
@@ -88,6 +89,7 @@ using namespace simdjson;
 std::vector<std::shared_ptr<simdjson::dom::parser> > JSONparsers;
 std::unordered_map<std::string, simdjson::dom::object> PMUEventMap;
 std::shared_ptr<simdjson::dom::element> PMURegisterDeclarations;
+std::string eventFileLocationPrefix = ".";
 
 bool initPMUEventMap()
 {
@@ -99,12 +101,13 @@ bool initPMUEventMap()
     }
     inited = true;
     const auto mapfile = "mapfile.csv";
-    std::ifstream in(mapfile);
+    const auto mapfilePath = eventFileLocationPrefix + "/"  + mapfile;
+    std::ifstream in(mapfilePath);
     std::string line, item;
 
     if (!in.is_open())
     {
-        cerr << "ERROR: File " << mapfile << " can't be open. \n";
+        cerr << "ERROR: File " << mapfilePath << " can't be open. \n";
         cerr << "       Download it from https://download.01.org/perfmon/" << mapfile << " \n";
         return false;
     }
@@ -167,13 +170,30 @@ bool initPMUEventMap()
 
     for (const auto evfile : eventFiles)
     {
-        std::string path = std::string(".") + evfile.second;
+        std::string path;
         try {
 
             cout << evfile.first << " " << evfile.second << "\n";
 
             if (evfile.first == "core" || evfile.first == "uncore" || evfile.first == "uncore experimental")
             {
+                const std::string path1 = eventFileLocationPrefix + evfile.second;
+                const std::string path2 = eventFileLocationPrefix + evfile.second.substr(evfile.second.rfind('/'));
+
+                if (std::ifstream(path1).good())
+                {
+                    path = path1;
+                }
+                else if (std::ifstream(path2).good())
+                {
+                    path = path2;
+                }
+                else
+                {
+                    std::cerr << "ERROR: Can't open event file at location " << path1 << " or " << path2 << "\n";
+                    return false;
+                }
+
                 JSONparsers.push_back(std::make_shared<simdjson::dom::parser>());
                 for (simdjson::dom::object eventObj : JSONparsers.back()->load(path)) {
                     // cout << "Event ----------------\n";
@@ -1048,6 +1068,10 @@ int main(int argc, char* argv[])
     string program = string(argv[0]);
     bool forceRTMAbortMode = false;
     PCM* m = PCM::getInstance();
+
+#ifdef PCM_SIMDJSON_AVAILABLE
+    parseParam(argc, argv, "ep", [](const char* p) { eventFileLocationPrefix = p;});
+#endif
 
     if (argc > 1) do
     {

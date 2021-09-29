@@ -290,6 +290,23 @@ bool CheckAndForceRTMAbortMode(const char * argv, PCM * m);
 
 void print_help_force_rtm_abort_mode(const int alignment);
 
+template <class F>
+void parseParam(int argc, char* argv[], const char* param, F f)
+{
+    if (argc > 1) do
+    {
+        argv++;
+        argc--;
+        if ((std::string("-") + param == *argv) || (std::string("/") + param == *argv))
+        {
+            argv++;
+            argc--;
+            f(*argv);
+            continue;
+        }
+    } while (argc > 1); // end of command line parsing loop
+}
+
 class MainLoop
 {
     unsigned numberOfIterations = 0;
