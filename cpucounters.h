@@ -1881,6 +1881,11 @@ public:
         );
     }
 
+    bool uncoreFrequencyMetricAvailable() const
+    {
+        return MSR.empty() == false && uboxPMUs.size() == getNumSockets() && getNumCores() == getNumOnlineCores();
+    }
+
     bool LatencyMetricsAvailable() const
     {
         return (
@@ -2107,6 +2112,8 @@ class BasicCounterState
     friend double getIPC(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
     friend double getAverageFrequency(const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
+    friend double getAverageFrequencyFromClocks(const int64 clocks, const CounterStateType& before, const CounterStateType& after);
     template <class CounterStateType>
     friend double getActiveAverageFrequency(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
@@ -2605,6 +2612,10 @@ class UncoreCounterState
     friend double getLLCReadMissLatency(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
     friend double getLocalMemoryRequestRatio(const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
+    friend double getAverageUncoreFrequency(const CounterStateType& before, const CounterStateType& after);
+    template <class CounterStateType>
+    friend double getAverageFrequencyFromClocks(const int64 clocks, const CounterStateType& before, const CounterStateType& after);
 
 protected:
     uint64 UncMCFullWrites;
@@ -3077,6 +3088,16 @@ inline double getTotalExecUsage(const CounterStateType & before, const CounterSt
     return -1;
 }
 
+template <class StateType>
+double getAverageFrequencyFromClocks(const int64 clocks, const StateType& before, const StateType& after) // in Hz
+{
+    const int64 timer_clocks = after.InvariantTSC - before.InvariantTSC;
+    PCM* m = PCM::getInstance();
+    if (timer_clocks != 0 && m)
+        return double(m->getNominalFrequency()) * double(clocks) / double(timer_clocks);
+    return -1;
+}
+
 /*! \brief Computes average core frequency also taking Intel Turbo Boost technology into account
 
     \param before CPU counter state before the experiment
@@ -3086,12 +3107,21 @@ inline double getTotalExecUsage(const CounterStateType & before, const CounterSt
 template <class CounterStateType>
 double getAverageFrequency(const CounterStateType & before, const CounterStateType & after) // in Hz
 {
-    int64 clocks = after.CpuClkUnhaltedThread - before.CpuClkUnhaltedThread;
-    int64 timer_clocks = after.InvariantTSC - before.InvariantTSC;
-    PCM * m = PCM::getInstance();
-    if (timer_clocks != 0 && m)
-        return double(m->getNominalFrequency()) * double(clocks) / double(timer_clocks);
-    return -1;
+    return getAverageFrequencyFromClocks(after.CpuClkUnhaltedThread - before.CpuClkUnhaltedThread, before, after);
+}
+
+/*! \brief Computes average uncore frequency
+
+    \param before CPU counter state before the experiment
+    \param after CPU counter state after the experiment
+    \return frequency in Hz
+*/
+template <class UncoreStateType>
+double getAverageUncoreFrequency(const UncoreStateType& before, const UncoreStateType & after) // in Hz
+{
+    auto m = PCM::getInstance();
+    assert(m);
+    return double(m->getNumOnlineCores()) * getAverageFrequencyFromClocks(after.UncClocks - before.UncClocks, before, after) / double(m->getNumOnlineSockets());
 }
 
 /*! \brief Computes average core frequency when not in powersaving C0-state (also taking Intel Turbo Boost technology into account)

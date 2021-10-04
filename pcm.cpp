@@ -73,6 +73,12 @@ std::string l3cache_occ_format(uint64 o)
     return buffer;
 }
 
+template <class UncoreStateType>
+double getAverageUncoreFrequencyGhz(const UncoreStateType& before, const UncoreStateType& after) // in GHz
+{
+    return getAverageUncoreFrequency(before, after) / 1e9;
+}
+
 void print_help(const string prog_name)
 {
     cerr << "\n Usage: \n " << prog_name
@@ -433,6 +439,8 @@ void print_output(PCM * m,
             cout << " DIMM energy |";
         if (m->LLCReadMissLatencyMetricsAvailable())
             cout << " LLCRDMISSLAT (ns)";
+        if (m->uncoreFrequencyMetricAvailable())
+            cout << " UncFREQ (Ghz)";
         cout << "\n";
         cout << longDiv;
         for (uint32 i = 0; i < m->getNumSockets(); ++i)
@@ -463,6 +471,10 @@ void print_output(PCM * m,
                 if (m->LLCReadMissLatencyMetricsAvailable()) {
                   cout << setw(6) << getLLCReadMissLatency(sktstate1[i], sktstate2[i]);
                 }
+                cout << " ";
+                if (m->uncoreFrequencyMetricAvailable()) {
+                    cout << setw(4) << getAverageUncoreFrequencyGhz(sktstate1[i], sktstate2[i]);
+                }
                 cout << "\n";
         }
         cout << longDiv;
@@ -489,6 +501,10 @@ void print_output(PCM * m,
             cout << "         ";
             if (m->LLCReadMissLatencyMetricsAvailable()) {
                 cout << setw(6) << getLLCReadMissLatency(sstate1, sstate2);
+            }
+            cout << " ";
+            if (m->uncoreFrequencyMetricAvailable()) {
+                cout << setw(4) << getAverageUncoreFrequencyGhz(sstate1, sstate2);
             }
             cout << "\n";
         }
@@ -596,6 +612,8 @@ void print_csv_header(PCM * m,
             print_csv_header_helper(header);
         if (m->LLCReadMissLatencyMetricsAvailable())
             print_csv_header_helper(header);
+        if (m->uncoreFrequencyMetricAvailable())
+            print_csv_header_helper(header);
     }
 
     if (show_socket_output)
@@ -679,6 +697,11 @@ void print_csv_header(PCM * m,
             header = "LLCRDMISSLAT (ns)";
             print_csv_header_helper(header,m->getNumSockets());
         }
+        if (m->uncoreFrequencyMetricAvailable())
+        {
+            header = "UncFREQ (Ghz)";
+            print_csv_header_helper(header, m->getNumSockets());
+        }
     }
 
     if (show_core_output)
@@ -748,6 +771,8 @@ void print_csv_header(PCM * m,
             cout << "DRAM Energy (Joules),";
         if (m->LLCReadMissLatencyMetricsAvailable())
             cout << "LLCRDMISSLAT (ns),";
+        if (m->uncoreFrequencyMetricAvailable())
+            cout << "UncFREQ (Ghz),";
     }
 
 
@@ -823,6 +848,11 @@ void print_csv_header(PCM * m,
                 cout << "SKT" << i << ",";
         }
         if (m->LLCReadMissLatencyMetricsAvailable())
+        {
+            for (uint32 i = 0; i < m->getNumSockets(); ++i)
+                cout << "SKT" << i << ",";
+        }
+        if (m->uncoreFrequencyMetricAvailable())
         {
             for (uint32 i = 0; i < m->getNumSockets(); ++i)
                 cout << "SKT" << i << ",";
@@ -964,6 +994,8 @@ void print_csv(PCM * m,
             cout << getDRAMConsumedJoules(sstate1, sstate2) << ",";
         if (m->LLCReadMissLatencyMetricsAvailable())
             cout << getLLCReadMissLatency(sstate1, sstate2) << ",";
+        if (m->uncoreFrequencyMetricAvailable())
+            cout << getAverageUncoreFrequencyGhz(sstate1, sstate2) << ",";
     }
 
     if (show_socket_output)
@@ -1049,6 +1081,11 @@ void print_csv(PCM * m,
         {
             for (uint32 i = 0; i < m->getNumSockets(); ++i)
                 cout << getLLCReadMissLatency(sktstate1[i], sktstate2[i]) << " ,";
+        }
+        if (m->uncoreFrequencyMetricAvailable())
+        {
+            for (uint32 i = 0; i < m->getNumSockets(); ++i)
+                cout << getAverageUncoreFrequencyGhz(sktstate1[i], sktstate2[i]) << ",";
         }
     }
 

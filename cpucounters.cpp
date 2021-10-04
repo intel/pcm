@@ -4594,6 +4594,10 @@ void PCM::readAndAggregateUncoreMCCounters(const uint32 socket, CounterStateType
     {
         result.TOROccupancyIAMiss += getCBOCounterState(socket, EventPosition::TOR_OCCUPANCY);
         result.TORInsertsIAMiss += getCBOCounterState(socket, EventPosition::TOR_INSERTS);
+    }
+
+    if (LLCReadMissLatencyMetricsAvailable() || uncoreFrequencyMetricAvailable())
+    {
         result.UncClocks += getUncoreClocks(socket);
     }
 
