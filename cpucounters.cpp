@@ -1713,6 +1713,7 @@ void PCM::initUncorePMUsDirect()
         switch (cpu_model)
         {
         case SKX:
+        case ICX:
             handle->write(MSR_UNCORE_PMON_GLOBAL_CTL, 1ULL << 61ULL);
             break;
         case HASWELLX:
