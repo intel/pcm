@@ -3585,7 +3585,7 @@ inline double getIncomingQPILinkUtilization(uint32 socketNr, uint32 linkNr, cons
 
     const double bytes = (double)getIncomingQPILinkBytes(socketNr, linkNr, before, after);
     const uint64 max_speed = m->getQPILinkSpeed(socketNr, linkNr);
-    const double max_bytes = (double)(double(max_speed) * double(getInvariantTSC(before, after) / double(m->getNumCores())) / double(m->getNominalFrequency()));
+    const double max_bytes = (double)(double(max_speed) * double(getInvariantTSC(before, after) / double(m->getNumOnlineCores())) / double(m->getNominalFrequency()));
     return bytes / max_bytes;
 }
 
@@ -3623,7 +3623,7 @@ inline double getOutgoingQPILinkUtilization(uint32 socketNr, uint32 linkNr, cons
         const uint64 a = after.outgoingQPIFlits[socketNr][linkNr]; // data + non-data flits or idle (null) flits
         // prevent overflows due to counter dissynchronisation
         double flits = (double)((a > b) ? (a - b) : 0);
-        const double max_flits = ((double(getInvariantTSC(before, after)) * double(m->getQPILinkSpeed(socketNr, linkNr)) / m->getBytesPerFlit()) / double(m->getNominalFrequency())) / double(m->getNumCores());
+        const double max_flits = ((double(getInvariantTSC(before, after)) * double(m->getQPILinkSpeed(socketNr, linkNr)) / m->getBytesPerFlit()) / double(m->getNominalFrequency())) / double(m->getNumOnlineCores());
         if(m->hasUPI())
         {
             flits = flits/3.;
@@ -3651,7 +3651,7 @@ inline uint64 getOutgoingQPILinkBytes(uint32 socketNr, uint32 linkNr, const Syst
     if (!(m->outgoingQPITrafficMetricsAvailable())) return 0ULL;
 
     const double util = getOutgoingQPILinkUtilization(socketNr, linkNr, before, after);
-    const double max_bytes = (double(m->getQPILinkSpeed(socketNr, linkNr)) * double(getInvariantTSC(before, after) / double(m->getNumCores())) / double(m->getNominalFrequency()));
+    const double max_bytes = (double(m->getQPILinkSpeed(socketNr, linkNr)) * double(getInvariantTSC(before, after) / double(m->getNumOnlineCores())) / double(m->getNominalFrequency()));
 
     return (uint64)(max_bytes * util);
 }
@@ -3811,7 +3811,7 @@ inline double getLLCReadMissLatency(const CounterStateType & before, const Count
     const double inserts = double(after.TORInsertsIAMiss) - double(before.TORInsertsIAMiss);
     const double unc_clocks = double(after.UncClocks) - double(before.UncClocks);
     auto * m = PCM::getInstance();
-    const double seconds = double(getInvariantTSC(before, after)) / double(m->getNumCores()/m->getNumSockets()) / double(m->getNominalFrequency());
+    const double seconds = double(getInvariantTSC(before, after)) / double(m->getNumOnlineCores()/m->getNumSockets()) / double(m->getNominalFrequency());
     return 1e9*seconds*(occupancy/inserts)/unc_clocks;
 }
 
