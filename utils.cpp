@@ -591,4 +591,24 @@ void print_help_force_rtm_abort_mode(const int alignment)
     }
 }
 
+#ifdef _MSC_VER
+std::string safe_getenv(const char* env)
+{
+    char * buffer;
+    std::string result;
+    if (_dupenv_s(&buffer, NULL, env) == 0 && buffer != nullptr)
+    {
+        result = buffer;
+        free(buffer);
+    }
+    return result;
+}
+#else
+std::string safe_getenv(const char* env)
+{
+    const auto getenvResult = std::getenv(env);
+    return getenvResult ? std::string(getenvResult) : std::string("");
+}
+#endif
+
 } // namespace pcm

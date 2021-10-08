@@ -465,6 +465,8 @@ inline uint64 extract_bits(uint64 myin, uint32 beg, uint32 end)
     return myll;
 }
 
+std::string safe_getenv(const char* env);
+
 #ifdef _MSC_VER
 inline HANDLE openMSRDriver()
 {
