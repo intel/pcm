@@ -1,0 +1,17 @@
+name: cppcheck
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+
+    runs-on: ci-cppcheck
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: cppcheck_script
+      run: sh cppcheck.sh . `getconf _NPROCESSORS_ONLN`
