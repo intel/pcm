@@ -1,0 +1,17 @@
+name: clang-scan
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+
+    runs-on: ci-clang-scan
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: scan-build
+      run: scan-build --exclude simdjson --status-bugs make -j
