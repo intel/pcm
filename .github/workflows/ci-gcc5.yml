@@ -1,0 +1,19 @@
+name: g++ 5 build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+
+    runs-on: ci-gcc5
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: make
+      run: |
+        g++ --version
+        make install prefix=. -j
