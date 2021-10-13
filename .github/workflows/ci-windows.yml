@@ -1,0 +1,22 @@
+name: MSVC Windows build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+
+    runs-on: ci-windows
+
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Add MSBuild to PATH
+      uses: microsoft/setup-msbuild@v1.0.2
+    
+    - name: msbuild
+      run: msbuild pcm-all.sln /p:Configuration=Release,Platform=x64 /t:Clean,Build /m
+
