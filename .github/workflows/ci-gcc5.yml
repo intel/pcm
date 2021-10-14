@@ -2,14 +2,15 @@ name: g++ 5 build
 
 on:
   push:
-    branches: [ main ]
+    branches: [ '**' ]
   pull_request:
-    branches: [ main ]
+    branches: [ '**' ]
 
 jobs:
   build:
 
     runs-on: ci-gcc5
+    if: ${{ github.repository != 'opcm/pcm' }}        
 
     steps:
     - uses: actions/checkout@v2

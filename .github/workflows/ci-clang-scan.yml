@@ -2,14 +2,15 @@ name: clang-scan
 
 on:
   push:
-    branches: [ main ]
+    branches: [ '**' ]
   pull_request:
-    branches: [ main ]
+    branches: [ '**' ]
 
 jobs:
   build:
 
     runs-on: ci-clang-scan
+    if: ${{ github.repository != 'opcm/pcm' }}    
 
     steps:
     - uses: actions/checkout@v2
