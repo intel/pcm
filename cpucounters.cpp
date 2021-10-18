@@ -1742,7 +1742,7 @@ void PCM::initUncorePMUsDirect()
                 )
             );
         }
-        else
+        else if (isServerCPU())
         {
             uboxPMUs.push_back(
                 UncorePMU(
