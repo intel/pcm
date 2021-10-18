@@ -2716,7 +2716,8 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
             i /* core id */, leader_counter /* group leader */, 0)) <= 0)
         {
             std::cerr << "Linux Perf: Error when programming " << eventName << ", error: " << strerror(errno) <<
-               " with config 0x" << std::hex << e.config << std::dec << " \n";
+               " with config 0x" << std::hex << e.config <<
+               " config1 0x" << e.config1 << std::dec << "\n";
             if (24 == errno)
             {
                 std::cerr << "try executing 'ulimit -n 10000' to increase the limit on the number of open files.\n";
