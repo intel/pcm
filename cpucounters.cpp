@@ -2259,7 +2259,7 @@ perf_event_attr PCM_init_perf_event_attr(bool group = true)
                           PERF_FORMAT_ID | PERF_FORMAT_GROUP ; */
     e.disabled = 0;
     e.inherit = 0;
-    e.pinned = 1;
+    e.pinned = 0;
     e.exclusive = 0;
     e.exclude_user = 0;
     e.exclude_kernel = 0;
@@ -2709,14 +2709,14 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
     FixedEventControlRegister ctrl_reg;
 #ifdef PCM_USE_PERF
     int leader_counter = -1;
-    perf_event_attr e = PCM_init_perf_event_attr();
-    auto programPerfEvent = [this, &e, &leader_counter, &i](const int eventPos, const std::string & eventName) -> bool
+    auto programPerfEvent = [this, &leader_counter, &i](perf_event_attr & e, const int eventPos, const std::string & eventName) -> bool
     {
         // if (i == 0) std::cerr << "DEBUG: programming event "<< std::hex << e.config << std::dec << "\n";
         if ((perfEventHandle[i][eventPos] = syscall(SYS_perf_event_open, &e, -1,
             i /* core id */, leader_counter /* group leader */, 0)) <= 0)
         {
-            std::cerr << "Linux Perf: Error when programming " << eventName << ", error: " << strerror(errno) << "\n";
+            std::cerr << "Linux Perf: Error when programming " << eventName << ", error: " << strerror(errno) <<
+               " with config 0x" << std::hex << e.config << std::dec << " \n";
             if (24 == errno)
             {
                 std::cerr << "try executing 'ulimit -n 10000' to increase the limit on the number of open files.\n";
@@ -2732,21 +2732,21 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
     };
     if (canUsePerf)
     {
+        perf_event_attr e = PCM_init_perf_event_attr();
         e.type = PERF_TYPE_HARDWARE;
         e.config = PERF_COUNT_HW_INSTRUCTIONS;
-        if (programPerfEvent(PERF_INST_RETIRED_POS, "INST_RETIRED") == false)
+        if (programPerfEvent(e, PERF_INST_RETIRED_POS, "INST_RETIRED") == false)
         {
             return PCM::UnknownError;
         }
         leader_counter = perfEventHandle[i][PERF_INST_RETIRED_POS];
-        e.pinned = 0; // all following counter are not leaders, thus need not be pinned explicitly
         e.config = PERF_COUNT_HW_CPU_CYCLES;
-        if (programPerfEvent(PERF_CPU_CLK_UNHALTED_THREAD_POS, "CPU_CLK_UNHALTED_THREAD") == false)
+        if (programPerfEvent(e, PERF_CPU_CLK_UNHALTED_THREAD_POS, "CPU_CLK_UNHALTED_THREAD") == false)
         {
             return PCM::UnknownError;
         }
         e.config = PCM_PERF_COUNT_HW_REF_CPU_CYCLES;
-        if (programPerfEvent(PERF_CPU_CLK_UNHALTED_REF_POS, "CPU_CLK_UNHALTED_REF") == false)
+        if (programPerfEvent(e, PERF_CPU_CLK_UNHALTED_REF_POS, "CPU_CLK_UNHALTED_REF") == false)
         {
             return PCM::UnknownError;
         }
@@ -2831,13 +2831,14 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
 #ifdef PCM_USE_PERF
         if (canUsePerf)
         {
+            perf_event_attr e = PCM_init_perf_event_attr();
             e.type = PERF_TYPE_RAW;
             e.config = (1ULL << 63ULL) + event_select_reg.value;
             if (event_select_reg.fields.event_select == OFFCORE_RESPONSE_0_EVTNR)
                 e.config1 = pExtDesc->OffcoreResponseMsrValue[0];
             if (event_select_reg.fields.event_select == OFFCORE_RESPONSE_1_EVTNR)
                 e.config1 = pExtDesc->OffcoreResponseMsrValue[1];
-            if (programPerfEvent(PERF_GEN_EVENT_0_POS + j, std::string("generic event #") + std::to_string(i)) == false)
+            if (programPerfEvent(e, PERF_GEN_EVENT_0_POS + j, std::string("generic event #") + std::to_string(i)) == false)
             {
                 return PCM::UnknownError;
             }
@@ -2914,10 +2915,11 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
                 }
                 EventSelectRegister reg;
                 setEvent(reg, eventSel, umask);
+                perf_event_attr e = PCM_init_perf_event_attr();
                 e.type = PERF_TYPE_RAW;
                 e.config = (1ULL << 63ULL) + reg.value;
                 // std::cerr << "Programming perf event " << std::hex << e.config << "\n";
-                if (programPerfEvent(event.second, std::string("event ") + event.first + " " + eventDesc) == false)
+                if (programPerfEvent(e, event.second, std::string("event ") + event.first + " " + eventDesc) == false)
                 {
                     return PCM::UnknownError;
                 }
