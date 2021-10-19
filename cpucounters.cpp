@@ -2797,11 +2797,11 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
         if (pExtDesc->OffcoreResponseMsrValue[1])
             MSR[i]->write(MSR_OFFCORE_RSP1, pExtDesc->OffcoreResponseMsrValue[1]);
 
-        if (pExtDesc->LoadLatencyMsrValue >= 0)
+        if (pExtDesc->LoadLatencyMsrValue != ExtendedCustomCoreEventDescription::invalidMsrValue())
         {
             MSR[i]->write(MSR_LOAD_LATENCY, pExtDesc->LoadLatencyMsrValue);
         }
-        if (pExtDesc->FrontendMsrValue >= 0)
+        if (pExtDesc->FrontendMsrValue != ExtendedCustomCoreEventDescription::invalidMsrValue())
         {
             MSR[i]->write(MSR_FRONTEND, pExtDesc->FrontendMsrValue);
         }

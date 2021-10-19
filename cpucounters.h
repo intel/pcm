@@ -800,8 +800,9 @@ public:
         uint32 nGPCounters;                   // number of general purpose counters
         EventSelectRegister * gpCounterCfg;   // general purpose counters, if NULL, then default configuration performed for GP counters
         uint64 OffcoreResponseMsrValue[2];
-        int64 LoadLatencyMsrValue, FrontendMsrValue;
-        ExtendedCustomCoreEventDescription() : fixedCfg(NULL), nGPCounters(0), gpCounterCfg(NULL), LoadLatencyMsrValue(-1), FrontendMsrValue(-1)
+        uint64 LoadLatencyMsrValue, FrontendMsrValue;
+        static uint64 invalidMsrValue() { return ~0ULL; }
+        ExtendedCustomCoreEventDescription() : fixedCfg(NULL), nGPCounters(0), gpCounterCfg(NULL), LoadLatencyMsrValue(invalidMsrValue()), FrontendMsrValue(invalidMsrValue())
         {
             OffcoreResponseMsrValue[0] = 0;
             OffcoreResponseMsrValue[1] = 0;
