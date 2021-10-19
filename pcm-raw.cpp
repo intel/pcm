@@ -294,7 +294,6 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
     std::string pmuName;
     PCM::RawEventConfig config = { {0,0,0,0,0}, "" };
     bool fixed = false;
-    config.second = fullEventStr;
 
     const std::string path = std::string("PMURegisterDeclarations/") + PCM::getInstance()->getCPUFamilyModelString() + ".json";
     if (PMURegisterDeclarations.get() == nullptr)
@@ -334,6 +333,9 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
         // std::cout << eventStr << " is uncore event for unit " << unit << "\n";
         pmuName = (pmuNameMap.find(unit) == pmuNameMap.end()) ? unit : pmuNameMap[unit];
     }
+
+    config.second = fullEventStr;
+
     if (1)
     {
         // cerr << "pmuName: " << pmuName << " full event "<< fullEventStr << " \n";
@@ -343,6 +345,16 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
         fixed = (pcm_sscanf(CounterStr) >> s_expect("Fixed counter ") >> fixedCounter) ? true : false;
 
         try {
+            auto setConfig = [](PCM::RawEventConfig & config, const simdjson::dom::object& fieldDescriptionObj, const uint64 value, const int64_t position)
+            {
+                const auto cfg = uint64_t(fieldDescriptionObj["Config"]);
+                if (cfg >= config.first.size()) throw std::runtime_error("Config field value is out of bounds");
+                const auto width = uint64_t(fieldDescriptionObj["Width"]);
+                assert(width <= 64);
+                const uint64 mask = (width == 64) ? (~0ULL) : ((1ULL << width) - 1ULL); // 1 -> 1b, 2 -> 11b, 3 -> 111b
+                config.first[cfg] &= ~(mask << position); // clear
+                config.first[cfg] |= (value & mask) << position;
+            };
             auto PMUObj = (*PMURegisterDeclarations)[pmuName];
             if (PMUObj.error() == NO_SUCH_FIELD)
             {
@@ -358,6 +370,7 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
             {
                 PMUDeclObj = (*PMURegisterDeclarations)[pmuName]["programmable"].get_object();
             }
+            auto& myPMUConfigs = fixed ? curPMUConfigs[pmuName].fixed : curPMUConfigs[pmuName].programmable;
             for (const auto & registerKeyValue : PMUDeclObj)
             {
                 // cout << "Setting " << registerKeyValue.key << " : " << registerKeyValue.value << "\n";
@@ -365,6 +378,24 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
                 // cout << "   config: " << uint64_t(fieldDescriptionObj["Config"]) << "\n";
                 // cout << "   Position: " << uint64_t(fieldDescriptionObj["Position"]) << "\n";
                 std::string fieldNameStr{ registerKeyValue.key.begin(), registerKeyValue.key.end() };
+                if (fieldNameStr == "MSRIndex")
+                {
+                    std::string fieldValueStr{ eventObj[fieldNameStr].get_c_str() };
+                    std::transform(fieldValueStr.begin(), fieldValueStr.end(), fieldValueStr.begin(), [](unsigned char c) { return std::tolower(c, std::locale()); });
+                    cout << " MSR field " << fieldNameStr << " value is " << fieldValueStr << " (" << read_number(fieldValueStr.c_str()) << ")\n";
+                    if (fieldValueStr == "0" || fieldValueStr == "0x00")
+                    {
+                        continue;
+                    }
+                    const auto MSRIndexStr = fieldValueStr;
+                    simdjson::dom::object MSRObject = registerKeyValue.value[MSRIndexStr];
+                    const string msrValueStr{ eventObj["MSRValue"].get_c_str() };
+                    // update the first event
+                    setConfig(myPMUConfigs.empty() ? config : myPMUConfigs.front(), MSRObject, read_number(msrValueStr.c_str()), int64_t(MSRObject["Position"]));
+                    // update the current as well for display
+                    setConfig(config, MSRObject, read_number(msrValueStr.c_str()), int64_t(MSRObject["Position"]));
+                    continue;
+                }
                 const int64_t position = int64_t(fieldDescriptionObj["Position"]);
                 if (position == -1)
                 {
@@ -389,23 +420,15 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
                 {
                     std::string fieldValueStr{ eventObj[fieldNameStr].get_c_str() };
                     fieldValueStr.erase(std::remove(fieldValueStr.begin(), fieldValueStr.end(), '\"'), fieldValueStr.end());
-                    // cout << " field value is " << fieldValueStr << " " << read_number(fieldValueStr.c_str()) <<  "\n";
-                    const auto cfg = uint64_t(fieldDescriptionObj["Config"]);
-                    if (cfg >= config.first.size()) throw std::runtime_error("Config field value is out of bounds");
-                    config.first[cfg] |= read_number(fieldValueStr.c_str()) << position;
+                    cout << " field " << fieldNameStr << " value is " << fieldValueStr << " (" << read_number(fieldValueStr.c_str()) << ")\n";
+                    setConfig(config, fieldDescriptionObj, read_number(fieldValueStr.c_str()), position);
                 }
             }
 
-            auto setField = [&PMUDeclObj, &config](const char* field, const uint64 value)
+            auto setField = [&PMUDeclObj, &config, &setConfig](const char* field, const uint64 value)
             {
                 const auto pos = int64_t(PMUDeclObj[field]["Position"]);
-                const auto cfg = uint64_t(PMUDeclObj[field]["Config"]);
-                if (cfg >= config.first.size()) throw std::runtime_error("Config field value is out of bounds");
-                const auto width = uint64_t(PMUDeclObj[field]["Width"]);
-                assert (width <= 64);
-                const uint64 mask = (width == 64)? (~0ULL) : ((1ULL << width) - 1ULL); // 1 -> 1b, 2 -> 11b, 3 -> 111b
-                config.first[cfg] &= ~(mask << pos); // clear
-                config.first[cfg] |= (value & mask) << pos; // set
+                setConfig(config, PMUDeclObj[field], value, pos);
             };
 
             auto unsupported = [&]()
@@ -497,14 +520,7 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
                 ++mod;
             }
 
-            if (fixed)
-            {
-                curPMUConfigs[pmuName].fixed.push_back(config);
-            }
-            else
-            {
-                curPMUConfigs[pmuName].programmable.push_back(config);
-            }
+            myPMUConfigs.push_back(config);
         }
         catch (std::exception& e)
         {
