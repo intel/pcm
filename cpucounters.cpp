@@ -2796,6 +2796,15 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
             MSR[i]->write(MSR_OFFCORE_RSP0, pExtDesc->OffcoreResponseMsrValue[0]);
         if (pExtDesc->OffcoreResponseMsrValue[1])
             MSR[i]->write(MSR_OFFCORE_RSP1, pExtDesc->OffcoreResponseMsrValue[1]);
+
+        if (pExtDesc->LoadLatencyMsrValue >= 0)
+        {
+            MSR[i]->write(MSR_LOAD_LATENCY, pExtDesc->LoadLatencyMsrValue);
+        }
+        if (pExtDesc->FrontendMsrValue >= 0)
+        {
+            MSR[i]->write(MSR_FRONTEND, pExtDesc->FrontendMsrValue);
+        }
     }
 
     auto setEvent = [] (EventSelectRegister & reg, const uint64 event,  const uint64 umask)
@@ -2835,10 +2844,20 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
             perf_event_attr e = PCM_init_perf_event_attr();
             e.type = PERF_TYPE_RAW;
             e.config = (1ULL << 63ULL) + event_select_reg.value;
-            if (event_select_reg.fields.event_select == OFFCORE_RESPONSE_0_EVTNR)
+            if (event_select_reg.fields.event_select == OFFCORE_RESPONSE_0_EVTNR && event_select_reg.fields.umask == OFFCORE_RESPONSE_0_UMASK)
                 e.config1 = pExtDesc->OffcoreResponseMsrValue[0];
-            if (event_select_reg.fields.event_select == OFFCORE_RESPONSE_1_EVTNR)
+            if (event_select_reg.fields.event_select == OFFCORE_RESPONSE_1_EVTNR && event_select_reg.fields.umask == OFFCORE_RESPONSE_1_UMASK)
                 e.config1 = pExtDesc->OffcoreResponseMsrValue[1];
+
+            if (event_select_reg.fields.event_select == LOAD_LATENCY_EVTNR && event_select_reg.fields.umask == LOAD_LATENCY_UMASK)
+            {
+                e.config1 = pExtDesc->LoadLatencyMsrValue;
+            }
+            if (event_select_reg.fields.event_select == FRONTEND_EVTNR && event_select_reg.fields.umask == FRONTEND_UMASK)
+            {
+                e.config1 = pExtDesc->FrontendMsrValue;
+            }
+
             if (programPerfEvent(e, PERF_GEN_EVENT_0_POS + j, std::string("generic event #") + std::to_string(i)) == false)
             {
                 return PCM::UnknownError;

@@ -164,6 +164,13 @@ constexpr auto MSR_FRONTEND = 0x3F7;
 #define OFFCORE_RESPONSE_1_EVTNR (0xBB)
 #define OFFCORE_RESPONSE_0_UMASK (1)
 #define OFFCORE_RESPONSE_1_UMASK (1)
+
+
+constexpr auto LOAD_LATENCY_EVTNR = 0xcd;
+constexpr auto LOAD_LATENCY_UMASK = 0x01;
+constexpr auto FRONTEND_EVTNR = 0xC6;
+constexpr auto FRONTEND_UMASK = 0x01;
+
 /*
      For Nehalem(-EP) processors from Intel(r) 64 and IA-32 Architectures Software Developer's Manual
 */
