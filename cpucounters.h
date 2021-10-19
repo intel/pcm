@@ -1139,11 +1139,17 @@ public:
     // vector of IDs. E.g. for core {raw event} or {raw event, offcore response1 msr value, } or {raw event, offcore response1 msr value, offcore response2}
     // or for cha/cbo {raw event, filter value}, etc
     // + user-supplied name
-    typedef std::pair<std::array<uint64, 3>, std::string> RawEventConfig;
+    typedef std::pair<std::array<uint64, 5>, std::string> RawEventConfig;
     struct RawPMUConfig
     {
         std::vector<RawEventConfig> programmable;
         std::vector<RawEventConfig> fixed;
+    };
+    enum {
+        OCR0Pos = 1,
+        OCR1Pos = 2,
+        LoadLatencyPos = 3,
+        FrontendPos = 4
     };
     typedef std::map<std::string, RawPMUConfig> RawPMUConfigs;
     ErrorCode program(const RawPMUConfigs& curPMUConfigs, const bool silent = false);

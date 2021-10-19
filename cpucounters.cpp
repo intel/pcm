@@ -4377,8 +4377,10 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool sile
         }
         if (globalRegPos < corePMUConfig.programmable.size())
         {
-            conf.OffcoreResponseMsrValue[0] = corePMUConfig.programmable[globalRegPos].first[1];
-            conf.OffcoreResponseMsrValue[1] = corePMUConfig.programmable[globalRegPos].first[2];
+            conf.OffcoreResponseMsrValue[0] = corePMUConfig.programmable[globalRegPos].first[OCR0Pos];
+            conf.OffcoreResponseMsrValue[1] = corePMUConfig.programmable[globalRegPos].first[OCR1Pos];
+            conf.LoadLatencyMsrValue = corePMUConfig.programmable[globalRegPos].first[LoadLatencyPos];
+            conf.FrontendMsrValue = corePMUConfig.programmable[globalRegPos].first[FrontendPos];
         }
         conf.nGPCounters = (uint32)c;
         conf.gpCounterCfg = regs;

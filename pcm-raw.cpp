@@ -83,6 +83,25 @@ void print_usage(const string progname)
     cerr << "\n";
 }
 
+PCM::RawEventConfig initCoreConfig()
+{
+    return PCM::RawEventConfig{ {0,0,0,
+        PCM::ExtendedCustomCoreEventDescription::invalidMsrValue(),PCM::ExtendedCustomCoreEventDescription::invalidMsrValue()
+        },
+        "" };
+}
+
+void printEvent(const std::string & pmuName, const bool fixed, const PCM::RawEventConfig & config)
+{
+    cout << "parsed " << (fixed ? "fixed " : "") << " " << pmuName << " event: \"" << hex << config.second << "\" : {" << hex <<
+        "0x" << config.first[0] <<
+        ", 0x" << config.first[1] <<
+        ", 0x" << config.first[2] <<
+        ", 0x" << config.first[3] <<
+        ", 0x" << config.first[4] <<
+        "}\n" << dec;
+}
+
 #ifdef PCM_SIMDJSON_AVAILABLE
 using namespace simdjson;
 
@@ -273,7 +292,7 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
 
     const auto eventObj = PMUEventMap[eventStr];
     std::string pmuName;
-    PCM::RawEventConfig config = { {0,0,0}, "" };
+    PCM::RawEventConfig config = { {0,0,0,0,0}, "" };
     bool fixed = false;
     config.second = fullEventStr;
 
@@ -306,6 +325,7 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
     if (unitObj.error() == NO_SUCH_FIELD)
     {
         pmuName = "core";
+        config = initCoreConfig();
     }
     else
     {
@@ -504,7 +524,7 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
     }
     */
 
-    cout << "parsed " << (fixed ? "fixed " : "") <<  pmuName << " event : \"" << hex << config.second << "\" : {0x" << hex << config.first[0] << ", 0x" << config.first[1] << ", 0x" << config.first[2] << "}\n" << dec;
+    printEvent(pmuName, fixed, config);
 
     return true;
 }
@@ -523,7 +543,7 @@ bool addEvent(PCM::RawPMUConfigs & curPMUConfigs, string eventStr)
         return addEventFromDB(curPMUConfigs, eventStr);
     }
 #endif
-    PCM::RawEventConfig config = { {0,0,0}, "" };
+    PCM::RawEventConfig config = { {0,0,0,0,0}, "" };
     const auto typeConfig = split(eventStr, '/');
     if (typeConfig.size() < 2)
     {
@@ -541,6 +561,10 @@ bool addEvent(PCM::RawPMUConfigs & curPMUConfigs, string eventStr)
         cerr << "ERROR: empty config description in event description \"" << eventStr << "\"\n";
         return false;
     }
+    if (pmuName == "core")
+    {
+        config = initCoreConfig();
+    }
     const auto configArray = split(configStr, ',');
     bool fixed = false;
     for (const auto & item : configArray)
@@ -557,6 +581,14 @@ bool addEvent(PCM::RawPMUConfigs & curPMUConfigs, string eventStr)
         {
             // matched and initialized config 2
         }
+        else if (match(item, "config3=", &config.first[3]))
+        {
+            // matched and initialized config 3
+        }
+        else if (match(item, "config4=", &config.first[4]))
+        {
+            // matched and initialized config 4
+        }
         else if (pcm_sscanf(item) >> s_expect("name=") >> setw(255) >> config.second)
         {
             // matched and initialized name
@@ -571,7 +603,7 @@ bool addEvent(PCM::RawPMUConfigs & curPMUConfigs, string eventStr)
             return false;
         }
     }
-    cout << "parsed "<< (fixed?"fixed ":"")<< " " << pmuName << " event: \"" << hex << config.second << "\" : {0x" << hex << config.first[0] << ", 0x" << config.first[1] << ", 0x" << config.first[2] << "}\n" << dec;
+    printEvent(pmuName, fixed, config);
     if (fixed)
         curPMUConfigs[pmuName].fixed.push_back(config);
     else
