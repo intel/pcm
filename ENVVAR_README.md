@@ -5,3 +5,5 @@
 `PCM_NO_RDT=1` : don't use RDT metrics for a better interoperation with pqos utility (https://github.com/intel/intel-cmt-cat)
 
 `PCM_USE_RESCTRL=1` : use Linux resctrl driver for RDT metrics
+
+`PCM_PRINT_TOPOLOGY=1` : print detailed CPU topology
