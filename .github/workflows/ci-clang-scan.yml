@@ -16,5 +16,7 @@ jobs:
     - uses: actions/checkout@v2
     - name: scan-build
       run: |
+        scan-build --exclude simdjson --status-bugs make -j
+        make clean
         git clone https://github.com/simdjson/simdjson.git
         scan-build --exclude simdjson --status-bugs make -j
