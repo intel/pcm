@@ -77,6 +77,9 @@ constexpr auto IA32_PERF_GLOBAL_OVF_CTRL = 0x390;
 #define MSR_OFFCORE_RSP0               (0x1A6)
 #define MSR_OFFCORE_RSP1               (0x1A7)
 
+constexpr auto MSR_LOAD_LATENCY = 0x3F6;
+constexpr auto MSR_FRONTEND = 0x3F7;
+
 /* From Table B-5. of the above mentioned document */
 #define PLATFORM_INFO_ADDR              (0xCE)
 
@@ -161,6 +164,13 @@ constexpr auto IA32_PERF_GLOBAL_OVF_CTRL = 0x390;
 #define OFFCORE_RESPONSE_1_EVTNR (0xBB)
 #define OFFCORE_RESPONSE_0_UMASK (1)
 #define OFFCORE_RESPONSE_1_UMASK (1)
+
+
+constexpr auto LOAD_LATENCY_EVTNR = 0xcd;
+constexpr auto LOAD_LATENCY_UMASK = 0x01;
+constexpr auto FRONTEND_EVTNR = 0xC6;
+constexpr auto FRONTEND_UMASK = 0x01;
+
 /*
      For Nehalem(-EP) processors from Intel(r) 64 and IA-32 Architectures Software Developer's Manual
 */

@@ -800,7 +800,9 @@ public:
         uint32 nGPCounters;                   // number of general purpose counters
         EventSelectRegister * gpCounterCfg;   // general purpose counters, if NULL, then default configuration performed for GP counters
         uint64 OffcoreResponseMsrValue[2];
-        ExtendedCustomCoreEventDescription() : fixedCfg(NULL), nGPCounters(0), gpCounterCfg(NULL)
+        uint64 LoadLatencyMsrValue, FrontendMsrValue;
+        static uint64 invalidMsrValue() { return ~0ULL; }
+        ExtendedCustomCoreEventDescription() : fixedCfg(NULL), nGPCounters(0), gpCounterCfg(NULL), LoadLatencyMsrValue(invalidMsrValue()), FrontendMsrValue(invalidMsrValue())
         {
             OffcoreResponseMsrValue[0] = 0;
             OffcoreResponseMsrValue[1] = 0;
@@ -1137,11 +1139,17 @@ public:
     // vector of IDs. E.g. for core {raw event} or {raw event, offcore response1 msr value, } or {raw event, offcore response1 msr value, offcore response2}
     // or for cha/cbo {raw event, filter value}, etc
     // + user-supplied name
-    typedef std::pair<std::array<uint64, 3>, std::string> RawEventConfig;
+    typedef std::pair<std::array<uint64, 5>, std::string> RawEventConfig;
     struct RawPMUConfig
     {
         std::vector<RawEventConfig> programmable;
         std::vector<RawEventConfig> fixed;
+    };
+    enum {
+        OCR0Pos = 1,
+        OCR1Pos = 2,
+        LoadLatencyPos = 3,
+        FrontendPos = 4
     };
     typedef std::map<std::string, RawPMUConfig> RawPMUConfigs;
     ErrorCode program(const RawPMUConfigs& curPMUConfigs, const bool silent = false);

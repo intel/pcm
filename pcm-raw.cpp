@@ -83,6 +83,36 @@ void print_usage(const string progname)
     cerr << "\n";
 }
 
+PCM::RawEventConfig initCoreConfig()
+{
+    return PCM::RawEventConfig{ {0,0,0,
+        PCM::ExtendedCustomCoreEventDescription::invalidMsrValue(),PCM::ExtendedCustomCoreEventDescription::invalidMsrValue()
+        },
+        "" };
+}
+
+void printEvent(const std::string & pmuName, const bool fixed, const PCM::RawEventConfig & config)
+{
+    cout << "parsed " << (fixed ? "fixed " : "") << " " << pmuName << " event: \"" << hex << config.second << "\" : {" << hex <<
+        "0x" << config.first[0] <<
+        ", 0x" << config.first[1] <<
+        ", 0x" << config.first[2] <<
+        ", 0x" << config.first[3] <<
+        ", 0x" << config.first[4] <<
+        "}\n" << dec;
+}
+
+void lowerCase(std::string & str)
+{
+    std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) {
+#ifdef _MSC_VER
+        return std::tolower(c, std::locale());
+#else
+        return std::tolower(c); // std::locale has some bad_cast issues in g++
+#endif
+    });
+}
+
 #ifdef PCM_SIMDJSON_AVAILABLE
 using namespace simdjson;
 
@@ -171,6 +201,10 @@ bool initPMUEventMap()
     for (const auto evfile : eventFiles)
     {
         std::string path;
+        auto printError = [&evfile]()
+        {
+            cerr << "Make sure you have downloaded " << evfile.second << " from https://download.01.org/perfmon/" + evfile.second + " \n";
+        };
         try {
 
             cout << evfile.first << " " << evfile.second << "\n";
@@ -191,6 +225,7 @@ bool initPMUEventMap()
                 else
                 {
                     std::cerr << "ERROR: Can't open event file at location " << path1 << " or " << path2 << "\n";
+                    printError();
                     return false;
                 }
 
@@ -216,7 +251,7 @@ bool initPMUEventMap()
         catch (std::exception& e)
         {
             cerr << "Error while opening and/or parsing " << path << " : " << e.what() << "\n";
-            cerr << "Make sure you have downloaded " << evfile.second << " from https://download.01.org/perfmon/" + evfile.second + " \n";
+           printError();
             return false;
         }
     }
@@ -273,9 +308,9 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
 
     const auto eventObj = PMUEventMap[eventStr];
     std::string pmuName;
-    PCM::RawEventConfig config = { {0,0,0}, "" };
+    PCM::RawEventConfig config = { {0,0,0,0,0}, "" };
     bool fixed = false;
-    config.second = fullEventStr;
+    static size_t offcoreEventIndex = 0;
 
     const std::string path = std::string("PMURegisterDeclarations/") + PCM::getInstance()->getCPUFamilyModelString() + ".json";
     if (PMURegisterDeclarations.get() == nullptr)
@@ -306,14 +341,18 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
     if (unitObj.error() == NO_SUCH_FIELD)
     {
         pmuName = "core";
+        config = initCoreConfig();
     }
     else
     {
         std::string unit{ unitObj.get_c_str() };
-        std::transform(unit.begin(), unit.end(), unit.begin(), [](unsigned char c) { return std::tolower(c, std::locale()); });
+        lowerCase(unit);
         // std::cout << eventStr << " is uncore event for unit " << unit << "\n";
         pmuName = (pmuNameMap.find(unit) == pmuNameMap.end()) ? unit : pmuNameMap[unit];
     }
+
+    config.second = fullEventStr;
+
     if (1)
     {
         // cerr << "pmuName: " << pmuName << " full event "<< fullEventStr << " \n";
@@ -321,8 +360,29 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
         // cout << "Counter: " << CounterStr << "\n";
         int fixedCounter = -1;
         fixed = (pcm_sscanf(CounterStr) >> s_expect("Fixed counter ") >> fixedCounter) ? true : false;
+        bool offcore = false;
+        if (eventObj["Offcore"].error() != NO_SUCH_FIELD)
+        {
+            const std::string offcoreStr{ eventObj["Offcore"].get_c_str() };
+            offcore = (offcoreStr == "1");
+        }
+        if (pmuName == "core" && curPMUConfigs[pmuName].programmable.empty() && fixed == false)
+        {
+            // on first programmable core PMU event
+            offcoreEventIndex = 0; // reset offcore event index
+        }
 
         try {
+            auto setConfig = [](PCM::RawEventConfig & config, const simdjson::dom::object& fieldDescriptionObj, const uint64 value, const int64_t position)
+            {
+                const auto cfg = uint64_t(fieldDescriptionObj["Config"]);
+                if (cfg >= config.first.size()) throw std::runtime_error("Config field value is out of bounds");
+                const auto width = uint64_t(fieldDescriptionObj["Width"]);
+                assert(width <= 64);
+                const uint64 mask = (width == 64) ? (~0ULL) : ((1ULL << width) - 1ULL); // 1 -> 1b, 2 -> 11b, 3 -> 111b
+                config.first[cfg] &= ~(mask << position); // clear
+                config.first[cfg] |= (value & mask) << position;
+            };
             auto PMUObj = (*PMURegisterDeclarations)[pmuName];
             if (PMUObj.error() == NO_SUCH_FIELD)
             {
@@ -338,13 +398,43 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
             {
                 PMUDeclObj = (*PMURegisterDeclarations)[pmuName]["programmable"].get_object();
             }
+            auto& myPMUConfigs = fixed ? curPMUConfigs[pmuName].fixed : curPMUConfigs[pmuName].programmable;
             for (const auto & registerKeyValue : PMUDeclObj)
             {
                 // cout << "Setting " << registerKeyValue.key << " : " << registerKeyValue.value << "\n";
                 simdjson::dom::object fieldDescriptionObj = registerKeyValue.value;
                 // cout << "   config: " << uint64_t(fieldDescriptionObj["Config"]) << "\n";
                 // cout << "   Position: " << uint64_t(fieldDescriptionObj["Position"]) << "\n";
-                std::string fieldNameStr{ registerKeyValue.key.begin(), registerKeyValue.key.end() };
+                const std::string fieldNameStr{ registerKeyValue.key.begin(), registerKeyValue.key.end() };
+                if (fieldNameStr == "MSRIndex")
+                {
+                    std::string fieldValueStr{ eventObj[fieldNameStr].get_c_str() };
+                    // cout << "MSR field " << fieldNameStr << " value is " << fieldValueStr << " (" << read_number(fieldValueStr.c_str()) << ") offcore=" << offcore << "\n";
+                    lowerCase(fieldValueStr);
+                    if (fieldValueStr == "0" || fieldValueStr == "0x00")
+                    {
+                        continue;
+                    }
+                    auto MSRIndexStr = fieldValueStr;
+                    if (offcore)
+                    {
+                        const auto MSRIndexes = split(MSRIndexStr, ',');
+                        if (offcoreEventIndex >= MSRIndexes.size())
+                        {
+                            std::cerr << "ERROR: too many offcore events specified (max is " << MSRIndexes.size() << "). Ignoring " << fullEventStr << " event\n";
+                            return true;
+                        }
+                        MSRIndexStr = MSRIndexes[offcoreEventIndex];
+                    }
+                    // cout << " MSR field " << fieldNameStr << " value is " << MSRIndexStr << " (" << read_number(MSRIndexStr.c_str()) << ") offcore=" << offcore << "\n";
+                    simdjson::dom::object MSRObject = registerKeyValue.value[MSRIndexStr];
+                    const string msrValueStr{ eventObj["MSRValue"].get_c_str() };
+                    // update the first event
+                    setConfig(myPMUConfigs.empty() ? config : myPMUConfigs.front(), MSRObject, read_number(msrValueStr.c_str()), int64_t(MSRObject["Position"]));
+                    // update the current as well for display
+                    setConfig(config, MSRObject, read_number(msrValueStr.c_str()), int64_t(MSRObject["Position"]));
+                    continue;
+                }
                 const int64_t position = int64_t(fieldDescriptionObj["Position"]);
                 if (position == -1)
                 {
@@ -369,23 +459,25 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
                 {
                     std::string fieldValueStr{ eventObj[fieldNameStr].get_c_str() };
                     fieldValueStr.erase(std::remove(fieldValueStr.begin(), fieldValueStr.end(), '\"'), fieldValueStr.end());
-                    // cout << " field value is " << fieldValueStr << " " << read_number(fieldValueStr.c_str()) <<  "\n";
-                    const auto cfg = uint64_t(fieldDescriptionObj["Config"]);
-                    if (cfg >= config.first.size()) throw std::runtime_error("Config field value is out of bounds");
-                    config.first[cfg] |= read_number(fieldValueStr.c_str()) << position;
+                    if (offcore && fieldNameStr == "EventCode")
+                    {
+                        const auto offcoreCodes = split(fieldValueStr,',');
+                        if (offcoreEventIndex >= offcoreCodes.size())
+                        {
+                            std::cerr << "ERROR: too many offcore events specified (max is " << offcoreCodes.size() << "). Ignoring " << fullEventStr << " event\n";
+                            return true;
+                        }
+                        fieldValueStr = offcoreCodes[offcoreEventIndex];
+                    }
+                    // cout << " field " << fieldNameStr << " value is " << fieldValueStr << " (" << read_number(fieldValueStr.c_str()) << ") offcore=" << offcore << "\n";
+                    setConfig(config, fieldDescriptionObj, read_number(fieldValueStr.c_str()), position);
                 }
             }
 
-            auto setField = [&PMUDeclObj, &config](const char* field, const uint64 value)
+            auto setField = [&PMUDeclObj, &config, &setConfig](const char* field, const uint64 value)
             {
                 const auto pos = int64_t(PMUDeclObj[field]["Position"]);
-                const auto cfg = uint64_t(PMUDeclObj[field]["Config"]);
-                if (cfg >= config.first.size()) throw std::runtime_error("Config field value is out of bounds");
-                const auto width = uint64_t(PMUDeclObj[field]["Width"]);
-                assert (width <= 64);
-                const uint64 mask = (width == 64)? (~0ULL) : ((1ULL << width) - 1ULL); // 1 -> 1b, 2 -> 11b, 3 -> 111b
-                config.first[cfg] &= ~(mask << pos); // clear
-                config.first[cfg] |= (value & mask) << pos; // set
+                setConfig(config, PMUDeclObj[field], value, pos);
             };
 
             auto unsupported = [&]()
@@ -476,15 +568,11 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
                 }
                 ++mod;
             }
-
-            if (fixed)
+            if (offcore)
             {
-                curPMUConfigs[pmuName].fixed.push_back(config);
+                ++offcoreEventIndex;
             }
-            else
-            {
-                curPMUConfigs[pmuName].programmable.push_back(config);
-            }
+            myPMUConfigs.push_back(config);
         }
         catch (std::exception& e)
         {
@@ -504,7 +592,7 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
     }
     */
 
-    cout << "parsed " << (fixed ? "fixed " : "") <<  pmuName << " event : \"" << hex << config.second << "\" : {0x" << hex << config.first[0] << ", 0x" << config.first[1] << ", 0x" << config.first[2] << "}\n" << dec;
+    printEvent(pmuName, fixed, config);
 
     return true;
 }
@@ -523,7 +611,7 @@ bool addEvent(PCM::RawPMUConfigs & curPMUConfigs, string eventStr)
         return addEventFromDB(curPMUConfigs, eventStr);
     }
 #endif
-    PCM::RawEventConfig config = { {0,0,0}, "" };
+    PCM::RawEventConfig config = { {0,0,0,0,0}, "" };
     const auto typeConfig = split(eventStr, '/');
     if (typeConfig.size() < 2)
     {
@@ -541,6 +629,10 @@ bool addEvent(PCM::RawPMUConfigs & curPMUConfigs, string eventStr)
         cerr << "ERROR: empty config description in event description \"" << eventStr << "\"\n";
         return false;
     }
+    if (pmuName == "core")
+    {
+        config = initCoreConfig();
+    }
     const auto configArray = split(configStr, ',');
     bool fixed = false;
     for (const auto & item : configArray)
@@ -557,6 +649,14 @@ bool addEvent(PCM::RawPMUConfigs & curPMUConfigs, string eventStr)
         {
             // matched and initialized config 2
         }
+        else if (match(item, "config3=", &config.first[3]))
+        {
+            // matched and initialized config 3
+        }
+        else if (match(item, "config4=", &config.first[4]))
+        {
+            // matched and initialized config 4
+        }
         else if (pcm_sscanf(item) >> s_expect("name=") >> setw(255) >> config.second)
         {
             // matched and initialized name
@@ -571,7 +671,7 @@ bool addEvent(PCM::RawPMUConfigs & curPMUConfigs, string eventStr)
             return false;
         }
     }
-    cout << "parsed "<< (fixed?"fixed ":"")<< " " << pmuName << " event: \"" << hex << config.second << "\" : {0x" << hex << config.first[0] << ", 0x" << config.first[1] << ", 0x" << config.first[2] << "}\n" << dec;
+    printEvent(pmuName, fixed, config);
     if (fixed)
         curPMUConfigs[pmuName].fixed.push_back(config);
     else
