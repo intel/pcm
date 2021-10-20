@@ -115,6 +115,7 @@ namespace PCMDaemon {
 		char readBuffer[maxCharsToRead];
 		if (fread(&readBuffer, maxCharsToRead, 1, fp) == 0)
 		{
+			fclose (fp);
 			std::stringstream ss;
 			ss << "fread failed for " << shmIdLocation_;
 			throw std::runtime_error(ss.str());
