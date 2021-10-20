@@ -13,7 +13,13 @@
             "Invert":      {"Config": 0, "Position": 23, "Width": 1},
             "CounterMask": {"Config": 0, "Position": 24, "Width": 8},
             "InTX":        {"Config": 0, "Position": 32, "Width": 1, "DefaultValue": 0},
-            "InTXCheckpointed": {"Config": 0, "Position": 33, "Width": 1, "DefaultValue": 0}
+            "InTXCheckpointed": {"Config": 0, "Position": 33, "Width": 1, "DefaultValue": 0},
+            "MSRIndex": {
+                "0x1a6" : {"Config": 1, "Position": 0, "Width": 64},
+                "0x1a7" : {"Config": 2, "Position": 0, "Width": 64},
+                "0x3f6" : {"Config": 3, "Position": 0, "Width": 64},
+                "0x3f7" : {"Config": 4, "Position": 0, "Width": 64}
+            }
         },
         "fixed0" : {
             "OS":          {"Config": 0, "Position": 0, "Width": 1, "DefaultValue": 1},
