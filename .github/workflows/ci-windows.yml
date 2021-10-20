@@ -19,5 +19,7 @@ jobs:
       uses: microsoft/setup-msbuild@v1.0.2
     
     - name: msbuild
-      run: msbuild pcm-all.sln /p:Configuration=Release,Platform=x64 /t:Clean,Build /m
+      run: |
+        git clone https://github.com/simdjson/simdjson.git
+        msbuild pcm-all.sln /p:Configuration=Release,Platform=x64 /t:Clean,Build /m
 

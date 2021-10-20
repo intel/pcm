@@ -17,4 +17,5 @@ jobs:
     - name: make
       run: |
         g++ --version
+        git clone https://github.com/simdjson/simdjson.git
         make install prefix=. -j

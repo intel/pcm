@@ -15,4 +15,6 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: scan-build
-      run: scan-build --exclude simdjson --status-bugs make -j
+      run: |
+        git clone https://github.com/simdjson/simdjson.git
+        scan-build --exclude simdjson --status-bugs make -j
