@@ -201,6 +201,10 @@ bool initPMUEventMap()
     for (const auto evfile : eventFiles)
     {
         std::string path;
+        auto printError = [&evfile]()
+        {
+            cerr << "Make sure you have downloaded " << evfile.second << " from https://download.01.org/perfmon/" + evfile.second + " \n";
+        };
         try {
 
             cout << evfile.first << " " << evfile.second << "\n";
@@ -221,6 +225,7 @@ bool initPMUEventMap()
                 else
                 {
                     std::cerr << "ERROR: Can't open event file at location " << path1 << " or " << path2 << "\n";
+                    printError();
                     return false;
                 }
 
@@ -246,7 +251,7 @@ bool initPMUEventMap()
         catch (std::exception& e)
         {
             cerr << "Error while opening and/or parsing " << path << " : " << e.what() << "\n";
-            cerr << "Make sure you have downloaded " << evfile.second << " from https://download.01.org/perfmon/" + evfile.second + " \n";
+           printError();
             return false;
         }
     }
