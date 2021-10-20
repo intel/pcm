@@ -113,7 +113,12 @@ namespace PCMDaemon {
 		}
 		int maxCharsToRead = 11;
 		char readBuffer[maxCharsToRead];
-		fread(&readBuffer, maxCharsToRead, 1, fp);
+		if (fread(&readBuffer, maxCharsToRead, 1, fp) == 0)
+		{
+			std::stringstream ss;
+			ss << "fread failed for " << shmIdLocation_;
+			throw std::runtime_error(ss.str());
+		}
 		fclose (fp);
 
 		sharedMemoryId = atoi(readBuffer);
