@@ -404,7 +404,7 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
                 if (fieldNameStr == "MSRIndex")
                 {
                     std::string fieldValueStr{ eventObj[fieldNameStr].get_c_str() };
-                    cout << "MSR field " << fieldNameStr << " value is " << fieldValueStr << " (" << read_number(fieldValueStr.c_str()) << ") offcore=" << offcore << "\n";
+                    // cout << "MSR field " << fieldNameStr << " value is " << fieldValueStr << " (" << read_number(fieldValueStr.c_str()) << ") offcore=" << offcore << "\n";
                     lowerCase(fieldValueStr);
                     if (fieldValueStr == "0" || fieldValueStr == "0x00")
                     {
@@ -421,7 +421,7 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
                         }
                         MSRIndexStr = MSRIndexes[offcoreEventIndex];
                     }
-                    cout << " MSR field " << fieldNameStr << " value is " << MSRIndexStr << " (" << read_number(MSRIndexStr.c_str()) << ") offcore=" << offcore << "\n";
+                    // cout << " MSR field " << fieldNameStr << " value is " << MSRIndexStr << " (" << read_number(MSRIndexStr.c_str()) << ") offcore=" << offcore << "\n";
                     simdjson::dom::object MSRObject = registerKeyValue.value[MSRIndexStr];
                     const string msrValueStr{ eventObj["MSRValue"].get_c_str() };
                     // update the first event
@@ -464,7 +464,7 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
                         }
                         fieldValueStr = offcoreCodes[offcoreEventIndex];
                     }
-                    cout << " field " << fieldNameStr << " value is " << fieldValueStr << " (" << read_number(fieldValueStr.c_str()) << ") offcore=" << offcore << "\n";
+                    // cout << " field " << fieldNameStr << " value is " << fieldValueStr << " (" << read_number(fieldValueStr.c_str()) << ") offcore=" << offcore << "\n";
                     setConfig(config, fieldDescriptionObj, read_number(fieldValueStr.c_str()), position);
                 }
             }
