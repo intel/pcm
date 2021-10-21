@@ -1747,7 +1747,7 @@ void PCM::initUncorePMUsDirect()
                 )
             );
         }
-        else if (isServerCPU())
+        else if (isServerCPU() && hasPCICFGUncore())
         {
             uboxPMUs.push_back(
                 UncorePMU(
