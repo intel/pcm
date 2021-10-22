@@ -101,8 +101,29 @@ struct PCM_API TopologyEntry // decribes a core
     int32 core_id;
     int32 tile_id; // tile is a constalation of 1 or more cores sharing salem L2 cache. Unique for entire system
     int32 socket;
+    int32 native_cpu_model = -1;
+    enum CoreType
+    {
+        Atom = 0x20,
+        Core = 0x40,
+        Invalid = -1
+    };
+    CoreType core_type = Invalid;
 
     TopologyEntry() : os_id(-1), thread_id (-1), core_id(-1), tile_id(-1), socket(-1) { }
+    const char* getCoreTypeStr()
+    {
+        switch (core_type)
+        {
+            case Atom:
+                return "Atom";
+            case Core:
+                return "Core";
+            case Invalid:
+                return "invalid";
+        }
+        return "unknown";
+    }
 };
 
 class HWRegister
@@ -544,6 +565,7 @@ class PCM_API PCM
 
     int32 cpu_family;
     int32 cpu_model;
+    bool hybrid = false;
     int32 cpu_stepping;
     int64 cpu_microcode_level;
     int32 max_cpuid;
@@ -782,7 +804,7 @@ public:
     */
     struct CustomCoreEventDescription
     {
-        int32 event_number, umask_value;
+        int32 event_number = 0, umask_value = 0;
     };
 
     /*! \brief Extended custom core event description
@@ -799,10 +821,11 @@ public:
         FixedEventControlRegister * fixedCfg; // if NULL, then default configuration performed for fixed counters
         uint32 nGPCounters;                   // number of general purpose counters
         EventSelectRegister * gpCounterCfg;   // general purpose counters, if NULL, then default configuration performed for GP counters
+        EventSelectRegister * gpCounterHybridAtomCfg; // general purpose counters for Atom cores in hybrid processors
         uint64 OffcoreResponseMsrValue[2];
         uint64 LoadLatencyMsrValue, FrontendMsrValue;
         static uint64 invalidMsrValue() { return ~0ULL; }
-        ExtendedCustomCoreEventDescription() : fixedCfg(NULL), nGPCounters(0), gpCounterCfg(NULL), LoadLatencyMsrValue(invalidMsrValue()), FrontendMsrValue(invalidMsrValue())
+        ExtendedCustomCoreEventDescription() : fixedCfg(NULL), nGPCounters(0), gpCounterCfg(nullptr), gpCounterHybridAtomCfg(nullptr), LoadLatencyMsrValue(invalidMsrValue()), FrontendMsrValue(invalidMsrValue())
         {
             OffcoreResponseMsrValue[0] = 0;
             OffcoreResponseMsrValue[1] = 0;
@@ -821,6 +844,7 @@ public:
 private:
     ProgramMode mode;
     CustomCoreEventDescription coreEventDesc[PERF_MAX_CUSTOM_COUNTERS];
+    CustomCoreEventDescription hybridAtomEventDesc[PERF_MAX_CUSTOM_COUNTERS];
 
 #ifdef _MSC_VER
     HANDLE numInstancesSemaphore;     // global semaphore that counts the number of PCM instances on the system
@@ -1326,6 +1350,7 @@ public:
         RKL = 167,
         TGL = 140,
         TGL_1 = 141,
+        ADL = 151,
         BDX = 79,
         KNL = 87,
         SKL = 94,
@@ -1512,6 +1537,8 @@ public:
         if (ICL == cpu_model || TGL == cpu_model || RKL == cpu_model) return 5;
         switch (cpu_model)
         {
+        case ADL:
+            return 6;
         case SNOWRIDGE:
             return 4;
         case DENVERTON:
@@ -1793,6 +1820,7 @@ public:
                  || useSKLPath()
                  || cpu_model == PCM::SKX
                  || cpu_model == PCM::ICX
+                 || cpu_model == PCM::ADL
                );
     }
 
@@ -3241,7 +3269,7 @@ uint64 getL2CacheMisses(const CounterStateType & before, const CounterStateType 
     auto pcm = PCM::getInstance();
     if (pcm->isL2CacheMissesAvailable() == false) return 0ULL;
     const auto cpu_model = pcm->getCPUModel();
-    if (pcm->useSkylakeEvents() || cpu_model == PCM::SNOWRIDGE) {
+    if (pcm->useSkylakeEvents() || cpu_model == PCM::SNOWRIDGE || cpu_model == PCM::ADL) {
         return after.Event[BasicCounterState::SKLL2MissPos] - before.Event[BasicCounterState::SKLL2MissPos];
     }
     if (pcm->isAtom() || cpu_model == PCM::KNL)
@@ -3336,7 +3364,7 @@ uint64 getL3CacheHitsSnoop(const CounterStateType & before, const CounterStateTy
     auto pcm = PCM::getInstance();
     if (!pcm->isL3CacheHitsSnoopAvailable()) return 0;
     const auto cpu_model = pcm->getCPUModel();
-    if (cpu_model == PCM::SNOWRIDGE)
+    if (cpu_model == PCM::SNOWRIDGE || cpu_model == PCM::ADL)
     {
         const int64 misses = getL3CacheMisses(before, after);
         const int64 refs = after.Event[BasicCounterState::ArchLLCRefPos] - before.Event[BasicCounterState::ArchLLCRefPos];
