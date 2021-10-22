@@ -29,6 +29,8 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #endif
 
 #undef PCM_HA_REQUESTS_READS_ONLY
+#undef PCM_DEBUG_TOPOLOGY // debug of topology enumeration routine
+#undef PCM_UNCORE_PMON_BOX_CHECK_STATUS // debug only
 
 #include "types.h"
 #include "msr.h"
@@ -245,8 +247,6 @@ public:
         return handle->read();;
     }
 };
-
-#undef PCM_UNCORE_PMON_BOX_CHECK_STATUS // debug only
 
 class UncorePMU
 {

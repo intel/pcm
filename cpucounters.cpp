@@ -92,8 +92,6 @@ namespace pcm {
 int convertUnknownToInt(size_t size, char* value);
 #endif
 
-#undef PCM_DEBUG_TOPOLOGY // debug of topology enumeration routine
-
 // FreeBSD is much more restrictive about names for semaphores
 #if defined (__FreeBSD__)
 #define PCM_INSTANCE_LOCK_SEMAPHORE_NAME "/PCM_inst_lock"
