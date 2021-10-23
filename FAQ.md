@@ -70,3 +70,9 @@ How to fix it?
 export PCM_NO_PERF=1
 pcm.x -r
 ```
+
+## Q10
+
+If you are getting the error `Starting MSR service failed with error 3 The system cannot find the path specified.` try to uninstall the driver by running `pcm --uninstallDriver` and optionally reboot the system.
+
+
