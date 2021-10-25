@@ -1090,7 +1090,7 @@ bool PCM::discoverSystemTopology()
         pcm_cpuid(0x1a, 0x0, cpuid_args);
         (void)core;
 #else
-        std::cerr << "PCM Error: Hybrid processors are not supported for your OS\n":
+        std::cerr << "PCM Error: Hybrid processors are not supported for your OS\n";
         (void)core;
         return false;
 #endif
