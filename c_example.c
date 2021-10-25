@@ -24,7 +24,7 @@ struct {
 	uint64_t (*pcm_c_get_cycles)(uint32_t core_id);
 	uint64_t (*pcm_c_get_instr)(uint32_t core_id);
 	uint64_t (*pcm_c_get_core_event)(uint32_t core_id, uint32_t event_id);
-} PCM;
+} PCM; // lgtm [cpp/short-global-name]
 
 #ifndef PCM_DYNAMIC_LIB
 /* Library functions declaration (instead of .h file) */

@@ -1,0 +1,21 @@
+name: cppcheck
+
+on:
+  push:
+    branches: [ '**' ]
+  pull_request:
+    branches: [ '**' ]
+
+jobs:
+  build:
+
+    runs-on: ci-cppcheck
+    if: ${{ github.repository != 'opcm/pcm' }}        
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: cppcheck_script
+      run: |
+        sh cppcheck.sh . `getconf _NPROCESSORS_ONLN`
+        git clone https://github.com/simdjson/simdjson.git
+        sh cppcheck.sh . `getconf _NPROCESSORS_ONLN`

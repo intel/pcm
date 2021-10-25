@@ -53,7 +53,7 @@ namespace debug {
     }
 
     template<typename T, typename... Args>
-    void dyn_debug_output_helper( std::stringstream& out, T t, Args... args ) {
+    void dyn_debug_output_helper( std::stringstream& out, const T & t, Args... args ) {
         out << t;
         dyn_debug_output_helper( out, args... );
     }

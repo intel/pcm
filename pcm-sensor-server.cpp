@@ -1079,7 +1079,7 @@ public:
         shi->installHandler( SignalHandler::handleSignal, SIGINT );
     }
     Server( Server const & ) = delete;
-    ~Server() = default;
+    virtual ~Server() = default;
 
 public:
     virtual void run() = 0;

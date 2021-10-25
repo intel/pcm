@@ -1,0 +1,26 @@
+name: MSVC Windows build
+
+on:
+  push:
+    branches: [ '**' ]
+  pull_request:
+    branches: [ '**' ]
+
+jobs:
+  build:
+
+    runs-on: ci-windows
+    if: ${{ github.repository != 'opcm/pcm' }}
+
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Add MSBuild to PATH
+      uses: microsoft/setup-msbuild@v1.0.2
+    
+    - name: msbuild
+      run: |
+        msbuild pcm-all.sln /p:Configuration=Release,Platform=x64 /t:Clean,Build /m
+        git clone https://github.com/simdjson/simdjson.git
+        msbuild pcm-all.sln /p:Configuration=Release,Platform=x64 /t:Clean,Build /m
+

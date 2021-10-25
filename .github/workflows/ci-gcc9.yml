@@ -1,0 +1,23 @@
+name: g++ 9 build
+
+on:
+  push:
+    branches: [ '**' ]
+  pull_request:
+    branches: [ '**' ]
+
+jobs:
+  build:
+
+    runs-on: ci-gcc9
+    if: ${{ github.repository != 'opcm/pcm' }}
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: make
+      run: |
+        g++ --version
+        make install prefix=. -j
+        make clean
+        git clone https://github.com/simdjson/simdjson.git
+        make install prefix=. -j

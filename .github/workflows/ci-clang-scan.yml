@@ -1,0 +1,22 @@
+name: clang-scan
+
+on:
+  push:
+    branches: [ '**' ]
+  pull_request:
+    branches: [ '**' ]
+
+jobs:
+  build:
+
+    runs-on: ci-clang-scan
+    if: ${{ github.repository != 'opcm/pcm' }}    
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: scan-build
+      run: |
+        scan-build --exclude simdjson --status-bugs make -j
+        make clean
+        git clone https://github.com/simdjson/simdjson.git
+        scan-build --exclude simdjson --status-bugs make -j

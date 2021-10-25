@@ -120,10 +120,4 @@ The unit can be logical core, memory channel, CHA, etc, depending on the event t
 
 Limitations:
 
-Offcore response event are not supported and need to be specified using the raw encoding format. For example:
-
-```
-pcm-raw.x -e core/config=0x301b7,config1=0x4003C0001,config2=0x10003C0001,name=OCR.DEMAND_DATA_RD.L3_HIT.SNOOP_HIT_NO_FWD/ -e core/config=0x301bb,name=OCR.DEMAND_DATA_RD.L3_HIT.SNOOP_HITM
-```
-
 Event-to-counter scheduling restrictions are not validated. The events are scheduled in order. The user need to make sure events are ordered correctly using emon or manually inspecting counter event restrictions specified in json files (https://download.01.org/perfmon/).

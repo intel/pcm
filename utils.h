@@ -290,6 +290,23 @@ bool CheckAndForceRTMAbortMode(const char * argv, PCM * m);
 
 void print_help_force_rtm_abort_mode(const int alignment);
 
+template <class F>
+void parseParam(int argc, char* argv[], const char* param, F f)
+{
+    if (argc > 1) do
+    {
+        argv++;
+        argc--;
+        if ((std::string("-") + param == *argv) || (std::string("/") + param == *argv))
+        {
+            argv++;
+            argc--;
+            f(*argv);
+            continue;
+        }
+    } while (argc > 1); // end of command line parsing loop
+}
+
 class MainLoop
 {
     unsigned numberOfIterations = 0;
@@ -317,7 +334,7 @@ public:
         return numberOfIterations;
     }
     template <class Body>
-    void operator ()(Body body)
+    void operator ()(const Body & body)
     {
         unsigned int i = 1;
         // std::cerr << "DEBUG: numberOfIterations: " << numberOfIterations << "\n";
@@ -447,5 +464,14 @@ inline uint64 extract_bits(uint64 myin, uint32 beg, uint32 end)
     myll = myll & build_bit(beg1, end1);
     return myll;
 }
+
+std::string safe_getenv(const char* env);
+
+#ifdef _MSC_VER
+inline HANDLE openMSRDriver()
+{
+    return CreateFile(L"\\\\.\\RDMSR", GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+}
+#endif
 
 } // namespace pcm

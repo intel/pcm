@@ -29,6 +29,8 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #endif
 
 #undef PCM_HA_REQUESTS_READS_ONLY
+#undef PCM_DEBUG_TOPOLOGY // debug of topology enumeration routine
+#undef PCM_UNCORE_PMON_BOX_CHECK_STATUS // debug only
 
 #include "types.h"
 #include "msr.h"
@@ -99,8 +101,29 @@ struct PCM_API TopologyEntry // decribes a core
     int32 core_id;
     int32 tile_id; // tile is a constalation of 1 or more cores sharing salem L2 cache. Unique for entire system
     int32 socket;
+    int32 native_cpu_model = -1;
+    enum CoreType
+    {
+        Atom = 0x20,
+        Core = 0x40,
+        Invalid = -1
+    };
+    CoreType core_type = Invalid;
 
     TopologyEntry() : os_id(-1), thread_id (-1), core_id(-1), tile_id(-1), socket(-1) { }
+    const char* getCoreTypeStr()
+    {
+        switch (core_type)
+        {
+            case Atom:
+                return "Atom";
+            case Core:
+                return "Core";
+            case Invalid:
+                return "invalid";
+        }
+        return "unknown";
+    }
 };
 
 class HWRegister
@@ -245,8 +268,6 @@ public:
         return handle->read();;
     }
 };
-
-#undef PCM_UNCORE_PMON_BOX_CHECK_STATUS // debug only
 
 class UncorePMU
 {
@@ -544,6 +565,7 @@ class PCM_API PCM
 
     int32 cpu_family;
     int32 cpu_model;
+    bool hybrid = false;
     int32 cpu_stepping;
     int64 cpu_microcode_level;
     int32 max_cpuid;
@@ -782,7 +804,7 @@ public:
     */
     struct CustomCoreEventDescription
     {
-        int32 event_number, umask_value;
+        int32 event_number = 0, umask_value = 0;
     };
 
     /*! \brief Extended custom core event description
@@ -799,8 +821,11 @@ public:
         FixedEventControlRegister * fixedCfg; // if NULL, then default configuration performed for fixed counters
         uint32 nGPCounters;                   // number of general purpose counters
         EventSelectRegister * gpCounterCfg;   // general purpose counters, if NULL, then default configuration performed for GP counters
+        EventSelectRegister * gpCounterHybridAtomCfg; // general purpose counters for Atom cores in hybrid processors
         uint64 OffcoreResponseMsrValue[2];
-        ExtendedCustomCoreEventDescription() : fixedCfg(NULL), nGPCounters(0), gpCounterCfg(NULL)
+        uint64 LoadLatencyMsrValue, FrontendMsrValue;
+        static uint64 invalidMsrValue() { return ~0ULL; }
+        ExtendedCustomCoreEventDescription() : fixedCfg(NULL), nGPCounters(0), gpCounterCfg(nullptr), gpCounterHybridAtomCfg(nullptr), LoadLatencyMsrValue(invalidMsrValue()), FrontendMsrValue(invalidMsrValue())
         {
             OffcoreResponseMsrValue[0] = 0;
             OffcoreResponseMsrValue[1] = 0;
@@ -819,6 +844,7 @@ public:
 private:
     ProgramMode mode;
     CustomCoreEventDescription coreEventDesc[PERF_MAX_CUSTOM_COUNTERS];
+    CustomCoreEventDescription hybridAtomEventDesc[PERF_MAX_CUSTOM_COUNTERS];
 
 #ifdef _MSC_VER
     HANDLE numInstancesSemaphore;     // global semaphore that counts the number of PCM instances on the system
@@ -1137,11 +1163,17 @@ public:
     // vector of IDs. E.g. for core {raw event} or {raw event, offcore response1 msr value, } or {raw event, offcore response1 msr value, offcore response2}
     // or for cha/cbo {raw event, filter value}, etc
     // + user-supplied name
-    typedef std::pair<std::array<uint64, 3>, std::string> RawEventConfig;
+    typedef std::pair<std::array<uint64, 5>, std::string> RawEventConfig;
     struct RawPMUConfig
     {
         std::vector<RawEventConfig> programmable;
         std::vector<RawEventConfig> fixed;
+    };
+    enum {
+        OCR0Pos = 1,
+        OCR1Pos = 2,
+        LoadLatencyPos = 3,
+        FrontendPos = 4
     };
     typedef std::map<std::string, RawPMUConfig> RawPMUConfigs;
     ErrorCode program(const RawPMUConfigs& curPMUConfigs, const bool silent = false);
@@ -1318,6 +1350,7 @@ public:
         RKL = 167,
         TGL = 140,
         TGL_1 = 141,
+        ADL = 151,
         BDX = 79,
         KNL = 87,
         SKL = 94,
@@ -1504,6 +1537,8 @@ public:
         if (ICL == cpu_model || TGL == cpu_model || RKL == cpu_model) return 5;
         switch (cpu_model)
         {
+        case ADL:
+            return 6;
         case SNOWRIDGE:
             return 4;
         case DENVERTON:
@@ -1785,6 +1820,7 @@ public:
                  || useSKLPath()
                  || cpu_model == PCM::SKX
                  || cpu_model == PCM::ICX
+                 || cpu_model == PCM::ADL
                );
     }
 
@@ -1879,6 +1915,11 @@ public:
             || cpu_model == PCM::ICX
 	    || cpu_model  == PCM::SNOWRIDGE
         );
+    }
+
+    bool uncoreFrequencyMetricAvailable() const
+    {
+        return MSR.empty() == false && uboxPMUs.size() == getNumSockets() && getNumCores() == getNumOnlineCores();
     }
 
     bool LatencyMetricsAvailable() const
@@ -2107,6 +2148,8 @@ class BasicCounterState
     friend double getIPC(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
     friend double getAverageFrequency(const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
+    friend double getAverageFrequencyFromClocks(const int64 clocks, const CounterStateType& before, const CounterStateType& after);
     template <class CounterStateType>
     friend double getActiveAverageFrequency(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
@@ -2605,6 +2648,10 @@ class UncoreCounterState
     friend double getLLCReadMissLatency(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
     friend double getLocalMemoryRequestRatio(const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
+    friend double getAverageUncoreFrequency(const CounterStateType& before, const CounterStateType& after);
+    template <class CounterStateType>
+    friend double getAverageFrequencyFromClocks(const int64 clocks, const CounterStateType& before, const CounterStateType& after);
 
 protected:
     uint64 UncMCFullWrites;
@@ -3077,6 +3124,16 @@ inline double getTotalExecUsage(const CounterStateType & before, const CounterSt
     return -1;
 }
 
+template <class StateType>
+double getAverageFrequencyFromClocks(const int64 clocks, const StateType& before, const StateType& after) // in Hz
+{
+    const int64 timer_clocks = after.InvariantTSC - before.InvariantTSC;
+    PCM* m = PCM::getInstance();
+    if (timer_clocks != 0 && m)
+        return double(m->getNominalFrequency()) * double(clocks) / double(timer_clocks);
+    return -1;
+}
+
 /*! \brief Computes average core frequency also taking Intel Turbo Boost technology into account
 
     \param before CPU counter state before the experiment
@@ -3086,12 +3143,21 @@ inline double getTotalExecUsage(const CounterStateType & before, const CounterSt
 template <class CounterStateType>
 double getAverageFrequency(const CounterStateType & before, const CounterStateType & after) // in Hz
 {
-    int64 clocks = after.CpuClkUnhaltedThread - before.CpuClkUnhaltedThread;
-    int64 timer_clocks = after.InvariantTSC - before.InvariantTSC;
-    PCM * m = PCM::getInstance();
-    if (timer_clocks != 0 && m)
-        return double(m->getNominalFrequency()) * double(clocks) / double(timer_clocks);
-    return -1;
+    return getAverageFrequencyFromClocks(after.CpuClkUnhaltedThread - before.CpuClkUnhaltedThread, before, after);
+}
+
+/*! \brief Computes average uncore frequency
+
+    \param before CPU counter state before the experiment
+    \param after CPU counter state after the experiment
+    \return frequency in Hz
+*/
+template <class UncoreStateType>
+double getAverageUncoreFrequency(const UncoreStateType& before, const UncoreStateType & after) // in Hz
+{
+    auto m = PCM::getInstance();
+    assert(m);
+    return double(m->getNumOnlineCores()) * getAverageFrequencyFromClocks(after.UncClocks - before.UncClocks, before, after) / double(m->getNumOnlineSockets());
 }
 
 /*! \brief Computes average core frequency when not in powersaving C0-state (also taking Intel Turbo Boost technology into account)
@@ -3203,7 +3269,7 @@ uint64 getL2CacheMisses(const CounterStateType & before, const CounterStateType 
     auto pcm = PCM::getInstance();
     if (pcm->isL2CacheMissesAvailable() == false) return 0ULL;
     const auto cpu_model = pcm->getCPUModel();
-    if (pcm->useSkylakeEvents() || cpu_model == PCM::SNOWRIDGE) {
+    if (pcm->useSkylakeEvents() || cpu_model == PCM::SNOWRIDGE || cpu_model == PCM::ADL) {
         return after.Event[BasicCounterState::SKLL2MissPos] - before.Event[BasicCounterState::SKLL2MissPos];
     }
     if (pcm->isAtom() || cpu_model == PCM::KNL)
@@ -3298,7 +3364,7 @@ uint64 getL3CacheHitsSnoop(const CounterStateType & before, const CounterStateTy
     auto pcm = PCM::getInstance();
     if (!pcm->isL3CacheHitsSnoopAvailable()) return 0;
     const auto cpu_model = pcm->getCPUModel();
-    if (cpu_model == PCM::SNOWRIDGE)
+    if (cpu_model == PCM::SNOWRIDGE || cpu_model == PCM::ADL)
     {
         const int64 misses = getL3CacheMisses(before, after);
         const int64 refs = after.Event[BasicCounterState::ArchLLCRefPos] - before.Event[BasicCounterState::ArchLLCRefPos];
@@ -3585,7 +3651,7 @@ inline double getIncomingQPILinkUtilization(uint32 socketNr, uint32 linkNr, cons
 
     const double bytes = (double)getIncomingQPILinkBytes(socketNr, linkNr, before, after);
     const uint64 max_speed = m->getQPILinkSpeed(socketNr, linkNr);
-    const double max_bytes = (double)(double(max_speed) * double(getInvariantTSC(before, after) / double(m->getNumCores())) / double(m->getNominalFrequency()));
+    const double max_bytes = (double)(double(max_speed) * double(getInvariantTSC(before, after) / double(m->getNumOnlineCores())) / double(m->getNominalFrequency()));
     return bytes / max_bytes;
 }
 
@@ -3623,7 +3689,7 @@ inline double getOutgoingQPILinkUtilization(uint32 socketNr, uint32 linkNr, cons
         const uint64 a = after.outgoingQPIFlits[socketNr][linkNr]; // data + non-data flits or idle (null) flits
         // prevent overflows due to counter dissynchronisation
         double flits = (double)((a > b) ? (a - b) : 0);
-        const double max_flits = ((double(getInvariantTSC(before, after)) * double(m->getQPILinkSpeed(socketNr, linkNr)) / m->getBytesPerFlit()) / double(m->getNominalFrequency())) / double(m->getNumCores());
+        const double max_flits = ((double(getInvariantTSC(before, after)) * double(m->getQPILinkSpeed(socketNr, linkNr)) / m->getBytesPerFlit()) / double(m->getNominalFrequency())) / double(m->getNumOnlineCores());
         if(m->hasUPI())
         {
             flits = flits/3.;
@@ -3651,7 +3717,7 @@ inline uint64 getOutgoingQPILinkBytes(uint32 socketNr, uint32 linkNr, const Syst
     if (!(m->outgoingQPITrafficMetricsAvailable())) return 0ULL;
 
     const double util = getOutgoingQPILinkUtilization(socketNr, linkNr, before, after);
-    const double max_bytes = (double(m->getQPILinkSpeed(socketNr, linkNr)) * double(getInvariantTSC(before, after) / double(m->getNumCores())) / double(m->getNominalFrequency()));
+    const double max_bytes = (double(m->getQPILinkSpeed(socketNr, linkNr)) * double(getInvariantTSC(before, after) / double(m->getNumOnlineCores())) / double(m->getNominalFrequency()));
 
     return (uint64)(max_bytes * util);
 }
@@ -3811,7 +3877,7 @@ inline double getLLCReadMissLatency(const CounterStateType & before, const Count
     const double inserts = double(after.TORInsertsIAMiss) - double(before.TORInsertsIAMiss);
     const double unc_clocks = double(after.UncClocks) - double(before.UncClocks);
     auto * m = PCM::getInstance();
-    const double seconds = double(getInvariantTSC(before, after)) / double(m->getNumCores()/m->getNumSockets()) / double(m->getNominalFrequency());
+    const double seconds = double(getInvariantTSC(before, after)) / double(m->getNumOnlineCores()/m->getNumSockets()) / double(m->getNominalFrequency());
     return 1e9*seconds*(occupancy/inserts)/unc_clocks;
 }
 

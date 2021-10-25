@@ -59,11 +59,11 @@ struct CoreEvent
 } events[PERF_MAX_CUSTOM_COUNTERS];
 
 extern "C" {
-	SystemCounterState SysBeforeState, SysAfterState;
-	std::vector<CoreCounterState> BeforeState, AfterState;
-	std::vector<SocketCounterState> DummySocketStates;
-	EventSelectRegister regs[PERF_MAX_COUNTERS];
-	PCM::ExtendedCustomCoreEventDescription conf;
+	SystemCounterState globalSysBeforeState, globalSysAfterState;
+	std::vector<CoreCounterState> globalBeforeState, globalAfterState;
+	std::vector<SocketCounterState> globalDummySocketStates;
+	EventSelectRegister globalRegs[PERF_MAX_COUNTERS];
+	PCM::ExtendedCustomCoreEventDescription globalConf;
 
 	int pcm_c_build_core_event(uint8_t idx, const char * argv)
 	{
@@ -71,21 +71,21 @@ extern "C" {
 			return -1;
 
 		cout << "building core event " << argv << " " << idx << "\n";
-		build_event(argv, &regs[idx], idx);
+		build_event(argv, &globalRegs[idx], idx);
 		return 0;
 	}
 
 	int pcm_c_init()
 	{
 		PCM * m = PCM::getInstance();
-		conf.fixedCfg = NULL; // default
-		conf.nGPCounters = m->getMaxCustomCoreEvents();
-		conf.gpCounterCfg = regs;
-		conf.OffcoreResponseMsrValue[0] = events[0].msr_value;
-		conf.OffcoreResponseMsrValue[1] = events[1].msr_value;
+		globalConf.fixedCfg = NULL; // default
+		globalConf.nGPCounters = m->getMaxCustomCoreEvents();
+		globalConf.gpCounterCfg = globalRegs;
+		globalConf.OffcoreResponseMsrValue[0] = events[0].msr_value;
+		globalConf.OffcoreResponseMsrValue[1] = events[1].msr_value;
 
 		m->resetPMU();
-		PCM::ErrorCode status = m->program(PCM::EXT_CUSTOM_CORE_EVENTS, &conf);
+		PCM::ErrorCode status = m->program(PCM::EXT_CUSTOM_CORE_EVENTS, &globalConf);
 		if(status == PCM::Success)
 			return 0;
 		else
@@ -95,28 +95,28 @@ extern "C" {
 	void pcm_c_start()
 	{
 		PCM * m = PCM::getInstance();
-		m->getAllCounterStates(SysBeforeState, DummySocketStates, BeforeState);
+		m->getAllCounterStates(globalSysBeforeState, globalDummySocketStates, globalBeforeState);
 	}
 
 	void pcm_c_stop()
 	{
 		PCM * m = PCM::getInstance();
-		m->getAllCounterStates(SysAfterState, DummySocketStates, AfterState);
+		m->getAllCounterStates(globalSysAfterState, globalDummySocketStates, globalAfterState);
 	}
 
 	uint64_t pcm_c_get_cycles(uint32_t core_id)
 	{
-		return getCycles(BeforeState[core_id], AfterState[core_id]);
+		return getCycles(globalBeforeState[core_id], globalAfterState[core_id]);
 	}
 
 	uint64_t pcm_c_get_instr(uint32_t core_id)
 	{
-		return getInstructionsRetired(BeforeState[core_id], AfterState[core_id]);
+		return getInstructionsRetired(globalBeforeState[core_id], globalAfterState[core_id]);
 	}
 
 	uint64_t pcm_c_get_core_event(uint32_t core_id, uint32_t event_id)
 	{
-		return getNumberOfCustomEvents(event_id, BeforeState[core_id], AfterState[core_id]);
+		return getNumberOfCustomEvents(event_id, globalBeforeState[core_id], globalAfterState[core_id]);
 	}
 }
 
@@ -400,7 +400,7 @@ int main(int argc, char * argv[])
 			try {
 				build_event(*argv,&regs[cur_event],cur_event);
 				cur_event++;
-			} catch (const char * /* str */) {
+			} catch (...) {
 				exit(EXIT_FAILURE);
 			}
 

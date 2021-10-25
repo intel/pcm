@@ -158,8 +158,8 @@ public:
 
         for (auto &run : eventCount) {
             run.resize(m_socketCount);
-            for (auto &events : run)
-                events.resize(eventsCount);
+            for (auto &events_ : run)
+                events_.resize(eventsCount);
         }
     };
 

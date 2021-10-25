@@ -71,7 +71,7 @@ void scanBus(int bus, const PCIDB & pciDB)
             struct pci p = iio_skx.stacks[stack].parts[part].root_pci_dev;
             if (!p.exist)
                 continue;
-            for (uint8_t b = p.secondary_bus_number; b <= p.subordinate_bus_number; b++) { /* FIXME: for 0:0.0, we may need to scan from secondary switch down */
+            for (uint8_t b = p.secondary_bus_number; b <= p.subordinate_bus_number; b++) { /* FIXME: for 0:0.0, we may need to scan from secondary switch down; lgtm [cpp/fixme-comment] */
                 for (uint8_t d = 0; d < 32; d++) {
                     for (uint8_t f = 0; f < 8; f++) {
                         struct pci pci;

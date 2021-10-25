@@ -31,6 +31,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 #ifdef _MSC_VER
 #include <windows.h>
+#include "utils.h"
 #endif
 
 #include <assert.h>
@@ -97,10 +98,9 @@ WinPmemMMIORange::WinPmemMMIORange(uint64 baseAddr_, uint64 /* size_ */, bool re
 
 MMIORange::MMIORange(uint64 baseAddr_, uint64 size_, bool readonly_)
 {
-    auto hDriver = CreateFile(L"\\\\.\\RDMSR", GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+    auto hDriver = openMSRDriver();
     if (hDriver != INVALID_HANDLE_VALUE)
     {
-        // ULONG64 result;
         DWORD reslength = 0;
         uint64 result = 0;
         const BOOL status = DeviceIoControl(hDriver, IO_CTL_MMAP_SUPPORT, NULL, 0, &result, sizeof(uint64), &reslength, NULL);
@@ -121,7 +121,7 @@ MMIORange::MMIORange(uint64 baseAddr_, uint64 size_, bool readonly_)
 
 OwnMMIORange::OwnMMIORange(uint64 baseAddr_, uint64 size_, bool /* readonly_ */)
 {
-    hDriver = CreateFile(L"\\\\.\\RDMSR", GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+    hDriver = openMSRDriver();
     MMAP_Request req{};
     uint64 result = 0;
     DWORD reslength = 0;
