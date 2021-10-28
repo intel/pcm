@@ -293,28 +293,13 @@ int main(int argc, char * argv[])
         cout << "Core Power License " << std::to_string(l) << ": " << licenseStr[l] << "\n";
     }
 
-    auto programError = []()
-    {
-#ifdef _MSC_VER
-        cerr << "You must have signed msr.sys driver in your current directory and have administrator rights to run this program\n";
-#elif defined(__linux__)
-        cerr << "You need to be root and loaded 'msr' Linux kernel module to execute the program. You may load the 'msr' module with 'modprobe msr'. \n";
-#endif
-        exit(EXIT_FAILURE);
-    };
-
     if (conf.gpCounterCfg)
     {
-        if (PCM::Success != m->program(PCM::EXT_CUSTOM_CORE_EVENTS, &conf))
-        {
-            programError();
-        }
+        m->checkError(m->program(PCM::EXT_CUSTOM_CORE_EVENTS, &conf));
     }
 
-    if (PCM::Success != m->programServerUncorePowerMetrics(imc_profile, pcu_profile, freq_band))
-    {
-        programError();
-    }
+    m->checkError(m->programServerUncorePowerMetrics(imc_profile, pcu_profile, freq_band));
+
     const auto numSockets = m->getNumSockets();
     std::vector<ServerUncoreCounterState> BeforeState(numSockets);
     std::vector<ServerUncoreCounterState> AfterState(numSockets);
