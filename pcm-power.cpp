@@ -381,8 +381,8 @@ int main(int argc, char * argv[])
             if (nCorePowerLicenses)
             {
                 cout << "S" << socket << "; " <<
-                    "Uncore Freq : " << getAverageUncoreFrequency(BeforeState[socket], AfterState[socket]) * uncoreFreqFactor / 1e9 << " Ghz; "
-                    "Core Freq : " << getActiveAverageFrequency(beforeSocketState[socket], afterSocketState[socket]) / 1e9 << " Ghz; ";
+                    "Uncore Freq: " << getAverageUncoreFrequency(BeforeState[socket], AfterState[socket]) * uncoreFreqFactor / 1e9 << " Ghz; "
+                    "Core Freq: " << getActiveAverageFrequency(beforeSocketState[socket], afterSocketState[socket]) / 1e9 << " Ghz; ";
                 for (int32 l = 0; l < nCorePowerLicenses; ++l)
                 {
                     cout << "Core Power License " << std::to_string(l) << ": " << getPowerLicenseResidency(l, beforeSocketState[socket], afterSocketState[socket]) << "%; ";
