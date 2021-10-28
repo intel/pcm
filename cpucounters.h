@@ -1208,9 +1208,10 @@ public:
         \param systemState system counter state (return parameter)
         \param socketStates socket counter states (return parameter)
         \param coreStates core counter states (return parameter)
+        \param readAndAggregateSocketUncoreCounters read and aggregate socket uncore counters
 
     */
-    void getAllCounterStates(SystemCounterState & systemState, std::vector<SocketCounterState> & socketStates, std::vector<CoreCounterState> & coreStates);
+    void getAllCounterStates(SystemCounterState & systemState, std::vector<SocketCounterState> & socketStates, std::vector<CoreCounterState> & coreStates, const bool readAndAggregateSocketUncoreCounters = true);
 
     /*! \brief Reads uncore counter states (including system and sockets) but no core counters
 
@@ -2791,6 +2792,8 @@ private:
     friend uint64 getInvariantTSC(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
     friend int64 getFreeRunningCounter(const typename CounterStateType::FreeRunningCounterID &, const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
+    friend double getAverageFrequencyFromClocks(const int64 clocks, const CounterStateType& before, const CounterStateType& after);
 
 public:
     //! Returns current thermal headroom below TjMax
