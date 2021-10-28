@@ -271,8 +271,8 @@ int main(int argc, char * argv[])
 #endif
         exit(EXIT_FAILURE);
     }
-    ServerUncoreCounterState * BeforeState = new ServerUncoreCounterState[m->getNumSockets()];
-    ServerUncoreCounterState * AfterState = new ServerUncoreCounterState[m->getNumSockets()];
+    std::vector<ServerUncoreCounterState> BeforeState(m->getNumSockets());
+    std::vector<ServerUncoreCounterState> AfterState(m->getNumSockets());
     uint64 BeforeTime = 0, AfterTime = 0;
 
     cerr << dec << "\n";
@@ -493,7 +493,5 @@ int main(int argc, char * argv[])
         return true;
     });
 
-    delete[] BeforeState;
-    delete[] AfterState;
     exit(EXIT_SUCCESS);
 }
