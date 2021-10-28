@@ -5006,7 +5006,7 @@ SocketCounterState PCM::getSocketCounterState(uint32 socket)
     return result;
 }
 
-void PCM::getAllCounterStates(SystemCounterState & systemState, std::vector<SocketCounterState> & socketStates, std::vector<CoreCounterState> & coreStates)
+void PCM::getAllCounterStates(SystemCounterState & systemState, std::vector<SocketCounterState> & socketStates, std::vector<CoreCounterState> & coreStates, const bool readAndAggregateSocketUncoreCounters)
 {
     // clear and zero-initialize all inputs
     systemState = SystemCounterState();
@@ -5022,10 +5022,13 @@ void PCM::getAllCounterStates(SystemCounterState & systemState, std::vector<Sock
         // read core counters
         if (isCoreOnline(core))
         {
-            std::packaged_task<void()> task([this,&coreStates,&socketStates,core]() -> void
+            std::packaged_task<void()> task([this,&coreStates,&socketStates,core,readAndAggregateSocketUncoreCounters]() -> void
                 {
                     coreStates[core].readAndAggregate(MSR[core]);
-                    socketStates[topology[core].socket].UncoreCounterState::readAndAggregate(MSR[core]); // read package C state counters
+                    if (readAndAggregateSocketUncoreCounters)
+                    {
+                        socketStates[topology[core].socket].UncoreCounterState::readAndAggregate(MSR[core]); // read package C state counters
+                    }
                 }
             );
             asyncCoreResults.push_back(task.get_future());
@@ -5034,7 +5037,7 @@ void PCM::getAllCounterStates(SystemCounterState & systemState, std::vector<Sock
         // std::cout << "DEBUG2: " << core << " " << coreStates[core].InstRetiredAny << " \n";
     }
     // std::cout << std::flush;
-    for (uint32 s = 0; s < (uint32)num_sockets; ++s)
+    for (uint32 s = 0; s < (uint32)num_sockets && readAndAggregateSocketUncoreCounters; ++s)
     {
         int32 refCore = socketRefCore[s];
         if (refCore<0) refCore = 0;
@@ -5048,7 +5051,10 @@ void PCM::getAllCounterStates(SystemCounterState & systemState, std::vector<Sock
         coreTaskQueues[refCore]->push(task);
     }
 
-    readQPICounters(systemState);
+    if (readAndAggregateSocketUncoreCounters)
+    {
+        readQPICounters(systemState);
+    }
 
     for (auto & ar : asyncCoreResults)
         ar.wait();

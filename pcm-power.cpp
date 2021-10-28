@@ -262,7 +262,38 @@ int main(int argc, char * argv[])
         exit(EXIT_FAILURE);
     }
 
-    if (PCM::Success != m->programServerUncorePowerMetrics(imc_profile, pcu_profile, freq_band))
+    EventSelectRegister regs[PERF_MAX_CUSTOM_COUNTERS];
+    PCM::ExtendedCustomCoreEventDescription conf;
+    int32 nCorePowerLicenses = 0;
+    std::vector<std::string> licenseStr;
+    switch (cpu_model)
+    {
+    case PCM::SKX:
+    case PCM::ICX:
+        {
+            std::vector<std::string> skxLicenseStr = { "Core cycles where the core was running with power-delivery for baseline license level 0.  This includes non-AVX codes, SSE, AVX 128-bit, and low-current AVX 256-bit codes.",
+                                          "Core cycles where the core was running with power-delivery for license level 1.  This includes high current AVX 256-bit instructions as well as low current AVX 512-bit instructions.",
+                                          "Core cycles where the core was running with power-delivery for license level 2 (introduced in Skylake Server michroarchtecture). This includes high current AVX 512-bit instructions." };
+            licenseStr = skxLicenseStr;
+            regs[0].fields.event_select = 0x28; // CORE_POWER.LVL0_TURBO_LICENSE
+            regs[0].fields.umask = 0x07;        // CORE_POWER.LVL0_TURBO_LICENSE
+            regs[1].fields.event_select = 0x28; // CORE_POWER.LVL1_TURBO_LICENSE
+            regs[1].fields.umask = 0x18;        // CORE_POWER.LVL1_TURBO_LICENSE
+            regs[2].fields.event_select = 0x28; // CORE_POWER.LVL2_TURBO_LICENSE
+            regs[2].fields.umask = 0x20;        // CORE_POWER.LVL2_TURBO_LICENSE
+            conf.nGPCounters = 3;
+            nCorePowerLicenses = 3;
+            conf.gpCounterCfg = regs;
+        }
+        break;
+    }
+
+    for (size_t l = 0; l < licenseStr.size(); ++l)
+    {
+        cout << "Core Power License " << std::to_string(l) << ": " << licenseStr[l] << "\n";
+    }
+
+    auto programError = []()
     {
 #ifdef _MSC_VER
         cerr << "You must have signed msr.sys driver in your current directory and have administrator rights to run this program\n";
@@ -270,9 +301,26 @@ int main(int argc, char * argv[])
         cerr << "You need to be root and loaded 'msr' Linux kernel module to execute the program. You may load the 'msr' module with 'modprobe msr'. \n";
 #endif
         exit(EXIT_FAILURE);
+    };
+
+    if (conf.gpCounterCfg)
+    {
+        if (PCM::Success != m->program(PCM::EXT_CUSTOM_CORE_EVENTS, &conf))
+        {
+            programError();
+        }
     }
-    std::vector<ServerUncoreCounterState> BeforeState(m->getNumSockets());
-    std::vector<ServerUncoreCounterState> AfterState(m->getNumSockets());
+
+    if (PCM::Success != m->programServerUncorePowerMetrics(imc_profile, pcu_profile, freq_band))
+    {
+        programError();
+    }
+    const auto numSockets = m->getNumSockets();
+    std::vector<ServerUncoreCounterState> BeforeState(numSockets);
+    std::vector<ServerUncoreCounterState> AfterState(numSockets);
+    SystemCounterState dummySystemState;
+    std::vector<CoreCounterState> dummyCoreStates;
+    std::vector<SocketCounterState> beforeSocketState, afterSocketState;
     uint64 BeforeTime = 0, AfterTime = 0;
 
     cerr << dec << "\n";
@@ -304,13 +352,28 @@ int main(int argc, char * argv[])
 
     uint32 i = 0;
 
-    for (i = 0; i < m->getNumSockets(); ++i)
+    for (i = 0; i < numSockets; ++i)
         BeforeState[i] = m->getServerUncoreCounterState(i);
+
+    m->getAllCounterStates(dummySystemState, beforeSocketState, dummyCoreStates, false);
 
     BeforeTime = m->getTickCount();
     if (sysCmd != NULL) {
         MySystem(sysCmd, sysArgv);
     }
+
+    auto getPowerLicenseResidency = [nCorePowerLicenses](const int32 license, const SocketCounterState & before, const SocketCounterState& after)
+    {
+        uint64 all = 0;
+        for (int32 l = 0; l < nCorePowerLicenses; ++l)
+        {
+            all += getNumberOfCustomEvents(l, before, after);
+        }
+        assert(license < nCorePowerLicenses);
+        return 100.0 * double(getNumberOfCustomEvents(license, before, after)) / double(all);
+    };
+
+    const auto uncoreFreqFactor = double(m->getNumOnlineSockets()) / double(m->getNumOnlineCores());
 
     mainLoop([&]()
     {
@@ -321,13 +384,26 @@ int main(int argc, char * argv[])
         const auto delay_ms = calibratedSleep(delay, sysCmd, mainLoop, m);
 
         AfterTime = m->getTickCount();
-        for (i = 0; i < m->getNumSockets(); ++i)
+        for (i = 0; i < numSockets; ++i)
             AfterState[i] = m->getServerUncoreCounterState(i);
+
+        m->getAllCounterStates(dummySystemState, afterSocketState, dummyCoreStates, false);
 
         cout << "Time elapsed: " << AfterTime - BeforeTime << " ms\n";
         cout << "Called sleep function for " << delay_ms << " ms\n";
-        for (uint32 socket = 0; socket < m->getNumSockets(); ++socket)
+        for (uint32 socket = 0; socket < numSockets; ++socket)
         {
+            if (nCorePowerLicenses)
+            {
+                cout << "S" << socket << "; " <<
+                    "Uncore Freq : " << getAverageUncoreFrequency(BeforeState[socket], AfterState[socket]) * uncoreFreqFactor / 1e9 << " Ghz; "
+                    "Core Freq : " << getActiveAverageFrequency(beforeSocketState[socket], afterSocketState[socket]) / 1e9 << " Ghz; ";
+                for (int32 l = 0; l < nCorePowerLicenses; ++l)
+                {
+                    cout << "Core Power License " << std::to_string(l) << ": " << getPowerLicenseResidency(l, beforeSocketState[socket], afterSocketState[socket]) << "%; ";
+                }
+                cout << "\n";
+            }
             for (uint32 port = 0; port < m->getQPILinksPerSocket(); ++port)
             {
                 cout << "S" << socket << "P" << port
@@ -484,6 +560,7 @@ int main(int argc, char * argv[])
         }
         swap(BeforeState, AfterState);
         swap(BeforeTime, AfterTime);
+        swap(beforeSocketState, afterSocketState);
 
         if (m->isBlocked()) {
             cout << "----------------------------------------------------------------------------------------------\n";
