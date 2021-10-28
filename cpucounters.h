@@ -1118,6 +1118,11 @@ public:
     */
     ErrorCode program(const ProgramMode mode_ = DEFAULT_EVENTS, const void * parameter_ = NULL, const bool silent = false); // program counters and start counting
 
+    /*! \brief checks the error and suggests solution and/or exits the process
+        \param code error code from the 'program' call
+    */
+    void checkError(const ErrorCode code);
+
     /*! \brief Programs uncore latency counters on microarchitectures codename SandyBridge-EP and later Xeon uarch
         \param enable_pmm enables DDR/PMM. See possible profile values in pcm-latency.cpp example
 

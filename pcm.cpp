@@ -1348,7 +1348,7 @@ int main(int argc, char * argv[])
         exit(EXIT_FAILURE);
     case PCM::PMUBusy:
         cerr << "Access to Processor Counter Monitor has denied (Performance Monitoring Unit is occupied by other application). Try to stop the application that uses PMU.\n";
-        cerr << "Alternatively you can try running PCM with option -r to reset PMU configuration at your own risk.\n";
+        cerr << "Alternatively you can try running PCM with option -r to reset PMU.\n";
         exit(EXIT_FAILURE);
     default:
         cerr << "Access to Processor Counter Monitor has denied (Unknown error).\n";
