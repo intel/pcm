@@ -282,6 +282,8 @@ namespace PCMServiceNS {
             const size_t numCores    = m_->getNumCores();
             const size_t numQpiLinks = (size_t) m_->getQPILinksPerSocket();
 
+            SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
+
             // The structures
             SystemCounterState  oldSystemState;
             SocketCounterState* oldSocketStates = new SocketCounterState[numSockets];
@@ -559,6 +561,7 @@ namespace PCMServiceNS {
         /// </summary>
         virtual void OnStart(array<String^>^ args) override
         {
+            SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
             // Default values for configuration
             int sampleRate = 1000;
             CollectionInformation^ collectionInformation = gcnew CollectionInformation();
