@@ -291,8 +291,13 @@ namespace PCMServiceNS {
             SystemCounterState  systemState;
             std::vector<SocketCounterState> socketStates;
             std::vector<CoreCounterState>   coreStates;
+            ULONGLONG BeforeTime = 0, AfterTime = 0;
 
             m_->getAllCounterStates(oldSystemState, oldSocketStates, oldCoreStates);
+            BeforeTime = GetTickCount64();
+
+ // labmda functions are not allowed in managed code, using a macro
+#define  toBW(val) (val * 1000ULL / (AfterTime - BeforeTime))
 
             try {
                 while (true)
@@ -301,6 +306,7 @@ namespace PCMServiceNS {
 
                     // Fetch counter data here and store in the PerformanceCounter instances
                     m_->getAllCounterStates(systemState, socketStates, coreStates);
+                    AfterTime = GetTickCount64();
 
                     // Set system performance counters
                     String^ s = "Total_";
@@ -328,8 +334,8 @@ namespace PCMServiceNS {
 
                     if (collectionInformation_->socket)
                     {
-                        ((PerformanceCounter^)mrbHash_[s])->RawValue = getBytesReadFromMC(oldSystemState, systemState);
-                        ((PerformanceCounter^)mwbHash_[s])->RawValue = getBytesWrittenToMC(oldSystemState, systemState);
+                        ((PerformanceCounter^)mrbHash_[s])->RawValue = toBW(getBytesReadFromMC(oldSystemState, systemState));
+                        ((PerformanceCounter^)mwbHash_[s])->RawValue = toBW(getBytesWrittenToMC(oldSystemState, systemState));
                         ((PerformanceCounter^)packageEnergyHash_[s])->RawValue = (__int64)getConsumedJoules(oldSystemState, systemState);
                         ((PerformanceCounter^)DRAMEnergyHash_[s])->RawValue = (__int64)getDRAMConsumedJoules(oldSystemState, systemState);
                         ((PerformanceCounter^)PackageC2StateResidencyHash_[s])->RawValue = __int64(100.*getPackageCStateResidency(2, oldSystemState, systemState));
@@ -370,8 +376,8 @@ namespace PCMServiceNS {
 
                         if (collectionInformation_->socket)
                         {
-                            ((PerformanceCounter^)mrbHash_[s])->RawValue = getBytesReadFromMC(oldSocketStates[i], socketState);
-                            ((PerformanceCounter^)mwbHash_[s])->RawValue = getBytesWrittenToMC(oldSocketStates[i], socketState);
+                            ((PerformanceCounter^)mrbHash_[s])->RawValue = toBW(getBytesReadFromMC(oldSocketStates[i], socketState));
+                            ((PerformanceCounter^)mwbHash_[s])->RawValue = toBW(getBytesWrittenToMC(oldSocketStates[i], socketState));
                             ((PerformanceCounter^)packageEnergyHash_[s])->RawValue = (__int64)getConsumedJoules(oldSocketStates[i], socketState);
                             ((PerformanceCounter^)DRAMEnergyHash_[s])->RawValue = (__int64)getDRAMConsumedJoules(oldSocketStates[i], socketState);
                             ((PerformanceCounter^)PackageC2StateResidencyHash_[s])->RawValue = __int64(100.*getPackageCStateResidency(2,oldSocketStates[i], socketState));
@@ -382,13 +388,13 @@ namespace PCMServiceNS {
 
                         if (collectionInformation_->qpi)
                         {
-                            ((PerformanceCounter^)qpiHash_[s])->RawValue = getSocketIncomingQPILinkBytes(i, systemState);
+                            ((PerformanceCounter^)qpiHash_[s])->RawValue = toBW(getSocketIncomingQPILinkBytes(i, systemState));
                             String^ t;
                             // and qpi link counters per socket
                             for ( unsigned int j=0; j<numQpiLinks; ++j )
                             {
                                 t = s + "_Link" + UInt32(j).ToString();
-                                ((PerformanceCounter^)qpiHash_[t])->RawValue = getIncomingQPILinkBytes(i, j, systemState);
+                                ((PerformanceCounter^)qpiHash_[t])->RawValue = toBW(getIncomingQPILinkBytes(i, j, systemState));
                             }
                         }
                     }
@@ -422,6 +428,7 @@ namespace PCMServiceNS {
                     std::swap(oldSystemState, systemState);
                     std::swap(oldSocketStates, socketStates);
                     std::swap(oldCoreStates, coreStates);
+                    std::swap(BeforeTime, AfterTime);
                 }
             }
             catch( ThreadAbortException^ )
