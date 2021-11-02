@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import io
 import urllib.request
 import urllib.parse
 import json
@@ -8,6 +9,7 @@ import sys
 import platform
 import getopt
 import re
+import shutil
 
 all_flag = False
 download_flag = False
@@ -29,8 +31,8 @@ except getopt.GetoptError as err:
     sys.exit(-2)
 
 if filename is None:
-    map_file_raw = urllib.request.urlopen("https://download.01.org/perfmon/mapfile.csv")
-    map_dict = csv.DictReader(map_file_raw)
+    map_file_raw = urllib.request.urlopen("https://download.01.org/perfmon/mapfile.csv").read().decode('utf-8')
+    map_dict = csv.DictReader(io.StringIO(map_file_raw), delimiter=',')
     map_file = []
     core_path = ""
     offcore_path = ""
@@ -45,20 +47,26 @@ if filename is None:
         p = subprocess.Popen(["./pcm-core.exe -c"], stdout=subprocess.PIPE, shell=True)
     elif platform.system() == "Windows":
         p = subprocess.Popen(["pcm-core.exe", "-c"], stdout=subprocess.PIPE, shell=True)
+    elif platform.system() == "Linux":
+        pcm_core = shutil.which("pcm-core")
+        if not pcm_core:
+            print("Could not find pcm-core executable!")
+            sys.exit(-1)
+        p = subprocess.Popen([pcm_core, "-c"], stdout=subprocess.PIPE, shell=True)
     else:
         p = subprocess.Popen(["./pcm-core.x -c"], stdout=subprocess.PIPE, shell=True)
 
     (output, err) = p.communicate()
     p_status = p.wait()
     for model in map_file:
-        if re.search(model["Family-model"], output):
+        if re.search(model["Family-model"], output.decode("utf-8")):
             if model["EventType"] == "core":
                 core_path = model["Filename"]
             elif model["EventType"] == "offcore":
                 offcore_path = model["Filename"]
             print(model)
 
-    if not core_path:
+    if core_path:
         json_core_data = urllib.request.urlopen(
             "https://download.01.org/perfmon" + core_path
         )
@@ -67,10 +75,10 @@ if filename is None:
             with open(core_path.split("/")[-1], "w") as outfile:
                 json.dump(core_events, outfile, sort_keys=True, indent=4)
     else:
-        print("no core event found for %s CPU, program abort..." % output)
+        print("no core event found for %s CPU, program abort..." % output.decode("utf-8"))
         sys.exit(-1)
 
-    if not offcore_path:
+    if offcore_path:
         json_offcore_data = urllib.request.urlopen(
             "https://download.01.org/perfmon" + offcore_path
         )
