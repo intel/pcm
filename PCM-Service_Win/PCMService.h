@@ -282,10 +282,22 @@ namespace PCMServiceNS {
             const size_t numCores    = m_->getNumCores();
             const size_t numQpiLinks = (size_t) m_->getQPILinksPerSocket();
 
+            SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
+
             // The structures
             SystemCounterState  oldSystemState;
-            SocketCounterState* oldSocketStates = new SocketCounterState[numSockets];
-            CoreCounterState*   oldCoreStates   = new CoreCounterState[numCores];
+            std::vector<SocketCounterState> oldSocketStates;
+            std::vector<CoreCounterState>   oldCoreStates;
+            SystemCounterState  systemState;
+            std::vector<SocketCounterState> socketStates;
+            std::vector<CoreCounterState>   coreStates;
+            ULONGLONG BeforeTime = 0, AfterTime = 0;
+
+            m_->getAllCounterStates(oldSystemState, oldSocketStates, oldCoreStates);
+            BeforeTime = GetTickCount64();
+
+ // labmda functions are not allowed in managed code, using a macro
+#define  toBW(val) (val * 1000ULL / (AfterTime - BeforeTime))
 
             try {
                 while (true)
@@ -293,7 +305,9 @@ namespace PCMServiceNS {
                     Thread::Sleep(sampleRate_);
 
                     // Fetch counter data here and store in the PerformanceCounter instances
-                    SystemCounterState systemState = getSystemCounterState();
+                    m_->getAllCounterStates(systemState, socketStates, coreStates);
+                    AfterTime = GetTickCount64();
+
                     // Set system performance counters
                     String^ s = "Total_";
                     if (collectionInformation_->core)
@@ -320,8 +334,8 @@ namespace PCMServiceNS {
 
                     if (collectionInformation_->socket)
                     {
-                        ((PerformanceCounter^)mrbHash_[s])->RawValue = getBytesReadFromMC(oldSystemState, systemState);
-                        ((PerformanceCounter^)mwbHash_[s])->RawValue = getBytesWrittenToMC(oldSystemState, systemState);
+                        ((PerformanceCounter^)mrbHash_[s])->RawValue = toBW(getBytesReadFromMC(oldSystemState, systemState));
+                        ((PerformanceCounter^)mwbHash_[s])->RawValue = toBW(getBytesWrittenToMC(oldSystemState, systemState));
                         ((PerformanceCounter^)packageEnergyHash_[s])->RawValue = (__int64)getConsumedJoules(oldSystemState, systemState);
                         ((PerformanceCounter^)DRAMEnergyHash_[s])->RawValue = (__int64)getDRAMConsumedJoules(oldSystemState, systemState);
                         ((PerformanceCounter^)PackageC2StateResidencyHash_[s])->RawValue = __int64(100.*getPackageCStateResidency(2, oldSystemState, systemState));
@@ -335,14 +349,11 @@ namespace PCMServiceNS {
                         ((PerformanceCounter^)qpiHash_[s])->RawValue = getAllIncomingQPILinkBytes(systemState);
                     }
 
-                    // Copy current state to old state
-                    oldSystemState = std::move( systemState );
-
                     // Set socket performance counters
                     for ( unsigned int i = 0; i < numSockets; ++i )
                     {
                         s = "Socket"+UInt32(i).ToString();
-                        SocketCounterState socketState = getSocketCounterState(i);
+                        const SocketCounterState & socketState = socketStates[i];
                         if (collectionInformation_->core)
                         {
                             __int64 socketTicks    = getCycles(socketState);
@@ -365,8 +376,8 @@ namespace PCMServiceNS {
 
                         if (collectionInformation_->socket)
                         {
-                            ((PerformanceCounter^)mrbHash_[s])->RawValue = getBytesReadFromMC(oldSocketStates[i], socketState);
-                            ((PerformanceCounter^)mwbHash_[s])->RawValue = getBytesWrittenToMC(oldSocketStates[i], socketState);
+                            ((PerformanceCounter^)mrbHash_[s])->RawValue = toBW(getBytesReadFromMC(oldSocketStates[i], socketState));
+                            ((PerformanceCounter^)mwbHash_[s])->RawValue = toBW(getBytesWrittenToMC(oldSocketStates[i], socketState));
                             ((PerformanceCounter^)packageEnergyHash_[s])->RawValue = (__int64)getConsumedJoules(oldSocketStates[i], socketState);
                             ((PerformanceCounter^)DRAMEnergyHash_[s])->RawValue = (__int64)getDRAMConsumedJoules(oldSocketStates[i], socketState);
                             ((PerformanceCounter^)PackageC2StateResidencyHash_[s])->RawValue = __int64(100.*getPackageCStateResidency(2,oldSocketStates[i], socketState));
@@ -377,23 +388,22 @@ namespace PCMServiceNS {
 
                         if (collectionInformation_->qpi)
                         {
-                            ((PerformanceCounter^)qpiHash_[s])->RawValue = getSocketIncomingQPILinkBytes(i, systemState);
+                            ((PerformanceCounter^)qpiHash_[s])->RawValue = toBW(getSocketIncomingQPILinkBytes(i, systemState));
                             String^ t;
                             // and qpi link counters per socket
                             for ( unsigned int j=0; j<numQpiLinks; ++j )
                             {
                                 t = s + "_Link" + UInt32(j).ToString();
-                                ((PerformanceCounter^)qpiHash_[t])->RawValue = getIncomingQPILinkBytes(i, j, systemState);
+                                ((PerformanceCounter^)qpiHash_[t])->RawValue = toBW(getIncomingQPILinkBytes(i, j, systemState));
                             }
                         }
-                        oldSocketStates[i] = std::move(socketState);
                     }
 
                     // Set core performance counters
                     for ( unsigned int i = 0; i < numCores; ++i )
                     {
                         s = UInt32(i).ToString();
-                        CoreCounterState coreState = getCoreCounterState(i);
+                        const CoreCounterState & coreState = coreStates[i];
                         if (collectionInformation_->core)
                         {
                             __int64 ticks    = getCycles(coreState);
@@ -413,8 +423,12 @@ namespace PCMServiceNS {
                             ((PerformanceCounter^)CoreC6StateResidencyHash_[s])->RawValue = __int64(100.*getCoreCStateResidency(6,oldCoreStates[i], coreState));
                             ((PerformanceCounter^)CoreC7StateResidencyHash_[s])->RawValue = __int64(100.*getCoreCStateResidency(7,oldCoreStates[i], coreState));
                         }
-                        oldCoreStates[i] = std::move(coreState);
                     }
+
+                    std::swap(oldSystemState, systemState);
+                    std::swap(oldSocketStates, socketStates);
+                    std::swap(oldCoreStates, coreStates);
+                    std::swap(BeforeTime, AfterTime);
                 }
             }
             catch( ThreadAbortException^ )
@@ -426,9 +440,6 @@ namespace PCMServiceNS {
             }
             // Here we now have the chance to do cleanup after catching the ThreadAbortException because of the ResetAbort
             m_->cleanup();
-
-            delete[] oldSocketStates;
-            delete[] oldCoreStates;
         }
 
     private:
@@ -559,6 +570,7 @@ namespace PCMServiceNS {
         /// </summary>
         virtual void OnStart(array<String^>^ args) override
         {
+            SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
             // Default values for configuration
             int sampleRate = 1000;
             CollectionInformation^ collectionInformation = gcnew CollectionInformation();

@@ -99,7 +99,7 @@ void print_help(const string prog_name)
     cerr << "  -m    | --multiple-instances | /m  => allow multiple PCM instances running in parallel\n";
     cerr << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or\n"
         << "                                        to a file, in case filename is provided\n"
-        << "                                        the format used is documented here: https://software.intel.com/content/www/us/en/develop/blogs/intel-pcm-column-names-decoder-ring.html\n";
+        << "                                        the format used is documented here: https://www.intel.com/content/www/us/en/developer/articles/technical/intel-pcm-column-names-decoder-ring.html\n";
     cerr << "  -i[=number] | /i[=number]          => allow to determine number of iterations\n";
     print_help_force_rtm_abort_mode(37);
     cerr << " Examples:\n";
@@ -1348,7 +1348,7 @@ int main(int argc, char * argv[])
         exit(EXIT_FAILURE);
     case PCM::PMUBusy:
         cerr << "Access to Processor Counter Monitor has denied (Performance Monitoring Unit is occupied by other application). Try to stop the application that uses PMU.\n";
-        cerr << "Alternatively you can try running PCM with option -r to reset PMU configuration at your own risk.\n";
+        cerr << "Alternatively you can try running PCM with option -r to reset PMU.\n";
         exit(EXIT_FAILURE);
     default:
         cerr << "Access to Processor Counter Monitor has denied (Unknown error).\n";

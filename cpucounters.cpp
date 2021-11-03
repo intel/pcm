@@ -2787,6 +2787,32 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
     return PCM::Success;
 }
 
+void PCM::checkError(const PCM::ErrorCode code)
+{
+    switch (code)
+    {
+    case PCM::Success:
+        break;
+    case PCM::MSRAccessDenied:
+        std::cerr << "Access to Processor Counter Monitor has denied (no MSR or PCI CFG space access).\n";
+        exit(EXIT_FAILURE);
+    case PCM::PMUBusy:
+        std::cerr << "Access to Processor Counter Monitor has denied (Performance Monitoring Unit is occupied by other application). Try to stop the application that uses PMU.\n";
+        std::cerr << "Alternatively you can try to reset PMU configuration. Try to reset? (y/n)\n";
+        char yn;
+        std::cin >> yn;
+        if ('y' == yn)
+        {
+            resetPMU();
+            std::cerr << "PMU configuration has been reset. Try to rerun the program again.\n";
+        }
+        exit(EXIT_FAILURE);
+    default:
+        std::cerr << "Access to Processor Counter Monitor has denied (Unknown error).\n";
+        exit(EXIT_FAILURE);
+    }
+}
+
 PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
     const PCM::ProgramMode mode_,
     const ExtendedCustomCoreEventDescription * pExtDesc,
@@ -5006,7 +5032,7 @@ SocketCounterState PCM::getSocketCounterState(uint32 socket)
     return result;
 }
 
-void PCM::getAllCounterStates(SystemCounterState & systemState, std::vector<SocketCounterState> & socketStates, std::vector<CoreCounterState> & coreStates)
+void PCM::getAllCounterStates(SystemCounterState & systemState, std::vector<SocketCounterState> & socketStates, std::vector<CoreCounterState> & coreStates, const bool readAndAggregateSocketUncoreCounters)
 {
     // clear and zero-initialize all inputs
     systemState = SystemCounterState();
@@ -5022,10 +5048,13 @@ void PCM::getAllCounterStates(SystemCounterState & systemState, std::vector<Sock
         // read core counters
         if (isCoreOnline(core))
         {
-            std::packaged_task<void()> task([this,&coreStates,&socketStates,core]() -> void
+            std::packaged_task<void()> task([this,&coreStates,&socketStates,core,readAndAggregateSocketUncoreCounters]() -> void
                 {
                     coreStates[core].readAndAggregate(MSR[core]);
-                    socketStates[topology[core].socket].UncoreCounterState::readAndAggregate(MSR[core]); // read package C state counters
+                    if (readAndAggregateSocketUncoreCounters)
+                    {
+                        socketStates[topology[core].socket].UncoreCounterState::readAndAggregate(MSR[core]); // read package C state counters
+                    }
                 }
             );
             asyncCoreResults.push_back(task.get_future());
@@ -5034,7 +5063,7 @@ void PCM::getAllCounterStates(SystemCounterState & systemState, std::vector<Sock
         // std::cout << "DEBUG2: " << core << " " << coreStates[core].InstRetiredAny << " \n";
     }
     // std::cout << std::flush;
-    for (uint32 s = 0; s < (uint32)num_sockets; ++s)
+    for (uint32 s = 0; s < (uint32)num_sockets && readAndAggregateSocketUncoreCounters; ++s)
     {
         int32 refCore = socketRefCore[s];
         if (refCore<0) refCore = 0;
@@ -5048,7 +5077,10 @@ void PCM::getAllCounterStates(SystemCounterState & systemState, std::vector<Sock
         coreTaskQueues[refCore]->push(task);
     }
 
-    readQPICounters(systemState);
+    if (readAndAggregateSocketUncoreCounters)
+    {
+        readQPICounters(systemState);
+    }
 
     for (auto & ar : asyncCoreResults)
         ar.wait();
