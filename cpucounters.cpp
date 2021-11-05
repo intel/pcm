@@ -4218,10 +4218,13 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
             cBackendBoundSlots = extract_bits(perfMetrics, 24, 31);
             cRetiringSlots = extract_bits(perfMetrics, 0, 7);
             const double total = double(cFrontendBoundSlots + cBadSpeculationSlots + cBackendBoundSlots + cRetiringSlots);
-            cFrontendBoundSlots = m->FrontendBoundSlots[core_id] += uint64((double(cFrontendBoundSlots) / total) * double(slots));
-            cBadSpeculationSlots = m->BadSpeculationSlots[core_id] += uint64((double(cBadSpeculationSlots) / total) * double(slots));
-            cBackendBoundSlots = m->BackendBoundSlots[core_id] += uint64((double(cBackendBoundSlots) / total) * double(slots));
-            cRetiringSlots = m->RetiringSlots[core_id] += uint64((double(cRetiringSlots) / total) * double(slots));
+            if (total != 0)
+            {
+                cFrontendBoundSlots = m->FrontendBoundSlots[core_id] += uint64((double(cFrontendBoundSlots) / total) * double(slots));
+                cBadSpeculationSlots = m->BadSpeculationSlots[core_id] += uint64((double(cBadSpeculationSlots) / total) * double(slots));
+                cBackendBoundSlots = m->BackendBoundSlots[core_id] += uint64((double(cBackendBoundSlots) / total) * double(slots));
+                cRetiringSlots = m->RetiringSlots[core_id] += uint64((double(cRetiringSlots) / total) * double(slots));
+            }
             cAllSlotsRaw = m->AllSlotsRaw[core_id] += slots;
             // std::cout << "DEBUG: "<< slots << " " << cFrontendBoundSlots << " " << cBadSpeculationSlots << " " << cBackendBoundSlots << " " << cRetiringSlots << std::endl;
             msr->unlock();
