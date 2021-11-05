@@ -2002,9 +2002,9 @@ void PCM::initUncorePMUsPerf()
 
 #define PCM_NMI_WATCHDOG_PATH "/proc/sys/kernel/nmi_watchdog"
 
-bool isNMIWatchdogEnabled()
+bool isNMIWatchdogEnabled(const bool silent)
 {
-    const auto watchdog = readSysFS(PCM_NMI_WATCHDOG_PATH);
+    const auto watchdog = readSysFS(PCM_NMI_WATCHDOG_PATH, silent);
     if (watchdog.length() == 0)
     {
         return false;
@@ -2343,7 +2343,7 @@ perf_event_attr PCM_init_perf_event_attr(bool group = true)
 PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter_, const bool silent)
 {
 #ifdef __linux__
-    if (isNMIWatchdogEnabled())
+    if (isNMIWatchdogEnabled(silent))
     {
         disableNMIWatchdog(silent);
         needToRestoreNMIWatchdog = true;
