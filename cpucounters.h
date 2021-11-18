@@ -1317,6 +1317,10 @@ public:
     */
     int32 getMaxCustomCoreEvents();
 
+    /*! \brief Returns cpu model id number from cpuid instruction
+    */
+    static int getCPUModelFromCPUID();
+
     //! \brief Identifiers of supported CPU models
     enum SupportedCPUModels
     {
