@@ -528,6 +528,18 @@ int32 PCM::getMaxCustomCoreEvents()
     return core_gen_counter_num_max;
 }
 
+int PCM::getCPUModelFromCPUID()
+{
+    static int result = -1;
+    if (result < 0)
+    {
+        PCM_CPUID_INFO cpuinfo;
+        pcm_cpuid(1, cpuinfo);
+        result = (((cpuinfo.array[0]) & 0xf0) >> 4) | ((cpuinfo.array[0] & 0xf0000) >> 12);
+    }
+    return result;
+}
+
 bool PCM::detectModel()
 {
     char buffer[1024];
@@ -5940,6 +5952,10 @@ void ServerPCICFGUncore::initDirect(uint32 socket_, const PCM * pcm)
     if (cpu_model == PCM::SNOWRIDGE || cpu_model == PCM::ICX)
     {
         numChannels = 2;
+        if (PCM::getCPUModelFromCPUID() == PCM::ICX_D)
+        {
+            numChannels = 3;
+        }
     }
 
     if (numChannels > 0)
