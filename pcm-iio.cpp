@@ -423,7 +423,7 @@ void PurleyPlatformMapping::getUboxBusNumbers(std::vector<uint32_t>& ubox)
         for (uint8_t device = 0; device < 32; device++) {
             for (uint8_t function = 0; function < 8; function++) {
                 struct pci pci_dev;
-                pci_dev.bdf.busno = bus;
+                pci_dev.bdf.busno = (uint8_t)bus;
                 pci_dev.bdf.devno = device;
                 pci_dev.bdf.funcno = function;
                 if (probe_pci(&pci_dev)) {
@@ -513,7 +513,7 @@ bool IPlatformMapping10Nm::getSadIdRootBusMap(uint32_t socket_id, std::map<uint8
         for (uint8_t device = 0; device < 32; device++) {
             for (uint8_t function = 0; function < 8; function++) {
                 struct pci pci_dev;
-                pci_dev.bdf.busno = bus;
+                pci_dev.bdf.busno = (uint8_t)bus;
                 pci_dev.bdf.devno = device;
                 pci_dev.bdf.funcno = function;
                 if (probe_pci(&pci_dev) && (pci_dev.vendor_id == PCM_INTEL_PCI_VENDOR_ID)
@@ -701,7 +701,7 @@ bool JacobsvillePlatformMapping::JacobsvilleAccelerators(const std::pair<uint8_t
         for (uint8_t device = 0; device < 32; device++) {
             for (uint8_t function = 0; function < 8; function++) {
                 struct pci pci_dev;
-                pci_dev.bdf.busno = bus;
+                pci_dev.bdf.busno = (uint8_t)bus;
                 pci_dev.bdf.devno = device;
                 pci_dev.bdf.funcno = function;
                 if (probe_pci(&pci_dev)) {
@@ -709,7 +709,7 @@ bool JacobsvillePlatformMapping::JacobsvilleAccelerators(const std::pair<uint8_t
                         struct iio_bifurcated_part part;
                         part.part_id = SNR_ACCELERATOR_PART_ID;
                         part.root_pci_dev = pci_dev;
-                        stack.busno = bus;
+                        stack.busno = (uint8_t)bus;
                         stack.parts.push_back(part);
                         return true;
                     }
@@ -1009,7 +1009,7 @@ result_content get_IIO_Samples(PCM *m, const std::vector<struct iio_stacks_on_so
     uint64 rawEvents[4] = {0};
     std::unique_ptr<ccr> pccr(get_ccr(m, ctr.ccr));
     rawEvents[ctr.idx] = pccr->get_ccr_value();
-    int stacks_count = iios[0].stacks.size();
+    int stacks_count = (int)iios[0].stacks.size();
     before = new IIOCounterState[iios.size() * stacks_count];
     after = new IIOCounterState[iios.size() * stacks_count];
 

@@ -245,9 +245,9 @@ void print_custom_stats(const StateType & BeforeState, const StateType & AfterSt
 {
     for (size_t i = 0; i < events.size(); ++i)
         if (!csv)
-            cout << unit_format(getNumberOfCustomEvents(i, BeforeState, AfterState)) << "    ";
+            cout << unit_format(getNumberOfCustomEvents((pcm::int32)i, BeforeState, AfterState)) << "    ";
         else
-            cout << getNumberOfCustomEvents(i, BeforeState, AfterState) << ",";
+            cout << getNumberOfCustomEvents((pcm::int32)i, BeforeState, AfterState) << ",";
 
     cout << "\n";
 }
