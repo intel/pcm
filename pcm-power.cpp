@@ -333,7 +333,7 @@ int main(int argc, char * argv[])
         m->setBlocked(false);
     }
 
-    if (((delay < 1.0) && (delay > 0.0)) || (delay <= 0.0)) delay = PCM_DELAY_DEFAULT;
+    if (delay <= 0.0) delay = PCM_DELAY_DEFAULT;
 
     uint32 i = 0;
 
