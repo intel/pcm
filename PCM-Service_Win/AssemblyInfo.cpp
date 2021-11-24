@@ -29,9 +29,9 @@ using namespace System::Security::Permissions;
 [assembly:AssemblyTitleAttribute("PCMService")];
 [assembly:AssemblyDescriptionAttribute("")];
 [assembly:AssemblyConfigurationAttribute("")];
-[assembly:AssemblyCompanyAttribute("Intel GmbH")];
+[assembly:AssemblyCompanyAttribute("Intel Corp")];
 [assembly:AssemblyProductAttribute("PCMService")];
-[assembly:AssemblyCopyrightAttribute("Copyright (c) Intel GmbH 2010")];
+[assembly:AssemblyCopyrightAttribute("Copyright (c) Intel Corp 2010-2021")];
 [assembly:AssemblyTrademarkAttribute("")];
 [assembly:AssemblyCultureAttribute("")];
 
@@ -51,6 +51,3 @@ using namespace System::Security::Permissions;
 [assembly:ComVisible(false)];
 
 [assembly:CLSCompliantAttribute(true)];
-
-[assembly:SecurityPermission(SecurityAction::RequestMinimum, UnmanagedCode = true)];
-
