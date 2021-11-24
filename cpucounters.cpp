@@ -1949,7 +1949,7 @@ void PCM::initUncorePMUsDirect()
     }
 
     // init IRP PMU
-    size_t irpStacks = 0;
+    int irpStacks = 0;
     size_t IRP_CTL_REG_OFFSET = 0;
     size_t IRP_CTR_REG_OFFSET = 0;
     const uint32* IRP_UNIT_CTL = nullptr;
@@ -2043,6 +2043,7 @@ void PCM::initUncorePMUsPerf()
 {
 #ifdef PCM_USE_PERF
     iioPMUs.resize(num_sockets);
+    irpPMUs.resize(num_sockets);
     cboPMUs.resize(num_sockets);
     for (uint32 s = 0; s < (uint32)num_sockets; ++s)
     {
@@ -2050,12 +2051,17 @@ void PCM::initUncorePMUsPerf()
         populatePerfPMUs(s, enumeratePerfPMUs("ubox", 100), uboxPMUs, true);
         populatePerfPMUs(s, enumeratePerfPMUs("cbox", 100), cboPMUs[s], false, true, true);
         populatePerfPMUs(s, enumeratePerfPMUs("cha", 200), cboPMUs[s], false, true, true);
-        std::vector<UncorePMU> iioPMUVector;
-        populatePerfPMUs(s, enumeratePerfPMUs("iio", 100), iioPMUVector, false);
-        for (size_t i = 0; i < iioPMUVector.size(); ++i)
+        auto populateMapPMUs = [&s](const std::string& type, std::vector<std::map<int32, UncorePMU> > & out)
         {
-            iioPMUs[s][i] = iioPMUVector[i];
-        }
+            std::vector<UncorePMU> PMUVector;
+            populatePerfPMUs(s, enumeratePerfPMUs(type, 100), PMUVector, false);
+            for (size_t i = 0; i < PMUVector.size(); ++i)
+            {
+                out[s][i] = PMUVector[i];
+            }
+        };
+        populateMapPMUs("iio", iioPMUs);
+        populateMapPMUs("irp", irpPMUs);
     }
 #endif
 }
@@ -3813,6 +3819,13 @@ void PCM::cleanupUncorePMUs(const bool silent)
             pmu.second.cleanup();
         }
     }
+    for (auto& sPMUs : irpPMUs)
+    {
+        for (auto& pmu : sPMUs)
+        {
+            pmu.second.cleanup();
+        }
+    }
     for (auto & sCBOPMUs : cboPMUs)
     {
         for (auto & pmu : sCBOPMUs)
@@ -4674,6 +4687,10 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool sile
             }
             programCboRaw(events64, filter0, filter1);
         }
+        else if (type == "irp")
+        {
+            programIRPCounters(events64);
+        }
         else if (type == "iio")
         {
             programIIOCounters(events64);
@@ -4702,6 +4719,14 @@ void PCM::freezeServerUncoreCounters()
             }
         }
 
+        for (auto& sPMUs : irpPMUs)
+        {
+            for (auto& pmu : sPMUs)
+            {
+                pmu.second.freeze(UNC_PMON_UNIT_CTL_RSV);
+            }
+        }
+
         const auto refCore = socketRefCore[i];
         TemporalThreadAffinity tempThreadAffinity(refCore); // speedup trick for Linux
         for (auto & pmu : cboPMUs[i])
@@ -4720,6 +4745,14 @@ void PCM::unfreezeServerUncoreCounters()
         if (IIOEventsAvailable())
         {
             for (auto & pmu : iioPMUs[i])
+            {
+                pmu.second.unfreeze(UNC_PMON_UNIT_CTL_RSV);
+            }
+        }
+
+        for (auto& sPMUs : irpPMUs)
+        {
+            for (auto& pmu : sPMUs)
             {
                 pmu.second.unfreeze(UNC_PMON_UNIT_CTL_RSV);
             }
@@ -5328,6 +5361,16 @@ ServerUncoreCounterState PCM::getServerUncoreCounterState(uint32 socket)
             for (int i = 0; i < ServerUncoreCounterState::maxCounters; ++i)
             {
                 result.IIOCounter[stack][i] = *(iioPMUs[socket][stack].counterValue[i]);
+            }
+        }
+        for (uint32 stack = 0; socket < irpPMUs.size() && stack < irpPMUs[socket].size() && stack < ServerUncoreCounterState::maxIIOStacks; ++stack)
+        {
+            for (int i = 0; i < ServerUncoreCounterState::maxCounters; ++i)
+            {
+                if (irpPMUs[socket][stack].counterValue[i].get())
+                {
+                    result.IRPCounter[stack][i] = *(irpPMUs[socket][stack].counterValue[i]);
+                }
             }
         }
         for (int i = 0; i < 2 && socket < uboxPMUs.size(); ++i)
@@ -7462,6 +7505,7 @@ uint32 PCM::getMaxNumOfIIOStacks() const
 {
     if (iioPMUs.size() > 0)
     {
+        assert(iioPMUs[0].size() == irpPMUs[0].size());
         return (uint32)iioPMUs[0].size();
     }
     return 0;
@@ -7536,6 +7580,41 @@ void PCM::programIIOCounters(uint64 rawEvents[4], int IIOStack)
             pmu.initFreeze(UNC_PMON_UNIT_CTL_RSV);
 
             program(pmu, &rawEvents[0], &rawEvents[4], UNC_PMON_UNIT_CTL_RSV);
+        }
+    }
+}
+
+void PCM::programIRPCounters(uint64 rawEvents[4], int IIOStack)
+{
+    std::vector<int32> IIO_units;
+    if (IIOStack == -1)
+    {
+        for (uint32 stack = 0; stack < getMaxNumOfIIOStacks(); ++stack)
+        {
+            IIO_units.push_back(stack);
+        }
+    }
+    else
+    {
+        IIO_units.push_back(IIOStack);
+    }
+
+    for (int32 i = 0; (i < num_sockets) && MSR.size() && irpPMUs.size(); ++i)
+    {
+        uint32 refCore = socketRefCore[i];
+        TemporalThreadAffinity tempThreadAffinity(refCore); // speedup trick for Linux
+
+        for (const auto& unit : IIO_units)
+        {
+            if (irpPMUs[i].count(unit) == 0)
+            {
+                std::cerr << "IRP PMU unit (stack) " << unit << " is not found \n";
+                continue;
+            }
+            auto& pmu = irpPMUs[i][unit];
+            pmu.initFreeze(UNC_PMON_UNIT_CTL_RSV);
+
+            program(pmu, &rawEvents[0], &rawEvents[2], UNC_PMON_UNIT_CTL_RSV);
         }
     }
 }

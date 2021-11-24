@@ -1746,6 +1746,11 @@ public:
     //! \param IIOStack id of the IIO stack to program (-1 for all, if parameter omitted)
     void programIIOCounters(uint64 rawEvents[4], int IIOStack = -1);
 
+    //! \brief Program uncore IRP events
+    //! \param rawEvents events to program (raw format)
+    //! \param IIOStack id of the IIO stack to program (-1 for all, if parameter omitted)
+    void programIRPCounters(uint64 rawEvents[4], int IIOStack = -1);
+
     //! \brief Get the state of IIO counter
     //! \param socket socket of the IIO stack
     //! \param IIOStack id of the IIO stack
@@ -2445,7 +2450,6 @@ uint64 getCBOCounter(uint32 cbo, uint32 counter, const CounterStateType& before,
 
 /*! \brief Direct read of UBOX PMU counter (counter meaning depends on the programming: power/performance/etc)
     \param counter counter number
-    \param cbo cbo or cha number
     \param before CPU counter state before the experiment
     \param after CPU counter state after the experiment
 */
@@ -2457,7 +2461,7 @@ uint64 getUBOXCounter(uint32 counter, const CounterStateType& before, const Coun
 
 /*! \brief Direct read of IIO PMU counter (counter meaning depends on the programming: power/performance/etc)
     \param counter counter number
-    \param cbo IIO stack number
+    \param stack IIO stack number
     \param before CPU counter state before the experiment
     \param after CPU counter state after the experiment
 */
@@ -2465,6 +2469,18 @@ template <class CounterStateType>
 uint64 getIIOCounter(uint32 stack, uint32 counter, const CounterStateType& before, const CounterStateType& after)
 {
     return after.IIOCounter[stack][counter] - before.IIOCounter[stack][counter];
+}
+
+/*! \brief Direct read of IRP PMU counter (counter meaning depends on the programming: power/performance/etc)
+    \param counter counter number
+    \param stack IIO stack number
+    \param before CPU counter state before the experiment
+    \param after CPU counter state after the experiment
+*/
+template <class CounterStateType>
+uint64 getIRPCounter(uint32 stack, uint32 counter, const CounterStateType& before, const CounterStateType& after)
+{
+    return after.IRPCounter[stack][counter] - before.IRPCounter[stack][counter];
 }
 
 /*! \brief Direct read of UPI or QPI PMU counter (counter meaning depends on the programming: power/performance/etc)
@@ -2761,6 +2777,7 @@ private:
     std::array<std::array<uint64, maxCounters>, maxXPILinks> M3UPICounter;
     std::array<std::array<uint64, maxCounters>, maxCBOs> CBOCounter;
     std::array<std::array<uint64, maxCounters>, maxIIOStacks> IIOCounter;
+    std::array<std::array<uint64, maxCounters>, maxIIOStacks> IRPCounter;
     std::array<uint64, maxCounters> UBOXCounter;
     std::array<uint64, maxChannels> DRAMClocks;
     std::array<uint64, maxChannels> MCDRAMClocks;
@@ -2786,6 +2803,8 @@ private:
     friend uint64 getUBOXCounter(uint32 counter, const CounterStateType& before, const CounterStateType& after);
     template <class CounterStateType>
     friend uint64 getIIOCounter(uint32 stack, uint32 counter, const CounterStateType& before, const CounterStateType& after);
+    template <class CounterStateType>
+    friend uint64 getIRPCounter(uint32 stack, uint32 counter, const CounterStateType& before, const CounterStateType& after);
     template <class CounterStateType>
     friend uint64 getXPICounter(uint32 port, uint32 counter, const CounterStateType& before, const CounterStateType& after);
     template <class CounterStateType>
@@ -2813,6 +2832,7 @@ public:
         M3UPICounter{{}},
         CBOCounter{{}},
         IIOCounter{{}},
+        IRPCounter{{}},
         UBOXCounter{{}},
         DRAMClocks{{}},
         MCDRAMClocks{{}},
