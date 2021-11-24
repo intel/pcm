@@ -61,7 +61,7 @@ int main(int argc, char * argv[])
         {
         case 'w':
             write = true;
-            value = read_number(optarg);
+            value = (pcm::uint32)read_number(optarg);
             break;
         case 'd':
             dec = true;

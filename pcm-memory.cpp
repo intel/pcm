@@ -161,7 +161,7 @@ void printSocketRankBWHeader(uint32 no_columns, uint32 skt)
     cout << "\n";
 }
 
-void printSocketChannelBW(PCM */*m*/, memdata_t *md, uint32 no_columns, uint32 skt)
+void printSocketChannelBW(PCM * /*m*/, memdata_t *md, uint32 no_columns, uint32 skt)
 {
     for (uint32 channel = 0; channel < max_imc_channels; ++channel) {
         // check all the sockets for bad channel "channel"
@@ -812,8 +812,8 @@ void calculate_bandwidth(PCM *m,
                 }
                 else if (metrics == PmemMemoryMode)
                 {
-                    md.iMC_PMM_MemoryMode_Miss_socket[skt] += (pmmMemoryModeCleanMisses + pmmMemoryModeDirtyMisses) / (elapsedTime / 1000.0);
-                    md.iMC_PMM_MemoryMode_Hit_socket[skt] += (pmmMemoryModeHits) / (elapsedTime / 1000.0);
+                    md.iMC_PMM_MemoryMode_Miss_socket[skt] += (float)((pmmMemoryModeCleanMisses + pmmMemoryModeDirtyMisses) / (elapsedTime / 1000.0));
+                    md.iMC_PMM_MemoryMode_Hit_socket[skt] += (float)((pmmMemoryModeHits) / (elapsedTime / 1000.0));
                 }
                 else
                 {
@@ -1140,7 +1140,7 @@ int main(int argc, char * argv[])
         exit(EXIT_FAILURE);
     }
 
-    max_imc_channels = m->getMCChannelsPerSocket();
+    max_imc_channels = (pcm::uint32)m->getMCChannelsPerSocket();
 
     ServerUncoreCounterState * BeforeState = new ServerUncoreCounterState[m->getNumSockets()];
     ServerUncoreCounterState * AfterState = new ServerUncoreCounterState[m->getNumSockets()];
