@@ -1080,6 +1080,42 @@ static const uint32 ICX_IIO_UNIT_CTL[] = {
     0x0A50, 0x0A70, 0x0A90, 0x0AE0, 0x0B00, 0x0B20
 };
 
+static const uint32 ICX_IRP_UNIT_CTL[] = {
+    0x0A4A,
+    0x0A6A,
+    0x0A8A,
+    0x0ADA,
+    0x0AFA,
+    0x0B1A
+};
+
+#define ICX_IRP_CTL_REG_OFFSET      (0x0003)
+#define ICX_IRP_CTR_REG_OFFSET      (0x0001)
+
+
+static const uint32 SNR_IRP_UNIT_CTL[] = {
+    0x1EA0,
+    0x1EB0,
+    0x1EC0,
+    0x1ED0,
+    0x1EE0
+};
+
+#define SNR_IRP_CTL_REG_OFFSET      (0x0008)
+#define SNR_IRP_CTR_REG_OFFSET      (0x0001)
+
+static const uint32 SKX_IRP_UNIT_CTL[] = {
+    0x0A58,
+    0x0A78,
+    0x0A98,
+    0x0AB8,
+    0x0AD8,
+    0x0AF8
+};
+
+#define SKX_IRP_CTL_REG_OFFSET      (0x0003)
+#define SKX_IRP_CTR_REG_OFFSET      (0x0001)
+
 #define SNR_IIO_CBDMA_UNIT_STATUS   (0x1E07)
 #define SNR_IIO_CBDMA_UNIT_CTL      (0x1E00)
 #define SNR_IIO_CBDMA_CTR0          (0x1E01)

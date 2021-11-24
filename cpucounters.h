@@ -605,6 +605,7 @@ class PCM_API PCM
     std::vector<std::shared_ptr<ServerPCICFGUncore> > server_pcicfg_uncore;
     std::vector<UncorePMU> pcuPMUs;
     std::vector<std::map<int32, UncorePMU> > iioPMUs;
+    std::vector<std::map<int32, UncorePMU> > irpPMUs;
     std::vector<UncorePMU> uboxPMUs;
     double joulesPerEnergyUnit;
     std::vector<std::shared_ptr<CounterWidthExtender> > energy_status;

@@ -1948,6 +1948,56 @@ void PCM::initUncorePMUsDirect()
         }
     }
 
+    // init IRP PMU
+    size_t irpStacks = 0;
+    size_t IRP_CTL_REG_OFFSET = 0;
+    size_t IRP_CTR_REG_OFFSET = 0;
+    const uint32* IRP_UNIT_CTL = nullptr;
+
+    switch (getCPUModel())
+    {
+    case SKX:
+        irpStacks = SKX_IIO_STACK_COUNT;
+        IRP_CTL_REG_OFFSET = SKX_IRP_CTL_REG_OFFSET;
+        IRP_CTR_REG_OFFSET = SKX_IRP_CTR_REG_OFFSET;
+        IRP_UNIT_CTL = SKX_IRP_UNIT_CTL;
+        break;
+    case ICX:
+        irpStacks = ICX_IIO_STACK_COUNT;
+        IRP_CTL_REG_OFFSET = ICX_IRP_CTL_REG_OFFSET;
+        IRP_CTR_REG_OFFSET = ICX_IRP_CTR_REG_OFFSET;
+        IRP_UNIT_CTL = ICX_IRP_UNIT_CTL;
+        break;
+    case SNOWRIDGE:
+        irpStacks = SNR_IIO_STACK_COUNT;
+        IRP_CTL_REG_OFFSET = SNR_IRP_CTL_REG_OFFSET;
+        IRP_CTR_REG_OFFSET = SNR_IRP_CTR_REG_OFFSET;
+        IRP_UNIT_CTL = SNR_IRP_UNIT_CTL;
+        break;
+    }
+    if (IRP_UNIT_CTL)
+    {
+        irpPMUs.resize(num_sockets);
+        for (uint32 s = 0; s < (uint32)num_sockets; ++s)
+        {
+            auto& handle = MSR[socketRefCore[s]];
+            for (int unit = 0; unit < irpStacks; ++unit)
+            {
+                irpPMUs[s][unit] = UncorePMU(
+                    std::make_shared<MSRRegister>(handle, IRP_UNIT_CTL[unit]),
+                    std::make_shared<MSRRegister>(handle, IRP_UNIT_CTL[unit] + IRP_CTL_REG_OFFSET + 0),
+                    std::make_shared<MSRRegister>(handle, IRP_UNIT_CTL[unit] + IRP_CTL_REG_OFFSET + 1),
+                    std::shared_ptr<MSRRegister>(),
+                    std::shared_ptr<MSRRegister>(),
+                    std::make_shared<MSRRegister>(handle, IRP_UNIT_CTL[unit] + IRP_CTR_REG_OFFSET + 0),
+                    std::make_shared<MSRRegister>(handle, IRP_UNIT_CTL[unit] + IRP_CTR_REG_OFFSET + 1),
+                    std::shared_ptr<MSRRegister>(),
+                    std::shared_ptr<MSRRegister>()
+                );
+            }
+        }
+    }
+
     if (hasPCICFGUncore() && MSR.size())
     {
         cboPMUs.resize(num_sockets);
