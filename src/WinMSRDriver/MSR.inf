@@ -1,0 +1,86 @@
+;
+; MSR.inf
+;
+
+[Version]
+Signature="$WINDOWS NT$"
+Class=Sample ; TODO: edit Class
+ClassGuid={78A1C341-4539-11d3-B88D-00C04FAD5171} ; TODO: edit ClassGuid
+Provider=%ManufacturerName%
+CatalogFile=MSR.cat
+DriverVer= ; TODO: set DriverVer in stampinf property pages
+
+[DestinationDirs]
+DefaultDestDir = 12
+MSR_Device_CoInstaller_CopyFiles = 11
+
+; ================= Class section =====================
+
+[ClassInstall32]
+Addreg=SampleClassReg
+
+[SampleClassReg]
+HKR,,,0,%ClassName%
+HKR,,Icon,,-5
+
+[SourceDisksNames]
+1 = %DiskName%,,,""
+WdfCoInstaller$KMDFCOINSTALLERVERSION$.dll=1 ; make sure the number matches with SourceDisksNames
+
+[SourceDisksFiles]
+MSR.sys  = 1,,
+
+;*****************************************
+; Install Section
+;*****************************************
+
+[Manufacturer]
+%ManufacturerName%=Standard,NT$ARCH$
+
+[Standard.NT$ARCH$]
+%MSR.DeviceDesc%=MSR_Device, Root\MSR ; TODO: edit hw-id
+
+[MSR_Device.NT]
+CopyFiles=Drivers_Dir
+
+[Drivers_Dir]
+MSR.sys
+
+;-------------- Service installation
+[MSR_Device.NT.Services]
+AddService = MSR,%SPSVCINST_ASSOCSERVICE%, MSR_Service_Inst
+
+; -------------- MSR driver install sections
+[MSR_Service_Inst]
+DisplayName    = %MSR.SVCDESC%
+ServiceType    = 1               ; SERVICE_KERNEL_DRIVER
+StartType      = 3               ; SERVICE_DEMAND_START
+ErrorControl   = 1               ; SERVICE_ERROR_NORMAL
+ServiceBinary  = %12%\MSR.sys
+
+;
+;--- MSR_Device Coinstaller installation ------
+;
+
+[MSR_Device.NT.CoInstallers]
+AddReg=MSR_Device_CoInstaller_AddReg
+CopyFiles=MSR_Device_CoInstaller_CopyFiles
+
+[MSR_Device_CoInstaller_AddReg]
+HKR,,CoInstallers32,0x00010000, "WdfCoInstaller$KMDFCOINSTALLERVERSION$.dll,WdfCoInstaller"
+
+[MSR_Device_CoInstaller_CopyFiles]
+WdfCoInstaller$KMDFCOINSTALLERVERSION$.dll
+
+[MSR_Device.NT.Wdf]
+KmdfService =  MSR, MSR_wdfsect
+[MSR_wdfsect]
+KmdfLibraryVersion = $KMDFVERSION$
+
+[Strings]
+SPSVCINST_ASSOCSERVICE= 0x00000002
+ManufacturerName="<Your manufacturer name>" ;TODO: Replace with your manufacturer name
+ClassName="Samples" ; TODO: edit ClassName
+DiskName = "MSR Installation Disk"
+MSR.DeviceDesc = "MSR Device"
+MSR.SVCDESC = "MSR Service"

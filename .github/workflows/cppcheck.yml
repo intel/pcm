@@ -30,4 +30,4 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -qq -y cppcheck
-          sh cppcheck.sh . `getconf _NPROCESSORS_ONLN`
+          sh ${{ github.workspace }}/scripts/cppcheck.sh . `getconf _NPROCESSORS_ONLN`

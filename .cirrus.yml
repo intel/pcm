@@ -3,4 +3,6 @@ freebsd_instance:
 
 task:
   install_script: pkg install -y gmake
-  script: gmake install prefix=.
+  script:
+    - cmake -B build -DCMAKE_INSTALL_PREFIX=.
+    - cd build && gmake install
