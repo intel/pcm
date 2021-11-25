@@ -1010,6 +1010,7 @@ int main(int argc, char * argv[])
                   }
                   if(rankA < 0) rankA = rank;
                   else if(rankB < 0) rankB = rank;
+		  metrics = PartialWrites;
                 }
             }
             continue;
