@@ -69,6 +69,8 @@ public:
 
     typedef ClientImcCounter<&FreeRunningBWCounters::getImcReads> ClientImcReadsCounter;
     typedef ClientImcCounter<&FreeRunningBWCounters::getImcWrites> ClientImcWritesCounter;
+    typedef ClientImcCounter<&FreeRunningBWCounters::getGtRequests> ClientGtRequestsCounter;
+    typedef ClientImcCounter<&FreeRunningBWCounters::getIaRequests> ClientIaRequestsCounter;
     typedef ClientImcCounter<&FreeRunningBWCounters::getIoRequests> ClientIoRequestsCounter;
 
     struct MBLCounter : public AbstractRawCounter

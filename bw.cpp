@@ -74,7 +74,9 @@ namespace pcm {
         return result;
     }
 
-#define PCM_CLIENT_IMC_DRAM_IO_REQESTS  (0x5048)
+#define PCM_CLIENT_IMC_DRAM_GT_REQUESTS (0x5040)
+#define PCM_CLIENT_IMC_DRAM_IA_REQUESTS (0x5044)
+#define PCM_CLIENT_IMC_DRAM_IO_REQUESTS (0x5048)
 #define PCM_CLIENT_IMC_DRAM_DATA_READS  (0x5050)
 #define PCM_CLIENT_IMC_DRAM_DATA_WRITES (0x5054)
 #define PCM_CLIENT_IMC_MMAP_SIZE        (0x6000)
@@ -95,9 +97,19 @@ uint64 ClientBW::getImcWrites()
     return mmioRange->read32(PCM_CLIENT_IMC_DRAM_DATA_WRITES - PCM_CLIENT_IMC_EVENT_BASE);
 }
 
+uint64 ClientBW::getGtRequests()
+{
+    return mmioRange->read32(PCM_CLIENT_IMC_DRAM_GT_REQUESTS - PCM_CLIENT_IMC_EVENT_BASE);
+}
+
+uint64 ClientBW::getIaRequests()
+{
+    return mmioRange->read32(PCM_CLIENT_IMC_DRAM_IA_REQUESTS - PCM_CLIENT_IMC_EVENT_BASE);
+}
+
 uint64 ClientBW::getIoRequests()
 {
-    return mmioRange->read32(PCM_CLIENT_IMC_DRAM_IO_REQESTS - PCM_CLIENT_IMC_EVENT_BASE);
+    return mmioRange->read32(PCM_CLIENT_IMC_DRAM_IO_REQUESTS - PCM_CLIENT_IMC_EVENT_BASE);
 }
 
 #define PCM_SERVER_IMC_DRAM_DATA_READS  (0x2290)

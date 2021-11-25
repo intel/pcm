@@ -621,6 +621,8 @@ class PCM_API PCM
     std::shared_ptr<FreeRunningBWCounters> clientBW;
     std::shared_ptr<CounterWidthExtender> clientImcReads;
     std::shared_ptr<CounterWidthExtender> clientImcWrites;
+    std::shared_ptr<CounterWidthExtender> clientGtRequests;
+    std::shared_ptr<CounterWidthExtender> clientIaRequests;
     std::shared_ptr<CounterWidthExtender> clientIoRequests;
 
     std::vector<std::shared_ptr<ServerBW> > serverBW;
@@ -2643,6 +2645,10 @@ class UncoreCounterState
     template <class CounterStateType>
     friend uint64 getBytesWrittenToEDC(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
+    friend uint64 getGTRequestBytesFromMC(const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
+    friend uint64 getIARequestBytesFromMC(const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
     friend uint64 getIORequestBytesFromMC(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
     friend uint64 getConsumedEnergy(const CounterStateType & before, const CounterStateType & after);
@@ -2672,6 +2678,8 @@ protected:
     uint64 UncPMMReads;
     uint64 UncEDCFullWrites;
     uint64 UncEDCNormalReads;
+    uint64 UncMCGTRequests;
+    uint64 UncMCIARequests;
     uint64 UncMCIORequests;
     uint64 PackageEnergyStatus;
     uint64 DRAMEnergyStatus;
@@ -2691,6 +2699,8 @@ public:
         UncPMMReads(0),
         UncEDCFullWrites(0),
         UncEDCNormalReads(0),
+        UncMCGTRequests(0),
+        UncMCIARequests(0),
         UncMCIORequests(0),
         PackageEnergyStatus(0),
         DRAMEnergyStatus(0),
@@ -2716,6 +2726,8 @@ public:
         UncPMMWrites += o.UncPMMWrites;
         UncEDCFullWrites += o.UncEDCFullWrites;
         UncEDCNormalReads += o.UncEDCNormalReads;
+        UncMCGTRequests += o.UncMCGTRequests;
+        UncMCIARequests += o.UncMCIARequests;
         UncMCIORequests += o.UncMCIORequests;
         PackageEnergyStatus += o.PackageEnergyStatus;
         DRAMEnergyStatus += o.DRAMEnergyStatus;
@@ -3585,6 +3597,33 @@ uint64 getBytesWrittenToEDC(const CounterStateType & before, const CounterStateT
     return 0ULL;
 }
 
+/*! \brief Computes number of bytes of read/write requests from GT engine
+
+    \param before CPU counter state before the experiment
+    \param after CPU counter state after the experiment
+    \return Number of bytes
+*/
+template <class CounterStateType>
+uint64 getGTRequestBytesFromMC(const CounterStateType & before, const CounterStateType & after)
+{
+    if (PCM::getInstance()->memoryIOTrafficMetricAvailable())
+        return (after.UncMCGTRequests - before.UncMCGTRequests) * 64;
+    return 0ULL;
+}
+
+/*! \brief Computes number of bytes of read/write requests from all IA
+
+    \param before CPU counter state before the experiment
+    \param after CPU counter state after the experiment
+    \return Number of bytes
+*/
+template <class CounterStateType>
+uint64 getIARequestBytesFromMC(const CounterStateType & before, const CounterStateType & after)
+{
+    if (PCM::getInstance()->memoryIOTrafficMetricAvailable())
+        return (after.UncMCIARequests - before.UncMCIARequests) * 64;
+    return 0ULL;
+}
 
 /*! \brief Computes number of bytes of read/write requests from all IO sources
 

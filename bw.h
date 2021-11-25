@@ -32,6 +32,8 @@ namespace pcm {
     public:
         virtual uint64 getImcReads() { return 0; }
         virtual uint64 getImcWrites() { return 0; }
+        virtual uint64 getGtRequests() { return 0; }
+        virtual uint64 getIaRequests() { return 0; }
         virtual uint64 getIoRequests() { return 0; }
         virtual uint64 getPMMReads() { return 0; }
         virtual uint64 getPMMWrites() { return 0; }
@@ -57,6 +59,8 @@ namespace pcm {
 
         uint64 getImcReads() override;
         uint64 getImcWrites() override;
+        uint64 getGtRequests() override;
+        uint64 getIaRequests() override;
         uint64 getIoRequests() override;
     };
 
