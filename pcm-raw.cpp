@@ -880,6 +880,10 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<Cor
             {
                 printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getCBOCounter(u, i, before, after); }, (uint32)m->getMaxNumOfCBoxes());
             }
+            else if (type == "irp")
+            {
+                printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getIRPCounter(u, i, before, after); }, (uint32)m->getMaxNumOfIIOStacks());
+            }
             else if (type == "iio")
             {
                 printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getIIOCounter(u, i, before, after); }, (uint32)m->getMaxNumOfIIOStacks());
@@ -1099,6 +1103,24 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<CoreCounterSt
                             [s, cbo]() { cout << "SKT" << s << "C" << cbo << sep; },
                             [&event, &i]() { if (event.second.empty()) cout << "CBOEvent" << i << sep;  else cout << event.second << sep; },
                             [&]() { cout << getCBOCounter(cbo, i, BeforeUncoreState[s], AfterUncoreState[s]) << sep; });
+                        ++i;
+                    }
+                }
+            }
+        }
+        else if (type == "irp")
+        {
+            for (uint32 s = 0; s < m->getNumSockets(); ++s)
+            {
+                for (uint32 stack = 0; stack < m->getMaxNumOfIIOStacks(); ++stack)
+                {
+                    int i = 0;
+                    for (auto event : events)
+                    {
+                        choose(outputType,
+                            [s, stack]() { cout << "SKT" << s << "IRP" << stack << sep; },
+                            [&event, &i]() { if (event.second.empty()) cout << "IRPEvent" << i << sep;  else cout << event.second << sep; },
+                            [&]() { cout << getIRPCounter(stack, i, BeforeUncoreState[s], AfterUncoreState[s]) << sep; });
                         ++i;
                     }
                 }
