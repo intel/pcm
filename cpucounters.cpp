@@ -1723,6 +1723,10 @@ void PCM::initUncoreObjects()
                new CounterWidthExtender::ClientImcReadsCounter(clientBW), 32, 10000);
            clientImcWrites = std::make_shared<CounterWidthExtender>(
                new CounterWidthExtender::ClientImcWritesCounter(clientBW), 32, 10000);
+           clientGtRequests = std::make_shared<CounterWidthExtender>(
+               new CounterWidthExtender::ClientGtRequestsCounter(clientBW), 32, 10000);
+           clientIaRequests = std::make_shared<CounterWidthExtender>(
+               new CounterWidthExtender::ClientIaRequestsCounter(clientBW), 32, 10000);
            clientIoRequests = std::make_shared<CounterWidthExtender>(
                new CounterWidthExtender::ClientIoRequestsCounter(clientBW), 32, 10000);
 
@@ -4909,6 +4913,8 @@ void PCM::readAndAggregateUncoreMCCounters(const uint32 socket, CounterStateType
     {
         result.UncMCNormalReads += clientImcReads->read();
         result.UncMCFullWrites += clientImcWrites->read();
+        result.UncMCGTRequests += clientGtRequests->read();
+        result.UncMCIARequests += clientIaRequests->read();
         result.UncMCIORequests += clientIoRequests->read();
     }
     else

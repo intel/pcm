@@ -191,7 +191,11 @@ void print_output(PCM * m,
     if (m->PMMTrafficMetricsAvailable()) cout << " PMM WR : bytes written to PMM memory (in GBytes)\n";
     if (m->MCDRAMmemoryTrafficMetricsAvailable()) cout << " MCDRAM READ  : bytes read from MCDRAM controller (in GBytes)\n";
     if (m->MCDRAMmemoryTrafficMetricsAvailable()) cout << " MCDRAM WRITE : bytes written to MCDRAM controller (in GBytes)\n";
-    if (m->memoryIOTrafficMetricAvailable()) cout << " IO    : bytes read/written due to IO requests to memory controller (in GBytes); this may be an over estimate due to same-cache-line partial requests\n";
+    if (m->memoryIOTrafficMetricAvailable()) {
+        cout << " IO    : bytes read/written due to IO requests to memory controller (in GBytes); this may be an over estimate due to same-cache-line partial requests\n";
+        cout << " IA    : bytes read/written due to IA requests to memory controller (in GBytes); this may be an over estimate due to same-cache-line partial requests\n";
+        cout << " GT    : bytes read/written due to GT requests to memory controller (in GBytes); this may be an over estimate due to same-cache-line partial requests\n";
+    }
     if (m->L3CacheOccupancyMetricAvailable()) cout << " L3OCC : L3 occupancy (in KBytes)\n";
     if (m->CoreLocalMemoryBWMetricAvailable()) cout << " LMB   : L3 cache external bandwidth satisfied by local memory (in MBytes)\n";
     if (m->CoreRemoteMemoryBWMetricAvailable()) cout << " RMB   : L3 cache external bandwidth satisfied by remote memory (in MBytes)\n";
@@ -433,6 +437,10 @@ void print_output(PCM * m,
             cout << " MCDRAM READ | MCDRAM WRITE |";
         if (m->memoryIOTrafficMetricAvailable())
             cout << "   IO   |";
+        if (m->memoryIOTrafficMetricAvailable())
+            cout << "   IA   |";
+        if (m->memoryIOTrafficMetricAvailable())
+            cout << "   GT   |";
         if (m->packageEnergyMetricsAvailable())
             cout << " CPU energy |";
         if (m->dramEnergyMetricsAvailable())
@@ -459,6 +467,10 @@ void print_output(PCM * m,
                             "    " << setw(11) << getBytesWrittenToEDC(sktstate1[i], sktstate2[i]) / double(1e9);
                 if (m->memoryIOTrafficMetricAvailable())
                     cout << "    " << setw(5) << getIORequestBytesFromMC(sktstate1[i], sktstate2[i]) / double(1e9);
+                if (m->memoryIOTrafficMetricAvailable())
+                    cout << "    " << setw(5) << getIARequestBytesFromMC(sktstate1[i], sktstate2[i]) / double(1e9);
+                if (m->memoryIOTrafficMetricAvailable())
+                    cout << "    " << setw(5) << getGTRequestBytesFromMC(sktstate1[i], sktstate2[i]) / double(1e9);
                 cout << "     ";
                 if(m->packageEnergyMetricsAvailable()) {
                   cout << setw(6) << getConsumedJoules(sktstate1[i], sktstate2[i]);
