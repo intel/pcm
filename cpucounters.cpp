@@ -4727,17 +4727,20 @@ void PCM::freezeServerUncoreCounters()
             }
         }
 
-        for (auto& sPMUs : irpPMUs)
+        if (size_t(i) < irpPMUs.size())
         {
-            for (auto& pmu : sPMUs)
+            for (auto& pmu : irpPMUs[i])
             {
                 pmu.second.freeze(UNC_PMON_UNIT_CTL_RSV);
             }
         }
 
-        for (auto & pmu : cboPMUs[i])
+        if (size_t(i) < cboPMUs.size())
         {
-            pmu.freeze(UNC_PMON_UNIT_CTL_FRZ_EN);
+            for (auto& pmu : cboPMUs[i])
+            {
+                pmu.freeze(UNC_PMON_UNIT_CTL_FRZ_EN);
+            }
         }
     }
 }
@@ -4760,17 +4763,20 @@ void PCM::unfreezeServerUncoreCounters()
             }
         }
 
-        for (auto& sPMUs : irpPMUs)
+        if (size_t(i) < irpPMUs.size())
         {
-            for (auto& pmu : sPMUs)
+            for (auto& pmu : irpPMUs[i])
             {
                 pmu.second.unfreeze(UNC_PMON_UNIT_CTL_RSV);
             }
         }
 
-        for (auto & pmu : cboPMUs[i])
+        if (size_t(i) < cboPMUs.size())
         {
-            pmu.unfreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
+            for (auto& pmu : cboPMUs[i])
+            {
+                pmu.unfreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
+            }
         }
     }
 }
