@@ -176,7 +176,7 @@ bool initPMUEventMap()
     assert(EventTypetPos >= 0);
     const std::string ourFMS = PCM::getInstance()->getCPUFamilyModelString();
     // cout << "Our FMS: " << ourFMS << "\n";
-    std::map<std::string, std::string> eventFiles;
+    std::multimap<std::string, std::string> eventFiles;
     cout << "Matched event files:\n";
     while (std::getline(in, line))
     {
@@ -189,14 +189,14 @@ bool initPMUEventMap()
         if (std::regex_search(ourFMS.c_str(), FMSMatch, FMSRegex))
         {
             cout << tokens[FMSPos] << " " << tokens[EventTypetPos] << " " << tokens[FilenamePos] << "\n";
-            eventFiles[tokens[EventTypetPos]] = tokens[FilenamePos];
+           eventFiles.insert(std::make_pair(tokens[EventTypetPos], tokens[FilenamePos]));
         }
     }
     in.close();
 
     if (eventFiles.empty())
     {
-        cerr << "ERROR: CPU " << ourFMS << "not found in " << mapfile << "\n";
+        cerr << "ERROR: CPU " << ourFMS << " not found in " << mapfile << "\n";
         return false;
     }
 
