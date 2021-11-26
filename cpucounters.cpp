@@ -4713,6 +4713,10 @@ void PCM::freezeServerUncoreCounters()
     for (int i = 0; (i < (int)server_pcicfg_uncore.size()) && MSR.size(); ++i)
     {
         server_pcicfg_uncore[i]->freezeCounters();
+
+        const auto refCore = socketRefCore[i];
+        TemporalThreadAffinity tempThreadAffinity(refCore); // speedup trick for Linux
+
         pcuPMUs[i].freeze(UNC_PMON_UNIT_CTL_FRZ_EN);
 
         if (IIOEventsAvailable())
@@ -4731,8 +4735,6 @@ void PCM::freezeServerUncoreCounters()
             }
         }
 
-        const auto refCore = socketRefCore[i];
-        TemporalThreadAffinity tempThreadAffinity(refCore); // speedup trick for Linux
         for (auto & pmu : cboPMUs[i])
         {
             pmu.freeze(UNC_PMON_UNIT_CTL_FRZ_EN);
@@ -4744,6 +4746,10 @@ void PCM::unfreezeServerUncoreCounters()
     for (int i = 0; (i < (int)server_pcicfg_uncore.size()) && MSR.size(); ++i)
     {
         server_pcicfg_uncore[i]->unfreezeCounters();
+
+        const auto refCore = socketRefCore[i];
+        TemporalThreadAffinity tempThreadAffinity(refCore); // speedup trick for Linux
+
         pcuPMUs[i].unfreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
 
         if (IIOEventsAvailable())
@@ -4762,8 +4768,6 @@ void PCM::unfreezeServerUncoreCounters()
             }
         }
 
-        const auto refCore = socketRefCore[i];
-        TemporalThreadAffinity tempThreadAffinity(refCore); // speedup trick for Linux
         for (auto & pmu : cboPMUs[i])
         {
             pmu.unfreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
