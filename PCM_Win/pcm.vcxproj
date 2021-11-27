@@ -156,7 +156,8 @@
     <ClCompile Include="..\winpmem\winpmem.cpp" />
     <ClCompile Include="..\msr.cpp" />
     <ClCompile Include="..\pci.cpp" />
-    <ClCompile Include="..\bw.cpp" /> <ClCompile Include="..\mmio.cpp" />
+    <ClCompile Include="..\bw.cpp" />
+    <ClCompile Include="..\mmio.cpp" />
     <ClCompile Include="pcm.cpp" />
     <ClCompile Include="..\debug.cpp" />
     <ClCompile Include="..\threadpool.cpp" />
@@ -172,7 +173,8 @@
     <ClInclude Include="..\topology.h" />
     <ClInclude Include="..\msr.h" />
     <ClInclude Include="..\pci.h" />
-    <ClInclude Include="..\bw.h" /> <ClInclude Include="..\mmio.h" />
+    <ClInclude Include="..\bw.h" />
+    <ClInclude Include="..\mmio.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="..\types.h" />
     <ClInclude Include="windriver.h" />

@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
 VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PCM-Lib", "PCM-Lib_Win\PCM-Lib.vcxproj", "{A4206CE7-A913-42ED-B3B9-F7CF5076633B}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PCM-Lib", "PCM-Lib_Win\pcm-lib.vcxproj", "{A4206CE7-A913-42ED-B3B9-F7CF5076633B}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "pcm", "PCM_Win\pcm.vcxproj", "{D919CF99-5D9F-46C9-B6F0-626700E63592}"
 EndProject
