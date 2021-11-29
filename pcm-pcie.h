@@ -29,7 +29,6 @@ typedef unsigned int uint;
 
 using namespace std;
 using namespace pcm;
-const uint32 max_sockets = 4;
 #define NUM_SAMPLES (1)
 
 static void print(const vector<string> &listNames, bool csv)
@@ -81,12 +80,6 @@ protected:
 void IPlatform::init()
 {
     print_cpu_details();
-
-    if (m_socketCount > max_sockets)
-    {
-        cerr << "Only systems with up to "<<max_sockets<<" sockets are supported! Program aborted\n";
-        exit(EXIT_FAILURE);
-    }
 
     if (m_pcm->isSomeCoreOfflined())
     {
