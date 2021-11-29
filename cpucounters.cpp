@@ -1554,8 +1554,7 @@ bool PCM::initMSR()
 #ifdef _MSC_VER
         std::cerr << "You must have signed msr.sys driver in your current directory and have administrator rights to run this program.\n";
 #elif defined(__linux__)
-        std::cerr << "Try to execute 'modprobe msr' as root user and then\n";
-        std::cerr << "you also must have read and write permissions for /dev/cpu/*/msr devices (/dev/msr* for Android). The 'chown' command can help.\n";
+        std::cerr << "execute 'modprobe msr' as root user, then execute pcm as root user.\n";
 #elif defined(__FreeBSD__) || defined(__DragonFly__)
         std::cerr << "Ensure cpuctl module is loaded and that you have read and write\n";
         std::cerr << "permissions for /dev/cpuctl* devices (the 'chown' command can help).\n";
