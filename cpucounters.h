@@ -1188,15 +1188,18 @@ public:
 
     std::pair<unsigned, unsigned> getOCREventNr(const int event, const unsigned coreID) const
     {
-        assert (coreID < topology.size());
-        switch (cpu_model)
-        {
+       assert (coreID < topology.size());
+       if (hybrid)
+       {
+            switch (cpu_model)
+            {
             case ADL:
                 if (topology[coreID].core_type == TopologyEntry::Atom)
                 {
                     return std::make_pair(OFFCORE_RESPONSE_0_EVTNR, event + 1);
                 }
                 break;
+            }
        }
        bool useGLCOCREvent = false;
        switch (cpu_model)
