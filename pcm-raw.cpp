@@ -736,12 +736,12 @@ bool show_partial_core_output = false;
 bitset<MAX_CORES> ycores;
 bool flushLine = false;
 bool transpose = false;
-std::string sep = ",";
+std::string separator = ",";
 
 void printRowBegin(const std::string & EventName, const CoreCounterState & BeforeState, const CoreCounterState & AfterState, PCM* m)
 {
     printDateForCSV(CsvOutputType::Data);
-    cout << EventName << sep << (1000ULL * getInvariantTSC(BeforeState, AfterState)) / m->getNominalFrequency() << sep << getInvariantTSC(BeforeState, AfterState);
+    cout << EventName << separator << (1000ULL * getInvariantTSC(BeforeState, AfterState)) / m->getNominalFrequency() << separator << getInvariantTSC(BeforeState, AfterState);
 }
 
 
@@ -753,7 +753,7 @@ void printRow(const std::string & EventName, MetricFunc metricFunc, const std::v
     {
         if (!(m->isCoreOnline(core) == false || (show_partial_core_output && ycores.test(core) == false)))
         {
-            cout << sep << metricFunc(BeforeState[core], AfterState[core]);
+            cout << separator << metricFunc(BeforeState[core], AfterState[core]);
         }
     }
     cout << "\n";
@@ -791,7 +791,7 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<Cor
                     {
                         for (uint32 u = 0; u < maxUnit; ++u)
                         {
-                            cout << sep << fixedMetricFunc(u, BeforeUncoreState[s], AfterUncoreState[s]);
+                            cout << separator << fixedMetricFunc(u, BeforeUncoreState[s], AfterUncoreState[s]);
                         }
                     }
                     cout << "\n";
@@ -805,7 +805,7 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<Cor
                     {
                         for (uint32 u = 0; u < maxUnit; ++u)
                         {
-                            cout << sep << metricFunc(u, i, BeforeUncoreState[s], AfterUncoreState[s]);
+                            cout << separator << metricFunc(u, i, BeforeUncoreState[s], AfterUncoreState[s]);
                         }
                     }
                     cout << "\n";
@@ -911,9 +911,9 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<CoreCounterSt
     if (BeforeState.size() > 0 && AfterState.size() > 0)
     {
         choose(outputType,
-            []() { cout << sep; },
+            []() { cout << separator; },
             []() { cout << "ms,"; },
-            [&]() { cout << (1000ULL * getInvariantTSC(BeforeState[0], AfterState[0])) / m->getNominalFrequency() << sep; });
+            [&]() { cout << (1000ULL * getInvariantTSC(BeforeState[0], AfterState[0])) / m->getNominalFrequency() << separator; });
     }
     for (auto typeEvents : curPMUConfigs)
     {
@@ -944,9 +944,9 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<CoreCounterSt
                     auto print = [&](const std::string & metric, const uint64 value)
                     {
                         choose(outputType,
-                            [m, core]() { cout << "SKT" << m->getSocketId(core) << "CORE" << core << sep; },
-                            [&metric]() { cout << metric << sep; },
-                            [&value]() { cout << value << sep; });
+                            [m, core]() { cout << "SKT" << m->getSocketId(core) << "CORE" << core << separator; },
+                            [&metric]() { cout << metric << separator; },
+                            [&value]() { cout << value << separator; });
                     };
                     for (uint32 cnt = 0; cnt < 4; ++cnt)
                     {
@@ -967,9 +967,9 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<CoreCounterSt
                 for (auto event : events)
                 {
                     choose(outputType,
-                        [m, core]() { cout << "SKT" << m->getSocketId(core) << "CORE" << core << sep; },
-                        [&event, &i]() { if (event.second.empty()) cout << "COREEvent" << i << sep;  else cout << event.second << sep; },
-                        [&]() { cout << getNumberOfCustomEvents(i, BeforeState[core], AfterState[core]) << sep; });
+                        [m, core]() { cout << "SKT" << m->getSocketId(core) << "CORE" << core << separator; },
+                        [&event, &i]() { if (event.second.empty()) cout << "COREEvent" << i << separator;  else cout << event.second << separator; },
+                        [&]() { cout << getNumberOfCustomEvents(i, BeforeState[core], AfterState[core]) << separator; });
                     ++i;
                 }
             }
@@ -984,9 +984,9 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<CoreCounterSt
                     for (auto event : events)
                     {
                         choose(outputType,
-                            [s, l]() { cout << "SKT" << s << "LINK" << l << sep; },
-                            [&event, &i]() { if (event.second.empty()) cout << "M3UPIEvent" << i << sep;  else cout << event.second << sep; },
-                            [&]() { cout << getM3UPICounter(l, i, BeforeUncoreState[s], AfterUncoreState[s]) << sep; });
+                            [s, l]() { cout << "SKT" << s << "LINK" << l << separator; },
+                            [&event, &i]() { if (event.second.empty()) cout << "M3UPIEvent" << i << separator;  else cout << event.second << separator; },
+                            [&]() { cout << getM3UPICounter(l, i, BeforeUncoreState[s], AfterUncoreState[s]) << separator; });
                         ++i;
                     }
                 }
@@ -1002,9 +1002,9 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<CoreCounterSt
                     for (auto event : events)
                     {
                         choose(outputType,
-                            [s, l]() { cout << "SKT" << s << "LINK" << l << sep; },
-                            [&event, &i]() { if (event.second.empty()) cout << "XPIEvent" << i << sep;  else cout << event.second << sep; },
-                            [&]() { cout << getXPICounter(l, i, BeforeUncoreState[s], AfterUncoreState[s]) << sep; });
+                            [s, l]() { cout << "SKT" << s << "LINK" << l << separator; },
+                            [&event, &i]() { if (event.second.empty()) cout << "XPIEvent" << i << separator;  else cout << event.second << separator; },
+                            [&]() { cout << getXPICounter(l, i, BeforeUncoreState[s], AfterUncoreState[s]) << separator; });
                         ++i;
                     }
                 }
@@ -1019,17 +1019,17 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<CoreCounterSt
                     if (fixedEvents.size())
                     {
                         choose(outputType,
-                            [s, ch]() { cout << "SKT" << s << "CHAN" << ch << sep; },
-                            [&fixedEvents]() { cout << "DRAMClocks" << fixedEvents[0].second << sep; },
-                            [&]() { cout << getDRAMClocks(ch, BeforeUncoreState[s], AfterUncoreState[s]) << sep; });
+                            [s, ch]() { cout << "SKT" << s << "CHAN" << ch << separator; },
+                            [&fixedEvents]() { cout << "DRAMClocks" << fixedEvents[0].second << separator; },
+                            [&]() { cout << getDRAMClocks(ch, BeforeUncoreState[s], AfterUncoreState[s]) << separator; });
                     }
                     int i = 0;
                     for (auto event : events)
                     {
                         choose(outputType,
-                            [s, ch]() { cout << "SKT" << s << "CHAN" << ch << sep; },
-                            [&event, &i]() { if (event.second.empty()) cout << "IMCEvent" << i << sep;  else cout << event.second << sep; },
-                            [&]() { cout << getMCCounter(ch, i, BeforeUncoreState[s], AfterUncoreState[s]) << sep; });
+                            [s, ch]() { cout << "SKT" << s << "CHAN" << ch << separator; },
+                            [&event, &i]() { if (event.second.empty()) cout << "IMCEvent" << i << separator;  else cout << event.second << separator; },
+                            [&]() { cout << getMCCounter(ch, i, BeforeUncoreState[s], AfterUncoreState[s]) << separator; });
                         ++i;
                     }
                 }
@@ -1045,9 +1045,9 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<CoreCounterSt
                     for (auto event : events)
                     {
                         choose(outputType,
-                            [s, mc]() { cout << "SKT" << s << "MC" << mc << sep; },
-                            [&event, &i]() { if (event.second.empty()) cout << "M2MEvent" << i << sep;  else cout << event.second << sep; },
-                            [&]() { cout << getM2MCounter(mc, i, BeforeUncoreState[s], AfterUncoreState[s]) << sep; });
+                            [s, mc]() { cout << "SKT" << s << "MC" << mc << separator; },
+                            [&event, &i]() { if (event.second.empty()) cout << "M2MEvent" << i << separator;  else cout << event.second << separator; },
+                            [&]() { cout << getM2MCounter(mc, i, BeforeUncoreState[s], AfterUncoreState[s]) << separator; });
                         ++i;
                     }
                 }
@@ -1061,9 +1061,9 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<CoreCounterSt
                 for (auto event : events)
                 {
                     choose(outputType,
-                        [s]() { cout << "SKT" << s << sep; },
-                        [&event, &i]() { if (event.second.empty()) cout << "PCUEvent" << i << sep;  else cout << event.second << sep; },
-                        [&]() { cout << getPCUCounter(i, BeforeUncoreState[s], AfterUncoreState[s]) << sep; });
+                        [s]() { cout << "SKT" << s << separator; },
+                        [&event, &i]() { if (event.second.empty()) cout << "PCUEvent" << i << separator;  else cout << event.second << separator; },
+                        [&]() { cout << getPCUCounter(i, BeforeUncoreState[s], AfterUncoreState[s]) << separator; });
                     ++i;
                 }
             }
@@ -1075,17 +1075,17 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<CoreCounterSt
                 if (fixedEvents.size())
                 {
                     choose(outputType,
-                        [s]() { cout << "SKT" << s << sep; },
-                        [&fixedEvents]() { cout << "UncoreClocks" << fixedEvents[0].second << sep; },
-                        [&]() { cout << getUncoreClocks(BeforeUncoreState[s], AfterUncoreState[s]) << sep; });
+                        [s]() { cout << "SKT" << s << separator; },
+                        [&fixedEvents]() { cout << "UncoreClocks" << fixedEvents[0].second << separator; },
+                        [&]() { cout << getUncoreClocks(BeforeUncoreState[s], AfterUncoreState[s]) << separator; });
                 }
                 int i = 0;
                 for (auto event : events)
                 {
                     choose(outputType,
-                        [s]() { cout << "SKT" << s << sep; },
-                        [&event, &i]() { if (event.second.empty()) cout << "UBOXEvent" << i << sep;  else cout << event.second << sep; },
-                        [&]() { cout << getUBOXCounter(i, BeforeUncoreState[s], AfterUncoreState[s]) << sep; });
+                        [s]() { cout << "SKT" << s << separator; },
+                        [&event, &i]() { if (event.second.empty()) cout << "UBOXEvent" << i << separator;  else cout << event.second << separator; },
+                        [&]() { cout << getUBOXCounter(i, BeforeUncoreState[s], AfterUncoreState[s]) << separator; });
                     ++i;
                 }
             }
@@ -1100,9 +1100,9 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<CoreCounterSt
                     for (auto event : events)
                     {
                         choose(outputType,
-                            [s, cbo]() { cout << "SKT" << s << "C" << cbo << sep; },
-                            [&event, &i]() { if (event.second.empty()) cout << "CBOEvent" << i << sep;  else cout << event.second << sep; },
-                            [&]() { cout << getCBOCounter(cbo, i, BeforeUncoreState[s], AfterUncoreState[s]) << sep; });
+                            [s, cbo]() { cout << "SKT" << s << "C" << cbo << separator; },
+                            [&event, &i]() { if (event.second.empty()) cout << "CBOEvent" << i << separator;  else cout << event.second << separator; },
+                            [&]() { cout << getCBOCounter(cbo, i, BeforeUncoreState[s], AfterUncoreState[s]) << separator; });
                         ++i;
                     }
                 }
@@ -1118,9 +1118,9 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<CoreCounterSt
                     for (auto event : events)
                     {
                         choose(outputType,
-                            [s, stack]() { cout << "SKT" << s << "IRP" << stack << sep; },
-                            [&event, &i]() { if (event.second.empty()) cout << "IRPEvent" << i << sep;  else cout << event.second << sep; },
-                            [&]() { cout << getIRPCounter(stack, i, BeforeUncoreState[s], AfterUncoreState[s]) << sep; });
+                            [s, stack]() { cout << "SKT" << s << "IRP" << stack << separator; },
+                            [&event, &i]() { if (event.second.empty()) cout << "IRPEvent" << i << separator;  else cout << event.second << separator; },
+                            [&]() { cout << getIRPCounter(stack, i, BeforeUncoreState[s], AfterUncoreState[s]) << separator; });
                         ++i;
                     }
                 }
@@ -1136,9 +1136,9 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<CoreCounterSt
                     for (auto event : events)
                     {
                         choose(outputType,
-                            [s, stack]() { cout << "SKT" << s << "IIO" << stack << sep; },
-                            [&event, &i]() { if (event.second.empty()) cout << "IIOEvent" << i << sep;  else cout << event.second << sep; },
-                            [&]() { cout << getIIOCounter(stack, i, BeforeUncoreState[s], AfterUncoreState[s]) << sep; });
+                            [s, stack]() { cout << "SKT" << s << "IIO" << stack << separator; },
+                            [&event, &i]() { if (event.second.empty()) cout << "IIOEvent" << i << separator;  else cout << event.second << separator; },
+                            [&]() { cout << getIIOCounter(stack, i, BeforeUncoreState[s], AfterUncoreState[s]) << separator; });
                         ++i;
                     }
                 }
@@ -1235,11 +1235,11 @@ int main(int argc, char* argv[])
         }
         else if (strncmp(*argv, "-l", 2) == 0) {
             std::cout.imbue(std::locale(""));
-            sep = "\t";
+            separator = "\t";
             continue;
         }
         else if (strncmp(*argv, "-tab", 4) == 0) {
-            sep = "\t";
+            separator = "\t";
             continue;
         }
         else if (strncmp(*argv, "--yescores", 10) == 0 ||
