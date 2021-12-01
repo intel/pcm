@@ -1186,6 +1186,39 @@ public:
     typedef std::map<std::string, RawPMUConfig> RawPMUConfigs;
     ErrorCode program(const RawPMUConfigs& curPMUConfigs, const bool silent = false);
 
+    std::pair<unsigned, unsigned> getOCREventNr(const int event, const unsigned coreID) const
+    {
+       assert (coreID < topology.size());
+       if (hybrid)
+       {
+            switch (cpu_model)
+            {
+            case ADL:
+                if (topology[coreID].core_type == TopologyEntry::Atom)
+                {
+                    return std::make_pair(OFFCORE_RESPONSE_0_EVTNR, event + 1);
+                }
+                break;
+            }
+       }
+       bool useGLCOCREvent = false;
+       switch (cpu_model)
+       {
+       case ADL: // ADL big core (GLC)
+           useGLCOCREvent = true;
+           break;
+       }
+       switch (event)
+       {
+            case 0:
+                return std::make_pair(useGLCOCREvent ? GLC_OFFCORE_RESPONSE_0_EVTNR : OFFCORE_RESPONSE_0_EVTNR, OFFCORE_RESPONSE_0_UMASK);
+            case 1:
+                return std::make_pair(useGLCOCREvent ? GLC_OFFCORE_RESPONSE_1_EVTNR : OFFCORE_RESPONSE_1_EVTNR, OFFCORE_RESPONSE_1_UMASK);
+       }
+       assert (false && "wrong event nr in getOCREventNr");
+       return std::make_pair(0U, 0U);
+    }
+
     //! \brief Freezes uncore event counting (works only on microarchitecture codename SandyBridge-EP and IvyTown)
     void freezeServerUncoreCounters();
 

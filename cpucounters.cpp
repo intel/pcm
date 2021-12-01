@@ -3046,9 +3046,9 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
             perf_event_attr e = PCM_init_perf_event_attr();
             e.type = PERF_TYPE_RAW;
             e.config = (1ULL << 63ULL) + event_select_reg.value;
-            if (event_select_reg.fields.event_select == OFFCORE_RESPONSE_0_EVTNR && event_select_reg.fields.umask == OFFCORE_RESPONSE_0_UMASK)
+            if (event_select_reg.fields.event_select == getOCREventNr(0, i).first && event_select_reg.fields.umask == getOCREventNr(0, i).second)
                 e.config1 = pExtDesc->OffcoreResponseMsrValue[0];
-            if (event_select_reg.fields.event_select == OFFCORE_RESPONSE_1_EVTNR && event_select_reg.fields.umask == OFFCORE_RESPONSE_1_UMASK)
+            if (event_select_reg.fields.event_select == getOCREventNr(1, i).first && event_select_reg.fields.umask == getOCREventNr(1, i).second)
                 e.config1 = pExtDesc->OffcoreResponseMsrValue[1];
 
             if (event_select_reg.fields.event_select == LOAD_LATENCY_EVTNR && event_select_reg.fields.umask == LOAD_LATENCY_UMASK)
