@@ -193,10 +193,10 @@ int main(int argc, char * argv[])
     for (int i = 0; i < 4; ++i)
         regs[i] = def_event_select_reg;
 
-    regs[0].fields.event_select = OFFCORE_RESPONSE_0_EVTNR; // OFFCORE_RESPONSE 0 event
-    regs[0].fields.umask =        OFFCORE_RESPONSE_0_UMASK;
-    regs[1].fields.event_select = OFFCORE_RESPONSE_1_EVTNR; // OFFCORE_RESPONSE 1 event
-    regs[1].fields.umask =        OFFCORE_RESPONSE_1_UMASK;
+    regs[0].fields.event_select = m->getOCREventNr(0, 0).first; // OFFCORE_RESPONSE 0 event
+    regs[0].fields.umask =        m->getOCREventNr(0, 0).second;
+    regs[1].fields.event_select = m->getOCREventNr(1, 0).first; // OFFCORE_RESPONSE 1 event
+    regs[1].fields.umask =        m->getOCREventNr(1, 0).second;
 
     PCM::ErrorCode status = m->program(PCM::EXT_CUSTOM_CORE_EVENTS, &conf);
     m->checkError(status);
