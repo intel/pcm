@@ -605,6 +605,7 @@ class PCM_API PCM
     std::vector<std::shared_ptr<ServerPCICFGUncore> > server_pcicfg_uncore;
     std::vector<UncorePMU> pcuPMUs;
     std::vector<std::map<int32, UncorePMU> > iioPMUs;
+    std::vector<std::map<int32, UncorePMU> > irpPMUs;
     std::vector<UncorePMU> uboxPMUs;
     double joulesPerEnergyUnit;
     std::vector<std::shared_ptr<CounterWidthExtender> > energy_status;
@@ -621,6 +622,8 @@ class PCM_API PCM
     std::shared_ptr<FreeRunningBWCounters> clientBW;
     std::shared_ptr<CounterWidthExtender> clientImcReads;
     std::shared_ptr<CounterWidthExtender> clientImcWrites;
+    std::shared_ptr<CounterWidthExtender> clientGtRequests;
+    std::shared_ptr<CounterWidthExtender> clientIaRequests;
     std::shared_ptr<CounterWidthExtender> clientIoRequests;
 
     std::vector<std::shared_ptr<ServerBW> > serverBW;
@@ -1183,6 +1186,39 @@ public:
     typedef std::map<std::string, RawPMUConfig> RawPMUConfigs;
     ErrorCode program(const RawPMUConfigs& curPMUConfigs, const bool silent = false);
 
+    std::pair<unsigned, unsigned> getOCREventNr(const int event, const unsigned coreID) const
+    {
+       assert (coreID < topology.size());
+       if (hybrid)
+       {
+            switch (cpu_model)
+            {
+            case ADL:
+                if (topology[coreID].core_type == TopologyEntry::Atom)
+                {
+                    return std::make_pair(OFFCORE_RESPONSE_0_EVTNR, event + 1);
+                }
+                break;
+            }
+       }
+       bool useGLCOCREvent = false;
+       switch (cpu_model)
+       {
+       case ADL: // ADL big core (GLC)
+           useGLCOCREvent = true;
+           break;
+       }
+       switch (event)
+       {
+            case 0:
+                return std::make_pair(useGLCOCREvent ? GLC_OFFCORE_RESPONSE_0_EVTNR : OFFCORE_RESPONSE_0_EVTNR, OFFCORE_RESPONSE_0_UMASK);
+            case 1:
+                return std::make_pair(useGLCOCREvent ? GLC_OFFCORE_RESPONSE_1_EVTNR : OFFCORE_RESPONSE_1_EVTNR, OFFCORE_RESPONSE_1_UMASK);
+       }
+       assert (false && "wrong event nr in getOCREventNr");
+       return std::make_pair(0U, 0U);
+    }
+
     //! \brief Freezes uncore event counting (works only on microarchitecture codename SandyBridge-EP and IvyTown)
     void freezeServerUncoreCounters();
 
@@ -1316,6 +1352,10 @@ public:
     /*! \brief Returns the maximum number of custom (general-purpose) core events supported by CPU
     */
     int32 getMaxCustomCoreEvents();
+
+    /*! \brief Returns cpu model id number from cpuid instruction
+    */
+    static int getCPUModelFromCPUID();
 
     //! \brief Identifiers of supported CPU models
     enum SupportedCPUModels
@@ -1740,6 +1780,11 @@ public:
     //! \param rawEvents events to program (raw format)
     //! \param IIOStack id of the IIO stack to program (-1 for all, if parameter omitted)
     void programIIOCounters(uint64 rawEvents[4], int IIOStack = -1);
+
+    //! \brief Program uncore IRP events
+    //! \param rawEvents events to program (raw format)
+    //! \param IIOStack id of the IIO stack to program (-1 for all, if parameter omitted)
+    void programIRPCounters(uint64 rawEvents[4], int IIOStack = -1);
 
     //! \brief Get the state of IIO counter
     //! \param socket socket of the IIO stack
@@ -2440,7 +2485,6 @@ uint64 getCBOCounter(uint32 cbo, uint32 counter, const CounterStateType& before,
 
 /*! \brief Direct read of UBOX PMU counter (counter meaning depends on the programming: power/performance/etc)
     \param counter counter number
-    \param cbo cbo or cha number
     \param before CPU counter state before the experiment
     \param after CPU counter state after the experiment
 */
@@ -2452,7 +2496,7 @@ uint64 getUBOXCounter(uint32 counter, const CounterStateType& before, const Coun
 
 /*! \brief Direct read of IIO PMU counter (counter meaning depends on the programming: power/performance/etc)
     \param counter counter number
-    \param cbo IIO stack number
+    \param stack IIO stack number
     \param before CPU counter state before the experiment
     \param after CPU counter state after the experiment
 */
@@ -2460,6 +2504,18 @@ template <class CounterStateType>
 uint64 getIIOCounter(uint32 stack, uint32 counter, const CounterStateType& before, const CounterStateType& after)
 {
     return after.IIOCounter[stack][counter] - before.IIOCounter[stack][counter];
+}
+
+/*! \brief Direct read of IRP PMU counter (counter meaning depends on the programming: power/performance/etc)
+    \param counter counter number
+    \param stack IIO stack number
+    \param before CPU counter state before the experiment
+    \param after CPU counter state after the experiment
+*/
+template <class CounterStateType>
+uint64 getIRPCounter(uint32 stack, uint32 counter, const CounterStateType& before, const CounterStateType& after)
+{
+    return after.IRPCounter[stack][counter] - before.IRPCounter[stack][counter];
 }
 
 /*! \brief Direct read of UPI or QPI PMU counter (counter meaning depends on the programming: power/performance/etc)
@@ -2639,6 +2695,10 @@ class UncoreCounterState
     template <class CounterStateType>
     friend uint64 getBytesWrittenToEDC(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
+    friend uint64 getGTRequestBytesFromMC(const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
+    friend uint64 getIARequestBytesFromMC(const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
     friend uint64 getIORequestBytesFromMC(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
     friend uint64 getConsumedEnergy(const CounterStateType & before, const CounterStateType & after);
@@ -2668,6 +2728,8 @@ protected:
     uint64 UncPMMReads;
     uint64 UncEDCFullWrites;
     uint64 UncEDCNormalReads;
+    uint64 UncMCGTRequests;
+    uint64 UncMCIARequests;
     uint64 UncMCIORequests;
     uint64 PackageEnergyStatus;
     uint64 DRAMEnergyStatus;
@@ -2687,6 +2749,8 @@ public:
         UncPMMReads(0),
         UncEDCFullWrites(0),
         UncEDCNormalReads(0),
+        UncMCGTRequests(0),
+        UncMCIARequests(0),
         UncMCIORequests(0),
         PackageEnergyStatus(0),
         DRAMEnergyStatus(0),
@@ -2712,6 +2776,8 @@ public:
         UncPMMWrites += o.UncPMMWrites;
         UncEDCFullWrites += o.UncEDCFullWrites;
         UncEDCNormalReads += o.UncEDCNormalReads;
+        UncMCGTRequests += o.UncMCGTRequests;
+        UncMCIARequests += o.UncMCIARequests;
         UncMCIORequests += o.UncMCIORequests;
         PackageEnergyStatus += o.PackageEnergyStatus;
         DRAMEnergyStatus += o.DRAMEnergyStatus;
@@ -2756,6 +2822,7 @@ private:
     std::array<std::array<uint64, maxCounters>, maxXPILinks> M3UPICounter;
     std::array<std::array<uint64, maxCounters>, maxCBOs> CBOCounter;
     std::array<std::array<uint64, maxCounters>, maxIIOStacks> IIOCounter;
+    std::array<std::array<uint64, maxCounters>, maxIIOStacks> IRPCounter;
     std::array<uint64, maxCounters> UBOXCounter;
     std::array<uint64, maxChannels> DRAMClocks;
     std::array<uint64, maxChannels> MCDRAMClocks;
@@ -2781,6 +2848,8 @@ private:
     friend uint64 getUBOXCounter(uint32 counter, const CounterStateType& before, const CounterStateType& after);
     template <class CounterStateType>
     friend uint64 getIIOCounter(uint32 stack, uint32 counter, const CounterStateType& before, const CounterStateType& after);
+    template <class CounterStateType>
+    friend uint64 getIRPCounter(uint32 stack, uint32 counter, const CounterStateType& before, const CounterStateType& after);
     template <class CounterStateType>
     friend uint64 getXPICounter(uint32 port, uint32 counter, const CounterStateType& before, const CounterStateType& after);
     template <class CounterStateType>
@@ -2808,6 +2877,7 @@ public:
         M3UPICounter{{}},
         CBOCounter{{}},
         IIOCounter{{}},
+        IRPCounter{{}},
         UBOXCounter{{}},
         DRAMClocks{{}},
         MCDRAMClocks{{}},
@@ -3581,6 +3651,33 @@ uint64 getBytesWrittenToEDC(const CounterStateType & before, const CounterStateT
     return 0ULL;
 }
 
+/*! \brief Computes number of bytes of read/write requests from GT engine
+
+    \param before CPU counter state before the experiment
+    \param after CPU counter state after the experiment
+    \return Number of bytes
+*/
+template <class CounterStateType>
+uint64 getGTRequestBytesFromMC(const CounterStateType & before, const CounterStateType & after)
+{
+    if (PCM::getInstance()->memoryIOTrafficMetricAvailable())
+        return (after.UncMCGTRequests - before.UncMCGTRequests) * 64;
+    return 0ULL;
+}
+
+/*! \brief Computes number of bytes of read/write requests from all IA
+
+    \param before CPU counter state before the experiment
+    \param after CPU counter state after the experiment
+    \return Number of bytes
+*/
+template <class CounterStateType>
+uint64 getIARequestBytesFromMC(const CounterStateType & before, const CounterStateType & after)
+{
+    if (PCM::getInstance()->memoryIOTrafficMetricAvailable())
+        return (after.UncMCIARequests - before.UncMCIARequests) * 64;
+    return 0ULL;
+}
 
 /*! \brief Computes number of bytes of read/write requests from all IO sources
 
