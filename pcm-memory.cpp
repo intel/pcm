@@ -161,6 +161,35 @@ void printSocketRankBWHeader(uint32 no_columns, uint32 skt)
     cout << "\n";
 }
 
+void printSocketRankBWHeader_cvt(const uint32 numSockets, const uint32 num_imc_channels, const int rankA, const int rankB)
+{
+    printDateForCSV(Header1);
+    for (uint32 skt = 0 ; skt < (numSockets) ; ++skt) {
+        for (uint32 channel = 0; channel < num_imc_channels; ++channel) {
+            if (rankA >= 0)
+                cout << "SKT" << skt << "," << "SKT" << skt << ",";
+            if (rankB >= 0)
+                cout << "SKT" << skt << "," << "SKT" << skt << ",";
+        }
+    }
+    cout << endl;
+
+    printDateForCSV(Header2);
+    for (uint32 skt = 0 ; skt < (numSockets) ; ++skt) {
+        for (uint32 channel = 0; channel < num_imc_channels; ++channel) {
+            if (rankA >= 0) {
+                cout << "Mem_Ch" << channel << "_R" << rankA << "_reads,"
+                     << "Mem_Ch" << channel << "_R" << setw(1) << rankA << "_writes,";
+            }
+            if (rankB >= 0) {
+                cout << "Mem_Ch" << channel << "_R" << rankB << "_reads,"
+                     << "Mem_Ch" << channel << "_R" << setw(1) << rankB << "_writes,";
+            }
+        }
+    }
+    cout << endl;
+}
+
 void printSocketChannelBW(PCM * /*m*/, memdata_t *md, uint32 no_columns, uint32 skt)
 {
     for (uint32 channel = 0; channel < max_imc_channels; ++channel) {
@@ -219,6 +248,25 @@ void printSocketChannelBW(uint32 no_columns, uint32 skt, uint32 num_imc_channels
           cout << "\n";
         }
     }
+}
+
+void printSocketChannelBW_cvt(const uint32 numSockets, const uint32 num_imc_channels, const ServerUncoreCounterState * uncState1,
+        const ServerUncoreCounterState * uncState2, const uint64 elapsedTime, const int rankA, const int rankB)
+{
+    printDateForCSV(Data);
+    for (uint32 skt = 0 ; skt < numSockets; ++skt) {
+        for (uint32 channel = 0 ; channel < num_imc_channels ; ++channel) {
+            if(rankA >= 0) {
+                cout << (float) (getMCCounter(channel,ServerPCICFGUncore::EventPosition::READ_RANK_A,uncState1[skt],uncState2[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0))
+                << "," << (float) (getMCCounter(channel,ServerPCICFGUncore::EventPosition::WRITE_RANK_A,uncState1[skt],uncState2[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0)) << ",";
+            }
+            if(rankB >= 0) {
+                cout << (float) (getMCCounter(channel,ServerPCICFGUncore::EventPosition::READ_RANK_B,uncState1[skt],uncState2[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0))
+                << "," << (float) (getMCCounter(channel,ServerPCICFGUncore::EventPosition::WRITE_RANK_B,uncState1[skt],uncState2[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0)) << ",";
+            }
+        }
+    }
+    cout << endl;
 }
 
 float AD_BW(const memdata_t *md, const uint32 skt)
@@ -881,33 +929,35 @@ void calculate_bandwidth(PCM *m,
     }
 }
 
-void calculate_bandwidth_rank(PCM *m, const ServerUncoreCounterState uncState1[], const ServerUncoreCounterState uncState2[], const uint64 elapsedTime, const bool /*csv*/, bool & /*csvheader*/, const uint32 no_columns, const int rankA, const int rankB)
+void calculate_bandwidth_rank(PCM *m, const ServerUncoreCounterState uncState1[], const ServerUncoreCounterState uncState2[],
+		const uint64 elapsedTime, const bool csv, bool &csvheader, const uint32 no_columns, const int rankA, const int rankB)
 {
     uint32 skt = 0;
     cout.setf(ios::fixed);
     cout.precision(2);
     uint32 numSockets = m->getNumSockets();
 
-    while(skt < numSockets)
-    {
-        auto printRow = [&skt, &uncState1, &uncState2, &elapsedTime, &rankA, &rankB](const uint32 no_columns) {
-            printSocketRankBWHeader(no_columns, skt);
-            printSocketChannelBW(no_columns, skt, max_imc_channels, uncState1, uncState2, elapsedTime, rankA, rankB);
-            for (uint32 i = skt; i < (no_columns + skt); ++i)
-            {
-                cout << "|-------------------------------------------|";
-            }
-            cout << "\n";
-            skt += no_columns;
-        };
-        // Full row
-        if ((skt + no_columns) <= numSockets)
-        {
-            printRow(no_columns);
+    if (csv) {
+        if (csvheader) {
+            printSocketRankBWHeader_cvt(numSockets, max_imc_channels, rankA, rankB);
+            csvheader = false;
         }
-        else //Display the remaining sockets in this row
-        {
-            printRow(numSockets - skt);
+        printSocketChannelBW_cvt(numSockets, max_imc_channels, uncState1, uncState2, elapsedTime, rankA, rankB);
+    } else {
+        while(skt < numSockets) {
+            auto printRow = [&skt, &uncState1, &uncState2, &elapsedTime, &rankA, &rankB](const uint32 no_columns) {
+                printSocketRankBWHeader(no_columns, skt);
+                printSocketChannelBW(no_columns, skt, max_imc_channels, uncState1, uncState2, elapsedTime, rankA, rankB);
+                for (uint32 i = skt; i < (no_columns + skt); ++i)
+                    cout << "|-------------------------------------------|";
+                cout << "\n";
+                skt += no_columns;
+            };
+            // Full row
+            if ((skt + no_columns) <= numSockets)
+                printRow(no_columns);
+            else //Display the remaining sockets in this row
+                printRow(numSockets - skt);
         }
     }
 }
@@ -1165,6 +1215,9 @@ int main(int argc, char * argv[])
     }
 
     cerr << "Update every " << delay << " seconds\n";
+
+    if (csv)
+        cerr << "Read/Write values expressed in (MB/s)" << endl;
 
     for(uint32 i=0; i<m->getNumSockets(); ++i)
         BeforeState[i] = m->getServerUncoreCounterState(i);
