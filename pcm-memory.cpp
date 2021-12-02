@@ -101,6 +101,7 @@ void print_help(const string prog_name)
     cerr << "  -columns=X | /columns=X            => Number of columns to display the NUMA Nodes, defaults to 2.\n";
     cerr << "  -all | /all                        => Display all channels (even with no traffic)\n";
     cerr << "  -i[=number] | /i[=number]          => allow to determine number of iterations\n";
+    cerr << "  -s                                 => silence information output and print only measurements\n";
 #ifdef _MSC_VER
     cerr << "  --uninstallDriver | --installDriver=> (un)install driver\n";
 #endif
@@ -966,10 +967,13 @@ int main(int argc, char * argv[])
 {
     set_signal_handlers();
 
+    null_stream nullStream2;
 #ifdef PCM_FORCE_SILENT
-    null_stream nullStream1, nullStream2;
+    null_stream nullStream1;
     cout.rdbuf(&nullStream1);
     cerr.rdbuf(&nullStream2);
+#else
+    check_and_set_silent(argc, argv, nullStream2);
 #endif
 
     cerr << "\n";
@@ -1004,12 +1008,11 @@ int main(int argc, char * argv[])
             print_help(program);
             exit(EXIT_FAILURE);
         }
-        else
-        if (strncmp(*argv, "-csv",4) == 0 ||
-            strncmp(*argv, "/csv",4) == 0)
+        else if (strncmp(*argv, "-csv",4) == 0 ||
+                 strncmp(*argv, "/csv",4) == 0)
         {
             csv = true;
-			csvheader = true;
+            csvheader = true;
             string cmd = string(*argv);
             size_t found = cmd.find('=',4);
             if (found != string::npos) {
@@ -1020,14 +1023,12 @@ int main(int argc, char * argv[])
             }
             continue;
         }
-	else
-        if (mainLoop.parseArg(*argv))
+        else if (mainLoop.parseArg(*argv))
         {
             continue;
         }
-        else
-        if (strncmp(*argv, "-columns", 8) == 0 ||
-            strncmp(*argv, "/columns", 8) == 0)
+        else if (strncmp(*argv, "-columns", 8) == 0 ||
+                 strncmp(*argv, "/columns", 8) == 0)
         {
             string cmd = string(*argv);
             size_t found = cmd.find('=',2);
@@ -1040,8 +1041,8 @@ int main(int argc, char * argv[])
             }
             continue;
         }
-        if (strncmp(*argv, "-rank", 5) == 0 ||
-            strncmp(*argv, "/rank", 5) == 0)
+        else if (strncmp(*argv, "-rank", 5) == 0 ||
+                 strncmp(*argv, "/rank", 5) == 0)
         {
             string cmd = string(*argv);
             size_t found = cmd.find('=',2);
@@ -1049,78 +1050,75 @@ int main(int argc, char * argv[])
                 int rank = atoi(cmd.substr(found+1).c_str());
                 if (rankA >= 0 && rankB >= 0)
                 {
-                  cerr << "At most two DIMM ranks can be monitored \n";
-                  exit(EXIT_FAILURE);
-                }
-                else
-                {
-                  if(rank > 7) {
-                      cerr << "Invalid rank number " << rank << "\n";
-                      exit(EXIT_FAILURE);
-                  }
-                  if(rankA < 0) rankA = rank;
-                  else if(rankB < 0) rankB = rank;
-		  metrics = PartialWrites;
+                    cerr << "At most two DIMM ranks can be monitored \n";
+                    exit(EXIT_FAILURE);
+                } else {
+                    if(rank > 7) {
+                        cerr << "Invalid rank number " << rank << "\n";
+                        exit(EXIT_FAILURE);
+                    }
+                    if(rankA < 0) rankA = rank;
+                    else if(rankB < 0) rankB = rank;
+                    metrics = PartialWrites;
                 }
             }
             continue;
         }
-        if (strncmp(*argv, "--nochannel", 11) == 0 ||
-            strncmp(*argv, "-nc", 3) == 0 ||
-            strncmp(*argv, "/nc", 3) == 0)
+        else if (strncmp(*argv, "--nochannel", 11) == 0 ||
+                 strncmp(*argv, "-nc", 3) == 0 ||
+                 strncmp(*argv, "/nc", 3) == 0)
         {
             show_channel_output = false;
             continue;
         }
-
-        if (strncmp(*argv, "-pmm", 4) == 0 ||
-            strncmp(*argv, "/pmm", 4) == 0 ||
-            strncmp(*argv, "-pmem", 5) == 0 ||
-            strncmp(*argv, "/pmem", 5) == 0 )
+        else if (strncmp(*argv, "-pmm", 4) == 0 ||
+                 strncmp(*argv, "/pmm", 4) == 0 ||
+                 strncmp(*argv, "-pmem", 5) == 0 ||
+                 strncmp(*argv, "/pmem", 5) == 0 )
         {
             metrics = Pmem;
             continue;
         }
-
-        if (strncmp(*argv, "-all", 4) == 0 ||
-            strncmp(*argv, "/all", 4) == 0)
+        else if (strncmp(*argv, "-all", 4) == 0 ||
+                 strncmp(*argv, "/all", 4) == 0)
         {
             skipInactiveChannels = false;
             continue;
         }
-
-        if (strncmp(*argv, "-mixed", 6) == 0 ||
-            strncmp(*argv, "/mixed", 6) == 0)
+        else if (strncmp(*argv, "-mixed", 6) == 0 ||
+                 strncmp(*argv, "/mixed", 6) == 0)
         {
             metrics = PmemMixedMode;
             continue;
         }
-
-        if (strncmp(*argv, "-mm", 3) == 0 ||
-            strncmp(*argv, "/mm", 3) == 0)
+        else if (strncmp(*argv, "-mm", 3) == 0 ||
+                 strncmp(*argv, "/mm", 3) == 0)
         {
             metrics = PmemMemoryMode;
             show_channel_output = false;
             continue;
         }
-
-        if (strncmp(*argv, "-partial", 8) == 0 ||
-            strncmp(*argv, "/partial", 8) == 0)
+        else if (strncmp(*argv, "-partial", 8) == 0 ||
+                 strncmp(*argv, "/partial", 8) == 0)
         {
             metrics = PartialWrites;
             continue;
         }
+        else if (strncmp(*argv, "-s", 2) == 0 ||
+                 strncmp(*argv, "/s", 2) == 0)
+        {
+            //already checked by check_and_set_silent()
+            continue;
+        }
 #ifdef _MSC_VER
-        else
-        if (strncmp(*argv, "--uninstallDriver", 17) == 0)
+        else if (strncmp(*argv, "--uninstallDriver", 17) == 0)
         {
             Driver tmpDrvObject;
             tmpDrvObject.uninstall();
             cerr << "msr.sys driver has been uninstalled. You might need to reboot the system to make this effective.\n";
             exit(EXIT_SUCCESS);
         }
-        else
-        if (strncmp(*argv, "--installDriver", 15) == 0)
+        else if (strncmp(*argv, "--installDriver", 15) == 0)
         {
             Driver tmpDrvObject = Driver(Driver::msrLocalPath());
             if (!tmpDrvObject.start())
@@ -1132,8 +1130,7 @@ int main(int argc, char * argv[])
             exit(EXIT_SUCCESS);
         }
 #endif
-        else
-        if (strncmp(*argv, "--", 2) == 0)
+        else if (strncmp(*argv, "--", 2) == 0)
         {
             argv++;
             sysCmd = *argv;
@@ -1156,7 +1153,7 @@ int main(int argc, char * argv[])
             }
             continue;
         }
-    } while(argc > 1); // end of command line partsing loop
+    } while (argc > 1); // end of command line parsing loop
 
     m->disableJKTWorkaround();
     print_cpu_details();

@@ -611,4 +611,18 @@ std::string safe_getenv(const char* env)
 }
 #endif
 
+void check_and_set_silent(int argc, char * argv[], null_stream &nullStream2) {
+    if (argc > 1) do
+    {
+        argv++;
+        argc--;
+        if (strncmp(*argv, "-s", 2) == 0 ||
+            strncmp(*argv, "/s", 2) == 0)
+        {
+            std::cerr.rdbuf(&nullStream2);
+            return;
+        }
+    } while (argc > 1);
+}
+
 } // namespace pcm
