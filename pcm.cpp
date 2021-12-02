@@ -465,12 +465,11 @@ void print_output(PCM * m,
                 if (m->MCDRAMmemoryTrafficMetricsAvailable())
                     cout << "   " << setw(11) << getBytesReadFromEDC(sktstate1[i], sktstate2[i]) / double(1e9) <<
                             "    " << setw(11) << getBytesWrittenToEDC(sktstate1[i], sktstate2[i]) / double(1e9);
-                if (m->memoryIOTrafficMetricAvailable())
+                if (m->memoryIOTrafficMetricAvailable()) {
                     cout << "    " << setw(5) << getIORequestBytesFromMC(sktstate1[i], sktstate2[i]) / double(1e9);
-                if (m->memoryIOTrafficMetricAvailable())
                     cout << "    " << setw(5) << getIARequestBytesFromMC(sktstate1[i], sktstate2[i]) / double(1e9);
-                if (m->memoryIOTrafficMetricAvailable())
                     cout << "    " << setw(5) << getGTRequestBytesFromMC(sktstate1[i], sktstate2[i]) / double(1e9);
+                }
                 cout << "     ";
                 if(m->packageEnergyMetricsAvailable()) {
                   cout << setw(6) << getConsumedJoules(sktstate1[i], sktstate2[i]);
@@ -649,6 +648,8 @@ void print_csv_header(PCM * m,
                 print_csv_header_helper(header,2);
             if (m->MCDRAMmemoryTrafficMetricsAvailable())
                 print_csv_header_helper(header,2);
+            if (m->memoryIOTrafficMetricAvailable())
+                print_csv_header_helper(header,3);
             print_csv_header_helper(header,7); //ACYC,TIME(ticks),PhysIPC,PhysIPC%,INSTnom,INSTnom%,
         }
 
@@ -807,6 +808,8 @@ void print_csv_header(PCM * m,
                  cout << "PMM_RD,PMM_WR,";
              if (m->MCDRAMmemoryTrafficMetricsAvailable())
                  cout << "MCDRAM_READ,MCDRAM_WRITE,";
+             if (m->memoryIOTrafficMetricAvailable())
+                 cout << "IO,IA,GT,";
              cout << "TEMP,";
              cout << "INST,ACYC,TIME(ticks),PhysIPC,PhysIPC%,INSTnom,INSTnom%,";
         }
@@ -1027,6 +1030,11 @@ void print_csv(PCM * m,
             if (m->MCDRAMmemoryTrafficMetricsAvailable())
                 cout << ',' << getBytesReadFromEDC(sktstate1[i], sktstate2[i]) / double(1e9) <<
                 ',' << getBytesWrittenToEDC(sktstate1[i], sktstate2[i]) / double(1e9);
+            if (m->memoryIOTrafficMetricAvailable()) {
+                cout << ',' << getIORequestBytesFromMC(sktstate1[i], sktstate2[i]) / double(1e9)
+                     << ',' << getIARequestBytesFromMC(sktstate1[i], sktstate2[i]) / double(1e9)
+                     << ',' << getGTRequestBytesFromMC(sktstate1[i], sktstate2[i]) / double(1e9);
+            }
             cout << ',' << temp_format(sktstate2[i].getThermalHeadroom()) << ',';
 
             cout << float_format(getInstructionsRetired(sktstate1[i], sktstate2[i])) << ","
