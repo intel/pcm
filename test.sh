@@ -98,3 +98,14 @@ fi
 
 # TODO add more tests
 # e.g for ./pcm-sensor-server.x, ./pcm-iio.x, ./pcm-sensor.x, ...
+
+pushd unitTest/
+make
+./urltest
+# We have 2 expected errors, anything else is a bug
+if [ "$?" != 2 ]; then
+    echo "Error in urltest, 2 expected errors but found $?!"
+    exit 1
+fi
+popd
+
