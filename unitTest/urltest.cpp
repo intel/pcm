@@ -17,6 +17,7 @@ std::vector<std::string> urls{
 };
 
 int main( int, char** ) {
+    int errors = 0;
     for ( auto s : urls ) {
         try {
             std::cout << s << "\n";
@@ -24,6 +25,8 @@ int main( int, char** ) {
             x.printURL(std::cout);
 	} catch ( std::runtime_error x ) {
             std::cout << "\"" << s << "\": " << x.what() << "\n";
+	    ++errors;
         }
     }
+    return errors;
 }

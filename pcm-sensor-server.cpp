@@ -1502,10 +1502,12 @@ public:
             std::string::value_type c = *ci;
             int n = 0;
             if ( '%' == c ) {
+                // cppcheck-suppress StlMissingComparison
                 if ( ++ci == s.end() )
                     throw std::runtime_error( "Malformed URL, percent found but no next char" );
                 n += charToNumber(*ci);
                 n *= 16;
+                // cppcheck-suppress StlMissingComparison
                 if ( ++ci == s.end() )
                     throw std::runtime_error( "Malformed URL, percent found but no next next char" ); // better error message needed :-)
                 n += charToNumber(*ci);
