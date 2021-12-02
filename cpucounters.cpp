@@ -730,27 +730,27 @@ void PCM::initRDT()
     auto env = std::getenv("PCM_USE_RESCTRL");
     if (env != nullptr && std::string(env) == std::string("1"))
     {
-        std::cout << "INFO: using Linux resctrl driver for RDT metrics (L3OCC, LMB, RMB) because environment variable PCM_USE_RESCTRL=1\n";
+        std::cerr << "INFO: using Linux resctrl driver for RDT metrics (L3OCC, LMB, RMB) because environment variable PCM_USE_RESCTRL=1\n";
         resctrl.init();
         useResctrl = true;
         return;
     }
     if (resctrl.isMounted())
     {
-        std::cout << "INFO: using Linux resctrl driver for RDT metrics (L3OCC, LMB, RMB) because resctrl driver is mounted.\n";
+        std::cerr << "INFO: using Linux resctrl driver for RDT metrics (L3OCC, LMB, RMB) because resctrl driver is mounted.\n";
         resctrl.init();
         useResctrl = true;
         return;
     }
     if (isSecureBoot())
     {
-        std::cout << "INFO: using Linux resctrl driver for RDT metrics (L3OCC, LMB, RMB) because Secure Boot mode is enabled.\n";
+        std::cerr << "INFO: using Linux resctrl driver for RDT metrics (L3OCC, LMB, RMB) because Secure Boot mode is enabled.\n";
         resctrl.init();
         useResctrl = true;
         return;
     }
 #endif
-    std::cout << "Initializing RMIDs" << std::endl;
+    std::cerr << "Initializing RMIDs" << std::endl;
     unsigned maxRMID;
     /* Calculate maximum number of RMID supported by socket */
     maxRMID = getMaxRMID();
@@ -5640,16 +5640,16 @@ bool PCM::useLinuxPerfForUncore() const
     bool secureBoot = isSecureBoot();
 #ifdef PCM_USE_PERF
     const auto imcIDs = enumeratePerfPMUs("imc", 100);
-    std::cout << "INFO: Linux perf interface to program uncore PMUs is " << (imcIDs.empty()?"NOT ":"") << "present\n";
+    std::cerr << "INFO: Linux perf interface to program uncore PMUs is " << (imcIDs.empty()?"NOT ":"") << "present\n";
     const char * perf_env = std::getenv("PCM_USE_UNCORE_PERF");
     if (perf_env != NULL && std::string(perf_env) == std::string("1"))
     {
-        std::cout << "INFO: using Linux perf interface to program uncore PMUs because env variable PCM_USE_UNCORE_PERF=1\n";
+        std::cerr << "INFO: using Linux perf interface to program uncore PMUs because env variable PCM_USE_UNCORE_PERF=1\n";
         use = 1;
     }
     if (secureBoot)
     {
-        std::cout << "INFO: Secure Boot detected. Using Linux perf for uncore PMU programming.\n";
+        std::cerr << "INFO: Secure Boot detected. Using Linux perf for uncore PMU programming.\n";
         use = 1;
     }
     else
@@ -7984,7 +7984,7 @@ void PCM::setupCustomCoreEventsForNuma(PCM::ExtendedCustomCoreEventDescription& 
         conf.OffcoreResponseMsrValue[1] = 0x3FC0008FFF | (1 << 27) | (1 << 28) | (1 << 29);
         break;
     case PCM::ICX:
-        std::cout << "INFO: Monitored accesses include demand + L2 cache prefetcher, code read and RFO.\n";
+        std::cerr << "INFO: Monitored accesses include demand + L2 cache prefetcher, code read and RFO.\n";
         // OCR.READS_TO_CORE.LOCAL_DRAM
         conf.OffcoreResponseMsrValue[0] = 0x0104000477;
         // OCR.READS_TO_CORE.REMOTE_DRAM

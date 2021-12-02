@@ -474,4 +474,8 @@ inline HANDLE openMSRDriver()
 }
 #endif
 
+// called before everything else to read '-s' arg and
+// silence all following err output
+void check_and_set_silent(int argc, char * argv[], null_stream &nullStream2);
+
 } // namespace pcm
