@@ -122,16 +122,26 @@ namespace PCMServiceNS {
                 counterCollection->Add( counter );
                 counter = gcnew CounterCreationData(MetricCoreHeadroom, "Displays temperature reading in 1 degree Celsius relative to the TjMax temperature. 0 corresponds to the max temperature.", PerformanceCounterType::NumberOfItems64);
                 counterCollection->Add( counter );
-                counter = gcnew CounterCreationData(MetricCoreResC0, "Displays the residency of core or socket in core C0-state in percent.", PerformanceCounterType::NumberOfItems64);
+                counter = gcnew CounterCreationData(MetricCoreResC0, "Displays the residency of core or socket in core C0-state in percent.", PerformanceCounterType::RawFraction);
                 counterCollection->Add( counter );
-                counter = gcnew CounterCreationData(MetricCoreResC1, "Displays the residency of core or socket in core C1-state in percent.", PerformanceCounterType::NumberOfItems64);
+                counter = gcnew CounterCreationData(MetricCoreResC0Base, "", PerformanceCounterType::RawBase);
                 counterCollection->Add( counter );
-                counter = gcnew CounterCreationData(MetricCoreResC3, "Displays the residency of core or socket in core C3-state in percent.", PerformanceCounterType::NumberOfItems64);
+                counter = gcnew CounterCreationData(MetricCoreResC1, "Displays the residency of core or socket in core C1-state in percent.", PerformanceCounterType::RawFraction);
                 counterCollection->Add( counter );
-                counter = gcnew CounterCreationData(MetricCoreResC6, "Displays the residency of core or socket in core C6-state in percent.", PerformanceCounterType::NumberOfItems64);
+                counter = gcnew CounterCreationData(MetricCoreResC1Base, "", PerformanceCounterType::RawBase);
+                counterCollection->Add(counter);
+                counter = gcnew CounterCreationData(MetricCoreResC3, "Displays the residency of core or socket in core C3-state in percent.", PerformanceCounterType::RawFraction);
                 counterCollection->Add( counter );
-                counter = gcnew CounterCreationData(MetricCoreResC7, "Displays the residency of core or socket in core C7-state in percent.", PerformanceCounterType::NumberOfItems64);
+                counter = gcnew CounterCreationData(MetricCoreResC3Base, "", PerformanceCounterType::RawBase);
+                counterCollection->Add(counter);
+                counter = gcnew CounterCreationData(MetricCoreResC6, "Displays the residency of core or socket in core C6-state in percent.", PerformanceCounterType::RawFraction);
                 counterCollection->Add( counter );
+                counter = gcnew CounterCreationData(MetricCoreResC6Base, "", PerformanceCounterType::RawBase);
+                counterCollection->Add(counter);
+                counter = gcnew CounterCreationData(MetricCoreResC7, "Displays the residency of core or socket in core C7-state in percent.", PerformanceCounterType::RawFraction);
+                counterCollection->Add( counter );
+                counter = gcnew CounterCreationData(MetricCoreResC7Base, "", PerformanceCounterType::RawBase);
+                counterCollection->Add(counter);
                 PerformanceCounterCategory::Create(CountersCore, "Processor Counter Monitor", PerformanceCounterCategoryType::MultiInstance, counterCollection);
             }
 
@@ -146,22 +156,38 @@ namespace PCMServiceNS {
                 counterCollection->Add( counter );
                 counter = gcnew CounterCreationData(MetricSocketEnergyDram, "Displays the energy in Joules consumed by DRAM memory attached to the memory controller of this socket.", PerformanceCounterType::NumberOfItems64);
                 counterCollection->Add( counter );
-                counter = gcnew CounterCreationData(MetricSocketResC0, "Displays the residency of socket in package C0-state in percent.", PerformanceCounterType::NumberOfItems64);
+                counter = gcnew CounterCreationData(MetricSocketResC0, "Displays the residency of socket in package C0-state in percent.", PerformanceCounterType::RawFraction);
                 counterCollection->Add( counter );
-                counter = gcnew CounterCreationData(MetricSocketResC2, "Displays the residency of socket in package C2-state in percent.", PerformanceCounterType::NumberOfItems64);
+                counter = gcnew CounterCreationData(MetricSocketResC0Base, "", PerformanceCounterType::RawBase);
+                counterCollection->Add(counter);
+                counter = gcnew CounterCreationData(MetricSocketResC2, "Displays the residency of socket in package C2-state in percent.", PerformanceCounterType::RawFraction);
                 counterCollection->Add( counter );
-                counter = gcnew CounterCreationData(MetricSocketResC3, "Displays the residency of socket in package C3-state in percent.", PerformanceCounterType::NumberOfItems64);
+                counter = gcnew CounterCreationData(MetricSocketResC2Base, "", PerformanceCounterType::RawBase);
+                counterCollection->Add(counter);
+                counter = gcnew CounterCreationData(MetricSocketResC3, "Displays the residency of socket in package C3-state in percent.", PerformanceCounterType::RawFraction);
                 counterCollection->Add( counter );
-                counter = gcnew CounterCreationData(MetricSocketResC6, "Displays the residency of socket in package C6-state in percent.", PerformanceCounterType::NumberOfItems64);
+                counter = gcnew CounterCreationData(MetricSocketResC3Base, "", PerformanceCounterType::RawBase);
+                counterCollection->Add(counter);
+                counter = gcnew CounterCreationData(MetricSocketResC6, "Displays the residency of socket in package C6-state in percent.", PerformanceCounterType::RawFraction);
                 counterCollection->Add( counter );
-                counter = gcnew CounterCreationData(MetricSocketResC7, "Displays the residency of socket in package C7-state in percent.", PerformanceCounterType::NumberOfItems64);
+                counter = gcnew CounterCreationData(MetricSocketResC6Base, "", PerformanceCounterType::RawBase);
+                counterCollection->Add(counter);
+                counter = gcnew CounterCreationData(MetricSocketResC7, "Displays the residency of socket in package C7-state in percent.", PerformanceCounterType::RawFraction);
                 counterCollection->Add( counter );
-                counter = gcnew CounterCreationData(MetricSocketResC8, "Displays the residency of socket in package C8-state in percent.", PerformanceCounterType::NumberOfItems64);
+                counter = gcnew CounterCreationData(MetricSocketResC7Base, "", PerformanceCounterType::RawBase);
+                counterCollection->Add(counter);
+                counter = gcnew CounterCreationData(MetricSocketResC8, "Displays the residency of socket in package C8-state in percent.", PerformanceCounterType::RawFraction);
                 counterCollection->Add( counter );
-                counter = gcnew CounterCreationData(MetricSocketResC9, "Displays the residency of socket in package C9-state in percent.", PerformanceCounterType::NumberOfItems64);
+                counter = gcnew CounterCreationData(MetricSocketResC8Base, "", PerformanceCounterType::RawBase);
+                counterCollection->Add(counter);
+                counter = gcnew CounterCreationData(MetricSocketResC9, "Displays the residency of socket in package C9-state in percent.", PerformanceCounterType::RawFraction);
                 counterCollection->Add( counter );
-                counter = gcnew CounterCreationData(MetricSocketResC10, "Displays the residency of socket in package C10-state in percent.", PerformanceCounterType::NumberOfItems64);
+                counter = gcnew CounterCreationData(MetricSocketResC9Base, "", PerformanceCounterType::RawBase);
+                counterCollection->Add(counter);
+                counter = gcnew CounterCreationData(MetricSocketResC10, "Displays the residency of socket in package C10-state in percent.", PerformanceCounterType::RawFraction);
                 counterCollection->Add( counter );
+                counter = gcnew CounterCreationData(MetricSocketResC10Base, "", PerformanceCounterType::RawBase);
+                counterCollection->Add(counter);
                 PerformanceCounterCategory::Create(CountersSocket, "Processor Counter Monitor", PerformanceCounterCategoryType::MultiInstance, counterCollection);
             }
 
@@ -180,6 +206,7 @@ namespace PCMServiceNS {
 
             // Create #processors instances of the core specific performance counters
             String^ s; // Used for creating the instance name and the string to search for in the hashtable
+            PerformanceCounter^ pc;
             for ( unsigned int i = 0; i < m_->getNumCores(); ++i )
             {
                 s = UInt32(i).ToString(); // For core counters we use just the number of the core
@@ -195,10 +222,25 @@ namespace PCMServiceNS {
                     baseTicksForRelFreqHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreFreqNom, s, false));
                     thermalHeadroomHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreHeadroom, s, false));
                     CoreC0StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreResC0, s, false));
+                    pc = gcnew PerformanceCounter(CountersCore, MetricCoreResC0Base, s, false);
+                    pc->RawValue = 1000;
+                    baseArrayList_.Add(pc);
                     CoreC1StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreResC1, s, false));
+                    pc = gcnew PerformanceCounter(CountersCore, MetricCoreResC1Base, s, false);
+                    pc->RawValue = 1000;
+                    baseArrayList_.Add(pc);
                     CoreC3StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreResC3, s, false));
+                    pc = gcnew PerformanceCounter(CountersCore, MetricCoreResC3Base, s, false);
+                    pc->RawValue = 1000;
+                    baseArrayList_.Add(pc);
                     CoreC6StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreResC6, s, false));
+                    pc = gcnew PerformanceCounter(CountersCore, MetricCoreResC6Base, s, false);
+                    pc->RawValue = 1000;
+                    baseArrayList_.Add(pc);
                     CoreC7StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreResC7, s, false));
+                    pc = gcnew PerformanceCounter(CountersCore, MetricCoreResC7Base, s, false);
+                    pc->RawValue = 1000;
+                    baseArrayList_.Add(pc);
                 }
             }
 
@@ -218,10 +260,25 @@ namespace PCMServiceNS {
                     baseTicksForRelFreqHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreFreqNom, s, false));
                     thermalHeadroomHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreHeadroom, s, false));
                     CoreC0StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreResC0, s, false));
+                    pc = gcnew PerformanceCounter(CountersCore, MetricCoreResC0Base, s, false);
+                    pc->RawValue = 1000;
+                    baseArrayList_.Add(pc);
                     CoreC1StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreResC1, s, false));
+                    pc = gcnew PerformanceCounter(CountersCore, MetricCoreResC1Base, s, false);
+                    pc->RawValue = 1000;
+                    baseArrayList_.Add(pc);
                     CoreC3StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreResC3, s, false));
+                    pc = gcnew PerformanceCounter(CountersCore, MetricCoreResC3Base, s, false);
+                    pc->RawValue = 1000;
+                    baseArrayList_.Add(pc);
                     CoreC6StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreResC6, s, false));
+                    pc = gcnew PerformanceCounter(CountersCore, MetricCoreResC6Base, s, false);
+                    pc->RawValue = 1000;
+                    baseArrayList_.Add(pc);
                     CoreC7StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreResC7, s, false));
+                    pc = gcnew PerformanceCounter(CountersCore, MetricCoreResC7Base, s, false);
+                    pc->RawValue = 1000;
+                    baseArrayList_.Add(pc);
                 }
 
                 if (collectionInformation_->socket)
@@ -231,13 +288,37 @@ namespace PCMServiceNS {
                     packageEnergyHash_.Add(s, gcnew PerformanceCounter(CountersSocket, MetricSocketEnergyPack, s, false));
                     DRAMEnergyHash_.Add(s, gcnew PerformanceCounter(CountersSocket, MetricSocketEnergyDram, s, false));
                     PackageC0StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersSocket, MetricSocketResC0, s, false));
+                    pc = gcnew PerformanceCounter(CountersCore, MetricSocketResC0Base, s, false);
+                    pc->RawValue = 1000;
+                    baseArrayList_.Add(pc);
                     PackageC2StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersSocket, MetricSocketResC2, s, false));
+                    pc = gcnew PerformanceCounter(CountersCore, MetricSocketResC2Base, s, false);
+                    pc->RawValue = 1000;
+                    baseArrayList_.Add(pc);
                     PackageC3StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersSocket, MetricSocketResC3, s, false));
+                    pc = gcnew PerformanceCounter(CountersCore, MetricSocketResC3Base, s, false);
+                    pc->RawValue = 1000;
+                    baseArrayList_.Add(pc);
                     PackageC6StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersSocket, MetricSocketResC6, s, false));
+                    pc = gcnew PerformanceCounter(CountersCore, MetricSocketResC6Base, s, false);
+                    pc->RawValue = 1000;
+                    baseArrayList_.Add(pc);
                     PackageC7StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersSocket, MetricSocketResC7, s, false));
+                    pc = gcnew PerformanceCounter(CountersCore, MetricSocketResC7Base, s, false);
+                    pc->RawValue = 1000;
+                    baseArrayList_.Add(pc);
                     PackageC8StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersSocket, MetricSocketResC8, s, false));
+                    pc = gcnew PerformanceCounter(CountersCore, MetricSocketResC8Base, s, false);
+                    pc->RawValue = 1000;
+                    baseArrayList_.Add(pc);
                     PackageC9StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersSocket, MetricSocketResC9, s, false));
+                    pc = gcnew PerformanceCounter(CountersCore, MetricSocketResC9Base, s, false);
+                    pc->RawValue = 1000;
+                    baseArrayList_.Add(pc);
                     PackageC10StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersSocket, MetricSocketResC10, s, false));
+                    pc = gcnew PerformanceCounter(CountersCore, MetricSocketResC10Base, s, false);
+                    pc->RawValue = 1000;
+                    baseArrayList_.Add(pc);
                 }
 
                 if (collectionInformation_->qpi)
@@ -266,10 +347,25 @@ namespace PCMServiceNS {
                 baseTicksForRelFreqHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreFreqNom, s, false));
                 thermalHeadroomHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreHeadroom, s, false));
                 CoreC0StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreResC0, s, false));
+                pc = gcnew PerformanceCounter(CountersCore, MetricCoreResC0Base, s, false);
+                pc->RawValue = 1000;
+                baseArrayList_.Add(pc);
                 CoreC1StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreResC1, s, false));
+                pc = gcnew PerformanceCounter(CountersCore, MetricCoreResC1Base, s, false);
+                pc->RawValue = 1000;
+                baseArrayList_.Add(pc);
                 CoreC3StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreResC3, s, false));
+                pc = gcnew PerformanceCounter(CountersCore, MetricCoreResC3Base, s, false);
+                pc->RawValue = 1000;
+                baseArrayList_.Add(pc);
                 CoreC6StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreResC6, s, false));
+                pc = gcnew PerformanceCounter(CountersCore, MetricCoreResC6Base, s, false);
+                pc->RawValue = 1000;
+                baseArrayList_.Add(pc);
                 CoreC7StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersCore, MetricCoreResC7, s, false));
+                pc = gcnew PerformanceCounter(CountersCore, MetricCoreResC7Base, s, false);
+                pc->RawValue = 1000;
+                baseArrayList_.Add(pc);
             }
 
             if (collectionInformation_->socket)
@@ -279,13 +375,37 @@ namespace PCMServiceNS {
                 packageEnergyHash_.Add(s, gcnew PerformanceCounter(CountersSocket, MetricSocketEnergyPack, s, false));
                 DRAMEnergyHash_.Add(s, gcnew PerformanceCounter(CountersSocket, MetricSocketEnergyDram, s, false));
                 PackageC0StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersSocket, MetricSocketResC0, s, false));
+                pc = gcnew PerformanceCounter(CountersCore, MetricSocketResC0Base, s, false);
+                pc->RawValue = 1000;
+                baseArrayList_.Add(pc);
                 PackageC2StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersSocket, MetricSocketResC2, s, false));
+                pc = gcnew PerformanceCounter(CountersCore, MetricSocketResC2Base, s, false);
+                pc->RawValue = 1000;
+                baseArrayList_.Add(pc);
                 PackageC3StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersSocket, MetricSocketResC3, s, false));
+                pc = gcnew PerformanceCounter(CountersCore, MetricSocketResC3Base, s, false);
+                pc->RawValue = 1000;
+                baseArrayList_.Add(pc);
                 PackageC6StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersSocket, MetricSocketResC6, s, false));
+                pc = gcnew PerformanceCounter(CountersCore, MetricSocketResC6Base, s, false);
+                pc->RawValue = 1000;
+                baseArrayList_.Add(pc);
                 PackageC7StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersSocket, MetricSocketResC7, s, false));
+                pc = gcnew PerformanceCounter(CountersCore, MetricSocketResC7Base, s, false);
+                pc->RawValue = 1000;
+                baseArrayList_.Add(pc);
                 PackageC8StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersSocket, MetricSocketResC8, s, false));
+                pc = gcnew PerformanceCounter(CountersCore, MetricSocketResC8Base, s, false);
+                pc->RawValue = 1000;
+                baseArrayList_.Add(pc);
                 PackageC9StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersSocket, MetricSocketResC9, s, false));
+                pc = gcnew PerformanceCounter(CountersCore, MetricSocketResC9Base, s, false);
+                pc->RawValue = 1000;
+                baseArrayList_.Add(pc);
                 PackageC10StateResidencyHash_.Add(s, gcnew PerformanceCounter(CountersSocket, MetricSocketResC10, s, false));
+                pc = gcnew PerformanceCounter(CountersCore, MetricSocketResC10Base, s, false);
+                pc->RawValue = 1000;
+                baseArrayList_.Add(pc);
             }
 
             if (collectionInformation_->qpi)
@@ -345,11 +465,11 @@ namespace PCMServiceNS {
                         ((PerformanceCounter^)relFreqHash_[s])->RawValue = totalTicks >> 17;
                         ((PerformanceCounter^)baseTicksForRelFreqHash_[s])->IncrementBy(totalRefTicks >> 17);
                         ((PerformanceCounter^)thermalHeadroomHash_[s])->RawValue = systemState.getThermalHeadroom();
-                        ((PerformanceCounter^)CoreC0StateResidencyHash_[s])->RawValue = __int64(100.*getCoreCStateResidency(0,oldSystemState, systemState));
-                        ((PerformanceCounter^)CoreC1StateResidencyHash_[s])->RawValue = __int64(100.*getCoreCStateResidency(1,oldSystemState, systemState));
-                        ((PerformanceCounter^)CoreC3StateResidencyHash_[s])->RawValue = __int64(100.*getCoreCStateResidency(3,oldSystemState, systemState));
-                        ((PerformanceCounter^)CoreC6StateResidencyHash_[s])->RawValue = __int64(100.*getCoreCStateResidency(6,oldSystemState, systemState));
-                        ((PerformanceCounter^)CoreC7StateResidencyHash_[s])->RawValue = __int64(100.*getCoreCStateResidency(7,oldSystemState, systemState));
+                        ((PerformanceCounter^)CoreC0StateResidencyHash_[s])->RawValue = __int64(1000. * getCoreCStateResidency(0,oldSystemState, systemState));
+                        ((PerformanceCounter^)CoreC1StateResidencyHash_[s])->RawValue = __int64(1000. * getCoreCStateResidency(1,oldSystemState, systemState));
+                        ((PerformanceCounter^)CoreC3StateResidencyHash_[s])->RawValue = __int64(1000. * getCoreCStateResidency(3,oldSystemState, systemState));
+                        ((PerformanceCounter^)CoreC6StateResidencyHash_[s])->RawValue = __int64(1000. * getCoreCStateResidency(6,oldSystemState, systemState));
+                        ((PerformanceCounter^)CoreC7StateResidencyHash_[s])->RawValue = __int64(1000. * getCoreCStateResidency(7,oldSystemState, systemState));
                         //log_->WriteEntry(Globals::ServiceName, "Std: " + UInt64(totalTicks).ToString());
                         //log_->WriteEntry(Globals::ServiceName, "Ref: " + UInt64(totalRefTicks).ToString());
                     }
@@ -360,14 +480,14 @@ namespace PCMServiceNS {
                         ((PerformanceCounter^)mwbHash_[s])->RawValue = toBW(getBytesWrittenToMC(oldSystemState, systemState));
                         ((PerformanceCounter^)packageEnergyHash_[s])->RawValue = (__int64)getConsumedJoules(oldSystemState, systemState);
                         ((PerformanceCounter^)DRAMEnergyHash_[s])->RawValue = (__int64)getDRAMConsumedJoules(oldSystemState, systemState);
-                        ((PerformanceCounter^)PackageC0StateResidencyHash_[s])->RawValue = __int64(100.*getPackageCStateResidency(0, oldSystemState, systemState));
-                        ((PerformanceCounter^)PackageC2StateResidencyHash_[s])->RawValue = __int64(100.*getPackageCStateResidency(2, oldSystemState, systemState));
-                        ((PerformanceCounter^)PackageC3StateResidencyHash_[s])->RawValue = __int64(100.*getPackageCStateResidency(3, oldSystemState, systemState));
-                        ((PerformanceCounter^)PackageC6StateResidencyHash_[s])->RawValue = __int64(100.*getPackageCStateResidency(6, oldSystemState, systemState));
-                        ((PerformanceCounter^)PackageC7StateResidencyHash_[s])->RawValue = __int64(100.*getPackageCStateResidency(7, oldSystemState, systemState));
-                        ((PerformanceCounter^)PackageC8StateResidencyHash_[s])->RawValue = __int64(100.*getPackageCStateResidency(8, oldSystemState, systemState));
-                        ((PerformanceCounter^)PackageC9StateResidencyHash_[s])->RawValue = __int64(100.*getPackageCStateResidency(9, oldSystemState, systemState));
-                        ((PerformanceCounter^)PackageC10StateResidencyHash_[s])->RawValue = __int64(100.*getPackageCStateResidency(10, oldSystemState, systemState));
+                        ((PerformanceCounter^)PackageC0StateResidencyHash_[s])->RawValue  = __int64(1000. * getPackageCStateResidency( 0, oldSystemState, systemState));
+                        ((PerformanceCounter^)PackageC2StateResidencyHash_[s])->RawValue  = __int64(1000. * getPackageCStateResidency( 2, oldSystemState, systemState));
+                        ((PerformanceCounter^)PackageC3StateResidencyHash_[s])->RawValue  = __int64(1000. * getPackageCStateResidency( 3, oldSystemState, systemState));
+                        ((PerformanceCounter^)PackageC6StateResidencyHash_[s])->RawValue  = __int64(1000. * getPackageCStateResidency( 6, oldSystemState, systemState));
+                        ((PerformanceCounter^)PackageC7StateResidencyHash_[s])->RawValue  = __int64(1000. * getPackageCStateResidency( 7, oldSystemState, systemState));
+                        ((PerformanceCounter^)PackageC8StateResidencyHash_[s])->RawValue  = __int64(1000. * getPackageCStateResidency( 8, oldSystemState, systemState));
+                        ((PerformanceCounter^)PackageC9StateResidencyHash_[s])->RawValue  = __int64(1000. * getPackageCStateResidency( 9, oldSystemState, systemState));
+                        ((PerformanceCounter^)PackageC10StateResidencyHash_[s])->RawValue = __int64(1000. * getPackageCStateResidency(10, oldSystemState, systemState));
                     }
 
                     if (collectionInformation_->qpi)
@@ -394,11 +514,11 @@ namespace PCMServiceNS {
                             ((PerformanceCounter^)relFreqHash_[s])->RawValue = socketTicks >> 17;
                             ((PerformanceCounter^)baseTicksForRelFreqHash_[s])->IncrementBy(socketRefTicks >> 17);
                             ((PerformanceCounter^)thermalHeadroomHash_[s])->RawValue = socketState.getThermalHeadroom();
-                            ((PerformanceCounter^)CoreC0StateResidencyHash_[s])->RawValue = __int64(100.*getCoreCStateResidency(0, oldSocketStates[i], socketState));
-                            ((PerformanceCounter^)CoreC1StateResidencyHash_[s])->RawValue = __int64(100.*getCoreCStateResidency(1, oldSocketStates[i], socketState));
-                            ((PerformanceCounter^)CoreC3StateResidencyHash_[s])->RawValue = __int64(100.*getCoreCStateResidency(3, oldSocketStates[i], socketState));
-                            ((PerformanceCounter^)CoreC6StateResidencyHash_[s])->RawValue = __int64(100.*getCoreCStateResidency(6, oldSocketStates[i], socketState));
-                            ((PerformanceCounter^)CoreC7StateResidencyHash_[s])->RawValue = __int64(100.*getCoreCStateResidency(7, oldSocketStates[i], socketState));
+                            ((PerformanceCounter^)CoreC0StateResidencyHash_[s])->RawValue = __int64(1000. * getCoreCStateResidency(0, oldSocketStates[i], socketState));
+                            ((PerformanceCounter^)CoreC1StateResidencyHash_[s])->RawValue = __int64(1000. * getCoreCStateResidency(1, oldSocketStates[i], socketState));
+                            ((PerformanceCounter^)CoreC3StateResidencyHash_[s])->RawValue = __int64(1000. * getCoreCStateResidency(3, oldSocketStates[i], socketState));
+                            ((PerformanceCounter^)CoreC6StateResidencyHash_[s])->RawValue = __int64(1000. * getCoreCStateResidency(6, oldSocketStates[i], socketState));
+                            ((PerformanceCounter^)CoreC7StateResidencyHash_[s])->RawValue = __int64(1000. * getCoreCStateResidency(7, oldSocketStates[i], socketState));
                         }
 
                         if (collectionInformation_->socket)
@@ -407,14 +527,14 @@ namespace PCMServiceNS {
                             ((PerformanceCounter^)mwbHash_[s])->RawValue = toBW(getBytesWrittenToMC(oldSocketStates[i], socketState));
                             ((PerformanceCounter^)packageEnergyHash_[s])->RawValue = (__int64)getConsumedJoules(oldSocketStates[i], socketState);
                             ((PerformanceCounter^)DRAMEnergyHash_[s])->RawValue = (__int64)getDRAMConsumedJoules(oldSocketStates[i], socketState);
-                            ((PerformanceCounter^)PackageC0StateResidencyHash_[s])->RawValue = __int64(100.*getPackageCStateResidency(0,oldSocketStates[i], socketState));
-                            ((PerformanceCounter^)PackageC2StateResidencyHash_[s])->RawValue = __int64(100.*getPackageCStateResidency(2,oldSocketStates[i], socketState));
-                            ((PerformanceCounter^)PackageC3StateResidencyHash_[s])->RawValue = __int64(100.*getPackageCStateResidency(3,oldSocketStates[i], socketState));
-                            ((PerformanceCounter^)PackageC6StateResidencyHash_[s])->RawValue = __int64(100.*getPackageCStateResidency(6,oldSocketStates[i], socketState));
-                            ((PerformanceCounter^)PackageC7StateResidencyHash_[s])->RawValue = __int64(100.*getPackageCStateResidency(7,oldSocketStates[i], socketState));
-                            ((PerformanceCounter^)PackageC8StateResidencyHash_[s])->RawValue = __int64(100.*getPackageCStateResidency(8,oldSocketStates[i], socketState));
-                            ((PerformanceCounter^)PackageC9StateResidencyHash_[s])->RawValue = __int64(100.*getPackageCStateResidency(9,oldSocketStates[i], socketState));
-                            ((PerformanceCounter^)PackageC10StateResidencyHash_[s])->RawValue = __int64(100.*getPackageCStateResidency(10,oldSocketStates[i], socketState));
+                            ((PerformanceCounter^)PackageC0StateResidencyHash_[s])->RawValue  = __int64(1000. * getPackageCStateResidency( 0,oldSocketStates[i], socketState));
+                            ((PerformanceCounter^)PackageC2StateResidencyHash_[s])->RawValue  = __int64(1000. * getPackageCStateResidency( 2,oldSocketStates[i], socketState));
+                            ((PerformanceCounter^)PackageC3StateResidencyHash_[s])->RawValue  = __int64(1000. * getPackageCStateResidency( 3,oldSocketStates[i], socketState));
+                            ((PerformanceCounter^)PackageC6StateResidencyHash_[s])->RawValue  = __int64(1000. * getPackageCStateResidency( 6,oldSocketStates[i], socketState));
+                            ((PerformanceCounter^)PackageC7StateResidencyHash_[s])->RawValue  = __int64(1000. * getPackageCStateResidency( 7,oldSocketStates[i], socketState));
+                            ((PerformanceCounter^)PackageC8StateResidencyHash_[s])->RawValue  = __int64(1000. * getPackageCStateResidency( 8,oldSocketStates[i], socketState));
+                            ((PerformanceCounter^)PackageC9StateResidencyHash_[s])->RawValue  = __int64(1000. * getPackageCStateResidency( 9,oldSocketStates[i], socketState));
+                            ((PerformanceCounter^)PackageC10StateResidencyHash_[s])->RawValue = __int64(1000. * getPackageCStateResidency(10,oldSocketStates[i], socketState));
                         }
 
                         if (collectionInformation_->qpi)
@@ -449,11 +569,11 @@ namespace PCMServiceNS {
                             ((PerformanceCounter^)relFreqHash_[s])->RawValue = ticks >> 17;
                             ((PerformanceCounter^)baseTicksForRelFreqHash_[s])->IncrementBy(refTicks >> 17);
                             ((PerformanceCounter^)thermalHeadroomHash_[s])->RawValue = coreState.getThermalHeadroom();
-                            ((PerformanceCounter^)CoreC0StateResidencyHash_[s])->RawValue = __int64(100.*getCoreCStateResidency(0,oldCoreStates[i], coreState));
-                            ((PerformanceCounter^)CoreC1StateResidencyHash_[s])->RawValue = __int64(100.*getCoreCStateResidency(1,oldCoreStates[i], coreState));
-                            ((PerformanceCounter^)CoreC3StateResidencyHash_[s])->RawValue = __int64(100.*getCoreCStateResidency(3,oldCoreStates[i], coreState));
-                            ((PerformanceCounter^)CoreC6StateResidencyHash_[s])->RawValue = __int64(100.*getCoreCStateResidency(6,oldCoreStates[i], coreState));
-                            ((PerformanceCounter^)CoreC7StateResidencyHash_[s])->RawValue = __int64(100.*getCoreCStateResidency(7,oldCoreStates[i], coreState));
+                            ((PerformanceCounter^)CoreC0StateResidencyHash_[s])->RawValue = __int64(1000. * getCoreCStateResidency(0,oldCoreStates[i], coreState));
+                            ((PerformanceCounter^)CoreC1StateResidencyHash_[s])->RawValue = __int64(1000. * getCoreCStateResidency(1,oldCoreStates[i], coreState));
+                            ((PerformanceCounter^)CoreC3StateResidencyHash_[s])->RawValue = __int64(1000. * getCoreCStateResidency(3,oldCoreStates[i], coreState));
+                            ((PerformanceCounter^)CoreC6StateResidencyHash_[s])->RawValue = __int64(1000. * getCoreCStateResidency(6,oldCoreStates[i], coreState));
+                            ((PerformanceCounter^)CoreC7StateResidencyHash_[s])->RawValue = __int64(1000. * getCoreCStateResidency(7,oldCoreStates[i], coreState));
                         }
                     }
 
@@ -508,6 +628,7 @@ namespace PCMServiceNS {
         System::Collections::Hashtable PackageC8StateResidencyHash_;
         System::Collections::Hashtable PackageC9StateResidencyHash_;
         System::Collections::Hashtable PackageC10StateResidencyHash_;
+        System::Collections::ArrayList baseArrayList_;
 
         System::Diagnostics::EventLog^ log_;
 
@@ -532,19 +653,32 @@ namespace PCMServiceNS {
         initonly String^ MetricCoreResC3 = gcnew String(L"core C3-state residency (%)");
         initonly String^ MetricCoreResC6 = gcnew String(L"core C6-state residency (%)");
         initonly String^ MetricCoreResC7 = gcnew String(L"core C7-state residency (%)");
+        initonly String^ MetricCoreResC0Base = gcnew String(L"core C0-state base");
+        initonly String^ MetricCoreResC1Base = gcnew String(L"core C1-state base");
+        initonly String^ MetricCoreResC3Base = gcnew String(L"core C3-state base");
+        initonly String^ MetricCoreResC6Base = gcnew String(L"core C6-state base");
+        initonly String^ MetricCoreResC7Base = gcnew String(L"core C7-state base");
 
-        initonly String^ MetricSocketBandRead = gcnew String(L"Memory Read Bandwidth");
+        initonly String^ MetricSocketBandRead  = gcnew String(L"Memory Read Bandwidth");
         initonly String^ MetricSocketBandWrite = gcnew String(L"Memory Write Bandwidth");
         initonly String^ MetricSocketEnergyPack = gcnew String(L"Package/Socket Consumed Energy");
         initonly String^ MetricSocketEnergyDram = gcnew String(L"DRAM/Memory Consumed Energy");
-        initonly String^ MetricSocketResC0 = gcnew String(L"package C0-state residency (%)");
-        initonly String^ MetricSocketResC2 = gcnew String(L"package C2-state residency (%)");
-        initonly String^ MetricSocketResC3 = gcnew String(L"package C3-state residency (%)");
-        initonly String^ MetricSocketResC6 = gcnew String(L"package C6-state residency (%)");
-        initonly String^ MetricSocketResC7 = gcnew String(L"package C7-state residency (%)");
-        initonly String^ MetricSocketResC8 = gcnew String(L"package C8-state residency (%)");
-        initonly String^ MetricSocketResC9 = gcnew String(L"package C9-state residency (%)");
+        initonly String^ MetricSocketResC0  = gcnew String(L"package C0-state residency (%)");
+        initonly String^ MetricSocketResC2  = gcnew String(L"package C2-state residency (%)");
+        initonly String^ MetricSocketResC3  = gcnew String(L"package C3-state residency (%)");
+        initonly String^ MetricSocketResC6  = gcnew String(L"package C6-state residency (%)");
+        initonly String^ MetricSocketResC7  = gcnew String(L"package C7-state residency (%)");
+        initonly String^ MetricSocketResC8  = gcnew String(L"package C8-state residency (%)");
+        initonly String^ MetricSocketResC9  = gcnew String(L"package C9-state residency (%)");
         initonly String^ MetricSocketResC10 = gcnew String(L"package C10-state residency (%)");
+        initonly String^ MetricSocketResC0Base  = gcnew String(L"package C0-state base");
+        initonly String^ MetricSocketResC2Base  = gcnew String(L"package C2-state base");
+        initonly String^ MetricSocketResC3Base  = gcnew String(L"package C3-state base");
+        initonly String^ MetricSocketResC6Base  = gcnew String(L"package C6-state base");
+        initonly String^ MetricSocketResC7Base  = gcnew String(L"package C7-state base");
+        initonly String^ MetricSocketResC8Base  = gcnew String(L"package C8-state base");
+        initonly String^ MetricSocketResC9Base  = gcnew String(L"package C9-state base");
+        initonly String^ MetricSocketResC10Base = gcnew String(L"package C10-state base");
 
         initonly String^ MetricQpiBand = gcnew String(L"QPI Link Bandwidth");
 
@@ -669,6 +803,7 @@ namespace PCMServiceNS {
             }
             catch (Exception^ e)
             {
+                EventLog->WriteEntry(Globals::ServiceName, "Could not create MeasureThread, aborting", EventLogEntryType::Error);
                 EventLog->WriteEntry(Globals::ServiceName, e->Message, EventLogEntryType::Error);
                 SetServiceFail(0x80886);
                 throw e;
