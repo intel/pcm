@@ -391,6 +391,13 @@ inline void pcm_cpuid(int leaf, PCM_CPUID_INFO& info)
 #endif
 }
 
+inline void clear_screen() {
+#ifdef _MSC_VER
+    system("cls");
+#else
+    std::cout << "\033[2J\033[0;0H";
+#endif
+}
 
 inline uint32 build_bit_ui(uint32 beg, uint32 end)
 {
