@@ -5641,6 +5641,11 @@ bool PCM::useLinuxPerfForUncore() const
 #ifdef PCM_USE_PERF
     const auto imcIDs = enumeratePerfPMUs("imc", 100);
     std::cerr << "INFO: Linux perf interface to program uncore PMUs is " << (imcIDs.empty()?"NOT ":"") << "present\n";
+    if (imcIDs.empty())
+    {
+        use = 0;
+        return 1 == use;
+    }
     const char * perf_env = std::getenv("PCM_USE_UNCORE_PERF");
     if (perf_env != NULL && std::string(perf_env) == std::string("1"))
     {
@@ -7682,6 +7687,7 @@ void PCM::programCbo(const uint64 * events, const uint32 opCode, const uint32 nc
 
         for(uint32 cbo = 0; cbo < getMaxNumOfCBoxes(); ++cbo)
         {
+            assert(cbo < cboPMUs[i].size());
             cboPMUs[i][cbo].initFreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
 
             if (ICX != cpu_model && SNOWRIDGE != cpu_model)
