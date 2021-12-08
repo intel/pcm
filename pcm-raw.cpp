@@ -907,12 +907,12 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<CoreCounterSt
         printTransposed(curPMUConfigs, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, outputType);
         return;
     }
-    printDateForCSV(outputType);
+    printDateForCSV(outputType, separator);
     if (BeforeState.size() > 0 && AfterState.size() > 0)
     {
         choose(outputType,
             []() { cout << separator; },
-            []() { cout << "ms,"; },
+            []() { cout << "ms" << separator; },
             [&]() { cout << (1000ULL * getInvariantTSC(BeforeState[0], AfterState[0])) / m->getNominalFrequency() << separator; });
     }
     for (auto typeEvents : curPMUConfigs)
