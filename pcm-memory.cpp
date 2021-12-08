@@ -102,6 +102,7 @@ void print_help(const string prog_name)
     cerr << "  -all | /all                        => Display all channels (even with no traffic)\n";
     cerr << "  -i[=number] | /i[=number]          => allow to determine number of iterations\n";
     cerr << "  -s                                 => silence information output and print only measurements\n";
+    cerr << "  -u                                 => update measurements instead of printing new ones\n";
 #ifdef _MSC_VER
     cerr << "  --uninstallDriver | --installDriver=> (un)install driver\n";
 #endif
@@ -364,13 +365,16 @@ void printSocketBWFooter(uint32 no_columns, uint32 skt, const memdata_t *md)
     cout << "\n";
 }
 
-void display_bandwidth(PCM *m, memdata_t *md, const uint32 no_columns, const bool show_channel_output)
+void display_bandwidth(PCM *m, memdata_t *md, const uint32 no_columns, const bool show_channel_output, const bool print_update)
 {
     float sysReadDRAM = 0.0, sysWriteDRAM = 0.0, sysReadPMM = 0.0, sysWritePMM = 0.0;
     uint32 numSockets = m->getNumSockets();
     uint32 skt = 0;
     cout.setf(ios::fixed);
     cout.precision(2);
+
+    if (print_update)
+        clear_screen();
 
     while (skt < numSockets)
     {
@@ -733,7 +737,8 @@ void calculate_bandwidth(PCM *m,
     bool & csvheader,
     uint32 no_columns,
     const ServerUncoreMemoryMetrics & metrics,
-    const bool show_channel_output)
+    const bool show_channel_output,
+    const bool print_update)
 {
     //const uint32 num_imc_channels = m->getMCChannelsPerSocket();
     //const uint32 num_edc_channels = m->getEDCChannelsPerSocket();
@@ -926,7 +931,7 @@ void calculate_bandwidth(PCM *m,
     }
     else
     {
-        display_bandwidth(m, &md, no_columns, show_channel_output);
+        display_bandwidth(m, &md, no_columns, show_channel_output, print_update);
     }
 }
 
@@ -984,7 +989,7 @@ int main(int argc, char * argv[])
     cerr << "\n";
 
     double delay = -1.0;
-    bool csv = false, csvheader=false, show_channel_output=true;
+    bool csv = false, csvheader = false, show_channel_output = true, print_update = false;
     uint32 no_columns = DEFAULT_DISPLAY_COLUMNS; // Default number of columns is 2
     char * sysCmd = NULL;
     char ** sysArgv = NULL;
@@ -1108,6 +1113,12 @@ int main(int argc, char * argv[])
                  strncmp(*argv, "/s", 2) == 0)
         {
             //already checked by check_and_set_silent()
+            continue;
+        }
+        else if (strncmp(*argv, "-u", 2) == 0 ||
+                 strncmp(*argv, "/u", 2) == 0)
+        {
+            print_update = true;
             continue;
         }
 #ifdef _MSC_VER
@@ -1243,7 +1254,8 @@ int main(int argc, char * argv[])
         if(rankA >= 0 || rankB >= 0)
           calculate_bandwidth_rank(m,BeforeState,AfterState,AfterTime-BeforeTime,csv,csvheader, no_columns, rankA, rankB);
         else
-          calculate_bandwidth(m,BeforeState,AfterState,AfterTime-BeforeTime,csv,csvheader, no_columns, metrics, show_channel_output);
+          calculate_bandwidth(m,BeforeState,AfterState,AfterTime-BeforeTime,csv,csvheader, no_columns, metrics,
+                show_channel_output, print_update);
 
         swap(BeforeTime, AfterTime);
         swap(BeforeState, AfterState);
