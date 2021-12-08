@@ -258,25 +258,27 @@ inline void choose(const CsvOutputType outputType, H1 h1Func, H2 h2Func, D dataF
     }
 }
 
-inline void printDateForCSV(const CsvOutputType outputType)
+inline void printDateForCSV(const CsvOutputType outputType, std::string separator = std::string(","))
 {
     choose(outputType,
-        []() {
-            std::cout << ",,"; // Time
+        [&separator]() {
+            std::cout << separator << separator; // Time
         },
-        []() { std::cout << "Date,Time,"; },
-            []() {
+        [&separator]() {
+            std::cout << "Date" << separator << "Time" << separator;
+        },
+        [&separator]() {
             std::pair<tm, uint64> tt{ pcm_localtime() };
             std::cout.precision(3);
             char old_fill = std::cout.fill('0');
             std::cout <<
                 std::setw(4) <<  1900 + tt.first.tm_year << '-' <<
                 std::setw(2) << 1 + tt.first.tm_mon << '-' <<
-                std::setw(2) << tt.first.tm_mday << ',' <<
+                std::setw(2) << tt.first.tm_mday << separator <<
                 std::setw(2) << tt.first.tm_hour << ':' <<
                 std::setw(2) << tt.first.tm_min << ':' <<
                 std::setw(2) << tt.first.tm_sec << '.' <<
-                std::setw(3) << tt.second << ','; // milliseconds
+                std::setw(3) << tt.second << separator; // milliseconds
             std::cout.fill(old_fill);
             std::cout.setf(std::ios::fixed);
             std::cout.precision(2);
