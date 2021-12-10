@@ -24,6 +24,12 @@ if [ "$?" -ne "0" ]; then
     exit 1
 fi
 
+./pcm-iio.x -i=1
+if [ "$?" -ne "0" ]; then
+    echo "Error in pcm-iio.x"
+    exit 1
+fi
+
 ./pcm-raw.x -e core/config=0x30203,name=LD_BLOCKS.STORE_FORWARD/ -e cha/config=0,name=UNC_CHA_CLOCKTICKS/ -e imc/fixed,name=DRAM_CLOCKS  -- sleep 1
 if [ "$?" -ne "0" ]; then
     echo "Error in pcm-raw.x"
@@ -97,7 +103,7 @@ if [ "$?" -ne "0" ]; then
 fi
 
 # TODO add more tests
-# e.g for ./pcm-sensor-server.x, ./pcm-iio.x, ./pcm-sensor.x, ...
+# e.g for ./pcm-sensor-server.x, ./pcm-sensor.x, ...
 
 pushd unitTest/
 make
