@@ -1346,12 +1346,21 @@ int main(int argc, char* argv[])
     {
         if (!group.empty()) ++nGroups;
     }
+    for (size_t i = 0; i < PMUConfigs.size(); ++i)
+    {
+        if (PMUConfigs[i].empty())
+        {   // erase empty groups
+            PMUConfigs.erase(PMUConfigs.begin() + i);
+            --i;
+        }
+    }
+    assert(PMUConfigs.size() == nGroups);
     if (nGroups == 0)
     {
         cout << "No events specified. Exiting.\n";
         exit(EXIT_FAILURE);
     }
-    cout << "Collecting " << nGroups << " event groups\n";
+    cout << "Collecting " << nGroups << " event group(s)\n";
 
     if (nGroups > 1)
     {
@@ -1393,20 +1402,34 @@ int main(int argc, char* argv[])
         MySystem(sysCmd, sysArgv);
     }
 
+    auto programAndReadGroup = [&](const PCM::RawPMUConfigs & group)
+    {
+        if (forceRTMAbortMode)
+        {
+            m->enableForceRTMAbortMode(true);
+        }
+        programPMUs(group);
+        m->getAllCounterStates(SysBeforeState, DummySocketStates, BeforeState);
+        for (uint32 s = 0; s < m->getNumSockets(); ++s)
+        {
+            BeforeUncoreState[s] = m->getServerUncoreCounterState(s);
+        }
+    };
+
+    if (nGroups == 1)
+    {
+        programAndReadGroup(PMUConfigs[0]);
+    }
+
     mainLoop([&]()
     {
-         for (const auto group : PMUConfigs)
+         for (const auto & group : PMUConfigs)
          {
                 if (group.empty()) continue;
-                if (forceRTMAbortMode)
+
+                if (nGroups > 1)
                 {
-                    m->enableForceRTMAbortMode(true);
-                }
-                programPMUs(group);
-                m->getAllCounterStates(SysBeforeState, DummySocketStates, BeforeState);
-                for (uint32 s = 0; s < m->getNumSockets(); ++s)
-                {
-                    BeforeUncoreState[s] = m->getServerUncoreCounterState(s);
+                    programAndReadGroup(group);
                 }
 
                 calibratedSleep(delay, sysCmd, mainLoop, m);
@@ -1421,7 +1444,15 @@ int main(int argc, char* argv[])
                 //cout << "Called sleep function for " << dec << fixed << delay_ms << " ms\n";
 
                 printAll(group, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState);
-                m->cleanup(true);
+                if (nGroups > 1)
+                {
+                    m->cleanup(true);
+                }
+                else
+                {
+                    std::swap(BeforeState, AfterState);
+                    std::swap(BeforeUncoreState, AfterUncoreState);
+                }
          }
          if (m->isBlocked()) {
              // in case PCM was blocked after spawning child application: break monitoring loop here
