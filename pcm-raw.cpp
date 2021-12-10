@@ -119,9 +119,59 @@ void lowerCase(std::string & str)
 using namespace simdjson;
 
 std::vector<std::shared_ptr<simdjson::dom::parser> > JSONparsers;
-std::unordered_map<std::string, simdjson::dom::object> PMUEventMap;
+std::unordered_map<std::string, simdjson::dom::object> PMUEventMapJSON;
+std::vector<std::unordered_map<std::string, std::vector<std::string>>> PMUEventMapsTSV;
 std::shared_ptr<simdjson::dom::element> PMURegisterDeclarations;
 std::string eventFileLocationPrefix = ".";
+
+bool parse_tsv(const string &path) {
+    bool col_names_parsed = false;
+    int event_name_pos = -1;
+    ifstream inFile;
+    string line;
+    inFile.open(path);
+    std::unordered_map<std::string, std::vector<std::string>> PMUEventMap;
+
+    while (getline(inFile, line)) {
+        if (line.size() == 1 && line[0] == '\n')
+            continue;
+        // Trim whitespaces left/right // MOVE to utils
+        auto ws_left_count = 0;
+        for (size_t i = 0 ; i < line.size() ; i++) {
+            if (line[i] == ' ') ws_left_count++;
+            else break;
+        }
+        auto ws_right_count = 0;
+        for (size_t i = line.size() - 1 ; i > 0 ; i--) {
+            if (line[i] == ' ') ws_right_count++;
+            else break;
+        }
+        line.erase(0, ws_left_count);
+        line.erase(line.size() - ws_right_count, ws_right_count);
+        if (line[0] == '#')
+            continue;
+        if (!col_names_parsed) {
+            // Consider first row as Column name row
+            std::vector<std::string> col_names = split(line, '\t');
+            PMUEventMap["COL_NAMES"] = col_names;
+            const auto event_name_it = std::find(col_names.begin(), col_names.end(), "EventName");
+            if (event_name_it == col_names.end()) {
+                cerr << "ERROR: First row does not contain EventName\n";
+                inFile.close();
+                return false;
+            }
+            event_name_pos = event_name_it - col_names.begin();
+            col_names_parsed = true;
+            continue;
+        }
+        std::vector<std::string> entry = split(line, '\t');
+        std::string event_name = entry[event_name_pos];
+        PMUEventMap[event_name] = entry;
+    }
+    inFile.close();
+    PMUEventMapsTSV.push_back(PMUEventMap);
+    return true;
+}
 
 bool initPMUEventMap()
 {
@@ -231,22 +281,30 @@ bool initPMUEventMap()
                     return false;
                 }
 
-                JSONparsers.push_back(std::make_shared<simdjson::dom::parser>());
-                for (simdjson::dom::object eventObj : JSONparsers.back()->load(path)) {
-                    // cout << "Event ----------------\n";
-                    const std::string EventName{eventObj["EventName"].get_c_str()};
-                    if (EventName.empty())
-                    {
-                        cerr << "Did not find EventName in JSON object:\n";
-                        for (const auto keyValue : eventObj)
+                if (path.find(".json") != std::string::npos) {
+                    JSONparsers.push_back(std::make_shared<simdjson::dom::parser>());
+                    for (simdjson::dom::object eventObj : JSONparsers.back()->load(path)) {
+                        // cout << "Event ----------------\n";
+                        const std::string EventName{eventObj["EventName"].get_c_str()};
+                        if (EventName.empty())
                         {
-                            cout << "key: " << keyValue.key << " value: " << keyValue.value << "\n";
+                            cerr << "Did not find EventName in JSON object:\n";
+                            for (const auto keyValue : eventObj)
+                            {
+                                cout << "key: " << keyValue.key << " value: " << keyValue.value << "\n";
+                            }
+                        }
+                        else
+                        {
+                            PMUEventMapJSON[EventName] = eventObj;
                         }
                     }
-                    else
-                    {
-                        PMUEventMap[EventName] = eventObj;
-                    }
+                } else if (path.find(".tsv") != std::string::npos) {
+                    if (!parse_tsv(path))
+                        return false;
+                } else {
+                    cerr << "ERROR: Could not determine Event file type (JSON/TSV)\n";
+                    return false;
                 }
             }
         }
@@ -257,13 +315,91 @@ bool initPMUEventMap()
             return false;
         }
     }
-    if (PMUEventMap.empty())
+    if (PMUEventMapJSON.empty() && PMUEventMapsTSV.empty())
     {
         return false;
     }
 
     return true;
 }
+
+class EventMap {
+public:
+    static bool isEvent(const std::string &eventStr) {
+        if (PMUEventMapJSON.find(eventStr) != PMUEventMapJSON.end())
+            return true;
+        for (const auto &EventMapTSV : PMUEventMapsTSV) {
+            if (EventMapTSV.find(eventStr) != EventMapTSV.end())
+                return true;
+        }
+        return false;
+    }
+
+    static bool isField(const std::string &eventStr, const std::string event) {
+        if (PMUEventMapJSON.find(eventStr) != PMUEventMapJSON.end()) {
+            const auto eventObj = PMUEventMapJSON[eventStr];
+            const auto unitObj = eventObj[event];
+            return unitObj.error() != NO_SUCH_FIELD;
+        }
+
+        for (auto &EventMapTSV : PMUEventMapsTSV) {
+            if (EventMapTSV.find(eventStr) != EventMapTSV.end()) {
+                const auto &col_names = EventMapTSV["COL_NAMES"];
+                const auto event_name_it = std::find(col_names.begin(), col_names.end(), event);
+                if (event_name_it != col_names.end()) {
+                    const size_t event_name_pos = event_name_it - col_names.begin();
+                    return event_name_pos < EventMapTSV[eventStr].size();
+                }
+            }
+        }
+
+        return false;
+    }
+
+    static std::string getField(const std::string &eventStr, const std::string &event) {
+        std::string res;
+
+        if (PMUEventMapJSON.find(eventStr) != PMUEventMapJSON.end()) {
+            const auto eventObj = PMUEventMapJSON[eventStr];
+            const auto unitObj = eventObj[event];
+            return std::string(unitObj.get_c_str());
+        }
+
+        for (auto &EventMapTSV : PMUEventMapsTSV) {
+            if (EventMapTSV.find(eventStr) != EventMapTSV.end()) {
+                const auto col_names = EventMapTSV["COL_NAMES"];
+                const auto event_name_it = std::find(col_names.begin(), col_names.end(), event);
+                if (event_name_it != col_names.end()) {
+                    const auto event_name_pos = event_name_it - col_names.begin();
+                    res = EventMapTSV[eventStr][event_name_pos];
+                }
+            }
+        }
+        return res;
+    }
+
+    static void print_event(const std::string &eventStr) {
+        if (PMUEventMapJSON.find(eventStr) != PMUEventMapJSON.end()) {
+            const auto eventObj = PMUEventMapJSON[eventStr];
+            for (const auto & keyValue : eventObj)
+                std::cout << keyValue.key << " : " << keyValue.value << "\n";
+            return;
+        }
+
+        for (auto &EventMapTSV : PMUEventMapsTSV) {
+            if (EventMapTSV.find(eventStr) != EventMapTSV.end()) {
+                const auto &col_names = EventMapTSV["COL_NAMES"];
+                const auto event = EventMapTSV[eventStr];
+                if (EventMapTSV.find(eventStr) != EventMapTSV.end()) {
+                    for (size_t i = 0 ; i < col_names.size() ; i++)
+                        std::cout << col_names[i] << " : " << event[i] << "\n";
+                    return;
+                }
+            }
+        }
+
+    }
+};
 
 bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
 {
@@ -299,7 +435,7 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
         return true;
     }
 
-    if (PMUEventMap.find(eventStr) == PMUEventMap.end())
+    if (!EventMap::isEvent(eventStr))
     {
         cerr << "ERROR: event " << eventStr << " could not be found in event database. Ignoring the event.\n";
         return true;
@@ -308,7 +444,6 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
     auto mod = EventTokens.begin();
     ++mod;
 
-    const auto eventObj = PMUEventMap[eventStr];
     std::string pmuName;
     PCM::RawEventConfig config = { {0,0,0,0,0}, "" };
     bool fixed = false;
@@ -339,15 +474,14 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
         {std::string("qpi ll"), std::string("xpi")}
     };
 
-    const auto unitObj = eventObj["Unit"];
-    if (unitObj.error() == NO_SUCH_FIELD)
+    if (!EventMap::isField(eventStr, "Unit"))
     {
         pmuName = "core";
         config = initCoreConfig();
     }
     else
     {
-        std::string unit{ unitObj.get_c_str() };
+        std::string unit = EventMap::getField(eventStr, "Unit");
         lowerCase(unit);
         // std::cout << eventStr << " is uncore event for unit " << unit << "\n";
         pmuName = (pmuNameMap.find(unit) == pmuNameMap.end()) ? unit : pmuNameMap[unit];
@@ -358,14 +492,14 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
     if (1)
     {
         // cerr << "pmuName: " << pmuName << " full event "<< fullEventStr << " \n";
-        std::string CounterStr{eventObj["Counter"].get_c_str()};
+        std::string CounterStr = EventMap::getField(eventStr, "Counter");
         // cout << "Counter: " << CounterStr << "\n";
         int fixedCounter = -1;
         fixed = (pcm_sscanf(CounterStr) >> s_expect("Fixed counter ") >> fixedCounter) ? true : false;
         bool offcore = false;
-        if (eventObj["Offcore"].error() != NO_SUCH_FIELD)
+        if (EventMap::isField(eventStr, "Offcore"))
         {
-            const std::string offcoreStr{ eventObj["Offcore"].get_c_str() };
+            const std::string offcoreStr = EventMap::getField(eventStr, "Offcore");
             offcore = (offcoreStr == "1");
         }
         if (pmuName == "core" && curPMUConfigs[pmuName].programmable.empty() && fixed == false)
@@ -410,7 +544,7 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
                 const std::string fieldNameStr{ registerKeyValue.key.begin(), registerKeyValue.key.end() };
                 if (fieldNameStr == "MSRIndex")
                 {
-                    std::string fieldValueStr{ eventObj[fieldNameStr].get_c_str() };
+                    string fieldValueStr = EventMap::getField(eventStr, fieldNameStr);
                     // cout << "MSR field " << fieldNameStr << " value is " << fieldValueStr << " (" << read_number(fieldValueStr.c_str()) << ") offcore=" << offcore << "\n";
                     lowerCase(fieldValueStr);
                     if (fieldValueStr == "0" || fieldValueStr == "0x00")
@@ -430,7 +564,7 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
                     }
                     // cout << " MSR field " << fieldNameStr << " value is " << MSRIndexStr << " (" << read_number(MSRIndexStr.c_str()) << ") offcore=" << offcore << "\n";
                     simdjson::dom::object MSRObject = registerKeyValue.value[MSRIndexStr];
-                    const string msrValueStr{ eventObj["MSRValue"].get_c_str() };
+                    const string msrValueStr = EventMap::getField(eventStr, "MSRValue");
                     // update the first event
                     setConfig(myPMUConfigs.empty() ? config : myPMUConfigs.front(), MSRObject, read_number(msrValueStr.c_str()), int64_t(MSRObject["Position"]));
                     // update the current as well for display
@@ -442,7 +576,7 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
                 {
                     continue; // field ignored
                 }
-                if (eventObj[fieldNameStr].error() == NO_SUCH_FIELD)
+                if (!EventMap::isField(eventStr, fieldNameStr))
                 {
                     // cerr << fieldNameStr << " not found\n";
                     if (fieldDescriptionObj["DefaultValue"].error() == NO_SUCH_FIELD)
@@ -459,7 +593,8 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
                 }
                 else
                 {
-                    std::string fieldValueStr{ eventObj[fieldNameStr].get_c_str() };
+                    std::string fieldValueStr = EventMap::getField(eventStr, fieldNameStr);
+
                     fieldValueStr.erase(std::remove(fieldValueStr.begin(), fieldValueStr.end(), '\"'), fieldValueStr.end());
                     if (offcore && fieldNameStr == "EventCode")
                     {
@@ -579,10 +714,7 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
         catch (std::exception& e)
         {
             cerr << "Error while setting a register field for event " << fullEventStr << " : " << e.what() << "\n";
-            for (const auto & keyValue : eventObj)
-            {
-                std::cout << keyValue.key << " : " << keyValue.value << "\n";
-            }
+            EventMap::print_event(eventStr);
             return false;
         }
     }
