@@ -2934,6 +2934,7 @@ public:
     CoreCounterState( const CoreCounterState& ) = default;
     CoreCounterState( CoreCounterState&& ) = default;
     CoreCounterState & operator= ( CoreCounterState&& ) = default;
+    virtual ~ CoreCounterState() {}
 };
 
 //! \brief Socket-wide counter state
@@ -2972,6 +2973,8 @@ public:
         UncoreCounterState::operator = ( std::move(ucs) );
         return *this;
     }
+
+    virtual ~ SocketCounterState() {}
 };
 
 //! \brief System-wide counter state
@@ -3028,6 +3031,7 @@ public:
 
         return *this;
     }
+    virtual ~ SystemCounterState() {}
 };
 
 /*! \brief Reads the counter state of the system
@@ -3977,11 +3981,11 @@ inline uint64 getNumberOfEvents(const CounterType & before, const CounterType & 
 template <class CounterStateType>
 inline double getLLCReadMissLatency(const CounterStateType & before, const CounterStateType & after)
 {
-    if (PCM::getInstance()->LLCReadMissLatencyMetricsAvailable() == false) return -1.;
+    auto * m = PCM::getInstance();
+    if (m->LLCReadMissLatencyMetricsAvailable() == false) return -1.;
     const double occupancy = double(after.TOROccupancyIAMiss) - double(before.TOROccupancyIAMiss);
     const double inserts = double(after.TORInsertsIAMiss) - double(before.TORInsertsIAMiss);
     const double unc_clocks = double(after.UncClocks) - double(before.UncClocks);
-    auto * m = PCM::getInstance();
     const double seconds = double(getInvariantTSC(before, after)) / double(m->getNumOnlineCores()/m->getNumSockets()) / double(m->getNominalFrequency());
     return 1e9*seconds*(occupancy/inserts)/unc_clocks;
 }

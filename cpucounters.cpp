@@ -220,6 +220,7 @@ class TemporalThreadAffinity  // speedup trick for Linux, FreeBSD, DragonFlyBSD,
 public:
     TemporalThreadAffinity(uint32 core_id, bool checkStatus = true)
     {
+        assert(core_id < 1024);
         pthread_getaffinity_np(pthread_self(), sizeof(cpu_set_t), &old_affinity);
 
         cpu_set_t new_affinity;
@@ -247,6 +248,7 @@ public:
     TemporalThreadAffinity(const uint32 core_id, bool checkStatus = true)
         : set_size(CPU_ALLOC_SIZE(maxCPUs))
     {
+        assert(core_id < maxCPUs);
         old_affinity = CPU_ALLOC(maxCPUs);
         assert(old_affinity);
         pthread_getaffinity_np(pthread_self(), set_size, old_affinity);
@@ -593,7 +595,7 @@ bool PCM::detectModel()
                 auto tokens = split(line, ':');
                 if (tokens.size() >= 2 && tokens[0].find("flags") == 0)
                 {
-                    for (auto curFlag : split(tokens[1], ' '))
+                    for (const auto & curFlag : split(tokens[1], ' '))
                     {
                         if (flag == curFlag)
                         {
@@ -3046,18 +3048,21 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
             perf_event_attr e = PCM_init_perf_event_attr();
             e.type = PERF_TYPE_RAW;
             e.config = (1ULL << 63ULL) + event_select_reg.value;
-            if (event_select_reg.fields.event_select == getOCREventNr(0, i).first && event_select_reg.fields.umask == getOCREventNr(0, i).second)
-                e.config1 = pExtDesc->OffcoreResponseMsrValue[0];
-            if (event_select_reg.fields.event_select == getOCREventNr(1, i).first && event_select_reg.fields.umask == getOCREventNr(1, i).second)
-                e.config1 = pExtDesc->OffcoreResponseMsrValue[1];
+	    if (pExtDesc != nullptr)
+            {
+                if (event_select_reg.fields.event_select == getOCREventNr(0, i).first && event_select_reg.fields.umask == getOCREventNr(0, i).second)
+                    e.config1 = pExtDesc->OffcoreResponseMsrValue[0];
+                if (event_select_reg.fields.event_select == getOCREventNr(1, i).first && event_select_reg.fields.umask == getOCREventNr(1, i).second)
+                    e.config1 = pExtDesc->OffcoreResponseMsrValue[1];
 
-            if (event_select_reg.fields.event_select == LOAD_LATENCY_EVTNR && event_select_reg.fields.umask == LOAD_LATENCY_UMASK)
-            {
-                e.config1 = pExtDesc->LoadLatencyMsrValue;
-            }
-            if (event_select_reg.fields.event_select == FRONTEND_EVTNR && event_select_reg.fields.umask == FRONTEND_UMASK)
-            {
-                e.config1 = pExtDesc->FrontendMsrValue;
+                if (event_select_reg.fields.event_select == LOAD_LATENCY_EVTNR && event_select_reg.fields.umask == LOAD_LATENCY_UMASK)
+                {
+                    e.config1 = pExtDesc->LoadLatencyMsrValue;
+                }
+                if (event_select_reg.fields.event_select == FRONTEND_EVTNR && event_select_reg.fields.umask == FRONTEND_UMASK)
+                {
+                    e.config1 = pExtDesc->FrontendMsrValue;
+                }
             }
 
             if (programPerfEvent(e, PERF_GEN_EVENT_0_POS + j, std::string("generic event #") + std::to_string(i)) == false)
@@ -3113,12 +3118,12 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
                                           std::make_pair(perfRetiringPath, PERF_TOPDOWN_RETIRING_POS)};
             int readPos = core_fixed_counter_num_used + core_gen_counter_num_used;
             leader_counter = -1;
-            for (auto event : topDownEvents)
+            for (const auto & event : topDownEvents)
             {
                 uint64 eventSel = 0, umask = 0;
                 const auto eventDesc = readSysFS(event.first);
                 const auto tokens = split(eventDesc, ',');
-                for (auto token : tokens)
+                for (const auto & token : tokens)
                 {
                     if (match(token, "event=", &eventSel))
                     {
@@ -4605,7 +4610,7 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool sile
         else
         {
             fixedReg.value = 0;
-            for (auto cfg : corePMUConfig.fixed)
+            for (const auto & cfg : corePMUConfig.fixed)
             {
                 fixedReg.value |= cfg.first[0];
             }
@@ -5428,6 +5433,7 @@ void print_mcfg(const char * path)
     if(read_bytes == 0)
     {
         std::cerr << "PCM Error: Cannot read " << path << "\n";
+        ::close(mcfg_handle);
         throw std::exception();
     }
 
@@ -5442,6 +5448,7 @@ void print_mcfg(const char * path)
         if(read_bytes == 0)
         {
               std::cerr << "PCM Error: Cannot read " << path << " (2)\n";
+              ::close(mcfg_handle);
               throw std::exception();
         }
         std::cout << "Segment " << std::dec << i << " ";

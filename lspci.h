@@ -272,13 +272,13 @@ struct iio_skx {
         struct {
             struct pci root_pci_dev;   /* single device represent root port */
             std::vector<struct pci> child_pci_devs; /* Contain child switch and end-point devices */
-        } parts[4]; /* part 0, 1, 2, 3 */
-        uint8_t busno; /* holding busno for each IIO stack */
-        std::string stack_name;
-        std::vector<uint64_t> values;
+        } parts[4]{}; /* part 0, 1, 2, 3 */
+        uint8_t busno{}; /* holding busno for each IIO stack */
+        std::string stack_name{};
+        std::vector<uint64_t> values{};
         bool flipped = false;
     } stacks[6]; /* iio stack 0, 1, 2, 3, 4, 5 */
-    uint32_t socket_id;
+    uint32_t socket_id{};
 };
 
 struct iio_bifurcated_part {
@@ -290,13 +290,13 @@ struct iio_bifurcated_part {
 };
 
 struct iio_stack {
-    std::vector<struct iio_bifurcated_part> parts;
-    uint32_t iio_unit_id;
-    std::string stack_name;
-    std::vector<uint64_t> values;
+    std::vector<struct iio_bifurcated_part> parts{};
+    uint32_t iio_unit_id{};
+    std::string stack_name{};
+    std::vector<uint64_t> values{};
     bool flipped = false;
     /* holding busno for each IIO stack */
-    uint8_t busno;
+    uint8_t busno{};
 };
 
 bool operator<(const iio_stack& lh, const iio_stack& rh)
@@ -305,8 +305,8 @@ bool operator<(const iio_stack& lh, const iio_stack& rh)
 }
 
 struct iio_stacks_on_socket {
-    std::vector<struct iio_stack> stacks;
-    uint32_t socket_id;
+    std::vector<struct iio_stack> stacks{};
+    uint32_t socket_id{};
 };
 
 bool operator < (const bdf &l, const bdf &r) {

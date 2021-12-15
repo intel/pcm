@@ -117,4 +117,5 @@ int main(int /*argc*/, char * /*argv*/[])
     std::cout << "\n Display PCI tree information\n\n";
     for(int bus=0; bus < 256; ++bus)
         scanBus(bus, pciDB);
+    return 0;
 }

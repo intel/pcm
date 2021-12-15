@@ -55,7 +55,9 @@ namespace PCMDaemon {
 		//Put the poll interval in shared memory so that the client knows
 		sharedPCMState_->pollMs = pollIntervalMs_;
 
-		updatePCMState(&systemStatesBefore_, &socketStatesBefore_, &coreStatesBefore_);
+                collectionTimeAfter_ = 0;
+
+		updatePCMState(&systemStatesBefore_, &socketStatesBefore_, &coreStatesBefore_, collectionTimeBefore_);
 		systemStatesForQPIBefore_ = SystemCounterState(systemStatesBefore_);
 
 		serverUncoreCounterStatesBefore_ = new ServerUncoreCounterState[pcmInstance_->getNumSockets()];
@@ -384,7 +386,7 @@ namespace PCMDaemon {
 
         sharedPCMState_->lastUpdateTscBegin = RDTSC();
 
-		updatePCMState(&systemStatesAfter_, &socketStatesAfter_, &coreStatesAfter_);
+		updatePCMState(&systemStatesAfter_, &socketStatesAfter_, &coreStatesAfter_, collectionTimeAfter_);
 
 		getPCMSystem();
 
@@ -421,7 +423,7 @@ namespace PCMDaemon {
 		std::swap(collectionTimeBefore_, collectionTimeAfter_);
 	}
 
-	void Daemon::updatePCMState(SystemCounterState* systemStates, std::vector<SocketCounterState>* socketStates, std::vector<CoreCounterState>* coreStates)
+	void Daemon::updatePCMState(SystemCounterState* systemStates, std::vector<SocketCounterState>* socketStates, std::vector<CoreCounterState>* coreStates, uint64 & t)
 	{
 		if(subscribers_.find("core") != subscribers_.end())
 		{
@@ -434,7 +436,7 @@ namespace PCMDaemon {
 				pcmInstance_->getUncoreCounterStates(*systemStates, *socketStates);
 			}
 		}
-		collectionTimeAfter_ = pcmInstance_->getTickCount();
+		t = pcmInstance_->getTickCount();
 	}
 
 	void Daemon::swapPCMBeforeAfterState()
