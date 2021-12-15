@@ -108,26 +108,26 @@ inline std::string unit_format(IntType n)
     if (n <= 9999ULL)
     {
         snprintf(buffer, 1024, "%4d  ", int32(n));
-        return buffer;
+        return std::string{buffer};
     }
     if (n <= 9999999ULL)
     {
         snprintf(buffer, 1024, "%4d K", int32(n / 1000ULL));
-        return buffer;
+        return std::string{buffer};
     }
     if (n <= 9999999999ULL)
     {
         snprintf(buffer, 1024, "%4d M", int32(n / 1000000ULL));
-        return buffer;
+        return std::string{buffer};
     }
     if (n <= 9999999999999ULL)
     {
         snprintf(buffer, 1024, "%4d G", int32(n / 1000000000ULL));
-        return buffer;
+        return std::string{buffer};
     }
 
     snprintf(buffer, 1024, "%4d T", int32(n / (1000000000ULL * 1000ULL)));
-    return buffer;
+    return std::string{buffer};
 }
 
 void print_cpu_details();
@@ -360,9 +360,9 @@ bool writeSysFS(const char * path, const std::string & value, bool silent);
 int calibratedSleep(const double delay, const char* sysCmd, const MainLoop& mainLoop, PCM* m);
 
 struct StackedBarItem {
-    double fraction;
-    std::string label; // not used currently
-    char fill;
+    double fraction{0.0};
+    std::string label{""}; // not used currently
+    char fill{'0'};
     StackedBarItem() {}
     StackedBarItem(double fraction_,
         const std::string & label_,

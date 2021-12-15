@@ -42,7 +42,7 @@ namespace PCMDaemon {
 		void setupSharedMemory();
 		gid_t resolveGroupName(const std::string& groupName);
 		void getPCMCounters();
-		void updatePCMState(SystemCounterState* systemStates, std::vector<SocketCounterState>* socketStates, std::vector<CoreCounterState>* coreStates);
+		void updatePCMState(SystemCounterState* systemStates, std::vector<SocketCounterState>* socketStates, std::vector<CoreCounterState>* coreStates, uint64 & t);
 		void swapPCMBeforeAfterState();
 		void getPCMSystem();
 		void getPCMCore();
@@ -64,7 +64,7 @@ namespace PCMDaemon {
 		std::vector<std::string> allowedSubscribers_;
 
 		//Data for core, socket and system state
-		uint64 collectionTimeBefore_, collectionTimeAfter_;
+		uint64 collectionTimeBefore_{0ULL}, collectionTimeAfter_{0ULL};
 		std::vector<CoreCounterState> coreStatesBefore_, coreStatesAfter_;
 		std::vector<SocketCounterState> socketStatesBefore_, socketStatesAfter_;
 		SystemCounterState systemStatesBefore_, systemStatesForQPIBefore_, systemStatesAfter_;

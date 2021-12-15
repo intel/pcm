@@ -51,27 +51,27 @@ const uint32 max_edc_channels = ServerUncoreCounterState::maxChannels;
 const uint32 max_imc_controllers = ServerUncoreCounterState::maxControllers;
 
 typedef struct memdata {
-    float iMC_Rd_socket_chan[max_sockets][ServerUncoreCounterState::maxChannels];
-    float iMC_Wr_socket_chan[max_sockets][ServerUncoreCounterState::maxChannels];
-    float iMC_PMM_Rd_socket_chan[max_sockets][ServerUncoreCounterState::maxChannels];
-    float iMC_PMM_Wr_socket_chan[max_sockets][ServerUncoreCounterState::maxChannels];
-    float iMC_PMM_MemoryMode_Miss_socket_chan[max_sockets][ServerUncoreCounterState::maxChannels];
-    float iMC_Rd_socket[max_sockets];
-    float iMC_Wr_socket[max_sockets];
-    float iMC_PMM_Rd_socket[max_sockets];
-    float iMC_PMM_Wr_socket[max_sockets];
-    float iMC_PMM_MemoryMode_Miss_socket[max_sockets];
-    bool iMC_NM_hit_rate_supported;
-    float iMC_PMM_MemoryMode_Hit_socket[max_sockets];
-    bool M2M_NM_read_hit_rate_supported;
-    float iMC_NM_hit_rate[max_sockets];
-    float M2M_NM_read_hit_rate[max_sockets][max_imc_controllers];
-    float EDC_Rd_socket_chan[max_sockets][max_edc_channels];
-    float EDC_Wr_socket_chan[max_sockets][max_edc_channels];
-    float EDC_Rd_socket[max_sockets];
-    float EDC_Wr_socket[max_sockets];
-    uint64 partial_write[max_sockets];
-    ServerUncoreMemoryMetrics metrics;
+    float iMC_Rd_socket_chan[max_sockets][ServerUncoreCounterState::maxChannels]{};
+    float iMC_Wr_socket_chan[max_sockets][ServerUncoreCounterState::maxChannels]{};
+    float iMC_PMM_Rd_socket_chan[max_sockets][ServerUncoreCounterState::maxChannels]{};
+    float iMC_PMM_Wr_socket_chan[max_sockets][ServerUncoreCounterState::maxChannels]{};
+    float iMC_PMM_MemoryMode_Miss_socket_chan[max_sockets][ServerUncoreCounterState::maxChannels]{};
+    float iMC_Rd_socket[max_sockets]{};
+    float iMC_Wr_socket[max_sockets]{};
+    float iMC_PMM_Rd_socket[max_sockets]{};
+    float iMC_PMM_Wr_socket[max_sockets]{};
+    float iMC_PMM_MemoryMode_Miss_socket[max_sockets]{};
+    bool iMC_NM_hit_rate_supported{};
+    float iMC_PMM_MemoryMode_Hit_socket[max_sockets]{};
+    bool M2M_NM_read_hit_rate_supported{};
+    float iMC_NM_hit_rate[max_sockets]{};
+    float M2M_NM_read_hit_rate[max_sockets][max_imc_controllers]{};
+    float EDC_Rd_socket_chan[max_sockets][max_edc_channels]{};
+    float EDC_Wr_socket_chan[max_sockets][max_edc_channels]{};
+    float EDC_Rd_socket[max_sockets]{};
+    float EDC_Wr_socket[max_sockets]{};
+    uint64 partial_write[max_sockets]{};
+    ServerUncoreMemoryMetrics metrics{};
 } memdata_t;
 
 bool anyPmem(const ServerUncoreMemoryMetrics & metrics)

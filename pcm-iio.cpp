@@ -876,7 +876,7 @@ ccr* get_ccr(PCM* m, uint64_t& ccr)
 vector<struct counter> load_events(PCM * m, const char* fn)
 {
     vector<struct counter> v;
-    struct counter ctr;
+    struct counter ctr{};
     std::unique_ptr<ccr> pccr(get_ccr(m, ctr.ccr));
 
     std::ifstream in(fn);
@@ -1055,9 +1055,9 @@ void print_PCIeMapping(const std::vector<struct iio_stacks_on_socket>& iios, con
     for (auto it = iios.begin(); it != iios.end(); ++it) {
         printf("Socket %d\n", (*it).socket_id);
         for (int stack = 0; stack < 6; stack++) {
-            for (auto stack : it->stacks) {
+            for (auto & stack : it->stacks) {
                 printf("\t%s root bus: 0x%x", stack.stack_name.c_str(), stack.busno);
-                printf(stack.flipped ? "\tflipped: true\n" : "\tflipped: false\n");
+		printf("\tflipped: %s\n", stack.flipped ? "true" : "false");
                 for (auto part : stack.parts) {
                     vector<struct pci> pp = part.child_pci_devs;
                     uint8_t level = 1;

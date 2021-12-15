@@ -447,12 +447,12 @@ PciHandle::~PciHandle()
 int PciHandle::openMcfgTable() {
     const std::vector<std::string> base_paths = {"/sys/firmware/acpi/tables/MCFG", "/sys/firmware/acpi/tables/MCFG1"};
     std::vector<std::string> paths = base_paths;
-    for (auto p: base_paths)
+    for (const auto & p: base_paths)
     {
         paths.push_back(std::string("/pcm") + p);
     }
     int handle = -1;
-    for (auto p: paths)
+    for (const auto & p: paths)
     {
         if (handle < 0)
         {
@@ -461,7 +461,7 @@ int PciHandle::openMcfgTable() {
     }
     if (handle < 0)
     {
-        for (auto p: paths)
+        for (const auto & p: paths)
         {
             std::cerr << "Can't open MCFG table. Check permission of " << p << "\n";
         }
