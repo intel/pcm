@@ -108,26 +108,26 @@ inline std::string unit_format(IntType n)
     if (n <= 9999ULL)
     {
         snprintf(buffer, 1024, "%4d  ", int32(n));
-        return buffer;
+        return std::string{buffer};
     }
     if (n <= 9999999ULL)
     {
         snprintf(buffer, 1024, "%4d K", int32(n / 1000ULL));
-        return buffer;
+        return std::string{buffer};
     }
     if (n <= 9999999999ULL)
     {
         snprintf(buffer, 1024, "%4d M", int32(n / 1000000ULL));
-        return buffer;
+        return std::string{buffer};
     }
     if (n <= 9999999999999ULL)
     {
         snprintf(buffer, 1024, "%4d G", int32(n / 1000000000ULL));
-        return buffer;
+        return std::string{buffer};
     }
 
     snprintf(buffer, 1024, "%4d T", int32(n / (1000000000ULL * 1000ULL)));
-    return buffer;
+    return std::string{buffer};
 }
 
 void print_cpu_details();
@@ -258,25 +258,27 @@ inline void choose(const CsvOutputType outputType, H1 h1Func, H2 h2Func, D dataF
     }
 }
 
-inline void printDateForCSV(const CsvOutputType outputType)
+inline void printDateForCSV(const CsvOutputType outputType, std::string separator = std::string(","))
 {
     choose(outputType,
-        []() {
-            std::cout << ",,"; // Time
+        [&separator]() {
+            std::cout << separator << separator; // Time
         },
-        []() { std::cout << "Date,Time,"; },
-            []() {
+        [&separator]() {
+            std::cout << "Date" << separator << "Time" << separator;
+        },
+        [&separator]() {
             std::pair<tm, uint64> tt{ pcm_localtime() };
             std::cout.precision(3);
             char old_fill = std::cout.fill('0');
             std::cout <<
                 std::setw(4) <<  1900 + tt.first.tm_year << '-' <<
                 std::setw(2) << 1 + tt.first.tm_mon << '-' <<
-                std::setw(2) << tt.first.tm_mday << ',' <<
+                std::setw(2) << tt.first.tm_mday << separator <<
                 std::setw(2) << tt.first.tm_hour << ':' <<
                 std::setw(2) << tt.first.tm_min << ':' <<
                 std::setw(2) << tt.first.tm_sec << '.' <<
-                std::setw(3) << tt.second << ','; // milliseconds
+                std::setw(3) << tt.second << separator; // milliseconds
             std::cout.fill(old_fill);
             std::cout.setf(std::ios::fixed);
             std::cout.precision(2);
@@ -358,9 +360,9 @@ bool writeSysFS(const char * path, const std::string & value, bool silent);
 int calibratedSleep(const double delay, const char* sysCmd, const MainLoop& mainLoop, PCM* m);
 
 struct StackedBarItem {
-    double fraction;
-    std::string label; // not used currently
-    char fill;
+    double fraction{0.0};
+    std::string label{""}; // not used currently
+    char fill{'0'};
     StackedBarItem() {}
     StackedBarItem(double fraction_,
         const std::string & label_,
@@ -391,6 +393,13 @@ inline void pcm_cpuid(int leaf, PCM_CPUID_INFO& info)
 #endif
 }
 
+inline void clear_screen() {
+#ifdef _MSC_VER
+    system("cls");
+#else
+    std::cout << "\033[2J\033[0;0H";
+#endif
+}
 
 inline uint32 build_bit_ui(uint32 beg, uint32 end)
 {
@@ -473,5 +482,9 @@ inline HANDLE openMSRDriver()
     return CreateFile(L"\\\\.\\RDMSR", GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
 }
 #endif
+
+// called before everything else to read '-s' arg and
+// silence all following err output
+void check_and_set_silent(int argc, char * argv[], null_stream &nullStream2);
 
 } // namespace pcm

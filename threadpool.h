@@ -81,6 +81,7 @@ private:
     }
 
     ThreadPool( ThreadPool const& ) = delete;
+    ThreadPool & operator = ( ThreadPool const& ) = delete;
 
 public:
     ~ThreadPool() {
@@ -136,6 +137,7 @@ class WorkQueue {
 public:
     WorkQueue() : tp_( ThreadPool::getInstance() ), workProcessed_(0) {}
     WorkQueue( WorkQueue const& ) = delete;
+    WorkQueue & operator = ( WorkQueue const& ) = delete;
     ~WorkQueue() = default;
 
     // Just forwarding to the threadpool

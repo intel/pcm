@@ -83,6 +83,7 @@ class Indent {
         }
         Indent() = delete;
         Indent(Indent const &) = default;
+        Indent & operator = (Indent const &) = default;
         ~Indent() = default;
 
         friend std::stringstream& operator <<( std::stringstream& stream, Indent in );
@@ -122,11 +123,15 @@ class datetime {
     public:
         datetime() {
             std::time_t t = std::time( nullptr );
-            now = *(std::gmtime( &t ));
+            const auto gt = std::gmtime( &t );
+            if (gt == nullptr)
+                throw std::runtime_error("std::gmtime returned nullptr");
+            now = *gt;
         }
         datetime( std::tm t ) : now( t ) {}
         ~datetime() = default;
         datetime( datetime const& ) = default;
+	datetime & operator = ( datetime const& ) = default;
 
     public:
         void printDateTimeString( std::ostream& os ) const {
@@ -168,11 +173,14 @@ class date {
         }
         ~date() = default;
         date( date const& ) = default;
+	date & operator = ( date const& ) = default;
 
     public:
         void printDate( std::ostream& os ) const {
             char buf[64];
-            std::strftime( buf, 64, "%F", std::localtime(&now) );
+	    const auto t = std::localtime(&now);
+	    assert(t);
+            std::strftime( buf, 64, "%F", t);
             os << buf;
         }
 
@@ -282,6 +290,7 @@ public:
     }
 
     JSONPrinter( JSONPrinter const & ) = delete;
+    JSONPrinter & operator = ( JSONPrinter const & ) = delete;
     JSONPrinter() = delete;
 
     CoreCounterState const getCoreCounter( std::shared_ptr<Aggregator> ag, uint32 tid ) const {
@@ -541,6 +550,7 @@ public:
     }
 
     PrometheusPrinter( PrometheusPrinter const & ) = delete;
+    PrometheusPrinter & operator = ( PrometheusPrinter const & ) = delete;
     PrometheusPrinter() = delete;
 
     CoreCounterState const getCoreCounter( std::shared_ptr<Aggregator> ag, uint32 tid ) const {
@@ -740,7 +750,7 @@ private:
         if (hierarchy_.size() == 0 )
             return s;
         s = "{";
-        for( auto level : hierarchy_ ) {
+        for(const auto & level : hierarchy_ ) {
             s += level + ',';
         }
         s.pop_back();
@@ -1057,7 +1067,8 @@ public:
     }
 
     void close() {
-        ::close( socketBuffer_.socket() );
+        const auto s = socketBuffer_.socket();
+        if (s != -1) ::close(s);
         socketBuffer_.setSocket( 0 );
     }
 
@@ -1071,7 +1082,7 @@ typedef basic_socketstream<wchar_t> wsocketstream;
 class Server {
 public:
     Server() = delete;
-    Server( std::string listenIP, uint16_t port ) noexcept( false ) : listenIP_(listenIP), port_( port ) {
+    Server( const std::string & listenIP, uint16_t port ) noexcept( false ) : listenIP_(listenIP), port_( port ) {
         serverSocket_ = initializeServerSocket();
         SignalHandler* shi = SignalHandler::getInstance();
         shi->setSocket( serverSocket_ );
@@ -1080,6 +1091,7 @@ public:
         shi->installHandler( SignalHandler::handleSignal, SIGINT );
     }
     Server( Server const & ) = delete;
+    Server & operator = ( Server const & ) = delete;
     virtual ~Server() = default;
 
 public:
@@ -1103,7 +1115,10 @@ private:
             serv.sin_addr.s_addr = INADDR_ANY;
         else {
             if ( 1 != ::inet_pton( AF_INET, listenIP_.c_str(), &(serv.sin_addr) ) )
+            {
+                ::close(sockfd);
                 throw std::runtime_error( "Server Constructor: Cannot convert IP string" );
+            }
         }
         socklen_t len = sizeof( struct sockaddr_in );
         retval = ::bind( sockfd, reinterpret_cast<struct sockaddr*>(&serv), len );
@@ -1122,7 +1137,7 @@ private:
     }
 
 protected:
-    std::string& listenIP_;
+    std::string  listenIP_;
     WorkQueue    wq_;
     int          serverSocket_;
     uint16_t     port_;
@@ -1964,6 +1979,7 @@ class HTTPMessage {
 protected:
     HTTPMessage() = default;
     HTTPMessage( HTTPMessage const & ) = default;
+    HTTPMessage & operator = ( HTTPMessage const & ) = default;
     ~HTTPMessage() = default;
 
 public:
@@ -2095,6 +2111,7 @@ class HTTPRequest : public HTTPMessage {
 public:
     HTTPRequest() : method_( HTTPRequestMethod::GET ) {}
     HTTPRequest( HTTPRequest const & ) = default;
+    HTTPRequest & operator = ( HTTPRequest const & ) = default;
     ~HTTPRequest() = default;
 
     template <typename CharT, typename Traits>
@@ -2128,6 +2145,7 @@ class HTTPResponse : public HTTPMessage {
 public:
     HTTPResponse() : responseCode_( HTTPResponseCode::RC_200_OK ) {}
     HTTPResponse( HTTPResponse const & ) = default;
+    HTTPResponse & operator = ( HTTPResponse const & ) = default;
     virtual ~HTTPResponse() = default;
 
     template <typename CharT, typename Traits>
@@ -2585,6 +2603,7 @@ public:
     }
 
     HTTPServer( HTTPServer const & ) = delete;
+    HTTPServer & operator = ( HTTPServer const & ) = delete;
 
     virtual ~HTTPServer() {
         pcf_->stop();
@@ -2677,6 +2696,7 @@ void PeriodicCounterFetcher::execute() {
             auto before = steady_clock::now();
             // create an aggregator
             std::shared_ptr<Aggregator> sagp = std::make_shared<Aggregator>();
+            assert(sagp.get());
             DBG( 2, "PCF::execute(): AGP=", sagp.get(), " )" );
             // dispatch it
             sagp->dispatch( PCM::getInstance()->getSystemTopology() );
@@ -2718,11 +2738,12 @@ void HTTPServer::run() {
         int port = ntohs( clientAddress.sin_port );
         DBG( 3, "Client IP is: ", ipbuf, ", and the port it uses is : ", port );
 
-        HTTPConnection* connection;
+        HTTPConnection* connection = nullptr;
         try {
             connection = new HTTPConnection( this, clientSocketFD, clientAddress, callbackList_ );
         } catch ( std::exception& e ) {
             DBG( 3, "Exception caught while creating a HTTPConnection: " );
+	    if (connection) delete connection;
             ::close( clientSocketFD );
             continue;
         }
@@ -2831,6 +2852,7 @@ inline constexpr signed char operator "" _uc( unsigned long long arg ) noexcept 
 std::pair<std::shared_ptr<Aggregator>,std::shared_ptr<Aggregator>> getNullAndCurrentAggregator() {
     std::shared_ptr<Aggregator> current = std::make_shared<Aggregator>();
     std::shared_ptr<Aggregator> null    = std::make_shared<Aggregator>();
+    assert(current.get());
     current->dispatch( PCM::getInstance()->getSystemTopology() );
     return std::make_pair( null, current );
 }
@@ -3304,6 +3326,7 @@ int main( int argc, char* argv[] ) {
         DBG( 2, "Error forking. " );
         return 200;
     }
+    return 0;
 }
 
 #endif // UNIT_TEST

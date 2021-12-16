@@ -78,7 +78,7 @@ int main(int argc, const char *argv[])
 
 	if(PCM.pcm_c_init == NULL || PCM.pcm_c_start == NULL || PCM.pcm_c_stop == NULL ||
 			PCM.pcm_c_get_cycles == NULL || PCM.pcm_c_get_instr == NULL ||
-			PCM.pcm_c_build_core_event == NULL)
+			PCM.pcm_c_build_core_event == NULL || PCM.pcm_c_get_core_event == NULL)
 		return -1;
 	switch(argc-1)
 	{

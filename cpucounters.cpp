@@ -112,7 +112,7 @@ bool PCM::initWinRing0Lib()
 
     if (result == FALSE)
     {
-        CloseHandle(hOpenLibSys);
+        DeinitOpenLibSys(&hOpenLibSys);
         hOpenLibSys = NULL;
         return false;
     }
@@ -161,9 +161,9 @@ class InstanceLock
 public:
     InstanceLock(const bool global_) : globalSemaphoreName(PCM_INSTANCE_LOCK_SEMAPHORE_NAME), globalSemaphore(NULL), global(global_)
     {
-        if(!global)
+        if (!global)
         {
-            pthread_mutex_lock(&processIntanceMutex);
+            if (pthread_mutex_lock(&processIntanceMutex) != 0) std::cerr << "pthread_mutex_lock failed\n";
             return;
         }
         umask(0);
@@ -195,9 +195,9 @@ public:
     }
     ~InstanceLock()
     {
-        if(!global)
+        if (!global)
         {
-            pthread_mutex_unlock(&processIntanceMutex);
+            if (pthread_mutex_unlock(&processIntanceMutex) != 0) std::cerr << "pthread_mutex_unlock failed\n";
             return;
         }
         if (sem_post(globalSemaphore)) {
@@ -220,6 +220,7 @@ class TemporalThreadAffinity  // speedup trick for Linux, FreeBSD, DragonFlyBSD,
 public:
     TemporalThreadAffinity(uint32 core_id, bool checkStatus = true)
     {
+        assert(core_id < 1024);
         pthread_getaffinity_np(pthread_self(), sizeof(cpu_set_t), &old_affinity);
 
         cpu_set_t new_affinity;
@@ -247,6 +248,7 @@ public:
     TemporalThreadAffinity(const uint32 core_id, bool checkStatus = true)
         : set_size(CPU_ALLOC_SIZE(maxCPUs))
     {
+        assert(core_id < maxCPUs);
         old_affinity = CPU_ALLOC(maxCPUs);
         assert(old_affinity);
         pthread_getaffinity_np(pthread_self(), set_size, old_affinity);
@@ -593,7 +595,7 @@ bool PCM::detectModel()
                 auto tokens = split(line, ':');
                 if (tokens.size() >= 2 && tokens[0].find("flags") == 0)
                 {
-                    for (auto curFlag : split(tokens[1], ' '))
+                    for (const auto & curFlag : split(tokens[1], ' '))
                     {
                         if (flag == curFlag)
                         {
@@ -730,27 +732,27 @@ void PCM::initRDT()
     auto env = std::getenv("PCM_USE_RESCTRL");
     if (env != nullptr && std::string(env) == std::string("1"))
     {
-        std::cout << "INFO: using Linux resctrl driver for RDT metrics (L3OCC, LMB, RMB) because environment variable PCM_USE_RESCTRL=1\n";
+        std::cerr << "INFO: using Linux resctrl driver for RDT metrics (L3OCC, LMB, RMB) because environment variable PCM_USE_RESCTRL=1\n";
         resctrl.init();
         useResctrl = true;
         return;
     }
     if (resctrl.isMounted())
     {
-        std::cout << "INFO: using Linux resctrl driver for RDT metrics (L3OCC, LMB, RMB) because resctrl driver is mounted.\n";
+        std::cerr << "INFO: using Linux resctrl driver for RDT metrics (L3OCC, LMB, RMB) because resctrl driver is mounted.\n";
         resctrl.init();
         useResctrl = true;
         return;
     }
     if (isSecureBoot())
     {
-        std::cout << "INFO: using Linux resctrl driver for RDT metrics (L3OCC, LMB, RMB) because Secure Boot mode is enabled.\n";
+        std::cerr << "INFO: using Linux resctrl driver for RDT metrics (L3OCC, LMB, RMB) because Secure Boot mode is enabled.\n";
         resctrl.init();
         useResctrl = true;
         return;
     }
 #endif
-    std::cout << "Initializing RMIDs" << std::endl;
+    std::cerr << "Initializing RMIDs" << std::endl;
     unsigned maxRMID;
     /* Calculate maximum number of RMID supported by socket */
     maxRMID = getMaxRMID();
@@ -2105,6 +2107,7 @@ class CoreTaskQueue
     std::thread worker;
     CoreTaskQueue() = delete;
     CoreTaskQueue(CoreTaskQueue &) = delete;
+    CoreTaskQueue & operator = (CoreTaskQueue &) = delete;
 public:
     CoreTaskQueue(int32 core) :
         worker([=]() {
@@ -3046,18 +3049,21 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
             perf_event_attr e = PCM_init_perf_event_attr();
             e.type = PERF_TYPE_RAW;
             e.config = (1ULL << 63ULL) + event_select_reg.value;
-            if (event_select_reg.fields.event_select == getOCREventNr(0, i).first && event_select_reg.fields.umask == getOCREventNr(0, i).second)
-                e.config1 = pExtDesc->OffcoreResponseMsrValue[0];
-            if (event_select_reg.fields.event_select == getOCREventNr(1, i).first && event_select_reg.fields.umask == getOCREventNr(1, i).second)
-                e.config1 = pExtDesc->OffcoreResponseMsrValue[1];
+	    if (pExtDesc != nullptr)
+            {
+                if (event_select_reg.fields.event_select == getOCREventNr(0, i).first && event_select_reg.fields.umask == getOCREventNr(0, i).second)
+                    e.config1 = pExtDesc->OffcoreResponseMsrValue[0];
+                if (event_select_reg.fields.event_select == getOCREventNr(1, i).first && event_select_reg.fields.umask == getOCREventNr(1, i).second)
+                    e.config1 = pExtDesc->OffcoreResponseMsrValue[1];
 
-            if (event_select_reg.fields.event_select == LOAD_LATENCY_EVTNR && event_select_reg.fields.umask == LOAD_LATENCY_UMASK)
-            {
-                e.config1 = pExtDesc->LoadLatencyMsrValue;
-            }
-            if (event_select_reg.fields.event_select == FRONTEND_EVTNR && event_select_reg.fields.umask == FRONTEND_UMASK)
-            {
-                e.config1 = pExtDesc->FrontendMsrValue;
+                if (event_select_reg.fields.event_select == LOAD_LATENCY_EVTNR && event_select_reg.fields.umask == LOAD_LATENCY_UMASK)
+                {
+                    e.config1 = pExtDesc->LoadLatencyMsrValue;
+                }
+                if (event_select_reg.fields.event_select == FRONTEND_EVTNR && event_select_reg.fields.umask == FRONTEND_UMASK)
+                {
+                    e.config1 = pExtDesc->FrontendMsrValue;
+                }
             }
 
             if (programPerfEvent(e, PERF_GEN_EVENT_0_POS + j, std::string("generic event #") + std::to_string(i)) == false)
@@ -3113,12 +3119,12 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
                                           std::make_pair(perfRetiringPath, PERF_TOPDOWN_RETIRING_POS)};
             int readPos = core_fixed_counter_num_used + core_gen_counter_num_used;
             leader_counter = -1;
-            for (auto event : topDownEvents)
+            for (const auto & event : topDownEvents)
             {
                 uint64 eventSel = 0, umask = 0;
                 const auto eventDesc = readSysFS(event.first);
                 const auto tokens = split(eventDesc, ',');
-                for (auto token : tokens)
+                for (const auto & token : tokens)
                 {
                     if (match(token, "event=", &eventSel))
                     {
@@ -4605,9 +4611,9 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool sile
         else
         {
             fixedReg.value = 0;
-            for (auto cfg : corePMUConfig.fixed)
+            for (const auto & cfg : corePMUConfig.fixed)
             {
-                fixedReg.value |= cfg.first[0];
+                fixedReg.value |= uint64(cfg.first[0]);
             }
             conf.fixedCfg = &fixedReg;
         }
@@ -5428,6 +5434,7 @@ void print_mcfg(const char * path)
     if(read_bytes == 0)
     {
         std::cerr << "PCM Error: Cannot read " << path << "\n";
+        ::close(mcfg_handle);
         throw std::exception();
     }
 
@@ -5442,6 +5449,7 @@ void print_mcfg(const char * path)
         if(read_bytes == 0)
         {
               std::cerr << "PCM Error: Cannot read " << path << " (2)\n";
+              ::close(mcfg_handle);
               throw std::exception();
         }
         std::cout << "Segment " << std::dec << i << " ";
@@ -5640,16 +5648,21 @@ bool PCM::useLinuxPerfForUncore() const
     bool secureBoot = isSecureBoot();
 #ifdef PCM_USE_PERF
     const auto imcIDs = enumeratePerfPMUs("imc", 100);
-    std::cout << "INFO: Linux perf interface to program uncore PMUs is " << (imcIDs.empty()?"NOT ":"") << "present\n";
+    std::cerr << "INFO: Linux perf interface to program uncore PMUs is " << (imcIDs.empty()?"NOT ":"") << "present\n";
+    if (imcIDs.empty())
+    {
+        use = 0;
+        return 1 == use;
+    }
     const char * perf_env = std::getenv("PCM_USE_UNCORE_PERF");
     if (perf_env != NULL && std::string(perf_env) == std::string("1"))
     {
-        std::cout << "INFO: using Linux perf interface to program uncore PMUs because env variable PCM_USE_UNCORE_PERF=1\n";
+        std::cerr << "INFO: using Linux perf interface to program uncore PMUs because env variable PCM_USE_UNCORE_PERF=1\n";
         use = 1;
     }
     if (secureBoot)
     {
-        std::cout << "INFO: Secure Boot detected. Using Linux perf for uncore PMU programming.\n";
+        std::cerr << "INFO: Secure Boot detected. Using Linux perf for uncore PMU programming.\n";
         use = 1;
     }
     else
@@ -7209,7 +7222,8 @@ void ServerPCICFGUncore::initMemTest(ServerPCICFGUncore::MemTestParam & param)
         std::cerr << "ERROR: mmap failed\n";
         return;
     }
-    unsigned long long maxNode = (unsigned long long)(readMaxFromSysFS("/sys/devices/system/node/online") + 1);
+    const int64 onlineNodes = (int64)readMaxFromSysFS("/sys/devices/system/node/online");
+    unsigned long long maxNode = (unsigned long long)(onlineNodes + 1);
     if (maxNode == 0)
     {
         std::cerr << "ERROR: max node is 0 \n";
@@ -7682,6 +7696,7 @@ void PCM::programCbo(const uint64 * events, const uint32 opCode, const uint32 nc
 
         for(uint32 cbo = 0; cbo < getMaxNumOfCBoxes(); ++cbo)
         {
+            assert(cbo < cboPMUs[i].size());
             cboPMUs[i][cbo].initFreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
 
             if (ICX != cpu_model && SNOWRIDGE != cpu_model)
@@ -7984,7 +7999,7 @@ void PCM::setupCustomCoreEventsForNuma(PCM::ExtendedCustomCoreEventDescription& 
         conf.OffcoreResponseMsrValue[1] = 0x3FC0008FFF | (1 << 27) | (1 << 28) | (1 << 29);
         break;
     case PCM::ICX:
-        std::cout << "INFO: Monitored accesses include demand + L2 cache prefetcher, code read and RFO.\n";
+        std::cerr << "INFO: Monitored accesses include demand + L2 cache prefetcher, code read and RFO.\n";
         // OCR.READS_TO_CORE.LOCAL_DRAM
         conf.OffcoreResponseMsrValue[0] = 0x0104000477;
         // OCR.READS_TO_CORE.REMOTE_DRAM

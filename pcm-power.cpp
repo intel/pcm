@@ -355,7 +355,9 @@ int main(int argc, char * argv[])
             all += getNumberOfCustomEvents(l, before, after);
         }
         assert(license < nCorePowerLicenses);
-        return 100.0 * double(getNumberOfCustomEvents(license, before, after)) / double(all);
+	if (all > 0)
+            return 100.0 * double(getNumberOfCustomEvents(license, before, after)) / double(all);
+        return -1.;
     };
 
     const auto uncoreFreqFactor = double(m->getNumOnlineSockets()) / double(m->getNumOnlineCores());

@@ -876,7 +876,7 @@ ccr* get_ccr(PCM* m, uint64_t& ccr)
 vector<struct counter> load_events(PCM * m, const char* fn)
 {
     vector<struct counter> v;
-    struct counter ctr;
+    struct counter ctr{};
     std::unique_ptr<ccr> pccr(get_ccr(m, ctr.ccr));
 
     std::ifstream in(fn);
@@ -1055,9 +1055,9 @@ void print_PCIeMapping(const std::vector<struct iio_stacks_on_socket>& iios, con
     for (auto it = iios.begin(); it != iios.end(); ++it) {
         printf("Socket %d\n", (*it).socket_id);
         for (int stack = 0; stack < 6; stack++) {
-            for (auto stack : it->stacks) {
+            for (auto & stack : it->stacks) {
                 printf("\t%s root bus: 0x%x", stack.stack_name.c_str(), stack.busno);
-                printf(stack.flipped ? "\tflipped: true\n" : "\tflipped: false\n");
+		printf("\tflipped: %s\n", stack.flipped ? "true" : "false");
                 for (auto part : stack.parts) {
                     vector<struct pci> pp = part.child_pci_devs;
                     uint8_t level = 1;
@@ -1122,8 +1122,9 @@ void print_usage(const string& progname)
          << "                                        to a file, in case filename is provided\n";
     cerr << "  -csv-delimiter=<value>  | /csv-delimiter=<value>   => set custom csv delimiter\n";
     cerr << "  -human-readable | /human-readable  => use human readable format for output (for csv only)\n";
+    cerr << "  -i[=number] | /i[=number]          => allow to determine number of iterations\n";
     cerr << " Examples:\n";
-    cerr << "  " << progname << " 1.0                   => print counters every second\n";
+    cerr << "  " << progname << " 1.0 -i=10             => print counters every second 10 times and exit\n";
     cerr << "  " << progname << " 0.5 -csv=test.log     => twice a second save counter values to test.log in CSV format\n";
     cerr << "  " << progname << " -csv -human-readable  => every 3 second print counters in human-readable CSV format\n";
     cerr << "\n";
@@ -1145,6 +1146,7 @@ int main(int argc, char * argv[])
     std::string csv_delimiter = ",";
     std::string output_file;
     double delay = PCM_DELAY_DEFAULT;
+    MainLoop mainLoop;
     PCM * m = PCM::getInstance();
 
     while (argc > 1) {
@@ -1167,6 +1169,9 @@ int main(int argc, char * argv[])
         }
         else if (check_argument_equals(*argv, {"-human-readable", "/human-readable"})) {
             human_readable = true;
+        }
+        else if (mainLoop.parseArg(*argv)) {
+            continue;
         }
         else {
             // any other options positional that is a floating point number is treated as <delay>,
@@ -1252,11 +1257,15 @@ int main(int argc, char * argv[])
         output = &file_stream;
     }
 
-    while (1) {
+    mainLoop([&]()
+    {
         collect_data(m, delay, iios, counters);
         vector<string> display_buffer = csv ?
             build_csv(iios, counters, human_readable, csv_delimiter) :
             build_display(iios, counters, pciDB);
         display(display_buffer, *output);
-    };
+        return true;
+    });
+
+    exit(EXIT_SUCCESS);
 }
