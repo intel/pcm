@@ -161,9 +161,9 @@ class InstanceLock
 public:
     InstanceLock(const bool global_) : globalSemaphoreName(PCM_INSTANCE_LOCK_SEMAPHORE_NAME), globalSemaphore(NULL), global(global_)
     {
-        if(!global)
+        if (!global)
         {
-            pthread_mutex_lock(&processIntanceMutex);
+            if (pthread_mutex_lock(&processIntanceMutex) != 0) std::cerr << "pthread_mutex_lock failed\n";
             return;
         }
         umask(0);
@@ -195,9 +195,9 @@ public:
     }
     ~InstanceLock()
     {
-        if(!global)
+        if (!global)
         {
-            pthread_mutex_unlock(&processIntanceMutex);
+            if (pthread_mutex_unlock(&processIntanceMutex) != 0) std::cerr << "pthread_mutex_unlock failed\n";
             return;
         }
         if (sem_post(globalSemaphore)) {
@@ -2107,6 +2107,7 @@ class CoreTaskQueue
     std::thread worker;
     CoreTaskQueue() = delete;
     CoreTaskQueue(CoreTaskQueue &) = delete;
+    CoreTaskQueue & operator = (CoreTaskQueue &) = delete;
 public:
     CoreTaskQueue(int32 core) :
         worker([=]() {
@@ -4612,7 +4613,7 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool sile
             fixedReg.value = 0;
             for (const auto & cfg : corePMUConfig.fixed)
             {
-                fixedReg.value |= cfg.first[0];
+                fixedReg.value |= uint64(cfg.first[0]);
             }
             conf.fixedCfg = &fixedReg;
         }
@@ -7221,7 +7222,8 @@ void ServerPCICFGUncore::initMemTest(ServerPCICFGUncore::MemTestParam & param)
         std::cerr << "ERROR: mmap failed\n";
         return;
     }
-    unsigned long long maxNode = (unsigned long long)(readMaxFromSysFS("/sys/devices/system/node/online") + 1);
+    const int64 onlineNodes = (int64)readMaxFromSysFS("/sys/devices/system/node/online");
+    unsigned long long maxNode = (unsigned long long)(onlineNodes + 1);
     if (maxNode == 0)
     {
         std::cerr << "ERROR: max node is 0 \n";

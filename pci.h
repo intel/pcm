@@ -100,8 +100,9 @@ class PciHandleM
     uint32 function;
     uint64 base_addr;
 
-    PciHandleM();             // forbidden
-    PciHandleM(PciHandleM &); // forbidden
+    PciHandleM() = delete;             // forbidden
+    PciHandleM(PciHandleM &) = delete; // forbidden
+    PciHandleM & operator = (PciHandleM &) = delete; // forbidden
 
 public:
     PciHandleM(uint32 bus_, uint32 device_, uint32 function_);
