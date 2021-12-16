@@ -380,6 +380,7 @@ public:
     SystemRoot(PCM * p) : pcm_(p) {}
 
     SystemRoot( SystemRoot const & ) = delete; // do not try to copy this please
+    SystemRoot & operator = ( SystemRoot const & ) = delete; // do not try to copy this please
 
     virtual ~SystemRoot() {
         pcm_ = nullptr;

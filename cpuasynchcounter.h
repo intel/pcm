@@ -80,7 +80,7 @@ public:
     ~AsynchronCounterState()
     {
         pthread_cancel(UpdateThread);
-        pthread_mutex_destroy(&CounterMutex);
+        if (pthread_mutex_destroy(&CounterMutex) != 0) std::cerr << "pthread_mutex_destroy failed\n";
         m->cleanup();
         delete[] cstates1;
         delete[] cstates2;
@@ -190,7 +190,7 @@ void * UpdateCounters(void * state)
     AsynchronCounterState * s = (AsynchronCounterState *)state;
 
     while (true) {
-        pthread_mutex_lock(&(s->CounterMutex));
+        if (pthread_mutex_lock(&(s->CounterMutex)) != 0) std::cerr << "pthread_mutex_lock failed\n";
         for (uint32 core = 0; core < s->m->getNumCores(); ++core) {
             s->cstates1[core] = std::move(s->cstates2[core]);
             s->cstates2[core] = s->m->getCoreCounterState(core);
@@ -204,7 +204,7 @@ void * UpdateCounters(void * state)
         s->sstate1 = std::move(s->sstate2);
         s->sstate2 = s->m->getSystemCounterState();
 
-        pthread_mutex_unlock(&(s->CounterMutex));
+        if (pthread_mutex_unlock(&(s->CounterMutex)) != 0) std::cerr << "pthread_mutex_unlock failed\n";
         sleep(1);
     }
     return NULL;

@@ -32,7 +32,7 @@ namespace pcm
 #ifdef _MSC_VER
             CloseHandle(mutex_);
 #else
-            pthread_mutex_destroy(&mutex_);
+            if (pthread_mutex_destroy(&mutex_) != 0) std::cerr << "pthread_mutex_destroy failed\n";
 #endif
         }
 
@@ -41,7 +41,7 @@ namespace pcm
 #ifdef _MSC_VER
             WaitForSingleObject(mutex_, INFINITE);
 #else
-            pthread_mutex_lock(&mutex_);
+            if (pthread_mutex_lock(&mutex_) != 0) std::cerr << "pthread_mutex_lock failed\n";;
 #endif
         }
         void unlock()
@@ -49,7 +49,7 @@ namespace pcm
 #ifdef _MSC_VER
             ReleaseMutex(mutex_);
 #else
-            pthread_mutex_unlock(&mutex_);
+            if(pthread_mutex_unlock(&mutex_) != 0) std::cerr << "pthread_mutex_unlock failed\n";
 #endif
         }
 

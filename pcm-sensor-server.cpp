@@ -83,6 +83,7 @@ class Indent {
         }
         Indent() = delete;
         Indent(Indent const &) = default;
+        Indent & operator = (Indent const &) = default;
         ~Indent() = default;
 
         friend std::stringstream& operator <<( std::stringstream& stream, Indent in );
@@ -130,6 +131,7 @@ class datetime {
         datetime( std::tm t ) : now( t ) {}
         ~datetime() = default;
         datetime( datetime const& ) = default;
+	datetime & operator = ( datetime const& ) = default;
 
     public:
         void printDateTimeString( std::ostream& os ) const {
@@ -171,6 +173,7 @@ class date {
         }
         ~date() = default;
         date( date const& ) = default;
+	date & operator = ( date const& ) = default;
 
     public:
         void printDate( std::ostream& os ) const {
@@ -287,6 +290,7 @@ public:
     }
 
     JSONPrinter( JSONPrinter const & ) = delete;
+    JSONPrinter & operator = ( JSONPrinter const & ) = delete;
     JSONPrinter() = delete;
 
     CoreCounterState const getCoreCounter( std::shared_ptr<Aggregator> ag, uint32 tid ) const {
@@ -546,6 +550,7 @@ public:
     }
 
     PrometheusPrinter( PrometheusPrinter const & ) = delete;
+    PrometheusPrinter & operator = ( PrometheusPrinter const & ) = delete;
     PrometheusPrinter() = delete;
 
     CoreCounterState const getCoreCounter( std::shared_ptr<Aggregator> ag, uint32 tid ) const {
@@ -1062,7 +1067,8 @@ public:
     }
 
     void close() {
-        ::close( socketBuffer_.socket() );
+        const auto s = socketBuffer_.socket();
+        if (s != -1) ::close(s);
         socketBuffer_.setSocket( 0 );
     }
 
@@ -1085,6 +1091,7 @@ public:
         shi->installHandler( SignalHandler::handleSignal, SIGINT );
     }
     Server( Server const & ) = delete;
+    Server & operator = ( Server const & ) = delete;
     virtual ~Server() = default;
 
 public:
@@ -1972,6 +1979,7 @@ class HTTPMessage {
 protected:
     HTTPMessage() = default;
     HTTPMessage( HTTPMessage const & ) = default;
+    HTTPMessage & operator = ( HTTPMessage const & ) = default;
     ~HTTPMessage() = default;
 
 public:
@@ -2103,6 +2111,7 @@ class HTTPRequest : public HTTPMessage {
 public:
     HTTPRequest() : method_( HTTPRequestMethod::GET ) {}
     HTTPRequest( HTTPRequest const & ) = default;
+    HTTPRequest & operator = ( HTTPRequest const & ) = default;
     ~HTTPRequest() = default;
 
     template <typename CharT, typename Traits>
@@ -2136,6 +2145,7 @@ class HTTPResponse : public HTTPMessage {
 public:
     HTTPResponse() : responseCode_( HTTPResponseCode::RC_200_OK ) {}
     HTTPResponse( HTTPResponse const & ) = default;
+    HTTPResponse & operator = ( HTTPResponse const & ) = default;
     virtual ~HTTPResponse() = default;
 
     template <typename CharT, typename Traits>
@@ -2593,6 +2603,7 @@ public:
     }
 
     HTTPServer( HTTPServer const & ) = delete;
+    HTTPServer & operator = ( HTTPServer const & ) = delete;
 
     virtual ~HTTPServer() {
         pcf_->stop();
