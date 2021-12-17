@@ -165,12 +165,8 @@ do
     fi
 done
 
-# Run workaround to avoid 'Performance Monitoring Unit is occupied by other application'
-# errors when running pcm-raw.x
-PCM_NO_PERF=1 ./pcm.x -r 2> /dev/null > /dev/null -- sleep 0
-
 # Now check pcm-raw with JSON files from mapFile.csv
-./pcm-raw.x -e LD_BLOCKS.STORE_FORWARD -e CPU_CLK_UNHALTED.THREAD_ANY -e INST_RETIRED.ANY  -- sleep 1
+./pcm-raw.x -r -e LD_BLOCKS.STORE_FORWARD -e CPU_CLK_UNHALTED.THREAD_ANY -e INST_RETIRED.ANY  -- sleep 1
 if [ "$?" -ne "0" ]; then
     echo "Error in pcm-raw.x"
     exit 1
@@ -194,12 +190,8 @@ do
     eval $CMD
 done
 
-# Run workaround to avoid 'Performance Monitoring Unit is occupied by other application'
-# errors when running pcm-raw.x
-PCM_NO_PERF=1 ./pcm.x -r 2> /dev/null > /dev/null -- sleep 0
-
 # Check pcm-raw with TSV files
-./pcm-raw.x -e LD_BLOCKS.STORE_FORWARD -e CPU_CLK_UNHALTED.THREAD_ANY -e INST_RETIRED.ANY  -- sleep 1
+./pcm-raw.x -r -e LD_BLOCKS.STORE_FORWARD -e CPU_CLK_UNHALTED.THREAD_ANY -e INST_RETIRED.ANY  -- sleep 1
 if [ "$?" -ne "0" ]; then
     echo "Error in pcm-raw.x"
     rm -rf mapfile.csv
