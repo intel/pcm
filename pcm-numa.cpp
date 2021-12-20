@@ -156,7 +156,7 @@ int main(int argc, char * argv[])
             {
                 // any other options positional that is a floating point number is treated as <delay>,
                 // while the other options are ignored with a warning issues to stderr
-                double delay_input;
+                double delay_input = 0.0;
                 istringstream is_str_stream(*argv);
                 is_str_stream >> noskipws >> delay_input;
                 if (is_str_stream.eof() && !is_str_stream.fail()) {

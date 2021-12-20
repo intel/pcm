@@ -1615,6 +1615,8 @@ public:
         {
             return 2;
         }
+        std::cerr << "MaxIPC is not defined for your cpu model " << cpu_model << '\n';
+        assert (0);
         return 0;
     }
 

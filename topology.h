@@ -74,7 +74,7 @@ public:
     virtual ~Visitor() {};
 
 protected:
-    std::stringstream ss;
+    std::stringstream ss{};
 };
 
 class SystemObject
@@ -566,7 +566,7 @@ private:
     SystemCounterState sycs_;
     std::vector<std::future<CoreCounterState>> ccsFutures_;
     std::vector<std::future<UncoreCounterState>> ucsFutures_;
-    std::chrono::steady_clock::time_point dispatchedAt_;
+    std::chrono::steady_clock::time_point dispatchedAt_{};
     WorkQueue wq_;
 };
 

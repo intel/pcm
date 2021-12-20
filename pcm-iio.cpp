@@ -200,7 +200,7 @@ vector<string> combine_stack_name_and_counter_names(string stack_name)
 {
 
     vector<string> v;
-    string *tmp = new string[nameMap.size()];
+    vector<string> tmp(nameMap.size());
     v.push_back(stack_name);
     for (std::map<string,std::pair<h_id,std::map<string,v_id>>>::const_iterator iunit = nameMap.begin(); iunit != nameMap.end(); ++iunit) {
         string h_name = iunit->first;
@@ -212,8 +212,6 @@ vector<string> combine_stack_name_and_counter_names(string stack_name)
     for (uint32_t i = 0; i < nameMap.size(); i++) {
         v.push_back(tmp[i]);
     }
-
-	delete[] tmp;
     return v;
 }
 
@@ -937,6 +935,7 @@ vector<struct counter> load_events(PCM * m, const char* fn)
                             v_nameMap[v_name] = (unsigned int)v_nameMap.size() - 1;
                         } else {
                             cerr << "Detect duplicated v_name:" << v_name << "\n";
+                            in.close();
                             exit(EXIT_FAILURE);
                         }
                         ctr.v_id = (uint32_t)v_nameMap.size() - 1;
@@ -988,6 +987,7 @@ vector<struct counter> load_events(PCM * m, const char* fn)
                     break;
                 case PCM::INVALID:
                     cerr << "Field in -o file not recognized. The key is: " << key << "\n";
+                    in.close();
                     exit(EXIT_FAILURE);
                     break;
             }
@@ -1176,7 +1176,7 @@ int main(int argc, char * argv[])
         else {
             // any other options positional that is a floating point number is treated as <delay>,
             // while the other options are ignored with a warning issues to stderr
-            double delay_input;
+            double delay_input = 0.0;
             istringstream is_str_stream(*argv);
             is_str_stream >> noskipws >> delay_input;
             if (is_str_stream.eof() && !is_str_stream.fail()) {
@@ -1266,6 +1266,8 @@ int main(int argc, char * argv[])
         display(display_buffer, *output);
         return true;
     });
+
+    file_stream.close();
 
     exit(EXIT_SUCCESS);
 }

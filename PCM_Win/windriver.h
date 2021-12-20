@@ -37,9 +37,9 @@ extern void restrictDriverAccess(LPCWSTR path);
 
 class Driver
 {
-    SC_HANDLE hSCManager;
-    SC_HANDLE hService;
-    SERVICE_STATUS ss;
+    SC_HANDLE hSCManager{};
+    SC_HANDLE hService{};
+    SERVICE_STATUS ss{};
 
 public:
     static std::wstring msrLocalPath()

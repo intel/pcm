@@ -5042,7 +5042,7 @@ void PCM::readQPICounters(SystemCounterState & result)
         {
             if (num_sockets == 2)
             {
-                uint32 SCore[2] = { 0, 0 };
+                uint32 SCore[2] = { socketRefCore[0], socketRefCore[1] };
                 uint64 Total_Reads[2] = { 0, 0 };
                 uint64 Total_Writes[2] = { 0, 0 };
                 uint64 IOH_Reads[2] = { 0, 0 };
@@ -5052,8 +5052,6 @@ void PCM::readQPICounters(SystemCounterState & result)
                 uint64 Local_Reads[2] = { 0, 0 };
                 uint64 Local_Writes[2] = { 0, 0 };
 
-                while (topology[SCore[0]].socket != 0) ++(SCore[0]);
-                while (topology[SCore[1]].socket != 1) ++(SCore[1]);
                 for (int s = 0; s < 2; ++s)
                 {
                     TemporalThreadAffinity tempThreadAffinity(SCore[s]); // speedup trick for Linux
@@ -5512,9 +5510,9 @@ static const uint32 M2M_DEV_IDS[] = {
 };
 
 Mutex socket2busMutex;
-std::vector<std::pair<uint32,uint32> > ServerPCICFGUncore::socket2iMCbus;
-std::vector<std::pair<uint32,uint32> > ServerPCICFGUncore::socket2UPIbus;
-std::vector<std::pair<uint32,uint32> > ServerPCICFGUncore::socket2M2Mbus;
+std::vector<std::pair<uint32,uint32> > ServerPCICFGUncore::socket2iMCbus{};
+std::vector<std::pair<uint32,uint32> > ServerPCICFGUncore::socket2UPIbus{};
+std::vector<std::pair<uint32,uint32> > ServerPCICFGUncore::socket2M2Mbus{};
 
 void initSocket2Bus(std::vector<std::pair<uint32, uint32> > & socket2bus, uint32 device, uint32 function, const uint32 DEV_IDS[], uint32 devIdsSize)
 {
