@@ -69,7 +69,7 @@ std::string l3cache_occ_format(uint64 o)
     if (o == PCM_INVALID_QOS_MONITORING_DATA)
         return "N/A";
 
-    snprintf(buffer, 1024, "%6d", (uint32) o);
+    snprintf(buffer, 1024, "%6u", (uint32) o);
     return buffer;
 }
 
@@ -1327,7 +1327,7 @@ int main(int argc, char * argv[])
         {
             // any other options positional that is a floating point number is treated as <delay>,
             // while the other options are ignored with a warning issues to stderr
-            double delay_input;
+            double delay_input = 0.0;
             std::istringstream is_str_stream(*argv);
             is_str_stream >> noskipws >> delay_input;
             if (is_str_stream.eof() && !is_str_stream.fail() && delay == -1) {

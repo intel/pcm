@@ -57,7 +57,7 @@ namespace pcm {
     uint64 TGLClientBW::getImcReads()
     {
         uint64 result = 0;
-        for (auto r : mmioRange)
+        for (auto & r : mmioRange)
         {
             result += r->read64(PCM_TGL_IMC_DRAM_DATA_READS[model] - PCM_TGL_IMC_EVENT_BASE[model]);
         }
@@ -67,7 +67,7 @@ namespace pcm {
     uint64 TGLClientBW::getImcWrites()
     {
         uint64 result = 0;
-        for (auto r : mmioRange)
+        for (auto & r : mmioRange)
         {
             result += r->read64(PCM_TGL_IMC_DRAM_DATA_WRITES[model] - PCM_TGL_IMC_EVENT_BASE[model]);
         }
