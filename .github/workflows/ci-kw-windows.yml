@@ -9,7 +9,7 @@ on:
 jobs:
   build:
 
-    runs-on: ci-windows
+    runs-on: ci-kw-windows
     if: ${{ github.repository != 'opcm/pcm' }}
 
     steps:
@@ -21,6 +21,6 @@ jobs:
     - name: msbuild
       run: |
         git clone https://github.com/simdjson/simdjson.git
-        c:\pcm\ci-kw-windows.ps1 'echo No preparation for msbuild' 'msbuild pcm-all.sln /p:Configuration=Release,Platform=x64 /t:Clean,Build /m'
+        c:\pcm\ci-kw-windows.ps1 'echo No_preparation_for_msbuild' 'msbuild pcm-all.sln /p:Configuration=Release,Platform=x64 /t:Clean,Build /m'
         chdir WinMSRDriver
-        c:\pcm\ci-kw-windows.ps1 'echo No preparation for msbuild' 'msbuild MSR.vcxproj /p:Configuration=Release,Platform=x64 /t:Clean,Build /m'
+        c:\pcm\ci-kw-windows.ps1 'echo No_preparation_for_msbuild' 'msbuild MSR.vcxproj /p:Configuration=Release,Platform=x64 /t:Clean,Build /m'
