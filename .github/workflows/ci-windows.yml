@@ -23,4 +23,6 @@ jobs:
         msbuild pcm-all.sln /p:Configuration=Release,Platform=x64 /t:Clean,Build /m
         git clone https://github.com/simdjson/simdjson.git
         msbuild pcm-all.sln /p:Configuration=Release,Platform=x64 /t:Clean,Build /m
+        chdir WinMSRDriver
+        msbuild MSR.vcxproj /p:Configuration=Release,Platform=x64 /t:Clean,Build /m
 
