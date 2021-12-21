@@ -2301,7 +2301,7 @@ public:
     RetiringSlots(0),
     AllSlotsRaw(0)
     {
-        memset(CStateResidency, 0, sizeof(CStateResidency));
+        std::fill(CStateResidency, CStateResidency + PCM::MAX_C_STATE + 1, 0);
     }
     virtual ~BasicCounterState() { }
 
@@ -2758,7 +2758,7 @@ public:
         TORInsertsIAMiss(0),
         UncClocks(0)
     {
-        memset(CStateResidency, 0, sizeof(CStateResidency));
+        std::fill(CStateResidency, CStateResidency + PCM::MAX_C_STATE + 1, 0);
     }
     virtual ~UncoreCounterState() { }
 

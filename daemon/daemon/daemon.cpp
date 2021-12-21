@@ -381,7 +381,7 @@ namespace PCMDaemon {
 
 	void Daemon::getPCMCounters()
 	{
-		memcpy (sharedPCMState_->version, VERSION, sizeof(VERSION));
+                std::copy(VERSION, VERSION + sizeof(VERSION), sharedPCMState_->version);
 		sharedPCMState_->version[sizeof(VERSION)] = '\0';
 
         sharedPCMState_->lastUpdateTscBegin = RDTSC();
