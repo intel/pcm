@@ -176,7 +176,7 @@ NTSTATUS deviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
             input_mmap_req = (struct MMAP_Request*)Irp->AssociatedIrp.SystemBuffer;
             output = (ULONG64 *)Irp->AssociatedIrp.SystemBuffer;
 
-            memset(&ProcNumber, 0, sizeof(PROCESSOR_NUMBER));
+            RtlSecureZeroMemory(&ProcNumber, sizeof(PROCESSOR_NUMBER));
 
             switch (IrpStackLocation->Parameters.DeviceIoControl.IoControlCode)
             {
@@ -186,8 +186,8 @@ NTSTATUS deviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
                     status = STATUS_INVALID_PARAMETER;
                     break;
                 }
-                memset(&new_affinity, 0, sizeof(GROUP_AFFINITY));
-                memset(&old_affinity, 0, sizeof(GROUP_AFFINITY));
+                RtlSecureZeroMemory(&new_affinity, sizeof(GROUP_AFFINITY));
+                RtlSecureZeroMemory(&old_affinity, sizeof(GROUP_AFFINITY));
                 KeGetProcessorNumberFromIndex(input_msr_req->core_id, &ProcNumber);
                 new_affinity.Group = ProcNumber.Group;
                 new_affinity.Mask = 1ULL << (ProcNumber.Number);
@@ -202,8 +202,8 @@ NTSTATUS deviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
                     status = STATUS_INVALID_PARAMETER;
                     break;
                 }
-                memset(&new_affinity, 0, sizeof(GROUP_AFFINITY));
-                memset(&old_affinity, 0, sizeof(GROUP_AFFINITY));
+                RtlSecureZeroMemory(&new_affinity, sizeof(GROUP_AFFINITY));
+                RtlSecureZeroMemory(&old_affinity, sizeof(GROUP_AFFINITY));
                 KeGetProcessorNumberFromIndex(input_msr_req->core_id, &ProcNumber);
                 new_affinity.Group = ProcNumber.Group;
                 new_affinity.Mask = 1ULL << (ProcNumber.Number);

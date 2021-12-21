@@ -5043,7 +5043,7 @@ void PCM::readQPICounters(SystemCounterState & result)
         {
             if (num_sockets == 2)
             {
-                uint32 SCore[2] = { socketRefCore[0], socketRefCore[1] };
+                uint32 SCore[2] = { (uint32)socketRefCore[0], (uint32)socketRefCore[1] };
                 uint64 Total_Reads[2] = { 0, 0 };
                 uint64 Total_Writes[2] = { 0, 0 };
                 uint64 IOH_Reads[2] = { 0, 0 };
