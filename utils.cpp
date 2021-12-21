@@ -69,8 +69,8 @@ void print_cpu_details()
 ThreadGroupTempAffinity::ThreadGroupTempAffinity(uint32 core_id, bool checkStatus)
 {
     GROUP_AFFINITY NewGroupAffinity;
-    memset(&NewGroupAffinity, 0, sizeof(GROUP_AFFINITY));
-    memset(&PreviousGroupAffinity, 0, sizeof(GROUP_AFFINITY));
+    SecureZeroMemory(&NewGroupAffinity, sizeof(GROUP_AFFINITY));
+    SecureZeroMemory(&PreviousGroupAffinity, sizeof(GROUP_AFFINITY));
     DWORD currentGroupSize = 0;
 
     while ((DWORD)core_id >= (currentGroupSize = GetActiveProcessorCount(NewGroupAffinity.Group)))

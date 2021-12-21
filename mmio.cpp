@@ -45,7 +45,7 @@ protected:
     virtual int load_driver_()
     {
         SYSTEM_INFO sys_info;
-        ZeroMemory(&sys_info, sizeof(sys_info));
+        SecureZeroMemory(&sys_info, sizeof(sys_info));
 
         GetCurrentDirectory(MAX_PATH - 10, driver_filename);
 
