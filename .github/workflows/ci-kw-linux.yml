@@ -1,0 +1,20 @@
+name: kw-linux
+
+on:
+  push:
+    branches: [ '**' ]
+  pull_request:
+    branches: [ '**' ]
+
+jobs:
+  build:
+
+    runs-on: ci-kw-linux
+    if: ${{ github.repository != 'opcm/pcm' }}
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: kw
+      run: |
+        git clone https://github.com/simdjson/simdjson.git
+        ci-kw-linux.sh "echo No Preparation for make" "make -j"
