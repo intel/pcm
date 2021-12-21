@@ -2871,8 +2871,9 @@ void PCM::checkError(const PCM::ErrorCode code)
         std::cerr << "Access to Processor Counter Monitor has denied (no MSR or PCI CFG space access).\n";
         exit(EXIT_FAILURE);
     case PCM::PMUBusy:
-        std::cerr << "Access to Processor Counter Monitor has denied (Performance Monitoring Unit is occupied by other application). Try to stop the application that uses PMU.\n";
-        std::cerr << "Alternatively you can try to reset PMU configuration. Try to reset? (y/n)\n";
+        std::cerr << "Access to Processor Counter Monitor has denied (Performance Monitoring Unit is occupied by other application)\n";
+        std::cerr << "Try to stop the application that uses PMU, or reset PMU configuration from PCM application itself\n";
+        std::cerr << "You can try to reset PMU configuration now. Try to reset? (y/n)\n";
         char yn;
         std::cin >> yn;
         if ('y' == yn)

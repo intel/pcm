@@ -59,8 +59,9 @@ void print_usage(const string progname)
     cerr << "                                            will read counters only after external program finishes\n";
     cerr << " Supported <options> are: \n";
     cerr << "  -h    | --help      | /h               => print this help and exit\n";
+    cerr << "  -r    | --reset     | /reset           => reset PMU configuration (at your own risk)\n";
     cerr << "  -csv[=file.csv]     | /csv[=file.csv]  => output compact CSV format to screen or\n"
-        << "                                            to a file, in case filename is provided\n";
+         << "                                            to a file, in case filename is provided\n";
     cerr << "  [-e event1] [-e event2] [-e event3] .. => list of custom events to monitor\n";
     cerr << "  event description example: -e core/config=0x30203,name=LD_BLOCKS.STORE_FORWARD/ -e core/fixed,config=0x333/ \n";
     cerr << "                             -e cha/config=0,name=UNC_CHA_CLOCKTICKS/ -e imc/fixed,name=DRAM_CLOCKS/\n";
@@ -1324,6 +1325,7 @@ int main(int argc, char* argv[])
     MainLoop mainLoop;
     string program = string(argv[0]);
     bool forceRTMAbortMode = false;
+    bool reset_pmu = false;
     PCM* m = PCM::getInstance();
 
 #ifdef PCM_SIMDJSON_AVAILABLE
@@ -1356,6 +1358,13 @@ int main(int argc, char* argv[])
         }
         else if (mainLoop.parseArg(*argv))
         {
+            continue;
+        }
+        if (strncmp(*argv, "-reset", 6) == 0 ||
+            strncmp(*argv, "-r", 2) == 0 ||
+            strncmp(*argv, "/reset", 6) == 0)
+        {
+            reset_pmu = true;
             continue;
         }
         else if (
@@ -1470,6 +1479,12 @@ int main(int argc, char* argv[])
                 continue;
             }
     } while (argc > 1); // end of command line parsing loop
+
+    if (reset_pmu)
+    {
+        cerr << "\n Resetting PMU configuration\n";
+        m->resetPMU();
+    }
 
     print_cpu_details();
 
