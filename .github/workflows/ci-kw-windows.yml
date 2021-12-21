@@ -1,0 +1,26 @@
+name: kw-windows
+
+on:
+  push:
+    branches: [ '**' ]
+  pull_request:
+    branches: [ '**' ]
+
+jobs:
+  build:
+
+    runs-on: ci-windows
+    if: ${{ github.repository != 'opcm/pcm' }}
+
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Add MSBuild to PATH
+      uses: microsoft/setup-msbuild@v1.0.2
+    
+    - name: msbuild
+      run: |
+        git clone https://github.com/simdjson/simdjson.git
+        c:\pcm\ci-kw-windows.ps1 'echo No preparation for msbuild' 'msbuild pcm-all.sln /p:Configuration=Release,Platform=x64 /t:Clean,Build /m'
+        chdir WinMSRDriver
+        c:\pcm\ci-kw-windows.ps1 'echo No preparation for msbuild' 'msbuild MSR.vcxproj /p:Configuration=Release,Platform=x64 /t:Clean,Build /m'
