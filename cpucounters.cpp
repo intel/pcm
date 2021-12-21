@@ -551,8 +551,8 @@ bool PCM::detectModel()
     } buf;
     PCM_CPUID_INFO cpuinfo;
     pcm_cpuid(0, cpuinfo);
-    memset(buffer, 0, 1024);
-    memset(buf.cbuf, 0, 16);
+    std::fill(buffer, buffer + 1024, 0);
+    std::fill(buf.cbuf, buf.cbuf + 16, 0);
     buf.ibuf[0] = cpuinfo.array[1];
     buf.ibuf[1] = cpuinfo.array[3];
     buf.ibuf[2] = cpuinfo.array[2];
@@ -3398,7 +3398,7 @@ std::string PCM::getCPUBrandString()
 std::string PCM::getCPUFamilyModelString()
 {
     char buffer[sizeof(int)*4*3+6];
-    memset(buffer,0,sizeof(buffer));
+    std::fill(buffer, buffer + sizeof(buffer), 0);
 #ifdef _MSC_VER
     sprintf_s(buffer,sizeof(buffer),"GenuineIntel-%d-%2X-%X",this->cpu_family,this->cpu_model,this->cpu_stepping);
 #else
@@ -4227,7 +4227,7 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
     uint64 cL3Occupancy = 0;
     uint64 cCustomEvents[PERF_MAX_CUSTOM_COUNTERS] = {0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL };
     uint64 cCStateResidency[PCM::MAX_C_STATE + 1];
-    memset(cCStateResidency, 0, sizeof(cCStateResidency));
+    std::fill(cCStateResidency, cCStateResidency + PCM::MAX_C_STATE + 1, 0);
     uint64 thermStatus = 0;
     uint64 cSMICount = 0;
     uint64 cFrontendBoundSlots = 0;
@@ -4987,7 +4987,7 @@ void PCM::readAndAggregatePackageCStateResidencies(std::shared_ptr<SafeMsrHandle
 {
     // reading package C state counters
     uint64 cCStateResidency[PCM::MAX_C_STATE + 1];
-    memset(cCStateResidency, 0, sizeof(cCStateResidency));
+    std::fill(cCStateResidency, cCStateResidency + PCM::MAX_C_STATE + 1, 0);
 
     for(int i=0; i <= int(PCM::MAX_C_STATE) ;++i)
         if(pkgCStateMsr && pkgCStateMsr[i])

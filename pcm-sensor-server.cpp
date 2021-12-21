@@ -137,7 +137,7 @@ class datetime {
         void printDateTimeString( std::ostream& os ) const {
             std::stringstream str("");
             char timeBuffer[64];
-            std::memset( timeBuffer, 0, 64 );
+	    std::fill(timeBuffer, timeBuffer + 64, 0);
             str.imbue( std::locale::classic() );
             if ( strftime( timeBuffer, 63, "%a, %d %b %Y %T GMT", &now ) )
                 str << timeBuffer;
@@ -148,7 +148,7 @@ class datetime {
         std::string toString() const {
             std::stringstream str("");
             char timeBuffer[64];
-            std::memset( timeBuffer, 0, 64 );
+	    std::fill(timeBuffer, timeBuffer + 64, 0);
             str.imbue( std::locale::classic() );
             if ( strftime( timeBuffer, 63, "%a, %d %b %Y %T GMT", &now ) )
                 str << timeBuffer;
@@ -209,7 +209,7 @@ std::string read_ndctl_info( std::ofstream& logfile ) {
         // parent, reads from pipe, close write-end
         close( pipes[1] );
         char buf[2049];
-        memset( buf, 0, 2049 );
+	std::fill(buf, buf + 2049, 0);
         ssize_t len = 0;
         while( (len = read( pipes[0], buf, 2048 )) > 0 ) {
             buf[len] = '\0';
@@ -912,7 +912,7 @@ protected:
     }
 
     virtual int_type underflow() {
-        memset( inputBuffer_, 0, SIZE * sizeof( char_type ) );
+        std::fill(inputBuffer_, inputBuffer_ + SIZE, 0);
         ssize_t bytesReceived;
 
 #if defined (USE_SSL)
@@ -2727,7 +2727,7 @@ void HTTPServer::run() {
 
         // Client connected, let's determine the client ip as string.
         char ipbuf[INET_ADDRSTRLEN];
-        ::memset( ipbuf, 0, 16 );
+	std::fill(ipbuf, ipbuf + INET_ADDRSTRLEN, 0);
         char const * resbuf = ::inet_ntop( AF_INET, &(clientAddress.sin_addr), ipbuf, INET_ADDRSTRLEN );
         if ( nullptr == resbuf ) {
             std::cerr << ::strerror( errno ) << "\n";

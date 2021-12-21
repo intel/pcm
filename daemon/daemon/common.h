@@ -246,7 +246,7 @@ namespace PCMDaemon {
 			pollMs(-1),
             lastUpdateTscEnd(0)
 			{
-				memset(this->version, '\0', sizeof(char)*VERSION_SIZE);
+				std::fill(this->version, this->version + VERSION_SIZE, 0);
 			}
 	} ALIGN(ALIGNMENT);
 

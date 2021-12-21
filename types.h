@@ -1272,9 +1272,9 @@ struct MCFGRecord
     unsigned char startBusNumber;
     unsigned char endBusNumber;
     char reserved[4];
-    MCFGRecord()
+    MCFGRecord() : baseAddress(0), PCISegmentGroupNumber(0), startBusNumber(0), endBusNumber(0)
     {
-           memset(this, 0, sizeof(MCFGRecord));
+        std::fill(reserved, reserved + 4, 0);
     }
     void print()
     {

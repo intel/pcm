@@ -199,11 +199,10 @@ bool match(const char * subtoken, const char * name, int * result)
     return false;
 }
 
-#define EVENT_SIZE 256
 void build_event(const char * argv, EventSelectRegister *reg, int idx)
 {
 	char *token, *subtoken, *saveptr1, *saveptr2;
-	char name[EVENT_SIZE], *str1, *str2;
+	char *str1, *str2;
 	int j, tmp;
 	uint64 tmp2;
 	reg->value = 0;
@@ -211,18 +210,12 @@ void build_event(const char * argv, EventSelectRegister *reg, int idx)
 	reg->fields.os = 1;
 	reg->fields.enable = 1;
 
-	memset(name,0,EVENT_SIZE);
-#ifdef _MSC_VER
-    strncpy_s(name, argv, EVENT_SIZE - 1);
-#else
-	strncpy(name,argv,EVENT_SIZE-1); 
-#endif
 	/*
 	   uint64 apic_int : 1;
 
 	   offcore_rsp=2,period=10000
 	   */
-	for (j = 1, str1 = name; ; j++, str1 = NULL) {
+	for (j = 1, str1 = (char*) argv; ; j++, str1 = NULL) {
 		token = strtok_r(str1, "/", &saveptr1);
 		if (token == NULL)
 			break;
