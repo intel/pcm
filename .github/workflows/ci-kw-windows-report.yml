@@ -27,3 +27,9 @@ jobs:
     - name: kw-report
       run: |
         c:\pcm\ci-kw-windows-report.ps1
+
+    - name: upload-artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: kw-report
+        path: kw_report.txt
