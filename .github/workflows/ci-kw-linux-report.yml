@@ -22,5 +22,5 @@ jobs:
     - name: upload-artifact
       uses: actions/upload-artifact@v2
       with:
-        name: kw-linux-report
+        name: kw-linux-report-${{ github.sha }}
         path: kw_report.txt

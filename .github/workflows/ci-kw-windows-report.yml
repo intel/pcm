@@ -26,7 +26,7 @@ jobs:
     - name: upload-artifact
       uses: actions/upload-artifact@v2
       with:
-        name: kw-windows-report
+        name: kw-windows-report-${{ github.sha }}
         path: kw_report.txt
 
     - name: kw-msr-driver
@@ -41,5 +41,5 @@ jobs:
     - name: upload-artifact-msr
       uses: actions/upload-artifact@v2
       with:
-        name: kw-windows-msr-report
+        name: kw-windows-msr-report-${{ github.sha }}
         path: kw_report.txt
