@@ -2910,7 +2910,7 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
                " config1 0x" << e.config1 << std::dec << "\n";
             if (24 == errno)
             {
-                std::cerr << "try executing 'ulimit -n 10000' to increase the limit on the number of open files.\n";
+                std::cerr << "try executing 'ulimit -n 20000' to increase the limit on the number of open files.\n";
             }
             else
             {
@@ -6383,7 +6383,7 @@ public:
         {
             std::cerr << "Linux Perf: Error on programming PMU " << pmuID << ":  " << strerror(errno) << "\n";
             std::cerr << "config: 0x" << std::hex << event.config << " config1: 0x" << event.config1 << " config2: 0x" << event.config2 << std::dec << "\n";
-            if (errno == 24) std::cerr << "try executing 'ulimit -n 10000' to increase the limit on the number of open files.\n";
+            if (errno == 24) std::cerr << "try executing 'ulimit -n 20000' to increase the limit on the number of open files.\n";
             return;
         }
     }
