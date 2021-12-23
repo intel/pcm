@@ -1,6 +1,6 @@
 name: kw-windows-report
 
-on: workflow_dispatch
+on: [workflow_dispatch, workflow_call]
 
 jobs:
   build:
