@@ -3,7 +3,6 @@ name: kw-report
 on: workflow_dispatch
 
 jobs:
-  if: ${{ github.repository != 'opcm/pcm' }}
   linux-report:
     uses: intel-innersource/applications.analyzers.pcm/.github/workflows/ci-kw-linux-report.yml@4163403
   windows-report:
