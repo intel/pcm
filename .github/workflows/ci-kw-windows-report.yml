@@ -19,11 +19,6 @@ jobs:
         git clone https://github.com/simdjson/simdjson.git
         c:\pcm\ci-kw-windows.ps1 'echo No_preparation_for_msbuild' 'msbuild pcm-all.sln /p:Configuration=Release,Platform=x64 /t:Clean,Build /m'
 
-    - name: kw-msr-driver
-      run: |
-        chdir WinMSRDriver
-        c:\pcm\ci-kw-windows.ps1 'echo No_preparation_for_msbuild' 'msbuild MSR.vcxproj /p:Configuration=Release,Platform=x64 /t:Clean,Build /m'
-
     - name: kw-report
       run: |
         c:\pcm\ci-kw-windows-report.ps1
@@ -31,5 +26,20 @@ jobs:
     - name: upload-artifact
       uses: actions/upload-artifact@v2
       with:
-        name: kw-report
+        name: kw-windows-report
+        path: kw_report.txt
+
+    - name: kw-msr-driver
+      run: |
+        chdir WinMSRDriver
+        c:\pcm\ci-kw-windows.ps1 'echo No_preparation_for_msbuild' 'msbuild MSR.vcxproj /p:Configuration=Release,Platform=x64 /t:Clean,Build /m'
+
+    - name: kw-report-msr-driver
+      run: |
+        c:\pcm\ci-kw-windows-report.ps1
+
+    - name: upload-artifact-msr
+      uses: actions/upload-artifact@v2
+      with:
+        name: kw-windows-msr-report
         path: kw_report.txt
