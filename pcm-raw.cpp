@@ -96,7 +96,7 @@ PCM::RawEventConfig initCoreConfig()
 
 void printEvent(const std::string & pmuName, const bool fixed, const PCM::RawEventConfig & config)
 {
-    cout << "parsed " << (fixed ? "fixed " : "") << " " << pmuName << " event: \"" << hex << config.second << "\" : {" << hex <<
+    cerr << "parsed " << (fixed ? "fixed " : "") << " " << pmuName << " event: \"" << hex << config.second << "\" : {" << hex <<
         "0x" << config.first[0] <<
         ", 0x" << config.first[1] <<
         ", 0x" << config.first[2] <<
@@ -228,7 +228,7 @@ bool initPMUEventMap()
     const std::string ourFMS = PCM::getInstance()->getCPUFamilyModelString();
     // cout << "Our FMS: " << ourFMS << "\n";
     std::multimap<std::string, std::string> eventFiles;
-    cout << "Matched event files:\n";
+    cerr << "Matched event files:\n";
     while (std::getline(in, line))
     {
         auto tokens = split(line, ',');
@@ -239,8 +239,8 @@ bool initPMUEventMap()
         std::cmatch FMSMatch;
         if (std::regex_search(ourFMS.c_str(), FMSMatch, FMSRegex))
         {
-            cout << tokens[FMSPos] << " " << tokens[EventTypetPos] << " " << tokens[FilenamePos] << "\n";
-           eventFiles.insert(std::make_pair(tokens[EventTypetPos], tokens[FilenamePos]));
+            cerr << tokens[FMSPos] << " " << tokens[EventTypetPos] << " " << tokens[FilenamePos] << "\n";
+            eventFiles.insert(std::make_pair(tokens[EventTypetPos], tokens[FilenamePos]));
         }
     }
     in.close();
@@ -260,7 +260,7 @@ bool initPMUEventMap()
         };
         try {
 
-            cout << evfile.first << " " << evfile.second << "\n";
+            cerr << evfile.first << " " << evfile.second << "\n";
 
             if (evfile.first == "core" || evfile.first == "uncore" || evfile.first == "uncore experimental")
             {
@@ -829,7 +829,7 @@ bool addEvents(std::vector<PCM::RawPMUConfigs>& PMUConfigs, string fn)
     {
         if (!curConfig.empty())
         {
-            cout << "Adding new group \n";
+            cerr << "Adding new group \n";
             PMUConfigs.push_back(curConfig);
             curConfig.clear();
         }
@@ -1504,15 +1504,15 @@ int main(int argc, char* argv[])
     assert(PMUConfigs.size() == nGroups);
     if (nGroups == 0)
     {
-        cout << "No events specified. Exiting.\n";
+        cerr << "No events specified. Exiting.\n";
         exit(EXIT_FAILURE);
     }
-    cout << "Collecting " << nGroups << " event group(s)\n";
+    cerr << "Collecting " << nGroups << " event group(s)\n";
 
     if (nGroups > 1)
     {
         transpose = true;
-        cout << "Enforcing transposed event output because the number of event groups > 1\n";
+        cerr << "Enforcing transposed event output because the number of event groups > 1\n";
     }
 
     auto programPMUs = [&m](const PCM::RawPMUConfigs & config)
