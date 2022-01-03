@@ -178,7 +178,14 @@ void sigINT_handler(int signum)
         return;
     } else {
         exit_cleanup();
-        _exit(EXIT_SUCCESS);
+        if (signum == SIGABRT || signum == SIGSEGV)
+        {
+            _exit(EXIT_FAILURE);
+        }
+        else
+        {
+            _exit(EXIT_SUCCESS);
+        }
     }
 }
 
