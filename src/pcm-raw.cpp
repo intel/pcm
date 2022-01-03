@@ -73,6 +73,7 @@ void print_usage(const string progname)
     cerr << "  -f    | /f                             => enforce flushing each line for interactive output\n";
     cerr << "  -i[=number] | /i[=number]              => allow to determine number of iterations\n";
     cerr << "  -tr | /tr                              => transpose output (print single event data in a row)\n";
+    cerr << "  -ext                                   => add headers to transposed output and extend printout to match it\n";
     cerr << "  -s  | /s                               => print a sample separator line between samples in transposed output\n";
     cerr << "  -l                                     => use locale for printing values, calls -tab for readability\n";
     cerr << "  -tab                                   => replace default comma separator with tab\n";
@@ -870,8 +871,26 @@ bool show_partial_core_output = false;
 bitset<MAX_CORES> ycores;
 bool flushLine = false;
 bool transpose = false;
+bool extend_printout = false;
 std::string separator = ",";
 bool sampleSeparator = false;
+
+struct PrintOffset {
+    const std::string entry;
+    int start;
+    int end;
+};
+
+std::vector<PrintOffset> printOffsets;
+std::vector<std::string> printedBlocks;
+
+int getPrintOffsetIdx(const std::vector<PrintOffset> &printOffsets, const std::string &value) {
+    for (size_t i = 0 ; i < printOffsets.size() ; i++) {
+        if (printOffsets[i].entry == value)
+            return i;
+    }
+    return -1;
+}
 
 void printRowBegin(const std::string & EventName, const CoreCounterState & BeforeState, const CoreCounterState & AfterState, PCM* m)
 {
@@ -881,17 +900,33 @@ void printRowBegin(const std::string & EventName, const CoreCounterState & Befor
 
 
 template <class MetricFunc>
-void printRow(const std::string & EventName, MetricFunc metricFunc, const std::vector<CoreCounterState>& BeforeState, const std::vector<CoreCounterState>& AfterState, PCM* m)
+void printRow(const std::string & EventName, MetricFunc metricFunc, const std::vector<CoreCounterState>& BeforeState, const std::vector<CoreCounterState>& AfterState, PCM* m, const CsvOutputType outputType, PrintOffset& printOffset)
 {
-    printRowBegin(EventName, BeforeState[0], AfterState[0], m);
+    if (outputType == Data) {
+        printRowBegin(EventName, BeforeState[0], AfterState[0], m);
+        for (int i = 0 ; i < printOffset.start ; i++)
+            std::cout << separator;
+    }
+
     for (uint32 core = 0; core < m->getNumCores(); ++core)
     {
         if (!(m->isCoreOnline(core) == false || (show_partial_core_output && ycores.test(core) == false)))
         {
-            cout << separator << metricFunc(BeforeState[core], AfterState[core]);
+            if (outputType == Header1) {
+                cout << "SKT" << m->getSocketId(core) << "CORE" << core << separator;
+                printOffset.end++;
+            }
+            else if (outputType == Header2)
+                cout << "core" << separator;
+            else if (outputType == Data)
+                cout << separator << metricFunc(BeforeState[core], AfterState[core]);
+            else
+                assert(!"unknown output type");
         }
     }
-    cout << "\n";
+
+    if (outputType == Data)
+        cout << "\n";
 };
 
 typedef uint64 (*UncoreMetricFunc)(const uint32 u, const uint32 i,  const ServerUncoreCounterState& before, const ServerUncoreCounterState& after);
@@ -910,41 +945,111 @@ constexpr uint64 maxPerfMetricsValue = 255ULL;
 
 void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<CoreCounterState>& BeforeState, vector<CoreCounterState>& AfterState, vector<ServerUncoreCounterState>& BeforeUncoreState, vector<ServerUncoreCounterState>& AfterUncoreState, const CsvOutputType outputType)
 {
-    if (outputType == CsvOutputType::Data)
-    {
+        const bool is_header = (outputType == Header1 || outputType == Header2);
         for (const auto & typeEvents : curPMUConfigs)
         {
+            bool is_header_printed = false;
             const auto& type = typeEvents.first;
             const auto& events = typeEvents.second.programmable;
             const auto& fixedEvents = typeEvents.second.fixed;
-            auto printUncoreRows = [&](UncoreMetricFunc metricFunc, const uint32 maxUnit, const std::string & fixedName = std::string("<invalid-fixed-event-name>"), UncoreFixedMetricFunc fixedMetricFunc = nullFixedMetricFunc)
+
+            PrintOffset printOffset{type, 0, 0};
+            const auto print_idx = getPrintOffsetIdx(printOffsets, type);
+
+            if (outputType == Header1) {
+                if (print_idx != -1)
+                    continue; // header already printed
+                else {
+                    printOffset.start = (printOffsets.empty()) ? 0 : printOffsets.back().end;
+                    printOffset.end = printOffset.start;
+                }
+            } else if (outputType == Header2) {
+                if (std::find(printedBlocks.begin(), printedBlocks.end(), type) != printedBlocks.end())
+                    continue;
+                printedBlocks.push_back(type);
+            } else if (outputType == Data) {
+                printOffset.start = (printOffsets.empty()) ? 0 : printOffsets[print_idx].start;
+                printOffset.end = (printOffsets.empty()) ? 0 : printOffsets[print_idx].end;
+            }
+
+            auto printUncoreRows = [&](UncoreMetricFunc metricFunc, const uint32 maxUnit, const std::string &miscName = std::string("<invalid-fixed-event-name>"), UncoreFixedMetricFunc fixedMetricFunc = nullFixedMetricFunc)
             {
                 if (fixedEvents.size())
                 {
-                    printRowBegin(fixedName, BeforeState[0], AfterState[0], m);
+                    if (outputType == Data) {
+                        printRowBegin(miscName, BeforeState[0], AfterState[0], m);
+                        for (int off = 0 ; off < printOffset.start; off++)
+                            cout << separator;
+                    }
+
                     for (uint32 s = 0; s < m->getNumSockets(); ++s)
                     {
                         for (uint32 u = 0; u < maxUnit; ++u)
                         {
-                            cout << separator << fixedMetricFunc(u, BeforeUncoreState[s], AfterUncoreState[s]);
+                            if (outputType == Header1)
+                            {
+                                cout << "SKT" << s << miscName << u << separator;
+                                printOffset.end++;
+                            }
+                            else if (outputType == Header2)
+                                cout << miscName << separator;
+                            else if (outputType == Data)
+                                cout << separator << fixedMetricFunc(u, BeforeUncoreState[s], AfterUncoreState[s]);
+                            else
+                                assert(!"unknown output type");
                         }
                     }
-                    cout << "\n";
+
+                    if (is_header)
+                        is_header_printed = true;
+
+                    if (outputType == Data)
+                        cout << "\n";
                 }
                 uint32 i = 0;
                 for (auto& event : events)
                 {
                     const std::string name = (event.second.empty()) ? (type + "Event" + std::to_string(i)) : event.second;
-                    printRowBegin(name, BeforeState[0], AfterState[0], m);
+
+                    if (is_header && is_header_printed)
+                        break;
+
+                    if (outputType == Data) {
+                        printRowBegin(name, BeforeState[0], AfterState[0], m);
+                        for (int off = 0 ; off < printOffset.start; off++)
+                            cout << separator;
+                    }
+
                     for (uint32 s = 0; s < m->getNumSockets(); ++s)
                     {
                         for (uint32 u = 0; u < maxUnit; ++u)
                         {
-                            cout << separator << metricFunc(u, i, BeforeUncoreState[s], AfterUncoreState[s]);
+                            if (outputType == Header1)
+                            {
+                                cout << "SKT" << s << miscName << u << separator;
+                                printOffset.end++;
+                            }
+                            else if (outputType == Header2)
+                            {
+                                cout << miscName << separator;
+                            }
+                            else if (outputType == Data)
+                            {
+                                cout << separator << metricFunc(u, i, BeforeUncoreState[s], AfterUncoreState[s]);
+                            }
+                            else
+                            {
+                                assert(!"unknown output type");
+                            }
                         }
                     }
-                    cout << "\n";
+
+                    if (is_header)
+                        is_header_printed = true;
+
                     ++i;
+                    if (outputType == Data)
+                        cout << "\n";
                 }
             };
             if (type == "core")
@@ -966,12 +1071,19 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<Cor
                     {
                         if (extract_bits(event.first[0], 4U * cnt, 1U + 4U * cnt))
                         {
-                            printRow(event.second.empty() ? fixedCoreEventNames[cnt] : event.second, funcFixed[cnt], BeforeState, AfterState, m);
+                            if (is_header && is_header_printed)
+                                break;
+
+                            printRow(event.second.empty() ? fixedCoreEventNames[cnt] : event.second, funcFixed[cnt], BeforeState, AfterState, m, outputType, printOffset);
+
+                            if (is_header)
+                                is_header_printed = true;
+
                             if (cnt == 3 && (event.first[PerfMetricsConfig] & PerfMetricsMask))
                             {
                                 for (uint32 t = 0; t < 4; ++t)
                                 {
-                                    printRow(topdownEventNames[t], funcTopDown[t], BeforeState, AfterState, m);
+                                    printRow(topdownEventNames[t], funcTopDown[t], BeforeState, AfterState, m, outputType, printOffset);
                                 }
                             }
                         }
@@ -980,53 +1092,98 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<Cor
                 uint32 i = 0;
                 for (const auto& event : events)
                 {
+                    if (is_header && is_header_printed)
+                        break;
+
                     const std::string name = (event.second.empty()) ? (type + "Event" + std::to_string(i)) : event.second;
-                    printRow(name, [&i](const CoreCounterState& before, const CoreCounterState& after) { return getNumberOfCustomEvents(i, before, after); }, BeforeState, AfterState, m);
+                    printRow(name, [&i](const CoreCounterState& before, const CoreCounterState& after) { return getNumberOfCustomEvents(i, before, after); }, BeforeState, AfterState, m, outputType, printOffset);
                     ++i;
+
+                    if (is_header)
+                        is_header_printed = true;
                 }
             }
             else if (type == "m3upi")
             {
-                printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getM3UPICounter(u, i, before, after); }, (uint32) m->getQPILinksPerSocket());
+                choose(outputType,
+                    [&]() { printUncoreRows(nullptr, (uint32) m->getQPILinksPerSocket(), "LINK"); },
+                    [&]() { printUncoreRows(nullptr, (uint32) m->getQPILinksPerSocket(), type); },
+                    [&]() { printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getM3UPICounter(u, i, before, after); }, (uint32) m->getQPILinksPerSocket());
+                    });
             }
             else if (type == "xpi" || type == "upi" || type == "qpi")
             {
-                printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getXPICounter(u, i, before, after); }, (uint32) m->getQPILinksPerSocket());
+                choose(outputType,
+                    [&]() { printUncoreRows(nullptr, (uint32) m->getQPILinksPerSocket(), "LINK"); },
+                    [&]() { printUncoreRows(nullptr, (uint32) m->getQPILinksPerSocket(), type); },
+                    [&]() { printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getXPICounter(u, i, before, after); }, (uint32) m->getQPILinksPerSocket());
+                    });
             }
             else if (type == "imc")
             {
-                printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getMCCounter(u, i, before, after); }, (uint32)m->getMCChannelsPerSocket(),
-                                "DRAMClocks", [](const uint32 u, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getDRAMClocks(u, before, after); });
+                choose(outputType,
+                    [&]() { printUncoreRows(nullptr, (uint32) m->getMCChannelsPerSocket(), "CHAN"); },
+                    [&]() { printUncoreRows(nullptr, (uint32) m->getMCChannelsPerSocket(), type); },
+                    [&]() { printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getMCCounter(u, i, before, after); }, (uint32)m->getMCChannelsPerSocket(),
+                            "DRAMClocks", [](const uint32 u, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getDRAMClocks(u, before, after); });
+                    });
             }
             else if (type == "m2m")
             {
-                printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getM2MCounter(u, i, before, after); }, (uint32)m->getMCPerSocket());
+                choose(outputType,
+                    [&]() { printUncoreRows(nullptr, (uint32) m->getMCPerSocket(), "MC"); },
+                    [&]() { printUncoreRows(nullptr, (uint32) m->getMCPerSocket(), type); },
+                    [&]() { printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getM2MCounter(u, i, before, after); }, (uint32)m->getMCPerSocket());
+                    });
             }
             else if (type == "pcu")
             {
-                printUncoreRows([](const uint32, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getPCUCounter(i, before, after); }, 1U);
+                choose(outputType,
+                    [&]() { printUncoreRows(nullptr, 1U, ""); },
+                    [&]() { printUncoreRows(nullptr, 1U, type); },
+                    [&]() { printUncoreRows([](const uint32, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getPCUCounter(i, before, after); }, 1U);
+                    });
             }
             else if (type == "ubox")
             {
-                printUncoreRows([](const uint32, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getUBOXCounter(i, before, after); }, 1U,
-                    "UncoreClocks", [](const uint32, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getUncoreClocks(before, after); });
+                choose(outputType,
+                    [&]() { printUncoreRows(nullptr, 1U, ""); },
+                    [&]() { printUncoreRows(nullptr, 1U, type); },
+                    [&]() { printUncoreRows([](const uint32, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getUBOXCounter(i, before, after); }, 1U,
+                            "UncoreClocks", [](const uint32, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getUncoreClocks(before, after); });
+                    });
             }
             else if (type == "cbo" || type == "cha")
             {
-                printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getCBOCounter(u, i, before, after); }, (uint32)m->getMaxNumOfCBoxes());
+                choose(outputType,
+                    [&]() { printUncoreRows(nullptr, (uint32) m->getMaxNumOfCBoxes(), "C"); },
+                    [&]() { printUncoreRows(nullptr, (uint32) m->getMaxNumOfCBoxes(), type); },
+                    [&]() { printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getCBOCounter(u, i, before, after); }, (uint32)m->getMaxNumOfCBoxes());
+                    });
             }
             else if (type == "irp")
             {
-                printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getIRPCounter(u, i, before, after); }, (uint32)m->getMaxNumOfIIOStacks());
+                choose(outputType,
+                    [&]() { printUncoreRows(nullptr, (uint32) m->getMaxNumOfIIOStacks(), "IRP"); },
+                    [&]() { printUncoreRows(nullptr, (uint32) m->getMaxNumOfIIOStacks(), type); },
+                    [&]() { printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getIRPCounter(u, i, before, after); }, (uint32)m->getMaxNumOfIIOStacks());
+                    });
             }
             else if (type == "iio")
             {
-                printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getIIOCounter(u, i, before, after); }, (uint32)m->getMaxNumOfIIOStacks());
+                choose(outputType,
+                    [&]() { printUncoreRows(nullptr, (uint32) m->getMaxNumOfIIOStacks(), "IIO"); },
+                    [&]() { printUncoreRows(nullptr, (uint32) m->getMaxNumOfIIOStacks(), type); },
+                    [&]() { printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getIIOCounter(u, i, before, after); }, (uint32)m->getMaxNumOfIIOStacks());
+                    });
             }
             else
             {
                 std::cerr << "ERROR: unrecognized PMU type \"" << type << "\"\n";
             }
+
+            if (outputType == Header1)
+                printOffsets.push_back(printOffset);
         }
         if (sampleSeparator)
         {
@@ -1036,16 +1193,10 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<Cor
         {
             cout.flush();
         }
-    }
 }
 
 void print(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<CoreCounterState>& BeforeState, vector<CoreCounterState>& AfterState, vector<ServerUncoreCounterState>& BeforeUncoreState, vector<ServerUncoreCounterState>& AfterUncoreState, const CsvOutputType outputType)
 {
-    if (transpose)
-    {
-        printTransposed(curPMUConfigs, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, outputType);
-        return;
-    }
     printDateForCSV(outputType, separator);
     if (BeforeState.size() > 0 && AfterState.size() > 0)
     {
@@ -1298,16 +1449,43 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<CoreCounterSt
     }
 }
 
-void printAll(const PCM::RawPMUConfigs& curPMUConfigs, PCM * m, vector<CoreCounterState>& BeforeState, vector<CoreCounterState>& AfterState, vector<ServerUncoreCounterState>& BeforeUncoreState, vector<ServerUncoreCounterState>& AfterUncoreState)
+void printAll(const PCM::RawPMUConfigs& curPMUConfigs, PCM * m, vector<CoreCounterState>& BeforeState, vector<CoreCounterState>& AfterState, vector<ServerUncoreCounterState>& BeforeUncoreState, vector<ServerUncoreCounterState>& AfterUncoreState, std::vector<PCM::RawPMUConfigs>& PMUConfigs)
 {
     static bool displayHeader = true;
-    if (displayHeader)
-    {
-        print(curPMUConfigs, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, Header1);
-        print(curPMUConfigs, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, Header2);
+
+    if (!extend_printout && transpose)
         displayHeader = false;
+
+    if (transpose) {
+        if (displayHeader) {
+            // Need to go through all possible print on first run to form header.
+            for (int i = 0 ; i < 5 ; i++)
+                std::cout << separator;
+
+            // print header_1 and get all offsets
+            for (auto &config : PMUConfigs)
+                printTransposed(config, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, Header1);
+
+            std::cout << std::endl;
+
+            // print header_2
+            std::cout << "Date" << separator << "Time" << separator << "Event" << separator;
+            std::cout << "ms, InvariantTSC" << separator;
+            for (auto &config : PMUConfigs)
+                printTransposed(config, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, Header2);
+
+            std::cout << std::endl;
+        }
+        printTransposed(curPMUConfigs, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, Data);
+    } else {
+        if (displayHeader) {
+            print(curPMUConfigs, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, Header1);
+            print(curPMUConfigs, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, Header2);
+        }
+        print(curPMUConfigs, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, Data);
     }
-    print(curPMUConfigs, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, Data);
+
+    displayHeader = false;
 }
 
 int main(int argc, char* argv[])
@@ -1378,6 +1556,13 @@ int main(int argc, char* argv[])
             strncmp(*argv, "/tr", 3) == 0)
         {
             transpose = true;
+            continue;
+        }
+        else if (
+            strncmp(*argv, "-ext", 4) == 0 ||
+            strncmp(*argv, "/ext", 4) == 0)
+        {
+            extend_printout = true;
             continue;
         }
         else if (strncmp(*argv, "-l", 2) == 0) {
@@ -1603,7 +1788,7 @@ int main(int argc, char* argv[])
                 //cout << "Time elapsed: " << dec << fixed << AfterTime - BeforeTime << " ms\n";
                 //cout << "Called sleep function for " << dec << fixed << delay_ms << " ms\n";
 
-                printAll(group, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState);
+                printAll(group, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, PMUConfigs);
                 if (nGroups > 1)
                 {
                     m->cleanup(true);
