@@ -1,0 +1,22 @@
+version: 1.0.{build}
+image:
+- Visual Studio 2019
+- Visual Studio 2017
+configuration: Release
+platform: x64
+before_build:
+- cmd: >-
+    echo ------------------------
+
+    echo       Building PCM
+
+    echo ------------------------
+build:
+  project: pcm-all.sln
+  parallel: true
+  verbosity: minimal
+after_build:
+- cmd: 7z a pcm-all.zip %APPVEYOR_BUILD_FOLDER%\x64\Release\*.exe %APPVEYOR_BUILD_FOLDER%\x64\Release\*.dll %APPVEYOR_BUILD_FOLDER%\x64\Release\*.lib %APPVEYOR_BUILD_FOLDER%\x64\Release\*.exp
+artifacts:
+- path: pcm-all.zip
+  name: pcm-all
