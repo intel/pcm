@@ -6,17 +6,20 @@ configuration: Release
 platform: x64
 before_build:
 - cmd: >-
-    echo ------------------------
+    cmake --version
 
-    echo       Building PCM
+    mkdir build
 
-    echo ------------------------
+    cd build
+
+    cmake ..
+
 build:
-  project: pcm-all.sln
+  project: %APPVEYOR_BUILD_FOLDER%\build\PCM.sln
   parallel: true
   verbosity: minimal
 after_build:
-- cmd: 7z a pcm-all.zip %APPVEYOR_BUILD_FOLDER%\x64\Release\*.exe %APPVEYOR_BUILD_FOLDER%\x64\Release\*.dll %APPVEYOR_BUILD_FOLDER%\x64\Release\*.lib %APPVEYOR_BUILD_FOLDER%\x64\Release\*.exp
+- cmd: 7z a pcm-all.zip %APPVEYOR_BUILD_FOLDER%\build\bin\Release\*.exe %APPVEYOR_BUILD_FOLDER%\build\bin\Release\*.dll %APPVEYOR_BUILD_FOLDER%\build\src\Release\*.lib %APPVEYOR_BUILD_FOLDER%\build\src\Release\*.exp
 artifacts:
 - path: pcm-all.zip
   name: pcm-all
