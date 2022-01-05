@@ -216,9 +216,11 @@ class TemporalThreadAffinity  // speedup trick for Linux, FreeBSD, DragonFlyBSD,
     TemporalThreadAffinity(); // forbiden
 #if defined(__FreeBSD__) || (defined(__DragonFly__) && __DragonFly_version >= 400707)
     cpu_set_t old_affinity;
+    const bool restore;
 
 public:
-    TemporalThreadAffinity(uint32 core_id, bool checkStatus = true)
+    TemporalThreadAffinity(uint32 core_id, bool checkStatus = true, const bool restore_ = false)
+       : restore(restore_)
     {
         assert(core_id < 1024);
         pthread_getaffinity_np(pthread_self(), sizeof(cpu_set_t), &old_affinity);
@@ -235,7 +237,7 @@ public:
     }
     ~TemporalThreadAffinity()
     {
-        pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &old_affinity);
+        if (restore) pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &old_affinity);
     }
     bool supported() const { return true; }
 
@@ -243,10 +245,11 @@ public:
     cpu_set_t * old_affinity;
     static constexpr auto maxCPUs = 8192;
     const size_t set_size;
+    const bool restore;
 
 public:
-    TemporalThreadAffinity(const uint32 core_id, bool checkStatus = true)
-        : set_size(CPU_ALLOC_SIZE(maxCPUs))
+    TemporalThreadAffinity(const uint32 core_id, bool checkStatus = true, const bool restore_ = false)
+        : set_size(CPU_ALLOC_SIZE(maxCPUs)), restore(restore_)
     {
         assert(core_id < maxCPUs);
         old_affinity = CPU_ALLOC(maxCPUs);
@@ -267,14 +270,17 @@ public:
     }
     ~TemporalThreadAffinity()
     {
-        pthread_setaffinity_np(pthread_self(), set_size, old_affinity);
+        if (restore) pthread_setaffinity_np(pthread_self(), set_size, old_affinity);
         CPU_FREE(old_affinity);
     }
     bool supported() const { return true; }
 #elif defined(_MSC_VER)
     ThreadGroupTempAffinity affinity;
 public:
-    TemporalThreadAffinity(uint32 core, bool checkStatus = true) : affinity(core, checkStatus) {}
+    TemporalThreadAffinity(uint32 core, bool checkStatus = true, const bool restore = false)
+       : affinity(core, checkStatus, restore)
+    {
+    }
     bool supported() const { return true; }
 #else // not implemented for os x
 public:
@@ -2455,10 +2461,14 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
         canUsePerf = false;
         if (!silent) std::cerr << "Can not use Linux perf because your Linux kernel does not support PERF_COUNT_HW_REF_CPU_CYCLES event. Falling-back to direct PMU programming.\n";
     }
-    else if(EXT_CUSTOM_CORE_EVENTS == mode_ && pExtDesc && pExtDesc->fixedCfg)
+    else if(EXT_CUSTOM_CORE_EVENTS == mode_ && pExtDesc && pExtDesc->fixedCfg && pExtDesc->fixedCfg->value != 0x333)
     {
         canUsePerf = false;
-        if (!silent) std::cerr << "Can not use Linux perf because non-standard fixed counter configuration requested. Falling-back to direct PMU programming.\n";
+        if (!silent)
+        {
+             std::cerr << "Can not use Linux perf because non-standard fixed counter configuration requested (0x" << std::hex << pExtDesc->fixedCfg->value
+                       << std::dec << ") =\n" << *(pExtDesc->fixedCfg) << "\nFalling-back to direct PMU programming.\n\n";
+        }
     }
     else if(EXT_CUSTOM_CORE_EVENTS == mode_ && pExtDesc && (pExtDesc->OffcoreResponseMsrValue[0] || pExtDesc->OffcoreResponseMsrValue[1]))
     {
@@ -3790,12 +3800,17 @@ const char * PCM::getUArchCodename(const int32 cpu_model_param) const
 void PCM::cleanupPMU(const bool silent)
 {
 #ifdef PCM_USE_PERF
-    if(canUsePerf)
+    if (canUsePerf)
     {
       for (int i = 0; i < num_cores; ++i)
         for(int c = 0; c < PERF_MAX_COUNTERS; ++c)
-            ::close(perfEventHandle[i][c]);
+        {
+            auto & h = perfEventHandle[i][c];
+            if (h != -1) ::close(h);
+            h = -1;
+        }
 
+      if (!silent) std::cerr << " Closed perf event handles\n";
       return;
     }
 #endif

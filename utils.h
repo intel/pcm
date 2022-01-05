@@ -143,13 +143,14 @@ void print_cpu_details();
 class ThreadGroupTempAffinity
 {
     GROUP_AFFINITY PreviousGroupAffinity;
+    const bool restore;
 
     ThreadGroupTempAffinity();                                              // forbidden
     ThreadGroupTempAffinity(const ThreadGroupTempAffinity &);               // forbidden
     ThreadGroupTempAffinity & operator = (const ThreadGroupTempAffinity &); // forbidden
 
 public:
-    ThreadGroupTempAffinity(uint32 core_id, bool checkStatus = true);
+    ThreadGroupTempAffinity(uint32 core_id, bool checkStatus = true, const bool restore_ = false);
     ~ThreadGroupTempAffinity();
 };
 #endif
