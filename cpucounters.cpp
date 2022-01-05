@@ -2455,10 +2455,14 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
         canUsePerf = false;
         if (!silent) std::cerr << "Can not use Linux perf because your Linux kernel does not support PERF_COUNT_HW_REF_CPU_CYCLES event. Falling-back to direct PMU programming.\n";
     }
-    else if(EXT_CUSTOM_CORE_EVENTS == mode_ && pExtDesc && pExtDesc->fixedCfg)
+    else if(EXT_CUSTOM_CORE_EVENTS == mode_ && pExtDesc && pExtDesc->fixedCfg && pExtDesc->fixedCfg->value != 0x333)
     {
         canUsePerf = false;
-        if (!silent) std::cerr << "Can not use Linux perf because non-standard fixed counter configuration requested. Falling-back to direct PMU programming.\n";
+        if (!silent)
+        {
+             std::cerr << "Can not use Linux perf because non-standard fixed counter configuration requested (0x" << std::hex << pExtDesc->fixedCfg->value
+                       << std::dec << ") =\n" << *(pExtDesc->fixedCfg) << "\nFalling-back to direct PMU programming.\n\n";
+        }
     }
     else if(EXT_CUSTOM_CORE_EVENTS == mode_ && pExtDesc && (pExtDesc->OffcoreResponseMsrValue[0] || pExtDesc->OffcoreResponseMsrValue[1]))
     {
