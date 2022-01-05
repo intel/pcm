@@ -3794,12 +3794,17 @@ const char * PCM::getUArchCodename(const int32 cpu_model_param) const
 void PCM::cleanupPMU(const bool silent)
 {
 #ifdef PCM_USE_PERF
-    if(canUsePerf)
+    if (canUsePerf)
     {
       for (int i = 0; i < num_cores; ++i)
         for(int c = 0; c < PERF_MAX_COUNTERS; ++c)
-            ::close(perfEventHandle[i][c]);
+        {
+            auto & h = perfEventHandle[i][c];
+            if (h != -1) ::close(h);
+            h = -1;
+        }
 
+      if (!silent) std::cerr << " Closed perf event handles\n";
       return;
     }
 #endif
