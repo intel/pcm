@@ -216,9 +216,11 @@ class TemporalThreadAffinity  // speedup trick for Linux, FreeBSD, DragonFlyBSD,
     TemporalThreadAffinity(); // forbiden
 #if defined(__FreeBSD__) || (defined(__DragonFly__) && __DragonFly_version >= 400707)
     cpu_set_t old_affinity;
+    const bool restore;
 
 public:
-    TemporalThreadAffinity(uint32 core_id, bool checkStatus = true)
+    TemporalThreadAffinity(uint32 core_id, bool checkStatus = true, const bool restore_ = false)
+       : restore(restore_)
     {
         assert(core_id < 1024);
         pthread_getaffinity_np(pthread_self(), sizeof(cpu_set_t), &old_affinity);
@@ -235,7 +237,7 @@ public:
     }
     ~TemporalThreadAffinity()
     {
-        pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &old_affinity);
+        if (restore) pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &old_affinity);
     }
     bool supported() const { return true; }
 
@@ -243,10 +245,11 @@ public:
     cpu_set_t * old_affinity;
     static constexpr auto maxCPUs = 8192;
     const size_t set_size;
+    const bool restore;
 
 public:
-    TemporalThreadAffinity(const uint32 core_id, bool checkStatus = true)
-        : set_size(CPU_ALLOC_SIZE(maxCPUs))
+    TemporalThreadAffinity(const uint32 core_id, bool checkStatus = true, const bool restore_ = false)
+        : set_size(CPU_ALLOC_SIZE(maxCPUs)), restore(restore_)
     {
         assert(core_id < maxCPUs);
         old_affinity = CPU_ALLOC(maxCPUs);
@@ -267,14 +270,17 @@ public:
     }
     ~TemporalThreadAffinity()
     {
-        pthread_setaffinity_np(pthread_self(), set_size, old_affinity);
+        if (restore) pthread_setaffinity_np(pthread_self(), set_size, old_affinity);
         CPU_FREE(old_affinity);
     }
     bool supported() const { return true; }
 #elif defined(_MSC_VER)
     ThreadGroupTempAffinity affinity;
 public:
-    TemporalThreadAffinity(uint32 core, bool checkStatus = true) : affinity(core, checkStatus) {}
+    TemporalThreadAffinity(uint32 core, bool checkStatus = true, const bool restore = false)
+       : affinity(core, checkStatus, restore)
+    {
+    }
     bool supported() const { return true; }
 #else // not implemented for os x
 public:

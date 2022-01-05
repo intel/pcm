@@ -66,7 +66,8 @@ void print_cpu_details()
 
 #ifdef _MSC_VER
 
-ThreadGroupTempAffinity::ThreadGroupTempAffinity(uint32 core_id, bool checkStatus)
+ThreadGroupTempAffinity::ThreadGroupTempAffinity(uint32 core_id, bool checkStatus, const bool restore_)
+  : restore(restore_)
 {
     GROUP_AFFINITY NewGroupAffinity;
     SecureZeroMemory(&NewGroupAffinity, sizeof(GROUP_AFFINITY));
@@ -88,7 +89,7 @@ ThreadGroupTempAffinity::ThreadGroupTempAffinity(uint32 core_id, bool checkStatu
 }
 ThreadGroupTempAffinity::~ThreadGroupTempAffinity()
 {
-    SetThreadGroupAffinity(GetCurrentThread(), &PreviousGroupAffinity, NULL);
+    if (restore) SetThreadGroupAffinity(GetCurrentThread(), &PreviousGroupAffinity, NULL);
 }
 
 LONG unhandled_exception_handler(LPEXCEPTION_POINTERS p)
