@@ -223,12 +223,20 @@ public:
        : restore(restore_)
     {
         assert(core_id < 1024);
-        pthread_getaffinity_np(pthread_self(), sizeof(cpu_set_t), &old_affinity);
-
+        auto res = pthread_getaffinity_np(pthread_self(), sizeof(cpu_set_t), &old_affinity);
+        if (res != 0)
+        {
+            std::cerr << "ERROR: pthread_getaffinity_np for core " << core_id << " failed with code " << res << "\n";
+            throw std::exception();
+        }
         cpu_set_t new_affinity;
         CPU_ZERO(&new_affinity);
         CPU_SET(core_id, &new_affinity);
-        const auto res = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &new_affinity);
+        if (CPU_EQUAL(&old_affinity, &new_affinity))
+        {
+            return;
+        }
+        res = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &new_affinity);
         if (res != 0 && checkStatus)
         {
             std::cerr << "ERROR: pthread_setaffinity_np for core " << core_id << " failed with code " << res << "\n";
@@ -254,13 +262,22 @@ public:
         assert(core_id < maxCPUs);
         old_affinity = CPU_ALLOC(maxCPUs);
         assert(old_affinity);
-        pthread_getaffinity_np(pthread_self(), set_size, old_affinity);
-
+        auto res = pthread_getaffinity_np(pthread_self(), set_size, old_affinity);
+        if (res != 0)
+        {
+            std::cerr << "ERROR: pthread_getaffinity_np for core " << core_id << " failed with code " << res << "\n";
+            throw std::exception();
+        }
         cpu_set_t * new_affinity = CPU_ALLOC(maxCPUs);
         assert(new_affinity);
         CPU_ZERO_S(set_size, new_affinity);
         CPU_SET_S(core_id, set_size, new_affinity);
-        const auto res = pthread_setaffinity_np(pthread_self(), set_size, new_affinity);
+        if (CPU_EQUAL_S(set_size, old_affinity, new_affinity))
+        {
+            CPU_FREE(new_affinity);
+            return;
+        }
+        res = pthread_setaffinity_np(pthread_self(), set_size, new_affinity);
         CPU_FREE(new_affinity);
         if (res != 0 && checkStatus)
         {
