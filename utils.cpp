@@ -76,10 +76,20 @@ ThreadGroupTempAffinity::ThreadGroupTempAffinity(uint32 core_id, bool checkStatu
 
     while ((DWORD)core_id >= (currentGroupSize = GetActiveProcessorCount(NewGroupAffinity.Group)))
     {
+        if (currentGroupSize == 0)
+        {
+            std::cerr << "ERROR: GetActiveProcessorCount for core " << core_id << " failed with error " << GetLastError() << "\n";
+            throw std::exception();
+        }
         core_id -= (uint32)currentGroupSize;
         ++NewGroupAffinity.Group;
     }
     NewGroupAffinity.Mask = 1ULL << core_id;
+    if (GetThreadGroupAffinity(GetCurrentThread(), &PreviousGroupAffinity)
+        && (std::memcmp(&NewGroupAffinity, &PreviousGroupAffinity, sizeof(GROUP_AFFINITY)) == 0))
+    {
+        return;
+    }
     const auto res = SetThreadGroupAffinity(GetCurrentThread(), &NewGroupAffinity, &PreviousGroupAffinity);
     if (res == FALSE && checkStatus)
     {
