@@ -52,5 +52,6 @@ jobs:
           push: true
           tags: |
             opcm/pcm:latest
+            ghcr.io/opcm/pcm:latest
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache
