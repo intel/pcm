@@ -910,7 +910,7 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<Cor
 {
     if (outputType == CsvOutputType::Data)
     {
-        for (auto typeEvents : curPMUConfigs)
+        for (const auto & typeEvents : curPMUConfigs)
         {
             const auto& type = typeEvents.first;
             const auto& events = typeEvents.second.programmable;
