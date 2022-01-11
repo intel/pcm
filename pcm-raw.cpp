@@ -73,6 +73,7 @@ void print_usage(const string progname)
     cerr << "  -f    | /f                             => enforce flushing each line for interactive output\n";
     cerr << "  -i[=number] | /i[=number]              => allow to determine number of iterations\n";
     cerr << "  -tr | /tr                              => transpose output (print single event data in a row)\n";
+    cerr << "  -s  | /s                               => print a sample separator line between samples in transposed output\n";
     cerr << "  -l                                     => use locale for printing values, calls -tab for readability\n";
     cerr << "  -tab                                   => replace default comma separator with tab\n";
     cerr << "  -el event_list.txt | /el event_list.txt  => read event list from event_list.txt file, \n";
@@ -870,6 +871,7 @@ bitset<MAX_CORES> ycores;
 bool flushLine = false;
 bool transpose = false;
 std::string separator = ",";
+bool sampleSeparator = false;
 
 void printRowBegin(const std::string & EventName, const CoreCounterState & BeforeState, const CoreCounterState & AfterState, PCM* m)
 {
@@ -1025,6 +1027,10 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<Cor
             {
                 std::cerr << "ERROR: unrecognized PMU type \"" << type << "\"\n";
             }
+        }
+        if (sampleSeparator)
+        {
+            cout << "=============================\n";
         }
         if (flushLine)
         {
@@ -1452,6 +1458,13 @@ int main(int argc, char* argv[])
                 strncmp(*argv, "/f", 2) == 0)
             {
                 flushLine = true;
+                continue;
+            }
+            else if (
+                strncmp(*argv, "-s", 2) == 0 ||
+                strncmp(*argv, "/s", 2) == 0)
+            {
+                sampleSeparator = true;
                 continue;
             }
             else if (strncmp(*argv, "--", 2) == 0)
