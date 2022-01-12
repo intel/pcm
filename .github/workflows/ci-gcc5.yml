@@ -10,14 +10,27 @@ jobs:
   build:
 
     runs-on: ci-gcc5
-    if: ${{ github.repository != 'opcm/pcm' }}        
+    if: ${{ github.repository != 'opcm/pcm' }}
 
     steps:
     - uses: actions/checkout@v2
-    - name: make
+    - name: Preparation
+      run: |
+        cd ${{ github.workspace }}/src
+        git clone https://github.com/simdjson/simdjson.git
+        cd ..
+    - name: Configure CMake
+      run: |
+        cmake --version
+        rm -rf ${{ github.workspace }}/build && mkdir ${{ github.workspace }}/build
+        cd ${{ github.workspace }}/build
+        cmake -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/build ..
+    - name: Build
       run: |
         g++ --version
-        make install prefix=. -j
-        make clean
-        git clone https://github.com/simdjson/simdjson.git
-        make install prefix=. -j
+        cd ${{ github.workspace }}/build
+        make -j$(nproc)
+    - name: Install
+      run: |
+        cd ${{ github.workspace }}/build
+        make install -j$(nproc)

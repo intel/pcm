@@ -1,0 +1,4 @@
+#!/bin/sh
+
+../build/bin/pcm-sensor-server "$@"
+
