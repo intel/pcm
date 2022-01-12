@@ -162,7 +162,7 @@ bool parse_tsv(const string &path) {
                 inFile.close();
                 return false;
             }
-            event_name_pos = event_name_it - col_names.begin();
+            event_name_pos = (int)(event_name_it - col_names.begin());
             col_names_parsed = true;
             continue;
         }

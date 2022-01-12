@@ -33,7 +33,8 @@ if(APPLE)
 endif(APPLE)
 
 if(MSVC)
-     set(CMAKE_CXX_FLAGS "/O2")
+     set(CMAKE_CXX_FLAGS "/O2 /wd4251 /wd4273")
+     set(CMAKE_CXX_FLAGS_RELEASE "/O2 /wd4251 /wd4273")
      add_definitions(/W3)
 endif(MSVC)
 
