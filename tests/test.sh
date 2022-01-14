@@ -4,6 +4,18 @@ export BIN_DIR="build/bin"
 
 pushd $BIN_DIR
 
+PCM_NO_PERF=1 ./pcm -r -- sleep 1
+if [ "$?" -ne "0" ]; then
+   echo "Error in pcm"
+   exit 1
+fi
+
+PCM_USE_UNCORE_PERF=1 ./pcm -r -- sleep 1
+if [ "$?" -ne "0" ]; then
+   echo "Error in pcm"
+   exit 1
+fi
+
 ./pcm -r -- sleep 1
 if [ "$?" -ne "0" ]; then
    echo "Error in pcm"
