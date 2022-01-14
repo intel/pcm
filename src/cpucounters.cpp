@@ -4281,6 +4281,12 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
     TemporalThreadAffinity tempThreadAffinity(core_id); // speedup trick for Linux
 
     PCM * m = PCM::getInstance();
+    assert(m);
+    if (m->canUsePerf == false)
+    {
+        msr->write(IA32_CR_PERF_GLOBAL_CTRL, 0ULL); // freeze
+    }
+
     const int32 core_gen_counter_num_max = m->getMaxCustomCoreEvents();
     uint64 overflows = 0;
 
@@ -4311,8 +4317,6 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
     else
 #endif
     {
-        msr->write(IA32_CR_PERF_GLOBAL_CTRL, 0ULL); // freeze
-
         {
             msr->read(IA32_PERF_GLOBAL_STATUS, &overflows); // read overflows
             // std::cerr << "Debug " << core_id << " IA32_PERF_GLOBAL_STATUS: " << overflows << std::endl;
@@ -4327,10 +4331,6 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
         }
 
         msr->write(IA32_PERF_GLOBAL_OVF_CTRL, overflows); // clear overflows
-
-        const auto core_global_ctrl_value = m->core_global_ctrl_value;
-        assert(core_global_ctrl_value);
-        msr->write(IA32_CR_PERF_GLOBAL_CTRL, core_global_ctrl_value); // unfreeze
 
         if (m->isHWTMAL1Supported())
         {
@@ -4416,6 +4416,13 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
     BackendBoundSlots   += cBackendBoundSlots;
     RetiringSlots       += cRetiringSlots;
     AllSlotsRaw         += cAllSlotsRaw;
+
+    if (m->canUsePerf == false)
+    {
+        const auto core_global_ctrl_value = m->core_global_ctrl_value;
+        assert(core_global_ctrl_value);
+        msr->write(IA32_CR_PERF_GLOBAL_CTRL, core_global_ctrl_value); // unfreeze
+    }
 }
 
 PCM::ErrorCode PCM::programServerUncoreLatencyMetrics(bool enable_pmm)
