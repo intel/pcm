@@ -30,4 +30,13 @@ jobs:
         cd ${{ github.workspace }}/build
         make -j$(nproc)
     - name: Test
-      run: sh ${{ github.workspace }}/tests/test.sh
+      run: |
+        set -o pipefail
+        sh ${{ github.workspace }}/tests/test.sh 2>&1 | tee test-log.txt
+
+    - name: upload-artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: test-log-${{ github.sha }}
+        path: test-log.txt
+
