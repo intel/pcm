@@ -2837,7 +2837,8 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
 
     lastProgrammedCustomCounters.clear();
     lastProgrammedCustomCounters.resize(num_cores);
-    // Version for linux/windows/freebsd/dragonflybsd
+    core_global_ctrl_value = 0ULL;
+    // TODO: parallelize this loop
     for (int i = 0; i < (int)num_cores; ++i)
     {
         if (isCoreOnline(i) == false) continue;
@@ -3130,6 +3131,15 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
         for (uint32 j = 0; j < core_gen_counter_num_used; ++j)
         {
             value |= (1ULL << j); // enable all custom counters (if > 4)
+        }
+
+        if (core_global_ctrl_value)
+        {
+            assert(core_global_ctrl_value == value);
+        }
+        else
+        {
+            core_global_ctrl_value = value;
         }
 
         MSR[i]->write(IA32_PERF_GLOBAL_OVF_CTRL, value);
@@ -4301,9 +4311,8 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
     else
 #endif
     {
-        uint64 overflows_after = 0;
+        msr->write(IA32_CR_PERF_GLOBAL_CTRL, 0ULL); // freeze
 
-        do
         {
             msr->read(IA32_PERF_GLOBAL_STATUS, &overflows); // read overflows
             // std::cerr << "Debug " << core_id << " IA32_PERF_GLOBAL_STATUS: " << overflows << std::endl;
@@ -4315,13 +4324,14 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
             {
                 msr->read(IA32_PMC0 + i, &cCustomEvents[i]);
             }
-
-            msr->read(IA32_PERF_GLOBAL_STATUS, &overflows_after); // read overflows again
-            // std::cerr << "Debug " << core_id << " IA32_PERF_GLOBAL_STATUS: " << overflows << std::endl;
-
-        } while (overflows != overflows_after); // repeat the reading if an overflow happened during the reading
+        }
 
         msr->write(IA32_PERF_GLOBAL_OVF_CTRL, overflows); // clear overflows
+
+        const auto core_global_ctrl_value = m->core_global_ctrl_value;
+        assert(core_global_ctrl_value);
+        msr->write(IA32_CR_PERF_GLOBAL_CTRL, core_global_ctrl_value); // unfreeze
+
         if (m->isHWTMAL1Supported())
         {
             uint64 perfMetrics = 0, slots = 0;

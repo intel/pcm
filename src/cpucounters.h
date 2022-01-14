@@ -581,6 +581,7 @@ class PCM_API PCM
     uint32 core_fixed_counter_num_max;
     uint32 core_fixed_counter_num_used;
     uint32 core_fixed_counter_width;
+    uint64 core_global_ctrl_value{0ULL};
     uint32 uncore_gen_counter_num_max;
     uint32 uncore_gen_counter_num_used;
     uint32 uncore_gen_counter_width;
