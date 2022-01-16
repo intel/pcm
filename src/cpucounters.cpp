@@ -2838,27 +2838,32 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
     lastProgrammedCustomCounters.clear();
     lastProgrammedCustomCounters.resize(num_cores);
     core_global_ctrl_value = 0ULL;
-    // TODO: parallelize this loop
+
+    std::vector<std::future<void> > asyncCoreResults;
+    std::vector<PCM::ErrorCode> programmingStatuses(num_cores, PCM::Success);
+
     for (int i = 0; i < (int)num_cores; ++i)
     {
         if (isCoreOnline(i) == false) continue;
-        TemporalThreadAffinity tempThreadAffinity(i, false); // speedup trick for Linux
 
-        const auto status = programCoreCounters(i, mode_, pExtDesc, lastProgrammedCustomCounters[i]);
+        std::packaged_task<void()> task([this, i, mode_, pExtDesc, &programmingStatuses]() -> void
+            {
+                TemporalThreadAffinity tempThreadAffinity(i, false); // speedup trick for Linux
+
+                programmingStatuses[i] = programCoreCounters(i, mode_, pExtDesc, lastProgrammedCustomCounters[i]);
+            });
+        asyncCoreResults.push_back(task.get_future());
+        coreTaskQueues[i]->push(task);
+    }
+
+    for (auto& ar : asyncCoreResults)
+        ar.wait();
+
+    for (const auto& status : programmingStatuses)
+    {
         if (status != PCM::Success)
         {
             return status;
-        }
-
-        // program uncore counters
-
-        if (cpu_model == NEHALEM_EP || cpu_model == WESTMERE_EP || cpu_model == CLARKDALE)
-        {
-            programNehalemEPUncore(i);
-        }
-        else if (hasBecktonUncore())
-        {
-            programBecktonUncore(i);
         }
     }
 
@@ -2867,7 +2872,8 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
         std::cerr << "Successfully programmed on-core PMU using Linux perf\n";
     }
 
-    if (hasPCICFGUncore())
+    // TODO: implement a mode to skip default uncore programming
+    if (hasPCICFGUncore()) // program uncore counters
     {
         std::vector<std::future<uint64>> qpi_speeds;
         for (size_t i = 0; i < (size_t)server_pcicfg_uncore.size(); ++i)
@@ -2881,7 +2887,26 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
             max_qpi_speed = (std::max)(qpi_speeds[i].get(), max_qpi_speed);
         }
 
-	programCbo();
+        programCbo();
+
+    } // program uncore counters on old CPU arch
+    else if (cpu_model == NEHALEM_EP || cpu_model == WESTMERE_EP || cpu_model == CLARKDALE)
+    {
+        for (int i = 0; i < (int)num_cores; ++i)
+        {
+            if (isCoreOnline(i) == false) continue;
+            TemporalThreadAffinity tempThreadAffinity(i, false); // speedup trick for Linux
+            programNehalemEPUncore(i);
+        }
+    }
+    else if (hasBecktonUncore())
+    {
+        for (int i = 0; i < (int)num_cores; ++i)
+        {
+            if (isCoreOnline(i) == false) continue;
+            TemporalThreadAffinity tempThreadAffinity(i, false); // speedup trick for Linux
+            programBecktonUncore(i);
+        }
     }
 
     if (!silent) reportQPISpeed();
