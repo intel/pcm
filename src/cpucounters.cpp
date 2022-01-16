@@ -2872,7 +2872,11 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
         std::cerr << "Successfully programmed on-core PMU using Linux perf\n";
     }
 
-    // TODO: implement a mode to skip default uncore programming
+    if (EXT_CUSTOM_CORE_EVENTS == mode_ && pExtDesc && pExtDesc->defaultUncoreProgramming == false)
+    {
+        return PCM::Success;
+    }
+
     if (hasPCICFGUncore()) // program uncore counters
     {
         std::vector<std::future<uint64>> qpi_speeds;
@@ -4692,6 +4696,7 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool sile
             }
             conf.fixedCfg = &fixedReg;
         }
+        conf.defaultUncoreProgramming = false;
 
         const auto status = program(PCM::EXT_CUSTOM_CORE_EVENTS, &conf, silent);
         if (status != PCM::Success)
