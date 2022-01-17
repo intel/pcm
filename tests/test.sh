@@ -178,7 +178,7 @@ do
 done
 
 # Now check pcm-raw with JSON files from mapFile.csv
-./pcm-raw -r -e LD_BLOCKS.STORE_FORWARD -e CPU_CLK_UNHALTED.THREAD_ANY -e INST_RETIRED.ANY  -- sleep 1
+./pcm-raw -r -e LD_BLOCKS.STORE_FORWARD -e CPU_CLK_UNHALTED.THREAD_ANY -e INST_RETIRED.ANY -e UNC_CHA_CLOCKTICKS -- sleep 1
 
 if [ "$?" -ne "0" ]; then
     echo "Error in pcm-raw"
@@ -205,7 +205,7 @@ done
 
 
 # Check pcm-raw with TSV files
-./pcm-raw -r -e LD_BLOCKS.STORE_FORWARD -e CPU_CLK_UNHALTED.THREAD_ANY -e INST_RETIRED.ANY  -- sleep 1
+./pcm-raw -r -e LD_BLOCKS.STORE_FORWARD -e CPU_CLK_UNHALTED.THREAD_ANY -e INST_RETIRED.ANY -e UNC_CHA_CLOCKTICKS -- sleep 1
 
 if [ "$?" -ne "0" ]; then
     echo "Error in pcm-raw"

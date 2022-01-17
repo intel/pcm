@@ -828,6 +828,7 @@ public:
         EventSelectRegister * gpCounterHybridAtomCfg; // general purpose counters for Atom cores in hybrid processors
         uint64 OffcoreResponseMsrValue[2];
         uint64 LoadLatencyMsrValue, FrontendMsrValue;
+        bool defaultUncoreProgramming{true};
         static uint64 invalidMsrValue() { return ~0ULL; }
         ExtendedCustomCoreEventDescription() : fixedCfg(NULL), nGPCounters(0), gpCounterCfg(nullptr), gpCounterHybridAtomCfg(nullptr), LoadLatencyMsrValue(invalidMsrValue()), FrontendMsrValue(invalidMsrValue())
         {
