@@ -33,6 +33,32 @@ if(UNIX)  # APPLE, LINUX, FREE_BSD
       set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build type (default Release)" FORCE)
     endif()
     message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
+
+    message(STATUS "initial CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
+    message(STATUS "initial CMAKE_C_FLAGS: ${CMAKE_C_FLAGS}")
+
+    # required PCM common flags
+    set (PCM_COMMON_FLAGS "-Wno-unknown-pragmas -fPIC")
+
+    if(LINUX)
+       set (PCM_COMMON_FLAGS "${PCM_COMMON_FLAGS} -Wextra -DPCM_USE_PERF")
+    endif(LINUX)
+
+    # adding the required PCM common flags
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${PCM_COMMON_FLAGS}")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${PCM_COMMON_FLAGS}")
+
+    message(STATUS "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
+    message(STATUS "CMAKE_C_FLAGS: ${CMAKE_C_FLAGS}")
+
+    set(PCM_OPTIONAL_FLAGS "-Wall")
+    set(CMAKE_CXX_FLAGS_RELEASE "${PCM_OPTIONAL_FLAGS} -O3")
+    set(CMAKE_CXX_FLAGS_DEBUG "${PCM_OPTIONAL_FLAGS} -O0 -g")
+    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${PCM_OPTIONAL_FLAGS} -O3 -g")
+    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
+    set(CMAKE_C_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+    set(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+
 endif(UNIX)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
