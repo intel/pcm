@@ -875,7 +875,7 @@ bool sampleSeparator = false;
 
 void printRowBegin(const std::string & EventName, const CoreCounterState & BeforeState, const CoreCounterState & AfterState, PCM* m)
 {
-    printDateForCSV(CsvOutputType::Data);
+    printDateForCSV(CsvOutputType::Data, separator);
     cout << EventName << separator << (1000ULL * getInvariantTSC(BeforeState, AfterState)) / m->getNominalFrequency() << separator << getInvariantTSC(BeforeState, AfterState);
 }
 
