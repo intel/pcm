@@ -232,10 +232,12 @@ public:
         cpu_set_t new_affinity;
         CPU_ZERO(&new_affinity);
         CPU_SET(core_id, &new_affinity);
-        if (CPU_EQUAL(&old_affinity, &new_affinity))
+/* TODO: use CPU_CMP
+	if (CPU_EQUAL(&old_affinity, &new_affinity))
         {
             return;
         }
+*/
         res = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &new_affinity);
         if (res != 0 && checkStatus)
         {
