@@ -25,7 +25,7 @@ Processor Counter Monitor (PCM) is an application programming interface (API) an
 %build
 mkdir build
 cd build
-cmake -DCMAKE_INSTALL_PREFIX=$RPM_BUILD_ROOT/%{_bindir}/.. -DCMAKE_BUILD_TYPE=RelWithDebInfo ..
+cmake -DCMAKE_INSTALL_PREFIX=$RPM_BUILD_ROOT/ -DCMAKE_BUILD_TYPE=RelWithDebInfo ..
 make -j 
 
 %install
