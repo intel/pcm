@@ -1,0 +1,8 @@
+Building:
+$ cmake -B build
+$ cmake --build build
+
+Runtime requirements:
+* the cpuctl(4) driver needs to be loaded
+
+PCM is also available as a port maintained by The FreeBSD Project (sysutils/intel-pcm).

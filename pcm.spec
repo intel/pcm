@@ -13,6 +13,7 @@ BuildRequires:  unzip
 BuildRequires:  gcc
 BuildRequires:  make
 BuildRequires:  gcc-c++
+BuildRequires:  cmake
 
 %description
 
@@ -22,11 +23,15 @@ Processor Counter Monitor (PCM) is an application programming interface (API) an
 %setup -n pcm-master
 
 %build
+mkdir build
+cd build
+cmake -DCMAKE_INSTALL_PREFIX=$RPM_BUILD_ROOT/%{_bindir}/.. -DCMAKE_BUILD_TYPE=RelWithDebInfo ..
 make -j 
 
 %install
 rm -rf $RPM_BUILD_ROOT
-make install prefix=$RPM_BUILD_ROOT/%{_bindir}/..
+cd build
+make install
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -36,7 +41,7 @@ rm -rf $RPM_BUILD_ROOT
 
 %files
 %defattr(-,root,root,0755)
-%doc license.txt LINUX_HOWTO.txt
+%doc doc/license.txt doc/LINUX_HOWTO.txt
 %{_sbindir}/pcm-core
 %{_sbindir}/pcm-iio
 %{_sbindir}/pcm-latency
@@ -59,6 +64,10 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/pcm/
 
 %changelog
+* Tue Jun 04 2022 - maria.markova@intel.com
+        Add cmake adaptation
+* Fri Dec 17 2021 - maria.markova@intel.com
+        Move licence.txt Linix_HOWTO.txt to doc folder
 * Tue Aug 25 2020 - roman.dementiev@intel.com
         Add pcm-raw under %files
 * Wed Apr 01 2020 - otto.g.bruggeman@intel.com

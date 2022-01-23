@@ -2,5 +2,7 @@ freebsd_instance:
   image_family: freebsd-12-1
 
 task:
-  install_script: pkg install -y gmake
-  script: gmake install prefix=.
+  install_script: pkg install -y gmake cmake
+  script:
+    - cmake -B build -DCMAKE_INSTALL_PREFIX=.
+    - cd build && gmake install

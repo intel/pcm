@@ -1,0 +1,26 @@
+name: kw-linux-report
+
+on: [workflow_dispatch, workflow_call]
+
+jobs:
+  build:
+
+    runs-on: ci-kw-linux
+    if: ${{ github.repository != 'opcm/pcm' }}
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: kw
+      run: |
+        git clone https://github.com/simdjson/simdjson.git
+        ci-kw-linux.sh "echo No Preparation for make" "make -j"
+
+    - name: kw-report
+      run: |
+        ci-kw-linux-report.sh
+
+    - name: upload-artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: kw-linux-report-${{ github.sha }}
+        path: kw_report.txt

@@ -1,0 +1,9 @@
+name: kw-report
+
+on: workflow_dispatch
+
+jobs:
+  linux-report:
+    uses: intel-innersource/applications.analyzers.pcm/.github/workflows/ci-kw-linux-report.yml@main
+  windows-report:
+    uses: intel-innersource/applications.analyzers.pcm/.github/workflows/ci-kw-windows-report.yml@main
