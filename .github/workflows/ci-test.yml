@@ -14,9 +14,29 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: make
+    - name: Preparation
+      run: |
+        cd ${{ github.workspace }}/src
+        git clone https://github.com/simdjson/simdjson.git
+        cd ..
+    - name: Configure CMake
+      run: |
+        cmake --version
+        rm -rf ${{ github.workspace }}/build
+        cmake -B ${{ github.workspace }}/build
+    - name: Build
       run: |
         g++ --version
-        git clone https://github.com/simdjson/simdjson.git
-        make -j
-        sh test.sh
+        cd ${{ github.workspace }}/build
+        make -j$(nproc)
+    - name: Test
+      run: |
+        set -o pipefail
+        sh ${{ github.workspace }}/tests/test.sh 2>&1 | tee test-log.txt
+
+    - name: upload-artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: test-log-${{ github.sha }}
+        path: test-log.txt
+

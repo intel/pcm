@@ -14,9 +14,17 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: scan-build
+    - name: Preparation
       run: |
-        scan-build --exclude simdjson --status-bugs make -j
-        make clean
+        cd ${{ github.workspace }}/src
         git clone https://github.com/simdjson/simdjson.git
+        cd ..
+    - name: Configure CMake
+      run: |
+        cmake --version
+        rm -rf ${{ github.workspace }}/build
+        scan-build cmake -B ${{ github.workspace }}/build
+    - name: Scan build
+      run: |
+        cd ${{ github.workspace }}/build
         scan-build --exclude simdjson --status-bugs make -j
