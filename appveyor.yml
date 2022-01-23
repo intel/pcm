@@ -15,7 +15,7 @@ before_build:
     cmake ..
 
 build:
-  project: %APPVEYOR_BUILD_FOLDER%\build\PCM.sln
+  project: build\PCM.sln
   parallel: true
   verbosity: minimal
 after_build:
