@@ -8,16 +8,12 @@ before_build:
 - cmd: >-
     cmake --version
 
-    mkdir build
+    cmake -B build
 
-    cd build
 
-    cmake ..
+build_script:
+- cmake --build build --config Release --parallel
 
-build:
-  project: build\PCM.sln
-  parallel: true
-  verbosity: minimal
 after_build:
 - cmd: 7z a pcm-all.zip %APPVEYOR_BUILD_FOLDER%\build\bin\Release\*.exe %APPVEYOR_BUILD_FOLDER%\build\bin\Release\*.dll %APPVEYOR_BUILD_FOLDER%\build\src\Release\*.lib %APPVEYOR_BUILD_FOLDER%\build\src\Release\*.exp
 artifacts:
