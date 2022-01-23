@@ -20,4 +20,4 @@ jobs:
     - name: make
       run: |
         cd ${{ github.workspace }}/build
-        make install
+        sudo make install
