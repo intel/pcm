@@ -64,7 +64,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/pcm/
 
 %changelog
-* Tue Jun 04 2022 - maria.markova@intel.com
+* Tue Jan 04 2022 - maria.markova@intel.com
         Add cmake adaptation
 * Fri Dec 17 2021 - maria.markova@intel.com
         Move licence.txt Linix_HOWTO.txt to doc folder
