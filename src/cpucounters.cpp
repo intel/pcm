@@ -59,6 +59,8 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <pthread.h>
 #if defined(__FreeBSD__) || (defined(__DragonFly__) && __DragonFly_version >= 400707)
 #include <pthread_np.h>
+#include <sys/_cpuset.h>
+#include <sys/cpuset.h>
 #endif
 #include <errno.h>
 #include <sys/time.h>
@@ -232,12 +234,11 @@ public:
         cpu_set_t new_affinity;
         CPU_ZERO(&new_affinity);
         CPU_SET(core_id, &new_affinity);
-/* TODO: use CPU_CMP
-	if (CPU_EQUAL(&old_affinity, &new_affinity))
+        // CPU_CMP() returns true if old_affinity is NOT equal to new_affinity
+        if (!(CPU_CMP(&old_affinity, &new_affinity)))
         {
-            return;
+            return; // the same affinity => return
         }
-*/
         res = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &new_affinity);
         if (res != 0 && checkStatus)
         {
