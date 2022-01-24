@@ -73,7 +73,7 @@ rm -rf $RPM_BUILD_ROOT
 * Wed Apr 01 2020 - otto.g.bruggeman@intel.com
         Add pcm-sensor-server under %files
 * Mon Nov 25 2019 - roman.dementiev@intel.com
-        call make install and use %{_sbindir} or %{_bindir}
+        call make install and use _sbindir or _bindir
 * Mon Oct 21 2019 - roman.dementiev@intel.com
 	add opCode file to /usr/share/pcm
 	use "install" to copy pcm-bw-histogram.sh
