@@ -145,7 +145,7 @@ if(UNIX) # APPLE, LINUX, FREE_BSD
 
     # Install extra files
     install(FILES pcm-bw-histogram.sh
-            DESTINATION "sbin/pcm-bw-histogram"
+            DESTINATION "sbin"
             PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE GROUP_READ WORLD_EXECUTE WORLD_READ)
     file(GLOB OPCODE_FILES "opCode*.txt")
     foreach(opcode_file ${OPCODE_FILES})
