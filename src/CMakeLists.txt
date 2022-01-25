@@ -19,8 +19,7 @@ if(UNIX)
 endif(UNIX)
 
 if(MSVC)
-     set(CMAKE_CXX_FLAGS "/O2 /wd4251 /wd4273")
-     set(CMAKE_CXX_FLAGS_RELEASE "/O2 /wd4251 /wd4273")
+     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /O2 /wd4251 /wd4273")
      add_definitions(/W3)
 endif(MSVC)
 
@@ -56,7 +55,7 @@ if(APPLE)
 endif(APPLE)
 
 if(MSVC)
-    set(CMAKE_CXX_FLAGS "/EHa /Zi")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHa /Zi")
     # https://cmake.org/cmake/help/latest/prop_tgt/MSVC_RUNTIME_LIBRARY.html
     # windows/restrictDriverAccess.cpp is building separately
     add_library(restrictDriverAccess OBJECT windows/restrictDriverAccess.cpp)
