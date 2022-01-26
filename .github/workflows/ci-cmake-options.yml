@@ -1,0 +1,102 @@
+name: test cmake options
+
+on:
+  push:
+    branches: [ '**' ]
+  pull_request:
+    branches: [ '**' ]
+
+jobs:
+  build:
+
+    runs-on: ci-gcc10
+    if: ${{ github.repository != 'opcm/pcm' }}
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Preparation
+      run: |
+        cd ${{ github.workspace }}/src
+        git clone https://github.com/simdjson/simdjson.git
+        cd ..
+
+    - name: CMake default install
+      run: |
+        cmake --version
+        rm -rf ${{ github.workspace }}/build
+        cmake -B ${{ github.workspace }}/build -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/build
+        cd ${{ github.workspace }}/build
+        export VERBOSE=1
+        make install -j$(nproc) 
+
+    - name: CMake Release install
+      run: |
+        cmake --version
+        rm -rf ${{ github.workspace }}/build
+        cmake -B ${{ github.workspace }}/build -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/build -DCMAKE_BUILD_TYPE=Release
+        cd ${{ github.workspace }}/build
+        export VERBOSE=1
+        make install -j$(nproc) 
+
+    - name: CMake Debug install
+      run: |
+        cmake --version
+        rm -rf ${{ github.workspace }}/build
+        cmake -B ${{ github.workspace }}/build -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/build -DCMAKE_BUILD_TYPE=Debug
+        cd ${{ github.workspace }}/build
+        export VERBOSE=1
+        make install -j$(nproc) 
+
+    - name: CMake RelWithDebInfo install
+      run: |
+        cmake --version
+        rm -rf ${{ github.workspace }}/build
+        cmake -B ${{ github.workspace }}/build -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/build -DCMAKE_BUILD_TYPE=RelWithDebInfo
+        cd ${{ github.workspace }}/build
+        export VERBOSE=1
+        make install -j$(nproc) 
+
+    - name: CMake Custom build install
+      run: |
+        cmake --version
+        rm -rf ${{ github.workspace }}/build
+        cmake -B ${{ github.workspace }}/build -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/build -DCMAKE_CXX_FLAGS_CUSTOM:STRING="-O2 -g" -DCMAKE_BUILD_TYPE=CUSTOM
+        cd ${{ github.workspace }}/build
+        export VERBOSE=1
+        make install -j$(nproc)
+
+    - name: CMake User-flags build install
+      run: |
+        cmake --version
+        rm -rf ${{ github.workspace }}/build
+        cmake -B ${{ github.workspace }}/build -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/build -DCMAKE_CXX_FLAGS="-O2 -g -fPIC"
+        cd ${{ github.workspace }}/build
+        export VERBOSE=1
+        make install -j$(nproc)
+
+    - name: CMake env var option build install
+      run: |
+        cmake --version
+        rm -rf ${{ github.workspace }}/build
+        export CXXFLAGS="-grecord-gcc-switches"
+        export CFLAGS="-fstack-protector-strong"
+        export LDFLAGS="-Wl,-z,now"
+        cmake -B ${{ github.workspace }}/build -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/build -DCMAKE_CXX_FLAGS_CUSTOM:STRING="-O2 -g -fPIC" -DCMAKE_BUILD_TYPE=CUSTOM
+        cd ${{ github.workspace }}/build
+        export VERBOSE=1
+        make install -j$(nproc)
+
+    - name: CMake env var option build install (no custom flags)
+      run: |
+        cmake --version
+        rm -rf ${{ github.workspace }}/build
+        export CXXFLAGS="-grecord-gcc-switches"
+        export CFLAGS="-fstack-protector-strong"
+        export LDFLAGS="-Wl,-z,now"
+        cmake -B ${{ github.workspace }}/build -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/build -DCMAKE_BUILD_TYPE=CUSTOM
+        cd ${{ github.workspace }}/build
+        export VERBOSE=1
+        make install -j$(nproc)
+
+    - name: Diagnostic
+      run: date
