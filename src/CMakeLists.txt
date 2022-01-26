@@ -30,29 +30,40 @@ set(PROJECT_NAMES   pcm pcm-numa pcm-latency pcm-power pcm-msr pcm-memory pcm-ts
 file(GLOB COMMON_SOURCES  msr.cpp cpucounters.cpp pci.cpp mmio.cpp bw.cpp utils.cpp topology.cpp debug.cpp threadpool.cpp)
 file(GLOB UNUX_SOURCES dashboard.cpp resctrl.cpp)
 
-if(LINUX OR FREE_BSD)
+if(UNIX)  # LINUX, FREE_BSD, APPLE
     list(APPEND PROJECT_NAMES pcm-sensor)
     if(LINUX)
         list(APPEND PROJECT_NAMES pcm-sensor-server)
-    endif(LINUX)
+    endif()
+
+    # libpcm.a
     add_library(PCM_STATIC STATIC ${COMMON_SOURCES} ${UNUX_SOURCES})
     set_target_properties(PCM_STATIC PROPERTIES OUTPUT_NAME pcm)
 
-    add_library(PCM_SHARED SHARED pcm-core.cpp)
-    target_link_libraries(PCM_SHARED PRIVATE PCM_STATIC Threads::Threads)
-    set_target_properties(PCM_SHARED PROPERTIES OUTPUT_NAME pcm)
-endif(LINUX OR FREE_BSD)
+    # libpcm.a with -DPCM_SILENT for Release*
+    add_library(PCM_STATIC_SILENT STATIC ${COMMON_SOURCES} ${UNUX_SOURCES})
+    target_compile_definitions(PCM_STATIC_SILENT PRIVATE
+      $<$<CONFIG:Release>:PCM_SILENT>
+      $<$<CONFIG:MinSizeRel>:PCM_SILENT>
+      $<$<CONFIG:RelWithDebInfo>:PCM_SILENT>
+    )
 
-if(APPLE)
-    list(APPEND PROJECT_NAMES pcm-sensor)
-    add_library(PCM_STATIC STATIC ${COMMON_SOURCES} ${UNUX_SOURCES})
-    include_directories("${CMAKE_SOURCE_DIR}/src/MacMSRDriver") # target_include_directories doesn't work
-    set_target_properties(PCM_STATIC PROPERTIES OUTPUT_NAME pcm)
-
+    # libpcm.so
     add_library(PCM_SHARED SHARED pcm-core.cpp)
-    target_link_libraries(PCM_SHARED PRIVATE PCM_STATIC PcmMsr Threads::Threads)
+    # PCM_SILENT in Release* for pcm-core.cpp
+    target_compile_definitions(PCM_SHARED PRIVATE
+      $<$<CONFIG:Release>:PCM_SILENT>
+      $<$<CONFIG:MinSizeRel>:PCM_SILENT>
+      $<$<CONFIG:RelWithDebInfo>:PCM_SILENT>
+    )
+    if(APPLE)
+        include_directories("${CMAKE_SOURCE_DIR}/src/MacMSRDriver") # target_include_directories doesn't work
+        target_link_libraries(PCM_SHARED PRIVATE PCM_STATIC_SILENT PcmMsr Threads::Threads)
+    else()
+        target_link_libraries(PCM_SHARED PRIVATE PCM_STATIC_SILENT Threads::Threads)
+    endif()
     set_target_properties(PCM_SHARED PROPERTIES OUTPUT_NAME pcm)
-endif(APPLE)
+endif()
 
 if(MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHa /Zi")
@@ -65,7 +76,7 @@ if(MSVC)
     # Rest of windows/* files + restrictDriverAccess.cpp -> PCM_STATIC
     file(GLOB WINDOWS_SOURCES winpmem/winpmem.cpp windows/stdafx.cpp freegetopt/getopt.cpp)
     add_library(PCM_STATIC STATIC $<TARGET_OBJECTS:restrictDriverAccess> ${COMMON_SOURCES} ${WINDOWS_SOURCES})
-    target_compile_definitions(PCM_STATIC PRIVATE _UNICODE UNICODE _CONSOLE)
+    target_compile_definitions(PCM_STATIC PRIVATE UNICODE _UNICODE _CONSOLE)
 
     # Graphical perfmon front-end: pcm-lib, pcm-service
     # Files: COMMON_FILES() + pcm-lib.cpp winpmem\winpmem.cpp dllmain.cpp

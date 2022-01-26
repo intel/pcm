@@ -3893,7 +3893,9 @@ void PCM::cleanupPMU(const bool silent)
     if (!silent) std::cerr << " Zeroed PMU registers\n";
 #endif
 }
-
+#ifdef PCM_SILENT
+    #pragma GCC diagnostic ignored "-Wunused-parameter"
+#endif
 void PCM::cleanupUncorePMUs(const bool silent)
 {
     for (auto & sPMUs : iioPMUs)
