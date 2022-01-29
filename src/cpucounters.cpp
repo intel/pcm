@@ -1445,7 +1445,7 @@ bool PCM::discoverSystemTopology()
     }
 
     // All threads are here now so we can set the refCore for a socket
-    for ( auto socket : systemTopology->sockets() )
+    for ( auto& socket : systemTopology->sockets() )
         socket->setRefCore();
 
     // use map to change apic socket id to the logical socket id
@@ -3484,7 +3484,7 @@ void PCM::enableForceRTMAbortMode(const bool silent)
     {
         if (isForceRTMAbortModeAvailable() && (core_gen_counter_num_max < 4))
         {
-            for (auto m : MSR)
+            for (auto& m : MSR)
             {
                 const auto res = m->write(MSR_TSX_FORCE_ABORT, 1);
                 if (res != sizeof(uint64))
@@ -3514,7 +3514,7 @@ void PCM::disableForceRTMAbortMode(const bool silent)
     // std::cout << "disableForceRTMAbortMode(): forceRTMAbortMode=" << forceRTMAbortMode << "\n";
     if (forceRTMAbortMode)
     {
-        for (auto m : MSR)
+        for (auto& m : MSR)
         {
             const auto res = m->write(MSR_TSX_FORCE_ABORT, 0);
             if (res != sizeof(uint64))
@@ -4607,7 +4607,7 @@ PCM::ErrorCode PCM::programServerUncorePowerMetrics(int mc_profile, int pcu_prof
          std::cerr << "ERROR: unsupported PCU profile " << pcu_profile << "\n";
     }
 
-    for (auto u : server_pcicfg_uncore)
+    for (auto& u : server_pcicfg_uncore)
     {
         u->program_power_metrics(mc_profile);
     }
@@ -4710,7 +4710,7 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool sile
         }
         curPMUConfigs.erase("core");
     }
-    for (auto pmuConfig : curPMUConfigs)
+    for (auto& pmuConfig : curPMUConfigs)
     {
         const auto & type = pmuConfig.first;
         const auto & events = pmuConfig.second;
@@ -4732,28 +4732,28 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool sile
         }
         if (type == "m3upi")
         {
-            for (auto uncore : server_pcicfg_uncore)
+            for (auto& uncore : server_pcicfg_uncore)
             {
                 uncore->programM3UPI(events32);
             }
         }
         else if (type == "xpi" || type == "upi" || type == "qpi")
         {
-            for (auto uncore : server_pcicfg_uncore)
+            for (auto& uncore : server_pcicfg_uncore)
             {
                 uncore->programXPI(events32);
             }
         }
         else if (type == "imc")
         {
-            for (auto uncore : server_pcicfg_uncore)
+            for (auto& uncore : server_pcicfg_uncore)
             {
                 uncore->programIMC(events32);
             }
         }
         else if (type == "m2m")
         {
-            for (auto uncore : server_pcicfg_uncore)
+            for (auto& uncore : server_pcicfg_uncore)
             {
                 uncore->programM2M(events64);
             }
@@ -7344,7 +7344,7 @@ void ServerPCICFGUncore::initMemTest(ServerPCICFGUncore::MemTestParam & param)
         if (result == NULL)
         {
             std::cerr << "ERROR: " << i << " VirtualAllocExNuma failed.\n";
-            for (auto b : memBuffers)
+            for (auto& b : memBuffers)
             {
                 VirtualFree(b, memBufferBlockSize, MEM_RELEASE);
             }
@@ -7359,7 +7359,7 @@ void ServerPCICFGUncore::initMemTest(ServerPCICFGUncore::MemTestParam & param)
     #else
     std::cerr << "ERROR: memory test is not implemented. QPI/UPI speed and utilization metrics may not be reliable.\n";
     #endif
-    for (auto b : memBuffers)
+    for (auto& b : memBuffers)
         std::fill(b, b + (memBufferBlockSize / sizeof(uint64)), 0ULL);
 }
 
@@ -7368,7 +7368,7 @@ void ServerPCICFGUncore::doMemTest(const ServerPCICFGUncore::MemTestParam & para
     const auto & memBufferBlockSize = param.first;
     const auto & memBuffers = param.second;
     // read and write each cache line once
-    for (auto b : memBuffers)
+    for (auto& b : memBuffers)
         for (unsigned int i = 0; i < memBufferBlockSize / sizeof(uint64); i += 64 / sizeof(uint64))
         {
             (b[i])++;
@@ -7379,7 +7379,7 @@ void ServerPCICFGUncore::cleanupMemTest(const ServerPCICFGUncore::MemTestParam &
 {
     const auto & memBufferBlockSize = param.first;
     const auto & memBuffers = param.second;
-    for (auto b : memBuffers)
+    for (auto& b : memBuffers)
     {
 #if defined(__linux__)
         munmap(b, memBufferBlockSize);

@@ -252,7 +252,7 @@ bool initPMUEventMap()
         return false;
     }
 
-    for (const auto evfile : eventFiles)
+    for (const auto& evfile : eventFiles)
     {
         std::string path;
         auto printError = [&evfile]()
@@ -291,7 +291,7 @@ bool initPMUEventMap()
                         if (EventName.empty())
                         {
                             cerr << "Did not find EventName in JSON object:\n";
-                            for (const auto keyValue : eventObj)
+                            for (const auto& keyValue : eventObj)
                             {
                                 cout << "key: " << keyValue.key << " value: " << keyValue.value << "\n";
                             }
@@ -722,7 +722,7 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
     }
 
     /*
-    for (const auto keyValue : eventObj)
+    for (const auto& keyValue : eventObj)
     {
         cout << keyValue.key << " : " << keyValue.value << "\n";
     }
@@ -932,7 +932,7 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<Cor
                     cout << "\n";
                 }
                 uint32 i = 0;
-                for (auto event : events)
+                for (auto& event : events)
                 {
                     const std::string name = (event.second.empty()) ? (type + "Event" + std::to_string(i)) : event.second;
                     printRowBegin(name, BeforeState[0], AfterState[0], m);
@@ -960,7 +960,7 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<Cor
                               [](const CoreCounterState& before, const CoreCounterState& after) { return uint64(getBackendBound(before, after) * maxPerfMetricsValue); },
                               [](const CoreCounterState& before, const CoreCounterState& after) { return uint64(getRetiring(before, after) * maxPerfMetricsValue); }
                 };
-                for (const auto event : fixedEvents)
+                for (const auto& event : fixedEvents)
                 {
                     for (uint32 cnt = 0; cnt < 4; ++cnt)
                     {
@@ -978,7 +978,7 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<Cor
                     }
                 }
                 uint32 i = 0;
-                for (const auto event : events)
+                for (const auto& event : events)
                 {
                     const std::string name = (event.second.empty()) ? (type + "Event" + std::to_string(i)) : event.second;
                     printRow(name, [&i](const CoreCounterState& before, const CoreCounterState& after) { return getNumberOfCustomEvents(i, before, after); }, BeforeState, AfterState, m);
@@ -1054,7 +1054,7 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<CoreCounterSt
             []() { cout << "ms" << separator; },
             [&]() { cout << (1000ULL * getInvariantTSC(BeforeState[0], AfterState[0])) / m->getNominalFrequency() << separator; });
     }
-    for (auto typeEvents : curPMUConfigs)
+    for (auto& typeEvents : curPMUConfigs)
     {
         const auto & type = typeEvents.first;
         const auto & events = typeEvents.second.programmable;
@@ -1078,7 +1078,7 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<CoreCounterSt
                     uint64(getBackendBound(BeforeState[core], AfterState[core]) * maxPerfMetricsValue),
                     uint64(getRetiring(BeforeState[core], AfterState[core]) * maxPerfMetricsValue)
                 };
-                for (const auto event : fixedEvents)
+                for (const auto& event : fixedEvents)
                 {
                     auto print = [&](const std::string & metric, const uint64 value)
                     {
@@ -1103,7 +1103,7 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<CoreCounterSt
                     }
                 }
                 int i = 0;
-                for (auto event : events)
+                for (auto& event : events)
                 {
                     choose(outputType,
                         [m, core]() { cout << "SKT" << m->getSocketId(core) << "CORE" << core << separator; },
@@ -1120,7 +1120,7 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<CoreCounterSt
                 for (uint32 l = 0; l < m->getQPILinksPerSocket(); ++l)
                 {
                     int i = 0;
-                    for (auto event : events)
+                    for (auto& event : events)
                     {
                         choose(outputType,
                             [s, l]() { cout << "SKT" << s << "LINK" << l << separator; },
@@ -1138,7 +1138,7 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<CoreCounterSt
                 for (uint32 l = 0; l < m->getQPILinksPerSocket(); ++l)
                 {
                     int i = 0;
-                    for (auto event : events)
+                    for (auto& event : events)
                     {
                         choose(outputType,
                             [s, l]() { cout << "SKT" << s << "LINK" << l << separator; },
@@ -1163,7 +1163,7 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<CoreCounterSt
                             [&]() { cout << getDRAMClocks(ch, BeforeUncoreState[s], AfterUncoreState[s]) << separator; });
                     }
                     int i = 0;
-                    for (auto event : events)
+                    for (auto& event : events)
                     {
                         choose(outputType,
                             [s, ch]() { cout << "SKT" << s << "CHAN" << ch << separator; },
@@ -1181,7 +1181,7 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<CoreCounterSt
                 for (uint32 mc = 0; mc < m->getMCPerSocket(); ++mc)
                 {
                     int i = 0;
-                    for (auto event : events)
+                    for (auto& event : events)
                     {
                         choose(outputType,
                             [s, mc]() { cout << "SKT" << s << "MC" << mc << separator; },
@@ -1197,7 +1197,7 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<CoreCounterSt
             for (uint32 s = 0; s < m->getNumSockets(); ++s)
             {
                 int i = 0;
-                for (auto event : events)
+                for (auto& event : events)
                 {
                     choose(outputType,
                         [s]() { cout << "SKT" << s << separator; },
@@ -1219,7 +1219,7 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<CoreCounterSt
                         [&]() { cout << getUncoreClocks(BeforeUncoreState[s], AfterUncoreState[s]) << separator; });
                 }
                 int i = 0;
-                for (auto event : events)
+                for (auto& event : events)
                 {
                     choose(outputType,
                         [s]() { cout << "SKT" << s << separator; },
@@ -1236,7 +1236,7 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<CoreCounterSt
                 for (uint32 cbo = 0; cbo < m->getMaxNumOfCBoxes(); ++cbo)
                 {
                     int i = 0;
-                    for (auto event : events)
+                    for (auto& event : events)
                     {
                         choose(outputType,
                             [s, cbo]() { cout << "SKT" << s << "C" << cbo << separator; },
@@ -1254,7 +1254,7 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<CoreCounterSt
                 for (uint32 stack = 0; stack < m->getMaxNumOfIIOStacks(); ++stack)
                 {
                     int i = 0;
-                    for (auto event : events)
+                    for (auto& event : events)
                     {
                         choose(outputType,
                             [s, stack]() { cout << "SKT" << s << "IRP" << stack << separator; },
@@ -1272,7 +1272,7 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs, PCM* m, vector<CoreCounterSt
                 for (uint32 stack = 0; stack < m->getMaxNumOfIIOStacks(); ++stack)
                 {
                     int i = 0;
-                    for (auto event : events)
+                    for (auto& event : events)
                     {
                         choose(outputType,
                             [s, stack]() { cout << "SKT" << s << "IIO" << stack << separator; },
@@ -1502,7 +1502,7 @@ int main(int argc, char* argv[])
     print_cpu_details();
 
     size_t nGroups = 0;
-    for (const auto group : PMUConfigs)
+    for (const auto& group : PMUConfigs)
     {
         if (!group.empty()) ++nGroups;
     }
