@@ -109,7 +109,7 @@ namespace pcm
     {
         auto files = fileMap[core];
         size_t result = 0;
-        for (auto f : files)
+        for (auto& f : files)
         {
             const auto data = readSysFS(f.c_str(), false);
             if (data.empty() == false)

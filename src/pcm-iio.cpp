@@ -1058,7 +1058,7 @@ void print_PCIeMapping(const std::vector<struct iio_stacks_on_socket>& iios, con
             for (auto & stack : it->stacks) {
                 printf("\t%s root bus: 0x%x", stack.stack_name.c_str(), stack.busno);
 		printf("\tflipped: %s\n", stack.flipped ? "true" : "false");
-                for (auto part : stack.parts) {
+                for (auto& part : stack.parts) {
                     vector<struct pci> pp = part.child_pci_devs;
                     uint8_t level = 1;
                     for (std::vector<struct pci>::const_iterator iunit = pp.begin(); iunit != pp.end(); ++iunit)
@@ -1078,7 +1078,7 @@ void print_PCIeMapping(const std::vector<struct iio_stacks_on_socket>& iios, con
 bool check_argument_equals(const char* arg, std::initializer_list<const char*> arg_names)
 {
     const auto arg_len = strlen(arg);
-    for (const auto arg_name: arg_names) {
+    for (const auto& arg_name: arg_names) {
         if (arg_len == strlen(arg_name) && strncmp(arg, arg_name, arg_len) == 0) {
             return true;
         }
@@ -1090,7 +1090,7 @@ bool check_argument_equals(const char* arg, std::initializer_list<const char*> a
 bool extract_argument_value(const char* arg, std::initializer_list<const char*> arg_names, std::string& value)
 {
     const auto arg_len = strlen(arg);
-    for (const auto arg_name: arg_names) {
+    for (const auto& arg_name: arg_names) {
         const auto arg_name_len = strlen(arg_name);
         if (arg_len > arg_name_len && strncmp(arg, arg_name, arg_name_len) == 0 && arg[arg_name_len] == '=') {
             value = arg + arg_name_len + 1;

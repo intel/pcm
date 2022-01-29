@@ -148,7 +148,7 @@ public:
     }
     virtual ~Core() {
         pcm_ = nullptr;
-        for ( auto thread : threads_ )
+        for ( auto& thread : threads_ )
             delete thread;
     }
 
@@ -220,7 +220,7 @@ public:
     }
 
     bool isOnline() const {
-        for( auto thread : threads_ )
+        for( auto& thread : threads_ )
             if ( thread->isOnline() )
                 return true;
         return false;
@@ -304,7 +304,7 @@ public:
     Socket( PCM* m, int32 apicID, int32 logicalID );
     virtual ~Socket() {
         pcm_ = nullptr;
-        for ( auto core : cores_ )
+        for ( auto& core : cores_ )
             delete core;
         refCore_ = nullptr; // cores_ is owner so it is already deleted by here
         delete uncore_;
@@ -339,7 +339,7 @@ public:
     SocketCounterState socketCounterState( void ) const;
 
     Core* findCoreByTileID( int32 tileID ) {
-        for ( auto core : cores_ ) {
+        for ( auto& core : cores_ ) {
             if ( core->tileID() == tileID )
                 return core;
         }
@@ -384,9 +384,9 @@ public:
 
     virtual ~SystemRoot() {
         pcm_ = nullptr;
-        for ( auto socket : sockets_ )
+        for ( auto& socket : sockets_ )
             delete socket;
-        for ( auto thread : offlinedThreadsAtStart_ )
+        for ( auto& thread : offlinedThreadsAtStart_ )
             delete thread;
     }
 
@@ -404,7 +404,7 @@ public:
         // quick check during development to see if expected osId == te.os_id for onlined cores
         // assert( te.os_id != -1 && osID == te.os_id );
         bool entryAdded = false;
-        for ( auto socket : sockets_ ) {
+        for ( auto& socket : sockets_ ) {
             if ( socket->apicId() == te.socket ) {
                 Core* core = nullptr;
                 if ( (core = socket->findCoreByTileID( te.tile_id )) == nullptr ) {
@@ -456,7 +456,7 @@ public:
         SystemCounterState scs;
         // Fill scs
         // by iterating the sockets
-        for ( auto socket : sockets_ ) {
+        for ( auto& socket : sockets_ ) {
             scs += ( socket->socketCounterState() );
         }
         return scs;
