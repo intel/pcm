@@ -216,4 +216,49 @@ fi
 rm -rf mapfile.csv
 cp "mapfile.csv_orig" "mapfile.csv"
 
+
+if [ ! -f "event_file_test.txt" ]; then
+    cat <<EOF > event_file_test.txt
+# group 1
+INST_RETIRED.ANY
+CPU_CLK_UNHALTED.REF_TSC
+UNC_CHA_DIR_LOOKUP.SNP
+UNC_CHA_DIR_LOOKUP.NO_SNP
+UNC_M_CAS_COUNT.RD
+UNC_M_CAS_COUNT.WR
+UNC_UPI_CLOCKTICKS
+UNC_UPI_TxL_FLITS.ALL_DATA
+UNC_UPI_TxL_FLITS.NON_DATA
+UNC_UPI_L1_POWER_CYCLES
+;
+# group 2
+OFFCORE_REQUESTS_BUFFER.SQ_FULL
+UNC_CHA_DIR_UPDATE.HA
+UNC_CHA_DIR_UPDATE.TOR
+UNC_M2M_DIRECTORY_UPDATE.ANY
+UNC_M_CAS_COUNT.RD
+UNC_M_CAS_COUNT.WR
+imc/fixed,name=DRAM_CLOCKS
+UNC_M_PRE_COUNT.PAGE_MISS
+UNC_UPI_TxL0P_POWER_CYCLES
+UNC_UPI_RxL0P_POWER_CYCLES
+UNC_UPI_RxL_FLITS.ALL_DATA
+UNC_UPI_RxL_FLITS.NON_DATA
+;
+EOF
+
+fi
+
+./pcm-raw -el event_file_test.txt -tr -csv=raw_tr_wo_ext.csv -i=4 0.25
+if [ "$?" -ne "0" ]; then
+    echo "Error in pcm-raw"
+    exit 1
+fi
+
+./pcm-raw -el event_file_test.txt -tr -ext -csv=raw_tr_wi_ext.csv -i=4 0.25
+if [ "$?" -ne "0" ]; then
+    echo "Error in pcm-raw"
+    exit 1
+fi
+
 popd
