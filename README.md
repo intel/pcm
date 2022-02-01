@@ -55,6 +55,8 @@ And finally a daemon that stores core, memory and QPI counters in shared memory 
 Building PCM Tools
 --------------------------------------------------------------------------------
 
+Install cmake then:
+
 ```
 mkdir build
 cd build
