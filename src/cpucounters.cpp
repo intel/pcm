@@ -4283,7 +4283,11 @@ void BasicCounterState::readAndAggregateTSC(std::shared_ptr<SafeMsrHandle> msr)
     uint64 cInvariantTSC = 0;
     PCM * m = PCM::getInstance();
     const auto cpu_model = m->getCPUModel();
-    if(m->isAtom() == false || cpu_model == PCM::AVOTON) msr->read(IA32_TIME_STAMP_COUNTER, &cInvariantTSC);
+    if (m->isAtom() == false || cpu_model == PCM::AVOTON)
+    {
+        msr->read(IA32_TIME_STAMP_COUNTER, &cInvariantTSC);
+        MSRValues[IA32_TIME_STAMP_COUNTER] = cInvariantTSC;
+    }
     else
     {
 #ifdef _MSC_VER
@@ -4413,14 +4417,22 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
     readAndAggregateTSC(msr);
 
     // reading core C state counters
-    for(int i=0; i <= (int)(PCM::MAX_C_STATE) ;++i)
-        if(m->coreCStateMsr && m->coreCStateMsr[i])
-                msr->read(m->coreCStateMsr[i], &(cCStateResidency[i]));
+    for (int i = 0; i <= (int)(PCM::MAX_C_STATE); ++i)
+    {
+        if (m->coreCStateMsr && m->coreCStateMsr[i])
+        {
+            const auto index = m->coreCStateMsr[i];
+            msr->read(index, &(cCStateResidency[i]));
+            MSRValues[index] = cCStateResidency[i];
+        }
+    }
 
     // reading temperature
     msr->read(MSR_IA32_THERM_STATUS, &thermStatus);
+    MSRValues[MSR_IA32_THERM_STATUS] = thermStatus;
 
     msr->read(MSR_SMI_COUNT, &cSMICount);
+    MSRValues[MSR_SMI_COUNT] = cSMICount;
 
     InstRetiredAny += checked_uint64(m->extractCoreFixedCounterValue(cInstRetiredAny), extract_bits(overflows, 32, 32));
     CpuClkUnhaltedThread += checked_uint64(m->extractCoreFixedCounterValue(cCpuClkUnhaltedThread), extract_bits(overflows, 33, 33));
@@ -4657,6 +4669,8 @@ void PCM::programPCU(uint32* PCUCntConf, const uint64 filter)
 PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool silent)
 {
     if (MSR.empty())  return PCM::MSRAccessDenied;
+    threadMSRConfig = RawPMUConfig{};
+    packageMSRConfig = RawPMUConfig{};
     RawPMUConfigs curPMUConfigs = curPMUConfigs_;
     constexpr auto globalRegPos = 0;
     if (curPMUConfigs.count("core"))
@@ -4788,6 +4802,14 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool sile
         else if (type == "iio")
         {
             programIIOCounters(events64);
+        }
+        else if (type == "package_msr")
+        {
+            packageMSRConfig = pmuConfig.second;
+        }
+        else if (type == "thread_msr")
+        {
+            threadMSRConfig = pmuConfig.second;
         }
         else
         {
@@ -5067,6 +5089,28 @@ void PCM::readAndAggregateEnergyCounters(const uint32 socket, CounterStateType &
 }
 
 template <class CounterStateType>
+void PCM::readMSRs(std::shared_ptr<SafeMsrHandle> msr, const PCM::RawPMUConfig& msrConfig, CounterStateType& result)
+{
+    auto read = [&msr, &result](const RawEventConfig & cfg) {
+        const auto index = cfg.first[MSREventPosition::index];
+        if (result.MSRValues.find(index) == result.MSRValues.end())
+        {
+            uint64 val{ 0 };
+            msr->read(index, &val);
+            result.MSRValues[index] = val;
+        }
+    };
+    for (const auto& cfg : msrConfig.programmable)
+    {
+        read(cfg);
+    }
+    for (const auto& cfg : msrConfig.fixed)
+    {
+        read(cfg);
+    }
+}
+
+template <class CounterStateType>
 void PCM::readAndAggregatePackageCStateResidencies(std::shared_ptr<SafeMsrHandle> msr, CounterStateType & result)
 {
     // reading package C state counters
@@ -5202,6 +5246,7 @@ void PCM::readPackageThermalHeadroom(const uint32 socket, CounterStateType & res
     {
         uint64 val = 0;
         MSR[socketRefCore[socket]]->read(MSR_PACKAGE_THERM_STATUS,&val);
+        result.MSRValues[MSR_PACKAGE_THERM_STATUS] = val;
         result.ThermalHeadroom = extractThermalHeadroom(val);
     }
     else
@@ -5257,6 +5302,7 @@ void PCM::getAllCounterStates(SystemCounterState & systemState, std::vector<Sock
                     {
                         socketStates[topology[core].socket].UncoreCounterState::readAndAggregate(MSR[core]); // read package C state counters
                     }
+                    readMSRs(MSR[core], threadMSRConfig, coreStates[core]);
                 }
             );
             asyncCoreResults.push_back(task.get_future());
@@ -5269,11 +5315,12 @@ void PCM::getAllCounterStates(SystemCounterState & systemState, std::vector<Sock
     {
         int32 refCore = socketRefCore[s];
         if (refCore<0) refCore = 0;
-        std::packaged_task<void()> task([this, s, &socketStates]() -> void
+        std::packaged_task<void()> task([this, s, &socketStates, refCore]() -> void
             {
                 readAndAggregateUncoreMCCounters(s, socketStates[s]);
                 readAndAggregateEnergyCounters(s, socketStates[s]);
                 readPackageThermalHeadroom(s, socketStates[s]);
+                readMSRs(MSR[refCore], packageMSRConfig, socketStates[s]);
             } );
         asyncCoreResults.push_back(task.get_future());
         coreTaskQueues[refCore]->push(task);

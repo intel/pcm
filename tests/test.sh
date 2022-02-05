@@ -46,7 +46,7 @@ if [ "$?" -ne "0" ]; then
     exit 1
 fi
 
-./pcm-raw -e core/config=0x30203,name=LD_BLOCKS.STORE_FORWARD/ -e cha/config=0,name=UNC_CHA_CLOCKTICKS/ -e imc/fixed,name=DRAM_CLOCKS  -- sleep 1
+./pcm-raw -e core/config=0x30203,name=LD_BLOCKS.STORE_FORWARD/ -e cha/config=0,name=UNC_CHA_CLOCKTICKS/ -e imc/fixed,name=DRAM_CLOCKS -e thread_msr/config=0x10,config1=1 -e thread_msr/config=0x19c,config1=0 -- sleep 1
 if [ "$?" -ne "0" ]; then
     echo "Error in pcm-raw"
     exit 1
@@ -230,6 +230,13 @@ UNC_UPI_CLOCKTICKS
 UNC_UPI_TxL_FLITS.ALL_DATA
 UNC_UPI_TxL_FLITS.NON_DATA
 UNC_UPI_L1_POWER_CYCLES
+MSR_EVENT:msr=0x19C:type=STATIC:scope=THREAD
+MSR_EVENT:msr=0x1A2:type=STATIC:scope=THREAD
+MSR_EVENT:msr=0x34:type=FREERUN:scope=PACKAGE
+MSR_EVENT:msr=0x34:type=static:scope=PACKAGE
+package_msr/config=0x34,config1=0
+thread_msr/config=0x10,config1=1,name=TSC_DELTA
+thread_msr/config=0x10,config1=0,name=TSC
 ;
 # group 2
 OFFCORE_REQUESTS_BUFFER.SQ_FULL
@@ -244,6 +251,8 @@ UNC_UPI_TxL0P_POWER_CYCLES
 UNC_UPI_RxL0P_POWER_CYCLES
 UNC_UPI_RxL_FLITS.ALL_DATA
 UNC_UPI_RxL_FLITS.NON_DATA
+MSR_EVENT:msr=0x10:type=FREERUN:scope=thread
+MSR_EVENT:msr=0x10:type=static:scope=thread
 ;
 EOF
 

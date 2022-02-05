@@ -846,6 +846,17 @@ public:
         int divider[4]; //We usually like to have some kind of divider (i.e. /10e6 )
     };
 
+    enum MSREventPosition
+    {
+        index = 0,
+        type = 1
+    };
+    enum MSRType
+    {
+        Static = 0,
+        Freerun = 1
+    };
+
 private:
     ProgramMode mode;
     CustomCoreEventDescription coreEventDesc[PERF_MAX_CUSTOM_COUNTERS];
@@ -955,6 +966,11 @@ private:
     void readPackageThermalHeadroom(const uint32 socket, CounterStateType & counterState);
     template <class CounterStateType>
     void readAndAggregatePackageCStateResidencies(std::shared_ptr<SafeMsrHandle> msr, CounterStateType & result);
+public:
+    struct RawPMUConfig;
+private:
+    template <class CounterStateType>
+    void readMSRs(std::shared_ptr<SafeMsrHandle> msr, const RawPMUConfig & msrConfig, CounterStateType & result);
     void readQPICounters(SystemCounterState & counterState);
     void reportQPISpeed() const;
     void readCoreCounterConfig(const bool complainAboutMSR = false);
@@ -1428,6 +1444,7 @@ private:
         }
         return false;
     }
+    RawPMUConfig threadMSRConfig{}, packageMSRConfig{};
 public:
 
     //! \brief Reads CPU model id
@@ -2265,7 +2282,8 @@ class BasicCounterState
     friend double getBadSpeculation(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
     friend double getRetiring(const CounterStateType & before, const CounterStateType & after);
-
+    template <class CounterStateType>
+    friend uint64 getMSREvent(const uint64 & index, const PCM::MSRType & type, const CounterStateType& before, const CounterStateType& after);
 protected:
     checked_uint64 InstRetiredAny;
     checked_uint64 CpuClkUnhaltedThread;
@@ -2290,6 +2308,7 @@ protected:
     uint64 MemoryBWTotal;
     uint64 SMICount;
     uint64 FrontendBoundSlots, BadSpeculationSlots, BackendBoundSlots, RetiringSlots, AllSlotsRaw;
+    std::unordered_map<uint64, uint64> MSRValues;
 
 public:
     BasicCounterState() :
@@ -4054,6 +4073,34 @@ inline double getRetiring(const CounterStateType & before, const CounterStateTyp
     if (PCM::getInstance()->isHWTMAL1Supported())
         return double(after.RetiringSlots - before.RetiringSlots)/double(getAllSlots(before, after));
     return 0.;
+}
+
+template <class CounterStateType>
+uint64 getMSREvent(const uint64& index, const PCM::MSRType& type, const CounterStateType& before, const CounterStateType& after)
+{
+    switch (type)
+    {
+    case PCM::MSRType::Freerun:
+        {
+            const auto beforeIt = before.MSRValues.find(index);
+            const auto afterIt = after.MSRValues.find(index);
+            if (beforeIt != before.MSRValues.end() && afterIt != after.MSRValues.end())
+            {
+                return afterIt->second - beforeIt->second;
+            }
+            break;
+        }
+    case PCM::MSRType::Static:
+        {
+            const auto result = after.MSRValues.find(index);
+            if (result != after.MSRValues.end())
+            {
+                return result->second;
+            }
+            break;
+        }
+    }
+    return 0ULL;
 }
 
 } // namespace pcm
