@@ -2285,9 +2285,9 @@ class BasicCounterState
     template <class CounterStateType>
     friend uint64 getMSREvent(const uint64 & index, const PCM::MSRType & type, const CounterStateType& before, const CounterStateType& after);
 protected:
-    checked_uint64 InstRetiredAny;
-    checked_uint64 CpuClkUnhaltedThread;
-    checked_uint64 CpuClkUnhaltedRef;
+    checked_uint64 InstRetiredAny{};
+    checked_uint64 CpuClkUnhaltedThread{};
+    checked_uint64 CpuClkUnhaltedRef{};
     checked_uint64 Event[PERF_MAX_CUSTOM_COUNTERS];
     enum
     {
