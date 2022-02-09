@@ -213,8 +213,20 @@ int32 MsrHandle::read(uint64 msr_number, uint64 * value)
 
 #else
 // here comes a Linux version
+
+bool noMSRMode()
+{
+    static int noMSR = -1;
+    if (noMSR < 0)
+    {
+        noMSR = (safe_getenv("PCM_NO_MSR") == std::string("1")) ? 1 : 0;
+    }
+    return 1 == noMSR;
+}
+
 MsrHandle::MsrHandle(uint32 cpu) : fd(-1), cpu_id(cpu)
 {
+    if (noMSRMode()) return;
     constexpr auto allowWritesPath = "/sys/module/msr/parameters/allow_writes";
     static bool writesEnabled = false;
     if (writesEnabled == false)
@@ -237,6 +249,7 @@ MsrHandle::MsrHandle(uint32 cpu) : fd(-1), cpu_id(cpu)
     if (handle < 0)
     {
          std::cerr << "PCM Error: can't open MSR handle for core " << cpu << "\n";
+         std::cerr << "Try no-MSR mode by setting env variable PCM_NO_MSR=1\n";
          throw std::exception();
     }
     fd = handle;
@@ -254,14 +267,21 @@ int32 MsrHandle::write(uint64 msr_number, uint64 value)
     std::lock_guard<std::mutex> g(m);
     std::cout << "DEBUG: writing MSR 0x" << std::hex << msr_number << " value 0x" << value << " on cpu " << std::dec << cpu_id << std::endl;
 #endif
+    if (fd < 0) return 0;
     return ::pwrite(fd, (const void *)&value, sizeof(uint64), msr_number);
 }
 
 int32 MsrHandle::read(uint64 msr_number, uint64 * value)
 {
+    if (fd < 0) return 0;
     return ::pread(fd, (void *)value, sizeof(uint64), msr_number);
 }
 
+#endif
+
+
+#ifndef __linux__
+bool noMSRMode() { return false; }
 #endif
 
 } // namespace pcm

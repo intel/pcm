@@ -2505,6 +2505,12 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
         canUsePerf = false;
         if (!silent) std::cerr << "Installed Linux kernel perf does not support hardware top-down level-1 counters. Using direct PMU programming instead.\n";
     }
+
+    if (canUsePerf == false && noMSRMode())
+    {
+        std::cerr << "ERROR: can not use perf driver and no-MSR mode is enabled\n" ;
+        return PCM::UnknownError;
+    }
 #endif
 
     if(allow_multiple_instances)
@@ -3692,9 +3698,9 @@ bool PCM::PMUinUse()
 
         for (uint32 j = 0; j < core_gen_counter_num_max; ++j)
         {
-            MSR[i]->read(IA32_PERFEVTSEL0_ADDR + j, &event_select_reg.value);
+            const auto count = MSR[i]->read(IA32_PERFEVTSEL0_ADDR + j, &event_select_reg.value);
 
-            if (event_select_reg.fields.event_select != 0 || event_select_reg.fields.apic_int != 0)
+            if (count && (event_select_reg.fields.event_select != 0 || event_select_reg.fields.apic_int != 0))
             {
                 std::cerr << "WARNING: Core " << i <<" IA32_PERFEVTSEL" << j << "_ADDR is not zeroed " << event_select_reg.value << "\n";
 
@@ -3710,12 +3716,12 @@ bool PCM::PMUinUse()
         FixedEventControlRegister ctrl_reg;
         ctrl_reg.value = 0xffffffffffffffff;
 
-        MSR[i]->read(IA32_CR_FIXED_CTR_CTRL, &ctrl_reg.value);
+        const auto count = MSR[i]->read(IA32_CR_FIXED_CTR_CTRL, &ctrl_reg.value);
 
         // Check if someone has installed pmi handler on counter overflow.
         // If so, that agent might potentially need to change counter value
         // for the "sample after"-mode messing up PCM measurements
-        if(ctrl_reg.fields.enable_pmi0 || ctrl_reg.fields.enable_pmi1 || ctrl_reg.fields.enable_pmi2)
+        if (count && (ctrl_reg.fields.enable_pmi0 || ctrl_reg.fields.enable_pmi1 || ctrl_reg.fields.enable_pmi2))
         {
             std::cerr << "WARNING: Core " << i << " fixed ctrl:" << ctrl_reg.value << "\n";
             if (needToRestoreNMIWatchdog == false) // if NMI watchdog did not clear the fields, ignore it
