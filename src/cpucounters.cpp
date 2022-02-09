@@ -1598,9 +1598,17 @@ bool PCM::detectNominalFrequency()
 {
     if (MSR.size())
     {
-        uint64 freq = 0;
-        MSR[socketRefCore[0]]->read(PLATFORM_INFO_ADDR, &freq);
-        const uint64 bus_freq = (
+        if (max_cpuid >= 0x16)
+        {
+            PCM_CPUID_INFO cpuinfo;
+            pcm_cpuid(0x16, cpuinfo);
+            nominal_frequency = uint64(extract_bits_ui(cpuinfo.reg.eax, 0, 15)) * 1000000ULL;;
+        }
+        if (!nominal_frequency)
+        {
+            uint64 freq = 0;
+            MSR[socketRefCore[0]]->read(PLATFORM_INFO_ADDR, &freq);
+            const uint64 bus_freq = (
                   cpu_model == SANDY_BRIDGE
                || cpu_model == JAKETOWN
                || cpu_model == IVYTOWN
@@ -1621,10 +1629,16 @@ bool PCM::detectNominalFrequency()
                || cpu_model == ICX
                ) ? (100000000ULL) : (133333333ULL);
 
-        nominal_frequency = ((freq >> 8) & 255) * bus_freq;
+            nominal_frequency = ((freq >> 8) & 255) * bus_freq;
+        }
 
         if(!nominal_frequency)
             nominal_frequency = get_frequency_from_cpuid();
+
+        if(!nominal_frequency)
+        {
+            computeNominalFrequency();
+        }
 
         if(!nominal_frequency)
         {
