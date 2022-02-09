@@ -2496,12 +2496,12 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
         canUsePerf = false;
         if (!silent) std::cerr << "Can not use Linux perf because your Linux kernel does not support PERF_COUNT_HW_REF_CPU_CYCLES event. Falling-back to direct PMU programming.\n";
     }
-    else if(EXT_CUSTOM_CORE_EVENTS == mode_ && pExtDesc && pExtDesc->fixedCfg && pExtDesc->fixedCfg->value != 0x333)
+    else if(EXT_CUSTOM_CORE_EVENTS == mode_ && pExtDesc && pExtDesc->fixedCfg && (pExtDesc->fixedCfg->value & 0x444))
     {
         canUsePerf = false;
         if (!silent)
         {
-             std::cerr << "Can not use Linux perf because non-standard fixed counter configuration requested (0x" << std::hex << pExtDesc->fixedCfg->value
+             std::cerr << "Can not use Linux perf because \"any_thread\" fixed counter configuration requested (0x" << std::hex << pExtDesc->fixedCfg->value
                        << std::dec << ") =\n" << *(pExtDesc->fixedCfg) << "\nFalling-back to direct PMU programming.\n\n";
         }
     }
@@ -2978,6 +2978,31 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
 
     result.clear();
     FixedEventControlRegister ctrl_reg;
+    auto initFixedCtrl = [&](const bool & enableCtr3)
+    {
+        if (EXT_CUSTOM_CORE_EVENTS == mode_ && pExtDesc && pExtDesc->fixedCfg)
+        {
+             ctrl_reg = *(pExtDesc->fixedCfg);
+        }
+        else
+        {
+             ctrl_reg.value = 0;
+             ctrl_reg.fields.os0 = 1;
+             ctrl_reg.fields.usr0 = 1;
+
+             ctrl_reg.fields.os1 = 1;
+             ctrl_reg.fields.usr1 = 1;
+
+             ctrl_reg.fields.os2 = 1;
+             ctrl_reg.fields.usr2 = 1;
+
+             if (enableCtr3 && isFixedCounterSupported(3))
+             {
+                  ctrl_reg.fields.os3 = 1;
+                  ctrl_reg.fields.usr3 = 1;
+             }
+        }
+    };
 #ifdef PCM_USE_PERF
     int leader_counter = -1;
     auto programPerfEvent = [this, &leader_counter, &i](perf_event_attr & e, const int eventPos, const std::string & eventName) -> bool
@@ -3004,20 +3029,30 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
     };
     if (canUsePerf)
     {
+        initFixedCtrl(false);
         perf_event_attr e = PCM_init_perf_event_attr();
         e.type = PERF_TYPE_HARDWARE;
         e.config = PERF_COUNT_HW_INSTRUCTIONS;
+        e.exclude_kernel = 1 - ctrl_reg.fields.os0;
+        e.exclude_hv = e.exclude_kernel;
+        e.exclude_user = 1 - ctrl_reg.fields.usr0;
         if (programPerfEvent(e, PERF_INST_RETIRED_POS, "INST_RETIRED") == false)
         {
             return PCM::UnknownError;
         }
         leader_counter = perfEventHandle[i][PERF_INST_RETIRED_POS];
         e.config = PERF_COUNT_HW_CPU_CYCLES;
+        e.exclude_kernel = 1 - ctrl_reg.fields.os1;
+        e.exclude_hv = e.exclude_kernel;
+        e.exclude_user = 1 - ctrl_reg.fields.usr1;
         if (programPerfEvent(e, PERF_CPU_CLK_UNHALTED_THREAD_POS, "CPU_CLK_UNHALTED_THREAD") == false)
         {
             return PCM::UnknownError;
         }
         e.config = PCM_PERF_COUNT_HW_REF_CPU_CYCLES;
+        e.exclude_kernel = 1 - ctrl_reg.fields.os2;
+        e.exclude_hv = e.exclude_kernel;
+        e.exclude_user = 1 - ctrl_reg.fields.usr2;
         if (programPerfEvent(e, PERF_CPU_CLK_UNHALTED_REF_POS, "CPU_CLK_UNHALTED_REF") == false)
         {
             return PCM::UnknownError;
@@ -3030,30 +3065,7 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
         MSR[i]->write(IA32_CR_PERF_GLOBAL_CTRL, 0);
         MSR[i]->read(IA32_CR_FIXED_CTR_CTRL, &ctrl_reg.value);
 
-
-        if (EXT_CUSTOM_CORE_EVENTS == mode_ && pExtDesc && pExtDesc->fixedCfg)
-        {
-            ctrl_reg = *(pExtDesc->fixedCfg);
-        }
-        else
-        {
-	    ctrl_reg.value = 0;
-
-	    ctrl_reg.fields.os0 = 1;
-            ctrl_reg.fields.usr0 = 1;
-
-            ctrl_reg.fields.os1 = 1;
-            ctrl_reg.fields.usr1 = 1;
-
-            ctrl_reg.fields.os2 = 1;
-            ctrl_reg.fields.usr2 = 1;
-
-            if (isFixedCounterSupported(3))
-	    {
-	        ctrl_reg.fields.os3 = 1;
-                ctrl_reg.fields.usr3 = 1;
-	    }
-        }
+        initFixedCtrl(true);
 
         MSR[i]->write(INST_RETIRED_ADDR, 0);
         MSR[i]->write(CPU_CLK_UNHALTED_THREAD_ADDR, 0);
