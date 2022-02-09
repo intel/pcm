@@ -657,6 +657,7 @@ bool PCM::detectModel()
     std::cerr << "IBRS and IBPB supported  : " << ((cpuinfo.reg.edx & (1 << 26)) ? "yes" : "no") << "\n";
     std::cerr << "STIBP supported          : " << ((cpuinfo.reg.edx & (1 << 27)) ? "yes" : "no") << "\n";
     std::cerr << "Spec arch caps supported : " << ((cpuinfo.reg.edx & (1 << 29)) ? "yes" : "no") << "\n";
+    std::cerr << "Max CPUID level          : " << max_cpuid << "\n";
 
     return true;
 }
@@ -2163,7 +2164,7 @@ PCM::PCM() :
     cpu_model(-1),
     cpu_stepping(-1),
     cpu_microcode_level(-1),
-    max_cpuid(-1),
+    max_cpuid(0),
     threads_per_core(0),
     num_cores(0),
     num_sockets(0),

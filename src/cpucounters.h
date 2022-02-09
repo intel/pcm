@@ -568,7 +568,7 @@ class PCM_API PCM
     bool hybrid = false;
     int32 cpu_stepping;
     int64 cpu_microcode_level;
-    int32 max_cpuid;
+    uint32 max_cpuid;
     int32 threads_per_core;
     int32 num_cores;
     int32 num_sockets;
