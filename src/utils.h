@@ -379,7 +379,7 @@ uint64 read_number(const char* str);
 
 union PCM_CPUID_INFO
 {
-    unsigned int array[4];
+    int array[4];
     struct { unsigned int eax, ebx, ecx, edx; } reg;
 };
 
