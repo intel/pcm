@@ -2969,6 +2969,8 @@ void PCM::checkError(const PCM::ErrorCode code)
     }
 }
 
+std::mutex printErrorMutex;
+
 PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
     const PCM::ProgramMode mode_,
     const ExtendedCustomCoreEventDescription * pExtDesc,
@@ -3011,6 +3013,7 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
         if ((perfEventHandle[i][eventPos] = syscall(SYS_perf_event_open, &e, -1,
             i /* core id */, leader_counter /* group leader */, 0)) <= 0)
         {
+            std::lock_guard<std::mutex> _(printErrorMutex);
             std::cerr << "Linux Perf: Error when programming " << eventName << ", error: " << strerror(errno) <<
                " with config 0x" << std::hex << e.config <<
                " config1 0x" << e.config1 << std::dec << "\n";
@@ -3239,6 +3242,7 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
                     }
                     else
                     {
+                        std::lock_guard<std::mutex> _(printErrorMutex);
                         std::cerr << "ERROR: unknown token " << token << " in event description \"" << eventDesc << "\" from " << event.first << "\n";
                         decrementInstanceSemaphore();
                         return PCM::UnknownError;
@@ -4742,7 +4746,11 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool sile
         auto corePMUConfig = curPMUConfigs["core"];
         if (corePMUConfig.programmable.size() > (size_t)getMaxCustomCoreEvents())
         {
-            std::cerr << "ERROR: trying to program " << corePMUConfig.programmable.size() << " core PMU counters, which exceeds the max num possible ("<< getMaxCustomCoreEvents() << ").";
+            std::cerr << "ERROR: trying to program " << corePMUConfig.programmable.size() << " core PMU counters, which exceeds the max num possible ("<< getMaxCustomCoreEvents() << ").\n";
+            for (const auto & e : corePMUConfig.programmable)
+            {
+                std::cerr << "      Event: " << e.second << "\n";
+            }
             return PCM::UnknownError;
         }
         size_t c = 0;
