@@ -75,6 +75,7 @@ void print_usage(const string progname)
     cerr << "  -tr | /tr                              => transpose output (print single event data in a row)\n";
     cerr << "  -ext                                   => add headers to transposed output and extend printout to match it\n";
     cerr << "  -s  | /s                               => print a sample separator line between samples in transposed output\n";
+    cerr << "  -v  | /v                               => verbose mode (print additional diagnostic messages)\n";
     cerr << "  -l                                     => use locale for printing values, calls -tab for readability\n";
     cerr << "  -tab                                   => replace default comma separator with tab\n";
     cerr << "  -el event_list.txt | /el event_list.txt  => read event list from event_list.txt file, \n";
@@ -87,6 +88,8 @@ void print_usage(const string progname)
     cerr << "  " << progname << " /csv 5 2>/dev/null  => one sampe every 5 seconds, and discard all diagnostic output\n";
     cerr << "\n";
 }
+
+bool verbose = false;
 
 PCM::RawEventConfig initCoreConfig()
 {
@@ -1887,6 +1890,13 @@ int main(int argc, char* argv[])
                 sampleSeparator = true;
                 continue;
             }
+            else if (
+                strncmp(*argv, "-v", 2) == 0 ||
+                strncmp(*argv, "/v", 2) == 0)
+            {
+                verbose = true;
+                continue;
+            }
             else if (strncmp(*argv, "--", 2) == 0)
             {
                 argv++;
@@ -1950,7 +1960,21 @@ int main(int argc, char* argv[])
 
     auto programPMUs = [&m](const PCM::RawPMUConfigs & config)
     {
-        PCM::ErrorCode status = m->program(config, true);
+        if (verbose)
+        {
+            for (const auto & pmuConfig: config)
+            {
+                for (const auto & e : pmuConfig.second.fixed)
+                {
+                    cerr << "Programming " << pmuConfig.first << " fixed event: " << e.second << "\n";
+                }
+                for (const auto & e : pmuConfig.second.programmable)
+                {
+                    cerr << "Programming " << pmuConfig.first << " programmable event: " << e.second << "\n";
+                }
+            }
+        }
+        PCM::ErrorCode status = m->program(config, !verbose);
         m->checkError(status);
     };
 
