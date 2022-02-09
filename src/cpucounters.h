@@ -1695,11 +1695,7 @@ public:
     //! \return time counter value
     uint64 getTickCount(uint64 multiplier = 1000 /* ms */, uint32 core = 0);
 
-    //! \brief Return TSC timer value in time units using rdtscp instruction from current core
-    //! \param multiplier use 1 for seconds, 1000 for ms, 1000000 for mks, etc (default is 1000: ms)
-    //! \warning Processor support is required  bit 27 of cpuid EDX must be set, for Windows, Visual Studio 2010 is required
-    //! \return time counter value
-    uint64 getTickCountRDTSCP(uint64 multiplier = 1000 /* ms */);
+    uint64 getInvariantTSC_Fast(uint32 core = 0);
 
     //! \brief Returns uncore clock ticks on specified socket
     uint64 getUncoreClocks(const uint32 socket_);
@@ -2101,6 +2097,7 @@ public:
 
     bool supportsHLE() const;
     bool supportsRTM() const;
+    bool supportsRDTSCP() const;
 
     bool useSkylakeEvents() const
     {

@@ -3448,11 +3448,11 @@ uint64 RDTSC();
 void PCM::computeNominalFrequency()
 {
     const int ref_core = 0;
-    uint64 before = 0, after = 0;
-    MSR[ref_core]->read(IA32_TIME_STAMP_COUNTER, &before);
-    MySleepMs(1000);
-    MSR[ref_core]->read(IA32_TIME_STAMP_COUNTER, &after);
-    nominal_frequency = after-before;
+    const uint64 before = getInvariantTSC_Fast(ref_core);
+    MySleepMs(100);
+    const uint64 after = getInvariantTSC_Fast(ref_core);
+    nominal_frequency = 10ULL*(after-before);
+    std::cerr << "WARNING: Core nominal frequency has to be estimated\n";
 }
 std::string PCM::getCPUBrandString()
 {
@@ -4095,6 +4095,18 @@ bool PCM::supportsRTM() const
     return (info.reg.ebx & (0x1 << 11)) ? true : false;
 }
 
+bool PCM::supportsRDTSCP() const
+{
+    static int supports = -1;
+    if (supports < 0)
+    {
+        PCM_CPUID_INFO info;
+        pcm_cpuid(0x80000001, info);
+        supports = (info.reg.edx & (0x1 << 27)) ? 1 : 0;
+    }
+    return 1 == supports;
+}
+
 #ifdef __APPLE__
 
 uint32 PCM::getNumInstances()
@@ -4215,12 +4227,24 @@ bool PCM::decrementInstanceSemaphore()
 
 uint64 PCM::getTickCount(uint64 multiplier, uint32 core)
 {
-    return (multiplier * getInvariantTSC(CoreCounterState(), getCoreCounterState(core))) / getNominalFrequency();
+    return (multiplier * getInvariantTSC_Fast(core)) / getNominalFrequency();
 }
 
-uint64 PCM::getTickCountRDTSCP(uint64 multiplier)
+uint64 PCM::getInvariantTSC_Fast(uint32 core)
 {
-    return (multiplier*RDTSCP())/getNominalFrequency();
+    if (supportsRDTSCP())
+    {
+        TemporalThreadAffinity aff(core);
+        return RDTSCP();
+    }
+    else if (core < MSR.size())
+    {
+        uint64 cInvariantTSC = 0;
+        MSR[core]->read(IA32_TIME_STAMP_COUNTER, &cInvariantTSC);
+        if (cInvariantTSC) return cInvariantTSC;
+    }
+    std::cerr << "ERROR:  cannot read time stamp counter\n";
+    return 0ULL;
 }
 
 SystemCounterState getSystemCounterState()
@@ -4292,7 +4316,7 @@ void BasicCounterState::readAndAggregateTSC(std::shared_ptr<SafeMsrHandle> msr)
     const auto cpu_model = m->getCPUModel();
     if (m->isAtom() == false || cpu_model == PCM::AVOTON)
     {
-        msr->read(IA32_TIME_STAMP_COUNTER, &cInvariantTSC);
+        cInvariantTSC = m->getInvariantTSC_Fast(msr->getCoreId());
         MSRValues[IA32_TIME_STAMP_COUNTER] = cInvariantTSC;
     }
     else
@@ -5544,7 +5568,7 @@ ServerUncoreCounterState PCM::getServerUncoreCounterState(uint32 socket)
         //std::cout << "Energy status: " << val << "\n";
         MSR[refCore]->read(MSR_PACKAGE_THERM_STATUS,&val);
         result.PackageThermalHeadroom = extractThermalHeadroom(val);
-        MSR[refCore]->read(IA32_TIME_STAMP_COUNTER, &result.InvariantTSC);
+        result.InvariantTSC = getInvariantTSC_Fast(refCore);
         readAndAggregatePackageCStateResidencies(MSR[refCore], result);
     }
     // std::cout << std::flush;
