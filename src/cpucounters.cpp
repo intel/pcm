@@ -657,6 +657,7 @@ bool PCM::detectModel()
     std::cerr << "IBRS and IBPB supported  : " << ((cpuinfo.reg.edx & (1 << 26)) ? "yes" : "no") << "\n";
     std::cerr << "STIBP supported          : " << ((cpuinfo.reg.edx & (1 << 27)) ? "yes" : "no") << "\n";
     std::cerr << "Spec arch caps supported : " << ((cpuinfo.reg.edx & (1 << 29)) ? "yes" : "no") << "\n";
+    std::cerr << "Max CPUID level          : " << max_cpuid << "\n";
 
     return true;
 }
@@ -1597,9 +1598,17 @@ bool PCM::detectNominalFrequency()
 {
     if (MSR.size())
     {
-        uint64 freq = 0;
-        MSR[socketRefCore[0]]->read(PLATFORM_INFO_ADDR, &freq);
-        const uint64 bus_freq = (
+        if (max_cpuid >= 0x16)
+        {
+            PCM_CPUID_INFO cpuinfo;
+            pcm_cpuid(0x16, cpuinfo);
+            nominal_frequency = uint64(extract_bits_ui(cpuinfo.reg.eax, 0, 15)) * 1000000ULL;;
+        }
+        if (!nominal_frequency)
+        {
+            uint64 freq = 0;
+            MSR[socketRefCore[0]]->read(PLATFORM_INFO_ADDR, &freq);
+            const uint64 bus_freq = (
                   cpu_model == SANDY_BRIDGE
                || cpu_model == JAKETOWN
                || cpu_model == IVYTOWN
@@ -1620,10 +1629,16 @@ bool PCM::detectNominalFrequency()
                || cpu_model == ICX
                ) ? (100000000ULL) : (133333333ULL);
 
-        nominal_frequency = ((freq >> 8) & 255) * bus_freq;
+            nominal_frequency = ((freq >> 8) & 255) * bus_freq;
+        }
 
         if(!nominal_frequency)
             nominal_frequency = get_frequency_from_cpuid();
+
+        if(!nominal_frequency)
+        {
+            computeNominalFrequency();
+        }
 
         if(!nominal_frequency)
         {
@@ -2163,7 +2178,7 @@ PCM::PCM() :
     cpu_model(-1),
     cpu_stepping(-1),
     cpu_microcode_level(-1),
-    max_cpuid(-1),
+    max_cpuid(0),
     threads_per_core(0),
     num_cores(0),
     num_sockets(0),
@@ -2481,12 +2496,12 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
         canUsePerf = false;
         if (!silent) std::cerr << "Can not use Linux perf because your Linux kernel does not support PERF_COUNT_HW_REF_CPU_CYCLES event. Falling-back to direct PMU programming.\n";
     }
-    else if(EXT_CUSTOM_CORE_EVENTS == mode_ && pExtDesc && pExtDesc->fixedCfg && pExtDesc->fixedCfg->value != 0x333)
+    else if(EXT_CUSTOM_CORE_EVENTS == mode_ && pExtDesc && pExtDesc->fixedCfg && (pExtDesc->fixedCfg->value & 0x444))
     {
         canUsePerf = false;
         if (!silent)
         {
-             std::cerr << "Can not use Linux perf because non-standard fixed counter configuration requested (0x" << std::hex << pExtDesc->fixedCfg->value
+             std::cerr << "Can not use Linux perf because \"any_thread\" fixed counter configuration requested (0x" << std::hex << pExtDesc->fixedCfg->value
                        << std::dec << ") =\n" << *(pExtDesc->fixedCfg) << "\nFalling-back to direct PMU programming.\n\n";
         }
     }
@@ -2503,6 +2518,12 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
     {
         canUsePerf = false;
         if (!silent) std::cerr << "Installed Linux kernel perf does not support hardware top-down level-1 counters. Using direct PMU programming instead.\n";
+    }
+
+    if (canUsePerf == false && noMSRMode())
+    {
+        std::cerr << "ERROR: can not use perf driver and no-MSR mode is enabled\n" ;
+        return PCM::UnknownError;
     }
 #endif
 
@@ -2948,6 +2969,8 @@ void PCM::checkError(const PCM::ErrorCode code)
     }
 }
 
+std::mutex printErrorMutex;
+
 PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
     const PCM::ProgramMode mode_,
     const ExtendedCustomCoreEventDescription * pExtDesc,
@@ -2957,6 +2980,31 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
 
     result.clear();
     FixedEventControlRegister ctrl_reg;
+    auto initFixedCtrl = [&](const bool & enableCtr3)
+    {
+        if (EXT_CUSTOM_CORE_EVENTS == mode_ && pExtDesc && pExtDesc->fixedCfg)
+        {
+             ctrl_reg = *(pExtDesc->fixedCfg);
+        }
+        else
+        {
+             ctrl_reg.value = 0;
+             ctrl_reg.fields.os0 = 1;
+             ctrl_reg.fields.usr0 = 1;
+
+             ctrl_reg.fields.os1 = 1;
+             ctrl_reg.fields.usr1 = 1;
+
+             ctrl_reg.fields.os2 = 1;
+             ctrl_reg.fields.usr2 = 1;
+
+             if (enableCtr3 && isFixedCounterSupported(3))
+             {
+                  ctrl_reg.fields.os3 = 1;
+                  ctrl_reg.fields.usr3 = 1;
+             }
+        }
+    };
 #ifdef PCM_USE_PERF
     int leader_counter = -1;
     auto programPerfEvent = [this, &leader_counter, &i](perf_event_attr & e, const int eventPos, const std::string & eventName) -> bool
@@ -2965,6 +3013,7 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
         if ((perfEventHandle[i][eventPos] = syscall(SYS_perf_event_open, &e, -1,
             i /* core id */, leader_counter /* group leader */, 0)) <= 0)
         {
+            std::lock_guard<std::mutex> _(printErrorMutex);
             std::cerr << "Linux Perf: Error when programming " << eventName << ", error: " << strerror(errno) <<
                " with config 0x" << std::hex << e.config <<
                " config1 0x" << e.config1 << std::dec << "\n";
@@ -2983,20 +3032,30 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
     };
     if (canUsePerf)
     {
+        initFixedCtrl(false);
         perf_event_attr e = PCM_init_perf_event_attr();
         e.type = PERF_TYPE_HARDWARE;
         e.config = PERF_COUNT_HW_INSTRUCTIONS;
+        e.exclude_kernel = 1 - ctrl_reg.fields.os0;
+        e.exclude_hv = e.exclude_kernel;
+        e.exclude_user = 1 - ctrl_reg.fields.usr0;
         if (programPerfEvent(e, PERF_INST_RETIRED_POS, "INST_RETIRED") == false)
         {
             return PCM::UnknownError;
         }
         leader_counter = perfEventHandle[i][PERF_INST_RETIRED_POS];
         e.config = PERF_COUNT_HW_CPU_CYCLES;
+        e.exclude_kernel = 1 - ctrl_reg.fields.os1;
+        e.exclude_hv = e.exclude_kernel;
+        e.exclude_user = 1 - ctrl_reg.fields.usr1;
         if (programPerfEvent(e, PERF_CPU_CLK_UNHALTED_THREAD_POS, "CPU_CLK_UNHALTED_THREAD") == false)
         {
             return PCM::UnknownError;
         }
         e.config = PCM_PERF_COUNT_HW_REF_CPU_CYCLES;
+        e.exclude_kernel = 1 - ctrl_reg.fields.os2;
+        e.exclude_hv = e.exclude_kernel;
+        e.exclude_user = 1 - ctrl_reg.fields.usr2;
         if (programPerfEvent(e, PERF_CPU_CLK_UNHALTED_REF_POS, "CPU_CLK_UNHALTED_REF") == false)
         {
             return PCM::UnknownError;
@@ -3009,30 +3068,7 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
         MSR[i]->write(IA32_CR_PERF_GLOBAL_CTRL, 0);
         MSR[i]->read(IA32_CR_FIXED_CTR_CTRL, &ctrl_reg.value);
 
-
-        if (EXT_CUSTOM_CORE_EVENTS == mode_ && pExtDesc && pExtDesc->fixedCfg)
-        {
-            ctrl_reg = *(pExtDesc->fixedCfg);
-        }
-        else
-        {
-	    ctrl_reg.value = 0;
-
-	    ctrl_reg.fields.os0 = 1;
-            ctrl_reg.fields.usr0 = 1;
-
-            ctrl_reg.fields.os1 = 1;
-            ctrl_reg.fields.usr1 = 1;
-
-            ctrl_reg.fields.os2 = 1;
-            ctrl_reg.fields.usr2 = 1;
-
-            if (isFixedCounterSupported(3))
-	    {
-	        ctrl_reg.fields.os3 = 1;
-                ctrl_reg.fields.usr3 = 1;
-	    }
-        }
+        initFixedCtrl(true);
 
         MSR[i]->write(INST_RETIRED_ADDR, 0);
         MSR[i]->write(CPU_CLK_UNHALTED_THREAD_ADDR, 0);
@@ -3206,6 +3242,7 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
                     }
                     else
                     {
+                        std::lock_guard<std::mutex> _(printErrorMutex);
                         std::cerr << "ERROR: unknown token " << token << " in event description \"" << eventDesc << "\" from " << event.first << "\n";
                         decrementInstanceSemaphore();
                         return PCM::UnknownError;
@@ -3441,11 +3478,11 @@ uint64 RDTSC();
 void PCM::computeNominalFrequency()
 {
     const int ref_core = 0;
-    uint64 before = 0, after = 0;
-    MSR[ref_core]->read(IA32_TIME_STAMP_COUNTER, &before);
-    MySleepMs(1000);
-    MSR[ref_core]->read(IA32_TIME_STAMP_COUNTER, &after);
-    nominal_frequency = after-before;
+    const uint64 before = getInvariantTSC_Fast(ref_core);
+    MySleepMs(100);
+    const uint64 after = getInvariantTSC_Fast(ref_core);
+    nominal_frequency = 10ULL*(after-before);
+    std::cerr << "WARNING: Core nominal frequency has to be estimated\n";
 }
 std::string PCM::getCPUBrandString()
 {
@@ -3691,9 +3728,9 @@ bool PCM::PMUinUse()
 
         for (uint32 j = 0; j < core_gen_counter_num_max; ++j)
         {
-            MSR[i]->read(IA32_PERFEVTSEL0_ADDR + j, &event_select_reg.value);
+            const auto count = MSR[i]->read(IA32_PERFEVTSEL0_ADDR + j, &event_select_reg.value);
 
-            if (event_select_reg.fields.event_select != 0 || event_select_reg.fields.apic_int != 0)
+            if (count && (event_select_reg.fields.event_select != 0 || event_select_reg.fields.apic_int != 0))
             {
                 std::cerr << "WARNING: Core " << i <<" IA32_PERFEVTSEL" << j << "_ADDR is not zeroed " << event_select_reg.value << "\n";
 
@@ -3709,12 +3746,12 @@ bool PCM::PMUinUse()
         FixedEventControlRegister ctrl_reg;
         ctrl_reg.value = 0xffffffffffffffff;
 
-        MSR[i]->read(IA32_CR_FIXED_CTR_CTRL, &ctrl_reg.value);
+        const auto count = MSR[i]->read(IA32_CR_FIXED_CTR_CTRL, &ctrl_reg.value);
 
         // Check if someone has installed pmi handler on counter overflow.
         // If so, that agent might potentially need to change counter value
         // for the "sample after"-mode messing up PCM measurements
-        if(ctrl_reg.fields.enable_pmi0 || ctrl_reg.fields.enable_pmi1 || ctrl_reg.fields.enable_pmi2)
+        if (count && (ctrl_reg.fields.enable_pmi0 || ctrl_reg.fields.enable_pmi1 || ctrl_reg.fields.enable_pmi2))
         {
             std::cerr << "WARNING: Core " << i << " fixed ctrl:" << ctrl_reg.value << "\n";
             if (needToRestoreNMIWatchdog == false) // if NMI watchdog did not clear the fields, ignore it
@@ -4088,6 +4125,18 @@ bool PCM::supportsRTM() const
     return (info.reg.ebx & (0x1 << 11)) ? true : false;
 }
 
+bool PCM::supportsRDTSCP() const
+{
+    static int supports = -1;
+    if (supports < 0)
+    {
+        PCM_CPUID_INFO info;
+        pcm_cpuid(0x80000001, info);
+        supports = (info.reg.edx & (0x1 << 27)) ? 1 : 0;
+    }
+    return 1 == supports;
+}
+
 #ifdef __APPLE__
 
 uint32 PCM::getNumInstances()
@@ -4208,12 +4257,24 @@ bool PCM::decrementInstanceSemaphore()
 
 uint64 PCM::getTickCount(uint64 multiplier, uint32 core)
 {
-    return (multiplier * getInvariantTSC(CoreCounterState(), getCoreCounterState(core))) / getNominalFrequency();
+    return (multiplier * getInvariantTSC_Fast(core)) / getNominalFrequency();
 }
 
-uint64 PCM::getTickCountRDTSCP(uint64 multiplier)
+uint64 PCM::getInvariantTSC_Fast(uint32 core)
 {
-    return (multiplier*RDTSCP())/getNominalFrequency();
+    if (supportsRDTSCP())
+    {
+        TemporalThreadAffinity aff(core);
+        return RDTSCP();
+    }
+    else if (core < MSR.size())
+    {
+        uint64 cInvariantTSC = 0;
+        MSR[core]->read(IA32_TIME_STAMP_COUNTER, &cInvariantTSC);
+        if (cInvariantTSC) return cInvariantTSC;
+    }
+    std::cerr << "ERROR:  cannot read time stamp counter\n";
+    return 0ULL;
 }
 
 SystemCounterState getSystemCounterState()
@@ -4285,7 +4346,7 @@ void BasicCounterState::readAndAggregateTSC(std::shared_ptr<SafeMsrHandle> msr)
     const auto cpu_model = m->getCPUModel();
     if (m->isAtom() == false || cpu_model == PCM::AVOTON)
     {
-        msr->read(IA32_TIME_STAMP_COUNTER, &cInvariantTSC);
+        cInvariantTSC = m->getInvariantTSC_Fast(msr->getCoreId());
         MSRValues[IA32_TIME_STAMP_COUNTER] = cInvariantTSC;
     }
     else
@@ -4685,7 +4746,11 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool sile
         auto corePMUConfig = curPMUConfigs["core"];
         if (corePMUConfig.programmable.size() > (size_t)getMaxCustomCoreEvents())
         {
-            std::cerr << "ERROR: trying to program " << corePMUConfig.programmable.size() << " core PMU counters, which exceeds the max num possible ("<< getMaxCustomCoreEvents() << ").";
+            std::cerr << "ERROR: trying to program " << corePMUConfig.programmable.size() << " core PMU counters, which exceeds the max num possible ("<< getMaxCustomCoreEvents() << ").\n";
+            for (const auto & e : corePMUConfig.programmable)
+            {
+                std::cerr << "      Event: " << e.second << "\n";
+            }
             return PCM::UnknownError;
         }
         size_t c = 0;
@@ -5537,7 +5602,7 @@ ServerUncoreCounterState PCM::getServerUncoreCounterState(uint32 socket)
         //std::cout << "Energy status: " << val << "\n";
         MSR[refCore]->read(MSR_PACKAGE_THERM_STATUS,&val);
         result.PackageThermalHeadroom = extractThermalHeadroom(val);
-        MSR[refCore]->read(IA32_TIME_STAMP_COUNTER, &result.InvariantTSC);
+        result.InvariantTSC = getInvariantTSC_Fast(refCore);
         readAndAggregatePackageCStateResidencies(MSR[refCore], result);
     }
     // std::cout << std::flush;
