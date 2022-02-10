@@ -1029,7 +1029,8 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
     vector<CoreCounterState>& BeforeState, vector<CoreCounterState>& AfterState,
     vector<ServerUncoreCounterState>& BeforeUncoreState, vector<ServerUncoreCounterState>& AfterUncoreState,
     vector<SocketCounterState>& BeforeSocketState, vector<SocketCounterState>& AfterSocketState,
-    const CsvOutputType outputType)
+    const CsvOutputType outputType,
+    const bool& isLastGroup)
 {
         const bool is_header = (outputType == Header1 || outputType == Header2);
         for (const auto & typeEvents : curPMUConfigs)
@@ -1369,7 +1370,7 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
         }
         if (sampleSeparator)
         {
-            cout << "=============================\n";
+            cout << (isLastGroup? "==========\n" : "----------\n");
         }
         if (flushLine)
         {
@@ -1687,7 +1688,8 @@ void printAll(const PCM::RawPMUConfigs& curPMUConfigs,
                 vector<CoreCounterState>& BeforeState, vector<CoreCounterState>& AfterState,
                 vector<ServerUncoreCounterState>& BeforeUncoreState, vector<ServerUncoreCounterState>& AfterUncoreState,
                 vector<SocketCounterState>& BeforeSocketState, vector<SocketCounterState>& AfterSocketState,
-                std::vector<PCM::RawPMUConfigs>& PMUConfigs)
+                std::vector<PCM::RawPMUConfigs>& PMUConfigs,
+                const bool & isLastGroup)
 {
     static bool displayHeader = true;
 
@@ -1702,7 +1704,7 @@ void printAll(const PCM::RawPMUConfigs& curPMUConfigs,
 
             // print header_1 and get all offsets
             for (auto &config : PMUConfigs)
-                printTransposed(config, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, Header1);
+                printTransposed(config, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, Header1, isLastGroup);
 
             std::cout << std::endl;
 
@@ -1710,11 +1712,11 @@ void printAll(const PCM::RawPMUConfigs& curPMUConfigs,
             std::cout << "Date" << separator << "Time" << separator << "Event" << separator;
             std::cout << "ms, InvariantTSC" << separator;
             for (auto &config : PMUConfigs)
-                printTransposed(config, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, Header2);
+                printTransposed(config, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, Header2, isLastGroup);
 
             std::cout << std::endl;
         }
-        printTransposed(curPMUConfigs, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, Data);
+        printTransposed(curPMUConfigs, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, Data, isLastGroup);
     } else {
         if (displayHeader) {
             print(curPMUConfigs, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, Header1);
@@ -2027,9 +2029,10 @@ int main(int argc, char* argv[])
 
     mainLoop([&]()
     {
+         size_t groupNr = 0;
          for (const auto & group : PMUConfigs)
          {
-                if (group.empty()) continue;
+                ++groupNr;
 
                 if (nGroups > 1)
                 {
@@ -2047,7 +2050,7 @@ int main(int argc, char* argv[])
                 //cout << "Time elapsed: " << dec << fixed << AfterTime - BeforeTime << " ms\n";
                 //cout << "Called sleep function for " << dec << fixed << delay_ms << " ms\n";
 
-                printAll(group, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, PMUConfigs);
+                printAll(group, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, PMUConfigs, groupNr == nGroups);
                 if (nGroups > 1)
                 {
                     m->cleanup(true);
