@@ -1851,6 +1851,12 @@ int main(int argc, char* argv[])
             }
             continue;
         }
+        else if (strncmp(*argv, "-ep", 3) == 0 || strncmp(*argv, "/ep", 3) == 0)
+        {
+            argv++;
+            argc--;
+            continue;
+        }
         else if (strncmp(*argv, "-el", 3) == 0 || strncmp(*argv, "/el", 3) == 0)
         {
             argv++;
