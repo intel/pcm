@@ -2173,6 +2173,10 @@ public:
     }
 };
 
+std::ofstream* PCM::outfile = nullptr;       // output file stream
+std::streambuf* PCM::backup_ofile = nullptr; // backup of original output = cout
+std::streambuf* PCM::backup_ofile_cerr = nullptr; // backup of original output = cerr
+
 PCM::PCM() :
     cpu_family(-1),
     cpu_model(-1),
@@ -2229,8 +2233,6 @@ PCM::PCM() :
     mode(INVALID_MODE),
     numInstancesSemaphore(NULL),
     canUsePerf(false),
-    outfile(NULL),
-    backup_ofile(NULL),
     run_state(1),
     needToRestoreNMIWatchdog(false)
 {
@@ -4044,11 +4046,16 @@ void PCM::cleanupRDT(const bool silent)
     if (!silent) std::cerr << " Freeing up all RMIDs\n";
 }
 
-void PCM::setOutput(const std::string filename)
+void PCM::setOutput(const std::string filename, const bool cerrToo)
 {
      outfile = new std::ofstream(filename.c_str());
      backup_ofile = std::cout.rdbuf();
      std::cout.rdbuf(outfile->rdbuf());
+     if (cerrToo)
+     {
+         backup_ofile_cerr = std::cerr.rdbuf();
+         std::cerr.rdbuf(outfile->rdbuf());
+     }
 }
 
 void PCM::restoreOutput()
@@ -4056,6 +4063,9 @@ void PCM::restoreOutput()
     // restore cout back to what it was originally
     if(backup_ofile)
         std::cout.rdbuf(backup_ofile);
+
+    if (backup_ofile_cerr)
+        std::cerr.rdbuf(backup_ofile_cerr);
 
 // close output file
     if(outfile)

@@ -59,10 +59,11 @@ void print_usage(const string progname)
     cerr << "                                            will read counters only after external program finishes\n";
     cerr << " Supported <options> are: \n";
     cerr << "  -h    | --help      | /h               => print this help and exit\n";
+    cerr << "  -e event1 [-e event2] [-e event3] .. => list of custom events to monitor\n";
     cerr << "  -r    | --reset     | /reset           => reset PMU configuration (at your own risk)\n";
     cerr << "  -csv[=file.csv]     | /csv[=file.csv]  => output compact CSV format to screen or\n"
          << "                                            to a file, in case filename is provided\n";
-    cerr << "  [-e event1] [-e event2] [-e event3] .. => list of custom events to monitor\n";
+    cerr << "  -out filename       | /out filename    => write all output (stdout and stderr) to specified file\n";
     cerr << "  event description example: -e core/config=0x30203,name=LD_BLOCKS.STORE_FORWARD/ -e core/fixed,config=0x333/ \n";
     cerr << "                             -e cha/config=0,name=UNC_CHA_CLOCKTICKS/ -e imc/fixed,name=DRAM_CLOCKS/\n";
 #ifdef PCM_SIMDJSON_AVAILABLE
@@ -1732,6 +1733,13 @@ int main(int argc, char* argv[])
 {
     set_signal_handlers();
 
+    parseParam(argc, argv, "out", [](const char* p) {
+            const string filename{ p };
+            if (!filename.empty()) {
+                PCM::setOutput(filename, true);
+            }
+        });
+
 #ifdef PCM_FORCE_SILENT
     null_stream nullStream1, nullStream2;
     std::cout.rdbuf(&nullStream1);
@@ -1849,6 +1857,12 @@ int main(int argc, char* argv[])
                 cerr << "There is a potential to crash the system. Please increase MAX_CORES to at least " << m->getNumCores() << " and re-enable this option.\n";
                 exit(EXIT_FAILURE);
             }
+            continue;
+        }
+        else if (strncmp(*argv, "-out", 4) == 0 || strncmp(*argv, "/out", 4) == 0)
+        {
+            argv++;
+            argc--;
             continue;
         }
         else if (strncmp(*argv, "-ep", 3) == 0 || strncmp(*argv, "/ep", 3) == 0)
