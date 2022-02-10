@@ -17,6 +17,8 @@ file(GLOB COMMON_SOURCES msr.cpp cpucounters.cpp pci.cpp mmio.cpp bw.cpp utils.c
 file(GLOB UNUX_SOURCES dashboard.cpp resctrl.cpp)
 
 if(UNIX)  # LINUX, FREE_BSD, APPLE
+    set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS} -s")  # --strip-unneeded for packaging
+
     list(APPEND PROJECT_NAMES pcm-sensor)
     if(LINUX)
         list(APPEND PROJECT_NAMES pcm-sensor-server)

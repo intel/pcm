@@ -109,4 +109,17 @@ Custom compilation options
 --------------------------------------------------------------------------------
 The list of custom compilation options is located [here](doc/CUSTOM-COMPILE-OPTIONS.md)
 
+--------------------------------------------------------------------------------
+Packaging
+--------------------------------------------------------------------------------
+Packaging with CPack is supported on Debian and Redhat/SUSE system families.
+To create DEB of RPM package need to call cpack after building in build folder:
+```
+cd build
+cpack
+```
+This creates package:
+- "pcm-VERSION-Linux.deb" on Debian family systems;
+- "pcm-VERSION-Linux.rpm" on Redhat/SUSE-family systems.
+Packages contain pcm-\* binaries and required for usage opCode-\* files.
 
