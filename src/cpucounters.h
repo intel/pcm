@@ -600,7 +600,6 @@ class PCM_API PCM
     std::string errorMessage;
 
     static PCM * instance;
-    bool allow_multiple_instances;
     bool programmed_pmu;
     std::vector<std::shared_ptr<SafeMsrHandle> > MSR;
     std::vector<std::shared_ptr<ServerPCICFGUncore> > server_pcicfg_uncore;
@@ -695,12 +694,6 @@ public:
 
     bool isBlocked(void) { return blocked; }
     void setBlocked(const bool new_blocked) { blocked = new_blocked; }
-
-    //! \brief Call it before program() to allow multiple running instances of PCM on the same system
-    void allowMultipleInstances()
-    {
-        allow_multiple_instances = true;
-    }
 
     //! Mode of programming (parameter in the program() method)
     enum ProgramMode {
@@ -862,13 +855,6 @@ private:
     CustomCoreEventDescription coreEventDesc[PERF_MAX_CUSTOM_COUNTERS];
     CustomCoreEventDescription hybridAtomEventDesc[PERF_MAX_CUSTOM_COUNTERS];
 
-#ifdef _MSC_VER
-    HANDLE numInstancesSemaphore;     // global semaphore that counts the number of PCM instances on the system
-#else
-    // global semaphore that counts the number of PCM instances on the system
-    sem_t * numInstancesSemaphore;
-#endif
-
     std::vector<int32> socketRefCore;
 
     bool canUsePerf;
@@ -912,15 +898,6 @@ private:
     bool PMUinUse();
     void cleanupPMU(const bool silent = false);
     void cleanupRDT(const bool silent = false);
-    bool decrementInstanceSemaphore(); // returns true if it was the last instance
-
-#ifdef __APPLE__
-    // OSX does not have sem_getvalue, so we must get the number of instances by a different method
-    uint32 getNumInstances();
-    uint32 decrementNumInstances();
-    uint32 incrementNumInstances();
-#endif
-
 
     void computeQPISpeedBeckton(int core_nr);
     void destroyMSR();

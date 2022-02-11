@@ -94,15 +94,6 @@ namespace pcm {
 int convertUnknownToInt(size_t size, char* value);
 #endif
 
-// FreeBSD is much more restrictive about names for semaphores
-#if defined (__FreeBSD__)
-#define PCM_INSTANCE_LOCK_SEMAPHORE_NAME "/PCM_inst_lock"
-#define PCM_NUM_INSTANCES_SEMAPHORE_NAME "/num_PCM_inst"
-#else
-#define PCM_INSTANCE_LOCK_SEMAPHORE_NAME "PCM inst lock"
-#define PCM_NUM_INSTANCES_SEMAPHORE_NAME "Num PCM insts"
-#endif
-
 #ifdef _MSC_VER
 
 HMODULE hOpenLibSys = NULL;
@@ -129,85 +120,8 @@ bool PCM::initWinRing0Lib()
 }
 #endif // NO_WINRING
 
-class InstanceLock
-{
-    HANDLE Mutex;
+#endif
 
-    InstanceLock();
-public:
-    InstanceLock(const bool global)
-    {
-        Mutex = CreateMutex(NULL, FALSE,
-            global?(L"Global\\Processor Counter Monitor instance create/destroy lock"):(L"Local\\Processor Counter Monitor instance create/destroy lock"));
-        // lock
-        WaitForSingleObject(Mutex, INFINITE);
-    }
-    ~InstanceLock()
-    {
-        // unlock
-        ReleaseMutex(Mutex);
-        CloseHandle(Mutex);
-    }
-};
-#else // Linux or Apple
-
-pthread_mutex_t processIntanceMutex = PTHREAD_MUTEX_INITIALIZER;
-
-class InstanceLock
-{
-    const char * globalSemaphoreName;
-    sem_t * globalSemaphore;
-    bool global;
-
-    InstanceLock();
-public:
-    InstanceLock(const bool global_) : globalSemaphoreName(PCM_INSTANCE_LOCK_SEMAPHORE_NAME), globalSemaphore(NULL), global(global_)
-    {
-        if (!global)
-        {
-            if (pthread_mutex_lock(&processIntanceMutex) != 0) std::cerr << "pthread_mutex_lock failed\n";
-            return;
-        }
-        umask(0);
-        while (1)
-        {
-            //sem_unlink(globalSemaphoreName); // temporary
-            globalSemaphore = sem_open(globalSemaphoreName, O_CREAT, S_IRWXU | S_IRWXG | S_IRWXO, 1);
-            if (SEM_FAILED == globalSemaphore)
-            {
-              if (EACCES == errno)
-                {
-                    std::cerr << "PCM Error, do not have permissions to open semaphores in /dev/shm/. Waiting one second and retrying...\n";
-                    sleep(1);
-                }
-            }
-            else
-            {
-                /*
-                if (sem_post(globalSemaphore)) {
-                    perror("sem_post error");
-                }
-                */
-                break;         // success
-            }
-        }
-        if (sem_wait(globalSemaphore)) {
-            perror("sem_wait error");
-        }
-    }
-    ~InstanceLock()
-    {
-        if (!global)
-        {
-            if (pthread_mutex_unlock(&processIntanceMutex) != 0) std::cerr << "pthread_mutex_unlock failed\n";
-            return;
-        }
-        if (sem_post(globalSemaphore)) {
-            perror("sem_post error");
-        }
-    }
-};
-#endif // end of _MSC_VER else
 
 #if defined(__FreeBSD__)
 #define cpu_set_t cpuset_t
@@ -326,12 +240,16 @@ static int bitCount(uint64 n)
 }
 */
 
+std::mutex instanceCreationMutex;
+
 PCM * PCM::getInstance()
 {
-    // no lock here
+    // lock-free read
+    // cppcheck-suppress identicalConditionAfterEarlyExit
     if (instance) return instance;
 
-    InstanceLock lock(false);
+    std::unique_lock<std::mutex> _(instanceCreationMutex);
+    // cppcheck-suppress identicalConditionAfterEarlyExit
     if (instance) return instance;
 
     return instance = new PCM();
@@ -2206,7 +2124,6 @@ PCM::PCM() :
     pkgMinimumPower(-1),
     pkgMaximumPower(-1),
     systemTopology(new SystemRoot(this)),
-    allow_multiple_instances(false),
     programmed_pmu(false),
     joulesPerEnergyUnit(0),
 #ifdef __linux__
@@ -2227,7 +2144,6 @@ PCM::PCM() :
     L3CacheHitsAvailable(false),
     forceRTMAbortMode(false),
     mode(INVALID_MODE),
-    numInstancesSemaphore(NULL),
     canUsePerf(false),
     outfile(NULL),
     backup_ofile(NULL),
@@ -2409,7 +2325,6 @@ void PCM::destroyMSR()
 
 PCM::~PCM()
 {
-    InstanceLock lock(allow_multiple_instances);
     if (instance)
     {
         destroyMSR();
@@ -2465,13 +2380,6 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
     }
 #endif
 
-    if(allow_multiple_instances && (EXT_CUSTOM_CORE_EVENTS == mode_ || CUSTOM_CORE_EVENTS == mode_))
-    {
-        allow_multiple_instances = false;
-        std::cerr << "Warning: multiple PCM instance mode is not allowed with custom events.\n";
-    }
-
-    InstanceLock lock(allow_multiple_instances);
     if (MSR.empty()) return PCM::MSRAccessDenied;
 
     ExtendedCustomCoreEventDescription * pExtDesc = (ExtendedCustomCoreEventDescription *)parameter_;
@@ -2527,102 +2435,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
     }
 #endif
 
-    if(allow_multiple_instances)
-    {
-        //std::cerr << "Checking for other instances of PCM...\n";
-#ifdef _MSC_VER
-
-        numInstancesSemaphore = CreateSemaphore(NULL, 0, 1 << 20, L"Global\\Number of running Processor Counter Monitor instances");
-        if (!numInstancesSemaphore)
-        {
-            _com_error error(GetLastError());
-            std::wcerr << "Error in Windows function 'CreateSemaphore': " << GetLastError() << " ";
-            const TCHAR * strError = _com_error(GetLastError()).ErrorMessage();
-            if (strError) std::wcerr << strError;
-            std::wcerr << "\n";
-            return PCM::UnknownError;
-        }
-        LONG prevValue = 0;
-        if (!ReleaseSemaphore(numInstancesSemaphore, 1, &prevValue))
-        {
-            _com_error error(GetLastError());
-            std::wcerr << "Error in Windows function 'ReleaseSemaphore': " << GetLastError() << " ";
-            const TCHAR * strError = _com_error(GetLastError()).ErrorMessage();
-            if (strError) std::wcerr << strError;
-            std::wcerr << "\n";
-            return PCM::UnknownError;
-        }
-        if (prevValue > 0)  // already programmed since another instance exists
-        {
-            if (!silent) std::cerr << "Number of PCM instances: " << (prevValue + 1) << "\n";
-            if (hasPCICFGUncore() && max_qpi_speed==0)
-            for (size_t i = 0; i < (size_t)server_pcicfg_uncore.size(); ++i)
-                if (server_pcicfg_uncore[i].get())
-                    max_qpi_speed = (std::max)(server_pcicfg_uncore[i]->computeQPISpeed(socketRefCore[i], cpu_model), max_qpi_speed); // parenthesis to avoid macro expansion on Windows
-
-            reportQPISpeed();
-            return PCM::Success;
-        }
-
-    #else // if linux, apple, freebsd or dragonflybsd
-        numInstancesSemaphore = sem_open(PCM_NUM_INSTANCES_SEMAPHORE_NAME, O_CREAT, S_IRWXU | S_IRWXG | S_IRWXO, 0);
-        if (SEM_FAILED == numInstancesSemaphore)
-        {
-            if (EACCES == errno)
-                std::cerr << "PCM Error, do not have permissions to open semaphores in /dev/shm/. Clean up them.\n";
-            return PCM::UnknownError;
-        }
-    #ifndef __APPLE__
-        sem_post(numInstancesSemaphore);
-        int curValue = 0;
-        sem_getvalue(numInstancesSemaphore, &curValue);
-    #else //if it is apple
-        uint32 curValue = PCM::incrementNumInstances();
-        sem_post(numInstancesSemaphore);
-    #endif // end ifndef __APPLE__
-
-        if (curValue > 1)  // already programmed since another instance exists
-        {
-            if (!silent) std::cerr << "Number of PCM instances: " << curValue << "\n";
-            if (hasPCICFGUncore() && max_qpi_speed==0)
-            for (int i = 0; i < (int)server_pcicfg_uncore.size(); ++i) {
-                if(server_pcicfg_uncore[i].get())
-                    max_qpi_speed = std::max(server_pcicfg_uncore[i]->computeQPISpeed(socketRefCore[i],cpu_model), max_qpi_speed);
-                reportQPISpeed();
-            }
-            if(!canUsePerf) return PCM::Success;
-        }
-
-    #endif // end ifdef _MSC_VER
-
-    #ifdef PCM_USE_PERF
-    /*
-    numInst>1 &&  canUsePerf==false -> not reachable, already PMU programmed in another PCM instance
-    numInst>1 &&  canUsePerf==true  -> perf programmed in different PCM, is not allowed
-    numInst<=1 && canUsePerf==false -> we are first, perf cannot be used, *check* if PMU busy
-    numInst<=1 && canUsePerf==true -> we are first, perf will be used, *dont check*, this is now perf business
-    */
-        if(curValue > 1 && (canUsePerf == true))
-        {
-            std::cerr << "Running several clients using the same counters is not possible with Linux perf. Recompile PCM without Linux Perf support to allow such usage. \n";
-            decrementInstanceSemaphore();
-            return PCM::UnknownError;
-        }
-
-        if((curValue <= 1) && (canUsePerf == false) && PMUinUse())
-        {
-            decrementInstanceSemaphore();
-            return PCM::PMUBusy;
-        }
-    #else
-        if (PMUinUse())
-        {
-            decrementInstanceSemaphore();
-            return PCM::PMUBusy;
-        }
-    #endif
-    }
-    else
+    if (true)
     {
         if((canUsePerf == false) && PMUinUse())
         {
@@ -3025,7 +2838,6 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
             {
                 std::cerr << "try running with environment variable PCM_NO_PERF=1\n";
             }
-            decrementInstanceSemaphore();
             return false;
         }
         return true;
@@ -3244,7 +3056,6 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
                     {
                         std::lock_guard<std::mutex> _(printErrorMutex);
                         std::cerr << "ERROR: unknown token " << token << " in event description \"" << eventDesc << "\" from " << event.first << "\n";
-                        decrementInstanceSemaphore();
                         return PCM::UnknownError;
                     }
                 }
@@ -4064,14 +3875,11 @@ void PCM::restoreOutput()
 
 void PCM::cleanup(const bool silent)
 {
-    InstanceLock lock(allow_multiple_instances);
-
     if (MSR.empty()) return;
 
     if (!silent) std::cerr << "Cleaning up\n";
 
-    if (decrementInstanceSemaphore())
-        cleanupPMU(silent);
+    cleanupPMU(silent);
 
     disableForceRTMAbortMode(silent);
 
@@ -4139,22 +3947,6 @@ bool PCM::supportsRDTSCP() const
 
 #ifdef __APPLE__
 
-uint32 PCM::getNumInstances()
-{
-    return MSR[0]->getNumInstances();
-}
-
-
-uint32 PCM::incrementNumInstances()
-{
-    return MSR[0]->incrementNumInstances();
-}
-
-uint32 PCM::decrementNumInstances()
-{
-    return MSR[0]->decrementNumInstances();;
-}
-
 int convertUnknownToInt(size_t size, char* value)
 {
     if(sizeof(int) == size)
@@ -4178,82 +3970,6 @@ int convertUnknownToInt(size_t size, char* value)
 
 #endif
 
-bool PCM::decrementInstanceSemaphore()
-{
-    if(allow_multiple_instances == false)
-    {
-        return programmed_pmu;
-    }
-    bool isLastInstance = false;
-    // when decrement was called before program() the numInstancesSemaphore
-    // may not be initialized, causing SIGSEGV. This fixes it.
-    if(numInstancesSemaphore == NULL)
-        return true;
-
-                #ifdef _MSC_VER
-    WaitForSingleObject(numInstancesSemaphore, 0);
-
-    DWORD res = WaitForSingleObject(numInstancesSemaphore, 0);
-    if (res == WAIT_TIMEOUT)
-    {
-        // I have the last instance of monitor
-
-        isLastInstance = true;
-
-        CloseHandle(numInstancesSemaphore);
-    }
-    else if (res == WAIT_OBJECT_0)
-    {
-        ReleaseSemaphore(numInstancesSemaphore, 1, NULL);
-
-        // std::cerr << "Someone else is running monitor instance, no cleanup needed\n";
-    }
-    else
-    {
-        // unknown error
-        std::cerr << "ERROR: Bad semaphore. Performed cleanup twice?\n";
-    }
-
-        #elif __APPLE__
-    sem_wait(numInstancesSemaphore);
-    uint32 oldValue = PCM::getNumInstances();
-    sem_post(numInstancesSemaphore);
-    if(oldValue == 0)
-    {
-    // see same case for linux
-    return false;
-    }
-    sem_wait(numInstancesSemaphore);
-    uint32 currValue = PCM::decrementNumInstances();
-    sem_post(numInstancesSemaphore);
-    if(currValue == 0){
-    isLastInstance = true;
-    }
-
-    #else // if linux
-    int oldValue = -1;
-    sem_getvalue(numInstancesSemaphore, &oldValue);
-    if(oldValue == 0)
-    {
-       // the current value is already zero, somewhere the semaphore has been already decremented (and thus the clean up has been done if needed)
-       // that means logically we are do not own the last instance anymore, thus returning false
-       return false;
-    }
-    sem_wait(numInstancesSemaphore);
-    int curValue = -1;
-    sem_getvalue(numInstancesSemaphore, &curValue);
-    if (curValue == 0)
-    {
-        // I have the last instance of monitor
-
-        isLastInstance = true;
-
-        // std::cerr << "I am the last one\n";
-    }
-        #endif // end ifdef _MSC_VER
-
-    return isLastInstance;
-}
 
 uint64 PCM::getTickCount(uint64 multiplier, uint32 core)
 {
