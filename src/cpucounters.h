@@ -938,6 +938,7 @@ private:
     bool initMSR();
     bool detectNominalFrequency();
     void showSpecControlMSRs();
+    void printDetailedSystemTopology();
     void initEnergyMonitoring();
     void initUncoreObjects();
     /*!
