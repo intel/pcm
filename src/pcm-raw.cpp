@@ -43,7 +43,6 @@
 #endif
 
 #include <vector>
-#define PCM_DELAY_DEFAULT 1.0 // in seconds
 #define PCM_DELAY_MIN 0.015 // 15 milliseconds is practical on most modern CPUs
 #define MAX_CORES 4096
 
@@ -82,6 +81,7 @@ void print_usage(const string progname)
     cerr << "  -el event_list.txt | /el event_list.txt  => read event list from event_list.txt file, \n";
     cerr << "                                              each line represents an event,\n";
     cerr << "                                              event groups are separated by a semicolon\n";
+    cerr << "  -edp | /edp                            => 'edp' output mode\n";
     print_help_force_rtm_abort_mode(41);
     cerr << " Examples:\n";
     cerr << "  " << progname << " 1                   => print counters every second without core and socket output\n";
@@ -91,6 +91,7 @@ void print_usage(const string progname)
 }
 
 bool verbose = false;
+double defaultDelay = 1.0; // in seconds
 
 PCM::RawEventConfig initCoreConfig()
 {
@@ -1871,6 +1872,16 @@ int main(int argc, char* argv[])
             argc--;
             continue;
         }
+        else if (
+            strncmp(*argv, "-edp", 4) == 0 ||
+            strncmp(*argv, "/edp", 4) == 0)
+        {
+            sampleSeparator = true;
+            defaultDelay = 0.1;
+            transpose = true;
+            m->printDetailedSystemTopology();
+            continue;
+        }
         else if (strncmp(*argv, "-el", 3) == 0 || strncmp(*argv, "/el", 3) == 0)
         {
             argv++;
@@ -2016,8 +2027,7 @@ int main(int argc, char* argv[])
         m->setBlocked(false);
     }
 
-
-    if (delay <= 0.0) delay = PCM_DELAY_DEFAULT;
+    if (delay <= 0.0) delay = defaultDelay;
 
     cerr << "Update every " << delay << " seconds\n";
 

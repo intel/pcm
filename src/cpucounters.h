@@ -938,7 +938,6 @@ private:
     bool initMSR();
     bool detectNominalFrequency();
     void showSpecControlMSRs();
-    void printDetailedSystemTopology();
     void initEnergyMonitoring();
     void initUncoreObjects();
     /*!
@@ -1056,6 +1055,9 @@ public:
     SystemRoot const & getSystemTopology() const {
         return *systemTopology;
     }
+
+    //! prints detailed system topology
+    void printDetailedSystemTopology();
 
     /*!
              \brief checks if QOS monitoring support present

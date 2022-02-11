@@ -2207,7 +2207,12 @@ PCM::PCM() :
 
     showSpecControlMSRs();
 
-    printDetailedSystemTopology();
+#ifndef PCM_DEBUG_TOPOLOGY
+    if (safe_getenv("PCM_PRINT_TOPOLOGY") == "1")
+#endif
+    {
+        printDetailedSystemTopology();
+    }
 
     initEnergyMonitoring();
 
@@ -2232,9 +2237,7 @@ PCM::PCM() :
 void PCM::printDetailedSystemTopology()
 {
     // produce debug output similar to Intel MPI cpuinfo
-#ifndef PCM_DEBUG_TOPOLOGY
-    if (safe_getenv("PCM_PRINT_TOPOLOGY") == "1")
-#endif
+    if (true)
     {
         std::cerr << "\n=====  Processor topology  =====\n";
         std::cerr << "OS_Processor    Thread_Id       Core_Id         Tile_Id         Package_Id      Core_Type   Native_CPU_Model\n";
