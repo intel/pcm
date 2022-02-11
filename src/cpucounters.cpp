@@ -2216,6 +2216,10 @@ PCM::PCM() :
 
     initEnergyMonitoring();
 
+#ifndef PCM_SILENT
+    std::cerr << "\n";
+#endif
+
     initUncoreObjects();
 
     initRDT();
@@ -2232,6 +2236,10 @@ PCM::PCM() :
     {
         coreTaskQueues.push_back(std::make_shared<CoreTaskQueue>(i));
     }
+
+#ifndef PCM_SILENT
+    std::cerr << "\n";
+#endif
 }
 
 void PCM::printDetailedSystemTopology()
