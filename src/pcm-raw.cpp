@@ -1877,7 +1877,7 @@ int main(int argc, char* argv[])
             strncmp(*argv, "/edp", 4) == 0)
         {
             sampleSeparator = true;
-            defaultDelay = 0.1;
+            defaultDelay = 0.2;
             transpose = true;
             m->printDetailedSystemTopology();
             continue;
