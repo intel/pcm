@@ -1732,8 +1732,6 @@ void printAll(const PCM::RawPMUConfigs& curPMUConfigs,
 
 int main(int argc, char* argv[])
 {
-    set_signal_handlers();
-
     parseParam(argc, argv, "out", [](const char* p) {
             const string filename{ p };
             if (!filename.empty()) {
@@ -1741,6 +1739,7 @@ int main(int argc, char* argv[])
             }
         });
 
+    set_signal_handlers();
     set_real_time_priority(true);
 
 #ifdef PCM_FORCE_SILENT
