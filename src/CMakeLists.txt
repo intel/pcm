@@ -114,6 +114,10 @@ foreach(PROJECT_NAME ${PROJECT_NAMES})
 
 endforeach(PROJECT_NAME ${PROJECT_NAMES})
 
+#######################
+# Install
+#######################
+
 if(UNIX) # APPLE, LINUX, FREE_BSD
     if(LINUX)
         # Daemon & client
@@ -146,3 +150,20 @@ if(UNIX) # APPLE, LINUX, FREE_BSD
 
 endif(UNIX)
 
+if(MSVC)
+    file(GLOB OPCODE_FILES "opCode*.txt")
+    foreach(opcode_file ${OPCODE_FILES})
+        add_custom_command(TARGET pcm-iio POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${opcode_file}
+            $<TARGET_FILE_DIR:pcm-iio>)
+    endforeach(opcode_file ${OPCODE_FILES})
+
+    add_custom_command(TARGET pcm-raw POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory
+        "$<TARGET_FILE_DIR:pcm-raw>/PMURegisterDeclarations")
+    add_custom_command(TARGET pcm-raw POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${PROJECT_SOURCE_DIR}/src/PMURegisterDeclarations"
+        "$<TARGET_FILE_DIR:pcm-raw>/PMURegisterDeclarations")
+endif(MSVC)
