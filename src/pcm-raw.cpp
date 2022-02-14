@@ -1741,6 +1741,8 @@ int main(int argc, char* argv[])
             }
         });
 
+    set_real_time_priority(true);
+
 #ifdef PCM_FORCE_SILENT
     null_stream nullStream1, nullStream2;
     std::cout.rdbuf(&nullStream1);

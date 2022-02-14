@@ -45,6 +45,7 @@ namespace pcm {
 
 void exit_cleanup(void);
 void set_signal_handlers(void);
+void set_real_time_priority(const bool & silent);
 void restore_signal_handlers(void);
 #ifndef _MSC_VER
 void sigINT_handler(int signum);
