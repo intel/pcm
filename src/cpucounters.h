@@ -674,8 +674,8 @@ public:
         return (pkgCStateMsr != NULL && state <= ((int)MAX_C_STATE) && pkgCStateMsr[state] != 0);
     }
 
-    //! \brief Redirects output destination to provided file, instead of std::cout
-    void setOutput(const std::string filename);
+    //! \brief Redirects output destination to provided file, instead of std::cout and std::cerr (optional)
+    static void setOutput(const std::string filename, const bool cerrToo = false);
 
     //! \brief Restores output, closes output file if opened
     void restoreOutput();
@@ -884,8 +884,9 @@ private:
         PERF_TOPDOWN_GROUP_LEADER_COUNTER = PERF_TOPDOWN_SLOTS_POS
     };
 #endif
-    std::ofstream * outfile;       // output file stream
-    std::streambuf * backup_ofile; // backup of original output = cout
+    static std::ofstream * outfile;       // output file stream
+    static std::streambuf * backup_ofile; // backup of original output = cout
+    static std::streambuf * backup_ofile_cerr; // backup of original output = cerr
     int run_state;                 // either running (1) or sleeping (0)
 
     bool needToRestoreNMIWatchdog;
@@ -1031,6 +1032,9 @@ public:
     SystemRoot const & getSystemTopology() const {
         return *systemTopology;
     }
+
+    //! prints detailed system topology
+    void printDetailedSystemTopology();
 
     /*!
              \brief checks if QOS monitoring support present

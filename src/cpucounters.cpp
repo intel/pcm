@@ -527,6 +527,8 @@ bool PCM::detectModel()
 
     pcm_cpuid(7, 0, cpuinfo);
 
+    std::cerr << "\n=====  Processor information  =====\n";
+
 #ifdef __linux__
     auto checkLinuxCpuinfoFlag = [](const std::string& flag) -> bool
     {
@@ -1279,69 +1281,6 @@ bool PCM::discoverSystemTopology()
 
 #endif //end of ifdef _MSC_VER
 
-    // produce debug output similar to Intel MPI cpuinfo
-#ifndef PCM_DEBUG_TOPOLOGY
-    if (safe_getenv("PCM_PRINT_TOPOLOGY") == "1")
-#endif
-    {
-        std::cerr << "=====  Processor identification  =====\n";
-        std::cerr << "Processor       Thread Id.      Core Id.        Tile Id.        Package Id.     Core Type.  Native CPU Model.\n";
-        std::map<uint32, std::vector<uint32> > os_id_by_core, os_id_by_tile, core_id_by_socket;
-        for (auto it = topology.begin(); it != topology.end(); ++it)
-        {
-            std::cerr << std::left << std::setfill(' ')
-                << std::setw(16) << it->os_id
-                << std::setw(16) << it->thread_id
-                << std::setw(16) << it->core_id
-                << std::setw(16) << it->tile_id
-                << std::setw(16) << it->socket
-                << std::setw(16) << it->getCoreTypeStr()
-                << std::setw(16) << it->native_cpu_model
-                << "\n";
-            if (std::find(core_id_by_socket[it->socket].begin(), core_id_by_socket[it->socket].end(), it->core_id)
-                == core_id_by_socket[it->socket].end())
-                core_id_by_socket[it->socket].push_back(it->core_id);
-            // add socket offset to distinguish cores and tiles from different sockets
-            os_id_by_core[(it->socket << 15) + it->core_id].push_back(it->os_id);
-            os_id_by_tile[(it->socket << 15) + it->tile_id].push_back(it->os_id);
-        }
-        std::cerr << "=====  Placement on packages  =====\n";
-        std::cerr << "Package Id.    Core Id.     Processors\n";
-        for (auto pkg = core_id_by_socket.begin(); pkg != core_id_by_socket.end(); ++pkg)
-        {
-            auto core_id = pkg->second.begin();
-            std::cerr << std::left << std::setfill(' ') << std::setw(15) << pkg->first << *core_id;
-            for (++core_id; core_id != pkg->second.end(); ++core_id)
-            {
-                std::cerr << "," << *core_id;
-            }
-            std::cerr << "\n";
-        }
-        std::cerr << "\n=====  Core/Tile sharing  =====\n";
-        std::cerr << "Level      Processors\nCore       ";
-        for (auto core = os_id_by_core.begin(); core != os_id_by_core.end(); ++core)
-        {
-            auto os_id = core->second.begin();
-            std::cerr << "(" << *os_id;
-            for (++os_id; os_id != core->second.end(); ++os_id) {
-                std::cerr << "," << *os_id;
-            }
-            std::cerr << ")";
-        }
-        std::cerr << "\nTile / L2$ ";
-        for (auto core = os_id_by_tile.begin(); core != os_id_by_tile.end(); ++core)
-        {
-            auto os_id = core->second.begin();
-            std::cerr << "(" << *os_id;
-            for (++os_id; os_id != core->second.end(); ++os_id) {
-                std::cerr << "," << *os_id;
-            }
-            std::cerr << ")";
-        }
-        std::cerr << "\n";
-        std::cerr << "\n";
-    }
-
     if(num_cores == 0) {
         num_cores = (int32)topology.size();
     }
@@ -2091,6 +2030,10 @@ public:
     }
 };
 
+std::ofstream* PCM::outfile = nullptr;       // output file stream
+std::streambuf* PCM::backup_ofile = nullptr; // backup of original output = cout
+std::streambuf* PCM::backup_ofile_cerr = nullptr; // backup of original output = cerr
+
 PCM::PCM() :
     cpu_family(-1),
     cpu_model(-1),
@@ -2145,8 +2088,6 @@ PCM::PCM() :
     forceRTMAbortMode(false),
     mode(INVALID_MODE),
     canUsePerf(false),
-    outfile(NULL),
-    backup_ofile(NULL),
     run_state(1),
     needToRestoreNMIWatchdog(false)
 {
@@ -2182,7 +2123,18 @@ PCM::PCM() :
 
     showSpecControlMSRs();
 
+#ifndef PCM_DEBUG_TOPOLOGY
+    if (safe_getenv("PCM_PRINT_TOPOLOGY") == "1")
+#endif
+    {
+        printDetailedSystemTopology();
+    }
+
     initEnergyMonitoring();
+
+#ifndef PCM_SILENT
+    std::cerr << "\n";
+#endif
 
     initUncoreObjects();
 
@@ -2199,6 +2151,74 @@ PCM::PCM() :
     for (int32 i = 0; i < num_cores; ++i)
     {
         coreTaskQueues.push_back(std::make_shared<CoreTaskQueue>(i));
+    }
+
+#ifndef PCM_SILENT
+    std::cerr << "\n";
+#endif
+}
+
+void PCM::printDetailedSystemTopology()
+{
+    // produce debug output similar to Intel MPI cpuinfo
+    if (true)
+    {
+        std::cerr << "\n=====  Processor topology  =====\n";
+        std::cerr << "OS_Processor    Thread_Id       Core_Id         Tile_Id         Package_Id      Core_Type   Native_CPU_Model\n";
+        std::map<uint32, std::vector<uint32> > os_id_by_core, os_id_by_tile, core_id_by_socket;
+        for (auto it = topology.begin(); it != topology.end(); ++it)
+        {
+            std::cerr << std::left << std::setfill(' ')
+                << std::setw(16) << it->os_id
+                << std::setw(16) << it->thread_id
+                << std::setw(16) << it->core_id
+                << std::setw(16) << it->tile_id
+                << std::setw(16) << it->socket
+                << std::setw(16) << it->getCoreTypeStr()
+                << std::setw(16) << it->native_cpu_model
+                << "\n";
+            if (std::find(core_id_by_socket[it->socket].begin(), core_id_by_socket[it->socket].end(), it->core_id)
+                == core_id_by_socket[it->socket].end())
+                core_id_by_socket[it->socket].push_back(it->core_id);
+            // add socket offset to distinguish cores and tiles from different sockets
+            os_id_by_core[(it->socket << 15) + it->core_id].push_back(it->os_id);
+            os_id_by_tile[(it->socket << 15) + it->tile_id].push_back(it->os_id);
+        }
+        std::cerr << "=====  Placement on packages  =====\n";
+        std::cerr << "Package Id.    Core Id.     Processors\n";
+        for (auto pkg = core_id_by_socket.begin(); pkg != core_id_by_socket.end(); ++pkg)
+        {
+            auto core_id = pkg->second.begin();
+            std::cerr << std::left << std::setfill(' ') << std::setw(15) << pkg->first << *core_id;
+            for (++core_id; core_id != pkg->second.end(); ++core_id)
+            {
+                std::cerr << "," << *core_id;
+            }
+            std::cerr << "\n";
+        }
+        std::cerr << "\n=====  Core/Tile sharing  =====\n";
+        std::cerr << "Level      Processors\nCore       ";
+        for (auto core = os_id_by_core.begin(); core != os_id_by_core.end(); ++core)
+        {
+            auto os_id = core->second.begin();
+            std::cerr << "(" << *os_id;
+            for (++os_id; os_id != core->second.end(); ++os_id) {
+                std::cerr << "," << *os_id;
+            }
+            std::cerr << ")";
+        }
+        std::cerr << "\nTile / L2$ ";
+        for (auto core = os_id_by_tile.begin(); core != os_id_by_tile.end(); ++core)
+        {
+            auto os_id = core->second.begin();
+            std::cerr << "(" << *os_id;
+            for (++os_id; os_id != core->second.end(); ++os_id) {
+                std::cerr << "," << *os_id;
+            }
+            std::cerr << ")";
+        }
+        std::cerr << "\n";
+        std::cerr << "\n";
     }
 }
 
@@ -3855,11 +3875,16 @@ void PCM::cleanupRDT(const bool silent)
     if (!silent) std::cerr << " Freeing up all RMIDs\n";
 }
 
-void PCM::setOutput(const std::string filename)
+void PCM::setOutput(const std::string filename, const bool cerrToo)
 {
      outfile = new std::ofstream(filename.c_str());
      backup_ofile = std::cout.rdbuf();
      std::cout.rdbuf(outfile->rdbuf());
+     if (cerrToo)
+     {
+         backup_ofile_cerr = std::cerr.rdbuf();
+         std::cerr.rdbuf(outfile->rdbuf());
+     }
 }
 
 void PCM::restoreOutput()
@@ -3867,6 +3892,9 @@ void PCM::restoreOutput()
     // restore cout back to what it was originally
     if(backup_ofile)
         std::cout.rdbuf(backup_ofile);
+
+    if (backup_ofile_cerr)
+        std::cerr.rdbuf(backup_ofile_cerr);
 
 // close output file
     if(outfile)

@@ -43,7 +43,6 @@
 #endif
 
 #include <vector>
-#define PCM_DELAY_DEFAULT 1.0 // in seconds
 #define PCM_DELAY_MIN 0.015 // 15 milliseconds is practical on most modern CPUs
 #define MAX_CORES 4096
 
@@ -59,10 +58,11 @@ void print_usage(const string progname)
     cerr << "                                            will read counters only after external program finishes\n";
     cerr << " Supported <options> are: \n";
     cerr << "  -h    | --help      | /h               => print this help and exit\n";
+    cerr << "  -e event1 [-e event2] [-e event3] .. => list of custom events to monitor\n";
     cerr << "  -r    | --reset     | /reset           => reset PMU configuration (at your own risk)\n";
     cerr << "  -csv[=file.csv]     | /csv[=file.csv]  => output compact CSV format to screen or\n"
          << "                                            to a file, in case filename is provided\n";
-    cerr << "  [-e event1] [-e event2] [-e event3] .. => list of custom events to monitor\n";
+    cerr << "  -out filename       | /out filename    => write all output (stdout and stderr) to specified file\n";
     cerr << "  event description example: -e core/config=0x30203,name=LD_BLOCKS.STORE_FORWARD/ -e core/fixed,config=0x333/ \n";
     cerr << "                             -e cha/config=0,name=UNC_CHA_CLOCKTICKS/ -e imc/fixed,name=DRAM_CLOCKS/\n";
 #ifdef PCM_SIMDJSON_AVAILABLE
@@ -81,6 +81,7 @@ void print_usage(const string progname)
     cerr << "  -el event_list.txt | /el event_list.txt  => read event list from event_list.txt file, \n";
     cerr << "                                              each line represents an event,\n";
     cerr << "                                              event groups are separated by a semicolon\n";
+    cerr << "  -edp | /edp                            => 'edp' output mode\n";
     print_help_force_rtm_abort_mode(41);
     cerr << " Examples:\n";
     cerr << "  " << progname << " 1                   => print counters every second without core and socket output\n";
@@ -90,6 +91,7 @@ void print_usage(const string progname)
 }
 
 bool verbose = false;
+double defaultDelay = 1.0; // in seconds
 
 PCM::RawEventConfig initCoreConfig()
 {
@@ -1029,7 +1031,8 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
     vector<CoreCounterState>& BeforeState, vector<CoreCounterState>& AfterState,
     vector<ServerUncoreCounterState>& BeforeUncoreState, vector<ServerUncoreCounterState>& AfterUncoreState,
     vector<SocketCounterState>& BeforeSocketState, vector<SocketCounterState>& AfterSocketState,
-    const CsvOutputType outputType)
+    const CsvOutputType outputType,
+    const bool& isLastGroup)
 {
         const bool is_header = (outputType == Header1 || outputType == Header2);
         for (const auto & typeEvents : curPMUConfigs)
@@ -1369,7 +1372,7 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
         }
         if (sampleSeparator)
         {
-            cout << "=============================\n";
+            cout << (isLastGroup? "==========\n" : "----------\n");
         }
         if (flushLine)
         {
@@ -1687,7 +1690,8 @@ void printAll(const PCM::RawPMUConfigs& curPMUConfigs,
                 vector<CoreCounterState>& BeforeState, vector<CoreCounterState>& AfterState,
                 vector<ServerUncoreCounterState>& BeforeUncoreState, vector<ServerUncoreCounterState>& AfterUncoreState,
                 vector<SocketCounterState>& BeforeSocketState, vector<SocketCounterState>& AfterSocketState,
-                std::vector<PCM::RawPMUConfigs>& PMUConfigs)
+                std::vector<PCM::RawPMUConfigs>& PMUConfigs,
+                const bool & isLastGroup)
 {
     static bool displayHeader = true;
 
@@ -1702,7 +1706,7 @@ void printAll(const PCM::RawPMUConfigs& curPMUConfigs,
 
             // print header_1 and get all offsets
             for (auto &config : PMUConfigs)
-                printTransposed(config, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, Header1);
+                printTransposed(config, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, Header1, isLastGroup);
 
             std::cout << std::endl;
 
@@ -1710,11 +1714,11 @@ void printAll(const PCM::RawPMUConfigs& curPMUConfigs,
             std::cout << "Date" << separator << "Time" << separator << "Event" << separator;
             std::cout << "ms, InvariantTSC" << separator;
             for (auto &config : PMUConfigs)
-                printTransposed(config, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, Header2);
+                printTransposed(config, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, Header2, isLastGroup);
 
             std::cout << std::endl;
         }
-        printTransposed(curPMUConfigs, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, Data);
+        printTransposed(curPMUConfigs, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, Data, isLastGroup);
     } else {
         if (displayHeader) {
             print(curPMUConfigs, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, Header1);
@@ -1728,7 +1732,15 @@ void printAll(const PCM::RawPMUConfigs& curPMUConfigs,
 
 int main(int argc, char* argv[])
 {
+    parseParam(argc, argv, "out", [](const char* p) {
+            const string filename{ p };
+            if (!filename.empty()) {
+                PCM::setOutput(filename, true);
+            }
+        });
+
     set_signal_handlers();
+    set_real_time_priority(true);
 
 #ifdef PCM_FORCE_SILENT
     null_stream nullStream1, nullStream2;
@@ -1847,6 +1859,28 @@ int main(int argc, char* argv[])
                 cerr << "There is a potential to crash the system. Please increase MAX_CORES to at least " << m->getNumCores() << " and re-enable this option.\n";
                 exit(EXIT_FAILURE);
             }
+            continue;
+        }
+        else if (strncmp(*argv, "-out", 4) == 0 || strncmp(*argv, "/out", 4) == 0)
+        {
+            argv++;
+            argc--;
+            continue;
+        }
+        else if (strncmp(*argv, "-ep", 3) == 0 || strncmp(*argv, "/ep", 3) == 0)
+        {
+            argv++;
+            argc--;
+            continue;
+        }
+        else if (
+            strncmp(*argv, "-edp", 4) == 0 ||
+            strncmp(*argv, "/edp", 4) == 0)
+        {
+            sampleSeparator = true;
+            defaultDelay = 0.2;
+            transpose = true;
+            m->printDetailedSystemTopology();
             continue;
         }
         else if (strncmp(*argv, "-el", 3) == 0 || strncmp(*argv, "/el", 3) == 0)
@@ -1994,8 +2028,7 @@ int main(int argc, char* argv[])
         m->setBlocked(false);
     }
 
-
-    if (delay <= 0.0) delay = PCM_DELAY_DEFAULT;
+    if (delay <= 0.0) delay = defaultDelay;
 
     cerr << "Update every " << delay << " seconds\n";
 
@@ -2027,9 +2060,10 @@ int main(int argc, char* argv[])
 
     mainLoop([&]()
     {
+         size_t groupNr = 0;
          for (const auto & group : PMUConfigs)
          {
-                if (group.empty()) continue;
+                ++groupNr;
 
                 if (nGroups > 1)
                 {
@@ -2047,7 +2081,7 @@ int main(int argc, char* argv[])
                 //cout << "Time elapsed: " << dec << fixed << AfterTime - BeforeTime << " ms\n";
                 //cout << "Called sleep function for " << dec << fixed << delay_ms << " ms\n";
 
-                printAll(group, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, PMUConfigs);
+                printAll(group, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, PMUConfigs, groupNr == nGroups);
                 if (nGroups > 1)
                 {
                     m->cleanup(true);
