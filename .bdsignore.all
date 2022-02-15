@@ -1,6 +1,5 @@
 .bdsignore.all
 Makefile
-license.txt
 Doxyfile
 LICENSE
 README

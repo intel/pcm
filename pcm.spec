@@ -41,7 +41,7 @@ rm -rf $RPM_BUILD_ROOT
 
 %files
 %defattr(-,root,root,0755)
-%doc doc/license.txt doc/LINUX_HOWTO.txt
+%doc LICENSE doc/LINUX_HOWTO.txt
 %{_sbindir}/pcm-core
 %{_sbindir}/pcm-iio
 %{_sbindir}/pcm-latency
