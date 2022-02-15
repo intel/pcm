@@ -238,7 +238,8 @@ enum CsvOutputType
 {
     Header1,
     Header2,
-    Data
+    Data,
+    Header21 // merged headers 2 and 1
 };
 
 template <class H1, class H2, class D>
@@ -247,6 +248,7 @@ inline void choose(const CsvOutputType outputType, H1 h1Func, H2 h2Func, D dataF
     switch (outputType)
     {
     case Header1:
+    case Header21:
         h1Func();
         break;
     case Header2:

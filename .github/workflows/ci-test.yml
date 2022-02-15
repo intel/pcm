@@ -57,3 +57,9 @@ jobs:
       with:
         name: pcm-csv-${{ github.sha }}
         path: build/bin/pcm.csv
+
+    - name: upload-artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: test-log-raw-tr-wi_ext-single_header-${{ github.sha }}
+        path: build/bin/raw_tr_wi_ext_single_header.csv

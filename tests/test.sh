@@ -276,4 +276,10 @@ if [ "$?" -ne "0" ]; then
     exit 1
 fi
 
+./pcm-raw -el event_file_test.txt -tr -ext -single-header -csv=raw_tr_wi_ext_single_header.csv -i=4 0.25
+if [ "$?" -ne "0" ]; then
+    echo "Error in pcm-raw"
+    exit 1
+fi
+
 popd
