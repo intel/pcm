@@ -22,6 +22,12 @@ if [ "$?" -ne "0" ]; then
    exit 1
 fi
 
+./pcm -r 0.1 -csv=pcm.csv -- sleep 5
+if [ "$?" -ne "0" ]; then
+   echo "Error in pcm"
+   exit 1
+fi
+
 ./pcm-memory -- sleep 1
 if [ "$?" -ne "0" ]; then
     echo "Error in pcm-memory"
