@@ -73,7 +73,8 @@ void print_usage(const string progname)
     cerr << "  -f    | /f                             => enforce flushing each line for interactive output\n";
     cerr << "  -i[=number] | /i[=number]              => allow to determine number of iterations\n";
     cerr << "  -tr | /tr                              => transpose output (print single event data in a row)\n";
-    cerr << "  -ext                                   => add headers to transposed output and extend printout to match it\n";
+    cerr << "  -ext | /ext                            => add headers to transposed output and extend printout to match it\n";
+    cerr << "  -single-header | /single-header        => headers for transposed output are merged into single header\n";
     cerr << "  -s  | /s                               => print a sample separator line between samples in transposed output\n";
     cerr << "  -v  | /v                               => verbose mode (print additional diagnostic messages)\n";
     cerr << "  -l                                     => use locale for printing values, calls -tab for readability\n";
@@ -932,7 +933,8 @@ bool show_partial_core_output = false;
 bitset<MAX_CORES> ycores;
 bool flushLine = false;
 bool transpose = false;
-bool extend_printout = false;
+bool extendPrintout = false;
+bool singleHeader = false;
 std::string separator = ",";
 bool sampleSeparator = false;
 
@@ -974,13 +976,17 @@ void printRow(const std::string & EventName, MetricFunc metricFunc, const std::v
         if (!(m->isCoreOnline(core) == false || (show_partial_core_output && ycores.test(core) == false)))
         {
             if (outputType == Header1) {
-                cout << "SKT" << m->getSocketId(core) << "CORE" << core << separator;
+                cout << separator << "SKT" << m->getSocketId(core) << "CORE" << core;
                 printOffset.end++;
             }
             else if (outputType == Header2)
-                cout << "core" << separator;
+                cout << separator << "core" ;
             else if (outputType == Data)
                 cout << separator << metricFunc(BeforeState[core], AfterState[core]);
+            else if (outputType == Header21) {
+                cout << separator << "core_SKT" << m->getSocketId(core) << "_CORE" << core;
+                printOffset.end++;
+            }
             else
                 assert(!"unknown output type");
         }
@@ -1034,7 +1040,7 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
     const CsvOutputType outputType,
     const bool& isLastGroup)
 {
-        const bool is_header = (outputType == Header1 || outputType == Header2);
+        const bool is_header = (outputType == Header1 || outputType == Header2 || outputType == Header21);
         for (const auto & typeEvents : curPMUConfigs)
         {
             bool is_header_printed = false;
@@ -1045,7 +1051,7 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
             PrintOffset printOffset{type, 0, 0};
             const auto print_idx = getPrintOffsetIdx(printOffsets, type);
 
-            if (outputType == Header1) {
+            if (outputType == Header1 || outputType == Header21) {
                 if (print_idx != -1)
                     continue; // header already printed
                 else {
@@ -1077,14 +1083,17 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
                         {
                             if (outputType == Header1)
                             {
-                                cout << "SKT" << s << miscName << u << separator;
+                                cout << separator << "SKT" << s << miscName << u;
                                 printOffset.end++;
                             }
                             else if (outputType == Header2)
-                                cout << miscName << separator;
+                                cout << separator << miscName ;
                             else if (outputType == Data)
                                 cout << separator << fixedMetricFunc(u, BeforeUncoreState[s], AfterUncoreState[s]);
-                            else
+                            else if (outputType == Header21) {
+                                cout << separator << type << "_SKT" << s << "_" << miscName << u;
+                                printOffset.end++;
+                            } else
                                 assert(!"unknown output type");
                         }
                     }
@@ -1115,16 +1124,21 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
                         {
                             if (outputType == Header1)
                             {
-                                cout << "SKT" << s << miscName << u << separator;
+                                cout  << separator << "SKT_" << s << miscName << u;
                                 printOffset.end++;
                             }
                             else if (outputType == Header2)
                             {
-                                cout << miscName << separator;
+                                cout << separator << miscName ;
                             }
                             else if (outputType == Data)
                             {
                                 cout << separator << metricFunc(u, i, BeforeUncoreState[s], AfterUncoreState[s]);
+                            }
+                            else if (outputType == Header21)
+                            {
+                                cout << separator << type << "_SKT" << s << "_" << miscName << u;
+                                printOffset.end++;
                             }
                             else
                             {
@@ -1165,16 +1179,21 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
                         {
                             if (outputType == Header1)
                             {
-                                cout << "SKT" << s << separator;
+                                cout << separator << "SKT" << s ;
                                 printOffset.end++;
                             }
                             else if (outputType == Header2)
                             {
-                                cout << type << separator;
+                                cout << separator << type ;
                             }
                             else if (outputType == Data)
                             {
                                 cout << separator << getMSREvent(index, msrType, BeforeSocketState[s], AfterSocketState[s]);
+                            }
+                            else if (outputType == Header21)
+                            {
+                                cout << separator << type << "_SKT" << s ;
+                                printOffset.end++;
                             }
                             else
                             {
@@ -1187,16 +1206,21 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
                         {
                             if (outputType == Header1)
                             {
-                                cout << "SKT" << m->getSocketId(core) << "CORE" << core << separator;
+                                cout << separator << "SKT" << m->getSocketId(core) << "CORE" << core;
                                 printOffset.end++;
                             }
                             else if (outputType == Header2)
                             {
-                                cout << type << separator;
+                                cout << separator << type ;
                             }
                             else if (outputType == Data)
                             {
                                 cout << separator << getMSREvent(index, msrType, BeforeState[core], AfterState[core]);
+                            }
+                            else if (outputType == Header21)
+                            {
+                                cout << separator << type << "_SKT" << m->getSocketId(core) << "_CORE" << core;
+                                printOffset.end++;
                             }
                             else
                             {
@@ -1367,7 +1391,7 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
                 std::cerr << "ERROR: unrecognized PMU type \"" << type << "\"\n";
             }
 
-            if (outputType == Header1)
+            if (outputType == Header1 || outputType == Header21)
                 printOffsets.push_back(printOffset);
         }
         if (sampleSeparator)
@@ -1695,28 +1719,36 @@ void printAll(const PCM::RawPMUConfigs& curPMUConfigs,
 {
     static bool displayHeader = true;
 
-    if (!extend_printout && transpose)
+    if (!extendPrintout && transpose)
         displayHeader = false;
 
     if (transpose) {
         if (displayHeader) {
             // Need to go through all possible print on first run to form header.
-            for (int i = 0 ; i < 5 ; i++)
-                std::cout << separator;
+            if (singleHeader) {
+                // merge header 2 and 1, print and get all offsets
+                cout << "Date" << separator << "Time" << separator << "Event" << separator;
+                cout << "ms" << separator << "InvariantTSC";
+                for (auto &config : PMUConfigs)
+                    printTransposed(config, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, Header21, isLastGroup);
+            } else {
+                // print 2 headers in 2 rows
+                for (int i = 0 ; i < 4 ; i++)
+                    cout << separator;
 
-            // print header_1 and get all offsets
-            for (auto &config : PMUConfigs)
-                printTransposed(config, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, Header1, isLastGroup);
+                // print header_1 and get all offsets
+                for (auto &config : PMUConfigs)
+                    printTransposed(config, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, Header1, isLastGroup);
 
-            std::cout << std::endl;
+                cout << endl;
 
-            // print header_2
-            std::cout << "Date" << separator << "Time" << separator << "Event" << separator;
-            std::cout << "ms, InvariantTSC" << separator;
-            for (auto &config : PMUConfigs)
-                printTransposed(config, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, Header2, isLastGroup);
-
-            std::cout << std::endl;
+                // print header_2
+                cout << "Date" << separator << "Time" << separator << "Event" << separator;
+                cout << "ms" << separator << "InvariantTSC";
+                for (auto &config : PMUConfigs)
+                    printTransposed(config, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, Header2, isLastGroup);
+            }
+            cout << endl;
         }
         printTransposed(curPMUConfigs, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, Data, isLastGroup);
     } else {
@@ -1812,7 +1844,14 @@ int main(int argc, char* argv[])
             strncmp(*argv, "-ext", 4) == 0 ||
             strncmp(*argv, "/ext", 4) == 0)
         {
-            extend_printout = true;
+            extendPrintout = true;
+            continue;
+        }
+        else if (
+            strncmp(*argv, "-single-header", 14) == 0 ||
+            strncmp(*argv, "/single-header", 14) == 0)
+        {
+            singleHeader = true;
             continue;
         }
         else if (strncmp(*argv, "-l", 2) == 0) {
