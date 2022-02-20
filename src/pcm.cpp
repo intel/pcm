@@ -88,6 +88,7 @@ void print_help(const string prog_name)
     cerr << "                                        will read counters only after external program finishes\n";
     cerr << " Supported <options> are: \n";
     cerr << "  -h    | --help      | /h           => print this help and exit\n";
+    cerr << "  -pid PID | /pid PID                => collect core metrics only for specified process ID\n";
 #ifdef _MSC_VER
     cerr << "  --uninstallDriver   | --installDriver=> (un)install driver\n";
 #endif
@@ -1155,7 +1156,7 @@ int main(int argc, char * argv[])
     // if delay is not specified: use either default (1 second),
     // or only read counters before or after PCM started: keep PCM blocked
     double delay = -1.0;
-
+    int pid{-1};
     char *sysCmd = NULL;
     char **sysArgv = NULL;
     bool show_core_output = true;
@@ -1165,6 +1166,8 @@ int main(int argc, char * argv[])
     bool csv_output = false;
     bool reset_pmu = false;
     bool disable_JKT_workaround = false; // as per http://software.intel.com/en-us/articles/performance-impact-when-sampling-certain-llc-events-on-snb-ep-with-vtune
+
+    parseParam(argc, argv, "pid", [&pid](const char* p) { if (p) pid = atoi(p); });
 
     MainLoop mainLoop;
     std::bitset<MAX_CORES> ycores;
@@ -1259,6 +1262,12 @@ int main(int argc, char * argv[])
             }
             continue;
         }
+        else if (strncmp(*argv, "-pid", 4) == 0 || strncmp(*argv, "/pid", 4) == 0)
+        {
+            argv++;
+            argc--;
+            continue;
+        }
         else
         if (mainLoop.parseArg(*argv))
         {
@@ -1342,7 +1351,7 @@ int main(int argc, char * argv[])
     }
 
     // program() creates common semaphore for the singleton, so ideally to be called before any other references to PCM
-    PCM::ErrorCode status = m->program();
+    const PCM::ErrorCode status = m->program(PCM::DEFAULT_EVENTS, nullptr, false, pid);
 
     switch (status)
     {
@@ -1366,6 +1375,11 @@ int main(int argc, char * argv[])
     std::vector<SocketCounterState> sktstate1, sktstate2;
     SystemCounterState sstate1, sstate2;
     const auto cpu_model = m->getCPUModel();
+
+    if (pid != -1)
+    {
+        cerr << "Collecting core metrics for process ID " << pid << "\n";
+    }
 
     if ((sysCmd != NULL) && (delay <= 0.0)) {
         // in case external command is provided in command line, and

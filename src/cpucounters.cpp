@@ -2390,7 +2390,7 @@ perf_event_attr PCM_init_perf_event_attr(bool group = true)
 }
 #endif
 
-PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter_, const bool silent)
+PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter_, const bool silent, const int pid)
 {
 #ifdef __linux__
     if (isNMIWatchdogEnabled(silent))
@@ -2689,6 +2689,11 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
             << core_fixed_counter_num_max << " available\n";
         return PCM::UnknownError;
     }
+    if (pid != -1 && canUsePerf == false)
+    {
+        std::cerr << "PCM ERROR: pid monitoring is only supported with Linux perf_event driver\n";
+        return PCM::UnknownError;
+    }
 
     programmed_pmu = true;
 
@@ -2703,11 +2708,11 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
     {
         if (isCoreOnline(i) == false) continue;
 
-        std::packaged_task<void()> task([this, i, mode_, pExtDesc, &programmingStatuses]() -> void
+        std::packaged_task<void()> task([this, i, mode_, pExtDesc, &programmingStatuses, &pid]() -> void
             {
                 TemporalThreadAffinity tempThreadAffinity(i, false); // speedup trick for Linux
 
-                programmingStatuses[i] = programCoreCounters(i, mode_, pExtDesc, lastProgrammedCustomCounters[i]);
+                programmingStatuses[i] = programCoreCounters(i, mode_, pExtDesc, lastProgrammedCustomCounters[i], pid);
             });
         asyncCoreResults.push_back(task.get_future());
         coreTaskQueues[i]->push(task);
@@ -2807,8 +2812,10 @@ std::mutex printErrorMutex;
 PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
     const PCM::ProgramMode mode_,
     const ExtendedCustomCoreEventDescription * pExtDesc,
-    std::vector<EventSelectRegister> & result)
+    std::vector<EventSelectRegister> & result,
+    const int pid)
 {
+    (void) pid; // to silence uused param warning on non Linux OS
     // program core counters
 
     result.clear();
@@ -2840,10 +2847,10 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
     };
 #ifdef PCM_USE_PERF
     int leader_counter = -1;
-    auto programPerfEvent = [this, &leader_counter, &i](perf_event_attr & e, const int eventPos, const std::string & eventName) -> bool
+    auto programPerfEvent = [this, &leader_counter, &i, &pid](perf_event_attr & e, const int eventPos, const std::string & eventName) -> bool
     {
         // if (i == 0) std::cerr << "DEBUG: programming event "<< std::hex << e.config << std::dec << "\n";
-        if ((perfEventHandle[i][eventPos] = syscall(SYS_perf_event_open, &e, -1,
+        if ((perfEventHandle[i][eventPos] = syscall(SYS_perf_event_open, &e, pid,
             i /* core id */, leader_counter /* group leader */, 0)) <= 0)
         {
             std::lock_guard<std::mutex> _(printErrorMutex);

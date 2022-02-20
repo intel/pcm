@@ -307,6 +307,11 @@ void parseParam(int argc, char* argv[], const char* param, F f)
         {
             argv++;
             argc--;
+            if (argc == 0)
+            {
+                std::cerr << "ERROR: no parameter provided for option " << param << "\n";
+                exit(EXIT_FAILURE);
+            }
             f(*argv);
             continue;
         }
