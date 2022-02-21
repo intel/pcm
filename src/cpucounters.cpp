@@ -7745,9 +7745,8 @@ void PCM::programCbo(const uint64 * events, const uint32 opCode, const uint32 nc
         uint32 refCore = socketRefCore[i];
         TemporalThreadAffinity tempThreadAffinity(refCore); // speedup trick for Linux
 
-        for(uint32 cbo = 0; cbo < getMaxNumOfCBoxes(); ++cbo)
+        for(uint32 cbo = 0; cbo < getMaxNumOfCBoxes() && cbo < cboPMUs[i].size(); ++cbo)
         {
-            assert(cbo < cboPMUs[i].size());
             cboPMUs[i][cbo].initFreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
 
             if (ICX != cpu_model && SNOWRIDGE != cpu_model)
