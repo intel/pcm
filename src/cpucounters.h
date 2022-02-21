@@ -859,7 +859,9 @@ private:
 
     bool canUsePerf;
 #ifdef PCM_USE_PERF
-    std::vector<std::vector<int> > perfEventHandle;
+    typedef std::vector<std::vector<int> > PerfEventHandleContainer;
+    PerfEventHandleContainer perfEventHandle;
+    std::vector<PerfEventHandleContainer> perfEventTaskHandle;
     void readPerfData(uint32 core, std::vector<uint64> & data);
 
     enum {
@@ -894,7 +896,7 @@ private:
     std::vector<std::vector<EventSelectRegister> > lastProgrammedCustomCounters;
     uint32 checkCustomCoreProgramming(std::shared_ptr<SafeMsrHandle> msr);
     ErrorCode programCoreCounters(int core, const PCM::ProgramMode mode, const ExtendedCustomCoreEventDescription * pExtDesc,
-        std::vector<EventSelectRegister> & programmedCustomCounters, const int pid);
+        std::vector<EventSelectRegister> & programmedCustomCounters, const std::vector<int> & tids);
 
     bool PMUinUse();
     void cleanupPMU(const bool silent = false);

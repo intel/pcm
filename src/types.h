@@ -40,6 +40,7 @@ typedef signed long long int64;
 typedef unsigned int uint32;
 typedef signed int int32;
 
+#define PCM_ULIMIT_RECOMMENDATION ("try executing 'ulimit -n 1000000' to increase the limit on the number of open files.\n")
 
 /*
         MSR addreses from
