@@ -496,4 +496,6 @@ inline HANDLE openMSRDriver()
 // silence all following err output
 void check_and_set_silent(int argc, char * argv[], null_stream &nullStream2);
 
+void print_pid_collection_message(int pid);
+
 } // namespace pcm

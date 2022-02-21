@@ -4583,7 +4583,7 @@ void PCM::programPCU(uint32* PCUCntConf, const uint64 filter)
     }
 }
 
-PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool silent)
+PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool silent, const int pid)
 {
     if (MSR.empty())  return PCM::MSRAccessDenied;
     threadMSRConfig = RawPMUConfig{};
@@ -4638,7 +4638,7 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool sile
         }
         conf.defaultUncoreProgramming = false;
 
-        const auto status = program(PCM::EXT_CUSTOM_CORE_EVENTS, &conf, silent);
+        const auto status = program(PCM::EXT_CUSTOM_CORE_EVENTS, &conf, silent, pid);
         if (status != PCM::Success)
         {
             return status;

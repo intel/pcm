@@ -1376,10 +1376,7 @@ int main(int argc, char * argv[])
     SystemCounterState sstate1, sstate2;
     const auto cpu_model = m->getCPUModel();
 
-    if (pid != -1)
-    {
-        cerr << "Collecting core metrics for process ID " << pid << "\n";
-    }
+    print_pid_collection_message(pid);
 
     if ((sysCmd != NULL) && (delay <= 0.0)) {
         // in case external command is provided in command line, and

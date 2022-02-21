@@ -58,7 +58,8 @@ void print_usage(const string progname)
     cerr << "                                            will read counters only after external program finishes\n";
     cerr << " Supported <options> are: \n";
     cerr << "  -h    | --help      | /h               => print this help and exit\n";
-    cerr << "  -e event1 [-e event2] [-e event3] .. => list of custom events to monitor\n";
+    cerr << "  -e event1 [-e event2] [-e event3] ..   => list of custom events to monitor\n";
+    cerr << "  -pid PID | /pid PID                    => collect core metrics only for specified process ID\n";
     cerr << "  -r    | --reset     | /reset           => reset PMU configuration (at your own risk)\n";
     cerr << "  -csv[=file.csv]     | /csv[=file.csv]  => output compact CSV format to screen or\n"
          << "                                            to a file, in case filename is provided\n";
@@ -1786,6 +1787,7 @@ int main(int argc, char* argv[])
 
     std::vector<PCM::RawPMUConfigs> PMUConfigs(1);
     double delay = -1.0;
+    int pid{-1};
     char* sysCmd = NULL;
     char** sysArgv = NULL;
     MainLoop mainLoop;
@@ -1793,6 +1795,8 @@ int main(int argc, char* argv[])
     bool forceRTMAbortMode = false;
     bool reset_pmu = false;
     PCM* m = PCM::getInstance();
+
+    parseParam(argc, argv, "pid", [&pid](const char* p) { if (p) pid = atoi(p); });
 
 #ifdef PCM_SIMDJSON_AVAILABLE
     parseParam(argc, argv, "ep", [](const char* p) { eventFileLocationPrefix = p;});
@@ -1826,7 +1830,13 @@ int main(int argc, char* argv[])
         {
             continue;
         }
-        if (strncmp(*argv, "-reset", 6) == 0 ||
+        else if (strncmp(*argv, "-pid", 4) == 0 || strncmp(*argv, "/pid", 4) == 0)
+        {
+            argv++;
+            argc--;
+            continue;
+        }
+        else if (strncmp(*argv, "-reset", 6) == 0 ||
             strncmp(*argv, "-r", 2) == 0 ||
             strncmp(*argv, "/reset", 6) == 0)
         {
@@ -2031,7 +2041,9 @@ int main(int argc, char* argv[])
         cerr << "Enforcing transposed event output because the number of event groups > 1\n";
     }
 
-    auto programPMUs = [&m](const PCM::RawPMUConfigs & config)
+    print_pid_collection_message(pid);
+
+    auto programPMUs = [&m, &pid](const PCM::RawPMUConfigs & config)
     {
         if (verbose)
         {
@@ -2047,7 +2059,7 @@ int main(int argc, char* argv[])
                 }
             }
         }
-        PCM::ErrorCode status = m->program(config, !verbose);
+        PCM::ErrorCode status = m->program(config, !verbose, pid);
         m->checkError(status);
     };
 
