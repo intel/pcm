@@ -2924,6 +2924,8 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
         if (tids.empty() == false)
         {
             e.inherit = 1;
+            e.exclude_kernel = 1;
+            e.exclude_hv = 1;
             e.read_format = 0; // 'inherit' does not work for combinations of read format (e.g. PERF_FORMAT_GROUP)
             auto handleIt = perfEventTaskHandle.begin();
             for (const auto & tid: tids)
