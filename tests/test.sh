@@ -23,7 +23,7 @@ if [ "$?" -ne "0" ]; then
 fi
 
 perl -e ' do {} until (0)' &
-test_pid="$?"
+test_pid="$!"
 ./pcm -pid $test_pid -- sleep 1
 if [ "$?" -ne "0" ]; then
    echo "Error in pcm"
