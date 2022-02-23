@@ -859,7 +859,9 @@ private:
 
     bool canUsePerf;
 #ifdef PCM_USE_PERF
-    std::vector<std::vector<int> > perfEventHandle;
+    typedef std::vector<std::vector<int> > PerfEventHandleContainer;
+    PerfEventHandleContainer perfEventHandle;
+    std::vector<PerfEventHandleContainer> perfEventTaskHandle;
     void readPerfData(uint32 core, std::vector<uint64> & data);
 
     enum {
@@ -894,7 +896,7 @@ private:
     std::vector<std::vector<EventSelectRegister> > lastProgrammedCustomCounters;
     uint32 checkCustomCoreProgramming(std::shared_ptr<SafeMsrHandle> msr);
     ErrorCode programCoreCounters(int core, const PCM::ProgramMode mode, const ExtendedCustomCoreEventDescription * pExtDesc,
-        std::vector<EventSelectRegister> & programmedCustomCounters);
+        std::vector<EventSelectRegister> & programmedCustomCounters, const std::vector<int> & tids);
 
     bool PMUinUse();
     void cleanupPMU(const bool silent = false);
@@ -1110,6 +1112,8 @@ public:
     /*! \brief Programs performance counters
         \param mode_ mode of programming, see ProgramMode definition
         \param parameter_ optional parameter for some of programming modes
+        \param silent set to true to silence diagnostic messages
+        \param pid restrict core metrics only to specified pid (process id)
 
                 Call this method before you start using the performance counting routines.
 
@@ -1118,7 +1122,7 @@ public:
         program PMUs: Intel(r) VTune(tm), Intel(r) Performance Tuning Utility (PTU). This code may make
         VTune or PTU measurements invalid. VTune or PTU measurement may make measurement with this code invalid. Please enable either usage of these routines or VTune/PTU/etc.
     */
-    ErrorCode program(const ProgramMode mode_ = DEFAULT_EVENTS, const void * parameter_ = NULL, const bool silent = false); // program counters and start counting
+    ErrorCode program(const ProgramMode mode_ = DEFAULT_EVENTS, const void * parameter_ = NULL, const bool silent = false, const int pid = -1); // program counters and start counting
 
     /*! \brief checks the error and suggests solution and/or exits the process
         \param code error code from the 'program' call
@@ -1183,7 +1187,7 @@ public:
         FrontendPos = 4
     };
     typedef std::map<std::string, RawPMUConfig> RawPMUConfigs;
-    ErrorCode program(const RawPMUConfigs& curPMUConfigs, const bool silent = false);
+    ErrorCode program(const RawPMUConfigs& curPMUConfigs, const bool silent = false, const int pid = -1);
 
     std::pair<unsigned, unsigned> getOCREventNr(const int event, const unsigned coreID) const
     {

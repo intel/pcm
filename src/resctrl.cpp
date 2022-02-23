@@ -123,7 +123,7 @@ namespace pcm
                 std::cerr << "Error reading " << f << ". Error: " << strerror(errno) << "\n";
                 if (errno == 24)
                 {
-                    std::cerr << "try executing 'ulimit -n 20000' to increase the limit on the number of open files.\n";
+                    std::cerr << PCM_ULIMIT_RECOMMENDATION;
                 }
             }
         }

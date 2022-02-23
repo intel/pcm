@@ -671,6 +671,14 @@ std::string safe_getenv(const char* env)
 }
 #endif
 
+void print_pid_collection_message(int pid)
+{
+    if (pid != -1)
+    {
+        std::cerr << "Collecting core metrics for process ID " << std::dec << pid << "\n";
+    }
+}
+
 void check_and_set_silent(int argc, char * argv[], null_stream &nullStream2) {
     if (argc > 1) do
     {

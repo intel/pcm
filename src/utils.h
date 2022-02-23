@@ -307,6 +307,11 @@ void parseParam(int argc, char* argv[], const char* param, F f)
         {
             argv++;
             argc--;
+            if (argc == 0)
+            {
+                std::cerr << "ERROR: no parameter provided for option " << param << "\n";
+                exit(EXIT_FAILURE);
+            }
             f(*argv);
             continue;
         }
@@ -490,5 +495,7 @@ inline HANDLE openMSRDriver()
 // called before everything else to read '-s' arg and
 // silence all following err output
 void check_and_set_silent(int argc, char * argv[], null_stream &nullStream2);
+
+void print_pid_collection_message(int pid);
 
 } // namespace pcm

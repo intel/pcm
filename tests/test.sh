@@ -22,6 +22,16 @@ if [ "$?" -ne "0" ]; then
    exit 1
 fi
 
+perl -e ' do {} until (0)' &
+test_pid="$!"
+./pcm -pid $test_pid -- sleep 1
+if [ "$?" -ne "0" ]; then
+   echo "Error in pcm"
+   kill $perl_pid
+   exit 1
+fi
+kill $test_pid
+
 ./pcm -r 0.1 -csv=pcm.csv -- sleep 5
 if [ "$?" -ne "0" ]; then
    echo "Error in pcm"

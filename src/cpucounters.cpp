@@ -66,6 +66,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <sys/time.h>
 #ifdef __linux__
 #include <sys/mman.h>
+#include <dirent.h>
 #endif
 #endif
 
@@ -426,6 +427,12 @@ bool PCM::isFixedCounterSupported(unsigned c)
 
 bool PCM::isHWTMAL1Supported() const
 {
+    #ifdef PCM_USE_PERF
+    if (perfEventTaskHandle.empty() == false)
+    {
+       return false; // per PID/task perf collection does not support HW TMA L1
+    }
+    #endif
     static int supported = -1;
     if (supported < 0)
     {
@@ -2144,8 +2151,7 @@ PCM::PCM() :
 
 #ifdef PCM_USE_PERF
     canUsePerf = true;
-    std::vector<int> dummy(PERF_MAX_COUNTERS, -1);
-    perfEventHandle.resize(num_cores, dummy);
+    perfEventHandle.resize(num_cores, std::vector<int>(PERF_MAX_COUNTERS, -1));
 #endif
 
     for (int32 i = 0; i < num_cores; ++i)
@@ -2390,7 +2396,7 @@ perf_event_attr PCM_init_perf_event_attr(bool group = true)
 }
 #endif
 
-PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter_, const bool silent)
+PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter_, const bool silent, const int pid)
 {
 #ifdef __linux__
     if (isNMIWatchdogEnabled(silent))
@@ -2442,7 +2448,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
             if (!silent) std::cerr << "Can not use Linux perf because OffcoreResponse usage is not supported. Falling-back to direct PMU programming.\n";
         }
     }
-    if (isHWTMAL1Supported() == true && perfSupportsTopDown() == false)
+    if (isHWTMAL1Supported() == true && perfSupportsTopDown() == false && pid == -1)
     {
         canUsePerf = false;
         if (!silent) std::cerr << "Installed Linux kernel perf does not support hardware top-down level-1 counters. Using direct PMU programming instead.\n";
@@ -2689,6 +2695,50 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
             << core_fixed_counter_num_max << " available\n";
         return PCM::UnknownError;
     }
+    if (pid != -1 && canUsePerf == false)
+    {
+        std::cerr << "PCM ERROR: pid monitoring is only supported with Linux perf_event driver\n";
+        return PCM::UnknownError;
+    }
+
+    std::vector<int> tids{};
+    #ifdef PCM_USE_PERF
+    if (pid != -1)
+    {
+        const auto strDir = std::string("/proc/") +  std::to_string(pid) + "/task/";
+        DIR * tidDir = opendir(strDir.c_str());
+        if (tidDir)
+        {
+            struct dirent * entry{nullptr};
+            while ((entry = readdir(tidDir)) != nullptr)
+            {
+                assert(entry->d_name);
+                const auto tid = atoi(entry->d_name);
+                if (tid)
+                {
+                    tids.push_back(tid);
+                    // std::cerr << "Detected task " << tids.back() << "\n";
+                }
+            }
+            closedir(tidDir);
+        }
+        else
+        {
+            std::cerr << "ERROR: Can't open " << strDir << "\n";
+            return PCM::UnknownError;
+        }
+    }
+    if (tids.empty() == false)
+    {
+        if (isHWTMAL1Supported())
+        {
+            if (!silent) std::cerr << "INFO: TMA L1 metrics are not supported in PID collection mode\n";
+        }
+        if (!silent) std::cerr << "INFO: collecting core metrics for " << tids.size() << " threads in process " << pid << "\n";
+        PerfEventHandleContainer _1(num_cores, std::vector<int>(PERF_MAX_COUNTERS, -1));
+        perfEventTaskHandle.resize(tids.size(), _1);
+    }
+    #endif
 
     programmed_pmu = true;
 
@@ -2703,11 +2753,11 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
     {
         if (isCoreOnline(i) == false) continue;
 
-        std::packaged_task<void()> task([this, i, mode_, pExtDesc, &programmingStatuses]() -> void
+        std::packaged_task<void()> task([this, i, mode_, pExtDesc, &programmingStatuses, &tids]() -> void
             {
                 TemporalThreadAffinity tempThreadAffinity(i, false); // speedup trick for Linux
 
-                programmingStatuses[i] = programCoreCounters(i, mode_, pExtDesc, lastProgrammedCustomCounters[i]);
+                programmingStatuses[i] = programCoreCounters(i, mode_, pExtDesc, lastProgrammedCustomCounters[i], tids);
             });
         asyncCoreResults.push_back(task.get_future());
         coreTaskQueues[i]->push(task);
@@ -2807,8 +2857,10 @@ std::mutex printErrorMutex;
 PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
     const PCM::ProgramMode mode_,
     const ExtendedCustomCoreEventDescription * pExtDesc,
-    std::vector<EventSelectRegister> & result)
+    std::vector<EventSelectRegister> & result,
+    const std::vector<int> & tids)
 {
+    (void) tids; // to silence uused param warning on non Linux OS
     // program core counters
 
     result.clear();
@@ -2840,27 +2892,57 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
     };
 #ifdef PCM_USE_PERF
     int leader_counter = -1;
-    auto programPerfEvent = [this, &leader_counter, &i](perf_event_attr & e, const int eventPos, const std::string & eventName) -> bool
+    auto programPerfEvent = [this, &leader_counter, &i, &tids](perf_event_attr e, const int eventPos, const std::string & eventName) -> bool
     {
-        // if (i == 0) std::cerr << "DEBUG: programming event "<< std::hex << e.config << std::dec << "\n";
-        if ((perfEventHandle[i][eventPos] = syscall(SYS_perf_event_open, &e, -1,
-            i /* core id */, leader_counter /* group leader */, 0)) <= 0)
+        auto programPerfEventHelper = [&i]( PerfEventHandleContainer & perfEventHandle,
+                                            perf_event_attr & e,
+                                            const int eventPos,
+                                            const std::string & eventName,
+                                            const int leader_counter,
+                                            const int tid) -> bool
         {
-            std::lock_guard<std::mutex> _(printErrorMutex);
-            std::cerr << "Linux Perf: Error when programming " << eventName << ", error: " << strerror(errno) <<
-               " with config 0x" << std::hex << e.config <<
-               " config1 0x" << e.config1 << std::dec << "\n";
-            if (24 == errno)
+            // if (i == 0) std::cerr << "DEBUG: programming event "<< std::hex << e.config << std::dec << "\n";
+            if ((perfEventHandle[i][eventPos] = syscall(SYS_perf_event_open, &e, tid,
+                i /* core id */, leader_counter /* group leader */, 0)) <= 0)
             {
-                std::cerr << "try executing 'ulimit -n 20000' to increase the limit on the number of open files.\n";
+                std::lock_guard<std::mutex> _(printErrorMutex);
+                std::cerr << "Linux Perf: Error when programming " << eventName << ", error: " << strerror(errno) <<
+                " with config 0x" << std::hex << e.config <<
+                " config1 0x" << e.config1 << std::dec << " for tid " << tid << " leader " << leader_counter << "\n";
+                if (24 == errno)
+                {
+                    std::cerr << PCM_ULIMIT_RECOMMENDATION;
+                }
+                else
+                {
+                    std::cerr << "try running with environment variable PCM_NO_PERF=1\n";
+                }
+                return false;
             }
-            else
+            return true;
+        };
+        if (tids.empty() == false)
+        {
+            e.inherit = 1;
+            e.exclude_kernel = 1;
+            e.exclude_hv = 1;
+            e.read_format = 0; // 'inherit' does not work for combinations of read format (e.g. PERF_FORMAT_GROUP)
+            auto handleIt = perfEventTaskHandle.begin();
+            for (const auto & tid: tids)
             {
-                std::cerr << "try running with environment variable PCM_NO_PERF=1\n";
+                if (handleIt == perfEventTaskHandle.end())
+                {
+                    break;
+                }
+                if (programPerfEventHelper(*handleIt, e, eventPos, eventName, -1, tid) == false)
+                {
+                    return false;
+                }
+                ++handleIt;
             }
-            return false;
+            return true;
         }
-        return true;
+        return programPerfEventHelper(perfEventHandle, e, eventPos, eventName, leader_counter, -1);
     };
     if (canUsePerf)
     {
@@ -3729,16 +3811,27 @@ void PCM::cleanupPMU(const bool silent)
 #ifdef PCM_USE_PERF
     if (canUsePerf)
     {
-      for (int i = 0; i < num_cores; ++i)
-        for(int c = 0; c < PERF_MAX_COUNTERS; ++c)
+        auto cleanOne = [this](PerfEventHandleContainer & cont)
         {
-            auto & h = perfEventHandle[i][c];
-            if (h != -1) ::close(h);
-            h = -1;
+            for (int i = 0; i < num_cores; ++i)
+            {
+                for(int c = 0; c < PERF_MAX_COUNTERS; ++c)
+                {
+                    auto & h = cont[i][c];
+                    if (h != -1) ::close(h);
+                    h = -1;
+                }
+            }
+        };
+        cleanOne(perfEventHandle);
+        for (auto & cont : perfEventTaskHandle)
+        {
+            cleanOne(cont);
         }
+        perfEventTaskHandle.clear();
 
-      if (!silent) std::cerr << " Closed perf event handles\n";
-      return;
+        if (!silent) std::cerr << " Closed perf event handles\n";
+        return;
     }
 #endif
 
@@ -4048,6 +4141,31 @@ CoreCounterState getCoreCounterState(uint32 core)
 #ifdef PCM_USE_PERF
 void PCM::readPerfData(uint32 core, std::vector<uint64> & outData)
 {
+    if (perfEventTaskHandle.empty() == false)
+    {
+        std::fill(outData.begin(), outData.end(), 0);
+        for (const auto & handleArray : perfEventTaskHandle)
+        {
+            for (size_t ctr = 0; ctr < PERF_MAX_COUNTERS; ++ctr)
+            {
+                const int fd = handleArray[core][ctr];
+                if (fd != -1)
+                {
+                    uint64 result{0ULL};
+                    const int status = ::read(fd, &result, sizeof(result));
+                    if (status != sizeof(result))
+                    {
+                        std::cerr << "PCM Error: failed to read from Linux perf handle " << fd <<  "\n";
+                    }
+                    else
+                    {
+                        outData[ctr] += result;
+                    }
+                }
+            }
+        }
+        return;
+    }
     auto readPerfDataHelper = [this](const uint32 core, std::vector<uint64>& outData, const uint32 leader, const uint32 num_counters)
     {
         if (perfEventHandle[core][leader] < 0)
@@ -4471,7 +4589,7 @@ void PCM::programPCU(uint32* PCUCntConf, const uint64 filter)
     }
 }
 
-PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool silent)
+PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool silent, const int pid)
 {
     if (MSR.empty())  return PCM::MSRAccessDenied;
     threadMSRConfig = RawPMUConfig{};
@@ -4526,7 +4644,7 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool sile
         }
         conf.defaultUncoreProgramming = false;
 
-        const auto status = program(PCM::EXT_CUSTOM_CORE_EVENTS, &conf, silent);
+        const auto status = program(PCM::EXT_CUSTOM_CORE_EVENTS, &conf, silent, pid);
         if (status != PCM::Success)
         {
             return status;
@@ -6323,7 +6441,7 @@ public:
         {
             std::cerr << "Linux Perf: Error on programming PMU " << pmuID << ":  " << strerror(errno) << "\n";
             std::cerr << "config: 0x" << std::hex << event.config << " config1: 0x" << event.config1 << " config2: 0x" << event.config2 << std::dec << "\n";
-            if (errno == 24) std::cerr << "try executing 'ulimit -n 20000' to increase the limit on the number of open files.\n";
+            if (errno == 24) std::cerr << PCM_ULIMIT_RECOMMENDATION;
             return;
         }
     }
@@ -7633,9 +7751,8 @@ void PCM::programCbo(const uint64 * events, const uint32 opCode, const uint32 nc
         uint32 refCore = socketRefCore[i];
         TemporalThreadAffinity tempThreadAffinity(refCore); // speedup trick for Linux
 
-        for(uint32 cbo = 0; cbo < getMaxNumOfCBoxes(); ++cbo)
+        for(uint32 cbo = 0; cbo < getMaxNumOfCBoxes() && cbo < cboPMUs[i].size(); ++cbo)
         {
-            assert(cbo < cboPMUs[i].size());
             cboPMUs[i][cbo].initFreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
 
             if (ICX != cpu_model && SNOWRIDGE != cpu_model)
@@ -7694,7 +7811,10 @@ void PCM::programUBOX(const uint64* events)
 
         *uboxPMUs[s].fixedCounterControl = UCLK_FIXED_CTL_EN;
 
-        PCM::program(uboxPMUs[s], events, events + 2, 0);
+        if (events)
+        {
+            PCM::program(uboxPMUs[s], events, events + 2, 0);
+        }
     }
 }
 
