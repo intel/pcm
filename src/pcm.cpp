@@ -1179,6 +1179,11 @@ int main(int argc, char * argv[])
     {
         argv++;
         argc--;
+        if (*argv == nullptr)
+        {
+            continue;
+        }
+        else
         if (strncmp(*argv, "--help", 6) == 0 ||
             strncmp(*argv, "-h", 2) == 0 ||
             strncmp(*argv, "/h", 2) == 0)

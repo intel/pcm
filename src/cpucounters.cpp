@@ -2930,6 +2930,10 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
             auto handleIt = perfEventTaskHandle.begin();
             for (const auto & tid: tids)
             {
+                if (handleIt == perfEventTaskHandle.end())
+                {
+                    break;
+                }
                 if (programPerfEventHelper(*handleIt, e, eventPos, eventName, -1, tid) == false)
                 {
                     return false;
@@ -7807,7 +7811,10 @@ void PCM::programUBOX(const uint64* events)
 
         *uboxPMUs[s].fixedCounterControl = UCLK_FIXED_CTL_EN;
 
-        PCM::program(uboxPMUs[s], events, events + 2, 0);
+        if (events)
+        {
+            PCM::program(uboxPMUs[s], events, events + 2, 0);
+        }
     }
 }
 
