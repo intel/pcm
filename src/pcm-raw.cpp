@@ -520,6 +520,20 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
     static size_t offcoreEventIndex = 0;
 
     const std::string path = std::string("PMURegisterDeclarations/") + PCM::getInstance()->getCPUFamilyModelString() + ".json";
+
+    std::ifstream in(path);
+    if (!in.is_open())
+    {
+        const auto alt_path = std::string("/usr/share/pcm/") + path;
+        in.open(alt_path);
+        if (!in.is_open())
+        {
+            const auto err_msg = std::string("event file ") + path + " or " + alt_path + " is not avaiable.";
+            throw std::invalid_argument(err_msg);
+        }
+    }
+    in.close();
+
     if (PMURegisterDeclarations.get() == nullptr)
     {
         // declaration not loaded yet

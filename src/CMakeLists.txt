@@ -147,6 +147,18 @@ if(UNIX) # APPLE, LINUX, FREE_BSD
     endforeach(opcode_file ${OPCODE_FILES})
 
     file(COPY "PMURegisterDeclarations" DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+    install(DIRECTORY "PMURegisterDeclarations" DESTINATION "share/pcm")
+
+    # Install docs
+    install(FILES ${CMAKE_SOURCE_DIR}/LICENSE DESTINATION "share/licenses/pcm/")
+    install(FILES ${CMAKE_SOURCE_DIR}/README.md DESTINATION "share/doc/pcm/")
+
+    file(GLOB DOC_FILES  ${CMAKE_SOURCE_DIR}/doc/*.txt  ${CMAKE_SOURCE_DIR}/doc/*.md)
+    foreach(doc_file ${DOC_FILES})
+        get_filename_component(doc_file_name ${doc_file} NAME)
+        configure_file(${doc_file} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${doc_file_name} COPYONLY)
+        install(FILES ${doc_file} DESTINATION "share/doc/pcm/")
+    endforeach(doc_file ${DOC_FILES})
 
 endif(UNIX)
 
