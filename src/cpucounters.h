@@ -568,7 +568,7 @@ class PCM_API PCM
     bool hybrid = false;
     int32 cpu_stepping;
     int64 cpu_microcode_level;
-    int32 max_cpuid;
+    uint32 max_cpuid;
     int32 threads_per_core;
     int32 num_cores;
     int32 num_sockets;
@@ -600,7 +600,6 @@ class PCM_API PCM
     std::string errorMessage;
 
     static PCM * instance;
-    bool allow_multiple_instances;
     bool programmed_pmu;
     std::vector<std::shared_ptr<SafeMsrHandle> > MSR;
     std::vector<std::shared_ptr<ServerPCICFGUncore> > server_pcicfg_uncore;
@@ -675,8 +674,8 @@ public:
         return (pkgCStateMsr != NULL && state <= ((int)MAX_C_STATE) && pkgCStateMsr[state] != 0);
     }
 
-    //! \brief Redirects output destination to provided file, instead of std::cout
-    void setOutput(const std::string filename);
+    //! \brief Redirects output destination to provided file, instead of std::cout and std::cerr (optional)
+    static void setOutput(const std::string filename, const bool cerrToo = false);
 
     //! \brief Restores output, closes output file if opened
     void restoreOutput();
@@ -695,12 +694,6 @@ public:
 
     bool isBlocked(void) { return blocked; }
     void setBlocked(const bool new_blocked) { blocked = new_blocked; }
-
-    //! \brief Call it before program() to allow multiple running instances of PCM on the same system
-    void allowMultipleInstances()
-    {
-        allow_multiple_instances = true;
-    }
 
     //! Mode of programming (parameter in the program() method)
     enum ProgramMode {
@@ -846,23 +839,29 @@ public:
         int divider[4]; //We usually like to have some kind of divider (i.e. /10e6 )
     };
 
+    enum MSREventPosition
+    {
+        index = 0,
+        type = 1
+    };
+    enum MSRType
+    {
+        Static = 0,
+        Freerun = 1
+    };
+
 private:
     ProgramMode mode;
     CustomCoreEventDescription coreEventDesc[PERF_MAX_CUSTOM_COUNTERS];
     CustomCoreEventDescription hybridAtomEventDesc[PERF_MAX_CUSTOM_COUNTERS];
 
-#ifdef _MSC_VER
-    HANDLE numInstancesSemaphore;     // global semaphore that counts the number of PCM instances on the system
-#else
-    // global semaphore that counts the number of PCM instances on the system
-    sem_t * numInstancesSemaphore;
-#endif
-
     std::vector<int32> socketRefCore;
 
     bool canUsePerf;
 #ifdef PCM_USE_PERF
-    std::vector<std::vector<int> > perfEventHandle;
+    typedef std::vector<std::vector<int> > PerfEventHandleContainer;
+    PerfEventHandleContainer perfEventHandle;
+    std::vector<PerfEventHandleContainer> perfEventTaskHandle;
     void readPerfData(uint32 core, std::vector<uint64> & data);
 
     enum {
@@ -887,8 +886,9 @@ private:
         PERF_TOPDOWN_GROUP_LEADER_COUNTER = PERF_TOPDOWN_SLOTS_POS
     };
 #endif
-    std::ofstream * outfile;       // output file stream
-    std::streambuf * backup_ofile; // backup of original output = cout
+    static std::ofstream * outfile;       // output file stream
+    static std::streambuf * backup_ofile; // backup of original output = cout
+    static std::streambuf * backup_ofile_cerr; // backup of original output = cerr
     int run_state;                 // either running (1) or sleeping (0)
 
     bool needToRestoreNMIWatchdog;
@@ -896,20 +896,11 @@ private:
     std::vector<std::vector<EventSelectRegister> > lastProgrammedCustomCounters;
     uint32 checkCustomCoreProgramming(std::shared_ptr<SafeMsrHandle> msr);
     ErrorCode programCoreCounters(int core, const PCM::ProgramMode mode, const ExtendedCustomCoreEventDescription * pExtDesc,
-        std::vector<EventSelectRegister> & programmedCustomCounters);
+        std::vector<EventSelectRegister> & programmedCustomCounters, const std::vector<int> & tids);
 
     bool PMUinUse();
     void cleanupPMU(const bool silent = false);
     void cleanupRDT(const bool silent = false);
-    bool decrementInstanceSemaphore(); // returns true if it was the last instance
-
-#ifdef __APPLE__
-    // OSX does not have sem_getvalue, so we must get the number of instances by a different method
-    uint32 getNumInstances();
-    uint32 decrementNumInstances();
-    uint32 incrementNumInstances();
-#endif
-
 
     void computeQPISpeedBeckton(int core_nr);
     void destroyMSR();
@@ -955,6 +946,11 @@ private:
     void readPackageThermalHeadroom(const uint32 socket, CounterStateType & counterState);
     template <class CounterStateType>
     void readAndAggregatePackageCStateResidencies(std::shared_ptr<SafeMsrHandle> msr, CounterStateType & result);
+public:
+    struct RawPMUConfig;
+private:
+    template <class CounterStateType>
+    void readMSRs(std::shared_ptr<SafeMsrHandle> msr, const RawPMUConfig & msrConfig, CounterStateType & result);
     void readQPICounters(SystemCounterState & counterState);
     void reportQPISpeed() const;
     void readCoreCounterConfig(const bool complainAboutMSR = false);
@@ -1039,6 +1035,9 @@ public:
         return *systemTopology;
     }
 
+    //! prints detailed system topology
+    void printDetailedSystemTopology();
+
     /*!
              \brief checks if QOS monitoring support present
 
@@ -1113,6 +1112,8 @@ public:
     /*! \brief Programs performance counters
         \param mode_ mode of programming, see ProgramMode definition
         \param parameter_ optional parameter for some of programming modes
+        \param silent set to true to silence diagnostic messages
+        \param pid restrict core metrics only to specified pid (process id)
 
                 Call this method before you start using the performance counting routines.
 
@@ -1121,7 +1122,7 @@ public:
         program PMUs: Intel(r) VTune(tm), Intel(r) Performance Tuning Utility (PTU). This code may make
         VTune or PTU measurements invalid. VTune or PTU measurement may make measurement with this code invalid. Please enable either usage of these routines or VTune/PTU/etc.
     */
-    ErrorCode program(const ProgramMode mode_ = DEFAULT_EVENTS, const void * parameter_ = NULL, const bool silent = false); // program counters and start counting
+    ErrorCode program(const ProgramMode mode_ = DEFAULT_EVENTS, const void * parameter_ = NULL, const bool silent = false, const int pid = -1); // program counters and start counting
 
     /*! \brief checks the error and suggests solution and/or exits the process
         \param code error code from the 'program' call
@@ -1186,7 +1187,7 @@ public:
         FrontendPos = 4
     };
     typedef std::map<std::string, RawPMUConfig> RawPMUConfigs;
-    ErrorCode program(const RawPMUConfigs& curPMUConfigs, const bool silent = false);
+    ErrorCode program(const RawPMUConfigs& curPMUConfigs, const bool silent = false, const int pid = -1);
 
     std::pair<unsigned, unsigned> getOCREventNr(const int event, const unsigned coreID) const
     {
@@ -1428,6 +1429,7 @@ private:
         }
         return false;
     }
+    RawPMUConfig threadMSRConfig{}, packageMSRConfig{};
 public:
 
     //! \brief Reads CPU model id
@@ -1678,11 +1680,7 @@ public:
     //! \return time counter value
     uint64 getTickCount(uint64 multiplier = 1000 /* ms */, uint32 core = 0);
 
-    //! \brief Return TSC timer value in time units using rdtscp instruction from current core
-    //! \param multiplier use 1 for seconds, 1000 for ms, 1000000 for mks, etc (default is 1000: ms)
-    //! \warning Processor support is required  bit 27 of cpuid EDX must be set, for Windows, Visual Studio 2010 is required
-    //! \return time counter value
-    uint64 getTickCountRDTSCP(uint64 multiplier = 1000 /* ms */);
+    uint64 getInvariantTSC_Fast(uint32 core = 0);
 
     //! \brief Returns uncore clock ticks on specified socket
     uint64 getUncoreClocks(const uint32 socket_);
@@ -2084,6 +2082,7 @@ public:
 
     bool supportsHLE() const;
     bool supportsRTM() const;
+    bool supportsRDTSCP() const;
 
     bool useSkylakeEvents() const
     {
@@ -2265,11 +2264,12 @@ class BasicCounterState
     friend double getBadSpeculation(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
     friend double getRetiring(const CounterStateType & before, const CounterStateType & after);
-
+    template <class CounterStateType>
+    friend uint64 getMSREvent(const uint64 & index, const PCM::MSRType & type, const CounterStateType& before, const CounterStateType& after);
 protected:
-    checked_uint64 InstRetiredAny;
-    checked_uint64 CpuClkUnhaltedThread;
-    checked_uint64 CpuClkUnhaltedRef;
+    checked_uint64 InstRetiredAny{};
+    checked_uint64 CpuClkUnhaltedThread{};
+    checked_uint64 CpuClkUnhaltedRef{};
     checked_uint64 Event[PERF_MAX_CUSTOM_COUNTERS];
     enum
     {
@@ -2290,6 +2290,7 @@ protected:
     uint64 MemoryBWTotal;
     uint64 SMICount;
     uint64 FrontendBoundSlots, BadSpeculationSlots, BackendBoundSlots, RetiringSlots, AllSlotsRaw;
+    std::unordered_map<uint64, uint64> MSRValues;
 
 public:
     BasicCounterState() :
@@ -4054,6 +4055,34 @@ inline double getRetiring(const CounterStateType & before, const CounterStateTyp
     if (PCM::getInstance()->isHWTMAL1Supported())
         return double(after.RetiringSlots - before.RetiringSlots)/double(getAllSlots(before, after));
     return 0.;
+}
+
+template <class CounterStateType>
+uint64 getMSREvent(const uint64& index, const PCM::MSRType& type, const CounterStateType& before, const CounterStateType& after)
+{
+    switch (type)
+    {
+    case PCM::MSRType::Freerun:
+        {
+            const auto beforeIt = before.MSRValues.find(index);
+            const auto afterIt = after.MSRValues.find(index);
+            if (beforeIt != before.MSRValues.end() && afterIt != after.MSRValues.end())
+            {
+                return afterIt->second - beforeIt->second;
+            }
+            break;
+        }
+    case PCM::MSRType::Static:
+        {
+            const auto result = after.MSRValues.find(index);
+            if (result != after.MSRValues.end())
+            {
+                return result->second;
+            }
+            break;
+        }
+    }
+    return 0ULL;
 }
 
 } // namespace pcm

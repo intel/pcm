@@ -395,6 +395,48 @@ void restore_signal_handlers(void)
     return;
 }
 
+void set_real_time_priority(const bool & silent)
+{
+    if (!silent)
+    {
+        std::cerr << "Setting real time priority for the process\n";
+    }
+#ifdef _MSC_VER
+    if (!SetPriorityClass(GetCurrentProcess(), REALTIME_PRIORITY_CLASS))
+    {
+        std::cerr << "ERROR: SetPriorityClass with REALTIME_PRIORITY_CLASS failed with error " << GetLastError() << "\n";
+    }
+    if (!SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL))
+    {
+        std::cerr << "ERROR: SetThreadPriority with THREAD_PRIORITY_TIME_CRITICAL failed with error " << GetLastError() << "\n";
+    }
+#elif __linux__
+    const auto priority = sched_get_priority_max(SCHED_RR);
+    if (priority == -1)
+    {
+        std::cerr << "ERROR: Could not get SCHED_RR max priority: " << strerror(errno) << "\n";
+    }
+    else
+    {
+        struct sched_param sp = { .sched_priority = priority };
+        if (sched_setscheduler(0, SCHED_RR, &sp) == -1)
+        {
+            const auto errnosave = errno;
+            std::cerr << "ERROR: Could not set scheduler to realtime! Errno: " << errnosave << " Error message: \"" << strerror(errnosave) << "\"\n";
+        }
+        else
+        {
+            if (!silent)
+            {
+                std::cerr << "Scheduler changed to SCHED_RR and priority to " << priority << "\n";
+            }
+        }
+    }
+#else
+    std::cerr << "Setting real time priority for the process not implemented on your OS.\n";
+#endif
+}
+
 void set_post_cleanup_callback(void(*cb)(void))
 {
     post_cleanup_callback = cb;
@@ -628,6 +670,14 @@ std::string safe_getenv(const char* env)
     return getenvResult ? std::string(getenvResult) : std::string("");
 }
 #endif
+
+void print_pid_collection_message(int pid)
+{
+    if (pid != -1)
+    {
+        std::cerr << "Collecting core metrics for process ID " << std::dec << pid << "\n";
+    }
+}
 
 void check_and_set_silent(int argc, char * argv[], null_stream &nullStream2) {
     if (argc > 1) do

@@ -2903,7 +2903,7 @@ enum MimeType matchSupportedWithAcceptedMimeTypes( HTTPHeader const& h ) {
         // remove all whitespace from the item
         copy.erase( std::remove_if( copy.begin(), copy.end(), isspace ), copy.end() );
         // compare mimetype with supported ones
-        for ( auto mimetype : supportedOutputMimeTypes ) {
+        for ( auto& mimetype : supportedOutputMimeTypes ) {
             auto str = mimetype.second;
             str.erase( std::remove_if( str.begin(), str.end(), isspace ), str.end() );
             DBG( 2, "Comparing mimetype '", copy, "' with known Mimetype '", str, "'" );

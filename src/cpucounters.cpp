@@ -59,11 +59,14 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <pthread.h>
 #if defined(__FreeBSD__) || (defined(__DragonFly__) && __DragonFly_version >= 400707)
 #include <pthread_np.h>
+#include <sys/_cpuset.h>
+#include <sys/cpuset.h>
 #endif
 #include <errno.h>
 #include <sys/time.h>
 #ifdef __linux__
 #include <sys/mman.h>
+#include <dirent.h>
 #endif
 #endif
 
@@ -92,15 +95,6 @@ namespace pcm {
 int convertUnknownToInt(size_t size, char* value);
 #endif
 
-// FreeBSD is much more restrictive about names for semaphores
-#if defined (__FreeBSD__)
-#define PCM_INSTANCE_LOCK_SEMAPHORE_NAME "/PCM_inst_lock"
-#define PCM_NUM_INSTANCES_SEMAPHORE_NAME "/num_PCM_inst"
-#else
-#define PCM_INSTANCE_LOCK_SEMAPHORE_NAME "PCM inst lock"
-#define PCM_NUM_INSTANCES_SEMAPHORE_NAME "Num PCM insts"
-#endif
-
 #ifdef _MSC_VER
 
 HMODULE hOpenLibSys = NULL;
@@ -127,85 +121,8 @@ bool PCM::initWinRing0Lib()
 }
 #endif // NO_WINRING
 
-class InstanceLock
-{
-    HANDLE Mutex;
+#endif
 
-    InstanceLock();
-public:
-    InstanceLock(const bool global)
-    {
-        Mutex = CreateMutex(NULL, FALSE,
-            global?(L"Global\\Processor Counter Monitor instance create/destroy lock"):(L"Local\\Processor Counter Monitor instance create/destroy lock"));
-        // lock
-        WaitForSingleObject(Mutex, INFINITE);
-    }
-    ~InstanceLock()
-    {
-        // unlock
-        ReleaseMutex(Mutex);
-        CloseHandle(Mutex);
-    }
-};
-#else // Linux or Apple
-
-pthread_mutex_t processIntanceMutex = PTHREAD_MUTEX_INITIALIZER;
-
-class InstanceLock
-{
-    const char * globalSemaphoreName;
-    sem_t * globalSemaphore;
-    bool global;
-
-    InstanceLock();
-public:
-    InstanceLock(const bool global_) : globalSemaphoreName(PCM_INSTANCE_LOCK_SEMAPHORE_NAME), globalSemaphore(NULL), global(global_)
-    {
-        if (!global)
-        {
-            if (pthread_mutex_lock(&processIntanceMutex) != 0) std::cerr << "pthread_mutex_lock failed\n";
-            return;
-        }
-        umask(0);
-        while (1)
-        {
-            //sem_unlink(globalSemaphoreName); // temporary
-            globalSemaphore = sem_open(globalSemaphoreName, O_CREAT, S_IRWXU | S_IRWXG | S_IRWXO, 1);
-            if (SEM_FAILED == globalSemaphore)
-            {
-              if (EACCES == errno)
-                {
-                    std::cerr << "PCM Error, do not have permissions to open semaphores in /dev/shm/. Waiting one second and retrying...\n";
-                    sleep(1);
-                }
-            }
-            else
-            {
-                /*
-                if (sem_post(globalSemaphore)) {
-                    perror("sem_post error");
-                }
-                */
-                break;         // success
-            }
-        }
-        if (sem_wait(globalSemaphore)) {
-            perror("sem_wait error");
-        }
-    }
-    ~InstanceLock()
-    {
-        if (!global)
-        {
-            if (pthread_mutex_unlock(&processIntanceMutex) != 0) std::cerr << "pthread_mutex_unlock failed\n";
-            return;
-        }
-        if (sem_post(globalSemaphore)) {
-            perror("sem_post error");
-        }
-    }
-};
-#endif // end of _MSC_VER else
 
 #if defined(__FreeBSD__)
 #define cpu_set_t cpuset_t
@@ -232,12 +149,11 @@ public:
         cpu_set_t new_affinity;
         CPU_ZERO(&new_affinity);
         CPU_SET(core_id, &new_affinity);
-/* TODO: use CPU_CMP
-	if (CPU_EQUAL(&old_affinity, &new_affinity))
+        // CPU_CMP() returns true if old_affinity is NOT equal to new_affinity
+        if (!(CPU_CMP(&old_affinity, &new_affinity)))
         {
-            return;
+            return; // the same affinity => return
         }
-*/
         res = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &new_affinity);
         if (res != 0 && checkStatus)
         {
@@ -325,12 +241,16 @@ static int bitCount(uint64 n)
 }
 */
 
+std::mutex instanceCreationMutex;
+
 PCM * PCM::getInstance()
 {
-    // no lock here
+    // lock-free read
+    // cppcheck-suppress identicalConditionAfterEarlyExit
     if (instance) return instance;
 
-    InstanceLock lock(false);
+    std::unique_lock<std::mutex> _(instanceCreationMutex);
+    // cppcheck-suppress identicalConditionAfterEarlyExit
     if (instance) return instance;
 
     return instance = new PCM();
@@ -507,6 +427,12 @@ bool PCM::isFixedCounterSupported(unsigned c)
 
 bool PCM::isHWTMAL1Supported() const
 {
+    #ifdef PCM_USE_PERF
+    if (perfEventTaskHandle.empty() == false)
+    {
+       return false; // per PID/task perf collection does not support HW TMA L1
+    }
+    #endif
     static int supported = -1;
     if (supported < 0)
     {
@@ -608,6 +534,8 @@ bool PCM::detectModel()
 
     pcm_cpuid(7, 0, cpuinfo);
 
+    std::cerr << "\n=====  Processor information  =====\n";
+
 #ifdef __linux__
     auto checkLinuxCpuinfoFlag = [](const std::string& flag) -> bool
     {
@@ -656,6 +584,7 @@ bool PCM::detectModel()
     std::cerr << "IBRS and IBPB supported  : " << ((cpuinfo.reg.edx & (1 << 26)) ? "yes" : "no") << "\n";
     std::cerr << "STIBP supported          : " << ((cpuinfo.reg.edx & (1 << 27)) ? "yes" : "no") << "\n";
     std::cerr << "Spec arch caps supported : " << ((cpuinfo.reg.edx & (1 << 29)) ? "yes" : "no") << "\n";
+    std::cerr << "Max CPUID level          : " << max_cpuid << "\n";
 
     return true;
 }
@@ -1359,69 +1288,6 @@ bool PCM::discoverSystemTopology()
 
 #endif //end of ifdef _MSC_VER
 
-    // produce debug output similar to Intel MPI cpuinfo
-#ifndef PCM_DEBUG_TOPOLOGY
-    if (safe_getenv("PCM_PRINT_TOPOLOGY") == "1")
-#endif
-    {
-        std::cerr << "=====  Processor identification  =====\n";
-        std::cerr << "Processor       Thread Id.      Core Id.        Tile Id.        Package Id.     Core Type.  Native CPU Model.\n";
-        std::map<uint32, std::vector<uint32> > os_id_by_core, os_id_by_tile, core_id_by_socket;
-        for (auto it = topology.begin(); it != topology.end(); ++it)
-        {
-            std::cerr << std::left << std::setfill(' ')
-                << std::setw(16) << it->os_id
-                << std::setw(16) << it->thread_id
-                << std::setw(16) << it->core_id
-                << std::setw(16) << it->tile_id
-                << std::setw(16) << it->socket
-                << std::setw(16) << it->getCoreTypeStr()
-                << std::setw(16) << it->native_cpu_model
-                << "\n";
-            if (std::find(core_id_by_socket[it->socket].begin(), core_id_by_socket[it->socket].end(), it->core_id)
-                == core_id_by_socket[it->socket].end())
-                core_id_by_socket[it->socket].push_back(it->core_id);
-            // add socket offset to distinguish cores and tiles from different sockets
-            os_id_by_core[(it->socket << 15) + it->core_id].push_back(it->os_id);
-            os_id_by_tile[(it->socket << 15) + it->tile_id].push_back(it->os_id);
-        }
-        std::cerr << "=====  Placement on packages  =====\n";
-        std::cerr << "Package Id.    Core Id.     Processors\n";
-        for (auto pkg = core_id_by_socket.begin(); pkg != core_id_by_socket.end(); ++pkg)
-        {
-            auto core_id = pkg->second.begin();
-            std::cerr << std::left << std::setfill(' ') << std::setw(15) << pkg->first << *core_id;
-            for (++core_id; core_id != pkg->second.end(); ++core_id)
-            {
-                std::cerr << "," << *core_id;
-            }
-            std::cerr << "\n";
-        }
-        std::cerr << "\n=====  Core/Tile sharing  =====\n";
-        std::cerr << "Level      Processors\nCore       ";
-        for (auto core = os_id_by_core.begin(); core != os_id_by_core.end(); ++core)
-        {
-            auto os_id = core->second.begin();
-            std::cerr << "(" << *os_id;
-            for (++os_id; os_id != core->second.end(); ++os_id) {
-                std::cerr << "," << *os_id;
-            }
-            std::cerr << ")";
-        }
-        std::cerr << "\nTile / L2$ ";
-        for (auto core = os_id_by_tile.begin(); core != os_id_by_tile.end(); ++core)
-        {
-            auto os_id = core->second.begin();
-            std::cerr << "(" << *os_id;
-            for (++os_id; os_id != core->second.end(); ++os_id) {
-                std::cerr << "," << *os_id;
-            }
-            std::cerr << ")";
-        }
-        std::cerr << "\n";
-        std::cerr << "\n";
-    }
-
     if(num_cores == 0) {
         num_cores = (int32)topology.size();
     }
@@ -1444,7 +1310,7 @@ bool PCM::discoverSystemTopology()
     }
 
     // All threads are here now so we can set the refCore for a socket
-    for ( auto socket : systemTopology->sockets() )
+    for ( auto& socket : systemTopology->sockets() )
         socket->setRefCore();
 
     // use map to change apic socket id to the logical socket id
@@ -1596,9 +1462,17 @@ bool PCM::detectNominalFrequency()
 {
     if (MSR.size())
     {
-        uint64 freq = 0;
-        MSR[socketRefCore[0]]->read(PLATFORM_INFO_ADDR, &freq);
-        const uint64 bus_freq = (
+        if (max_cpuid >= 0x16)
+        {
+            PCM_CPUID_INFO cpuinfo;
+            pcm_cpuid(0x16, cpuinfo);
+            nominal_frequency = uint64(extract_bits_ui(cpuinfo.reg.eax, 0, 15)) * 1000000ULL;;
+        }
+        if (!nominal_frequency)
+        {
+            uint64 freq = 0;
+            MSR[socketRefCore[0]]->read(PLATFORM_INFO_ADDR, &freq);
+            const uint64 bus_freq = (
                   cpu_model == SANDY_BRIDGE
                || cpu_model == JAKETOWN
                || cpu_model == IVYTOWN
@@ -1619,10 +1493,16 @@ bool PCM::detectNominalFrequency()
                || cpu_model == ICX
                ) ? (100000000ULL) : (133333333ULL);
 
-        nominal_frequency = ((freq >> 8) & 255) * bus_freq;
+            nominal_frequency = ((freq >> 8) & 255) * bus_freq;
+        }
 
         if(!nominal_frequency)
             nominal_frequency = get_frequency_from_cpuid();
+
+        if(!nominal_frequency)
+        {
+            computeNominalFrequency();
+        }
 
         if(!nominal_frequency)
         {
@@ -2157,12 +2037,16 @@ public:
     }
 };
 
+std::ofstream* PCM::outfile = nullptr;       // output file stream
+std::streambuf* PCM::backup_ofile = nullptr; // backup of original output = cout
+std::streambuf* PCM::backup_ofile_cerr = nullptr; // backup of original output = cerr
+
 PCM::PCM() :
     cpu_family(-1),
     cpu_model(-1),
     cpu_stepping(-1),
     cpu_microcode_level(-1),
-    max_cpuid(-1),
+    max_cpuid(0),
     threads_per_core(0),
     num_cores(0),
     num_sockets(0),
@@ -2190,7 +2074,6 @@ PCM::PCM() :
     pkgMinimumPower(-1),
     pkgMaximumPower(-1),
     systemTopology(new SystemRoot(this)),
-    allow_multiple_instances(false),
     programmed_pmu(false),
     joulesPerEnergyUnit(0),
 #ifdef __linux__
@@ -2211,10 +2094,7 @@ PCM::PCM() :
     L3CacheHitsAvailable(false),
     forceRTMAbortMode(false),
     mode(INVALID_MODE),
-    numInstancesSemaphore(NULL),
     canUsePerf(false),
-    outfile(NULL),
-    backup_ofile(NULL),
     run_state(1),
     needToRestoreNMIWatchdog(false)
 {
@@ -2250,7 +2130,18 @@ PCM::PCM() :
 
     showSpecControlMSRs();
 
+#ifndef PCM_DEBUG_TOPOLOGY
+    if (safe_getenv("PCM_PRINT_TOPOLOGY") == "1")
+#endif
+    {
+        printDetailedSystemTopology();
+    }
+
     initEnergyMonitoring();
+
+#ifndef PCM_SILENT
+    std::cerr << "\n";
+#endif
 
     initUncoreObjects();
 
@@ -2260,13 +2151,80 @@ PCM::PCM() :
 
 #ifdef PCM_USE_PERF
     canUsePerf = true;
-    std::vector<int> dummy(PERF_MAX_COUNTERS, -1);
-    perfEventHandle.resize(num_cores, dummy);
+    perfEventHandle.resize(num_cores, std::vector<int>(PERF_MAX_COUNTERS, -1));
 #endif
 
     for (int32 i = 0; i < num_cores; ++i)
     {
         coreTaskQueues.push_back(std::make_shared<CoreTaskQueue>(i));
+    }
+
+#ifndef PCM_SILENT
+    std::cerr << "\n";
+#endif
+}
+
+void PCM::printDetailedSystemTopology()
+{
+    // produce debug output similar to Intel MPI cpuinfo
+    if (true)
+    {
+        std::cerr << "\n=====  Processor topology  =====\n";
+        std::cerr << "OS_Processor    Thread_Id       Core_Id         Tile_Id         Package_Id      Core_Type   Native_CPU_Model\n";
+        std::map<uint32, std::vector<uint32> > os_id_by_core, os_id_by_tile, core_id_by_socket;
+        for (auto it = topology.begin(); it != topology.end(); ++it)
+        {
+            std::cerr << std::left << std::setfill(' ')
+                << std::setw(16) << it->os_id
+                << std::setw(16) << it->thread_id
+                << std::setw(16) << it->core_id
+                << std::setw(16) << it->tile_id
+                << std::setw(16) << it->socket
+                << std::setw(16) << it->getCoreTypeStr()
+                << std::setw(16) << it->native_cpu_model
+                << "\n";
+            if (std::find(core_id_by_socket[it->socket].begin(), core_id_by_socket[it->socket].end(), it->core_id)
+                == core_id_by_socket[it->socket].end())
+                core_id_by_socket[it->socket].push_back(it->core_id);
+            // add socket offset to distinguish cores and tiles from different sockets
+            os_id_by_core[(it->socket << 15) + it->core_id].push_back(it->os_id);
+            os_id_by_tile[(it->socket << 15) + it->tile_id].push_back(it->os_id);
+        }
+        std::cerr << "=====  Placement on packages  =====\n";
+        std::cerr << "Package Id.    Core Id.     Processors\n";
+        for (auto pkg = core_id_by_socket.begin(); pkg != core_id_by_socket.end(); ++pkg)
+        {
+            auto core_id = pkg->second.begin();
+            std::cerr << std::left << std::setfill(' ') << std::setw(15) << pkg->first << *core_id;
+            for (++core_id; core_id != pkg->second.end(); ++core_id)
+            {
+                std::cerr << "," << *core_id;
+            }
+            std::cerr << "\n";
+        }
+        std::cerr << "\n=====  Core/Tile sharing  =====\n";
+        std::cerr << "Level      Processors\nCore       ";
+        for (auto core = os_id_by_core.begin(); core != os_id_by_core.end(); ++core)
+        {
+            auto os_id = core->second.begin();
+            std::cerr << "(" << *os_id;
+            for (++os_id; os_id != core->second.end(); ++os_id) {
+                std::cerr << "," << *os_id;
+            }
+            std::cerr << ")";
+        }
+        std::cerr << "\nTile / L2$ ";
+        for (auto core = os_id_by_tile.begin(); core != os_id_by_tile.end(); ++core)
+        {
+            auto os_id = core->second.begin();
+            std::cerr << "(" << *os_id;
+            for (++os_id; os_id != core->second.end(); ++os_id) {
+                std::cerr << "," << *os_id;
+            }
+            std::cerr << ")";
+        }
+        std::cerr << "\n";
+        std::cerr << "\n";
     }
 }
 
@@ -2393,7 +2351,6 @@ void PCM::destroyMSR()
 
 PCM::~PCM()
 {
-    InstanceLock lock(allow_multiple_instances);
     if (instance)
     {
         destroyMSR();
@@ -2439,7 +2396,7 @@ perf_event_attr PCM_init_perf_event_attr(bool group = true)
 }
 #endif
 
-PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter_, const bool silent)
+PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter_, const bool silent, const int pid)
 {
 #ifdef __linux__
     if (isNMIWatchdogEnabled(silent))
@@ -2449,13 +2406,6 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
     }
 #endif
 
-    if(allow_multiple_instances && (EXT_CUSTOM_CORE_EVENTS == mode_ || CUSTOM_CORE_EVENTS == mode_))
-    {
-        allow_multiple_instances = false;
-        std::cerr << "Warning: multiple PCM instance mode is not allowed with custom events.\n";
-    }
-
-    InstanceLock lock(allow_multiple_instances);
     if (MSR.empty()) return PCM::MSRAccessDenied;
 
     ExtendedCustomCoreEventDescription * pExtDesc = (ExtendedCustomCoreEventDescription *)parameter_;
@@ -2480,12 +2430,12 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
         canUsePerf = false;
         if (!silent) std::cerr << "Can not use Linux perf because your Linux kernel does not support PERF_COUNT_HW_REF_CPU_CYCLES event. Falling-back to direct PMU programming.\n";
     }
-    else if(EXT_CUSTOM_CORE_EVENTS == mode_ && pExtDesc && pExtDesc->fixedCfg && pExtDesc->fixedCfg->value != 0x333)
+    else if(EXT_CUSTOM_CORE_EVENTS == mode_ && pExtDesc && pExtDesc->fixedCfg && (pExtDesc->fixedCfg->value & 0x444))
     {
         canUsePerf = false;
         if (!silent)
         {
-             std::cerr << "Can not use Linux perf because non-standard fixed counter configuration requested (0x" << std::hex << pExtDesc->fixedCfg->value
+             std::cerr << "Can not use Linux perf because \"any_thread\" fixed counter configuration requested (0x" << std::hex << pExtDesc->fixedCfg->value
                        << std::dec << ") =\n" << *(pExtDesc->fixedCfg) << "\nFalling-back to direct PMU programming.\n\n";
         }
     }
@@ -2498,109 +2448,20 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
             if (!silent) std::cerr << "Can not use Linux perf because OffcoreResponse usage is not supported. Falling-back to direct PMU programming.\n";
         }
     }
-    if (isHWTMAL1Supported() == true && perfSupportsTopDown() == false)
+    if (isHWTMAL1Supported() == true && perfSupportsTopDown() == false && pid == -1)
     {
         canUsePerf = false;
         if (!silent) std::cerr << "Installed Linux kernel perf does not support hardware top-down level-1 counters. Using direct PMU programming instead.\n";
     }
+
+    if (canUsePerf == false && noMSRMode())
+    {
+        std::cerr << "ERROR: can not use perf driver and no-MSR mode is enabled\n" ;
+        return PCM::UnknownError;
+    }
 #endif
 
-    if(allow_multiple_instances)
-    {
-        //std::cerr << "Checking for other instances of PCM...\n";
-#ifdef _MSC_VER
-
-        numInstancesSemaphore = CreateSemaphore(NULL, 0, 1 << 20, L"Global\\Number of running Processor Counter Monitor instances");
-        if (!numInstancesSemaphore)
-        {
-            _com_error error(GetLastError());
-            std::wcerr << "Error in Windows function 'CreateSemaphore': " << GetLastError() << " ";
-            const TCHAR * strError = _com_error(GetLastError()).ErrorMessage();
-            if (strError) std::wcerr << strError;
-            std::wcerr << "\n";
-            return PCM::UnknownError;
-        }
-        LONG prevValue = 0;
-        if (!ReleaseSemaphore(numInstancesSemaphore, 1, &prevValue))
-        {
-            _com_error error(GetLastError());
-            std::wcerr << "Error in Windows function 'ReleaseSemaphore': " << GetLastError() << " ";
-            const TCHAR * strError = _com_error(GetLastError()).ErrorMessage();
-            if (strError) std::wcerr << strError;
-            std::wcerr << "\n";
-            return PCM::UnknownError;
-        }
-        if (prevValue > 0)  // already programmed since another instance exists
-        {
-            if (!silent) std::cerr << "Number of PCM instances: " << (prevValue + 1) << "\n";
-            if (hasPCICFGUncore() && max_qpi_speed==0)
-            for (size_t i = 0; i < (size_t)server_pcicfg_uncore.size(); ++i)
-                if (server_pcicfg_uncore[i].get())
-                    max_qpi_speed = (std::max)(server_pcicfg_uncore[i]->computeQPISpeed(socketRefCore[i], cpu_model), max_qpi_speed); // parenthesis to avoid macro expansion on Windows
-
-            reportQPISpeed();
-            return PCM::Success;
-        }
-
-    #else // if linux, apple, freebsd or dragonflybsd
-        numInstancesSemaphore = sem_open(PCM_NUM_INSTANCES_SEMAPHORE_NAME, O_CREAT, S_IRWXU | S_IRWXG | S_IRWXO, 0);
-        if (SEM_FAILED == numInstancesSemaphore)
-        {
-            if (EACCES == errno)
-                std::cerr << "PCM Error, do not have permissions to open semaphores in /dev/shm/. Clean up them.\n";
-            return PCM::UnknownError;
-        }
-    #ifndef __APPLE__
-        sem_post(numInstancesSemaphore);
-        int curValue = 0;
-        sem_getvalue(numInstancesSemaphore, &curValue);
-    #else //if it is apple
-        uint32 curValue = PCM::incrementNumInstances();
-        sem_post(numInstancesSemaphore);
-    #endif // end ifndef __APPLE__
-
-        if (curValue > 1)  // already programmed since another instance exists
-        {
-            if (!silent) std::cerr << "Number of PCM instances: " << curValue << "\n";
-            if (hasPCICFGUncore() && max_qpi_speed==0)
-            for (int i = 0; i < (int)server_pcicfg_uncore.size(); ++i) {
-                if(server_pcicfg_uncore[i].get())
-                    max_qpi_speed = std::max(server_pcicfg_uncore[i]->computeQPISpeed(socketRefCore[i],cpu_model), max_qpi_speed);
-                reportQPISpeed();
-            }
-            if(!canUsePerf) return PCM::Success;
-        }
-
-    #endif // end ifdef _MSC_VER
-
-    #ifdef PCM_USE_PERF
-    /*
-    numInst>1 &&  canUsePerf==false -> not reachable, already PMU programmed in another PCM instance
-    numInst>1 &&  canUsePerf==true  -> perf programmed in different PCM, is not allowed
-    numInst<=1 && canUsePerf==false -> we are first, perf cannot be used, *check* if PMU busy
-    numInst<=1 && canUsePerf==true -> we are first, perf will be used, *dont check*, this is now perf business
-    */
-        if(curValue > 1 && (canUsePerf == true))
-        {
-            std::cerr << "Running several clients using the same counters is not possible with Linux perf. Recompile PCM without Linux Perf support to allow such usage. \n";
-            decrementInstanceSemaphore();
-            return PCM::UnknownError;
-        }
-
-        if((curValue <= 1) && (canUsePerf == false) && PMUinUse())
-        {
-            decrementInstanceSemaphore();
-            return PCM::PMUBusy;
-        }
-    #else
-        if (PMUinUse())
-        {
-            decrementInstanceSemaphore();
-            return PCM::PMUBusy;
-        }
-    #endif
-    }
-    else
+    if (true)
     {
         if((canUsePerf == false) && PMUinUse())
         {
@@ -2834,6 +2695,50 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
             << core_fixed_counter_num_max << " available\n";
         return PCM::UnknownError;
     }
+    if (pid != -1 && canUsePerf == false)
+    {
+        std::cerr << "PCM ERROR: pid monitoring is only supported with Linux perf_event driver\n";
+        return PCM::UnknownError;
+    }
+
+    std::vector<int> tids{};
+    #ifdef PCM_USE_PERF
+    if (pid != -1)
+    {
+        const auto strDir = std::string("/proc/") +  std::to_string(pid) + "/task/";
+        DIR * tidDir = opendir(strDir.c_str());
+        if (tidDir)
+        {
+            struct dirent * entry{nullptr};
+            while ((entry = readdir(tidDir)) != nullptr)
+            {
+                assert(entry->d_name);
+                const auto tid = atoi(entry->d_name);
+                if (tid)
+                {
+                    tids.push_back(tid);
+                    // std::cerr << "Detected task " << tids.back() << "\n";
+                }
+            }
+            closedir(tidDir);
+        }
+        else
+        {
+            std::cerr << "ERROR: Can't open " << strDir << "\n";
+            return PCM::UnknownError;
+        }
+    }
+    if (tids.empty() == false)
+    {
+        if (isHWTMAL1Supported())
+        {
+            if (!silent) std::cerr << "INFO: TMA L1 metrics are not supported in PID collection mode\n";
+        }
+        if (!silent) std::cerr << "INFO: collecting core metrics for " << tids.size() << " threads in process " << pid << "\n";
+        PerfEventHandleContainer _1(num_cores, std::vector<int>(PERF_MAX_COUNTERS, -1));
+        perfEventTaskHandle.resize(tids.size(), _1);
+    }
+    #endif
 
     programmed_pmu = true;
 
@@ -2848,11 +2753,11 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
     {
         if (isCoreOnline(i) == false) continue;
 
-        std::packaged_task<void()> task([this, i, mode_, pExtDesc, &programmingStatuses]() -> void
+        std::packaged_task<void()> task([this, i, mode_, pExtDesc, &programmingStatuses, &tids]() -> void
             {
                 TemporalThreadAffinity tempThreadAffinity(i, false); // speedup trick for Linux
 
-                programmingStatuses[i] = programCoreCounters(i, mode_, pExtDesc, lastProgrammedCustomCounters[i]);
+                programmingStatuses[i] = programCoreCounters(i, mode_, pExtDesc, lastProgrammedCustomCounters[i], tids);
             });
         asyncCoreResults.push_back(task.get_future());
         coreTaskQueues[i]->push(task);
@@ -2947,55 +2852,124 @@ void PCM::checkError(const PCM::ErrorCode code)
     }
 }
 
+std::mutex printErrorMutex;
+
 PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
     const PCM::ProgramMode mode_,
     const ExtendedCustomCoreEventDescription * pExtDesc,
-    std::vector<EventSelectRegister> & result)
+    std::vector<EventSelectRegister> & result,
+    const std::vector<int> & tids)
 {
+    (void) tids; // to silence uused param warning on non Linux OS
     // program core counters
 
     result.clear();
     FixedEventControlRegister ctrl_reg;
+    auto initFixedCtrl = [&](const bool & enableCtr3)
+    {
+        if (EXT_CUSTOM_CORE_EVENTS == mode_ && pExtDesc && pExtDesc->fixedCfg)
+        {
+             ctrl_reg = *(pExtDesc->fixedCfg);
+        }
+        else
+        {
+             ctrl_reg.value = 0;
+             ctrl_reg.fields.os0 = 1;
+             ctrl_reg.fields.usr0 = 1;
+
+             ctrl_reg.fields.os1 = 1;
+             ctrl_reg.fields.usr1 = 1;
+
+             ctrl_reg.fields.os2 = 1;
+             ctrl_reg.fields.usr2 = 1;
+
+             if (enableCtr3 && isFixedCounterSupported(3))
+             {
+                  ctrl_reg.fields.os3 = 1;
+                  ctrl_reg.fields.usr3 = 1;
+             }
+        }
+    };
 #ifdef PCM_USE_PERF
     int leader_counter = -1;
-    auto programPerfEvent = [this, &leader_counter, &i](perf_event_attr & e, const int eventPos, const std::string & eventName) -> bool
+    auto programPerfEvent = [this, &leader_counter, &i, &tids](perf_event_attr e, const int eventPos, const std::string & eventName) -> bool
     {
-        // if (i == 0) std::cerr << "DEBUG: programming event "<< std::hex << e.config << std::dec << "\n";
-        if ((perfEventHandle[i][eventPos] = syscall(SYS_perf_event_open, &e, -1,
-            i /* core id */, leader_counter /* group leader */, 0)) <= 0)
+        auto programPerfEventHelper = [&i]( PerfEventHandleContainer & perfEventHandle,
+                                            perf_event_attr & e,
+                                            const int eventPos,
+                                            const std::string & eventName,
+                                            const int leader_counter,
+                                            const int tid) -> bool
         {
-            std::cerr << "Linux Perf: Error when programming " << eventName << ", error: " << strerror(errno) <<
-               " with config 0x" << std::hex << e.config <<
-               " config1 0x" << e.config1 << std::dec << "\n";
-            if (24 == errno)
+            // if (i == 0) std::cerr << "DEBUG: programming event "<< std::hex << e.config << std::dec << "\n";
+            if ((perfEventHandle[i][eventPos] = syscall(SYS_perf_event_open, &e, tid,
+                i /* core id */, leader_counter /* group leader */, 0)) <= 0)
             {
-                std::cerr << "try executing 'ulimit -n 20000' to increase the limit on the number of open files.\n";
+                std::lock_guard<std::mutex> _(printErrorMutex);
+                std::cerr << "Linux Perf: Error when programming " << eventName << ", error: " << strerror(errno) <<
+                " with config 0x" << std::hex << e.config <<
+                " config1 0x" << e.config1 << std::dec << " for tid " << tid << " leader " << leader_counter << "\n";
+                if (24 == errno)
+                {
+                    std::cerr << PCM_ULIMIT_RECOMMENDATION;
+                }
+                else
+                {
+                    std::cerr << "try running with environment variable PCM_NO_PERF=1\n";
+                }
+                return false;
             }
-            else
+            return true;
+        };
+        if (tids.empty() == false)
+        {
+            e.inherit = 1;
+            e.exclude_kernel = 1;
+            e.exclude_hv = 1;
+            e.read_format = 0; // 'inherit' does not work for combinations of read format (e.g. PERF_FORMAT_GROUP)
+            auto handleIt = perfEventTaskHandle.begin();
+            for (const auto & tid: tids)
             {
-                std::cerr << "try running with environment variable PCM_NO_PERF=1\n";
+                if (handleIt == perfEventTaskHandle.end())
+                {
+                    break;
+                }
+                if (programPerfEventHelper(*handleIt, e, eventPos, eventName, -1, tid) == false)
+                {
+                    return false;
+                }
+                ++handleIt;
             }
-            decrementInstanceSemaphore();
-            return false;
+            return true;
         }
-        return true;
+        return programPerfEventHelper(perfEventHandle, e, eventPos, eventName, leader_counter, -1);
     };
     if (canUsePerf)
     {
+        initFixedCtrl(false);
         perf_event_attr e = PCM_init_perf_event_attr();
         e.type = PERF_TYPE_HARDWARE;
         e.config = PERF_COUNT_HW_INSTRUCTIONS;
+        e.exclude_kernel = 1 - ctrl_reg.fields.os0;
+        e.exclude_hv = e.exclude_kernel;
+        e.exclude_user = 1 - ctrl_reg.fields.usr0;
         if (programPerfEvent(e, PERF_INST_RETIRED_POS, "INST_RETIRED") == false)
         {
             return PCM::UnknownError;
         }
         leader_counter = perfEventHandle[i][PERF_INST_RETIRED_POS];
         e.config = PERF_COUNT_HW_CPU_CYCLES;
+        e.exclude_kernel = 1 - ctrl_reg.fields.os1;
+        e.exclude_hv = e.exclude_kernel;
+        e.exclude_user = 1 - ctrl_reg.fields.usr1;
         if (programPerfEvent(e, PERF_CPU_CLK_UNHALTED_THREAD_POS, "CPU_CLK_UNHALTED_THREAD") == false)
         {
             return PCM::UnknownError;
         }
         e.config = PCM_PERF_COUNT_HW_REF_CPU_CYCLES;
+        e.exclude_kernel = 1 - ctrl_reg.fields.os2;
+        e.exclude_hv = e.exclude_kernel;
+        e.exclude_user = 1 - ctrl_reg.fields.usr2;
         if (programPerfEvent(e, PERF_CPU_CLK_UNHALTED_REF_POS, "CPU_CLK_UNHALTED_REF") == false)
         {
             return PCM::UnknownError;
@@ -3008,30 +2982,7 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
         MSR[i]->write(IA32_CR_PERF_GLOBAL_CTRL, 0);
         MSR[i]->read(IA32_CR_FIXED_CTR_CTRL, &ctrl_reg.value);
 
-
-        if (EXT_CUSTOM_CORE_EVENTS == mode_ && pExtDesc && pExtDesc->fixedCfg)
-        {
-            ctrl_reg = *(pExtDesc->fixedCfg);
-        }
-        else
-        {
-	    ctrl_reg.value = 0;
-
-	    ctrl_reg.fields.os0 = 1;
-            ctrl_reg.fields.usr0 = 1;
-
-            ctrl_reg.fields.os1 = 1;
-            ctrl_reg.fields.usr1 = 1;
-
-            ctrl_reg.fields.os2 = 1;
-            ctrl_reg.fields.usr2 = 1;
-
-            if (isFixedCounterSupported(3))
-	    {
-	        ctrl_reg.fields.os3 = 1;
-                ctrl_reg.fields.usr3 = 1;
-	    }
-        }
+        initFixedCtrl(true);
 
         MSR[i]->write(INST_RETIRED_ADDR, 0);
         MSR[i]->write(CPU_CLK_UNHALTED_THREAD_ADDR, 0);
@@ -3205,8 +3156,8 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
                     }
                     else
                     {
+                        std::lock_guard<std::mutex> _(printErrorMutex);
                         std::cerr << "ERROR: unknown token " << token << " in event description \"" << eventDesc << "\" from " << event.first << "\n";
-                        decrementInstanceSemaphore();
                         return PCM::UnknownError;
                     }
                 }
@@ -3440,11 +3391,11 @@ uint64 RDTSC();
 void PCM::computeNominalFrequency()
 {
     const int ref_core = 0;
-    uint64 before = 0, after = 0;
-    MSR[ref_core]->read(IA32_TIME_STAMP_COUNTER, &before);
-    MySleepMs(1000);
-    MSR[ref_core]->read(IA32_TIME_STAMP_COUNTER, &after);
-    nominal_frequency = after-before;
+    const uint64 before = getInvariantTSC_Fast(ref_core);
+    MySleepMs(100);
+    const uint64 after = getInvariantTSC_Fast(ref_core);
+    nominal_frequency = 10ULL*(after-before);
+    std::cerr << "WARNING: Core nominal frequency has to be estimated\n";
 }
 std::string PCM::getCPUBrandString()
 {
@@ -3483,7 +3434,7 @@ void PCM::enableForceRTMAbortMode(const bool silent)
     {
         if (isForceRTMAbortModeAvailable() && (core_gen_counter_num_max < 4))
         {
-            for (auto m : MSR)
+            for (auto& m : MSR)
             {
                 const auto res = m->write(MSR_TSX_FORCE_ABORT, 1);
                 if (res != sizeof(uint64))
@@ -3513,7 +3464,7 @@ void PCM::disableForceRTMAbortMode(const bool silent)
     // std::cout << "disableForceRTMAbortMode(): forceRTMAbortMode=" << forceRTMAbortMode << "\n";
     if (forceRTMAbortMode)
     {
-        for (auto m : MSR)
+        for (auto& m : MSR)
         {
             const auto res = m->write(MSR_TSX_FORCE_ABORT, 0);
             if (res != sizeof(uint64))
@@ -3690,9 +3641,9 @@ bool PCM::PMUinUse()
 
         for (uint32 j = 0; j < core_gen_counter_num_max; ++j)
         {
-            MSR[i]->read(IA32_PERFEVTSEL0_ADDR + j, &event_select_reg.value);
+            const auto count = MSR[i]->read(IA32_PERFEVTSEL0_ADDR + j, &event_select_reg.value);
 
-            if (event_select_reg.fields.event_select != 0 || event_select_reg.fields.apic_int != 0)
+            if (count && (event_select_reg.fields.event_select != 0 || event_select_reg.fields.apic_int != 0))
             {
                 std::cerr << "WARNING: Core " << i <<" IA32_PERFEVTSEL" << j << "_ADDR is not zeroed " << event_select_reg.value << "\n";
 
@@ -3708,12 +3659,12 @@ bool PCM::PMUinUse()
         FixedEventControlRegister ctrl_reg;
         ctrl_reg.value = 0xffffffffffffffff;
 
-        MSR[i]->read(IA32_CR_FIXED_CTR_CTRL, &ctrl_reg.value);
+        const auto count = MSR[i]->read(IA32_CR_FIXED_CTR_CTRL, &ctrl_reg.value);
 
         // Check if someone has installed pmi handler on counter overflow.
         // If so, that agent might potentially need to change counter value
         // for the "sample after"-mode messing up PCM measurements
-        if(ctrl_reg.fields.enable_pmi0 || ctrl_reg.fields.enable_pmi1 || ctrl_reg.fields.enable_pmi2)
+        if (count && (ctrl_reg.fields.enable_pmi0 || ctrl_reg.fields.enable_pmi1 || ctrl_reg.fields.enable_pmi2))
         {
             std::cerr << "WARNING: Core " << i << " fixed ctrl:" << ctrl_reg.value << "\n";
             if (needToRestoreNMIWatchdog == false) // if NMI watchdog did not clear the fields, ignore it
@@ -3860,16 +3811,27 @@ void PCM::cleanupPMU(const bool silent)
 #ifdef PCM_USE_PERF
     if (canUsePerf)
     {
-      for (int i = 0; i < num_cores; ++i)
-        for(int c = 0; c < PERF_MAX_COUNTERS; ++c)
+        auto cleanOne = [this](PerfEventHandleContainer & cont)
         {
-            auto & h = perfEventHandle[i][c];
-            if (h != -1) ::close(h);
-            h = -1;
+            for (int i = 0; i < num_cores; ++i)
+            {
+                for(int c = 0; c < PERF_MAX_COUNTERS; ++c)
+                {
+                    auto & h = cont[i][c];
+                    if (h != -1) ::close(h);
+                    h = -1;
+                }
+            }
+        };
+        cleanOne(perfEventHandle);
+        for (auto & cont : perfEventTaskHandle)
+        {
+            cleanOne(cont);
         }
+        perfEventTaskHandle.clear();
 
-      if (!silent) std::cerr << " Closed perf event handles\n";
-      return;
+        if (!silent) std::cerr << " Closed perf event handles\n";
+        return;
     }
 #endif
 
@@ -3892,7 +3854,9 @@ void PCM::cleanupPMU(const bool silent)
     if (!silent) std::cerr << " Zeroed PMU registers\n";
 #endif
 }
-
+#ifdef PCM_SILENT
+    #pragma GCC diagnostic ignored "-Wunused-parameter"
+#endif
 void PCM::cleanupUncorePMUs(const bool silent)
 {
     for (auto & sPMUs : iioPMUs)
@@ -4004,11 +3968,16 @@ void PCM::cleanupRDT(const bool silent)
     if (!silent) std::cerr << " Freeing up all RMIDs\n";
 }
 
-void PCM::setOutput(const std::string filename)
+void PCM::setOutput(const std::string filename, const bool cerrToo)
 {
      outfile = new std::ofstream(filename.c_str());
      backup_ofile = std::cout.rdbuf();
      std::cout.rdbuf(outfile->rdbuf());
+     if (cerrToo)
+     {
+         backup_ofile_cerr = std::cerr.rdbuf();
+         std::cerr.rdbuf(outfile->rdbuf());
+     }
 }
 
 void PCM::restoreOutput()
@@ -4017,6 +3986,9 @@ void PCM::restoreOutput()
     if(backup_ofile)
         std::cout.rdbuf(backup_ofile);
 
+    if (backup_ofile_cerr)
+        std::cerr.rdbuf(backup_ofile_cerr);
+
 // close output file
     if(outfile)
         outfile->close();
@@ -4024,14 +3996,11 @@ void PCM::restoreOutput()
 
 void PCM::cleanup(const bool silent)
 {
-    InstanceLock lock(allow_multiple_instances);
-
     if (MSR.empty()) return;
 
     if (!silent) std::cerr << "Cleaning up\n";
 
-    if (decrementInstanceSemaphore())
-        cleanupPMU(silent);
+    cleanupPMU(silent);
 
     disableForceRTMAbortMode(silent);
 
@@ -4085,23 +4054,19 @@ bool PCM::supportsRTM() const
     return (info.reg.ebx & (0x1 << 11)) ? true : false;
 }
 
+bool PCM::supportsRDTSCP() const
+{
+    static int supports = -1;
+    if (supports < 0)
+    {
+        PCM_CPUID_INFO info;
+        pcm_cpuid(0x80000001, info);
+        supports = (info.reg.edx & (0x1 << 27)) ? 1 : 0;
+    }
+    return 1 == supports;
+}
+
 #ifdef __APPLE__
-
-uint32 PCM::getNumInstances()
-{
-    return MSR[0]->getNumInstances();
-}
-
-
-uint32 PCM::incrementNumInstances()
-{
-    return MSR[0]->incrementNumInstances();
-}
-
-uint32 PCM::decrementNumInstances()
-{
-    return MSR[0]->decrementNumInstances();;
-}
 
 int convertUnknownToInt(size_t size, char* value)
 {
@@ -4126,91 +4091,27 @@ int convertUnknownToInt(size_t size, char* value)
 
 #endif
 
-bool PCM::decrementInstanceSemaphore()
-{
-    if(allow_multiple_instances == false)
-    {
-        return programmed_pmu;
-    }
-    bool isLastInstance = false;
-    // when decrement was called before program() the numInstancesSemaphore
-    // may not be initialized, causing SIGSEGV. This fixes it.
-    if(numInstancesSemaphore == NULL)
-        return true;
-
-                #ifdef _MSC_VER
-    WaitForSingleObject(numInstancesSemaphore, 0);
-
-    DWORD res = WaitForSingleObject(numInstancesSemaphore, 0);
-    if (res == WAIT_TIMEOUT)
-    {
-        // I have the last instance of monitor
-
-        isLastInstance = true;
-
-        CloseHandle(numInstancesSemaphore);
-    }
-    else if (res == WAIT_OBJECT_0)
-    {
-        ReleaseSemaphore(numInstancesSemaphore, 1, NULL);
-
-        // std::cerr << "Someone else is running monitor instance, no cleanup needed\n";
-    }
-    else
-    {
-        // unknown error
-        std::cerr << "ERROR: Bad semaphore. Performed cleanup twice?\n";
-    }
-
-        #elif __APPLE__
-    sem_wait(numInstancesSemaphore);
-    uint32 oldValue = PCM::getNumInstances();
-    sem_post(numInstancesSemaphore);
-    if(oldValue == 0)
-    {
-    // see same case for linux
-    return false;
-    }
-    sem_wait(numInstancesSemaphore);
-    uint32 currValue = PCM::decrementNumInstances();
-    sem_post(numInstancesSemaphore);
-    if(currValue == 0){
-    isLastInstance = true;
-    }
-
-    #else // if linux
-    int oldValue = -1;
-    sem_getvalue(numInstancesSemaphore, &oldValue);
-    if(oldValue == 0)
-    {
-       // the current value is already zero, somewhere the semaphore has been already decremented (and thus the clean up has been done if needed)
-       // that means logically we are do not own the last instance anymore, thus returning false
-       return false;
-    }
-    sem_wait(numInstancesSemaphore);
-    int curValue = -1;
-    sem_getvalue(numInstancesSemaphore, &curValue);
-    if (curValue == 0)
-    {
-        // I have the last instance of monitor
-
-        isLastInstance = true;
-
-        // std::cerr << "I am the last one\n";
-    }
-        #endif // end ifdef _MSC_VER
-
-    return isLastInstance;
-}
 
 uint64 PCM::getTickCount(uint64 multiplier, uint32 core)
 {
-    return (multiplier * getInvariantTSC(CoreCounterState(), getCoreCounterState(core))) / getNominalFrequency();
+    return (multiplier * getInvariantTSC_Fast(core)) / getNominalFrequency();
 }
 
-uint64 PCM::getTickCountRDTSCP(uint64 multiplier)
+uint64 PCM::getInvariantTSC_Fast(uint32 core)
 {
-    return (multiplier*RDTSCP())/getNominalFrequency();
+    if (supportsRDTSCP())
+    {
+        TemporalThreadAffinity aff(core);
+        return RDTSCP();
+    }
+    else if (core < MSR.size())
+    {
+        uint64 cInvariantTSC = 0;
+        MSR[core]->read(IA32_TIME_STAMP_COUNTER, &cInvariantTSC);
+        if (cInvariantTSC) return cInvariantTSC;
+    }
+    std::cerr << "ERROR:  cannot read time stamp counter\n";
+    return 0ULL;
 }
 
 SystemCounterState getSystemCounterState()
@@ -4240,6 +4141,31 @@ CoreCounterState getCoreCounterState(uint32 core)
 #ifdef PCM_USE_PERF
 void PCM::readPerfData(uint32 core, std::vector<uint64> & outData)
 {
+    if (perfEventTaskHandle.empty() == false)
+    {
+        std::fill(outData.begin(), outData.end(), 0);
+        for (const auto & handleArray : perfEventTaskHandle)
+        {
+            for (size_t ctr = 0; ctr < PERF_MAX_COUNTERS; ++ctr)
+            {
+                const int fd = handleArray[core][ctr];
+                if (fd != -1)
+                {
+                    uint64 result{0ULL};
+                    const int status = ::read(fd, &result, sizeof(result));
+                    if (status != sizeof(result))
+                    {
+                        std::cerr << "PCM Error: failed to read from Linux perf handle " << fd <<  "\n";
+                    }
+                    else
+                    {
+                        outData[ctr] += result;
+                    }
+                }
+            }
+        }
+        return;
+    }
     auto readPerfDataHelper = [this](const uint32 core, std::vector<uint64>& outData, const uint32 leader, const uint32 num_counters)
     {
         if (perfEventHandle[core][leader] < 0)
@@ -4280,7 +4206,11 @@ void BasicCounterState::readAndAggregateTSC(std::shared_ptr<SafeMsrHandle> msr)
     uint64 cInvariantTSC = 0;
     PCM * m = PCM::getInstance();
     const auto cpu_model = m->getCPUModel();
-    if(m->isAtom() == false || cpu_model == PCM::AVOTON) msr->read(IA32_TIME_STAMP_COUNTER, &cInvariantTSC);
+    if (m->isAtom() == false || cpu_model == PCM::AVOTON)
+    {
+        cInvariantTSC = m->getInvariantTSC_Fast(msr->getCoreId());
+        MSRValues[IA32_TIME_STAMP_COUNTER] = cInvariantTSC;
+    }
     else
     {
 #ifdef _MSC_VER
@@ -4410,14 +4340,22 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
     readAndAggregateTSC(msr);
 
     // reading core C state counters
-    for(int i=0; i <= (int)(PCM::MAX_C_STATE) ;++i)
-        if(m->coreCStateMsr && m->coreCStateMsr[i])
-                msr->read(m->coreCStateMsr[i], &(cCStateResidency[i]));
+    for (int i = 0; i <= (int)(PCM::MAX_C_STATE); ++i)
+    {
+        if (m->coreCStateMsr && m->coreCStateMsr[i])
+        {
+            const auto index = m->coreCStateMsr[i];
+            msr->read(index, &(cCStateResidency[i]));
+            MSRValues[index] = cCStateResidency[i];
+        }
+    }
 
     // reading temperature
     msr->read(MSR_IA32_THERM_STATUS, &thermStatus);
+    MSRValues[MSR_IA32_THERM_STATUS] = thermStatus;
 
     msr->read(MSR_SMI_COUNT, &cSMICount);
+    MSRValues[MSR_SMI_COUNT] = cSMICount;
 
     InstRetiredAny += checked_uint64(m->extractCoreFixedCounterValue(cInstRetiredAny), extract_bits(overflows, 32, 32));
     CpuClkUnhaltedThread += checked_uint64(m->extractCoreFixedCounterValue(cCpuClkUnhaltedThread), extract_bits(overflows, 33, 33));
@@ -4604,7 +4542,7 @@ PCM::ErrorCode PCM::programServerUncorePowerMetrics(int mc_profile, int pcu_prof
          std::cerr << "ERROR: unsupported PCU profile " << pcu_profile << "\n";
     }
 
-    for (auto u : server_pcicfg_uncore)
+    for (auto& u : server_pcicfg_uncore)
     {
         u->program_power_metrics(mc_profile);
     }
@@ -4651,9 +4589,11 @@ void PCM::programPCU(uint32* PCUCntConf, const uint64 filter)
     }
 }
 
-PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool silent)
+PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool silent, const int pid)
 {
     if (MSR.empty())  return PCM::MSRAccessDenied;
+    threadMSRConfig = RawPMUConfig{};
+    packageMSRConfig = RawPMUConfig{};
     RawPMUConfigs curPMUConfigs = curPMUConfigs_;
     constexpr auto globalRegPos = 0;
     if (curPMUConfigs.count("core"))
@@ -4668,7 +4608,11 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool sile
         auto corePMUConfig = curPMUConfigs["core"];
         if (corePMUConfig.programmable.size() > (size_t)getMaxCustomCoreEvents())
         {
-            std::cerr << "ERROR: trying to program " << corePMUConfig.programmable.size() << " core PMU counters, which exceeds the max num possible ("<< getMaxCustomCoreEvents() << ").";
+            std::cerr << "ERROR: trying to program " << corePMUConfig.programmable.size() << " core PMU counters, which exceeds the max num possible ("<< getMaxCustomCoreEvents() << ").\n";
+            for (const auto & e : corePMUConfig.programmable)
+            {
+                std::cerr << "      Event: " << e.second << "\n";
+            }
             return PCM::UnknownError;
         }
         size_t c = 0;
@@ -4700,14 +4644,14 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool sile
         }
         conf.defaultUncoreProgramming = false;
 
-        const auto status = program(PCM::EXT_CUSTOM_CORE_EVENTS, &conf, silent);
+        const auto status = program(PCM::EXT_CUSTOM_CORE_EVENTS, &conf, silent, pid);
         if (status != PCM::Success)
         {
             return status;
         }
         curPMUConfigs.erase("core");
     }
-    for (auto pmuConfig : curPMUConfigs)
+    for (auto& pmuConfig : curPMUConfigs)
     {
         const auto & type = pmuConfig.first;
         const auto & events = pmuConfig.second;
@@ -4729,28 +4673,28 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool sile
         }
         if (type == "m3upi")
         {
-            for (auto uncore : server_pcicfg_uncore)
+            for (auto& uncore : server_pcicfg_uncore)
             {
                 uncore->programM3UPI(events32);
             }
         }
         else if (type == "xpi" || type == "upi" || type == "qpi")
         {
-            for (auto uncore : server_pcicfg_uncore)
+            for (auto& uncore : server_pcicfg_uncore)
             {
                 uncore->programXPI(events32);
             }
         }
         else if (type == "imc")
         {
-            for (auto uncore : server_pcicfg_uncore)
+            for (auto& uncore : server_pcicfg_uncore)
             {
                 uncore->programIMC(events32);
             }
         }
         else if (type == "m2m")
         {
-            for (auto uncore : server_pcicfg_uncore)
+            for (auto& uncore : server_pcicfg_uncore)
             {
                 uncore->programM2M(events64);
             }
@@ -4785,6 +4729,14 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool sile
         else if (type == "iio")
         {
             programIIOCounters(events64);
+        }
+        else if (type == "package_msr")
+        {
+            packageMSRConfig = pmuConfig.second;
+        }
+        else if (type == "thread_msr")
+        {
+            threadMSRConfig = pmuConfig.second;
         }
         else
         {
@@ -5064,6 +5016,28 @@ void PCM::readAndAggregateEnergyCounters(const uint32 socket, CounterStateType &
 }
 
 template <class CounterStateType>
+void PCM::readMSRs(std::shared_ptr<SafeMsrHandle> msr, const PCM::RawPMUConfig& msrConfig, CounterStateType& result)
+{
+    auto read = [&msr, &result](const RawEventConfig & cfg) {
+        const auto index = cfg.first[MSREventPosition::index];
+        if (result.MSRValues.find(index) == result.MSRValues.end())
+        {
+            uint64 val{ 0 };
+            msr->read(index, &val);
+            result.MSRValues[index] = val;
+        }
+    };
+    for (const auto& cfg : msrConfig.programmable)
+    {
+        read(cfg);
+    }
+    for (const auto& cfg : msrConfig.fixed)
+    {
+        read(cfg);
+    }
+}
+
+template <class CounterStateType>
 void PCM::readAndAggregatePackageCStateResidencies(std::shared_ptr<SafeMsrHandle> msr, CounterStateType & result)
 {
     // reading package C state counters
@@ -5199,6 +5173,7 @@ void PCM::readPackageThermalHeadroom(const uint32 socket, CounterStateType & res
     {
         uint64 val = 0;
         MSR[socketRefCore[socket]]->read(MSR_PACKAGE_THERM_STATUS,&val);
+        result.MSRValues[MSR_PACKAGE_THERM_STATUS] = val;
         result.ThermalHeadroom = extractThermalHeadroom(val);
     }
     else
@@ -5254,6 +5229,7 @@ void PCM::getAllCounterStates(SystemCounterState & systemState, std::vector<Sock
                     {
                         socketStates[topology[core].socket].UncoreCounterState::readAndAggregate(MSR[core]); // read package C state counters
                     }
+                    readMSRs(MSR[core], threadMSRConfig, coreStates[core]);
                 }
             );
             asyncCoreResults.push_back(task.get_future());
@@ -5266,11 +5242,12 @@ void PCM::getAllCounterStates(SystemCounterState & systemState, std::vector<Sock
     {
         int32 refCore = socketRefCore[s];
         if (refCore<0) refCore = 0;
-        std::packaged_task<void()> task([this, s, &socketStates]() -> void
+        std::packaged_task<void()> task([this, s, &socketStates, refCore]() -> void
             {
                 readAndAggregateUncoreMCCounters(s, socketStates[s]);
                 readAndAggregateEnergyCounters(s, socketStates[s]);
                 readPackageThermalHeadroom(s, socketStates[s]);
+                readMSRs(MSR[refCore], packageMSRConfig, socketStates[s]);
             } );
         asyncCoreResults.push_back(task.get_future());
         coreTaskQueues[refCore]->push(task);
@@ -5487,7 +5464,7 @@ ServerUncoreCounterState PCM::getServerUncoreCounterState(uint32 socket)
         //std::cout << "Energy status: " << val << "\n";
         MSR[refCore]->read(MSR_PACKAGE_THERM_STATUS,&val);
         result.PackageThermalHeadroom = extractThermalHeadroom(val);
-        MSR[refCore]->read(IA32_TIME_STAMP_COUNTER, &result.InvariantTSC);
+        result.InvariantTSC = getInvariantTSC_Fast(refCore);
         readAndAggregatePackageCStateResidencies(MSR[refCore], result);
     }
     // std::cout << std::flush;
@@ -6464,7 +6441,7 @@ public:
         {
             std::cerr << "Linux Perf: Error on programming PMU " << pmuID << ":  " << strerror(errno) << "\n";
             std::cerr << "config: 0x" << std::hex << event.config << " config1: 0x" << event.config1 << " config2: 0x" << event.config2 << std::dec << "\n";
-            if (errno == 24) std::cerr << "try executing 'ulimit -n 20000' to increase the limit on the number of open files.\n";
+            if (errno == 24) std::cerr << PCM_ULIMIT_RECOMMENDATION;
             return;
         }
     }
@@ -7341,7 +7318,7 @@ void ServerPCICFGUncore::initMemTest(ServerPCICFGUncore::MemTestParam & param)
         if (result == NULL)
         {
             std::cerr << "ERROR: " << i << " VirtualAllocExNuma failed.\n";
-            for (auto b : memBuffers)
+            for (auto& b : memBuffers)
             {
                 VirtualFree(b, memBufferBlockSize, MEM_RELEASE);
             }
@@ -7356,7 +7333,7 @@ void ServerPCICFGUncore::initMemTest(ServerPCICFGUncore::MemTestParam & param)
     #else
     std::cerr << "ERROR: memory test is not implemented. QPI/UPI speed and utilization metrics may not be reliable.\n";
     #endif
-    for (auto b : memBuffers)
+    for (auto& b : memBuffers)
         std::fill(b, b + (memBufferBlockSize / sizeof(uint64)), 0ULL);
 }
 
@@ -7365,7 +7342,7 @@ void ServerPCICFGUncore::doMemTest(const ServerPCICFGUncore::MemTestParam & para
     const auto & memBufferBlockSize = param.first;
     const auto & memBuffers = param.second;
     // read and write each cache line once
-    for (auto b : memBuffers)
+    for (auto& b : memBuffers)
         for (unsigned int i = 0; i < memBufferBlockSize / sizeof(uint64); i += 64 / sizeof(uint64))
         {
             (b[i])++;
@@ -7376,7 +7353,7 @@ void ServerPCICFGUncore::cleanupMemTest(const ServerPCICFGUncore::MemTestParam &
 {
     const auto & memBufferBlockSize = param.first;
     const auto & memBuffers = param.second;
-    for (auto b : memBuffers)
+    for (auto& b : memBuffers)
     {
 #if defined(__linux__)
         munmap(b, memBufferBlockSize);
@@ -7774,9 +7751,8 @@ void PCM::programCbo(const uint64 * events, const uint32 opCode, const uint32 nc
         uint32 refCore = socketRefCore[i];
         TemporalThreadAffinity tempThreadAffinity(refCore); // speedup trick for Linux
 
-        for(uint32 cbo = 0; cbo < getMaxNumOfCBoxes(); ++cbo)
+        for(uint32 cbo = 0; cbo < getMaxNumOfCBoxes() && cbo < cboPMUs[i].size(); ++cbo)
         {
-            assert(cbo < cboPMUs[i].size());
             cboPMUs[i][cbo].initFreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
 
             if (ICX != cpu_model && SNOWRIDGE != cpu_model)
@@ -7835,7 +7811,10 @@ void PCM::programUBOX(const uint64* events)
 
         *uboxPMUs[s].fixedCounterControl = UCLK_FIXED_CTL_EN;
 
-        PCM::program(uboxPMUs[s], events, events + 2, 0);
+        if (events)
+        {
+            PCM::program(uboxPMUs[s], events, events + 2, 0);
+        }
     }
 }
 

@@ -1,0 +1,60 @@
+name: CPack check
+
+on:
+  push:
+    branches: [ '**' ]
+  pull_request:
+    branches: [ '**' ]
+
+jobs:
+  job-build1:
+    runs-on: ci-gcc9
+    if: ${{ github.repository != 'opcm/pcm' }}
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Preparation
+      run: |
+        cd ${{ github.workspace }}/src
+        git clone https://github.com/simdjson/simdjson.git
+        cd ..
+    - name: Configure CMake
+      run: |
+        cmake --version
+        rm -rf ${{ github.workspace }}/build
+        cmake -B ${{ github.workspace }}/build -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/build
+    - name: Build and Install
+      run: |
+        g++ --version
+        cd ${{ github.workspace }}/build
+        make -j$(nproc)
+    - name: CPack
+      run: |
+        cd ${{ github.workspace }}/build
+        cpack
+
+  job-build2:
+    runs-on: ci-test
+    if: ${{ github.repository != 'opcm/pcm' }}
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Preparation
+      run: |
+        cd ${{ github.workspace }}/src
+        git clone https://github.com/simdjson/simdjson.git
+        cd ..
+    - name: Configure CMake
+      run: |
+        cmake --version
+        rm -rf ${{ github.workspace }}/build
+        cmake -B ${{ github.workspace }}/build -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/build
+    - name: Build and Install
+      run: |
+        g++ --version
+        cd ${{ github.workspace }}/build
+        make -j$(nproc)
+    - name: CPack
+      run: |
+        cd ${{ github.workspace }}/build
+        cpack

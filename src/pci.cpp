@@ -384,7 +384,7 @@ int openHandle(uint32 groupnr_, uint32 bus, uint32 device, uint32 function)
     int handle = ::open(path.str().c_str(), O_RDWR);
     if (handle < 0)
     {
-       if (errno == 24) std::cerr << "ERROR: try executing 'ulimit -n 20000' to increase the limit on the number of open files.\n";
+       if (errno == 24) std::cerr << "ERROR: " << PCM_ULIMIT_RECOMMENDATION;
        handle = ::open((std::string("/pcm") + path.str()).c_str(), O_RDWR);
     }
     return handle;

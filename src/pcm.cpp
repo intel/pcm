@@ -88,6 +88,7 @@ void print_help(const string prog_name)
     cerr << "                                        will read counters only after external program finishes\n";
     cerr << " Supported <options> are: \n";
     cerr << "  -h    | --help      | /h           => print this help and exit\n";
+    cerr << "  -pid PID | /pid PID                => collect core metrics only for specified process ID\n";
 #ifdef _MSC_VER
     cerr << "  --uninstallDriver   | --installDriver=> (un)install driver\n";
 #endif
@@ -96,7 +97,6 @@ void print_help(const string prog_name)
     cerr << "  -yc   | --yescores  | /yc          => enable specific cores to output\n";
     cerr << "  -ns   | --nosockets | /ns          => hide socket related output\n";
     cerr << "  -nsys | --nosystem  | /nsys        => hide system related output\n";
-    cerr << "  -m    | --multiple-instances | /m  => allow multiple PCM instances running in parallel\n";
     cerr << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or\n"
         << "                                        to a file, in case filename is provided\n"
         << "                                        the format used is documented here: https://www.intel.com/content/www/us/en/developer/articles/technical/intel-pcm-column-names-decoder-ring.html\n";
@@ -1156,7 +1156,7 @@ int main(int argc, char * argv[])
     // if delay is not specified: use either default (1 second),
     // or only read counters before or after PCM started: keep PCM blocked
     double delay = -1.0;
-
+    int pid{-1};
     char *sysCmd = NULL;
     char **sysArgv = NULL;
     bool show_core_output = true;
@@ -1165,8 +1165,9 @@ int main(int argc, char * argv[])
     bool show_system_output = true;
     bool csv_output = false;
     bool reset_pmu = false;
-    bool allow_multiple_instances = false;
     bool disable_JKT_workaround = false; // as per http://software.intel.com/en-us/articles/performance-impact-when-sampling-certain-llc-events-on-snb-ep-with-vtune
+
+    parseParam(argc, argv, "pid", [&pid](const char* p) { if (p) pid = atoi(p); });
 
     MainLoop mainLoop;
     std::bitset<MAX_CORES> ycores;
@@ -1178,6 +1179,11 @@ int main(int argc, char * argv[])
     {
         argv++;
         argc--;
+        if (*argv == nullptr)
+        {
+            continue;
+        }
+        else
         if (strncmp(*argv, "--help", 6) == 0 ||
             strncmp(*argv, "-h", 2) == 0 ||
             strncmp(*argv, "/h", 2) == 0)
@@ -1247,14 +1253,6 @@ int main(int argc, char * argv[])
             continue;
         }
         else
-        if (strncmp(*argv, "--multiple-instances", 20) == 0 ||
-            strncmp(*argv, "-m", 2) == 0 ||
-            strncmp(*argv, "/m", 2) == 0)
-        {
-            allow_multiple_instances = true;
-            continue;
-        }
-        else
         if (strncmp(*argv, "-csv", 4) == 0 ||
             strncmp(*argv, "/csv", 4) == 0)
         {
@@ -1267,6 +1265,12 @@ int main(int argc, char * argv[])
                     m->setOutput(filename);
                 }
             }
+            continue;
+        }
+        else if (strncmp(*argv, "-pid", 4) == 0 || strncmp(*argv, "/pid", 4) == 0)
+        {
+            argv++;
+            argc--;
             continue;
         }
         else
@@ -1351,13 +1355,8 @@ int main(int argc, char * argv[])
         m->resetPMU();
     }
 
-    if (allow_multiple_instances)
-    {
-        m->allowMultipleInstances();
-    }
-
     // program() creates common semaphore for the singleton, so ideally to be called before any other references to PCM
-    PCM::ErrorCode status = m->program();
+    const PCM::ErrorCode status = m->program(PCM::DEFAULT_EVENTS, nullptr, false, pid);
 
     switch (status)
     {
@@ -1381,6 +1380,8 @@ int main(int argc, char * argv[])
     std::vector<SocketCounterState> sktstate1, sktstate2;
     SystemCounterState sstate1, sstate2;
     const auto cpu_model = m->getCPUModel();
+
+    print_pid_collection_message(pid);
 
     if ((sysCmd != NULL) && (delay <= 0.0)) {
         // in case external command is provided in command line, and

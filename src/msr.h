@@ -35,6 +35,8 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 namespace pcm {
 
+bool noMSRMode();
+
 class MsrHandle
 {
 #ifdef _MSC_VER

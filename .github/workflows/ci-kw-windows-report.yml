@@ -16,8 +16,13 @@ jobs:
     
     - name: kw
       run: |
+        cd ${{github.workspace}}\src
         git clone https://github.com/simdjson/simdjson.git
-        c:\pcm\ci-kw-windows.ps1 'echo No_preparation_for_msbuild' 'msbuild pcm-all.sln /p:Configuration=Release,Platform=x64 /t:Clean,Build /m'
+        cd ..
+        mkdir build
+        cd build
+        cmake ..
+        c:\pcm\ci-kw-windows.ps1 'echo No_preparation' 'cmake --build . -j'
 
     - name: kw-report
       run: |
@@ -31,7 +36,7 @@ jobs:
 
     - name: kw-msr-driver
       run: |
-        chdir WinMSRDriver
+        chdir ${{github.workspace}}\src\WinMSRDriver
         c:\pcm\ci-kw-windows.ps1 'echo No_preparation_for_msbuild' 'msbuild MSR.vcxproj /p:Configuration=Release,Platform=x64 /t:Clean,Build /m'
 
     - name: kw-report-msr-driver

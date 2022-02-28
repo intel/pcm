@@ -43,6 +43,7 @@ int main(int argc, const char *argv[])
 	int i,a[100],b[100],c[100];
 	uint32_t total = 0;
 	int lcore_id;
+    int numEvents = argc - 1;
 
 	/* Seed for predictable rand() results */
 	srand(0);
@@ -80,22 +81,17 @@ int main(int argc, const char *argv[])
 			PCM.pcm_c_get_cycles == NULL || PCM.pcm_c_get_instr == NULL ||
 			PCM.pcm_c_build_core_event == NULL || PCM.pcm_c_get_core_event == NULL)
 		return -1;
-	switch(argc-1)
-	{
-		case 4:
-			PCM.pcm_c_build_core_event(3,argv[3]);
-		case 3:	
-			PCM.pcm_c_build_core_event(2,argv[2]);
-		case 2:
-			PCM.pcm_c_build_core_event(1,argv[2]);
-		case 1:
-			PCM.pcm_c_build_core_event(0,argv[1]);
-		case 0:
-			break;
-		default:
-			printf("Number of arguments are too many! exit...\n");
-			return -2;
-	}
+
+    if (numEvents > 4)
+    {
+        printf("Number of arguments are too many! exit...\n");
+        return -2;
+    }
+
+    for (int i = 0; i < numEvents; ++i)
+    {
+        PCM.pcm_c_build_core_event(i, argv[i+1]);
+    }
 
 	printf("[c_example] Initializing PCM measurements:\n");
 	PCM.pcm_c_init();
