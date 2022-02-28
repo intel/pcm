@@ -80,6 +80,8 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/pcm/
 
 %changelog
+* Mon Feb 28 2022 - roman.dementiev@intel.com
+        add addition doc files
 * Tue Jan 04 2022 - maria.markova@intel.com
         Add cmake adaptation
 * Fri Dec 17 2021 - maria.markova@intel.com
