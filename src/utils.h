@@ -45,6 +45,7 @@ namespace pcm {
 
 void exit_cleanup(void);
 void set_signal_handlers(void);
+void set_real_time_priority(const bool & silent);
 void restore_signal_handlers(void);
 #ifndef _MSC_VER
 void sigINT_handler(int signum);
@@ -237,7 +238,8 @@ enum CsvOutputType
 {
     Header1,
     Header2,
-    Data
+    Data,
+    Header21 // merged headers 2 and 1
 };
 
 template <class H1, class H2, class D>
@@ -246,6 +248,7 @@ inline void choose(const CsvOutputType outputType, H1 h1Func, H2 h2Func, D dataF
     switch (outputType)
     {
     case Header1:
+    case Header21:
         h1Func();
         break;
     case Header2:
@@ -304,6 +307,11 @@ void parseParam(int argc, char* argv[], const char* param, F f)
         {
             argv++;
             argc--;
+            if (argc == 0)
+            {
+                std::cerr << "ERROR: no parameter provided for option " << param << "\n";
+                exit(EXIT_FAILURE);
+            }
             f(*argv);
             continue;
         }
@@ -487,5 +495,7 @@ inline HANDLE openMSRDriver()
 // called before everything else to read '-s' arg and
 // silence all following err output
 void check_and_set_silent(int argc, char * argv[], null_stream &nullStream2);
+
+void print_pid_collection_message(int pid);
 
 } // namespace pcm

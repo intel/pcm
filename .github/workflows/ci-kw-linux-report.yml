@@ -12,8 +12,13 @@ jobs:
     - uses: actions/checkout@v2
     - name: kw
       run: |
+        cd src
         git clone https://github.com/simdjson/simdjson.git
-        ci-kw-linux.sh "echo No Preparation for make" "make -j"
+        cd ..
+        mkdir build
+        cd build
+        cmake ..
+        ci-kw-linux.sh "echo No Preparation" "make -j"
 
     - name: kw-report
       run: |

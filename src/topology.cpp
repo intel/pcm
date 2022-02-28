@@ -62,7 +62,7 @@ SocketCounterState Socket::socketCounterState( void ) const {
     SocketCounterState scs;
     // Fill the scs
     // by iterating the cores
-    for( auto core : cores_ ) {
+    for( auto& core : cores_ ) {
         scs.BasicCounterState::operator += ( core->coreCounterState() );
     }
     // and the uncore

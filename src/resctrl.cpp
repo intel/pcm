@@ -109,7 +109,7 @@ namespace pcm
     {
         auto files = fileMap[core];
         size_t result = 0;
-        for (auto f : files)
+        for (auto& f : files)
         {
             const auto data = readSysFS(f.c_str(), false);
             if (data.empty() == false)
@@ -123,7 +123,7 @@ namespace pcm
                 std::cerr << "Error reading " << f << ". Error: " << strerror(errno) << "\n";
                 if (errno == 24)
                 {
-                    std::cerr << "try executing 'ulimit -n 20000' to increase the limit on the number of open files.\n";
+                    std::cerr << PCM_ULIMIT_RECOMMENDATION;
                 }
             }
         }

@@ -61,10 +61,14 @@ if(UNIX)  # APPLE, LINUX, FREE_BSD
 
 endif(UNIX)
 
+#######################
+# Install
+#######################
+
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
-if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)  # default is /usr/local
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT OR ${CMAKE_INSTALL_PREFIX} STREQUAL "/usr")  # default is "/usr/local", pcm default is "/usr"
   set(CMAKE_INSTALL_PREFIX "/usr" CACHE PATH "..." FORCE)
 else()
   set(CMAKE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}/usr" CACHE PATH "..." FORCE)
@@ -75,3 +79,60 @@ add_subdirectory(examples)
 add_subdirectory(tests)
 
 message(STATUS "Install directory: ${CMAKE_INSTALL_PREFIX}")
+
+#######################
+# CPack (only UNIX)
+#######################
+if(UNIX)
+    if(EXISTS "/etc/debian_version")      # for Debian family
+        set(CPACK_GENERATOR "DEB")
+        message(STATUS "CPACK_GENERATOR is DEB")
+    elseif(EXISTS "/etc/redhat-release")  # for RHEL, Fedora, CentOs
+        set(CPACK_GENERATOR "RPM")
+        message(STATUS "CPACK_GENERATOR is RPM")
+    else()
+        if(EXISTS "/etc/os-release")
+            file(READ "/etc/os-release" OS_PARAMS)
+            string(REGEX MATCH "suse" OUT ${OS_PARAMS})  # for Suse-like systems
+            if(OUT STREQUAL "suse")
+                 set(CPACK_GENERATOR "RPM")
+                 message(STATUS "CPACK_GENERATOR is RPM")
+            else()
+                set(CPACK_GENERATOR "TXZ")
+                set(CPACK_SET_DESTDIR ON)
+                message(STATUS "CPACK_GENERATOR is TXZ")
+            endif()
+        else()
+            set(CPACK_GENERATOR "TXZ")
+            set(CPACK_SET_DESTDIR ON)
+            message(STATUS "CPACK_GENERATOR is TXZ")
+        endif()
+    endif()
+
+    set(CPACK_PACKAGE_CONTACT "intel <roman.dementiev@intel.com>")
+    set(CPACK_PACKAGE_NAME    "pcm")
+    set(CPACK_PACKAGE_VERSION "0000")
+
+    set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Processor Counter Monitor (PCM)")
+    set(CPACK_PACKAGE_DESCRIPTION "\
+    Processor Counter Monitor (PCM) is an application programming\n\
+    interface (API) and a set of tools based on the API to monitor\n\
+    performance and energy metrics of Intel(r) Core(tm), Xeon(r), Atom(tm)\n\
+    and Xeon Phi(tm) processors. PCM works on Linux, Windows, Mac OS X,\n\
+    FreeBSD and DragonFlyBSD operating systems.")
+    set(CPACK_RPM_PACKAGE_DESCRIPTION ${CPACK_PACKAGE_DESCRIPTION})
+
+    set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
+    set(CPACK_RPM_PACKAGE_LICENSE   "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
+
+    set(CPACK_PACKAGE_INSTALL_DIRECTORY             ${CMAKE_INSTALL_PREFIX})
+    set(CPACK_INSTALL_DEFAULT_DIRECTORY_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+
+    set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+    set(CPACK_RPM_PACKAGE_RELOCATABLE  TRUE)
+
+    set(CPACK_DEB_COMPONENT_INSTALL ON)
+    set(CPACK_RPM_COMPONENT_INSTALL ON)
+
+    include (CPack)
+endif(UNIX)

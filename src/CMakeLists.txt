@@ -8,54 +8,56 @@
 # * Neither the name of Intel Corporation nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
 #
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- 
-# Flags settings
-if(UNIX)
-
-    if(APPLE)
-        add_subdirectory(MacMSRDriver)
-    endif(APPLE)
-
-endif(UNIX)
-
-if(MSVC)
-     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /O2 /wd4251 /wd4273")
-     add_definitions(/W3)
-endif(MSVC)
 
 
 # All pcm-* executables
-set(PROJECT_NAMES   pcm pcm-numa pcm-latency pcm-power pcm-msr pcm-memory pcm-tsx pcm-pcie pcm-core pcm-iio pcm-lspci pcm-pcicfg pcm-mmio pcm-raw)
+set(PROJECT_NAMES pcm pcm-numa pcm-latency pcm-power pcm-msr pcm-memory pcm-tsx pcm-pcie pcm-core pcm-iio pcm-lspci pcm-pcicfg pcm-mmio pcm-raw)
 
-file(GLOB COMMON_SOURCES  msr.cpp cpucounters.cpp pci.cpp mmio.cpp bw.cpp utils.cpp topology.cpp debug.cpp threadpool.cpp)
+file(GLOB COMMON_SOURCES msr.cpp cpucounters.cpp pci.cpp mmio.cpp bw.cpp utils.cpp topology.cpp debug.cpp threadpool.cpp)
 file(GLOB UNUX_SOURCES dashboard.cpp resctrl.cpp)
 
-if(LINUX OR FREE_BSD)
+if(UNIX)  # LINUX, FREE_BSD, APPLE
+    set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS} -s")  # --strip-unneeded for packaging
+
     list(APPEND PROJECT_NAMES pcm-sensor)
     if(LINUX)
         list(APPEND PROJECT_NAMES pcm-sensor-server)
-    endif(LINUX)
+    endif()
+
+    # libpcm.a
     add_library(PCM_STATIC STATIC ${COMMON_SOURCES} ${UNUX_SOURCES})
     set_target_properties(PCM_STATIC PROPERTIES OUTPUT_NAME pcm)
 
-    add_library(PCM_SHARED SHARED pcm-core.cpp)
-    target_link_libraries(PCM_SHARED PRIVATE PCM_STATIC Threads::Threads)
-    set_target_properties(PCM_SHARED PROPERTIES OUTPUT_NAME pcm)
-endif(LINUX OR FREE_BSD)
+    # libpcm.a with -DPCM_SILENT for Release*
+    add_library(PCM_STATIC_SILENT STATIC ${COMMON_SOURCES} ${UNUX_SOURCES})
+    target_compile_definitions(PCM_STATIC_SILENT PRIVATE
+      $<$<CONFIG:Release>:PCM_SILENT>
+      $<$<CONFIG:MinSizeRel>:PCM_SILENT>
+      $<$<CONFIG:RelWithDebInfo>:PCM_SILENT>
+    )
 
-if(APPLE)
-    list(APPEND PROJECT_NAMES pcm-sensor)
-    add_library(PCM_STATIC STATIC ${COMMON_SOURCES} ${UNUX_SOURCES})
-    include_directories("${CMAKE_SOURCE_DIR}/src/MacMSRDriver") # target_include_directories doesn't work
-    set_target_properties(PCM_STATIC PROPERTIES OUTPUT_NAME pcm)
-
+    # libpcm.so
     add_library(PCM_SHARED SHARED pcm-core.cpp)
-    target_link_libraries(PCM_SHARED PRIVATE PCM_STATIC PcmMsr Threads::Threads)
+    # PCM_SILENT in Release* for pcm-core.cpp
+    target_compile_definitions(PCM_SHARED PRIVATE
+      $<$<CONFIG:Release>:PCM_SILENT>
+      $<$<CONFIG:MinSizeRel>:PCM_SILENT>
+      $<$<CONFIG:RelWithDebInfo>:PCM_SILENT>
+    )
+    if(APPLE)
+        add_subdirectory(MacMSRDriver)
+        include_directories("${CMAKE_SOURCE_DIR}/src/MacMSRDriver") # target_include_directories doesn't work
+        target_link_libraries(PCM_SHARED PRIVATE PCM_STATIC_SILENT PcmMsr Threads::Threads)
+    else()
+        target_link_libraries(PCM_SHARED PRIVATE PCM_STATIC_SILENT Threads::Threads)
+    endif()
     set_target_properties(PCM_SHARED PROPERTIES OUTPUT_NAME pcm)
-endif(APPLE)
+endif()
 
 if(MSVC)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHa /Zi")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /O2 /wd4251 /wd4273 /EHa /Zi")
+    add_definitions(/W3)
+
     # https://cmake.org/cmake/help/latest/prop_tgt/MSVC_RUNTIME_LIBRARY.html
     # windows/restrictDriverAccess.cpp is building separately
     add_library(restrictDriverAccess OBJECT windows/restrictDriverAccess.cpp)
@@ -65,7 +67,7 @@ if(MSVC)
     # Rest of windows/* files + restrictDriverAccess.cpp -> PCM_STATIC
     file(GLOB WINDOWS_SOURCES winpmem/winpmem.cpp windows/stdafx.cpp freegetopt/getopt.cpp)
     add_library(PCM_STATIC STATIC $<TARGET_OBJECTS:restrictDriverAccess> ${COMMON_SOURCES} ${WINDOWS_SOURCES})
-    target_compile_definitions(PCM_STATIC PRIVATE _UNICODE UNICODE _CONSOLE)
+    target_compile_definitions(PCM_STATIC PRIVATE UNICODE _UNICODE _CONSOLE)
 
     # Graphical perfmon front-end: pcm-lib, pcm-service
     # Files: COMMON_FILES() + pcm-lib.cpp winpmem\winpmem.cpp dllmain.cpp
@@ -112,6 +114,10 @@ foreach(PROJECT_NAME ${PROJECT_NAMES})
 
 endforeach(PROJECT_NAME ${PROJECT_NAMES})
 
+#######################
+# Install
+#######################
+
 if(UNIX) # APPLE, LINUX, FREE_BSD
     if(LINUX)
         # Daemon & client
@@ -141,6 +147,35 @@ if(UNIX) # APPLE, LINUX, FREE_BSD
     endforeach(opcode_file ${OPCODE_FILES})
 
     file(COPY "PMURegisterDeclarations" DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+    install(DIRECTORY "PMURegisterDeclarations" DESTINATION "share/pcm")
+
+    # Install docs
+    install(FILES ${CMAKE_SOURCE_DIR}/LICENSE DESTINATION "share/licenses/pcm/")
+    install(FILES ${CMAKE_SOURCE_DIR}/README.md DESTINATION "share/doc/pcm/")
+
+    file(GLOB DOC_FILES  ${CMAKE_SOURCE_DIR}/doc/*.txt  ${CMAKE_SOURCE_DIR}/doc/*.md)
+    foreach(doc_file ${DOC_FILES})
+        get_filename_component(doc_file_name ${doc_file} NAME)
+        configure_file(${doc_file} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${doc_file_name} COPYONLY)
+        install(FILES ${doc_file} DESTINATION "share/doc/pcm/")
+    endforeach(doc_file ${DOC_FILES})
 
 endif(UNIX)
 
+if(MSVC)
+    file(GLOB OPCODE_FILES "opCode*.txt")
+    foreach(opcode_file ${OPCODE_FILES})
+        add_custom_command(TARGET pcm-iio POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${opcode_file}
+            $<TARGET_FILE_DIR:pcm-iio>)
+    endforeach(opcode_file ${OPCODE_FILES})
+
+    add_custom_command(TARGET pcm-raw POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory
+        "$<TARGET_FILE_DIR:pcm-raw>/PMURegisterDeclarations")
+    add_custom_command(TARGET pcm-raw POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${PROJECT_SOURCE_DIR}/src/PMURegisterDeclarations"
+        "$<TARGET_FILE_DIR:pcm-raw>/PMURegisterDeclarations")
+endif(MSVC)
