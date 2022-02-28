@@ -41,7 +41,7 @@ rm -rf $RPM_BUILD_ROOT
 
 %files
 %defattr(-,root,root,0755)
-%doc doc/CUSTOM-COMPILE-OPTIONS.md doc/DOCKER_README.md doc/ENVVAR_README.md doc/FAQ.md doc/FREEBSD_HOWTO.txt doc/MAC_HOWTO.txt doc/PCM-EXPORTER.md doc/PCM-SENSOR-SERVER-README.md doc/PCM_RAW_README.md doc/README.md doc/WINDOWS_HOWTO.md doc/license.txt licenses/LICENSE
+%doc doc/CUSTOM-COMPILE-OPTIONS.md doc/DOCKER_README.md doc/ENVVAR_README.md doc/FAQ.md doc/FREEBSD_HOWTO.txt doc/MAC_HOWTO.txt doc/PCM-EXPORTER.md doc/PCM-SENSOR-SERVER-README.md doc/PCM_RAW_README.md README.md doc/WINDOWS_HOWTO.md doc/license.txt LICENSE
 %{_sbindir}/pcm-core
 %{_sbindir}/pcm-iio
 %{_sbindir}/pcm-latency
