@@ -962,7 +962,7 @@ struct PrintOffset {
 std::vector<PrintOffset> printOffsets;
 std::vector<std::string> printedBlocks;
 
-int getPrintOffsetIdx(const std::vector<PrintOffset> &printOffsets, const std::string &value) {
+int getPrintOffsetIdx(const std::string &value) {
     for (size_t i = 0 ; i < printOffsets.size() ; i++) {
         if (printOffsets[i].entry == value)
             return (int)i;
@@ -1064,7 +1064,7 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
             const auto& fixedEvents = typeEvents.second.fixed;
 
             PrintOffset printOffset{type, 0, 0};
-            const auto print_idx = getPrintOffsetIdx(printOffsets, type);
+            const auto print_idx = getPrintOffsetIdx(type);
 
             if (outputType == Header1 || outputType == Header21) {
                 if (print_idx != -1)
