@@ -42,6 +42,8 @@ rm -rf $RPM_BUILD_ROOT
 %files
 %defattr(-,root,root,0755)
 %doc LICENSE doc/LINUX_HOWTO.txt
+/usr/share/doc/pcm
+/usr/share/licenses/pcm
 /usr/share/doc/pcm/CUSTOM-COMPILE-OPTIONS.md
 /usr/share/doc/pcm/DOCKER_README.md
 /usr/share/doc/pcm/ENVVAR_README.md
