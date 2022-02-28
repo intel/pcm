@@ -1238,7 +1238,7 @@ int main(int argc, char * argv[])
 
     mainLoop([&]()
     {
-        if(!csv) cout << flush;
+        cout << flush;
 
         calibratedSleep(delay, sysCmd, mainLoop, m);
 
