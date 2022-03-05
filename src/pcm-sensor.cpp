@@ -672,7 +672,7 @@ int main()
         OUTPUT_SYSTEM_METRIC("QPI_Traffic", (double(counters.getSystem<uint64, ::getAllIncomingQPILinkBytes>()) / 1024 / 1024 / 1024))
 
         // exit
-        if (s == "quit" || s == "exit") {
+        if (s == "quit" || s == "exit" || s == "") {
             break;
         }
 
