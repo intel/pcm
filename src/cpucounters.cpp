@@ -136,7 +136,7 @@ class TemporalThreadAffinity  // speedup trick for Linux, FreeBSD, DragonFlyBSD,
     const bool restore;
 
 public:
-    TemporalThreadAffinity(uint32 core_id, bool checkStatus = true, const bool restore_ = false)
+    TemporalThreadAffinity(uint32 core_id, bool checkStatus = true, const bool restore_ = true)
        : restore(restore_)
     {
         assert(core_id < 1024);
@@ -174,7 +174,7 @@ public:
     const bool restore;
 
 public:
-    TemporalThreadAffinity(const uint32 core_id, bool checkStatus = true, const bool restore_ = false)
+    TemporalThreadAffinity(const uint32 core_id, bool checkStatus = true, const bool restore_ = true)
         : set_size(CPU_ALLOC_SIZE(maxCPUs)), restore(restore_)
     {
         assert(core_id < maxCPUs);
@@ -212,7 +212,7 @@ public:
 #elif defined(_MSC_VER)
     ThreadGroupTempAffinity affinity;
 public:
-    TemporalThreadAffinity(uint32 core, bool checkStatus = true, const bool restore = false)
+    TemporalThreadAffinity(uint32 core, bool checkStatus = true, const bool restore = true)
        : affinity(core, checkStatus, restore)
     {
     }
