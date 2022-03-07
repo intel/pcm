@@ -104,7 +104,7 @@ int main(int argc, const char *argv[])
 		total += c[i];
 	PCM.pcm_c_stop();
 
-	printf("[c_example] PCM measurment stopped, compute result %u\n", total);
+	printf("[c_example] PCM measurement stopped, compute result %u\n", total);
 
 	lcore_id = pcm_getcpu();
 	printf("C:%lu I:%lu, IPC:%3.2f\n",

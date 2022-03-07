@@ -119,7 +119,7 @@ public:
 
 #ifndef _MSC_VER
 
-// read/write PCI config space using physical memory using mmaped file I/O
+// read/write PCI config space using physical memory using mmapped file I/O
 class PciHandleMM
 {
     int32 fd;

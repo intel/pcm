@@ -34,7 +34,7 @@
 #define OLS_DRIVER_TYPE_WIN_NT			2
 #define OLS_DRIVER_TYPE_WIN_NT4			3	// Obsolete
 #define OLS_DRIVER_TYPE_WIN_NT_X64		4
-#define OLS_DRIVER_TYPE_WIN_NT_IA64		5	// Reseved
+#define OLS_DRIVER_TYPE_WIN_NT_IA64		5	// Reserved
 
 //-----------------------------------------------------------------------------
 //

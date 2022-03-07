@@ -48,7 +48,7 @@ namespace pcm {
 
 extern HMODULE hOpenLibSys;
 
-// here comes an implementatation for Windows
+// here comes an implementation for Windows
 MsrHandle::MsrHandle(uint32 cpu) : cpu_id(cpu)
 {
     hDriver = openMSRDriver();

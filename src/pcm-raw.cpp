@@ -452,21 +452,21 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
     {
         while (mod != EventTokens.end())
         {
-            auto assigment = split(*mod, '=');
-            for (auto& s : assigment)
+            auto assignment = split(*mod, '=');
+            for (auto& s : assignment)
             {
                 lowerCase(s);
             }
-            if (assigment.size() == 2 && assigment[0] == "msr")
+            if (assignment.size() == 2 && assignment[0] == "msr")
             {
-                config.first[PCM::MSREventPosition::index] = read_number(assigment[1].c_str());
+                config.first[PCM::MSREventPosition::index] = read_number(assignment[1].c_str());
             }
-            else if (assigment.size() == 2 && assigment[0] == "type")
+            else if (assignment.size() == 2 && assignment[0] == "type")
             {
-                if (assigment[1] == "static")
+                if (assignment[1] == "static")
                 {
                     config.first[PCM::MSREventPosition::type] = PCM::MSRType::Static;
-                } else if (assigment[1] == "freerun")
+                } else if (assignment[1] == "freerun")
                 {
                     config.first[PCM::MSREventPosition::type] = PCM::MSRType::Freerun;
                 }
@@ -476,13 +476,13 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
                     return false;
                 }
             }
-            else if (assigment.size() == 2 && assigment[0] == "scope")
+            else if (assignment.size() == 2 && assignment[0] == "scope")
             {
-                if (assigment[1] == "package")
+                if (assignment[1] == "package")
                 {
                     pmuName = "package_msr";
                 }
-                else if (assigment[1] == "thread")
+                else if (assignment[1] == "thread")
                 {
                     pmuName = "thread_msr";
                 }
@@ -528,7 +528,7 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
         in.open(alt_path);
         if (!in.is_open())
         {
-            const auto err_msg = std::string("event file ") + path + " or " + alt_path + " is not avaiable.";
+            const auto err_msg = std::string("event file ") + path + " or " + alt_path + " is not available.";
             throw std::invalid_argument(err_msg);
         }
     }
@@ -706,7 +706,7 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
             std::regex EdgeDetectRegex("e(0x[0-9a-fA-F]+|[[:digit:]]+)");
             while (mod != EventTokens.end())
             {
-                const auto assigment = split(*mod, '=');
+                const auto assignment = split(*mod, '=');
                 if (*mod == "SUP")
                 {
                     setField("User", 0);
@@ -752,31 +752,31 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
                     const std::string Str{ mod->begin() + 1, mod->end() };
                     setField("UMask", read_number(Str.c_str()));
                 }
-                else if (assigment.size() == 2 && assigment[0] == "request")
+                else if (assignment.size() == 2 && assignment[0] == "request")
                 {
                     unsupported();
                     return true;
                 }
-                else if (assigment.size() == 2 && assigment[0] == "response")
+                else if (assignment.size() == 2 && assignment[0] == "response")
                 {
                     unsupported();
                     return true;
                 }
-                else if (assigment.size() == 2 && assigment[0] == "filter0")
+                else if (assignment.size() == 2 && assignment[0] == "filter0")
                 {
-                    setField("Filter0", read_number(assigment[1].c_str()));
+                    setField("Filter0", read_number(assignment[1].c_str()));
                 }
-                else if (assigment.size() == 2 && assigment[0] == "filter1")
+                else if (assignment.size() == 2 && assignment[0] == "filter1")
                 {
-                    setField("Filter1", read_number(assigment[1].c_str()));
+                    setField("Filter1", read_number(assignment[1].c_str()));
                 }
-                else if (assigment.size() == 2 && assigment[0] == "t")
+                else if (assignment.size() == 2 && assignment[0] == "t")
                 {
-                    setField("Threshold", read_number(assigment[1].c_str()));
+                    setField("Threshold", read_number(assignment[1].c_str()));
                 }
-                else if (assigment.size() == 2 && assigment[0] == "umask_ext")
+                else if (assignment.size() == 2 && assignment[0] == "umask_ext")
                 {
-                    setField("UMaskExt", read_number(assigment[1].c_str()));
+                    setField("UMaskExt", read_number(assignment[1].c_str()));
                 }
                 else
                 {
