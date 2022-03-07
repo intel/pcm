@@ -43,7 +43,7 @@ typedef signed int int32;
 #define PCM_ULIMIT_RECOMMENDATION ("try executing 'ulimit -n 1000000' to increase the limit on the number of open files.\n")
 
 /*
-        MSR addreses from
+        MSR addresses from
         "Intel 64 and IA-32 Architectures Software Developers Manual Volume 3B:
         System Programming Guide, Part 2", Appendix A "PERFORMANCE-MONITORING EVENTS"
 */

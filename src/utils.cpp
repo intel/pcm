@@ -159,7 +159,7 @@ BOOL sigINT_handler(DWORD fdwCtrlType)
 }
 
 /**
-* \brief started in a separate thread and blocks waiting for child applicaiton to exit.
+* \brief started in a separate thread and blocks waiting for child application to exit.
 * After child app exits: -> print Child's termination status and terminates PCM
 */
 void waitForChild(void * proc_id)
@@ -174,7 +174,7 @@ void waitForChild(void * proc_id)
 /**
  * \brief handles signals that lead to termination of the program
  * such as SIGINT, SIGQUIT, SIGABRT, SIGSEGV, SIGTERM, SIGCHLD
- * this function specifically works when the client aplication launched
+ * this function specifically works when the client application launched
  * by pcm -- terminates
  */
 void sigINT_handler(int signum)
@@ -277,7 +277,7 @@ void set_signal_handlers(void)
 // to fix Cygwin/BASH setting Ctrl+C handler need first to restore the default one
     handlerStatus = SetConsoleCtrlHandler(NULL, FALSE); // restores normal processing of CTRL+C input
     if (handlerStatus == 0) {
-        std::wcerr << "Failed to set Ctrl+C hanlder. Error code: " << GetLastError() << " ";
+        std::wcerr << "Failed to set Ctrl+C handler. Error code: " << GetLastError() << " ";
         const TCHAR * errorStr = _com_error(GetLastError()).ErrorMessage();
         if (errorStr) std::wcerr << errorStr;
         std::wcerr << "\n";
@@ -285,7 +285,7 @@ void set_signal_handlers(void)
     }
     handlerStatus = SetConsoleCtrlHandler((PHANDLER_ROUTINE)sigINT_handler, TRUE);
     if (handlerStatus == 0) {
-        std::wcerr << "Failed to set Ctrl+C hanlder. Error code: " << GetLastError() << " ";
+        std::wcerr << "Failed to set Ctrl+C handler. Error code: " << GetLastError() << " ";
         const TCHAR * errorStr = _com_error(GetLastError()).ErrorMessage();
         if (errorStr) std::wcerr << errorStr;
         std::wcerr << "\n";
@@ -323,7 +323,7 @@ void set_signal_handlers(void)
     sigaction(SIGSEGV, &saINT, NULL);
 
     saINT.sa_flags = SA_RESTART | SA_NOCLDSTOP;
-    sigaction(SIGCHLD, &saINT, NULL); // get there is our child exits. do nothing if it stoped/continued
+    sigaction(SIGCHLD, &saINT, NULL); // get there is our child exits. do nothing if it stopped/continued
 
     // install SIGHUP handler to restart
     saHUP.sa_handler = sigHUP_handler;
@@ -457,7 +457,7 @@ void MySystem(char * sysCmd, char ** sysArgv)
     char cbuf[128];
 
     if (PCM::getInstance()->isBlocked()) {  // synchronous start: wait for child process completion
-        // in case PCM should be blocked waiting for the child applicaiton to end
+        // in case PCM should be blocked waiting for the child application to end
         // 1. returns and ret = -1 in case of error creating process is encountered
         // 2.
         ret = _spawnvp(_P_WAIT, sysCmd, sysArgv);
@@ -478,7 +478,7 @@ void MySystem(char * sysCmd, char ** sysArgv)
             // start new thread which will wait for child completion, and continue PCM's execution
             if (_beginthread(waitForChild, 0, (void *)ret) == -1L) {
                 strerror_s(cbuf, 128, errno);
-                std::cerr << "WARNING: Failed to set waitForChild. PCM will countinue infinitely: finish it manually! " << cbuf << "\n";
+                std::cerr << "WARNING: Failed to set waitForChild. PCM will continue infinitely: finish it manually! " << cbuf << "\n";
             }
         }
     }

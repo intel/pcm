@@ -886,7 +886,7 @@ vector<struct counter> load_events(PCM * m, const char* fn)
         in.open(alt_fn);
         if (!in.is_open())
         {
-            const auto err_msg = std::string("event file ") + fn + " or " + alt_fn + " is not avaiable. Copy it from PCM build directory.";
+            const auto err_msg = std::string("event file ") + fn + " or " + alt_fn + " is not available. Copy it from PCM build directory.";
             throw std::invalid_argument(err_msg);
         }
     }
@@ -978,7 +978,7 @@ vector<struct counter> load_events(PCM * m, const char* fn)
                 case PCM::FC_MASK:
                     pccr->set_fc_mask(numValue);
                     break;
-                //TODO: double type for multipler. drop divider variable
+                //TODO: double type for multiplier. drop divider variable
                 case PCM::MULTIPLIER:
                     ctr.multiplier = (int)numValue;
                     break;
@@ -1181,7 +1181,7 @@ int main(int argc, char * argv[])
             is_str_stream >> noskipws >> delay_input;
             if (is_str_stream.eof() && !is_str_stream.fail()) {
                 if (delay_input < 0) {
-                    cerr << "Unvalid delay specified: \"" << *argv << "\". Delay should be positive.\n";
+                    cerr << "Invalid delay specified: \"" << *argv << "\". Delay should be positive.\n";
                     print_usage(program);
                     exit(EXIT_FAILURE);
                 }

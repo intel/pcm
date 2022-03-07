@@ -130,7 +130,7 @@ bool PCM::initWinRing0Lib()
 
 class TemporalThreadAffinity  // speedup trick for Linux, FreeBSD, DragonFlyBSD, Windows
 {
-    TemporalThreadAffinity(); // forbiden
+    TemporalThreadAffinity(); // forbidden
 #if defined(__FreeBSD__) || (defined(__DragonFly__) && __DragonFly_version >= 400707)
     cpu_set_t old_affinity;
     const bool restore;
@@ -3579,7 +3579,7 @@ uint32 PCM::checkCustomCoreProgramming(std::shared_ptr<SafeMsrHandle> msr)
     const auto core = msr->getCoreId();
     if (size_t(core) >= lastProgrammedCustomCounters.size() || canUsePerf)
     {
-        // checking 'canUsePerf'because corruption detection curently works
+        // checking 'canUsePerf'because corruption detection currently works
         // only if perf is not used, see https://github.com/opcm/pcm/issues/106
         return 0;
     }

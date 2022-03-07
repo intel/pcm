@@ -11,7 +11,7 @@ Disclaimer: in contrast to other PCM utilities this one is for expert usage only
 
 Currently supported PMUs: core, m3upi, upi(ll)/qpi(ll), imc, m2m, pcu, cha/cbo, iio, ubox
 
-Recommended usage (as priviliged/root user):
+Recommended usage (as privileged/root user):
 1. Install VTune which also contains emon (emon/sep driver installation is not needed): [free download](https://software.intel.com/content/www/us/en/develop/tools/vtune-profiler.html)
 2. Run emon with `--dry-run -m` options to obtain raw PMU event encodings for event of interest. For example:
 ```

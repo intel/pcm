@@ -26,7 +26,7 @@ Also PCM utilities are installing to /usr/local/sbin.
 Manual Install
 --------------
 Build steps are the same.
-For instal to do the following:
+To install do the following:
     1) load the driver by running src/MacMSRDriver/kextload.sh
     2) copy build/lib/libPcmMsr.dylib to a location on your path (auto-install uses /usr/lib)
     3) copy src/MacMSRDriver/MSRKernel.h to a location on your path (auto-install uses /usr/include)
