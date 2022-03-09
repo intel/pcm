@@ -133,7 +133,7 @@ class TemporalThreadAffinity  // speedup trick for Linux, FreeBSD, DragonFlyBSD,
     TemporalThreadAffinity(); // forbidden
 #if defined(__FreeBSD__) || (defined(__DragonFly__) && __DragonFly_version >= 400707)
     cpu_set_t old_affinity;
-    const bool restore;
+    bool restore;
 
 public:
     TemporalThreadAffinity(uint32 core_id, bool checkStatus = true, const bool restore_ = true)
@@ -152,6 +152,7 @@ public:
         // CPU_CMP() returns true if old_affinity is NOT equal to new_affinity
         if (!(CPU_CMP(&old_affinity, &new_affinity)))
         {
+            restore = false;
             return; // the same affinity => return
         }
         res = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &new_affinity);
@@ -171,7 +172,7 @@ public:
     cpu_set_t * old_affinity;
     static constexpr auto maxCPUs = 8192;
     const size_t set_size;
-    const bool restore;
+    bool restore;
 
 public:
     TemporalThreadAffinity(const uint32 core_id, bool checkStatus = true, const bool restore_ = true)
@@ -193,6 +194,7 @@ public:
         if (CPU_EQUAL_S(set_size, old_affinity, new_affinity))
         {
             CPU_FREE(new_affinity);
+            restore = false;
             return;
         }
         res = pthread_setaffinity_np(pthread_self(), set_size, new_affinity);
