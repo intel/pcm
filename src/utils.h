@@ -144,7 +144,7 @@ void print_cpu_details();
 class ThreadGroupTempAffinity
 {
     GROUP_AFFINITY PreviousGroupAffinity;
-    const bool restore;
+    bool restore;
 
     ThreadGroupTempAffinity();                                              // forbidden
     ThreadGroupTempAffinity(const ThreadGroupTempAffinity &);               // forbidden

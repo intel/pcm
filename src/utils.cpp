@@ -88,6 +88,7 @@ ThreadGroupTempAffinity::ThreadGroupTempAffinity(uint32 core_id, bool checkStatu
     if (GetThreadGroupAffinity(GetCurrentThread(), &PreviousGroupAffinity)
         && (std::memcmp(&NewGroupAffinity, &PreviousGroupAffinity, sizeof(GROUP_AFFINITY)) == 0))
     {
+        restore = false;
         return;
     }
     const auto res = SetThreadGroupAffinity(GetCurrentThread(), &NewGroupAffinity, &PreviousGroupAffinity);
