@@ -18,7 +18,7 @@ rm $out
 echo
 echo ========= CHECKING FOR PMM SUPPORT =========
 echo
-./pcm-memory -pmm -- sleep 1 &> tmp
+./pcm-memory -pmm -- sleep 1 >tmp 2>&1
 dram_only=`cat tmp | grep "PMM traffic metrics are not available"  | wc -l`
 rm tmp
 if [ $dram_only -gt 0 ]

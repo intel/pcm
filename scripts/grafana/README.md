@@ -3,8 +3,9 @@ Instructions on How To Run PCM Grafana Dashboard
 --------------------------------------------------------------------------------
 
 Installation on target system to be analyzed:
-1.  Build:
+1.  Build from the root PCM directory:
     ```
+    cd ../..  # if the current location is 'scripts/grafana/'
     mkdir build && cd build
     cmake .. && make -j$(nproc) pcm-sensor-server
     ```

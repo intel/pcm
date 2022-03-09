@@ -1633,7 +1633,7 @@ public:
 
                 if ( !authority.empty() ) {
                     // authority now at most has host and port, port is now the definitive separator
-                    // (cant be part of the ipv6 address anymore)
+                    // (can't be part of the ipv6 address anymore)
                     size_t portColonPos = authority.rfind( ':' );
                     bool portColonFound = (portColonPos != std::string::npos);
 
@@ -1657,7 +1657,7 @@ public:
                                 port = std::stoull( portString, &pos );
                             } catch ( std::invalid_argument& e ) {
                                 DBG( 3, "invalid_argument exception caught in stoull: ", e.what() );
-                                DBG( 3, "number of characters procesed: ", pos );
+                                DBG( 3, "number of characters processed: ", pos );
                             } catch ( std::out_of_range& e ) {
                                 DBG( 3, "out_of_range exception caught in stoull: ", e.what() );
                                 DBG( 3, "errno: ", errno, strerror(errno) );
@@ -2298,7 +2298,7 @@ basic_socketstream<CharT, Traits>& operator>>( basic_socketstream<CharT, Traits>
         DBG( 3, "Line with whitespace: '", line, "'" );
         concatLine += compressLWSAndRemoveCR( line );
 
-        DBG( 3, "Line without whitepsace: '", line, "'" );
+        DBG( 3, "Line without whitespace: '", line, "'" );
         DBG( 3, "ConcatLine: '", concatLine, "'" );
         // empty line is separator between headers and body
         if ( concatLine.empty() ) {
@@ -2502,7 +2502,7 @@ public:
                 response.createResponse( TextPlain, body, RC_501_NotImplemented );
             }
 
-            // Post-processing, adding some server specific reponse headers
+            // Post-processing, adding some server specific response headers
             int const requestLimit = 100;
             int const connectionTimeout = 10;
             response.addHeader( HTTPHeader( "Server", std::string( "PCMWebServer " ) + PCMWebServerVersion ) );
@@ -2516,7 +2516,7 @@ public:
                     DBG( 3, "Connection: header not found" );
                     connection = "";
                 }
-                // FIXME: case insenstive compare
+                // FIXME: case insensitive compare
                 if ( connection == "keep-alive" ) {
                     DBG( 3, "HTTPConnection::execute: keep-alive header found" );
                     response.addHeader( HTTPHeader( "Connection", "keep-alive" ) );
@@ -2917,7 +2917,7 @@ enum MimeType matchSupportedWithAcceptedMimeTypes( HTTPHeader const& h ) {
 }
 
 /* Normally the Accept Header decides what format is returned but certain endpoints can override this,
- * therefore we have a seperate enum for output format */
+ * therefore we have a separate enum for output format */
 void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & resp )
 {
     enum MimeType mt;
@@ -3049,7 +3049,7 @@ void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & re
             }
         }
     } else if ( 8 == url.path_.size() && 0 == url.path_.find( "/metrics", 0 ) ) {
-        DBG( 3, "Special snowflake prometheus wants a /metrics URL, it cant be bothered to use its own mimetype in the Accept header" );
+        DBG( 3, "Special snowflake prometheus wants a /metrics URL, it can't be bothered to use its own mimetype in the Accept header" );
         format = Prometheus_0_0_4;
         aggregatorPair = getNullAndCurrentAggregator();
     } else {

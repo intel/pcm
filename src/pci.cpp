@@ -558,7 +558,7 @@ PciHandleM::~PciHandleM()
 
 #endif // PCM_USE_PCI_MM_LINUX
 
-// mmaped I/O version
+// mmapped I/O version
 
 MCFGHeader PciHandleMM::mcfgHeader;
 std::vector<MCFGRecord> PciHandleMM::mcfgRecords;

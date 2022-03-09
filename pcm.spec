@@ -42,6 +42,22 @@ rm -rf $RPM_BUILD_ROOT
 %files
 %defattr(-,root,root,0755)
 %doc LICENSE doc/LINUX_HOWTO.txt
+/usr/share/doc/pcm
+/usr/share/licenses/pcm
+/usr/share/doc/pcm/CUSTOM-COMPILE-OPTIONS.md
+/usr/share/doc/pcm/DOCKER_README.md
+/usr/share/doc/pcm/ENVVAR_README.md
+/usr/share/doc/pcm/FAQ.md
+/usr/share/doc/pcm/FREEBSD_HOWTO.txt
+/usr/share/doc/pcm/LINUX_HOWTO.txt
+/usr/share/doc/pcm/MAC_HOWTO.txt
+/usr/share/doc/pcm/PCM-EXPORTER.md
+/usr/share/doc/pcm/PCM-SENSOR-SERVER-README.md
+/usr/share/doc/pcm/PCM_RAW_README.md
+/usr/share/doc/pcm/README.md
+/usr/share/doc/pcm/WINDOWS_HOWTO.md
+/usr/share/doc/pcm/license.txt
+/usr/share/licenses/pcm/LICENSE
 %{_sbindir}/pcm-core
 %{_sbindir}/pcm-iio
 %{_sbindir}/pcm-latency
@@ -64,6 +80,8 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/pcm/
 
 %changelog
+* Mon Feb 28 2022 - roman.dementiev@intel.com
+        add addition doc files
 * Tue Jan 04 2022 - maria.markova@intel.com
         Add cmake adaptation
 * Fri Dec 17 2021 - maria.markova@intel.com

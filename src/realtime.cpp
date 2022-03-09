@@ -199,7 +199,7 @@ int main(int argc, char * argv[])
     cout << "\n\nElements to traverse: " << totalops << "\n";
     cout << "Items in data structure: " << nelements << "\n";
     cout << "Elements data size: " << sizeof(T) * nelements / 1024 << " KB\n";
-    cout << "Test repetions: " << repeat << "\n";
+    cout << "Test repetitions: " << repeat << "\n";
 
     cout << "\n*List data structure*\n";
     measure(list, repeat, nelements);

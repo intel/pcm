@@ -94,7 +94,7 @@ class SystemRoot;
         A set of performance monitoring routines for recent Intel CPUs
 */
 
-struct PCM_API TopologyEntry // decribes a core
+struct PCM_API TopologyEntry // describes a core
 {
     int32 os_id;
     int32 thread_id;
@@ -1754,7 +1754,7 @@ public:
     };
 
     //! \brief Program uncore PCIe monitoring event(s)
-    //! \param eventGroup - events to programm for the same run
+    //! \param eventGroup - events to program for the same run
     void programPCIeEventGroup(eventGroup_t &eventGroup);
     uint64 getPCIeCounterData(const uint32 socket_, const uint32 ctr_);
 
@@ -3097,7 +3097,7 @@ uint64 getInstructionsRetired(const CounterStateType & before, const CounterStat
     return after.InstRetiredAny - before.InstRetiredAny;
 }
 
-/*! \brief Computes average number of retired instructions per time intervall
+/*! \brief Computes average number of retired instructions per time interval
 
     \param before CPU counter state before the experiment
     \param after CPU counter state after the experiment
@@ -3193,7 +3193,7 @@ inline double getCoreIPC(const CounterStateType & before, const CounterStateType
     return -1;
 }
 
-/*! \brief Computes average number of retired instructions per time intervall for the entire system combining instruction counts from logical cores to corresponding physical cores
+/*! \brief Computes average number of retired instructions per time interval for the entire system combining instruction counts from logical cores to corresponding physical cores
 
         Use this metric to evaluate cores utilization improvement between SMT(Hyperthreading) on and SMT off.
 
@@ -3702,7 +3702,7 @@ uint64 getIORequestBytesFromMC(const CounterStateType & before, const CounterSta
     return 0ULL;
 }
 
-/*! \brief Returns the number of occured system management interrupts
+/*! \brief Returns the number of occurred system management interrupts
 
     \param before CPU counter state before the experiment
     \param after CPU counter state after the experiment
@@ -3714,7 +3714,7 @@ uint64 getSMICount(const CounterStateType & before, const CounterStateType & aft
     return after.SMICount - before.SMICount;
 }
 
-/*! \brief Returns the number of occured custom core events
+/*! \brief Returns the number of occurred custom core events
 
     Read number of events programmed with the \c CUSTOM_CORE_EVENTS
 
@@ -3794,7 +3794,7 @@ inline double getOutgoingQPILinkUtilization(uint32 socketNr, uint32 linkNr, cons
         const uint64 bTSC = before.uncoreTSC;
         const uint64 aTSC = after.uncoreTSC;
         const double tsc = (double)((aTSC > bTSC) ? (aTSC - bTSC) : 0);
-        if (idle_flits >= tsc) return 0.; // prevent oveflows due to potential counter dissynchronization
+        if (idle_flits >= tsc) return 0.; // prevent overflows due to potential counter dissynchronization
 
         return (1. - (idle_flits / tsc));
     } else if (m->hasPCICFGUncore())
@@ -3808,7 +3808,7 @@ inline double getOutgoingQPILinkUtilization(uint32 socketNr, uint32 linkNr, cons
         {
             flits = flits/3.;
         }
-        if (flits > max_flits) return 1.; // prevent oveflows due to potential counter dissynchronization
+        if (flits > max_flits) return 1.; // prevent overflows due to potential counter dissynchronization
         return (flits / max_flits);
     }
 

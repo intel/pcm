@@ -145,7 +145,7 @@ if [ "$?" != 2 ]; then
 fi
 
 ### Check pcm-raw with event files
-# Download nescessary files
+# Download necessary files
 if [ ! -f "mapfile.csv" ]; then
     echo "Downloading https://download.01.org/perfmon/mapfile.csv"
     wget -q --timeout=10 https://download.01.org/perfmon/mapfile.csv

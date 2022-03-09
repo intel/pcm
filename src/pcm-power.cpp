@@ -131,11 +131,11 @@ void print_usage(const string progname)
     cerr << "                       profile  7 - UFS transition statistics (1) \n";
     cerr << "                       profile  8 - UFS transition statistics (2) \n";
     cerr << "                       profile -1 - omit PCU PMU output\n";
-    cerr << "  <freq_band0>       - frequency minumum for band 0 for PCU frequency residency profile [in 100MHz units] (default is " <<
+    cerr << "  <freq_band0>       - frequency minimum for band 0 for PCU frequency residency profile [in 100MHz units] (default is " <<
         default_freq_band[0] << "= " << 100 * default_freq_band[0] << "MHz)\n";
-    cerr << "  <freq_band1>       - frequency minumum for band 1 for PCU frequency residency profile [in 100MHz units] (default is " <<
+    cerr << "  <freq_band1>       - frequency minimum for band 1 for PCU frequency residency profile [in 100MHz units] (default is " <<
         default_freq_band[1] << "= " << 100 * default_freq_band[1] << "MHz)\n";
-    cerr << "  <freq_band2>       - frequency minumum for band 2 for PCU frequency residency profile [in 100MHz units] (default is " <<
+    cerr << "  <freq_band2>       - frequency minimum for band 2 for PCU frequency residency profile [in 100MHz units] (default is " <<
         default_freq_band[2] << "= " << 100 * default_freq_band[2] << "MHz)\n";
     cerr << "\n";
 }

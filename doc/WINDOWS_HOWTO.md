@@ -19,7 +19,7 @@ Command-line utility:
 
 For Windows 7 and Windows Server 2008 R2 the PCM utilities need to be run as administrator:
 
-Alternatively you can achieve the same using the “Properties” Windows menu of the executable (“Privilege level” setting in the “Compatibilty” tab): Right mouse click -&gt; Properties -&gt; Compatibility -&gt; Privilege level -&gt; Set “Run this program as an administrator”.
+Alternatively you can achieve the same using the “Properties” Windows menu of the executable (“Privilege level” setting in the “Compatibility” tab): Right mouse click -&gt; Properties -&gt; Compatibility -&gt; Privilege level -&gt; Set “Run this program as an administrator”.
 
 ![Screenshot](run-as-administrator.png)
 

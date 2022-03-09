@@ -722,11 +722,11 @@ namespace PCMDaemon {
 	{
 		if(sharedPCMState_ != NULL)
 		{
-			//Detatch shared memory segment
+			//Detach shared memory segment
 			int success = shmdt(sharedPCMState_);
 			if(success != 0)
 			{
-				std::cerr << "Failed to detatch the shared memory segment (errno=" << errno << ")\n";
+				std::cerr << "Failed to detach the shared memory segment (errno=" << errno << ")\n";
 			}
 			else
 			{
