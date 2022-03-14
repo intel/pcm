@@ -1167,7 +1167,7 @@ int main(int argc, char * argv[])
     bool reset_pmu = false;
     bool disable_JKT_workaround = false; // as per http://software.intel.com/en-us/articles/performance-impact-when-sampling-certain-llc-events-on-snb-ep-with-vtune
 
-    parseParam(argc, argv, "pid", [&pid](const char* p) { if (p) pid = atoi(p); });
+    parsePID(argc, argv, pid);
 
     MainLoop mainLoop;
     std::bitset<MAX_CORES> ycores;
@@ -1267,7 +1267,7 @@ int main(int argc, char * argv[])
             }
             continue;
         }
-        else if (strncmp(*argv, "-pid", 4) == 0 || strncmp(*argv, "/pid", 4) == 0)
+        else if (isPIDOption(argv))
         {
             argv++;
             argc--;

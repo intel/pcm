@@ -498,4 +498,15 @@ void check_and_set_silent(int argc, char * argv[], null_stream &nullStream2);
 
 void print_pid_collection_message(int pid);
 
+inline bool isPIDOption(char * argv [])
+{
+    return strncmp(*argv, "-pid", 4) == 0 || strncmp(*argv, "/pid", 4) == 0;
+}
+
+inline void parsePID(int argc, char* argv[], int& pid)
+{
+    parseParam(argc, argv, "pid", [&pid](const char* p) { if (p) pid = atoi(p); });
+}
+
+
 } // namespace pcm

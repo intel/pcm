@@ -1810,7 +1810,7 @@ int main(int argc, char* argv[])
     bool reset_pmu = false;
     PCM* m = PCM::getInstance();
 
-    parseParam(argc, argv, "pid", [&pid](const char* p) { if (p) pid = atoi(p); });
+    parsePID(argc, argv, pid);
 
 #ifdef PCM_SIMDJSON_AVAILABLE
     parseParam(argc, argv, "ep", [](const char* p) { eventFileLocationPrefix = p;});
@@ -1844,7 +1844,7 @@ int main(int argc, char* argv[])
         {
             continue;
         }
-        else if (strncmp(*argv, "-pid", 4) == 0 || strncmp(*argv, "/pid", 4) == 0)
+        else if (isPIDOption(argv))
         {
             argv++;
             argc--;
