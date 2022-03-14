@@ -108,6 +108,7 @@ int main(int argc, char * argv[])
     cerr << "\n";
 
     double delay = -1.0;
+    int pid{ -1 };
     char * sysCmd = NULL;
     char ** sysArgv = NULL;
     bool csv = false;
@@ -115,6 +116,8 @@ int main(int argc, char * argv[])
     string program = string(argv[0]);
 
     PCM * m = PCM::getInstance();
+
+    parsePID(argc, argv, pid);
 
     if (argc > 1) do
         {
@@ -139,6 +142,12 @@ int main(int argc, char * argv[])
                         m->setOutput(filename);
                     }
                 }
+                continue;
+            }
+            else if (isPIDOption(argv))
+            {
+                argv++;
+                argc--;
                 continue;
             }
             else if (mainLoop.parseArg(*argv))
@@ -198,7 +207,9 @@ int main(int argc, char * argv[])
     regs[1].fields.event_select = m->getOCREventNr(1, 0).first; // OFFCORE_RESPONSE 1 event
     regs[1].fields.umask =        m->getOCREventNr(1, 0).second;
 
-    PCM::ErrorCode status = m->program(PCM::EXT_CUSTOM_CORE_EVENTS, &conf);
+    print_pid_collection_message(pid);
+
+    PCM::ErrorCode status = m->program(PCM::EXT_CUSTOM_CORE_EVENTS, &conf, false, pid);
     m->checkError(status);
 
     print_cpu_details();
