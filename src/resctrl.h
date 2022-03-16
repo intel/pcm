@@ -37,7 +37,7 @@ namespace pcm
         typedef std::unordered_map<int, std::vector<std::string> > FileMapType;
         FileMapType L3OCC, MBL, MBT;
         Resctrl() = delete;
-        size_t getMetric(FileMapType & fileMap, int core);
+        size_t getMetric(const FileMapType & fileMap, int core);
         static constexpr auto PCMPath = "/sys/fs/resctrl/mon_groups/pcm";
     public:
         Resctrl(PCM & m) : pcm(m) {}

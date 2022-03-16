@@ -105,11 +105,15 @@ namespace pcm
             }
         }
     }
-    size_t Resctrl::getMetric(Resctrl::FileMapType & fileMap, int core)
+    size_t Resctrl::getMetric(const Resctrl::FileMapType & fileMap, int core)
     {
-        auto files = fileMap[core];
+        auto files = fileMap.find(core);
+        if (files == fileMap.end())
+        {
+            return 0ULL;
+        }
         size_t result = 0;
-        for (auto& f : files)
+        for (auto& f : files->second)
         {
             const auto data = readSysFS(f.c_str(), false);
             if (data.empty() == false)
