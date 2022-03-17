@@ -2147,11 +2147,7 @@ int main(int argc, char* argv[])
                 //cout << "Called sleep function for " << dec << fixed << delay_ms << " ms\n";
 
                 printAll(group, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, PMUConfigs, groupNr == nGroups);
-                if (nGroups > 1)
-                {
-                    m->cleanup(true);
-                }
-                else
+                if (nGroups == 1)
                 {
                     std::swap(BeforeState, AfterState);
                     std::swap(BeforeSocketState, AfterSocketState);

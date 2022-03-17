@@ -600,7 +600,7 @@ class PCM_API PCM
     std::string errorMessage;
 
     static PCM * instance;
-    bool programmed_pmu;
+    bool programmed_core_pmu{false};
     std::vector<std::shared_ptr<SafeMsrHandle> > MSR;
     std::vector<std::shared_ptr<ServerPCICFGUncore> > server_pcicfg_uncore;
     std::vector<UncorePMU> pcuPMUs;
@@ -863,6 +863,7 @@ private:
     PerfEventHandleContainer perfEventHandle;
     std::vector<PerfEventHandleContainer> perfEventTaskHandle;
     void readPerfData(uint32 core, std::vector<uint64> & data);
+    void closePerfHandles(const bool silent = false);
 
     enum {
         PERF_INST_RETIRED_POS = 0,
