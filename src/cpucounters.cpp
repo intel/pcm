@@ -2076,7 +2076,6 @@ PCM::PCM() :
     pkgMinimumPower(-1),
     pkgMaximumPower(-1),
     systemTopology(new SystemRoot(this)),
-    programmed_pmu(false),
     joulesPerEnergyUnit(0),
 #ifdef __linux__
     resctrl(*this),
@@ -2413,6 +2412,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
     ExtendedCustomCoreEventDescription * pExtDesc = (ExtendedCustomCoreEventDescription *)parameter_;
 
 #ifdef PCM_USE_PERF
+    closePerfHandles(silent);
     if (!silent) std::cerr << "Trying to use Linux perf events...\n";
     const char * no_perf_env = std::getenv("PCM_NO_PERF");
     if (no_perf_env != NULL && std::string(no_perf_env) == std::string("1"))
@@ -2463,7 +2463,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
     }
 #endif
 
-    if (true)
+    if (programmed_core_pmu == false)
     {
         if((canUsePerf == false) && PMUinUse())
         {
@@ -2742,8 +2742,6 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
     }
     #endif
 
-    programmed_pmu = true;
-
     lastProgrammedCustomCounters.clear();
     lastProgrammedCustomCounters.resize(num_cores);
     core_global_ctrl_value = 0ULL;
@@ -2775,6 +2773,8 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
             return status;
         }
     }
+
+    programmed_core_pmu = true;
 
     if (canUsePerf && !silent)
     {
@@ -3808,9 +3808,9 @@ const char * PCM::getUArchCodename(const int32 cpu_model_param) const
     return "unknown";
 }
 
-void PCM::cleanupPMU(const bool silent)
-{
 #ifdef PCM_USE_PERF
+void PCM::closePerfHandles(const bool silent)
+{
     if (canUsePerf)
     {
         auto cleanOne = [this](PerfEventHandleContainer & cont)
@@ -3833,6 +3833,17 @@ void PCM::cleanupPMU(const bool silent)
         perfEventTaskHandle.clear();
 
         if (!silent) std::cerr << " Closed perf event handles\n";
+    }
+}
+#endif
+
+void PCM::cleanupPMU(const bool silent)
+{
+    programmed_core_pmu = false;
+#ifdef PCM_USE_PERF
+    closePerfHandles(silent);
+    if (canUsePerf)
+    {
         return;
     }
 #endif
