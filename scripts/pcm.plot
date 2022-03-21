@@ -2,7 +2,7 @@
 set key autotitle columnhead
 set datafile separator ","
 
-# change is needed
+# change as needed
 # set xlabel 'sample # (each is 1000ms)'
 
 set ylabel 'metric value'
@@ -10,7 +10,7 @@ set ylabel 'metric value'
 set terminal pdf
 set output "pcm.pdf"
 
-# change below  is needed
+# change below as needed
 # plot metrics 3 .. 37
 do for [m=3:37] {
     plot "single_header.pcm.csv" using m with dots
