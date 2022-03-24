@@ -5754,15 +5754,14 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
    , cpu_model(pcm->getCPUModel())
    , qpi_speed(0)
 {
-    initRegisterLocations(pcm);
-    initBuses(socket_, pcm);
-
     if (pcm->useLinuxPerfForUncore())
     {
         initPerf(socket_, pcm);
     }
     else
     {
+        initRegisterLocations(pcm);
+        initBuses(socket_, pcm);
         initDirect(socket_, pcm);
     }
 
