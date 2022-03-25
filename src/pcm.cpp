@@ -127,10 +127,12 @@ void print_basic_metrics(const PCM * m, const State & state1, const State & stat
         cout << "    " << getL3CacheHitRatio(state1, state2);
     if (m->isL2CacheHitRatioAvailable())
         cout << "    " << getL2CacheHitRatio(state1, state2);
+    cout.precision(4);
     if (m->isL3CacheMissesAvailable())
-        cout << "    " << double(getL3CacheMisses(state1, state2)) / getInstructionsRetired(state1, state2);
+        cout << "  " << double(getL3CacheMisses(state1, state2)) / getInstructionsRetired(state1, state2);
     if (m->isL2CacheMissesAvailable())
-        cout << "    " << double(getL2CacheMisses(state1, state2)) / getInstructionsRetired(state1, state2);
+        cout << "  " << double(getL2CacheMisses(state1, state2)) / getInstructionsRetired(state1, state2);
+    cout.precision(2);
 }
 
 template <class State>
@@ -916,10 +918,12 @@ void print_basic_metrics_csv(const PCM * m, const State & state1, const State & 
         cout << ',' << getL3CacheHitRatio(state1, state2);
     if (m->isL2CacheHitRatioAvailable())
         cout << ',' << getL2CacheHitRatio(state1, state2);
+    cout.precision(4);
     if (m->isL3CacheMissesAvailable())
         cout << ',' << double(getL3CacheMisses(state1, state2)) / getInstructionsRetired(state1, state2);
     if (m->isL2CacheMissesAvailable())
         cout << ',' << double(getL2CacheMisses(state1, state2)) / getInstructionsRetired(state1, state2);
+    cout.precision(2);
     if (m->isHWTMAL1Supported())
     {
         cout << ',' << int(100. * getFrontendBound(state1, state2));
