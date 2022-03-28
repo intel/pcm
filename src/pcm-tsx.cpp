@@ -278,6 +278,7 @@ int main(int argc, char * argv[])
     cerr << "\n";
 
     double delay = -1.0;
+    int pid{ -1 };
     char * sysCmd = NULL;
     char ** sysArgv = NULL;
     int cur_event;
@@ -285,6 +286,8 @@ int main(int argc, char * argv[])
     bool force = false;
     MainLoop mainLoop;
     string program = string(argv[0]);
+
+    parsePID(argc, argv, pid);
 
     PCM * m = PCM::getInstance();
     const size_t numCtrSupported = m->getMaxCustomCoreEvents();
@@ -306,12 +309,23 @@ int main(int argc, char * argv[])
         {
             argv++;
             argc--;
+            if (*argv == nullptr)
+            {
+                continue;
+            }
+            else
             if (strncmp(*argv, "--help", 6) == 0 ||
                 strncmp(*argv, "-h", 2) == 0 ||
                 strncmp(*argv, "/h", 2) == 0)
             {
                 print_usage(program);
                 exit(EXIT_FAILURE);
+            }
+            else if (isPIDOption(argv))
+            {
+                argv++;
+                argc--;
+                continue;
             }
             else if (strncmp(*argv, "-csv", 4) == 0 ||
                      strncmp(*argv, "/csv", 4) == 0)
@@ -442,7 +456,9 @@ int main(int argc, char * argv[])
         cerr << "No RTM support detected, but -F found as argument, running anyway.\n";
     }
 
-    PCM::ErrorCode status = m->program(PCM::EXT_CUSTOM_CORE_EVENTS, &conf);
+    print_pid_collection_message(pid);
+
+    PCM::ErrorCode status = m->program(PCM::EXT_CUSTOM_CORE_EVENTS, &conf, false, pid);
     m->checkError(status);
 
     print_cpu_details();

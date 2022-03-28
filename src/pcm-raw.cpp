@@ -962,7 +962,7 @@ struct PrintOffset {
 std::vector<PrintOffset> printOffsets;
 std::vector<std::string> printedBlocks;
 
-int getPrintOffsetIdx(const std::vector<PrintOffset> &printOffsets, const std::string &value) {
+int getPrintOffsetIdx(const std::string &value) {
     for (size_t i = 0 ; i < printOffsets.size() ; i++) {
         if (printOffsets[i].entry == value)
             return (int)i;
@@ -1064,7 +1064,7 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
             const auto& fixedEvents = typeEvents.second.fixed;
 
             PrintOffset printOffset{type, 0, 0};
-            const auto print_idx = getPrintOffsetIdx(printOffsets, type);
+            const auto print_idx = getPrintOffsetIdx(type);
 
             if (outputType == Header1 || outputType == Header21) {
                 if (print_idx != -1)
@@ -1810,7 +1810,7 @@ int main(int argc, char* argv[])
     bool reset_pmu = false;
     PCM* m = PCM::getInstance();
 
-    parseParam(argc, argv, "pid", [&pid](const char* p) { if (p) pid = atoi(p); });
+    parsePID(argc, argv, pid);
 
 #ifdef PCM_SIMDJSON_AVAILABLE
     parseParam(argc, argv, "ep", [](const char* p) { eventFileLocationPrefix = p;});
@@ -1844,7 +1844,7 @@ int main(int argc, char* argv[])
         {
             continue;
         }
-        else if (strncmp(*argv, "-pid", 4) == 0 || strncmp(*argv, "/pid", 4) == 0)
+        else if (isPIDOption(argv))
         {
             argv++;
             argc--;
@@ -2147,11 +2147,7 @@ int main(int argc, char* argv[])
                 //cout << "Called sleep function for " << dec << fixed << delay_ms << " ms\n";
 
                 printAll(group, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, PMUConfigs, groupNr == nGroups);
-                if (nGroups > 1)
-                {
-                    m->cleanup(true);
-                }
-                else
+                if (nGroups == 1)
                 {
                     std::swap(BeforeState, AfterState);
                     std::swap(BeforeSocketState, AfterSocketState);

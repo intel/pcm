@@ -88,7 +88,7 @@ int main(int argc, const char *argv[])
         return -2;
     }
 
-    for (int i = 0; i < numEvents; ++i)
+    for (i = 0; i < numEvents; ++i)
     {
         PCM.pcm_c_build_core_event(i, argv[i+1]);
     }
