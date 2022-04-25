@@ -2322,14 +2322,34 @@ bool PCM::isCPUModelSupported(const int model_)
 
 bool PCM::checkModel()
 {
-    if (cpu_model == NEHALEM) cpu_model = NEHALEM_EP;
-    if (cpu_model == ATOM_2) cpu_model = ATOM;
-    if (cpu_model == HASWELL_ULT || cpu_model == HASWELL_2) cpu_model = HASWELL;
-    if (cpu_model == BROADWELL_XEON_E3) cpu_model = BROADWELL;
-    if (cpu_model == ICX_D) cpu_model = ICX;
-    if (cpu_model == CML_1) cpu_model = CML;
-    if (cpu_model == ICL_1) cpu_model = ICL;
-    if (cpu_model == TGL_1) cpu_model = TGL;
+    switch (cpu_model)
+    {
+        case NEHALEM:
+            cpu_model = NEHALEM_EP;
+            break;
+        case ATOM_2:
+            cpu_model = ATOM;
+            break;
+        case HASWELL_ULT:
+        case HASWELL_2:
+            cpu_model = HASWELL;
+            break;
+        case BROADWELL_XEON_E3:
+            cpu_model = BROADWELL;
+            break;
+        case ICX_D:
+            cpu_model = ICX;
+            break;
+        case CML_1:
+            cpu_model = CML;
+            break;
+        case ICL_1:
+            cpu_model = ICL;
+            break;
+        case TGL_1:
+            cpu_model = TGL;
+            break;
+    }
 
     if(!isCPUModelSupported((int)cpu_model))
     {
