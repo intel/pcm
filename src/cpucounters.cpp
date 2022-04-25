@@ -2349,6 +2349,9 @@ bool PCM::checkModel()
         case TGL_1:
             cpu_model = TGL;
             break;
+        case ADL_1:
+            cpu_model = ADL;
+            break;
     }
 
     if(!isCPUModelSupported((int)cpu_model))
