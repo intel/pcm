@@ -1035,7 +1035,7 @@ result_content get_IIO_Samples(PCM *m, const std::vector<struct iio_stacks_on_so
     uint64 rawEvents[4] = {0};
     std::unique_ptr<ccr> pccr(get_ccr(m, ctr.ccr));
     rawEvents[ctr.idx] = pccr->get_ccr_value();
-    int stacks_count = (int)iios[0].stacks.size();
+    const int stacks_count = (int)m->getMaxNumOfIIOStacks();
     before = new IIOCounterState[iios.size() * stacks_count];
     after = new IIOCounterState[iios.size() * stacks_count];
 
