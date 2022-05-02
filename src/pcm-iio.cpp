@@ -82,6 +82,15 @@ static const std::string icx_iio_stack_names[6] = {
     "IIO Stack 5 - CBDMA/DMI      "
 };
 
+static const std::string icx_d_iio_stack_names[6] = {
+    "IIO Stack 0 - MCP            ",
+    "IIO Stack 1 - PCIe0          ",
+    "IIO Stack 2 - CBDMA/DMI      ",
+    "IIO Stack 3 - PCIe2          ",
+    "IIO Stack 4 - PCIe3          ",
+    "IIO Stack 5 - PCIe1          "
+};
+
 static const std::string snr_iio_stack_names[5] = {
     "IIO Stack 0 - QAT            ",
     "IIO Stack 1 - CBDMA/DMI      ",
@@ -107,6 +116,15 @@ static const std::map<int, int> icx_sad_to_pmu_id_mapping = {
     { 1,                    0 },
     { 2,                    1 },
     { ICX_MCP_SAD_ID,       2 },
+    { 4,                    3 },
+    { 5,                    4 }
+};
+
+static const std::map<int, int> icx_d_sad_to_pmu_id_mapping = {
+    { ICX_CBDMA_DMI_SAD_ID, 2 },
+    { 1,                    5 },
+    { 2,                    1 },
+    { ICX_MCP_SAD_ID,       0 },
     { 4,                    3 },
     { 5,                    4 }
 };
@@ -545,8 +563,16 @@ bool IPlatformMapping10Nm::getSadIdRootBusMap(uint32_t socket_id, std::map<uint8
 // Mapping for IceLake Server.
 class WhitleyPlatformMapping: public IPlatformMapping10Nm {
 private:
+    const bool icx_d;
+    const std::map<int, int>& sad_to_pmu_id_mapping;
+    const std::string * iio_stack_names;
 public:
-    WhitleyPlatformMapping() = default;
+    WhitleyPlatformMapping() :
+        icx_d(PCM::getInstance()->getCPUModelFromCPUID() == PCM::ICX_D),
+        sad_to_pmu_id_mapping(icx_d ? icx_d_sad_to_pmu_id_mapping : icx_sad_to_pmu_id_mapping),
+        iio_stack_names(icx_d ? icx_d_iio_stack_names : icx_iio_stack_names)
+    {
+    }
     ~WhitleyPlatformMapping() = default;
     bool pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios, uint32_t sockets_count) override;
 };
@@ -563,15 +589,15 @@ bool WhitleyPlatformMapping::pciTreeDiscover(std::vector<struct iio_stacks_on_so
 
         {
             struct iio_stack stack;
-            stack.iio_unit_id = icx_sad_to_pmu_id_mapping.at(ICX_MCP_SAD_ID);
-            stack.stack_name = icx_iio_stack_names[stack.iio_unit_id];
+            stack.iio_unit_id = sad_to_pmu_id_mapping.at(ICX_MCP_SAD_ID);
+            stack.stack_name = iio_stack_names[stack.iio_unit_id];
             iio_on_socket.stacks.push_back(stack);
         }
 
         for (auto sad_id_bus_pair = sad_id_bus_map.cbegin(); sad_id_bus_pair != sad_id_bus_map.cend(); ++sad_id_bus_pair) {
             int sad_id = sad_id_bus_pair->first;
-            if (icx_sad_to_pmu_id_mapping.find(sad_id) ==
-                icx_sad_to_pmu_id_mapping.end()) {
+            if (sad_to_pmu_id_mapping.find(sad_id) ==
+                sad_to_pmu_id_mapping.end()) {
                 cerr << "Unknown SAD ID: " << sad_id << endl;
                 return false;
             }
@@ -584,9 +610,9 @@ bool WhitleyPlatformMapping::pciTreeDiscover(std::vector<struct iio_stacks_on_so
             int root_bus = sad_id_bus_pair->second;
             if (sad_id == ICX_CBDMA_DMI_SAD_ID) {
                 // There is one DMA Controller on each socket
-                stack.iio_unit_id = icx_sad_to_pmu_id_mapping.at(sad_id);
+                stack.iio_unit_id = sad_to_pmu_id_mapping.at(sad_id);
                 stack.busno = root_bus;
-                stack.stack_name = icx_iio_stack_names[stack.iio_unit_id];
+                stack.stack_name = iio_stack_names[stack.iio_unit_id];
 
                 // PCH is on socket 0 only
                 if (socket == 0) {
@@ -629,8 +655,8 @@ bool WhitleyPlatformMapping::pciTreeDiscover(std::vector<struct iio_stacks_on_so
                 continue;
             }
             stack.busno = root_bus;
-            stack.iio_unit_id = icx_sad_to_pmu_id_mapping.at(sad_id);
-            stack.stack_name = icx_iio_stack_names[stack.iio_unit_id];
+            stack.iio_unit_id = sad_to_pmu_id_mapping.at(sad_id);
+            stack.stack_name = iio_stack_names[stack.iio_unit_id];
             for (int slot = 2; slot < 6; slot++) {
                 struct pci pci;
                 pci.bdf.busno = root_bus;
@@ -1009,7 +1035,7 @@ result_content get_IIO_Samples(PCM *m, const std::vector<struct iio_stacks_on_so
     uint64 rawEvents[4] = {0};
     std::unique_ptr<ccr> pccr(get_ccr(m, ctr.ccr));
     rawEvents[ctr.idx] = pccr->get_ccr_value();
-    int stacks_count = (int)iios[0].stacks.size();
+    const int stacks_count = (int)m->getMaxNumOfIIOStacks();
     before = new IIOCounterState[iios.size() * stacks_count];
     after = new IIOCounterState[iios.size() * stacks_count];
 
