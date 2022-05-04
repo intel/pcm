@@ -30,3 +30,8 @@ My Inspector XE Results - pcm
 .*\.vcxproj.user
 .*\.log
 .*\.vcxproj.filters
+.*\.md
+.codedocs
+.cproject
+.project
+makefile
