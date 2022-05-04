@@ -7,7 +7,10 @@
 #endif
 
 #ifndef PCM_GCC_6_OR_BELOW
-    #if defined __has_include
+    #if defined SYSTEM_SIMDJSON
+        #include <simdjson.h>
+        #define PCM_SIMDJSON_AVAILABLE
+    #elif defined __has_include
         #if __has_include ("simdjson/singleheader/simdjson.h")
             #pragma warning(push, 0)
             #include "simdjson/singleheader/simdjson.h"

@@ -20,8 +20,8 @@ if(UNIX)
 
     # PCM_STATIC + pcm_sensor + simdjson_obj = urltest
     if(LINUX)
-        add_executable(urltest urltest.cpp ../src/simdjson_wrapper.cpp)
-        target_link_libraries(urltest Threads::Threads PCM_STATIC)
+        add_executable(urltest urltest.cpp)
+        target_link_libraries(urltest Threads::Threads PCM_SIMDJSON PCM_STATIC)
     endif(LINUX)
 
 endif(UNIX)
