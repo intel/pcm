@@ -1401,6 +1401,7 @@ public:
         TGL = 140,
         TGL_1 = 141,
         ADL = 151,
+        ADL_1 = 154,
         BDX = 79,
         KNL = 87,
         SKL = 94,

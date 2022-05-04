@@ -94,7 +94,7 @@ void print_help(const string prog_name)
     cerr << "  -pmm | /pmm | -pmem | /pmem        => monitor PMM memory bandwidth and DRAM cache hit rate in Memory Mode (default on systems with PMM support).\n";
     cerr << "  -mm                                => monitor detailed PMM Memory Mode metrics per-socket.\n";
     cerr << "  -mixed                             => monitor PMM mixed mode (AppDirect + Memory Mode).\n";
-    cerr << "  -partial                           => monitor monitor partial writes instead of PMM (default on systems without PMM support).\n";
+    cerr << "  -partial                           => monitor partial writes instead of PMM (default on systems without PMM support).\n";
     cerr << "  -nc   | --nochannel | /nc          => suppress output for individual channels.\n";
     cerr << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or\n"
          << "                                        to a file, in case filename is provided\n";

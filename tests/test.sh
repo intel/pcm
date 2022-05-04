@@ -221,14 +221,14 @@ done
 
 
 # Check pcm-raw with TSV files
-./pcm-raw -r -e LD_BLOCKS.STORE_FORWARD -e CPU_CLK_UNHALTED.THREAD_ANY -e INST_RETIRED.ANY -e UNC_CHA_CLOCKTICKS -- sleep 1
+#./pcm-raw -r -e LD_BLOCKS.STORE_FORWARD -e CPU_CLK_UNHALTED.THREAD_ANY -e INST_RETIRED.ANY -e UNC_CHA_CLOCKTICKS -- sleep 1
 
-if [ "$?" -ne "0" ]; then
-    echo "Error in pcm-raw"
-    rm -rf mapfile.csv
-    cp "mapfile.csv_orig" "mapfile.csv"
-    exit 1
-fi
+#if [ "$?" -ne "0" ]; then
+#    echo "Error in pcm-raw"
+#    rm -rf mapfile.csv
+#    cp "mapfile.csv_orig" "mapfile.csv"
+#    exit 1
+#fi
 rm -rf mapfile.csv
 cp "mapfile.csv_orig" "mapfile.csv"
 

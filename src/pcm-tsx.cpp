@@ -163,6 +163,7 @@ void print_usage(const string progname)
     cerr << " Supported <options> are: \n";
     cerr << "  -h    | --help  | /h               => print this help and exit\n";
     cerr << "  -F    | -force                     => force running this program despite lack of HW RTM support (optional)\n";
+    cerr << "  -pid PID | /pid PID                => collect core metrics only for specified process ID\n";
     cerr << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or\n"
          << "                                        to a file, in case filename is provided\n";
     cerr << "  -i[=number] | /i[=number]          => allow to determine number of iterations\n";
