@@ -8,9 +8,7 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v2
     - name: cmake
@@ -21,4 +19,37 @@ jobs:
       run: |
         cd ${{ github.workspace }}/build
         make install -j
-
+  build-system-simdjson:
+    runs-on: ubuntu-latest
+    container: ubuntu:22.04
+    steps:
+    - uses: actions/checkout@v2
+    - name: install dependencies
+      run: |
+        apt update
+        apt -y --no-install-recommends install build-essential cmake libsimdjson-dev
+    - name: cmake
+      run: |
+        rm -rf ${{ github.workspace }}/build
+        cmake -B ${{ github.workspace }}/build -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}
+    - name: make
+      run: |
+        cd ${{ github.workspace }}/build
+        make install -j
+  build-source-simdjson:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: install simdjson
+      uses: actions/checkout@v2
+      with:
+        repository: simdjson/simdjson
+        path: src/simdjson
+    - name: cmake
+      run: |
+        rm -rf ${{ github.workspace }}/build
+        cmake -B ${{ github.workspace }}/build -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}
+    - name: make
+      run: |
+        cd ${{ github.workspace }}/build
+        make install -j

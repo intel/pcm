@@ -88,30 +88,30 @@ endif(MSVC)
 
 foreach(PROJECT_NAME ${PROJECT_NAMES})
     file(GLOB PROJECT_FILE ${PROJECT_NAME}.cpp)
+    set(LIBS PCM_STATIC)
+
+    add_executable(${PROJECT_NAME} ${PROJECT_FILE})
 
     # specific file for pcm-raw project
     if(${PROJECT_NAME} STREQUAL pcm-raw)
-        file(GLOB SIMDJSON_SOURCE simdjson_wrapper.cpp) 
-        add_executable(${PROJECT_NAME} ${PROJECT_FILE} ${SIMDJSON_SOURCE})
-    else()
-        add_executable(${PROJECT_NAME} ${PROJECT_FILE})
+        set(LIBS ${LIBS} PCM_SIMDJSON)
     endif(${PROJECT_NAME} STREQUAL pcm-raw)
 
     if(LINUX OR FREE_BSD)
-        target_link_libraries(${PROJECT_NAME} PRIVATE PCM_STATIC Threads::Threads)
+        set(LIBS ${LIBS} Threads::Threads)
         install(TARGETS ${PROJECT_NAME} DESTINATION "sbin")
     endif(LINUX OR FREE_BSD)
 
     if(APPLE)
-        target_link_libraries(${PROJECT_NAME} PRIVATE PCM_STATIC Threads::Threads PcmMsr)
+        set(LIBS ${LIBS} Threads::Threads PcmMsr)
         install(TARGETS ${PROJECT_NAME} DESTINATION "sbin")
     endif(APPLE)
 
     if(MSVC)
         target_compile_definitions(${PROJECT_NAME} PRIVATE _UNICODE UNICODE _CONSOLE) # for all, except pcm-lib and pcm-service
-        target_link_libraries(${PROJECT_NAME} PRIVATE PCM_STATIC)
     endif(MSVC)
 
+    target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBS})
 endforeach(PROJECT_NAME ${PROJECT_NAMES})
 
 #######################
