@@ -4,6 +4,9 @@ export BIN_DIR="build/bin"
 
 pushd $BIN_DIR
 
+# enable NMI watchdog
+echo 1 > /proc/sys/kernel/nmi_watchdog
+
 PCM_NO_PERF=1 ./pcm -r -- sleep 1
 if [ "$?" -ne "0" ]; then
    echo "Error in pcm"
@@ -31,6 +34,12 @@ if [ "$?" -ne "0" ]; then
    exit 1
 fi
 kill $test_pid
+
+PCM_KEEP_NMI_WATCHDOG=1 ./pcm -r -- sleep 1
+if [ "$?" -ne "0" ]; then
+   echo "Error in pcm"
+   exit 1
+fi
 
 ./pcm -r 0.1 -csv=pcm.csv -- sleep 5
 if [ "$?" -ne "0" ]; then
