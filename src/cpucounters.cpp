@@ -352,6 +352,11 @@ void pcm_cpuid(const unsigned leaf, const unsigned subleaf, PCM_CPUID_INFO & inf
     #endif
 }
 
+#ifdef __linux__
+bool isNMIWatchdogEnabled(const bool silent);
+bool keepNMIWatchdogEnabled();
+#endif
+
 void PCM::readCoreCounterConfig(const bool complainAboutMSR)
 {
     if (max_cpuid >= 0xa)
@@ -411,6 +416,11 @@ void PCM::readCoreCounterConfig(const bool complainAboutMSR)
             core_gen_counter_num_max = 3;
             std::cerr << "INFO: Reducing the number of programmable counters to 3 to workaround the fixed cycle counter virtualization issue on AWS.\n";
             std::cerr << "      You can disable the workaround by setting PCM_NO_AWS_WORKAROUND=1 environment variable\n";
+        }
+        if (isNMIWatchdogEnabled(true) && keepNMIWatchdogEnabled())
+        {
+            --core_gen_counter_num_max;
+            std::cerr << "INFO: Reducing the number of programmable counters to " << core_gen_counter_num_max  << " because NMI watchdog is enabled.\n";
         }
 #endif
     }
@@ -1980,6 +1990,18 @@ void PCM::initUncorePMUsPerf()
 
 #ifdef __linux__
 
+const char * keepNMIWatchdogEnabledEnvStr = "PCM_KEEP_NMI_WATCHDOG";
+
+bool keepNMIWatchdogEnabled()
+{
+    static int keep = -1;
+    if (keep < 0)
+    {
+        keep = (safe_getenv(keepNMIWatchdogEnabledEnvStr) == std::string("1")) ? 1 : 0;
+    }
+    return keep == 1;
+}
+
 #define PCM_NMI_WATCHDOG_PATH "/proc/sys/kernel/nmi_watchdog"
 
 bool isNMIWatchdogEnabled(const bool silent)
@@ -1995,7 +2017,11 @@ bool isNMIWatchdogEnabled(const bool silent)
 
 void disableNMIWatchdog(const bool silent)
 {
-    if (!silent) std::cerr << "Disabling NMI watchdog since it consumes one hw-PMU counter.\n";
+    if (!silent)
+    {
+        std::cerr << " Disabling NMI watchdog since it consumes one hw-PMU counter. To keep NMU watchdog set environment variable "
+                  << keepNMIWatchdogEnabledEnvStr << "=1 (this reduces the core metrics set)\n";
+    }
     writeSysFS(PCM_NMI_WATCHDOG_PATH, "0");
 }
 
@@ -2423,7 +2449,7 @@ perf_event_attr PCM_init_perf_event_attr(bool group = true)
 PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter_, const bool silent, const int pid)
 {
 #ifdef __linux__
-    if (isNMIWatchdogEnabled(silent))
+    if (isNMIWatchdogEnabled(silent) && (keepNMIWatchdogEnabled() == false))
     {
         disableNMIWatchdog(silent);
         needToRestoreNMIWatchdog = true;
@@ -2590,7 +2616,16 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
                 coreEventDesc[2].umask_value = SKL_MEM_LOAD_RETIRED_L2_MISS_UMASK;
                 coreEventDesc[3].event_number = SKL_MEM_LOAD_RETIRED_L2_HIT_EVTNR;
                 coreEventDesc[3].umask_value = SKL_MEM_LOAD_RETIRED_L2_HIT_UMASK;
-                if (core_gen_counter_num_max == 3)
+                if (core_gen_counter_num_max == 2)
+                {
+                    L3CacheHitRatioAvailable = true;
+                    L3CacheMissesAvailable = true;
+                    L3CacheHitsSnoopAvailable = true;
+                    L3CacheHitsAvailable = true;
+                    core_gen_counter_num_used = 2;
+                    break;
+                }
+                else if (core_gen_counter_num_max == 3)
                 {
                     L3CacheHitRatioAvailable = true;
                     L3CacheMissesAvailable = true;
@@ -2725,6 +2760,13 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
         std::cerr << "PCM ERROR: pid monitoring is only supported with Linux perf_event driver\n";
         return PCM::UnknownError;
     }
+#ifdef __linux__
+    if (isNMIWatchdogEnabled(silent) && (canUsePerf == false))
+    {
+        std::cerr << "PCM ERROR: Unsupported mode. NMI watchdog is enabled and Linux perf_event driver is not used\n";
+        return PCM::UnknownError;
+    }
+#endif
 
     std::vector<int> tids{};
     #ifdef PCM_USE_PERF
