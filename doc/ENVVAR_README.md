@@ -7,3 +7,5 @@
 `PCM_USE_RESCTRL=1` : use Linux resctrl driver for RDT metrics
 
 `PCM_PRINT_TOPOLOGY=1` : print detailed CPU topology
+
+`PCM_KEEP_NMI_WATCHDOG=1` : don't disable NMI watchdog (reducing the core metrics set)
