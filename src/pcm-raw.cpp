@@ -36,7 +36,10 @@
 #include <unordered_map>
 #include "cpucounters.h"
 #include "utils.h"
-#include "simdjson_wrapper.h"
+
+#if PCM_SIMDJSON_AVAILABLE
+#include "simdjson.h"
+#endif
 
 #ifdef _MSC_VER
 #include "freegetopt/getopt.h"
