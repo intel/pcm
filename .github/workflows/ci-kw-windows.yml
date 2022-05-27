@@ -20,6 +20,9 @@ jobs:
     
     - name: kw
       run: |
+        cd ${{github.workspace}}\src
+        git clone https://github.com/simdjson/simdjson.git
+        cd ..
         mkdir build
         cd build
         cmake ..
