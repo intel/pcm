@@ -27,6 +27,7 @@ Release64
 .metadata/
 html/
 latex/
+build/
 *.swp
 *.vcxproj.user
 .vs/
