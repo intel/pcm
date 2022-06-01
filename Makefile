@@ -25,7 +25,7 @@ clean:
 	@make -C ${BUILD} clean
 	
 distclean:
-	@rm -rf build
+	@rm -rf ${BUILD}
 
 install: 
 	make -C ${BUILD} install
