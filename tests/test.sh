@@ -327,4 +327,11 @@ if [ "$?" -ne "0" ]; then
     exit 1
 fi
 
+echo Testing pcm-raw with -json
+./pcm-raw -el event_file_test.txt -json=raw_json.json -i=4 0.25
+if [ "$?" -ne "0" ]; then
+    echo "Error in pcm-raw"
+    exit 1
+fi
+
 popd

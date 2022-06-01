@@ -66,6 +66,8 @@ void print_usage(const string progname)
     cerr << "  -r    | --reset     | /reset           => reset PMU configuration (at your own risk)\n";
     cerr << "  -csv[=file.csv]     | /csv[=file.csv]  => output compact CSV format to screen or\n"
          << "                                            to a file, in case filename is provided\n";
+    cerr << "  -json[=file.json]   | /json[=file.json]  => output json format to screen or\n"
+         << "                                              to a file, in case filename is provided\n";
     cerr << "  -out filename       | /out filename    => write all output (stdout and stderr) to specified file\n";
     cerr << "  event description example: -e core/config=0x30203,name=LD_BLOCKS.STORE_FORWARD/ -e core/fixed,config=0x333/ \n";
     cerr << "                             -e cha/config=0,name=UNC_CHA_CLOCKTICKS/ -e imc/fixed,name=DRAM_CLOCKS/\n";
@@ -954,7 +956,9 @@ bool transpose = false;
 bool extendPrintout = false;
 bool singleHeader = false;
 std::string separator = ",";
+const std::string jsonSeparator = "\":";
 bool sampleSeparator = false;
+bool outputToJson = false;
 
 struct PrintOffset {
     const std::string entry;
@@ -973,21 +977,41 @@ int getPrintOffsetIdx(const std::string &value) {
     return -1;
 }
 
-void printRowBegin(const std::string & EventName, const CoreCounterState & BeforeState, const CoreCounterState & AfterState, PCM* m)
+void printNewLine(const CsvOutputType outputType) {
+    if (outputType == Data)
+        cout << "\n";
+    else if (outputType == Json)
+        cout << "}\n";
+}
+
+void printRowBeginCSV(const std::string & EventName, const CoreCounterState & BeforeState, const CoreCounterState & AfterState, PCM* m)
 {
     printDateForCSV(CsvOutputType::Data, separator);
     cout << EventName << separator << (1000ULL * getInvariantTSC(BeforeState, AfterState)) / m->getNominalFrequency() << separator << getInvariantTSC(BeforeState, AfterState);
 }
 
+void printRowBeginJson(const std::string & EventName, const CoreCounterState & BeforeState, const CoreCounterState & AfterState, PCM* m)
+{
+    cout << "{\"";
+    printDateForJson(separator, jsonSeparator);
+    cout << "Event" << jsonSeparator << "\"" << EventName << "\"" << separator << "ms" << jsonSeparator << (1000ULL * getInvariantTSC(BeforeState, AfterState)) / m->getNominalFrequency()
+        << separator << "InvariantTSC" << jsonSeparator << getInvariantTSC(BeforeState, AfterState);
+}
+
+void printRowBegin(const std::string & EventName, const CoreCounterState & BeforeState, const CoreCounterState & AfterState, PCM* m, const CsvOutputType outputType, PrintOffset& printOffset) {
+    if (outputType == Data) {
+        printRowBeginCSV(EventName, BeforeState, AfterState, m);
+        for (int i = 0 ; i < printOffset.start ; i++)
+            std::cout << separator;
+    } else if (outputType == Json) {
+        printRowBeginJson(EventName, BeforeState, AfterState, m);
+    }
+}
 
 template <class MetricFunc>
 void printRow(const std::string & EventName, MetricFunc metricFunc, const std::vector<CoreCounterState>& BeforeState, const std::vector<CoreCounterState>& AfterState, PCM* m, const CsvOutputType outputType, PrintOffset& printOffset)
 {
-    if (outputType == Data) {
-        printRowBegin(EventName, BeforeState[0], AfterState[0], m);
-        for (int i = 0 ; i < printOffset.start ; i++)
-            std::cout << separator;
-    }
+    printRowBegin(EventName, BeforeState[0], AfterState[0], m, outputType, printOffset);
 
     for (uint32 core = 0; core < m->getNumCores(); ++core)
     {
@@ -1005,13 +1029,15 @@ void printRow(const std::string & EventName, MetricFunc metricFunc, const std::v
                 cout << separator << "core_SKT" << m->getSocketId(core) << "_CORE" << core;
                 printOffset.end++;
             }
-            else
+            else if (outputType == Json) {
+                cout << separator << "core_SKT" << m->getSocketId(core) << "_CORE" << core <<
+                    jsonSeparator << metricFunc(BeforeState[core], AfterState[core]);
+            } else
                 assert(!"unknown output type");
         }
     }
 
-    if (outputType == Data)
-        cout << "\n";
+    printNewLine(outputType);
 };
 
 typedef uint64 (*UncoreMetricFunc)(const uint32 u, const uint32 i,  const ServerUncoreCounterState& before, const ServerUncoreCounterState& after);
@@ -1089,11 +1115,7 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
             {
                 if (fixedEvents.size())
                 {
-                    if (outputType == Data) {
-                        printRowBegin(miscName, BeforeState[0], AfterState[0], m);
-                        for (int off = 0 ; off < printOffset.start; off++)
-                            cout << separator;
-                    }
+                    printRowBegin(miscName, BeforeState[0], AfterState[0], m, outputType, printOffset);
 
                     for (uint32 s = 0; s < m->getNumSockets(); ++s)
                     {
@@ -1111,6 +1133,9 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
                             else if (outputType == Header21) {
                                 cout << separator << type << "_SKT" << s << "_" << miscName << u;
                                 printOffset.end++;
+                            } else if (outputType == Json) {
+                                cout << separator << type << "_SKT" << s << "_" << miscName << u
+                                    << jsonSeparator << fixedMetricFunc(u, BeforeUncoreState[s], AfterUncoreState[s]);
                             } else
                                 assert(!"unknown output type");
                         }
@@ -1119,8 +1144,7 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
                     if (is_header)
                         is_header_printed = true;
 
-                    if (outputType == Data)
-                        cout << "\n";
+                    printNewLine(outputType);
                 }
                 uint32 i = 0;
                 for (auto& event : events)
@@ -1130,11 +1154,7 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
                     if (is_header && is_header_printed)
                         break;
 
-                    if (outputType == Data) {
-                        printRowBegin(name, BeforeState[0], AfterState[0], m);
-                        for (int off = 0 ; off < printOffset.start; off++)
-                            cout << separator;
-                    }
+                    printRowBegin(name, BeforeState[0], AfterState[0], m, outputType, printOffset);
 
                     for (uint32 s = 0; s < m->getNumSockets(); ++s)
                     {
@@ -1158,6 +1178,11 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
                                 cout << separator << type << "_SKT" << s << "_" << miscName << u;
                                 printOffset.end++;
                             }
+                            else if (outputType == Json)
+                            {
+                                cout << separator << type << "_SKT" << s << "_" << miscName << u
+                                    << jsonSeparator << metricFunc(u, i, BeforeUncoreState[s], AfterUncoreState[s]);
+                            }
                             else
                             {
                                 assert(!"unknown output type");
@@ -1169,8 +1194,7 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
                         is_header_printed = true;
 
                     ++i;
-                    if (outputType == Data)
-                        cout << "\n";
+                    printNewLine(outputType);
                 }
             };
             auto printMSRRows = [&](const MSRScope& scope)
@@ -1184,11 +1208,7 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
                     if (is_header && is_header_printed)
                         return false;
 
-                    if (outputType == Data) {
-                        printRowBegin(name, BeforeState[0], AfterState[0], m);
-                        for (int off = 0; off < printOffset.start; off++)
-                            cout << separator;
-                    }
+                    printRowBegin(name, BeforeState[0], AfterState[0], m, outputType, printOffset);
 
                     switch (scope)
                     {
@@ -1212,6 +1232,10 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
                             {
                                 cout << separator << type << "_SKT" << s ;
                                 printOffset.end++;
+                            }
+                            else if (outputType == Json) {
+                                cout << separator << type << "_SKT" << s
+                                    << jsonSeparator << getMSREvent(index, msrType, BeforeSocketState[s], AfterSocketState[s]);
                             }
                             else
                             {
@@ -1240,6 +1264,10 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
                                 cout << separator << type << "_SKT" << m->getSocketId(core) << "_CORE" << core;
                                 printOffset.end++;
                             }
+                            else if (outputType == Json) {
+                                cout << separator << type << "_SKT" << m->getSocketId(core) << "_CORE" << core
+                                    << jsonSeparator << getMSREvent(index, msrType, BeforeState[core], AfterState[core]);
+                            }
                             else
                             {
                                 assert(!"unknown output type");
@@ -1251,8 +1279,7 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
                     if (is_header)
                         is_header_printed = true;
 
-                    if (outputType == Data)
-                        cout << "\n";
+                    printNewLine(outputType);
 
                     return true;
                 };
@@ -1335,7 +1362,7 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
                 choose(outputType,
                     [&]() { printUncoreRows(nullptr, (uint32) m->getQPILinksPerSocket(), "LINK"); },
                     [&]() { printUncoreRows(nullptr, (uint32) m->getQPILinksPerSocket(), type); },
-                    [&]() { printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getM3UPICounter(u, i, before, after); }, (uint32) m->getQPILinksPerSocket());
+                    [&]() { printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getM3UPICounter(u, i, before, after); }, (uint32) m->getQPILinksPerSocket(), "LINK");
                     });
             }
             else if (type == "xpi" || type == "upi" || type == "qpi")
@@ -1343,7 +1370,7 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
                 choose(outputType,
                     [&]() { printUncoreRows(nullptr, (uint32) m->getQPILinksPerSocket(), "LINK"); },
                     [&]() { printUncoreRows(nullptr, (uint32) m->getQPILinksPerSocket(), type); },
-                    [&]() { printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getXPICounter(u, i, before, after); }, (uint32) m->getQPILinksPerSocket());
+                    [&]() { printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getXPICounter(u, i, before, after); }, (uint32) m->getQPILinksPerSocket(), "LINK");
                     });
             }
             else if (type == "imc")
@@ -1360,7 +1387,7 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
                 choose(outputType,
                     [&]() { printUncoreRows(nullptr, (uint32) m->getMCPerSocket(), "MC"); },
                     [&]() { printUncoreRows(nullptr, (uint32) m->getMCPerSocket(), type); },
-                    [&]() { printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getM2MCounter(u, i, before, after); }, (uint32)m->getMCPerSocket());
+                    [&]() { printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getM2MCounter(u, i, before, after); }, (uint32)m->getMCPerSocket(), "MC");
                     });
             }
             else if (type == "pcu")
@@ -1368,7 +1395,7 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
                 choose(outputType,
                     [&]() { printUncoreRows(nullptr, 1U, ""); },
                     [&]() { printUncoreRows(nullptr, 1U, type); },
-                    [&]() { printUncoreRows([](const uint32, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getPCUCounter(i, before, after); }, 1U);
+                    [&]() { printUncoreRows([](const uint32, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getPCUCounter(i, before, after); }, 1U, "");
                     });
             }
             else if (type == "ubox")
@@ -1385,7 +1412,7 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
                 choose(outputType,
                     [&]() { printUncoreRows(nullptr, (uint32) m->getMaxNumOfCBoxes(), "C"); },
                     [&]() { printUncoreRows(nullptr, (uint32) m->getMaxNumOfCBoxes(), type); },
-                    [&]() { printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getCBOCounter(u, i, before, after); }, (uint32)m->getMaxNumOfCBoxes());
+                    [&]() { printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getCBOCounter(u, i, before, after); }, (uint32)m->getMaxNumOfCBoxes(), "C");
                     });
             }
             else if (type == "irp")
@@ -1393,7 +1420,7 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
                 choose(outputType,
                     [&]() { printUncoreRows(nullptr, (uint32) m->getMaxNumOfIIOStacks(), "IRP"); },
                     [&]() { printUncoreRows(nullptr, (uint32) m->getMaxNumOfIIOStacks(), type); },
-                    [&]() { printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getIRPCounter(u, i, before, after); }, (uint32)m->getMaxNumOfIIOStacks());
+                    [&]() { printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getIRPCounter(u, i, before, after); }, (uint32)m->getMaxNumOfIIOStacks(), "IRP");
                     });
             }
             else if (type == "iio")
@@ -1401,7 +1428,7 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
                 choose(outputType,
                     [&]() { printUncoreRows(nullptr, (uint32) m->getMaxNumOfIIOStacks(), "IIO"); },
                     [&]() { printUncoreRows(nullptr, (uint32) m->getMaxNumOfIIOStacks(), type); },
-                    [&]() { printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getIIOCounter(u, i, before, after); }, (uint32)m->getMaxNumOfIIOStacks());
+                    [&]() { printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getIIOCounter(u, i, before, after); }, (uint32)m->getMaxNumOfIIOStacks(), "IIO");
                     });
             }
             else
@@ -1735,6 +1762,11 @@ void printAll(const PCM::RawPMUConfigs& curPMUConfigs,
                 std::vector<PCM::RawPMUConfigs>& PMUConfigs,
                 const bool & isLastGroup)
 {
+    if (outputToJson) {
+        printTransposed(curPMUConfigs, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, Json, isLastGroup);
+        return;
+    }
+
     static bool displayHeader = true;
 
     if (!extendPrintout && transpose)
@@ -1835,6 +1867,21 @@ int main(int argc, char* argv[])
         {
             string cmd = string(*argv);
             size_t found = cmd.find('=', 4);
+            if (found != string::npos) {
+                string filename = cmd.substr(found + 1);
+                if (!filename.empty()) {
+                    m->setOutput(filename);
+                }
+            }
+            continue;
+        }
+        else if (strncmp(*argv, "-json", 5) == 0 ||
+            strncmp(*argv, "/json", 5) == 0)
+        {
+            separator = ",\"";
+            outputToJson = true;
+            string cmd = string(*argv);
+            size_t found = cmd.find('=', 5);
             if (found != string::npos) {
                 string filename = cmd.substr(found + 1);
                 if (!filename.empty()) {
