@@ -4046,7 +4046,7 @@ void PCM::cleanupRDT(const bool silent)
     if (!silent) std::cerr << " Freeing up all RMIDs\n";
 }
 
-void PCM::setOutput(const std::string filename, const bool cerrToo)
+void PCM::setOutput(const std::string & filename, const bool cerrToo)
 {
      outfile = new std::ofstream(filename.c_str());
      backup_ofile = std::cout.rdbuf();

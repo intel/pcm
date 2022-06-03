@@ -180,14 +180,14 @@ void print_nameMap() {
 }
 
 
-string a_title (const string &init, const string &name) {
+string a_title(const string &init, const string &name) {
     char begin = init[0];
     string row = init;
     row += name;
     return row + begin;
 }
 
-string a_data (string init, struct data d) {
+string a_data(const string &init, struct data d) {
     char begin = init[0];
     string row = init;
     string str_d = unit_format(d.value);
@@ -198,7 +198,7 @@ string a_data (string init, struct data d) {
     return row + begin;
 }
 
-string build_line(string init, string name, bool last_char = true, char this_char = '_')
+string build_line(const string &init, const string &name, bool last_char = true, char this_char = '_')
 {
     char begin = init[0];
     string row = init;
@@ -209,12 +209,12 @@ string build_line(string init, string name, bool last_char = true, char this_cha
 }
 
 
-string a_header_footer (string init, string name)
+string a_header_footer(const string &init, const string &name)
 {
     return build_line(init, name);
 }
 
-vector<string> combine_stack_name_and_counter_names(string stack_name)
+vector<string> combine_stack_name_and_counter_names(const string &stack_name)
 {
 
     vector<string> v;
@@ -223,7 +223,7 @@ vector<string> combine_stack_name_and_counter_names(string stack_name)
     for (std::map<string,std::pair<h_id,std::map<string,v_id>>>::const_iterator iunit = nameMap.begin(); iunit != nameMap.end(); ++iunit) {
         string h_name = iunit->first;
         int h_id = (iunit->second).first;
-        tmp[h_id] = h_name;
+        tmp[h_id] = std::move(h_name);
         //cout << "h_id:" << h_id << " name:" << h_name << "\n";
     }
     //XXX: How to simplify and just combine tmp & v?
@@ -350,7 +350,7 @@ vector<string> build_display(vector<struct iio_stacks_on_socket>& iios, vector<s
 
 std::string build_csv_row(const std::vector<std::string>& chunks, const std::string& delimiter)
 {
-    return std::accumulate(chunks.begin(), chunks.end(), std::string(""),
+    return std::accumulate(chunks.begin(), chunks.end(), std::string(),
                            [delimiter](const string &left, const string &right){
                                return left.empty() ? right : left + delimiter + right;
                            });
@@ -544,7 +544,7 @@ bool IPlatformMapping10Nm::getSadIdRootBusMap(uint32_t socket_id, std::map<uint8
 
                     if ((sad_ctrl_cfg & 0xf) == socket_id) {
                         uint8_t sid = (sad_ctrl_cfg >> 4) & 0x7;
-                        sad_id_bus_map.insert(std::pair<uint8_t, uint8_t>(sid, (uint8_t)bus));
+                        sad_id_bus_map.emplace(sid, (uint8_t)bus);
                     }
                 }
             }
@@ -920,10 +920,10 @@ vector<struct counter> load_events(PCM * m, const char* fn)
         /* Ignore anyline with # */
         //TODO: substring until #, if len == 0, skip, else parse normally
         pccr->set_ccr_value(0);
-        if (line.find("#") != std::string::npos)
+        if (line.find('#') != std::string::npos)
             continue;
         /* If line does not have any deliminator, we ignore it as well */
-        if (line.find("=") == std::string::npos)
+        if (line.find('=') == std::string::npos)
             continue;
         std::istringstream iss(line);
         string h_name, v_name;
@@ -931,8 +931,8 @@ vector<struct counter> load_events(PCM * m, const char* fn)
             std::string key, value;
             uint64 numValue;
             /* assume the token has the format <key>=<value> */
-            key = item.substr(0,item.find("="));
-            value = item.substr(item.find("=")+1);
+            key = item.substr(0,item.find('='));
+            value = item.substr(item.find('=')+1);
             istringstream iss2(value);
             iss2 >> setbase(0) >> numValue;
 
@@ -1119,11 +1119,11 @@ bool extract_argument_value(const char* arg, std::initializer_list<const char*> 
         const auto arg_name_len = strlen(arg_name);
         if (arg_len > arg_name_len && strncmp(arg, arg_name, arg_name_len) == 0 && arg[arg_name_len] == '=') {
             value = arg + arg_name_len + 1;
-            const auto last_pos = value.find_last_not_of("\"");
+            const auto last_pos = value.find_last_not_of('\"');
             if (last_pos != string::npos) {
                 value.erase(last_pos + 1);
             }
-            const auto first_pos = value.find_first_not_of("\"");
+            const auto first_pos = value.find_first_not_of('\"');
             if (first_pos != string::npos) {
                 value.erase(0, first_pos);
             }

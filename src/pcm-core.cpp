@@ -120,7 +120,7 @@ extern "C" {
 	}
 }
 
-void print_usage(const string progname)
+void print_usage(const string & progname)
 {
 	cerr << "\n Usage: \n " << progname
 		<< " --help | [delay] [options] [-- external_program [external_program_options]]\n";

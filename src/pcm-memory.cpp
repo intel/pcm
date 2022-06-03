@@ -81,7 +81,7 @@ bool anyPmem(const ServerUncoreMemoryMetrics & metrics)
 
 bool skipInactiveChannels = true;
 
-void print_help(const string prog_name)
+void print_help(const string & progname)
 {
     cerr << "\n Usage: \n " << progname
          << " --help | [delay] [options] [-- external_program [external_program_options]]\n";

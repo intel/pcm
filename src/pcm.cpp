@@ -79,7 +79,7 @@ double getAverageUncoreFrequencyGhz(const UncoreStateType& before, const UncoreS
     return getAverageUncoreFrequency(before, after) / 1e9;
 }
 
-void print_help(const string prog_name)
+void print_help(const string & progname)
 {
     cerr << "\n Usage: \n " << progname
         << " --help | [delay] [options] [-- external_program [external_program_options]]\n";
@@ -554,13 +554,13 @@ void print_basic_metrics_csv_header(const PCM * m)
         cout << "Frontend_bound(%),Bad_Speculation(%),Backend_Bound(%),Retiring(%),";
 }
 
-void print_csv_header_helper(string header, int count=1){
+void print_csv_header_helper(const string & header, int count=1){
   for(int i = 0; i < count; i++){
     cout << header << ",";
   }
 }
 
-void print_basic_metrics_csv_semicolons(const PCM * m, string header)
+void print_basic_metrics_csv_semicolons(const PCM * m, const string & header)
 {
     print_csv_header_helper(header, 3);    // EXEC;IPC;FREQ;
     if (m->isActiveRelativeFrequencyAvailable())
