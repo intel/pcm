@@ -322,7 +322,7 @@ class MainLoop
 {
     unsigned numberOfIterations = 0;
 public:
-    MainLoop() {}
+    MainLoop() = default;
     bool parseArg(const char * arg)
     {
         if (strncmp(arg, "-i", 2) == 0 ||
@@ -372,7 +372,7 @@ struct StackedBarItem {
     double fraction{0.0};
     std::string label{""}; // not used currently
     char fill{'0'};
-    StackedBarItem() {}
+    StackedBarItem() = default;
     StackedBarItem(double fraction_,
         const std::string & label_,
         char fill_) : fraction(fraction_), label(label_), fill(fill_) {}

@@ -185,14 +185,22 @@ void print_output(PCM * m,
         cout << " L3MPI : number of L3 (read) cache misses per instruction\n";
     if (m->isL2CacheMissesAvailable())
         cout << " L2MPI : number of L2 (read) cache misses per instruction\n";
-    if (m->memoryTrafficMetricsAvailable()) cout << " READ  : bytes read from main memory controller (in GBytes)\n";
-    if (m->memoryTrafficMetricsAvailable()) cout << " WRITE : bytes written to main memory controller (in GBytes)\n";
-    if (m->localMemoryRequestRatioMetricAvailable()) cout << " LOCAL : ratio of local memory requests to memory controller in %\n";
-    if (m->LLCReadMissLatencyMetricsAvailable()) cout << "LLCRDMISSLAT: average latency of last level cache miss for reads and prefetches (in ns)\n";
-    if (m->PMMTrafficMetricsAvailable()) cout << " PMM RD : bytes read from PMM memory (in GBytes)\n";
-    if (m->PMMTrafficMetricsAvailable()) cout << " PMM WR : bytes written to PMM memory (in GBytes)\n";
-    if (m->MCDRAMmemoryTrafficMetricsAvailable()) cout << " MCDRAM READ  : bytes read from MCDRAM controller (in GBytes)\n";
-    if (m->MCDRAMmemoryTrafficMetricsAvailable()) cout << " MCDRAM WRITE : bytes written to MCDRAM controller (in GBytes)\n";
+    if (m->memoryTrafficMetricsAvailable()) {
+        cout << " READ  : bytes read from main memory controller (in GBytes)\n";
+        cout << " WRITE : bytes written to main memory controller (in GBytes)\n";
+    }
+    if (m->localMemoryRequestRatioMetricAvailable()) {
+        cout << " LOCAL : ratio of local memory requests to memory controller in %\n";
+        cout << "LLCRDMISSLAT: average latency of last level cache miss for reads and prefetches (in ns)\n";
+    }
+    if (m->PMMTrafficMetricsAvailable()) {
+        cout << " PMM RD : bytes read from PMM memory (in GBytes)\n";
+        cout << " PMM WR : bytes written to PMM memory (in GBytes)\n";
+    }
+    if (m->MCDRAMmemoryTrafficMetricsAvailable()) {
+        cout << " MCDRAM READ  : bytes read from MCDRAM controller (in GBytes)\n";
+        cout << " MCDRAM WRITE : bytes written to MCDRAM controller (in GBytes)\n";
+    }
     if (m->memoryIOTrafficMetricAvailable()) {
         cout << " IO    : bytes read/written due to IO requests to memory controller (in GBytes); this may be an over estimate due to same-cache-line partial requests\n";
         cout << " IA    : bytes read/written due to IA requests to memory controller (in GBytes); this may be an over estimate due to same-cache-line partial requests\n";
@@ -437,12 +445,11 @@ void print_output(PCM * m,
             cout << " PMM RD | PMM WR |";
         if (m->MCDRAMmemoryTrafficMetricsAvailable())
             cout << " MCDRAM READ | MCDRAM WRITE |";
-        if (m->memoryIOTrafficMetricAvailable())
+        if (m->memoryIOTrafficMetricAvailable()) {
             cout << "   IO   |";
-        if (m->memoryIOTrafficMetricAvailable())
             cout << "   IA   |";
-        if (m->memoryIOTrafficMetricAvailable())
             cout << "   GT   |";
+        }
         if (m->packageEnergyMetricsAvailable())
             cout << " CPU energy |";
         if (m->dramEnergyMetricsAvailable())

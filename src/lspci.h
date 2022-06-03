@@ -418,7 +418,7 @@ void print_pci(struct pci p, const PCIDB & pciDB)
 void load_PCIDB(PCIDB & pciDB)
 {
     std::ifstream in(PCI_IDS_PATH);
-    std::string line, item;
+    std::string line;
 
     if (!in.is_open())
     {

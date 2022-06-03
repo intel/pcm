@@ -6693,10 +6693,7 @@ size_t ServerPCICFGUncore::getNumMCChannels(const uint32 controller) const
     return 0;
 }
 
-ServerPCICFGUncore::~ServerPCICFGUncore()
-{
-}
-
+ServerPCICFGUncore::~ServerPCICFGUncore() = default;
 
 void ServerPCICFGUncore::programServerUncoreMemoryMetrics(const ServerUncoreMemoryMetrics & metrics, const int rankA, const int rankB)
 {

@@ -977,7 +977,6 @@ private:
             auto ctrl = pmu.counterControl[c];
             if (ctrl.get() != nullptr)
             {
-                *ctrl = MC_CH_PCI_PMON_CTL_EN;
                 *ctrl = MC_CH_PCI_PMON_CTL_EN | *curEvent;
             }
         }

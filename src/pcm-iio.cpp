@@ -386,7 +386,6 @@ vector<string> build_csv(vector<struct iio_stacks_on_socket>& iios, vector<struc
             for (std::map<uint32_t,map<uint32_t,struct counter*>>::const_iterator vunit = v_sort.cbegin(); vunit != v_sort.cend(); ++vunit) {
                 map<uint32_t, struct counter*> h_array = vunit->second;
                 uint32_t vv_id = vunit->first;
-                vector<uint64_t> h_data;
                 string v_name = h_array[0]->v_event_name;
                 if (human_readable) {
                     v_name += string(max_name_width - (v_name.size()), ' ');
