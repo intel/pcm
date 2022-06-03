@@ -274,7 +274,7 @@ int main(int argc, char * argv[])
             std::vector<std::string> skxLicenseStr = { "Core cycles where the core was running with power-delivery for baseline license level 0.  This includes non-AVX codes, SSE, AVX 128-bit, and low-current AVX 256-bit codes.",
                                           "Core cycles where the core was running with power-delivery for license level 1.  This includes high current AVX 256-bit instructions as well as low current AVX 512-bit instructions.",
                                           "Core cycles where the core was running with power-delivery for license level 2 (introduced in Skylake Server michroarchtecture). This includes high current AVX 512-bit instructions." };
-            licenseStr = skxLicenseStr;
+            licenseStr = std::move(skxLicenseStr);
             regs[0].fields.event_select = 0x28; // CORE_POWER.LVL0_TURBO_LICENSE
             regs[0].fields.umask = 0x07;        // CORE_POWER.LVL0_TURBO_LICENSE
             regs[1].fields.event_select = 0x28; // CORE_POWER.LVL1_TURBO_LICENSE

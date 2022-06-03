@@ -81,7 +81,7 @@ double getAverageUncoreFrequencyGhz(const UncoreStateType& before, const UncoreS
 
 void print_help(const string prog_name)
 {
-    cerr << "\n Usage: \n " << prog_name
+    cerr << "\n Usage: \n " << progname
         << " --help | [delay] [options] [-- external_program [external_program_options]]\n";
     cerr << "   <delay>                           => time interval to sample performance counters.\n";
     cerr << "                                        If not specified, or 0, with external program given\n";
@@ -103,10 +103,10 @@ void print_help(const string prog_name)
     cerr << "  -i[=number] | /i[=number]          => allow to determine number of iterations\n";
     print_help_force_rtm_abort_mode(37);
     cerr << " Examples:\n";
-    cerr << "  " << prog_name << " 1 -nc -ns          => print counters every second without core and socket output\n";
-    cerr << "  " << prog_name << " 1 -i=10            => print counters every second 10 times and exit\n";
-    cerr << "  " << prog_name << " 0.5 -csv=test.log  => twice a second save counter values to test.log in CSV format\n";
-    cerr << "  " << prog_name << " /csv 5 2>/dev/null => one sampe every 5 seconds, and discard all diagnostic output\n";
+    cerr << "  " << progname << " 1 -nc -ns          => print counters every second without core and socket output\n";
+    cerr << "  " << progname << " 1 -i=10            => print counters every second 10 times and exit\n";
+    cerr << "  " << progname << " 0.5 -csv=test.log  => twice a second save counter values to test.log in CSV format\n";
+    cerr << "  " << progname << " /csv 5 2>/dev/null => one sampe every 5 seconds, and discard all diagnostic output\n";
     cerr << "\n";
 }
 

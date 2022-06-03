@@ -107,7 +107,7 @@ public:
     }
 
     void addMSRHandle( std::shared_ptr<SafeMsrHandle> handle ) {
-        msrHandle_ = handle;
+        msrHandle_ = std::move(handle);
     }
 
     int32 threadID() const {
