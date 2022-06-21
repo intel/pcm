@@ -75,4 +75,14 @@ pcm -r
 
 If you are getting the error `Starting MSR service failed with error 3 The system cannot find the path specified.` try to uninstall the driver by running `pcm --uninstallDriver` and optionally reboot the system.
 
+## Q11
+
+Is PCM supported on AWS instances
+
+**Answer**: 
+
+Not all AWS instances allow users to collect CPU telemetry by exposing PMU to the user. The following instances can be used:
+
+* Bare metal instances: allow collection of CPU metrics from both core (e.g. instructions per cycle, cache misses) and uncore (e.g. memory controller, UPI)
+* Full-socket (single socket, two socket, etc) virtualized instances: e.g. m5d.12xlarge, m5.24xlarge, m5.12xlarge. Only core CPU metrics are exposed, and certain CPU performance events are forbidden (e.g. offcore response events, events collecting “any_thread” information). “arch_perfmon” flag in /proc/cpuinfo indicates if the core CPU metrics are exposed (example: https://instaguide.io/info.html?type=m5.12xlarge ). The mechanism of PMU virtualization is commonly known as vPMU.
 
