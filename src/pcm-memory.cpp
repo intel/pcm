@@ -535,9 +535,12 @@ void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 /*elapsedTime*/, const 
                                cout << "Ch" << channel << "PMM_Read,"
                                     << "Ch" << channel << "PMM_Write,";
                            },
-                           [&skt, &md, &channel]() {
-                               cout << setw(8) << md->iMC_PMM_Rd_socket_chan[skt][channel] << ','
-                                    << setw(8) << md->iMC_PMM_Wr_socket_chan[skt][channel] << ',';
+                           [&skt, &md, &channel, &invalid_data]() {
+                               if (invalid_data)
+                                   cout << ",,";
+                               else
+                                   cout << setw(8) << md->iMC_PMM_Rd_socket_chan[skt][channel] << ','
+                                        << setw(8) << md->iMC_PMM_Wr_socket_chan[skt][channel] << ',';
                            });
                 }
             }
