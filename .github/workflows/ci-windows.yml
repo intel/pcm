@@ -17,10 +17,6 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: Preparation
-      run: |
-        cd ${{github.workspace}}\src
-        git clone https://github.com/simdjson/simdjson.git
     - name: Configure CMake
       run: |
         if (Test-Path ${{github.workspace}}\build){ Remove-Item ${{github.workspace}}\build -Recurse }

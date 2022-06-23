@@ -12,9 +12,6 @@ jobs:
     - uses: actions/checkout@v2
     - name: kw
       run: |
-        cd src
-        git clone https://github.com/simdjson/simdjson.git
-        cd ..
         mkdir build
         cd build
         cmake ..
