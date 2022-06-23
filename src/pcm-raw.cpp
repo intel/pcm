@@ -1161,6 +1161,7 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
                             }
                             else if (outputType == Data)
                             {
+                                assert(metricFunc);
                                 cout << separator << metricFunc(u, i, BeforeUncoreState[s], AfterUncoreState[s]);
                             }
                             else if (outputType == Header21)
@@ -1170,6 +1171,7 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
                             }
                             else if (outputType == Json)
                             {
+                                assert(metricFunc);
                                 cout << separator << type << "_SKT" << s << "_" << miscName << u
                                     << jsonSeparator << metricFunc(u, i, BeforeUncoreState[s], AfterUncoreState[s]);
                             }

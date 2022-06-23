@@ -38,4 +38,4 @@ jobs:
       - name: scan-build
         run: |
           cd ${{ github.workspace }}/build
-          scan-build --status-bugs make -j
+          scan-build --exclude src/simdjson --status-bugs make -j
