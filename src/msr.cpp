@@ -238,7 +238,7 @@ MsrHandle::MsrHandle(uint32 cpu) : fd(-1), cpu_id(cpu)
     delete[] path;
     if (handle < 0)
     {
-         std::cerr << "PCM Error: can't open MSR handle for core " << cpu << "\n";
+         std::cerr << "PCM Error: can't open MSR handle for core " << cpu << " (" << strerror(errno) << ")\n";
          std::cerr << "Try no-MSR mode by setting env variable PCM_NO_MSR=1\n";
          throw std::exception();
     }
