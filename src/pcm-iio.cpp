@@ -346,12 +346,37 @@ std::string build_csv_row(const std::vector<std::string>& chunks, const std::str
                            });
 }
 
+std::string get_root_port_dev(const bool show_root_port, int part_id,  const pcm::iio_stack *stack)
+{
+    char tmp[9] = "        ";
+    std::string rp_pci;
+
+    if (!show_root_port)
+        return rp_pci;
+
+    for (auto part = stack->parts.begin(); part != stack->parts.end(); part = std::next(part))
+    {
+        if (part->part_id == part_id)
+        {
+            std::snprintf(tmp, sizeof(tmp), "%02x:%02x.%x", part->root_pci_dev.bdf.busno,
+                        part->root_pci_dev.bdf.devno, part->root_pci_dev.bdf.funcno);
+            break;
+        }
+    }
+
+    rp_pci.append(tmp);
+    return rp_pci;
+
+}
+
 vector<string> build_csv(vector<struct iio_stacks_on_socket>& iios, vector<struct counter>& ctrs,
-    const bool human_readable, const std::string& csv_delimiter)
+    const bool human_readable, const bool show_root_port, const std::string& csv_delimiter)
 {
     vector<string> result;
     vector<string> current_row;
     auto header = combine_stack_name_and_counter_names("Name");
+    if (show_root_port)
+        header.insert(header.begin(), "Root Port");
     header.insert(header.begin(), "Socket");
     result.push_back(build_csv_row(header, csv_delimiter));
     std::map<uint32_t,map<uint32_t,struct counter*>> v_sort;
@@ -373,7 +398,10 @@ vector<string> build_csv(vector<struct iio_stacks_on_socket>& iios, vector<struc
 
             const uint32_t stack_id = stack->iio_unit_id;
             //Print data
-            for (std::map<uint32_t,map<uint32_t,struct counter*>>::const_iterator vunit = v_sort.cbegin(); vunit != v_sort.cend(); ++vunit) {
+            int part_id;
+            std::map<uint32_t,map<uint32_t,struct counter*>>::const_iterator vunit;
+            for (vunit = v_sort.cbegin(), part_id = 0;
+                     vunit != v_sort.cend(); ++vunit, ++part_id) {
                 map<uint32_t, struct counter*> h_array = vunit->second;
                 uint32_t vv_id = vunit->first;
                 vector<uint64_t> h_data;
@@ -384,6 +412,10 @@ vector<string> build_csv(vector<struct iio_stacks_on_socket>& iios, vector<struc
 
                 current_row.clear();
                 current_row.push_back(socket_name);
+                if (show_root_port) {
+                    auto pci_dev = get_root_port_dev(show_root_port, part_id, &(*stack));
+                    current_row.push_back(pci_dev);
+                }
                 current_row.push_back(stack_name);
                 current_row.push_back(v_name);
                 for (map<uint32_t,struct counter*>::const_iterator hunit = h_array.cbegin(); hunit != h_array.cend(); ++hunit) {
@@ -1138,6 +1170,7 @@ void print_usage(const string& progname)
          << "                                        to a file, in case filename is provided\n";
     cerr << "  -csv-delimiter=<value>  | /csv-delimiter=<value>   => set custom csv delimiter\n";
     cerr << "  -human-readable | /human-readable  => use human readable format for output (for csv only)\n";
+    cerr << "  -root-port | /root-port            => add root port devices to output (for csv only)\n";
     cerr << "  -i[=number] | /i[=number]          => allow to determine number of iterations\n";
     cerr << " Examples:\n";
     cerr << "  " << progname << " 1.0 -i=10             => print counters every second 10 times and exit\n";
@@ -1159,6 +1192,7 @@ int main(int argc, char * argv[])
     load_PCIDB(pciDB);
     bool csv = false;
     bool human_readable = false;
+    bool show_root_port = false;
     std::string csv_delimiter = ",";
     std::string output_file;
     double delay = PCM_DELAY_DEFAULT;
@@ -1185,6 +1219,9 @@ int main(int argc, char * argv[])
         }
         else if (check_argument_equals(*argv, {"-human-readable", "/human-readable"})) {
             human_readable = true;
+        }
+        else if (check_argument_equals(*argv, {"-root-port", "/root-port"})) {
+            show_root_port = true;
         }
         else if (mainLoop.parseArg(*argv)) {
             continue;
@@ -1277,7 +1314,7 @@ int main(int argc, char * argv[])
     {
         collect_data(m, delay, iios, counters);
         vector<string> display_buffer = csv ?
-            build_csv(iios, counters, human_readable, csv_delimiter) :
+            build_csv(iios, counters, human_readable, show_root_port, csv_delimiter) :
             build_display(iios, counters, pciDB);
         display(display_buffer, *output);
         return true;
