@@ -57,6 +57,7 @@
 #ifdef __linux__
 #include <sys/mman.h>
 #include <dirent.h>
+#include <sys/resource.h>
 #endif
 #endif
 
@@ -2059,6 +2060,30 @@ std::ofstream* PCM::outfile = nullptr;       // output file stream
 std::streambuf* PCM::backup_ofile = nullptr; // backup of original output = cout
 std::streambuf* PCM::backup_ofile_cerr = nullptr; // backup of original output = cerr
 
+#ifdef __linux__
+void increaseULimit()
+{
+    rlimit lim{};
+    if (getrlimit(RLIMIT_NOFILE, &lim) == 0)
+    {
+        const rlim_t recommendedLimit = 1000000;
+        // std::cout << "file open limit: " << lim.rlim_cur << "," << lim.rlim_max << "\n";
+        if (lim.rlim_cur < recommendedLimit || lim.rlim_max < recommendedLimit)
+        {
+            lim.rlim_cur = lim.rlim_max = recommendedLimit;
+            if (setrlimit(RLIMIT_NOFILE, &lim) != 0)
+            {
+                std::cerr << "PCM Info: setrlimit for file limit " << recommendedLimit << " failed with error " << strerror(errno) << "\n";
+            }
+        }
+    }
+    else
+    {
+       std::cerr << "PCM Info: getrlimit for file limit failed with error " << strerror(errno) << "\n";
+    }
+}
+#endif
+
 PCM::PCM() :
     cpu_family(-1),
     cpu_model(-1),
@@ -2115,6 +2140,9 @@ PCM::PCM() :
     run_state(1),
     needToRestoreNMIWatchdog(false)
 {
+#ifdef __linux__
+    increaseULimit();
+#endif
 #ifdef _MSC_VER
     // WARNING: This driver code (msr.sys) is only for testing purposes, not for production use
     Driver drv(Driver::msrLocalPath());
