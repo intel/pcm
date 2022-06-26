@@ -135,12 +135,12 @@ foreach(PROJECT_NAME ${PROJECT_NAMES})
 
     if(LINUX OR FREE_BSD)
         set(LIBS ${LIBS} Threads::Threads)
-        install(TARGETS ${PROJECT_NAME} DESTINATION "sbin")
+        install(TARGETS ${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_SBINDIR})
     endif(LINUX OR FREE_BSD)
 
     if(APPLE)
         set(LIBS ${LIBS} Threads::Threads PcmMsr)
-        install(TARGETS ${PROJECT_NAME} DESTINATION "sbin")
+        install(TARGETS ${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_SBINDIR})
     endif(APPLE)
 
     if(MSVC)
@@ -161,39 +161,39 @@ if(UNIX) # APPLE, LINUX, FREE_BSD
         add_executable(daemon ${DAEMON_SOURCES})
         target_link_libraries(daemon PRIVATE PCM_STATIC Threads::Threads)
         set_target_properties(daemon PROPERTIES OUTPUT_NAME "pcm-daemon")
-        install(TARGETS daemon DESTINATION "sbin")
+        install(TARGETS daemon DESTINATION ${CMAKE_INSTALL_SBINDIR})
 
         file(GLOB CLIENT_SOURCES "client/*.cpp")
         add_executable(client ${CLIENT_SOURCES})
         target_link_libraries(client PRIVATE Threads::Threads)
         set_target_properties(client PROPERTIES OUTPUT_NAME "pcm-client")
-        install(TARGETS client DESTINATION "bin")
+        install(TARGETS client DESTINATION ${CMAKE_INSTALL_BINDIR})
     endif(LINUX)
 
     # Install extra files
     install(FILES pcm-bw-histogram.sh
-            DESTINATION "sbin"
+            DESTINATION ${CMAKE_INSTALL_SBINDIR}
             RENAME pcm-bw-histogram
             PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE GROUP_READ WORLD_EXECUTE WORLD_READ)
     file(GLOB OPCODE_FILES "opCode*.txt")
     foreach(opcode_file ${OPCODE_FILES})
         get_filename_component(opcode_file_name ${opcode_file} NAME)
         configure_file(${opcode_file} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${opcode_file_name} COPYONLY)
-        install(FILES ${opcode_file} DESTINATION "share/pcm")
+        install(FILES ${opcode_file} DESTINATION ${CMAKE_INSTALL_DATADIR}/pcm)
     endforeach(opcode_file ${OPCODE_FILES})
 
     file(COPY "PMURegisterDeclarations" DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
-    install(DIRECTORY "PMURegisterDeclarations" DESTINATION "share/pcm")
+    install(DIRECTORY "PMURegisterDeclarations" DESTINATION ${CMAKE_INSTALL_DATADIR}/pcm)
 
     # Install docs
-    install(FILES ${CMAKE_SOURCE_DIR}/LICENSE DESTINATION "share/licenses/pcm/")
-    install(FILES ${CMAKE_SOURCE_DIR}/README.md DESTINATION "share/doc/pcm/")
+    install(FILES ${CMAKE_SOURCE_DIR}/LICENSE DESTINATION ${CMAKE_INSTALL_DATADIR}/licenses/pcm)
+    install(FILES ${CMAKE_SOURCE_DIR}/README.md DESTINATION ${CMAKE_INSTALL_DOCDIR})
 
     file(GLOB DOC_FILES  ${CMAKE_SOURCE_DIR}/doc/*.txt  ${CMAKE_SOURCE_DIR}/doc/*.md)
     foreach(doc_file ${DOC_FILES})
         get_filename_component(doc_file_name ${doc_file} NAME)
         configure_file(${doc_file} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${doc_file_name} COPYONLY)
-        install(FILES ${doc_file} DESTINATION "share/doc/pcm/")
+        install(FILES ${doc_file} DESTINATION ${CMAKE_INSTALL_DOCDIR})
     endforeach(doc_file ${DOC_FILES})
 
 endif(UNIX)
