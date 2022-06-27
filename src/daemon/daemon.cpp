@@ -563,9 +563,9 @@ namespace PCMDaemon {
 			for(uint32 channel(0); channel < MEMORY_MAX_IMC_CHANNELS; ++channel)
 			{
 				//In case of JKT-EN, there are only three channels. Skip one and continue.
-				bool memoryReadAvailable = getMCCounter(channel,MEMORY_READ,serverUncoreCounterStatesBefore_[skt],serverUncoreCounterStatesAfter_[skt]) == 0.0;
-				bool memoryWriteAvailable = getMCCounter(channel,MEMORY_WRITE,serverUncoreCounterStatesBefore_[skt],serverUncoreCounterStatesAfter_[skt]) == 0.0;
-				if(memoryReadAvailable && memoryWriteAvailable)
+				const bool memoryReadNotAvailable = getMCCounter(channel,MEMORY_READ,serverUncoreCounterStatesBefore_[skt],serverUncoreCounterStatesAfter_[skt]) == 0;
+				const bool memoryWriteNotAvailable = getMCCounter(channel,MEMORY_WRITE,serverUncoreCounterStatesBefore_[skt],serverUncoreCounterStatesAfter_[skt]) == 0;
+				if (memoryReadNotAvailable && memoryWriteNotAvailable)
 				{
 					iMC_Rd_socket_chan[skt][channel] = -1.0;
 					iMC_Wr_socket_chan[skt][channel] = -1.0;
@@ -593,11 +593,11 @@ namespace PCMDaemon {
 	    	for(uint64 channel(0); channel < MEMORY_MAX_IMC_CHANNELS; ++channel)
 			{
 				//If the channel read neg. value, the channel is not working; skip it.
-				if(iMC_Rd_socket_chan[0][skt*MEMORY_MAX_IMC_CHANNELS+channel] < 0.0 && iMC_Wr_socket_chan[0][skt*MEMORY_MAX_IMC_CHANNELS+channel] < 0.0)
+				if(iMC_Rd_socket_chan[skt][channel] < 0.0 && iMC_Wr_socket_chan[skt][channel] < 0.0)
 					continue;
 
-				float socketChannelRead = iMC_Rd_socket_chan[0][skt*MEMORY_MAX_IMC_CHANNELS+channel];
-				float socketChannelWrite = iMC_Wr_socket_chan[0][skt*MEMORY_MAX_IMC_CHANNELS+channel];
+				const float socketChannelRead = iMC_Rd_socket_chan[skt][channel];
+				const float socketChannelWrite = iMC_Wr_socket_chan[skt][channel];
 
 				memory.sockets[onlineSocketsI].channels[currentChannelI].read = socketChannelRead;
 				memory.sockets[onlineSocketsI].channels[currentChannelI].write = socketChannelWrite;
@@ -611,7 +611,7 @@ namespace PCMDaemon {
 			memory.sockets[onlineSocketsI].read = iMC_Rd_socket[skt];
 			memory.sockets[onlineSocketsI].write = iMC_Wr_socket[skt];
 			memory.sockets[onlineSocketsI].total= iMC_Rd_socket[skt] + iMC_Wr_socket[skt];
-			if(memory.dramEnergyMetricsAvailable)
+			if (memory.dramEnergyMetricsAvailable)
 			{
 				memory.sockets[onlineSocketsI].dramEnergy = getDRAMConsumedJoules(socketStatesBefore_[skt], socketStatesAfter_[skt]);
 			}
@@ -731,5 +731,4 @@ namespace PCMDaemon {
 			}
 		}
 	}
-
 }
