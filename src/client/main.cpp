@@ -15,8 +15,13 @@ void printTitle(std::string title)
 	std::cout << std::setw(26) << std::left << title;
 }
 
-int main(int /*argc*/, char *argv[])
+int main(int argc, char *argv[])
 {
+    if (argc < 2)
+    {
+        std::cerr << "Usage: " << argv[0] << " pollMs\n";
+        return -1;
+    }
 	PCMDaemon::Client client;
 	// client.setSharedMemoryIdLocation("/tmp/test-file");
 	client.connect();
@@ -24,7 +29,7 @@ int main(int /*argc*/, char *argv[])
 
 	int coutPrecision = 2;
 
-	while(true)
+	while (true)
 	{
 		PCMDaemon::SharedPCMState& state = client.read();
 		PCMDaemon::SharedPCMCounters& counters = state.pcm;
@@ -379,5 +384,5 @@ int main(int /*argc*/, char *argv[])
                 std::cout << std::flush;
 	}
 
-	return 1;
+	return 0;
 }
