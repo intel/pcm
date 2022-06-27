@@ -103,7 +103,7 @@ namespace PCMDaemon {
 		}
 		int maxCharsToRead = 11;
 		char readBuffer[maxCharsToRead];
-		if (fread(&readBuffer, maxCharsToRead, 1, fp) == 0)
+		if (fread(&readBuffer, maxCharsToRead, 1, fp) == 0 && feof(fp) == 0)
 		{
 			fclose (fp);
 			std::stringstream ss;
