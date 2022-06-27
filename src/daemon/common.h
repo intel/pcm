@@ -9,14 +9,13 @@
 #include <stdint.h>
 
 static const char DEFAULT_SHM_ID_LOCATION[] = "/tmp/opcm-daemon-shm-id";
-static const char VERSION[] = "1.0.5";
+static const char VERSION[] = "2.0.0";
 
 #define MAX_CPU_CORES 4096
 #define MAX_SOCKETS 256
-#define MEMORY_MAX_IMC_CHANNELS (8)
+#define MEMORY_MAX_IMC_CHANNELS (12)
 #define MEMORY_READ 0
 #define MEMORY_WRITE 1
-#define MEMORY_PARTIAL 2
 #define QPI_MAX_LINKS (MAX_SOCKETS * 4)
 
 #define VERSION_SIZE 12
@@ -122,7 +121,6 @@ namespace PCMDaemon {
 		uint32 numOfChannels;
 		float read;
 		float write;
-		float partialWrite;
 		float total;
 		double dramEnergy;
 
@@ -131,7 +129,6 @@ namespace PCMDaemon {
 			numOfChannels(0),
 			read(-1.0),
 			write(-1.0),
-			partialWrite(-1.0),
 			total(-1.0),
 			dramEnergy(0.0) {}
 	} ALIGN(ALIGNMENT);

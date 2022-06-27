@@ -255,13 +255,6 @@ int main(int argc, char *argv[])
 		}
 		std::cout << "\n";
 
-		printTitle("Mem Part. p/Sock.");
-		for(PCMDaemon::uint32 i = 0; i < counters.system.numOfOnlineSockets; ++i)
-		{
-			std::cout << std::setprecision(coutPrecision) << counters.memory.sockets[i].partialWrite << " ";
-		}
-		std::cout << "\n";
-
 		printTitle("Mem Total p/Sock.");
 		for(PCMDaemon::uint32 i = 0; i < counters.system.numOfOnlineSockets; ++i)
 		{

@@ -554,13 +554,11 @@ namespace PCMDaemon {
 		float iMC_Wr_socket_chan[MAX_SOCKETS][MEMORY_MAX_IMC_CHANNELS];
 		float iMC_Rd_socket[MAX_SOCKETS];
 		float iMC_Wr_socket[MAX_SOCKETS];
-		uint64 partial_write[MAX_SOCKETS];
 
 		for(uint32 skt(0); skt < numSockets; ++skt)
 		{
 			iMC_Rd_socket[skt] = 0.0;
 			iMC_Wr_socket[skt] = 0.0;
-			partial_write[skt] = 0;
 
 			for(uint32 channel(0); channel < MEMORY_MAX_IMC_CHANNELS; ++channel)
 			{
@@ -579,8 +577,6 @@ namespace PCMDaemon {
 
 				iMC_Rd_socket[skt] += iMC_Rd_socket_chan[skt][channel];
 				iMC_Wr_socket[skt] += iMC_Wr_socket_chan[skt][channel];
-
-				partial_write[skt] += (uint64) (getMCCounter(channel,MEMORY_PARTIAL,serverUncoreCounterStatesBefore_[skt],serverUncoreCounterStatesAfter_[skt]) / (elapsedTime/1000.0));
 			}
 		}
 
@@ -614,7 +610,6 @@ namespace PCMDaemon {
 			memory.sockets[onlineSocketsI].numOfChannels = currentChannelI;
 			memory.sockets[onlineSocketsI].read = iMC_Rd_socket[skt];
 			memory.sockets[onlineSocketsI].write = iMC_Wr_socket[skt];
-			memory.sockets[onlineSocketsI].partialWrite = partial_write[skt];
 			memory.sockets[onlineSocketsI].total= iMC_Rd_socket[skt] + iMC_Wr_socket[skt];
 			if(memory.dramEnergyMetricsAvailable)
 			{
