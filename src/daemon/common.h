@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-// Copyright (c) 2009-2018, Intel Corporation
+// Copyright (c) 2009-2018,2022 Intel Corporation
 // written by Steven Briscoe
 
 #ifndef COMMON_H_
@@ -119,9 +119,12 @@ namespace PCMDaemon {
 		uint64 socketId = 0;
 		PCMMemoryChannelCounter channels[MEMORY_MAX_IMC_CHANNELS];
 		uint32 numOfChannels;
-		float read;
-		float write;
-		float total;
+		float read;     // DRAM read traffic in MBytes/sec
+		float write;    // DRAM write traffic in MBytes/sec
+        float pmmRead;  // PMM read traffic in MBytes/sec
+        float pmmWrite; // PMM write traffic in MBytes/sec
+		float total;    // total traffic in MBytes/sec
+        float pmmMemoryModeHitRate; // PMM memory mode hit rate estimation. Metric value range is [0..1]
 		double dramEnergy;
 
 	public:
@@ -129,21 +132,28 @@ namespace PCMDaemon {
 			numOfChannels(0),
 			read(-1.0),
 			write(-1.0),
+            pmmRead(-1.0),
+            pmmWrite(-1.0),
 			total(-1.0),
+            pmmMemoryModeHitRate(-1.0),
 			dramEnergy(0.0) {}
 	} ALIGN(ALIGNMENT);
 
 	typedef struct PCMMemorySocketCounter PCMMemorySocketCounter;
 
 	struct PCMMemorySystemCounter {
-		float read;
-		float write;
-		float total;
+		float read;     // DRAM read traffic in MBytes/sec
+		float write;    // DRAM write traffic in MBytes/sec
+        float pmmRead;  // PMM read traffic in MBytes/sec
+        float pmmWrite; // PMM write traffic in MBytes/sec
+		float total;    // total traffic in MBytes/sec
 
 	public:
 		PCMMemorySystemCounter() :
 			read(-1.0),
 			write(-1.0),
+            pmmRead(-1.0),
+            pmmWrite(-1.0),
 			total(-1.0) {}
 	} ALIGN(ALIGNMENT);
 
@@ -152,11 +162,14 @@ namespace PCMDaemon {
 	struct PCMMemory {
 		PCMMemorySocketCounter sockets[MAX_SOCKETS];
 		PCMMemorySystemCounter system;
-		bool dramEnergyMetricsAvailable;
+		bool dramEnergyMetricsAvailable; // true if DRAM energy metrics are available
+        bool pmmMetricsAvailable; // true if PMM metrics are available
 
 	public:
 		PCMMemory() :
-			dramEnergyMetricsAvailable(false) {}
+			dramEnergyMetricsAvailable(false),
+            pmmMetricsAvailable(false)
+    {}
 	} ALIGN(ALIGNMENT);
 
 	typedef struct PCMMemory PCMMemory;

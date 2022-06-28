@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-// Copyright (c) 2009-2018, Intel Corporation
+// Copyright (c) 2009-2018,2022 Intel Corporation
 // written by Steven Briscoe
 
 #include <cstdlib>
@@ -540,6 +540,7 @@ namespace PCMDaemon {
 
 		PCMMemory& memory = sharedPCMState_->pcm.memory;
 		memory.dramEnergyMetricsAvailable = pcmInstance_->dramEnergyMetricsAvailable();
+        memory.pmmMetricsAvailable = pcmInstance_->PMMTrafficMetricsAvailable();
 
 		const uint32 numSockets = sharedPCMState_->pcm.system.numOfSockets;
 
@@ -554,11 +555,26 @@ namespace PCMDaemon {
 		float iMC_Wr_socket_chan[MAX_SOCKETS][MEMORY_MAX_IMC_CHANNELS];
 		float iMC_Rd_socket[MAX_SOCKETS];
 		float iMC_Wr_socket[MAX_SOCKETS];
+        float iMC_PMM_Rd_socket[MAX_SOCKETS];
+        float iMC_PMM_Wr_socket[MAX_SOCKETS];
 
 		for(uint32 skt(0); skt < numSockets; ++skt)
 		{
 			iMC_Rd_socket[skt] = 0.0;
 			iMC_Wr_socket[skt] = 0.0;
+            iMC_PMM_Rd_socket[skt] = 0.0;
+            iMC_PMM_Wr_socket[skt] = 0.0;
+
+            auto toBW = [&elapsedTime](const uint64 bytes)
+            {
+                return (float)(bytes / 1000000.0 / (elapsedTime / 1000.0));
+            };
+
+            if (memory.pmmMetricsAvailable)
+            {
+                iMC_PMM_Rd_socket[skt] = toBW(getBytesReadFromPMM(socketStatesBefore_[skt], socketStatesAfter_[skt]));
+                iMC_PMM_Wr_socket[skt] = toBW(getBytesWrittenToPMM(socketStatesBefore_[skt], socketStatesAfter_[skt]));
+            }
 
 			for(uint32 channel(0); channel < MEMORY_MAX_IMC_CHANNELS; ++channel)
 			{
@@ -572,8 +588,8 @@ namespace PCMDaemon {
 					continue;
 				}
 
-				iMC_Rd_socket_chan[skt][channel] = (float) (getMCCounter(channel,MEMORY_READ,serverUncoreCounterStatesBefore_[skt],serverUncoreCounterStatesAfter_[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0));
-				iMC_Wr_socket_chan[skt][channel] = (float) (getMCCounter(channel,MEMORY_WRITE,serverUncoreCounterStatesBefore_[skt],serverUncoreCounterStatesAfter_[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0));
+				iMC_Rd_socket_chan[skt][channel] = (float)(toBW(getMCCounter(channel, MEMORY_READ, serverUncoreCounterStatesBefore_[skt],serverUncoreCounterStatesAfter_[skt]) * 64));
+				iMC_Wr_socket_chan[skt][channel] = (float)(toBW(getMCCounter(channel, MEMORY_WRITE, serverUncoreCounterStatesBefore_[skt],serverUncoreCounterStatesAfter_[skt]) * 64));
 
 				iMC_Rd_socket[skt] += iMC_Rd_socket_chan[skt][channel];
 				iMC_Wr_socket[skt] += iMC_Wr_socket_chan[skt][channel];
@@ -582,6 +598,8 @@ namespace PCMDaemon {
 
 	    float systemRead(0.0);
 	    float systemWrite(0.0);
+        float systemPMMRead(0.0);
+        float systemPMMWrite(0.0);
 
 	    uint32 onlineSocketsI(0);
 	    for(uint32 skt (0); skt < numSockets; ++skt)
@@ -610,7 +628,11 @@ namespace PCMDaemon {
 			memory.sockets[onlineSocketsI].numOfChannels = currentChannelI;
 			memory.sockets[onlineSocketsI].read = iMC_Rd_socket[skt];
 			memory.sockets[onlineSocketsI].write = iMC_Wr_socket[skt];
-			memory.sockets[onlineSocketsI].total= iMC_Rd_socket[skt] + iMC_Wr_socket[skt];
+            memory.sockets[onlineSocketsI].pmmRead = iMC_PMM_Rd_socket[skt];
+            memory.sockets[onlineSocketsI].pmmWrite = iMC_PMM_Wr_socket[skt];
+			memory.sockets[onlineSocketsI].total = iMC_Rd_socket[skt] + iMC_Wr_socket[skt] + iMC_PMM_Rd_socket[skt] + iMC_PMM_Wr_socket[skt];
+            const auto all = memory.sockets[onlineSocketsI].total;
+            memory.sockets[onlineSocketsI].pmmMemoryModeHitRate = (all == 0.0) ? -1.0 : ((iMC_Rd_socket[skt] + iMC_Wr_socket[skt]) / all); // simplified approximation
 			if (memory.dramEnergyMetricsAvailable)
 			{
 				memory.sockets[onlineSocketsI].dramEnergy = getDRAMConsumedJoules(socketStatesBefore_[skt], socketStatesAfter_[skt]);
@@ -618,6 +640,8 @@ namespace PCMDaemon {
 
 			systemRead += iMC_Rd_socket[skt];
 			systemWrite += iMC_Wr_socket[skt];
+            systemPMMRead += iMC_PMM_Rd_socket[skt];
+            systemPMMWrite += iMC_PMM_Wr_socket[skt];
 
 			++onlineSocketsI;
 	    }

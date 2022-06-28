@@ -241,19 +241,48 @@ int main(int argc, char *argv[])
 		std::cout << "\n\n";
 
 //		Display memory counters
-		printTitle("Mem Read p/Sock.");
+
+        printTitle("PMM Metrics Avail.");
+        std::cout << std::setprecision(coutPrecision) << counters.memory.pmmMetricsAvailable << " ";
+        std::cout << "\n";
+
+		printTitle("DRAM Read p/Sock.");
 		for(PCMDaemon::uint32 i = 0; i < counters.system.numOfOnlineSockets; ++i)
 		{
 			std::cout << std::setprecision(coutPrecision) << counters.memory.sockets[i].read << " ";
 		}
 		std::cout << "\n";
 
-		printTitle("Mem Write p/Sock.");
+		printTitle("DRAM Write p/Sock.");
 		for(PCMDaemon::uint32 i = 0; i < counters.system.numOfOnlineSockets; ++i)
 		{
 			std::cout << std::setprecision(coutPrecision) << counters.memory.sockets[i].write << " ";
 		}
 		std::cout << "\n";
+
+        if (counters.memory.pmmMetricsAvailable)
+        {
+             printTitle("PMM Read p/Sock.");
+             for(PCMDaemon::uint32 i = 0; i < counters.system.numOfOnlineSockets; ++i)
+             {
+                 std::cout << std::setprecision(coutPrecision) << counters.memory.sockets[i].pmmRead << " ";
+             }
+             std::cout << "\n";
+
+             printTitle("PMM Write p/Sock.");
+             for(PCMDaemon::uint32 i = 0; i < counters.system.numOfOnlineSockets; ++i)
+             {
+                 std::cout << std::setprecision(coutPrecision) << counters.memory.sockets[i].pmmWrite << " ";
+             }
+             std::cout << "\n";
+
+             printTitle("PMM Memory Mode hit rate p/Sock. ");
+             for(PCMDaemon::uint32 i = 0; i < counters.system.numOfOnlineSockets; ++i)
+             {
+                 std::cout << std::setprecision(coutPrecision) << counters.memory.sockets[i].pmmMemoryModeHitRate << " ";
+             }
+             std::cout << "\n";
+        }
 
 		printTitle("Mem Total p/Sock.");
 		for(PCMDaemon::uint32 i = 0; i < counters.system.numOfOnlineSockets; ++i)
@@ -262,13 +291,24 @@ int main(int argc, char *argv[])
 		}
 		std::cout << "\n";
 
-		printTitle("Mem Read Sys.");
-		std::cout << std::setprecision(coutPrecision) << counters.memory.system.total << " ";
+		printTitle("DRAM Read Sys.");
+		std::cout << std::setprecision(coutPrecision) << counters.memory.system.read << " ";
 		std::cout << "\n";
 
-		printTitle("Mem Write Sys.");
+		printTitle("DRAM Write Sys.");
 		std::cout << std::setprecision(coutPrecision) << counters.memory.system.write << " ";
 		std::cout << "\n";
+
+        if (counters.memory.pmmMetricsAvailable)
+        {
+            printTitle("PMM Read Sys.");
+            std::cout << std::setprecision(coutPrecision) << counters.memory.system.pmmRead << " ";
+            std::cout << "\n";
+
+            printTitle("PMM Write Sys.");
+            std::cout << std::setprecision(coutPrecision) << counters.memory.system.pmmWrite << " ";
+            std::cout << "\n";
+        }
 
 		printTitle("Mem Total Sys.");
 		std::cout << std::setprecision(coutPrecision) << counters.memory.system.total << " ";
