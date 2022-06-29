@@ -334,4 +334,12 @@ if [ "$?" -ne "0" ]; then
     exit 1
 fi
 
+echo Testing pcm-raw with -edp
+./pcm-raw -edp -out raw_edp.txt 0.25 -tr -i=4 -el event_file_test.txt
+if [ "$?" -ne "0" ]; then
+    echo "Error in pcm-raw"
+    exit 1
+fi
+
+
 popd

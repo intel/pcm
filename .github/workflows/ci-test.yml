@@ -67,5 +67,11 @@ jobs:
     - name: upload-artifact
       uses: actions/upload-artifact@v2
       with:
+        name: test-log-raw-edp-${{ github.sha }}
+        path: build/bin/raw_edp.txt
+
+    - name: upload-artifact
+      uses: actions/upload-artifact@v2
+      with:
         name: test-log-raw-json-${{ github.sha }}
         path: build/bin/raw_json.json
