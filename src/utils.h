@@ -29,6 +29,15 @@
 
 namespace pcm {
 
+#ifdef _MSC_VER
+    using tstring = std::basic_string<TCHAR>;
+#ifdef UNICODE
+    static auto& tcerr = std::wcerr;
+#else
+    static auto& tcerr = std::cerr;
+#endif
+#endif // _MSC_VER
+
 void exit_cleanup(void);
 void set_signal_handlers(void);
 void set_real_time_priority(const bool & silent);
@@ -80,7 +89,7 @@ void MySystem(char * sysCmd, char ** argc);
 #endif
 struct null_stream : public std::streambuf
 {
-    void overflow(char) { }
+    int_type overflow(int_type) override { return {}; }
 };
 #ifdef __GCC__
 #pragma GCC diagnostic pop
@@ -474,7 +483,7 @@ std::string safe_getenv(const char* env);
 #ifdef _MSC_VER
 inline HANDLE openMSRDriver()
 {
-    return CreateFile(L"\\\\.\\RDMSR", GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+    return CreateFile(TEXT("\\\\.\\RDMSR"), GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
 }
 #endif
 

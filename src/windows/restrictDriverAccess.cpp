@@ -5,8 +5,16 @@
 
 namespace pcm {
 
+#ifdef _MSC_VER
+#ifdef UNICODE
+    static auto& tcerr = std::wcerr;
+#else
+    static auto& tcerr = std::cerr;
+#endif
+#endif // _MSC_VER
+
 //! restrict usage of driver to system (SY) and builtin admins (BA)
-void restrictDriverAccess(LPCWSTR path)
+void restrictDriverAccess(LPCTSTR path)
 {
     try {
         System::Security::AccessControl::FileSecurity^ fSecurity = System::IO::File::GetAccessControl(gcnew System::String(path));
@@ -15,7 +23,7 @@ void restrictDriverAccess(LPCWSTR path)
     }
     catch (...)
     {
-        std::wcerr << "Error in GetAccessControl/SetSecurityDescriptorSddlForm for " << path << " driver.\n";
+        tcerr << "Error in GetAccessControl/SetSecurityDescriptorSddlForm for " << path << " driver.\n";
     }
 }
 

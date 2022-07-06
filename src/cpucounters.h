@@ -66,7 +66,7 @@
 namespace pcm {
 
 #ifdef _MSC_VER
-void PCM_API restrictDriverAccess(LPCWSTR path);
+void PCM_API restrictDriverAccess(LPCTSTR path);
 #endif
 
 class SystemCounterState;

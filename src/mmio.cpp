@@ -43,7 +43,7 @@ protected:
         switch (sys_info.wProcessorArchitecture)
         {
         case PROCESSOR_ARCHITECTURE_AMD64:
-            wcscat_s(driver_filename, MAX_PATH, L"\\winpmem_x64.sys");
+            _tcscat_s(driver_filename, MAX_PATH, TEXT("\\winpmem_x64.sys"));
             if (GetFileAttributes(driver_filename) == INVALID_FILE_ATTRIBUTES)
             {
                 std::cerr << "ERROR: winpmem_x64.sys not found in current directory. Download it from https://github.com/Velocidex/WinPmem/blob/master/kernel/binaries/winpmem_x64.sys .\n";
@@ -51,7 +51,7 @@ protected:
             }
             break;
         case PROCESSOR_ARCHITECTURE_INTEL:
-            wcscat_s(driver_filename, MAX_PATH, L"\\winpmem_x86.sys");
+            _tcscat_s(driver_filename, MAX_PATH, TEXT("\\winpmem_x86.sys"));
             if (GetFileAttributes(driver_filename) == INVALID_FILE_ATTRIBUTES)
             {
                 std::cerr << "ERROR: winpmem_x86.sys not found in current directory. Download it from https://github.com/Velocidex/WinPmem/blob/master/kernel/binaries/winpmem_x86.sys .\n";
