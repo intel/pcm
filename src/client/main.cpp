@@ -64,7 +64,7 @@ int main(int argc, char* argv[])
         printTitle("Num. of online sockets");
         std::cout << counters.system.numOfOnlineSockets << "\n";
 
-        printTitle("QPI links per socket");
+        printTitle("QPI/UPI links per socket");
         std::cout << counters.system.numOfQPILinksPerSocket << "\n";
 
         std::cout << "\n\n";
@@ -331,23 +331,23 @@ int main(int argc, char* argv[])
         std::cout << "\n\n";
 
         //		Display QPI counters
-        printTitle("QPI in. Avail.");
+        printTitle("QPI/UPI in. Avail.");
         std::cout << std::setprecision(coutPrecision) << counters.qpi.incomingQPITrafficMetricsAvailable << " ";
         std::cout << "\n";
 
         if (counters.qpi.incomingQPITrafficMetricsAvailable)
         {
-            printTitle("QPI No. of Links");
+            printTitle("QPI/UPI No. of Links");
             std::cout << std::setprecision(coutPrecision) << counters.system.numOfQPILinksPerSocket << "\n";
 
-            printTitle("QPI in. p/Sock");
+            printTitle("QPI/UPI in. p/Sock");
             for (PCMDaemon::uint32 i = 0; i < counters.system.numOfOnlineSockets; ++i)
             {
                 std::cout << std::setprecision(coutPrecision) << counters.qpi.incoming[i].total << " ";
             }
             std::cout << "\n";
 
-            printTitle("QPI in. p/Link/Sock");
+            printTitle("QPI/UPI in. p/Link/Sock");
             for (PCMDaemon::uint32 i = 0; i < counters.system.numOfOnlineSockets; ++i)
             {
                 std::cout << "Socket: " << i << " (bytes)\t\t";
@@ -368,28 +368,28 @@ int main(int argc, char* argv[])
             }
             std::cout << "\n";
 
-            printTitle("QPI in. Total");
+            printTitle("QPI/UPI in. Total");
             std::cout << std::setprecision(coutPrecision) << counters.qpi.incomingTotal << " ";
             std::cout << "\n\n";
         }
 
-        printTitle("QPI out. Avail.");
+        printTitle("QPI/UPI out. Avail.");
         std::cout << std::setprecision(coutPrecision) << counters.qpi.outgoingQPITrafficMetricsAvailable << " ";
         std::cout << "\n";
 
         if (counters.qpi.outgoingQPITrafficMetricsAvailable)
         {
-            printTitle("QPI No. of Links");
+            printTitle("QPI/UPI No. of Links");
             std::cout << std::setprecision(coutPrecision) << counters.system.numOfQPILinksPerSocket << "\n";
 
-            printTitle("QPI out. p/Sock");
+            printTitle("QPI/UPI out. p/Sock");
             for (PCMDaemon::uint32 i = 0; i < counters.system.numOfOnlineSockets; ++i)
             {
                 std::cout << std::setprecision(coutPrecision) << counters.qpi.outgoing[i].total << " ";
             }
             std::cout << "\n";
 
-            printTitle("QPI out. p/Link/Sock");
+            printTitle("QPI/UPI out. p/Link/Sock");
             for (PCMDaemon::uint32 i = 0; i < counters.system.numOfOnlineSockets; ++i)
             {
                 std::cout << "Socket: " << i << " (bytes)\t\t";
@@ -410,7 +410,7 @@ int main(int argc, char* argv[])
             }
             std::cout << "\n";
 
-            printTitle("QPI out. Total");
+            printTitle("QPI/UPI out. Total");
             std::cout << std::setprecision(coutPrecision) << counters.qpi.outgoingTotal << " ";
             std::cout << "\n";
         }

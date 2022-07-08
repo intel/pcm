@@ -94,6 +94,10 @@ public:
         return m->getSocketId(c);
     }
 
+    const char * getXpi() {
+        return m->xPI();
+    }
+
     template <typename T, T func(CoreCounterState const &)>
     T get(uint32 core)
     {
