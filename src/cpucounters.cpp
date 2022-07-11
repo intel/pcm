@@ -103,8 +103,8 @@ bool PCM::initWinRing0Lib()
 
     BYTE major, minor, revision, release;
     GetDriverVersion(&major, &minor, &revision, &release);
-    wchar_t buffer[128];
-    swprintf_s(buffer, 128, _T("\\\\.\\WinRing0_%d_%d_%d"),(int)major,(int)minor, (int)revision);
+    TCHAR buffer[128];
+    _stprintf_s(buffer, 128, TEXT("\\\\.\\WinRing0_%d_%d_%d"),(int)major,(int)minor, (int)revision);
     restrictDriverAccess(buffer);
 
     return true;
@@ -1087,11 +1087,11 @@ bool PCM::discoverSystemTopology()
         }
         else
         {
-            std::wcerr << "Error in Windows function 'GetLogicalProcessorInformationEx': " <<
+            tcerr << "Error in Windows function 'GetLogicalProcessorInformationEx': " <<
                 GetLastError() << " ";
             const TCHAR * strError = _com_error(GetLastError()).ErrorMessage();
-            if (strError) std::wcerr << strError;
-            std::wcerr << "\n";
+            if (strError) tcerr << strError;
+            tcerr << "\n";
             return false;
         }
     }
@@ -2121,8 +2121,8 @@ PCM::PCM() :
     // drv.stop();     // restart driver (usually not needed)
     if (!drv.start())
     {
-        std::wcerr << "Cannot access CPU counters\n";
-        std::wcerr << "You must have a signed  driver at " << drv.driverPath() << " and have administrator rights to run this program\n";
+        tcerr << "Cannot access CPU counters\n";
+        tcerr << "You must have a signed  driver at " << drv.driverPath() << " and have administrator rights to run this program\n";
         return;
     }
 #endif

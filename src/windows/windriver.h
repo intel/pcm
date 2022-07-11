@@ -19,7 +19,7 @@ namespace pcm {
         \brief Loading and unloading custom Windows MSR (Model Specific Register) Driver
 */
 
-extern void restrictDriverAccess(LPCWSTR path);
+extern void restrictDriverAccess(LPCTSTR path);
 
 /*! \brief Manage custom Windows MSR (Model Specific Register) Driver
     The driver is required to access hardware Model Specific Registers (MSRs)
@@ -33,9 +33,9 @@ class Driver
     SERVICE_STATUS ss{};
 
 public:
-    static std::wstring msrLocalPath()
+    static tstring msrLocalPath()
     {
-        std::wstring driverPath;
+        tstring driverPath;
         DWORD driverPathLen = 1;
         DWORD gcdReturn = 0;
 
@@ -50,27 +50,27 @@ public:
 
         removeNullTerminator(driverPath);
 
-        return driverPath + L"\\msr.sys";
+        return driverPath + TEXT("\\msr.sys");
     }
 
     Driver() :
-        Driver(L"c:\\windows\\system32\\msr.sys")
+        Driver(TEXT("c:\\windows\\system32\\msr.sys"))
     {
     }
 
-    Driver(const std::wstring& driverPath) :
-        Driver(driverPath, L"PCM MSR", L"PCM MSR Driver")
+    Driver(const tstring& driverPath) :
+        Driver(driverPath, TEXT("PCM MSR"), TEXT("PCM MSR Driver"))
     {
     }
 
-    Driver(const std::wstring& driverPath, const std::wstring& driverName, const std::wstring& driverDescription) :
-        driverPath_(setConfigValue(L"DriverPath", driverPath)),
-        driverName_(setConfigValue(L"DriverName", driverName)),
-        driverDescription_(setConfigValue(L"DriverDescription", driverDescription))
+    Driver(const tstring& driverPath, const tstring& driverName, const tstring& driverDescription) :
+        driverPath_(setConfigValue(TEXT("DriverPath"), driverPath)),
+        driverName_(setConfigValue(TEXT("DriverName"), driverName)),
+        driverDescription_(setConfigValue(TEXT("DriverDescription"), driverDescription))
     {
     }
 
-    const std::wstring& driverPath() const
+    const tstring& driverPath() const
     {
         return driverPath_;
     }
@@ -100,8 +100,8 @@ public:
             {
                 if (0 != StartService(hService, 0, NULL))
                 {
-                    std::wstring convDriverName(&driverName_[0]);
-                    std::wstring driverPath = L"\\\\.\\" + convDriverName;
+                    tstring convDriverName(&driverName_[0]);
+                    tstring driverPath = TEXT("\\\\.\\") + convDriverName;
                     restrictDriverAccess(driverPath.c_str());
                     return true;
                 }
@@ -207,19 +207,17 @@ public:
 
 private:
 
-    static std::wstring setConfigValue(const LPCWSTR key, const std::wstring& defaultValue)
+    static tstring setConfigValue(LPCTSTR key, const tstring& defaultValue)
     {
-        static_assert(std::is_same<WCHAR, wchar_t>::value, "WCHAR expected to be wchar_t");
-
-        std::wstring regRead;
-        DWORD regLen = 1 * sizeof(WCHAR);
+        tstring regRead;
+        DWORD regLen = 1 * sizeof(TCHAR);
         DWORD regRes = ERROR_FILE_NOT_FOUND; // Safe error to start with in case key doesn't exist
 
         HKEY hKey;
-        if (ERROR_SUCCESS == RegOpenKeyEx(HKEY_LOCAL_MACHINE, L"SOFTWARE\\pcm", NULL, KEY_READ, &hKey))
+        if (ERROR_SUCCESS == RegOpenKeyEx(HKEY_LOCAL_MACHINE, TEXT("SOFTWARE\\pcm"), NULL, KEY_READ, &hKey))
         {
             do {
-                regRead.resize(regLen / sizeof(WCHAR));
+                regRead.resize(regLen / sizeof(TCHAR));
                 regRes = RegQueryValueEx(hKey, key, NULL, NULL, (LPBYTE)&regRead[0], &regLen);
             } while (ERROR_MORE_DATA == regRes);
 
@@ -231,7 +229,7 @@ private:
         return ERROR_SUCCESS == regRes ? regRead : defaultValue;
     }
 
-    static void removeNullTerminator(std::wstring& s)
+    static void removeNullTerminator(tstring& s)
     {
         if (!s.empty() && s.back() == '\0')
         {
@@ -239,9 +237,9 @@ private:
         }
     }
 
-    const std::wstring driverName_;
-    const std::wstring driverPath_;
-    const std::wstring driverDescription_;
+    const tstring driverName_;
+    const tstring driverPath_;
+    const tstring driverDescription_;
 };
 
 } // namespace pcm
