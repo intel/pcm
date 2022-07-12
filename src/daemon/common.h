@@ -30,11 +30,11 @@ namespace PCMDaemon {
     typedef unsigned long uint64;
 
     struct PCMSystem {
-        uint32 numOfCores;
-        uint32 numOfOnlineCores;
-        uint32 numOfSockets;
-        uint32 numOfOnlineSockets;
-        uint32 numOfQPILinksPerSocket;
+        uint32 numOfCores;              // the number of logical cores in the system
+        uint32 numOfOnlineCores;        // the number of online logical cores in the system
+        uint32 numOfSockets;            // the number of CPU sockets in the system
+        uint32 numOfOnlineSockets;      // the number of online CPU sockets in the system
+        uint32 numOfQPILinksPerSocket;  // the number of QPI or UPI (xPI) links per socket
     public:
         PCMSystem() :
             numOfCores(0),
@@ -47,30 +47,30 @@ namespace PCMDaemon {
     typedef struct PCMSystem PCMSystem;
 
     struct PCMCoreCounter {
-        uint64 coreId = 0;
-        int32 socketId = 0;
-        double instructionsPerCycle = 0.;
-        uint64 cycles = 0;
-        uint64 instructionsRetired = 0;
-        double execUsage = 0.;
-        double relativeFrequency = 0.;
-        double activeRelativeFrequency = 0.;
-        uint64 l3CacheMisses = 0;
-        uint64 l3CacheReference = 0;
-        uint64 l2CacheMisses = 0;
-        double l3CacheHitRatio = 0.;
-        double l2CacheHitRatio = 0.;
-        double l3CacheMPI = 0.;
-        double l2CacheMPI = 0.;
-        bool l3CacheOccupancyAvailable;
-        uint64 l3CacheOccupancy;
-        bool localMemoryBWAvailable;
-        uint64 localMemoryBW;
-        bool remoteMemoryBWAvailable;
-        uint64 remoteMemoryBW;
-        uint64 localMemoryAccesses = 0;
-        uint64 remoteMemoryAccesses = 0;
-        int32 thermalHeadroom = 0;
+        uint64 coreId = 0;              // core ID
+        int32 socketId = 0;             // socket ID
+        double instructionsPerCycle = 0.; // instructions per cycle metric
+        uint64 cycles = 0;                // cpu cycle metric
+        uint64 instructionsRetired = 0;   // number of retired instructions metric
+        double execUsage = 0.;            // instructions per nominal CPU cycle, i.e. in respect to the CPU frequency ignoring turbo and power saving
+        double relativeFrequency = 0.;    // frequency relative to nominal CPU frequency (“clockticks”/”invariant timer ticks”)
+        double activeRelativeFrequency = 0.; // frequency relative to nominal CPU frequency excluding the time when the CPU is sleeping
+        uint64 l3CacheMisses = 0;            // L3 cache line misses
+        uint64 l3CacheReference = 0;         // L3 cache line references (accesses)
+        uint64 l2CacheMisses = 0;            // L2 cache line misses
+        double l3CacheHitRatio = 0.;         // L3 cache hit ratio
+        double l2CacheHitRatio = 0.;         // L2 cachhe hit ratio
+        double l3CacheMPI = 0.;              // number of L3 cache misses per retired instruction
+        double l2CacheMPI = 0.;              // number of L2 cache misses per retired instruction
+        bool l3CacheOccupancyAvailable;      // true if L3 cache occupancy metric is available
+        uint64 l3CacheOccupancy;             // L3 cache occupancy in  KBytes
+        bool localMemoryBWAvailable;         // true if local memory bandwidth metric (L3 cache external bandwidth satisfied by local memory) is available
+        uint64 localMemoryBW;                // L3 cache external bandwidth satisfied by local memory (in MBytes)
+        bool remoteMemoryBWAvailable;        // true if remote memory bandwidth metric (L3 cache external bandwidth satisfied by remote memory) is available
+        uint64 remoteMemoryBW;               // L3 cache external bandwidth satisfied by remote memory (in MBytes)
+        uint64 localMemoryAccesses = 0;      // the number of local DRAM memory accesses
+        uint64 remoteMemoryAccesses = 0;     // the number of remote DRAM memory accesses
+        int32 thermalHeadroom = 0;           // thermal headroom in Kelvin (max design temperature – current temperature)
 
     public:
         PCMCoreCounter() :
@@ -86,8 +86,8 @@ namespace PCMDaemon {
 
     struct PCMCore {
         PCMCoreCounter cores[MAX_CPU_CORES];
-        bool packageEnergyMetricsAvailable;
-        double energyUsedBySockets[MAX_SOCKETS] ALIGN(ALIGNMENT);
+        bool packageEnergyMetricsAvailable;  // true if CPU package (a.k.a. socket) energy metric is available
+        double energyUsedBySockets[MAX_SOCKETS] ALIGN(ALIGNMENT); // energy consumed/used by CPU (socket) in Joules
 
     public:
         PCMCore() :
@@ -102,9 +102,9 @@ namespace PCMDaemon {
     typedef struct PCMCore PCMCore;
 
     struct PCMMemoryChannelCounter {
-        float read;
-        float write;
-        float total;
+        float read;  // DRAM read traffic in MBytes/sec
+        float write; // DRAM write traffic in MBytes/sec
+        float total; // total traffic in MBytes/sec
 
     public:
         PCMMemoryChannelCounter() :
@@ -116,16 +116,16 @@ namespace PCMDaemon {
     typedef struct PCMMemoryChannelCounter PCMMemoryChannelCounter;
 
     struct PCMMemorySocketCounter {
-        uint64 socketId = 0;
+        uint64 socketId = 0; // socket ID
         PCMMemoryChannelCounter channels[MEMORY_MAX_IMC_CHANNELS];
-        uint32 numOfChannels;
+        uint32 numOfChannels; // number of memory channels in the CPU socket
         float read;     // DRAM read traffic in MBytes/sec
         float write;    // DRAM write traffic in MBytes/sec
         float pmmRead;  // PMM read traffic in MBytes/sec
         float pmmWrite; // PMM write traffic in MBytes/sec
         float total;    // total traffic in MBytes/sec
         float pmmMemoryModeHitRate; // PMM memory mode hit rate estimation. Metric value range is [0..1]
-        double dramEnergy;
+        double dramEnergy; // energy consumed/used by DRAM memory in Joules
 
     public:
         PCMMemorySocketCounter() :
@@ -175,8 +175,8 @@ namespace PCMDaemon {
     typedef struct PCMMemory PCMMemory;
 
     struct PCMQPILinkCounter {
-        uint64 bytes;
-        double utilization;
+        uint64 bytes;  // bytes of certain traffic class transfered over QPI or UPI link
+        double utilization; // utilization of the link caused by the certain traffic class
 
     public:
         PCMQPILinkCounter() :
@@ -187,9 +187,9 @@ namespace PCMDaemon {
     typedef struct PCMQPILinkCounter PCMQPILinkCounter;
 
     struct PCMQPISocketCounter {
-        uint64 socketId = 0;
+        uint64 socketId = 0; // socket ID
         PCMQPILinkCounter links[QPI_MAX_LINKS];
-        uint64 total;
+        uint64 total; // total number of transfered bytes of a certain traffic class
 
     public:
         PCMQPISocketCounter() :
@@ -199,12 +199,12 @@ namespace PCMDaemon {
     typedef struct PCMQPISocketCounter PCMQPISocketCounter;
 
     struct PCMQPI {
-        PCMQPISocketCounter incoming[MAX_SOCKETS];
-        uint64 incomingTotal;
-        PCMQPISocketCounter outgoing[MAX_SOCKETS];
-        uint64 outgoingTotal;
-        bool incomingQPITrafficMetricsAvailable;
-        bool outgoingQPITrafficMetricsAvailable;
+        PCMQPISocketCounter incoming[MAX_SOCKETS]; // incoming data traffic class statistics
+        uint64 incomingTotal;                      // incoming data traffic total bytes
+        PCMQPISocketCounter outgoing[MAX_SOCKETS]; // outgoing data+"non-data" traffic class statistics
+        uint64 outgoingTotal;                      // outgoing data+"non-data" traffic total bytes
+        bool incomingQPITrafficMetricsAvailable; // true if incoming data traffic class statistics metrics are available
+        bool outgoingQPITrafficMetricsAvailable; // true if outgoing data+"non-data" class statistics metrics are available
 
     public:
         PCMQPI() :
@@ -226,13 +226,13 @@ namespace PCMDaemon {
     typedef struct SharedPCMCounters SharedPCMCounters;
 
     struct SharedPCMState {
-        char version[VERSION_SIZE];
-        uint64 lastUpdateTscBegin;
-        uint64 timestamp;
-        uint64 cyclesToGetPCMState;
-        uint32 pollMs;
+        char version[VERSION_SIZE]; // version (null-terminated string)
+        uint64 lastUpdateTscBegin;  // time stamp counter (TSC) obtained via rdtsc instruction *before* the state update
+        uint64 timestamp;           // monotonic time since some unspecified starting point in nanoseconds *after* the state update
+        uint64 cyclesToGetPCMState; // time it took to update the state measured in TSC cycles
+        uint32 pollMs;              // the poll interval in shared memory in milliseconds
         SharedPCMCounters pcm;
-        uint64 lastUpdateTscEnd;
+        uint64 lastUpdateTscEnd;    // time stamp counter (TSC) obtained via rdtsc instruction *after* the state update
 
     public:
         SharedPCMState() :
