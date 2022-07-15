@@ -588,6 +588,7 @@ bool PCM::detectModel()
     std::cerr << "STIBP supported          : " << ((cpuinfo.reg.edx & (1 << 27)) ? "yes" : "no") << "\n";
     std::cerr << "Spec arch caps supported : " << ((cpuinfo.reg.edx & (1 << 29)) ? "yes" : "no") << "\n";
     std::cerr << "Max CPUID level          : " << max_cpuid << "\n";
+    std::cerr << "CPU model number         : " << cpu_model << "\n";
 
     return true;
 }
