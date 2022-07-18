@@ -67,6 +67,9 @@ namespace PCMServiceNS {
 
             log_->WriteEntry(Globals::ServiceName, "PMU Programmed.");
 
+            CountersQpi = gcnew String(L"PCM " + gcnew System::String(m_->xPI()) + L" Counters");
+            MetricQpiBand = gcnew String(gcnew System::String(m_->xPI()) + L" Link Bandwidth");
+
             // This here will only create the necessary registry entries, the actual counters are created later.
             // New unified category
             if (PerformanceCounterCategory::Exists(CountersCore))
@@ -184,7 +187,7 @@ namespace PCMServiceNS {
             if (collectionInformation_->qpi)
             {
                 counterCollection->Clear();
-                counter = gcnew CounterCreationData(MetricQpiBand, "Displays the incoming bandwidth in bytes/s of this QPI link.", PerformanceCounterType::CounterDelta64);
+                counter = gcnew CounterCreationData(MetricQpiBand, L"Displays the incoming bandwidth in bytes/s of this " + gcnew System::String(m_->xPI()) + L" link", PerformanceCounterType::CounterDelta64);
                 counterCollection->Add( counter );
                 PerformanceCounterCategory::Create(CountersQpi, "Processor Counter Monitor", PerformanceCounterCategoryType::MultiInstance, counterCollection);
             }
@@ -627,7 +630,7 @@ namespace PCMServiceNS {
         // Counter variable names
         initonly String^ CountersCore = gcnew String(L"PCM Core Counters");
         initonly String^ CountersSocket = gcnew String(L"PCM Socket Counters");
-        initonly String^ CountersQpi = gcnew String(L"PCM QPI Counters");
+        initonly String^ CountersQpi;
 
         initonly String^ MetricCoreClocktick = gcnew String(L"Clockticks");
         initonly String^ MetricCoreRetired = gcnew String(L"Instructions Retired");
@@ -670,7 +673,7 @@ namespace PCMServiceNS {
         initonly String^ MetricSocketResC9Base  = gcnew String(L"package C9-state base");
         initonly String^ MetricSocketResC10Base = gcnew String(L"package C10-state base");
 
-        initonly String^ MetricQpiBand = gcnew String(L"QPI Link Bandwidth");
+        initonly String^ MetricQpiBand;
 
         // Configuration values
         const int sampleRate_;
@@ -736,6 +739,7 @@ namespace PCMServiceNS {
         /// </summary>
         virtual void OnStart(array<String^>^ args) override
         {
+            PCM* m_ = PCM::getInstance();
             SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
             // Default values for configuration
             int sampleRate = 1000;
