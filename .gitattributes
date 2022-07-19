@@ -1,4 +1,4 @@
-version.h export-subst
+src/version.h export-subst
 .cirrus.yml export-ignore
 .gitlab-ci.yml export-ignore
 .travis.yml export-ignore

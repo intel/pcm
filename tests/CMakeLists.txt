@@ -10,10 +10,10 @@ if(UNIX)
     add_executable(daemon_alignment_test ${TEST_FILE})
     target_link_libraries(daemon_alignment_test)
 
-    # PCM_STATIC + pcm_sensor + simdjson_obj = urltest
+    # PCM_STATIC + pcm_sensor = urltest
     if(LINUX)
         add_executable(urltest urltest.cpp)
-        target_link_libraries(urltest Threads::Threads PCM_SIMDJSON PCM_STATIC)
+        target_link_libraries(urltest Threads::Threads PCM_STATIC)
     endif(LINUX)
 
 endif(UNIX)

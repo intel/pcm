@@ -505,8 +505,9 @@ void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 /*elapsedTime*/, const 
         {
             for (uint64 channel = 0; channel < max_imc_channels; ++channel)
             {
+                bool invalid_data = false;
                 if (md->iMC_Rd_socket_chan[skt][channel] < 0.0 && md->iMC_Wr_socket_chan[skt][channel] < 0.0) //If the channel read neg. value, the channel is not working; skip it.
-                    continue;
+                    invalid_data = true;
 
                 choose(outputType,
                        [printSKT]() {
@@ -516,9 +517,12 @@ void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 /*elapsedTime*/, const 
                            cout << "Ch" << channel << "Read,"
                                 << "Ch" << channel << "Write,";
                        },
-                       [&md, &skt, &channel]() {
-                           cout << setw(8) << md->iMC_Rd_socket_chan[skt][channel] << ','
-                                << setw(8) << md->iMC_Wr_socket_chan[skt][channel] << ',';
+                       [&md, &skt, &channel, &invalid_data]() {
+                           if (invalid_data)
+                               cout << ",,";
+                           else
+                               cout << setw(8) << md->iMC_Rd_socket_chan[skt][channel] << ','
+                                    << setw(8) << md->iMC_Wr_socket_chan[skt][channel] << ',';
                        });
 
                 if (md->metrics == Pmem)
@@ -531,9 +535,12 @@ void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 /*elapsedTime*/, const 
                                cout << "Ch" << channel << "PMM_Read,"
                                     << "Ch" << channel << "PMM_Write,";
                            },
-                           [&skt, &md, &channel]() {
-                               cout << setw(8) << md->iMC_PMM_Rd_socket_chan[skt][channel] << ','
-                                    << setw(8) << md->iMC_PMM_Wr_socket_chan[skt][channel] << ',';
+                           [&skt, &md, &channel, &invalid_data]() {
+                               if (invalid_data)
+                                   cout << ",,";
+                               else
+                                   cout << setw(8) << md->iMC_PMM_Rd_socket_chan[skt][channel] << ','
+                                        << setw(8) << md->iMC_PMM_Wr_socket_chan[skt][channel] << ',';
                            });
                 }
             }

@@ -63,3 +63,15 @@ jobs:
       with:
         name: test-log-raw-tr-wi_ext-single_header-${{ github.sha }}
         path: build/bin/raw_tr_wi_ext_single_header.csv
+
+    - name: upload-artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: test-log-raw-edp-${{ github.sha }}
+        path: build/bin/raw_edp.txt
+
+    - name: upload-artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: test-log-raw-json-${{ github.sha }}
+        path: build/bin/raw_json.json
