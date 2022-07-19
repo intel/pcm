@@ -1,1 +1,1 @@
-#define PCM_VERSION " ($Format:%ci ID=%h$)"
+#define PCM_VERSION "($Format:%ci ID=%h$)"

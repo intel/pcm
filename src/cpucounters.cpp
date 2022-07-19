@@ -57,6 +57,7 @@
 #ifdef __linux__
 #include <sys/mman.h>
 #include <dirent.h>
+#include <sys/resource.h>
 #endif
 #endif
 
@@ -587,6 +588,7 @@ bool PCM::detectModel()
     std::cerr << "STIBP supported          : " << ((cpuinfo.reg.edx & (1 << 27)) ? "yes" : "no") << "\n";
     std::cerr << "Spec arch caps supported : " << ((cpuinfo.reg.edx & (1 << 29)) ? "yes" : "no") << "\n";
     std::cerr << "Max CPUID level          : " << max_cpuid << "\n";
+    std::cerr << "CPU model number         : " << cpu_model << "\n";
 
     return true;
 }
@@ -2059,6 +2061,30 @@ std::ofstream* PCM::outfile = nullptr;       // output file stream
 std::streambuf* PCM::backup_ofile = nullptr; // backup of original output = cout
 std::streambuf* PCM::backup_ofile_cerr = nullptr; // backup of original output = cerr
 
+#ifdef __linux__
+void increaseULimit()
+{
+    rlimit lim{};
+    if (getrlimit(RLIMIT_NOFILE, &lim) == 0)
+    {
+        const rlim_t recommendedLimit = 1000000;
+        // std::cout << "file open limit: " << lim.rlim_cur << "," << lim.rlim_max << "\n";
+        if (lim.rlim_cur < recommendedLimit || lim.rlim_max < recommendedLimit)
+        {
+            lim.rlim_cur = lim.rlim_max = recommendedLimit;
+            if (setrlimit(RLIMIT_NOFILE, &lim) != 0)
+            {
+                std::cerr << "PCM Info: setrlimit for file limit " << recommendedLimit << " failed with error " << strerror(errno) << "\n";
+            }
+        }
+    }
+    else
+    {
+       std::cerr << "PCM Info: getrlimit for file limit failed with error " << strerror(errno) << "\n";
+    }
+}
+#endif
+
 PCM::PCM() :
     cpu_family(-1),
     cpu_model(-1),
@@ -2115,6 +2141,9 @@ PCM::PCM() :
     run_state(1),
     needToRestoreNMIWatchdog(false)
 {
+#ifdef __linux__
+    increaseULimit();
+#endif
 #ifdef _MSC_VER
     // WARNING: This driver code (msr.sys) is only for testing purposes, not for production use
     Driver drv(Driver::msrLocalPath());
@@ -3248,7 +3277,7 @@ void PCM::reportQPISpeed() const
             if(server_pcicfg_uncore[i].get()) server_pcicfg_uncore[i]->reportQPISpeed();
         }
     } else {
-        std::cerr << "Max QPI speed: " << max_qpi_speed / (1e9) << " GBytes/second (" << max_qpi_speed / (1e9*getBytesPerLinkTransfer()) << " GT/second)\n";
+        std::cerr << "Max " << xPI() << " speed: " << max_qpi_speed / (1e9) << " GBytes/second (" << max_qpi_speed / (1e9*getBytesPerLinkTransfer()) << " GT/second)\n";
     }
 
 }
@@ -5822,7 +5851,7 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
 
     std::cerr << "Socket " << socket_ << ": " <<
         getNumMC() << " memory controllers detected with total number of " << getNumMCChannels() << " channels. " <<
-        getNumQPIPorts() << " QPI ports detected." <<
+        getNumQPIPorts() << " " << pcm->xPI() << " ports detected." <<
         " " << m2mPMUs.size() << " M2M (mesh to memory) blocks detected."
         " " << haPMUs.size()  << " Home Agents detected."
         " " << m3upiPMUs.size() << " M3UPI blocks detected."
@@ -7516,7 +7545,7 @@ void ServerPCICFGUncore::reportQPISpeed() const
     std::cerr.precision(1);
     std::cerr << std::fixed;
     for (uint32 i = 0; i < (uint32)qpi_speed.size(); ++i)
-        std::cerr << "Max QPI link " << i << " speed: " << qpi_speed[i] / (1e9) << " GBytes/second (" << qpi_speed[i] / (1e9 * m->getBytesPerLinkTransfer()) << " GT/second)\n";
+        std::cerr << "Max " << m->xPI() << " link " << i << " speed: " << qpi_speed[i] / (1e9) << " GBytes/second (" << qpi_speed[i] / (1e9 * m->getBytesPerLinkTransfer()) << " GT/second)\n";
 }
 
 uint64 PCM::CX_MSR_PMON_CTRY(uint32 Cbo, uint32 Ctr) const

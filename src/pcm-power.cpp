@@ -384,7 +384,7 @@ int main(int argc, char * argv[])
             for (uint32 port = 0; port < m->getQPILinksPerSocket(); ++port)
             {
                 cout << "S" << socket << "P" << port
-                          << "; QPIClocks: " << getQPIClocks(port, BeforeState[socket], AfterState[socket])
+                          << "; " + std::string(m->xPI()) + " Clocks: " << getQPIClocks(port, BeforeState[socket], AfterState[socket])
                           << "; L0p Tx Cycles: " << 100. * getNormalizedQPIL0pTxCycles(port, BeforeState[socket], AfterState[socket]) << "%"
                           << "; L1 Cycles: " << 100. * getNormalizedQPIL1Cycles(port, BeforeState[socket], AfterState[socket]) << "%"
                           << "\n";

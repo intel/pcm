@@ -77,6 +77,50 @@ if(MSVC)
 
 endif(MSVC)
 
+#######################
+# SIMDJSON dependency
+#######################
+
+add_library(PCM_SIMDJSON INTERFACE) # interface library for simdjson
+set(SIMDJSON_IS_APPLICABLE TRUE)    # true if simdjson can be used, default - TRUE
+
+# check simdjson support matrix - https://github.com/simdjson/simdjson/blob/master/doc/basics.md
+# > GCC 7.4, > Clang 6.0 , > MSVC 2017
+if((CMAKE_CXX_COMPILER_ID STREQUAL "GNU"   AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.4) OR
+    (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 6) OR
+    (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC"  AND  MSVC_TOOLSET_VERSION VERSION_LESS 141)) # corresponds to VS2017
+     message(WARNING
+           " ${CMAKE_CXX_COMPILER} ${CMAKE_CXX_COMPILER_VERSION} is incompartible with simdjson features' requirements.\n"
+           " Refer to simdjson support matrix - https://github.com/simdjson/simdjson/blob/master/doc/basics.md .\n"
+           " Parsing events from 01.org/perfmon won't be supported.")
+        set(SIMDJSON_IS_APPLICABLE FALSE)
+endif()
+
+if(SIMDJSON_IS_APPLICABLE)
+    find_package(simdjson QUIET)  # Working form Ububtu 22.04
+    if(simdjson_FOUND)
+        message(STATUS "System SIMDJSON is used")
+        target_link_libraries(PCM_SIMDJSON INTERFACE simdjson::simdjson)
+        target_compile_definitions(PCM_SIMDJSON INTERFACE SYSTEM_SIMDJSON)
+        target_compile_definitions(PCM_SIMDJSON INTERFACE PCM_SIMDJSON_AVAILABLE)
+    else()
+        if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/simdjson/singleheader/simdjson.h")
+            message(STATUS "Local SIMDJSON exists: ${CMAKE_CURRENT_SOURCE_DIR}/simdjson/singleheader/simdjson.h")
+            file(GLOB SIMDJSON_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/simdjson/singleheader/simdjson.cpp)
+            target_sources(PCM_SIMDJSON INTERFACE ${SIMDJSON_SOURCE})
+            target_include_directories(PCM_SIMDJSON INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/simdjson/singleheader)
+            target_compile_definitions(PCM_SIMDJSON INTERFACE PCM_SIMDJSON_AVAILABLE)
+        else()
+            message(WARNING
+                " ${CMAKE_CURRENT_SOURCE_DIR}/simdjson/singleheader/simdjson.h doesn't exist\n"
+                " Run 'git clone https://github.com/simdjson/simdjson.git' in 'src' directory to get simdjson library")
+        endif()
+    endif(simdjson_FOUND)
+endif(SIMDJSON_IS_APPLICABLE)
+
+#######################
+# End of SIMDJSON dependency section
+#######################
 
 foreach(PROJECT_NAME ${PROJECT_NAMES})
     file(GLOB PROJECT_FILE ${PROJECT_NAME}.cpp)

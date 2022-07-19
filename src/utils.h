@@ -234,7 +234,8 @@ enum CsvOutputType
     Header1,
     Header2,
     Data,
-    Header21 // merged headers 2 and 1
+    Header21, // merged headers 2 and 1
+    Json
 };
 
 template <class H1, class H2, class D>
@@ -250,6 +251,7 @@ inline void choose(const CsvOutputType outputType, H1 h1Func, H2 h2Func, D dataF
         h2Func();
         break;
     case Data:
+    case Json:
         dataFunc();
         break;
     default:
@@ -282,6 +284,26 @@ inline void printDateForCSV(const CsvOutputType outputType, std::string separato
             std::cout.setf(std::ios::fixed);
             std::cout.precision(2);
         });
+}
+
+inline void printDateForJson(const std::string& separator, const std::string &jsonSeparator)
+{
+    std::pair<tm, uint64> tt{ pcm_localtime() };
+    std::cout.precision(3);
+    char old_fill = std::cout.fill('0');
+    std::cout <<
+        "Date" << jsonSeparator << "\"" <<
+        std::setw(4) <<  1900 + tt.first.tm_year << '-' <<
+        std::setw(2) << 1 + tt.first.tm_mon << '-' <<
+        std::setw(2) << tt.first.tm_mday << "\"" << separator <<
+        "Time" << jsonSeparator << "\"" <<
+        std::setw(2) << tt.first.tm_hour << ':' <<
+        std::setw(2) << tt.first.tm_min << ':' <<
+        std::setw(2) << tt.first.tm_sec << '.' <<
+        std::setw(3) << tt.second << "\"" << separator; // milliseconds
+    std::cout.fill(old_fill);
+    std::cout.setf(std::ios::fixed);
+    std::cout.precision(2);
 }
 
 std::vector<std::string> split(const std::string & str, const char delim);

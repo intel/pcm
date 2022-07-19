@@ -595,7 +595,7 @@ std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int
         for (size_t s = 0; s < NumSockets; ++s)
         {
             const auto S = std::to_string(s);
-            auto panel = std::make_shared<GraphPanel>(0, y, width, height, std::string("Socket") + S + " UPI " + m, utilization?"%": "MByte/sec", false);
+            auto panel = std::make_shared<GraphPanel>(0, y, width, height, std::string("Socket") + S + " " + pcm->xPI() + " " + m, utilization?"%": "MByte/sec", false);
             std::shared_ptr<Panel> panel1;
             if (utilization)
                 panel1 = std::make_shared<GaugePanel>(width, y, max_width - width, height, std::string("Current Socket") + S + " UPI " + m + " (%)");
@@ -606,8 +606,8 @@ std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int
             for (size_t l = 0; l < NumUPILinksPerSocket; ++l)
             {
                 const auto L = std::to_string(l);
-                auto t = createTarget("UPI" + std::to_string(l),
-                    "mean(\\\"QPI/UPI Links_QPI Counters Socket " + S + "_" + m + " On Link " + L + "\\\")" +  suffix,
+                auto t = createTarget(pcm->xPI() + std::to_string(l),
+                    "mean(\\\"" + std::string(pcm->xPI()) + " Links_QPI Counters Socket " + S + "_" + m + " On Link " + L + "\\\")" +  suffix,
                     "rate(" + prometheusMetric(m) + "_On_Link_" + L + prometheusSystem(S) + interval + ")" + suffix);
                 panel->push(t);
                 panel1->push(t);
