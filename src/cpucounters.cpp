@@ -1383,7 +1383,9 @@ bool PCM::discoverSystemTopology()
 
 void PCM::printSystemTopology() const
 {
-    if (num_cores == num_online_cores && hybrid == false)
+    const bool all_cores_online_no_hybrid = (num_cores == num_online_cores && hybrid == false);
+
+    if (all_cores_online_no_hybrid)
     {
       std::cerr << "Number of physical cores: " << (num_cores/threads_per_core) << "\n";
     }
@@ -1391,12 +1393,13 @@ void PCM::printSystemTopology() const
     std::cerr << "Number of logical cores: " << num_cores << "\n";
     std::cerr << "Number of online logical cores: " << num_online_cores << "\n";
 
-    if (num_cores == num_online_cores && hybrid == false)
+    if (all_cores_online_no_hybrid)
     {
       std::cerr << "Threads (logical cores) per physical core: " << threads_per_core << "\n";
     }
     else
     {
+        std::cerr << "Threads (logical cores) per physical core: " << threads_per_core << " (maybe imprecise due to core offlining/hybrid CPU)\n";
         std::cerr << "Offlined cores: ";
         for (int i = 0; i < (int)num_cores; ++i)
             if(isCoreOnline((int32)i) == false)
@@ -1404,10 +1407,15 @@ void PCM::printSystemTopology() const
         std::cerr << "\n";
     }
     std::cerr << "Num sockets: " << num_sockets << "\n";
-    if (num_phys_cores_per_socket > 0 && hybrid == false)
+    if (all_cores_online_no_hybrid)
     {
         std::cerr << "Physical cores per socket: " << num_phys_cores_per_socket << "\n";
     }
+    else
+    {
+        std::cerr << "Physical cores per socket: " << num_cores / num_sockets / threads_per_core << " (maybe imprecise due to core offlining/hybrid CPU)\n";
+    }
+
     if (hybrid == false)
     {
         std::cerr << "Last level cache slices per socket: " << getMaxNumOfCBoxes() << "\n";
@@ -2218,10 +2226,11 @@ void PCM::printDetailedSystemTopology()
         std::cerr << "\n=====  Processor topology  =====\n";
         std::cerr << "OS_Processor    Thread_Id       Core_Id         Tile_Id         Package_Id      Core_Type   Native_CPU_Model\n";
         std::map<uint32, std::vector<uint32> > os_id_by_core, os_id_by_tile, core_id_by_socket;
+        size_t counter = 0;
         for (auto it = topology.begin(); it != topology.end(); ++it)
         {
             std::cerr << std::left << std::setfill(' ')
-                << std::setw(16) << it->os_id
+                << std::setw(16) << ((it->os_id >= 0) ? it->os_id : counter)
                 << std::setw(16) << it->thread_id
                 << std::setw(16) << it->core_id
                 << std::setw(16) << it->tile_id
@@ -2235,6 +2244,8 @@ void PCM::printDetailedSystemTopology()
             // add socket offset to distinguish cores and tiles from different sockets
             os_id_by_core[(it->socket << 15) + it->core_id].push_back(it->os_id);
             os_id_by_tile[(it->socket << 15) + it->tile_id].push_back(it->os_id);
+
+            ++counter;
         }
         std::cerr << "=====  Placement on packages  =====\n";
         std::cerr << "Package Id.    Core Id.     Processors\n";
