@@ -4,7 +4,8 @@ import urllib.request
 import urllib.parse
 import json
 import csv
-import subprocess
+# subprocess is used as multiplatform approach, usage is verified (20-07-2022)
+import subprocess  # nosec
 import sys
 import platform
 import getopt
@@ -31,7 +32,8 @@ except getopt.GetoptError as err:
     sys.exit(-2)
 
 if filename is None:
-    map_file_raw = urllib.request.urlopen("https://download.01.org/perfmon/mapfile.csv").read().decode('utf-8')
+    # vefified that link to mapfile.csv is safe and correct (20-07-2022)
+    map_file_raw = urllib.request.urlopen("https://download.01.org/perfmon/mapfile.csv").read().decode('utf-8')  # nosec
     map_dict = csv.DictReader(io.StringIO(map_file_raw), delimiter=',')
     map_file = []
     core_path = ""
@@ -67,7 +69,8 @@ if filename is None:
             print(model)
 
     if core_path:
-        json_core_data = urllib.request.urlopen(
+        # vefified that links, created on base of map_file are correct (20-07-2022)
+        json_core_data = urllib.request.urlopen(  # nosec
             "https://download.01.org/perfmon" + core_path
         )
         core_events = json.load(json_core_data)
@@ -79,7 +82,8 @@ if filename is None:
         sys.exit(-1)
 
     if offcore_path:
-        json_offcore_data = urllib.request.urlopen(
+        # vefified that links, created on base of map_file are correct (20-07-2022)
+        json_offcore_data = urllib.request.urlopen(  # nosec
             "https://download.01.org/perfmon" + offcore_path
         )
         offcore_events = json.load(json_offcore_data)
