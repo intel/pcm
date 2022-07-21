@@ -1005,7 +1005,7 @@ void printRow(const std::string & EventName, MetricFunc metricFunc, const std::v
 
     for (uint32 core = 0; core < m->getNumCores(); ++core)
     {
-        if (!(m->isCoreOnline(core) == false || (show_partial_core_output && ycores.test(core) == false)))
+        if (!(show_partial_core_output && ycores.test(core) == false))
         {
             if (outputType == Header1) {
                 cout << separator << "SKT" << m->getSocketId(core) << "CORE" << core;
@@ -1465,7 +1465,7 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs,
         {
             for (uint32 core = 0; core < m->getNumCores(); ++core)
             {
-                if (m->isCoreOnline(core) == false || (show_partial_core_output && ycores.test(core) == false))
+                if (show_partial_core_output && ycores.test(core) == false)
                     continue;
 
                 const uint64 fixedCtrValues[] = {
