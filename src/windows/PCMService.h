@@ -10,6 +10,11 @@
 #include "pcm-lib.h"
 #include "windriver.h"
 #include <stdexcept>
+
+#ifndef UNICODE
+#include <locale>
+#include <codecvt>
+#endif
 #pragma managed
 
 using namespace pcm;
@@ -747,29 +752,29 @@ namespace PCMServiceNS {
 
             // Read configuration values from registry
             HKEY hkey;
-            if (ERROR_SUCCESS == RegOpenKeyEx(HKEY_LOCAL_MACHINE, L"SOFTWARE\\pcm\\service", NULL, KEY_READ, &hkey))
+            if (ERROR_SUCCESS == RegOpenKeyEx(HKEY_LOCAL_MACHINE, TEXT("SOFTWARE\\pcm\\service"), NULL, KEY_READ, &hkey))
             {
                 DWORD regDWORD = static_cast<DWORD>(REG_DWORD);
                 DWORD lenDWORD = 32;
 
                 DWORD sampleRateRead(0);
-                if (ERROR_SUCCESS == RegQueryValueEx(hkey, L"SampleRate", NULL, NULL, reinterpret_cast<LPBYTE>(&sampleRateRead), &lenDWORD))
+                if (ERROR_SUCCESS == RegQueryValueEx(hkey, TEXT("SampleRate"), NULL, NULL, reinterpret_cast<LPBYTE>(&sampleRateRead), &lenDWORD))
                 {
                     sampleRate = (int)sampleRateRead;
                 }
 
                 DWORD collectCoreRead(0);
-                if (ERROR_SUCCESS == RegQueryValueEx(hkey, L"CollectCore", NULL, NULL, reinterpret_cast<LPBYTE>(&collectCoreRead), &lenDWORD)) {
+                if (ERROR_SUCCESS == RegQueryValueEx(hkey, TEXT("CollectCore"), NULL, NULL, reinterpret_cast<LPBYTE>(&collectCoreRead), &lenDWORD)) {
                     collectionInformation->core = (int)collectCoreRead > 0;
                 }
 
                 DWORD collectSocketRead(0);
-                if (ERROR_SUCCESS == RegQueryValueEx(hkey, L"CollectSocket", NULL, NULL, reinterpret_cast<LPBYTE>(&collectSocketRead), &lenDWORD)) {
+                if (ERROR_SUCCESS == RegQueryValueEx(hkey, TEXT("CollectSocket"), NULL, NULL, reinterpret_cast<LPBYTE>(&collectSocketRead), &lenDWORD)) {
                     collectionInformation->socket = (int)collectSocketRead > 0;
                 }
 
                 DWORD collectQpiRead(0);
-                if (ERROR_SUCCESS == RegQueryValueEx(hkey, L"CollectQpi", NULL, NULL, reinterpret_cast<LPBYTE>(&collectQpiRead), &lenDWORD)) {
+                if (ERROR_SUCCESS == RegQueryValueEx(hkey, TEXT("CollectQpi"), NULL, NULL, reinterpret_cast<LPBYTE>(&collectQpiRead), &lenDWORD)) {
                     collectionInformation->qpi = (int)collectQpiRead > 0;
                 }
 
@@ -782,7 +787,13 @@ namespace PCMServiceNS {
             drv_ = new Driver;
             if (!drv_->start())
             {
-                String^ s = gcnew String((L"Cannot open the driver.\nYou must have a signed driver at " + drv_->driverPath() + L" and have administrator rights to run this program.\n\n").c_str());
+#ifdef UNICODE
+                const auto& driverPath = drv_->driverPath();
+#else
+                std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> char_to_wide;
+                std::wstring driverPath = char_to_wide.from_bytes(drv_->driverPath().c_str());
+#endif
+                String^ s = gcnew String((L"Cannot open the driver.\nYou must have a signed driver at " + driverPath + L" and have administrator rights to run this program.\n\n").c_str());
                 EventLog->WriteEntry(Globals::ServiceName, s, EventLogEntryType::Error);
                 SetServiceFail(ERROR_FILE_NOT_FOUND);
                 throw gcnew Exception(s);

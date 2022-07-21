@@ -35,7 +35,7 @@
 
 namespace pcm {
 
-extern PCM_API void restrictDriverAccess(LPCWSTR path);
+extern PCM_API void restrictDriverAccess(LPCTSTR path);
 
 int WinPmem::set_acquisition_mode(__int32 mode) {
   DWORD size;
@@ -80,7 +80,7 @@ void WinPmem::LogError(const TCHAR *message) {
   _tcsncpy_s(last_error, message, sizeof(last_error));
   if (suppress_output) return;
 
-  wprintf(L"%s", message);
+  _tprintf(TEXT("%s"), message);
 };
 
 void WinPmem::Log(const TCHAR *message, ...) {
@@ -88,7 +88,7 @@ void WinPmem::Log(const TCHAR *message, ...) {
 
   va_list ap;
   va_start(ap, message);
-  vwprintf(message, ap);
+  _vtprintf(message, ap);
   va_end(ap);
 };
 
@@ -137,7 +137,7 @@ int WinPmem::install_driver(bool delete_driver) {
     }
   }
 
-  Log(L"Loaded Driver %s.\n", driver_filename);
+  Log(TEXT("Loaded Driver %s.\n"), driver_filename);
 
   fd_ = CreateFile(TEXT("\\\\.\\") TEXT(PMEM_DEVICE_NAME),
                    // Write is needed for IOCTL.

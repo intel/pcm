@@ -264,18 +264,18 @@ void set_signal_handlers(void)
 // to fix Cygwin/BASH setting Ctrl+C handler need first to restore the default one
     handlerStatus = SetConsoleCtrlHandler(NULL, FALSE); // restores normal processing of CTRL+C input
     if (handlerStatus == 0) {
-        std::wcerr << "Failed to set Ctrl+C handler. Error code: " << GetLastError() << " ";
+        tcerr << "Failed to set Ctrl+C handler. Error code: " << GetLastError() << " ";
         const TCHAR * errorStr = _com_error(GetLastError()).ErrorMessage();
-        if (errorStr) std::wcerr << errorStr;
-        std::wcerr << "\n";
+        if (errorStr) tcerr << errorStr;
+        tcerr << "\n";
         _exit(EXIT_FAILURE);
     }
     handlerStatus = SetConsoleCtrlHandler((PHANDLER_ROUTINE)sigINT_handler, TRUE);
     if (handlerStatus == 0) {
-        std::wcerr << "Failed to set Ctrl+C handler. Error code: " << GetLastError() << " ";
+        tcerr << "Failed to set Ctrl+C handler. Error code: " << GetLastError() << " ";
         const TCHAR * errorStr = _com_error(GetLastError()).ErrorMessage();
-        if (errorStr) std::wcerr << errorStr;
-        std::wcerr << "\n";
+        if (errorStr) tcerr << errorStr;
+        tcerr << "\n";
         _exit(EXIT_FAILURE);
     }
     SetUnhandledExceptionFilter((LPTOP_LEVEL_EXCEPTION_FILTER)&unhandled_exception_handler);
