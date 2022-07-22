@@ -71,7 +71,7 @@ protected:
 
 std::shared_ptr<WinPmem> WinPmemMMIORange::pmem;
 Mutex WinPmemMMIORange::mutex;
-bool WinPmemMMIORange::writeSupported;
+bool WinPmemMMIORange::writeSupported = false;
 
 WinPmemMMIORange::WinPmemMMIORange(uint64 baseAddr_, uint64 /* size_ */, bool readonly_) : startAddr(baseAddr_), readonly(readonly_)
 {

@@ -75,3 +75,9 @@ jobs:
       with:
         name: test-log-raw-json-${{ github.sha }}
         path: build/bin/raw_json.json
+
+    - name: upload-artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: test-log-raw-edp-offlined-cores-${{ github.sha }}
+        path: build/bin/raw_edp_offlined_cores.txt
