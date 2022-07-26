@@ -525,5 +525,8 @@ inline void parsePID(int argc, char* argv[], int& pid)
     parseParam(argc, argv, "pid", [&pid](const char* p) { if (p) pid = atoi(p); });
 }
 
+bool extract_argument_value(const char* arg, std::initializer_list<const char*> arg_names, std::string& value);
+
+bool check_argument_equals(const char* arg, std::initializer_list<const char*> arg_names);
 
 } // namespace pcm

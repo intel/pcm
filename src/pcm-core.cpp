@@ -112,26 +112,27 @@ extern "C" {
 
 void print_usage(const string progname)
 {
-	cerr << "\n Usage: \n " << progname
-		<< " --help | [delay] [options] [-- external_program [external_program_options]]\n";
-	cerr << "   <delay>                               => time interval to sample performance counters.\n";
-	cerr << "                                            If not specified, or 0, with external program given\n";
-	cerr << "                                            will read counters only after external program finishes\n";
-	cerr << " Supported <options> are: \n";
-	cerr << "  -h    | --help      | /h               => print this help and exit\n";
-	cerr << "  -c    | /c                             => print CPU Model name and exit (used for pmu-query.py)\n";
-	cerr << "  -csv[=file.csv]     | /csv[=file.csv]  => output compact CSV format to screen or\n"
+	cout << "\n Usage: \n " << progname
+		 << " --help | [delay] [options] [-- external_program [external_program_options]]\n";
+	cout << "   <delay>                               => time interval to sample performance counters.\n";
+	cout << "                                            If not specified, or 0, with external program given\n";
+	cout << "                                            will read counters only after external program finishes\n";
+	cout << " Supported <options> are: \n";
+	cout << "  -h    | --help      | /h               => print this help and exit\n";
+	cout << "  -silent                                => silence information output and print only measurements\n";
+	cout << "  -c    | /c                             => print CPU Model name and exit (used for pmu-query.py)\n";
+	cout << "  -csv[=file.csv]     | /csv[=file.csv]  => output compact CSV format to screen or\n"
 		<< "                                            to a file, in case filename is provided\n";
-    cerr << "  [-e event1] [-e event2] [-e event3] .. => optional list of custom events to monitor\n";
-	cerr << "  event description example: cpu/umask=0x01,event=0x05,name=MISALIGN_MEM_REF.LOADS/ \n";
-	cerr << "  -yc   | --yescores  | /yc              => enable specific cores to output\n";
-	cerr << "  -i[=number] | /i[=number]              => allow to determine number of iterations\n";
+    cout << "  [-e event1] [-e event2] [-e event3] .. => optional list of custom events to monitor\n";
+	cout << "  event description example: cpu/umask=0x01,event=0x05,name=MISALIGN_MEM_REF.LOADS/ \n";
+	cout << "  -yc   | --yescores  | /yc              => enable specific cores to output\n";
+	cout << "  -i[=number] | /i[=number]              => allow to determine number of iterations\n";
     print_help_force_rtm_abort_mode(41);
-	cerr << " Examples:\n";
-	cerr << "  " << progname << " 1                   => print counters every second without core and socket output\n";
-	cerr << "  " << progname << " 0.5 -csv=test.log   => twice a second save counter values to test.log in CSV format\n";
-	cerr << "  " << progname << " /csv 5 2>/dev/null  => one sampe every 5 seconds, and discard all diagnostic output\n";
-	cerr << "\n";
+	cout << " Examples:\n";
+	cout << "  " << progname << " 1                   => print counters every second without core and socket output\n";
+	cout << "  " << progname << " 0.5 -csv=test.log   => twice a second save counter values to test.log in CSV format\n";
+	cout << "  " << progname << " /csv 5 2>/dev/null  => one sampe every 5 seconds, and discard all diagnostic output\n";
+	cout << "\n";
 }
 
 	template <class StateType>
@@ -258,13 +259,16 @@ void build_event(const char * argv, EventSelectRegister *reg, int idx)
 
 int main(int argc, char * argv[])
 {
-	set_signal_handlers();
-
+	null_stream nullStream2;
 #ifdef PCM_FORCE_SILENT
-	null_stream nullStream1, nullStream2;
+	null_stream nullStream1;
 	std::cout.rdbuf(&nullStream1);
 	std::cerr.rdbuf(&nullStream2);
+#else
+	check_and_set_silent(argc, argv, nullStream2);
 #endif
+
+	set_signal_handlers();
 
 	cerr << "\n";
 	cerr << " Processor Counter Monitor: Core Monitoring Utility \n";
@@ -294,12 +298,15 @@ int main(int argc, char * argv[])
 	{
 		argv++;
 		argc--;
-		if (strncmp(*argv, "--help", 6) == 0 ||
-				strncmp(*argv, "-h", 2) == 0 ||
-				strncmp(*argv, "/h", 2) == 0)
+		if (check_argument_equals(*argv, {"--help", "-h", "/h"}))
 		{
 			print_usage(program);
 			exit(EXIT_FAILURE);
+		}
+		else if (check_argument_equals(*argv, {"-silent", "/silent"}))
+		{
+			// handled in check_and_set_silent
+			continue;
 		}
 		else if (strncmp(*argv, "-csv",4) == 0 ||
 				strncmp(*argv, "/csv",4) == 0)
