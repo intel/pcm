@@ -91,47 +91,51 @@ int freq_band[3];
 
 void print_usage(const string progname)
 {
-    cerr << "\n Usage: \n " << progname
+    cout << "\n Usage: \n " << progname
          << " --help | [delay] [options] [-- external_program [external_program_options]]\n";
-    cerr << "   <delay>                           => time interval to sample performance counters.\n";
-    cerr << "                                        If not specified, or 0, with external program given\n";
-    cerr << "                                        will read counters only after external program finishes\n";
-    cerr << " Supported <options> are: \n";
-    cerr << "  -h    | --help  | /h               => print this help and exit\n";
-    cerr << "  -i[=number] | /i[=number]          => allow to determine number of iterations\n";
-//    cerr << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or\n"
+    cout << "   <delay>                           => time interval to sample performance counters.\n";
+    cout << "                                        If not specified, or 0, with external program given\n";
+    cout << "                                        will read counters only after external program finishes\n";
+    cout << " Supported <options> are: \n";
+    cout << "  -h    | --help  | /h               => print this help and exit\n";
+    cout << "  -silent                            => silence information output and print only measurements\n";
+    cout << "  -i[=number] | /i[=number]          => allow to determine number of iterations\n";
+//    cout << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or\n"
 //         << "                                        to a file, in case filename is provided\n";
-    cerr << "  [-m imc_profile] [-p pcu_profile] [-a freq_band0] [-b freq_band1] [-c freq_band2]\n\n";
-    cerr << " Where: imc_profile, pcu_profile, freq_band0, freq_band1 and freq_band2 are the following:\n";
-    cerr << "  <imc_profile>      - profile (counter group) for IMC PMU. Possible values are: 0,1,2,3,4,-1 \n";
-    cerr << "                       profile  0 - rank 0 and rank 1 residencies (default) \n";
-    cerr << "                       profile  1 - rank 2 and rank 3 residencies \n";
-    cerr << "                       profile  2 - rank 4 and rank 5 residencies \n";
-    cerr << "                       profile  3 - rank 6 and rank 7 residencies \n";
-    cerr << "                       profile  4 - self-refresh residencies \n";
-    cerr << "                       profile -1 - omit IMC PMU output\n";
-    cerr << "  <pcu_profile>      - profile (counter group) for PCU PMU. Possible values are: 0,1,2,3,4,5,-1 \n";
-    cerr << "                       profile  0 - frequency residencies (default) \n";
-    cerr << "                       profile  1 - core C-state residencies. The unit is the number of physical cores on the socket who were in C0, C3 or C6 during the measurement interval (e.g. 'C0 residency is 3.5' means on average 3.5 physical cores were resident in C0 state)\n";
-    cerr << "                       profile  2 - Prochot (throttled) residencies and thermal frequency limit cycles \n";
-    cerr << "                       profile  3 - {Thermal,Power,Clipped} frequency limit cycles \n";
-    cerr << "                       profile  4 - {OS,Power,Clipped} frequency limit cycles \n";
-    cerr << "                       profile  5 - frequency transition statistics \n";
-    cerr << "                       profile  6 - package C-states residency and transition statistics \n";
-    cerr << "                       profile  7 - UFS transition statistics (1) \n";
-    cerr << "                       profile  8 - UFS transition statistics (2) \n";
-    cerr << "                       profile -1 - omit PCU PMU output\n";
-    cerr << "  <freq_band0>       - frequency minimum for band 0 for PCU frequency residency profile [in 100MHz units] (default is " <<
+    cout << "  [-m imc_profile] [-p pcu_profile] [-a freq_band0] [-b freq_band1] [-c freq_band2]\n\n";
+    cout << " Where: imc_profile, pcu_profile, freq_band0, freq_band1 and freq_band2 are the following:\n";
+    cout << "  <imc_profile>      - profile (counter group) for IMC PMU. Possible values are: 0,1,2,3,4,-1 \n";
+    cout << "                       profile  0 - rank 0 and rank 1 residencies (default) \n";
+    cout << "                       profile  1 - rank 2 and rank 3 residencies \n";
+    cout << "                       profile  2 - rank 4 and rank 5 residencies \n";
+    cout << "                       profile  3 - rank 6 and rank 7 residencies \n";
+    cout << "                       profile  4 - self-refresh residencies \n";
+    cout << "                       profile -1 - omit IMC PMU output\n";
+    cout << "  <pcu_profile>      - profile (counter group) for PCU PMU. Possible values are: 0,1,2,3,4,5,-1 \n";
+    cout << "                       profile  0 - frequency residencies (default) \n";
+    cout << "                       profile  1 - core C-state residencies. The unit is the number of physical cores on the socket who were in C0, C3 or C6 during the measurement interval (e.g. 'C0 residency is 3.5' means on average 3.5 physical cores were resident in C0 state)\n";
+    cout << "                       profile  2 - Prochot (throttled) residencies and thermal frequency limit cycles \n";
+    cout << "                       profile  3 - {Thermal,Power,Clipped} frequency limit cycles \n";
+    cout << "                       profile  4 - {OS,Power,Clipped} frequency limit cycles \n";
+    cout << "                       profile  5 - frequency transition statistics \n";
+    cout << "                       profile  6 - package C-states residency and transition statistics \n";
+    cout << "                       profile  7 - UFS transition statistics (1) \n";
+    cout << "                       profile  8 - UFS transition statistics (2) \n";
+    cout << "                       profile -1 - omit PCU PMU output\n";
+    cout << "  <freq_band0>       - frequency minimum for band 0 for PCU frequency residency profile [in 100MHz units] (default is " <<
         default_freq_band[0] << "= " << 100 * default_freq_band[0] << "MHz)\n";
-    cerr << "  <freq_band1>       - frequency minimum for band 1 for PCU frequency residency profile [in 100MHz units] (default is " <<
+    cout << "  <freq_band1>       - frequency minimum for band 1 for PCU frequency residency profile [in 100MHz units] (default is " <<
         default_freq_band[1] << "= " << 100 * default_freq_band[1] << "MHz)\n";
-    cerr << "  <freq_band2>       - frequency minimum for band 2 for PCU frequency residency profile [in 100MHz units] (default is " <<
+    cout << "  <freq_band2>       - frequency minimum for band 2 for PCU frequency residency profile [in 100MHz units] (default is " <<
         default_freq_band[2] << "= " << 100 * default_freq_band[2] << "MHz)\n";
-    cerr << "\n";
+    cout << "\n";
 }
 
 int main(int argc, char * argv[])
 {
+    null_stream nullStream;
+    check_and_set_silent(argc, argv, nullStream);
+
     set_signal_handlers();
 
     cerr << "\n Processor Counter Monitor " << PCM_VERSION << "\n";
@@ -157,12 +161,15 @@ int main(int argc, char * argv[])
         {
             argv++;
             argc--;
-            if (strncmp(*argv, "--help", 6) == 0 ||
-                strncmp(*argv, "-h", 2) == 0 ||
-                strncmp(*argv, "/h", 2) == 0)
+            if (check_argument_equals(*argv, {"--help", "-h", "/h"}))
             {
                 print_usage(program);
                 exit(EXIT_FAILURE);
+            }
+            else if (check_argument_equals(*argv, {"-silent", "/silent"}))
+            {
+                // handled in check_and_set_silent
+                continue;
             }
             else if (strncmp(*argv, "-csv", 4) == 0 ||
                      strncmp(*argv, "/csv", 4) == 0)

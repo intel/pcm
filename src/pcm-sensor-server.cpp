@@ -3076,23 +3076,24 @@ int startHTTPSServer( unsigned short port, std::string const & cFile, std::strin
 #endif
 
 void printHelpText( std::string const & programName ) {
-    std::cerr << "Usage: " << programName << " [OPTION]\n\n";
-    std::cerr << "Valid Options:\n";
-    std::cerr << "    -d                   : Run in the background\n";
+    std::cout << "Usage: " << programName << " [OPTION]\n\n";
+    std::cout << "Valid Options:\n";
+    std::cout << "    -d                   : Run in the background\n";
 #if defined (USE_SSL)
-    std::cerr << "    -s                   : Use https protocol (default port " << DEFAULT_HTTPS_PORT << ")\n";
+    std::cout << "    -s                   : Use https protocol (default port " << DEFAULT_HTTPS_PORT << ")\n";
 #endif
-    std::cerr << "    -p portnumber        : Run on port <portnumber> (default port is " << DEFAULT_HTTP_PORT << ")\n";
-    std::cerr << "    -r|--reset           : Reset programming of the performance counters.\n";
-    std::cerr << "    -D|--debug level     : level = 0: no debug info, > 0 increase verbosity.\n";
-    std::cerr << "    -R|--real-time       : If possible the daemon will run with real time\n";
-    std::cerr << "                           priority, could be useful under heavy load to \n";
-    std::cerr << "                           stabilize the async counter fetching.\n";
+    std::cout << "    -p portnumber        : Run on port <portnumber> (default port is " << DEFAULT_HTTP_PORT << ")\n";
+    std::cout << "    -r|--reset           : Reset programming of the performance counters.\n";
+    std::cout << "    -D|--debug level     : level = 0: no debug info, > 0 increase verbosity.\n";
+    std::cout << "    -R|--real-time       : If possible the daemon will run with real time\n";
+    std::cout << "                           priority, could be useful under heavy load to \n";
+    std::cout << "                           stabilize the async counter fetching.\n";
 #if defined (USE_SSL)
-    std::cerr << "    -C|--certificateFile : \n";
-    std::cerr << "    -P|--privateKeyFile  : \n";
+    std::cout << "    -C|--certificateFile : \n";
+    std::cout << "    -P|--privateKeyFile  : \n";
 #endif
-    std::cerr << "    -h|--help            : This information\n";
+    std::cout << "    -h|--help            : This information\n";
+    std::cout << "    -silent              : Silence information output and print only measurements\n";
 }
 
 #if not defined( UNIT_TEST )
@@ -3109,6 +3110,9 @@ int main( int argc, char* argv[] ) {
     unsigned short debug_level = 0;
     std::string certificateFile;
     std::string privateKeyFile;
+
+    null_stream nullStream;
+    check_and_set_silent(argc, argv, nullStream);
 
     if ( argc > 1 ) {
         for ( int i=1; i < argc; ++i ) {
@@ -3156,10 +3160,15 @@ int main( int argc, char* argv[] ) {
             {
                 useRealtimePriority = true;
             }
-            else if ( 0 == strncmp( argv[i], "-h", 2 ) || 0 == strncmp( argv[i], "--help", 6 ) )
+            else if ( check_argument_equals( *argv, {"--help", "-h", "/h"} ) )
             {
                 printHelpText( argv[0] );
                 exit(0);
+            }
+            else if ( check_argument_equals( *argv, {"-silent", "/silent"} ) )
+            {
+                // handled in check_and_set_silent
+                continue;
             }
 #if defined (USE_SSL)
             else if ( 0 == strncmp( "-C", argv[i], 2 ) || 0 == strncmp( "--certificateFile", argv[i], 17 ) ) {

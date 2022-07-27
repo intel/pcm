@@ -71,33 +71,34 @@ double getAverageUncoreFrequencyGhz(const UncoreStateType& before, const UncoreS
 
 void print_help(const string prog_name)
 {
-    cerr << "\n Usage: \n " << prog_name
+    cout << "\n Usage: \n " << prog_name
         << " --help | [delay] [options] [-- external_program [external_program_options]]\n";
-    cerr << "   <delay>                           => time interval to sample performance counters.\n";
-    cerr << "                                        If not specified, or 0, with external program given\n";
-    cerr << "                                        will read counters only after external program finishes\n";
-    cerr << " Supported <options> are: \n";
-    cerr << "  -h    | --help      | /h           => print this help and exit\n";
-    cerr << "  -pid PID | /pid PID                => collect core metrics only for specified process ID\n";
+    cout << "   <delay>                           => time interval to sample performance counters.\n";
+    cout << "                                        If not specified, or 0, with external program given\n";
+    cout << "                                        will read counters only after external program finishes\n";
+    cout << " Supported <options> are: \n";
+    cout << "  -h    | --help      | /h           => print this help and exit\n";
+    cout << "  -silent                            => silence information output and print only measurements\n";
+    cout << "  -pid PID | /pid PID                => collect core metrics only for specified process ID\n";
 #ifdef _MSC_VER
-    cerr << "  --uninstallDriver   | --installDriver=> (un)install driver\n";
+    cout << "  --uninstallDriver   | --installDriver=> (un)install driver\n";
 #endif
-    cerr << "  -r    | --reset     | /reset       => reset PMU configuration (at your own risk)\n";
-    cerr << "  -nc   | --nocores   | /nc          => hide core related output\n";
-    cerr << "  -yc   | --yescores  | /yc          => enable specific cores to output\n";
-    cerr << "  -ns   | --nosockets | /ns          => hide socket related output\n";
-    cerr << "  -nsys | --nosystem  | /nsys        => hide system related output\n";
-    cerr << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or\n"
+    cout << "  -r    | --reset     | /reset       => reset PMU configuration (at your own risk)\n";
+    cout << "  -nc   | --nocores   | /nc          => hide core related output\n";
+    cout << "  -yc   | --yescores  | /yc          => enable specific cores to output\n";
+    cout << "  -ns   | --nosockets | /ns          => hide socket related output\n";
+    cout << "  -nsys | --nosystem  | /nsys        => hide system related output\n";
+    cout << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or\n"
         << "                                        to a file, in case filename is provided\n"
         << "                                        the format used is documented here: https://www.intel.com/content/www/us/en/developer/articles/technical/intel-pcm-column-names-decoder-ring.html\n";
-    cerr << "  -i[=number] | /i[=number]          => allow to determine number of iterations\n";
+    cout << "  -i[=number] | /i[=number]          => allow to determine number of iterations\n";
     print_help_force_rtm_abort_mode(37);
-    cerr << " Examples:\n";
-    cerr << "  " << prog_name << " 1 -nc -ns          => print counters every second without core and socket output\n";
-    cerr << "  " << prog_name << " 1 -i=10            => print counters every second 10 times and exit\n";
-    cerr << "  " << prog_name << " 0.5 -csv=test.log  => twice a second save counter values to test.log in CSV format\n";
-    cerr << "  " << prog_name << " /csv 5 2>/dev/null => one sampe every 5 seconds, and discard all diagnostic output\n";
-    cerr << "\n";
+    cout << " Examples:\n";
+    cout << "  " << prog_name << " 1 -nc -ns          => print counters every second without core and socket output\n";
+    cout << "  " << prog_name << " 1 -i=10            => print counters every second 10 times and exit\n";
+    cout << "  " << prog_name << " 0.5 -csv=test.log  => twice a second save counter values to test.log in CSV format\n";
+    cout << "  " << prog_name << " /csv 5 2>/dev/null => one sampe every 5 seconds, and discard all diagnostic output\n";
+    cout << "\n";
 }
 
 
@@ -1133,13 +1134,16 @@ void print_csv(PCM * m,
 
 int main(int argc, char * argv[])
 {
-    set_signal_handlers();
-
+    null_stream nullStream2;
 #ifdef PCM_FORCE_SILENT
-    null_stream nullStream1, nullStream2;
+    null_stream nullStream1;
     std::cout.rdbuf(&nullStream1);
     std::cerr.rdbuf(&nullStream2);
+#else
+    check_and_set_silent(argc, argv, nullStream2);
 #endif
+
+    set_signal_handlers();
 
     cerr << "\n";
     cerr << " Processor Counter Monitor " << PCM_VERSION << "\n";
@@ -1178,12 +1182,16 @@ int main(int argc, char * argv[])
             continue;
         }
         else
-        if (strncmp(*argv, "--help", 6) == 0 ||
-            strncmp(*argv, "-h", 2) == 0 ||
-            strncmp(*argv, "/h", 2) == 0)
+        if (check_argument_equals(*argv, {"--help", "-h", "/h"}))
         {
             print_help(program);
             exit(EXIT_FAILURE);
+        }
+        else
+        if (check_argument_equals(*argv, {"-silent", "/silent"}))
+        {
+            // handled in check_and_set_silent
+            continue;
         }
         else
         if (strncmp(*argv, "--yescores", 10) == 0 ||
