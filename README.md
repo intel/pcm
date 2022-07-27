@@ -83,6 +83,7 @@ Downloading Pre-Compiled PCM Tools
 
 - Linux:
   * openSUSE: `sudo zypper install pcm`
+  * RHEL8.5 or later: `sudo dnf install pcm` 
   * Fedora: `sudo yum install pcm`
   * RPMs and DEBs with the *latest* PCM version for RHEL/SLE/Ubuntu/Debian/openSUSE/etc distributions (binary and source) are available [here](https://software.opensuse.org/download/package?package=pcm&project=home%3Aopcm)
 - Windows: download PCM binaries as [appveyor build service](https://ci.appveyor.com/project/opcm/pcm/history) artifacts and required Visual C++ Redistributable from [www.microsoft.com](https://www.microsoft.com/en-us/download/details.aspx?id=48145). Additional drivers are needed, see [WINDOWS_HOWTO.md](doc/WINDOWS_HOWTO.md).
