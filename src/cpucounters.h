@@ -665,7 +665,7 @@ public:
     }
 
     //! \brief Redirects output destination to provided file, instead of std::cout and std::cerr (optional)
-    static void setOutput(const std::string filename, const bool cerrToo = false);
+    static void setOutput(const std::string & filename, const bool cerrToo = false);
 
     //! \brief Restores output, closes output file if opened
     void restoreOutput();
@@ -967,7 +967,6 @@ private:
             auto ctrl = pmu.counterControl[c];
             if (ctrl.get() != nullptr)
             {
-                *ctrl = MC_CH_PCI_PMON_CTL_EN;
                 *ctrl = MC_CH_PCI_PMON_CTL_EN | *curEvent;
             }
         }

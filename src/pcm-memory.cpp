@@ -70,9 +70,9 @@ bool anyPmem(const ServerUncoreMemoryMetrics & metrics)
 
 bool skipInactiveChannels = true;
 
-void print_help(const string prog_name)
+void print_help(const string & progname)
 {
-    cerr << "\n Usage: \n " << prog_name
+    cerr << "\n Usage: \n " << progname
          << " --help | [delay] [options] [-- external_program [external_program_options]]\n";
     cerr << "   <delay>                           => time interval to sample performance counters.\n";
     cerr << "                                        If not specified, or 0, with external program given\n";
@@ -96,9 +96,9 @@ void print_help(const string prog_name)
     cerr << "  --uninstallDriver | --installDriver=> (un)install driver\n";
 #endif
     cerr << " Examples:\n";
-    cerr << "  " << prog_name << " 1                  => print counters every second without core and socket output\n";
-    cerr << "  " << prog_name << " 0.5 -csv=test.log  => twice a second save counter values to test.log in CSV format\n";
-    cerr << "  " << prog_name << " /csv 5 2>/dev/null => one sampe every 5 seconds, and discard all diagnostic output\n";
+    cerr << "  " << progname << " 1                  => print counters every second without core and socket output\n";
+    cerr << "  " << progname << " 0.5 -csv=test.log  => twice a second save counter values to test.log in CSV format\n";
+    cerr << "  " << progname << " /csv 5 2>/dev/null => one sampe every 5 seconds, and discard all diagnostic output\n";
     cerr << "\n";
 }
 

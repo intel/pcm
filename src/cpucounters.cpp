@@ -4076,7 +4076,7 @@ void PCM::cleanupRDT(const bool silent)
     if (!silent) std::cerr << " Freeing up all RMIDs\n";
 }
 
-void PCM::setOutput(const std::string filename, const bool cerrToo)
+void PCM::setOutput(const std::string & filename, const bool cerrToo)
 {
      outfile = new std::ofstream(filename.c_str());
      backup_ofile = std::cout.rdbuf();
@@ -4730,10 +4730,11 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool sile
         }
         if (globalRegPos < corePMUConfig.programmable.size())
         {
-            conf.OffcoreResponseMsrValue[0] = corePMUConfig.programmable[globalRegPos].first[OCR0Pos];
-            conf.OffcoreResponseMsrValue[1] = corePMUConfig.programmable[globalRegPos].first[OCR1Pos];
-            conf.LoadLatencyMsrValue = corePMUConfig.programmable[globalRegPos].first[LoadLatencyPos];
-            conf.FrontendMsrValue = corePMUConfig.programmable[globalRegPos].first[FrontendPos];
+            const auto& cfgProg = corePMUConfig.programmable[globalRegPos];
+            conf.OffcoreResponseMsrValue[0] = cfgProg.first[OCR0Pos];
+            conf.OffcoreResponseMsrValue[1] = cfgProg.first[OCR1Pos];
+            conf.LoadLatencyMsrValue = cfgProg.first[LoadLatencyPos];
+            conf.FrontendMsrValue = cfgProg.first[FrontendPos];
         }
         conf.nGPCounters = (uint32)c;
         conf.gpCounterCfg = regs;
@@ -5726,7 +5727,7 @@ void initSocket2Bus(std::vector<std::pair<uint32, uint32> > & socket2bus, uint32
            if(DEV_IDS[i] == device_id)
            {
                // std::cout << "DEBUG: found bus " << std::hex << bus << " with device ID " << device_id << std::dec << "\n";
-               socket2bus.push_back(std::make_pair(mcfg[s].PCISegmentGroupNumber,bus));
+               socket2bus.emplace_back(std::make_pair(mcfg[s].PCISegmentGroupNumber,bus));
                break;
            }
         }
@@ -6723,10 +6724,7 @@ size_t ServerPCICFGUncore::getNumMCChannels(const uint32 controller) const
     return 0;
 }
 
-ServerPCICFGUncore::~ServerPCICFGUncore()
-{
-}
-
+ServerPCICFGUncore::~ServerPCICFGUncore() = default;
 
 void ServerPCICFGUncore::programServerUncoreMemoryMetrics(const ServerUncoreMemoryMetrics & metrics, const int rankA, const int rankB)
 {

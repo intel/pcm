@@ -69,9 +69,9 @@ double getAverageUncoreFrequencyGhz(const UncoreStateType& before, const UncoreS
     return getAverageUncoreFrequency(before, after) / 1e9;
 }
 
-void print_help(const string prog_name)
+void print_help(const string & progname)
 {
-    cerr << "\n Usage: \n " << prog_name
+    cerr << "\n Usage: \n " << progname
         << " --help | [delay] [options] [-- external_program [external_program_options]]\n";
     cerr << "   <delay>                           => time interval to sample performance counters.\n";
     cerr << "                                        If not specified, or 0, with external program given\n";
@@ -93,10 +93,10 @@ void print_help(const string prog_name)
     cerr << "  -i[=number] | /i[=number]          => allow to determine number of iterations\n";
     print_help_force_rtm_abort_mode(37);
     cerr << " Examples:\n";
-    cerr << "  " << prog_name << " 1 -nc -ns          => print counters every second without core and socket output\n";
-    cerr << "  " << prog_name << " 1 -i=10            => print counters every second 10 times and exit\n";
-    cerr << "  " << prog_name << " 0.5 -csv=test.log  => twice a second save counter values to test.log in CSV format\n";
-    cerr << "  " << prog_name << " /csv 5 2>/dev/null => one sampe every 5 seconds, and discard all diagnostic output\n";
+    cerr << "  " << progname << " 1 -nc -ns          => print counters every second without core and socket output\n";
+    cerr << "  " << progname << " 1 -i=10            => print counters every second 10 times and exit\n";
+    cerr << "  " << progname << " 0.5 -csv=test.log  => twice a second save counter values to test.log in CSV format\n";
+    cerr << "  " << progname << " /csv 5 2>/dev/null => one sampe every 5 seconds, and discard all diagnostic output\n";
     cerr << "\n";
 }
 
@@ -175,14 +175,22 @@ void print_output(PCM * m,
         cout << " L3MPI : number of L3 (read) cache misses per instruction\n";
     if (m->isL2CacheMissesAvailable())
         cout << " L2MPI : number of L2 (read) cache misses per instruction\n";
-    if (m->memoryTrafficMetricsAvailable()) cout << " READ  : bytes read from main memory controller (in GBytes)\n";
-    if (m->memoryTrafficMetricsAvailable()) cout << " WRITE : bytes written to main memory controller (in GBytes)\n";
-    if (m->localMemoryRequestRatioMetricAvailable()) cout << " LOCAL : ratio of local memory requests to memory controller in %\n";
-    if (m->LLCReadMissLatencyMetricsAvailable()) cout << "LLCRDMISSLAT: average latency of last level cache miss for reads and prefetches (in ns)\n";
-    if (m->PMMTrafficMetricsAvailable()) cout << " PMM RD : bytes read from PMM memory (in GBytes)\n";
-    if (m->PMMTrafficMetricsAvailable()) cout << " PMM WR : bytes written to PMM memory (in GBytes)\n";
-    if (m->MCDRAMmemoryTrafficMetricsAvailable()) cout << " MCDRAM READ  : bytes read from MCDRAM controller (in GBytes)\n";
-    if (m->MCDRAMmemoryTrafficMetricsAvailable()) cout << " MCDRAM WRITE : bytes written to MCDRAM controller (in GBytes)\n";
+    if (m->memoryTrafficMetricsAvailable()) {
+        cout << " READ  : bytes read from main memory controller (in GBytes)\n";
+        cout << " WRITE : bytes written to main memory controller (in GBytes)\n";
+    }
+    if (m->localMemoryRequestRatioMetricAvailable()) {
+        cout << " LOCAL : ratio of local memory requests to memory controller in %\n";
+        cout << "LLCRDMISSLAT: average latency of last level cache miss for reads and prefetches (in ns)\n";
+    }
+    if (m->PMMTrafficMetricsAvailable()) {
+        cout << " PMM RD : bytes read from PMM memory (in GBytes)\n";
+        cout << " PMM WR : bytes written to PMM memory (in GBytes)\n";
+    }
+    if (m->MCDRAMmemoryTrafficMetricsAvailable()) {
+        cout << " MCDRAM READ  : bytes read from MCDRAM controller (in GBytes)\n";
+        cout << " MCDRAM WRITE : bytes written to MCDRAM controller (in GBytes)\n";
+    }
     if (m->memoryIOTrafficMetricAvailable()) {
         cout << " IO    : bytes read/written due to IO requests to memory controller (in GBytes); this may be an over estimate due to same-cache-line partial requests\n";
         cout << " IA    : bytes read/written due to IA requests to memory controller (in GBytes); this may be an over estimate due to same-cache-line partial requests\n";
@@ -427,12 +435,11 @@ void print_output(PCM * m,
             cout << " PMM RD | PMM WR |";
         if (m->MCDRAMmemoryTrafficMetricsAvailable())
             cout << " MCDRAM READ | MCDRAM WRITE |";
-        if (m->memoryIOTrafficMetricAvailable())
+        if (m->memoryIOTrafficMetricAvailable()) {
             cout << "   IO   |";
-        if (m->memoryIOTrafficMetricAvailable())
             cout << "   IA   |";
-        if (m->memoryIOTrafficMetricAvailable())
             cout << "   GT   |";
+        }
         if (m->packageEnergyMetricsAvailable())
             cout << " CPU energy |";
         if (m->dramEnergyMetricsAvailable())
@@ -537,13 +544,13 @@ void print_basic_metrics_csv_header(const PCM * m)
         cout << "Frontend_bound(%),Bad_Speculation(%),Backend_Bound(%),Retiring(%),";
 }
 
-void print_csv_header_helper(string header, int count=1){
+void print_csv_header_helper(const string & header, int count=1){
   for(int i = 0; i < count; i++){
     cout << header << ",";
   }
 }
 
-void print_basic_metrics_csv_semicolons(const PCM * m, string header)
+void print_basic_metrics_csv_semicolons(const PCM * m, const string & header)
 {
     print_csv_header_helper(header, 3);    // EXEC;IPC;FREQ;
     if (m->isActiveRelativeFrequencyAvailable())
