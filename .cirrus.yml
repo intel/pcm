@@ -2,7 +2,10 @@ freebsd_instance:
   image_family: freebsd-12-1
 
 task:
-  install_script: pkg install -y gmake cmake
+  install_script: pkg install -y gmake cmake git
   script:
+    - cd src
+    - git clone https://github.com/simdjson/simdjson.git
+    - cd ..
     - cmake -B build -DCMAKE_INSTALL_PREFIX=.
     - cd build && gmake install
