@@ -1,0 +1,23 @@
+name: Mac OS X scan-build
+
+on:
+  push:
+    branches: [ macos-scan-build ]
+  pull_request:
+    branches: [ macos-scan-build ]
+
+jobs:
+  build:
+
+    runs-on: macos-11
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: cmake
+      run: |
+        rm -rf ${{ github.workspace }}/build
+        /usr/local/opt/llvm/bin/scan-build cmake -B ${{ github.workspace }}/build -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}
+    - name: make
+      run: |
+        cd ${{ github.workspace }}/build
+        /usr/local/opt/llvm/bin/scan-build --exclude src/simdjson --status-bugs make -j 
