@@ -70,7 +70,7 @@ bool anyPmem(const ServerUncoreMemoryMetrics & metrics)
 
 bool skipInactiveChannels = true;
 
-void print_help(const string prog_name)
+void print_help(const string & prog_name)
 {
     cout << "\n Usage: \n " << prog_name
          << " --help | [delay] [options] [-- external_program [external_program_options]]\n";
@@ -1002,6 +1002,8 @@ int main(int argc, char * argv[])
     {
         argv++;
         argc--;
+        string arg_value;
+
         if (check_argument_equals(*argv, {"--help", "-h", "/h"}))
         {
             print_help(program);
@@ -1012,18 +1014,16 @@ int main(int argc, char * argv[])
             // handled in check_and_set_silent
             continue;
         }
-        else if (strncmp(*argv, "-csv",4) == 0 ||
-                 strncmp(*argv, "/csv",4) == 0)
+        else if (check_argument_equals(*argv, {"-csv", "/csv"}))
+        {
+            csv = csvheader = true;
+        }
+        else if (extract_argument_value(*argv, {"-csv", "/csv"}, arg_value))
         {
             csv = true;
             csvheader = true;
-            string cmd = string(*argv);
-            size_t found = cmd.find('=',4);
-            if (found != string::npos) {
-                string filename = cmd.substr(found+1);
-                if (!filename.empty()) {
-                    m->setOutput(filename);
-                }
+            if (!arg_value.empty()) {
+                m->setOutput(arg_value);
             }
             continue;
         }
@@ -1031,98 +1031,84 @@ int main(int argc, char * argv[])
         {
             continue;
         }
-        else if (strncmp(*argv, "-columns", 8) == 0 ||
-                 strncmp(*argv, "/columns", 8) == 0)
+        else if (extract_argument_value(*argv, {"-columns", "/columns"}, arg_value))
         {
-            string cmd = string(*argv);
-            size_t found = cmd.find('=',2);
-            if (found != string::npos) {
-                no_columns = atoi(cmd.substr(found+1).c_str());
-                if (no_columns == 0)
-                    no_columns = DEFAULT_DISPLAY_COLUMNS;
-                if (no_columns > m->getNumSockets())
-                    no_columns = m->getNumSockets();
+            if(arg_value.empty()) {
+                continue;
             }
+            no_columns = stoi(arg_value);
+            if (no_columns == 0)
+                no_columns = DEFAULT_DISPLAY_COLUMNS;
+            if (no_columns > m->getNumSockets())
+                no_columns = m->getNumSockets();
             continue;
         }
-        else if (strncmp(*argv, "-rank", 5) == 0 ||
-                 strncmp(*argv, "/rank", 5) == 0)
+        else if (extract_argument_value(*argv, {"-rank", "/rank"}, arg_value))
         {
-            string cmd = string(*argv);
-            size_t found = cmd.find('=',2);
-            if (found != string::npos) {
-                int rank = atoi(cmd.substr(found+1).c_str());
-                if (rankA >= 0 && rankB >= 0)
-                {
-                    cerr << "At most two DIMM ranks can be monitored \n";
+            if(arg_value.empty()) {
+                continue;
+            }
+            int rank = stoi(arg_value);
+            if (rankA >= 0 && rankB >= 0)
+            {
+                cerr << "At most two DIMM ranks can be monitored \n";
+                exit(EXIT_FAILURE);
+            } else {
+                if(rank > 7) {
+                    cerr << "Invalid rank number " << rank << "\n";
                     exit(EXIT_FAILURE);
-                } else {
-                    if(rank > 7) {
-                        cerr << "Invalid rank number " << rank << "\n";
-                        exit(EXIT_FAILURE);
-                    }
-                    if(rankA < 0) rankA = rank;
-                    else if(rankB < 0) rankB = rank;
-                    metrics = PartialWrites;
                 }
+                if(rankA < 0) rankA = rank;
+                else if(rankB < 0) rankB = rank;
+                metrics = PartialWrites;
             }
             continue;
         }
-        else if (strncmp(*argv, "--nochannel", 11) == 0 ||
-                 strncmp(*argv, "-nc", 3) == 0 ||
-                 strncmp(*argv, "/nc", 3) == 0)
+        else if (check_argument_equals(*argv, {"--nochannel", "/nc", "-nc"}))
         {
             show_channel_output = false;
             continue;
         }
-        else if (strncmp(*argv, "-pmm", 4) == 0 ||
-                 strncmp(*argv, "/pmm", 4) == 0 ||
-                 strncmp(*argv, "-pmem", 5) == 0 ||
-                 strncmp(*argv, "/pmem", 5) == 0 )
+        else if (check_argument_equals(*argv, {"-pmm", "/pmm", "-pmem", "/pmem"}))
         {
             metrics = Pmem;
             continue;
         }
-        else if (strncmp(*argv, "-all", 4) == 0 ||
-                 strncmp(*argv, "/all", 4) == 0)
+        else if (check_argument_equals(*argv, {"-all", "/all"}))
         {
             skipInactiveChannels = false;
             continue;
         }
-        else if (strncmp(*argv, "-mixed", 6) == 0 ||
-                 strncmp(*argv, "/mixed", 6) == 0)
+        else if (check_argument_equals(*argv, {"-mixed", "/mixed"}))
         {
             metrics = PmemMixedMode;
             continue;
         }
-        else if (strncmp(*argv, "-mm", 3) == 0 ||
-                 strncmp(*argv, "/mm", 3) == 0)
+        else if (check_argument_equals(*argv, {"-mm", "/mm"}))
         {
             metrics = PmemMemoryMode;
             show_channel_output = false;
             continue;
         }
-        else if (strncmp(*argv, "-partial", 8) == 0 ||
-                 strncmp(*argv, "/partial", 8) == 0)
+        else if (check_argument_equals(*argv, {"-partial", "/partial"}))
         {
             metrics = PartialWrites;
             continue;
         }
-        else if (strncmp(*argv, "-u", 2) == 0 ||
-                 strncmp(*argv, "/u", 2) == 0)
+        else if (check_argument_equals(*argv, {"-u", "/u"}))
         {
             print_update = true;
             continue;
         }
 #ifdef _MSC_VER
-        else if (strncmp(*argv, "--uninstallDriver", 17) == 0)
+        else if (check_argument_equals(*argv, {"--uninstallDriver"}))
         {
             Driver tmpDrvObject;
             tmpDrvObject.uninstall();
             cerr << "msr.sys driver has been uninstalled. You might need to reboot the system to make this effective.\n";
             exit(EXIT_SUCCESS);
         }
-        else if (strncmp(*argv, "--installDriver", 15) == 0)
+        else if (check_argument_equals(*argv, {"--installDriver"}))
         {
             Driver tmpDrvObject = Driver(Driver::msrLocalPath());
             if (!tmpDrvObject.start())
@@ -1134,7 +1120,7 @@ int main(int argc, char * argv[])
             exit(EXIT_SUCCESS);
         }
 #endif
-        else if (strncmp(*argv, "--", 2) == 0)
+        else if (check_argument_equals(*argv, {"--"}))
         {
             argv++;
             sysCmd = *argv;
@@ -1143,18 +1129,7 @@ int main(int argc, char * argv[])
         }
         else
         {
-            // any other options positional that is a floating point number is treated as <delay>,
-            // while the other options are ignored with a warning issues to stderr
-            double delay_input = 0.0;
-            istringstream is_str_stream(*argv);
-            is_str_stream >> noskipws >> delay_input;
-            if(is_str_stream.eof() && !is_str_stream.fail()) {
-                delay = delay_input;
-            } else {
-                cerr << "WARNING: unknown command-line option: \"" << *argv << "\". Ignoring it.\n";
-                print_help(program);
-                exit(EXIT_FAILURE);
-            }
+            delay = parse_delay(*argv, program, (print_usage_func)print_help);
             continue;
         }
     } while (argc > 1); // end of command line parsing loop

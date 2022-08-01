@@ -1201,24 +1201,8 @@ int main(int argc, char * argv[])
             continue;
         }
         else {
-            // any other options positional that is a floating point number is treated as <delay>,
-            // while the other options are ignored with a warning issues to stderr
-            double delay_input = 0.0;
-            istringstream is_str_stream(*argv);
-            is_str_stream >> noskipws >> delay_input;
-            if (is_str_stream.eof() && !is_str_stream.fail()) {
-                if (delay_input < 0) {
-                    cerr << "Invalid delay specified: \"" << *argv << "\". Delay should be positive.\n";
-                    print_usage(program);
-                    exit(EXIT_FAILURE);
-                }
-                delay = delay_input;
-            }
-            else {
-                cerr << "WARNING: unknown command-line option: \"" << *argv << "\". Ignoring it.\n";
-                print_usage(program);
-                exit(EXIT_FAILURE);
-            }
+            delay = parse_delay(*argv, program, (print_usage_func)print_usage);
+            continue;
         }
     }
 

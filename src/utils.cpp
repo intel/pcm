@@ -559,7 +559,7 @@ void drawStackedBar(const std::string & label, std::vector<StackedBarItem> & h, 
 
 bool CheckAndForceRTMAbortMode(const char * arg, PCM * m)
 {
-    if (strncmp(arg, "-force-rtm-abort-mode", 21) == 0)
+    if (check_argument_equals(arg, {"-force-rtm-abort-mode"}))
     {
         m->enableForceRTMAbortMode();
         return true;
@@ -666,6 +666,37 @@ void print_pid_collection_message(int pid)
     }
 }
 
+double parse_delay(const char *arg, const std::string& progname, print_usage_func print_usage_func)
+{
+    // any other options positional that is a floating point number is treated as <delay>,
+    // while the other options are ignored with a warning issues to stderr
+    double delay_input = 0.0;
+    std::istringstream is_str_stream(arg);
+    is_str_stream >> std::noskipws >> delay_input;
+    if(is_str_stream.eof() && !is_str_stream.fail())
+    {
+        if (delay_input < 0)
+        {
+            std::cerr << "Invalid delay specified: \"" << *arg << "\". Delay should be positive.\n";
+            if(print_usage_func)
+            {
+                print_usage_func(progname);
+            }
+            exit(EXIT_FAILURE);
+        }
+        return delay_input;
+    } 
+    else 
+    {
+        std::cerr << "WARNING: unknown command-line option: \"" << *arg << "\". Ignoring it.\n";
+        if(print_usage_func)
+        {
+            print_usage_func(progname);
+        }
+        exit(EXIT_FAILURE);
+    }
+}
+
 bool extract_argument_value(const char* arg, std::initializer_list<const char*> arg_names, std::string& value)
 {
     const auto arg_len = strlen(arg);
@@ -716,6 +747,5 @@ void check_and_set_silent(int argc, char * argv[], null_stream &nullStream2)
         }
     } while (argc > 1);
 }
-
 
 } // namespace pcm

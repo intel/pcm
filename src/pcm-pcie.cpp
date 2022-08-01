@@ -62,7 +62,7 @@ void print_events()
     events_printed = true;
 }
 
-void print_usage(const string progname)
+void print_usage(const string & progname)
 {
     cout << "\n Usage: \n " << progname
          << " --help | [delay] [options] [-- external_program [external_program_options]]\n";
@@ -145,6 +145,8 @@ int main(int argc, char * argv[])
     {
         argv++;
         argc--;
+        string arg_value;
+
         if (check_argument_equals(*argv, {"--help", "-h", "/h"}))
         {
             print_usage(program);
@@ -155,41 +157,33 @@ int main(int argc, char * argv[])
             // handled in check_and_set_silent
             continue;
         }
-        else
-        if (strncmp(*argv, "-csv",4) == 0 ||
-            strncmp(*argv, "/csv",4) == 0)
+        else if (check_argument_equals(*argv, {"-csv", "/csv"}))
         {
             csv = true;
-            string cmd = string(*argv);
-            size_t found = cmd.find('=',4);
-            if (found != string::npos) {
-                string filename = cmd.substr(found+1);
-                if (!filename.empty()) {
-                    m->setOutput(filename);
-                }
+        }
+        else if (extract_argument_value(*argv, {"-csv", "/csv"}, arg_value))
+        {
+            csv = true;
+            if (!arg_value.empty()) {
+                m->setOutput(arg_value);
             }
             continue;
         }
-	else
-        if (mainLoop.parseArg(*argv))
+        else if (mainLoop.parseArg(*argv))
         {
             continue;
         }
-        else
-        if (strncmp(*argv, "-B", 2) == 0 ||
-            strncmp(*argv, "/b", 2) == 0)
+        else if (check_argument_equals(*argv, {"-B", "/b"}))
         {
             print_bandwidth = true;
             continue;
         }
-        else
-        if (strncmp(*argv, "-e", 2) == 0 )
+        else if (check_argument_equals(*argv, {"-e"}))
         {
             print_additional_info = true;
             continue;
         }
-        else
-        if (strncmp(*argv, "--", 2) == 0)
+        else if (check_argument_equals(*argv, {"--"}))
         {
             argv++;
             sysCmd = *argv;
@@ -198,18 +192,7 @@ int main(int argc, char * argv[])
         }
         else
         {
-            // any other options positional that is a floating point number is treated as <delay>,
-            // while the other options are ignored with a warning issues to stderr
-            double delay_input = 0.0;
-            istringstream is_str_stream(*argv);
-            is_str_stream >> noskipws >> delay_input;
-            if (is_str_stream.eof() && !is_str_stream.fail()) {
-                delay = delay_input;
-            } else {
-                cerr << "WARNING: unknown command-line option: \"" << *argv << "\". Ignoring it.\n";
-                print_usage(program);
-                exit(EXIT_FAILURE);
-            }
+            delay = parse_delay(*argv, program, (print_usage_func)print_usage);
             continue;
         }
     } while(argc > 1); // end of command line partsing loop

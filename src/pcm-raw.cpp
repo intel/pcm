@@ -42,7 +42,7 @@
 using namespace std;
 using namespace pcm;
 
-void print_usage(const string progname)
+void print_usage(const string & progname)
 {
     cout << "\n Usage: \n " << progname
         << " --help | [delay] [options] [-- external_program [external_program_options]]\n";
@@ -1851,6 +1851,8 @@ int main(int argc, char* argv[])
     {
         argv++;
         argc--;
+        string arg_value;
+
         if (check_argument_equals(*argv, {"--help", "-h", "/h"}))
         {
             print_usage(program);
@@ -1861,31 +1863,23 @@ int main(int argc, char* argv[])
             // handled in check_and_set_silent
             continue;
         }
-        else if (strncmp(*argv, "-csv", 4) == 0 ||
-            strncmp(*argv, "/csv", 4) == 0)
+        else if (extract_argument_value(*argv, {"-csv", "/csv"}, arg_value))
         {
-            string cmd = string(*argv);
-            size_t found = cmd.find('=', 4);
-            if (found != string::npos) {
-                string filename = cmd.substr(found + 1);
-                if (!filename.empty()) {
-                    m->setOutput(filename);
-                }
+            if (!arg_value.empty()) {
+                m->setOutput(arg_value);
             }
-            continue;
         }
-        else if (strncmp(*argv, "-json", 5) == 0 ||
-            strncmp(*argv, "/json", 5) == 0)
+        else if (check_argument_equals(*argv, {"-json", "/json"}))
         {
             separator = ",\"";
             outputToJson = true;
-            string cmd = string(*argv);
-            size_t found = cmd.find('=', 5);
-            if (found != string::npos) {
-                string filename = cmd.substr(found + 1);
-                if (!filename.empty()) {
-                    m->setOutput(filename);
-                }
+        }
+        else if (extract_argument_value(*argv, {"-json", "/json"}, arg_value))
+        {
+            separator = ",\"";
+            outputToJson = true;
+            if (!arg_value.empty()) {
+                m->setOutput(arg_value);
             }
             continue;
         }
@@ -1899,46 +1893,36 @@ int main(int argc, char* argv[])
             argc--;
             continue;
         }
-        else if (strncmp(*argv, "-reset", 6) == 0 ||
-            strncmp(*argv, "-r", 2) == 0 ||
-            strncmp(*argv, "/reset", 6) == 0)
+        else if (check_argument_equals(*argv, {"-reset", "/reset", "-r"}))
         {
             reset_pmu = true;
             continue;
         }
-        else if (
-            strncmp(*argv, "-tr", 3) == 0 ||
-            strncmp(*argv, "/tr", 3) == 0)
+        else if (check_argument_equals(*argv, {"-tr", "/tr"}))
         {
             transpose = true;
             continue;
         }
-        else if (
-            strncmp(*argv, "-ext", 4) == 0 ||
-            strncmp(*argv, "/ext", 4) == 0)
+        else if (check_argument_equals(*argv, {"-ext", "/ext"}))
         {
             extendPrintout = true;
             continue;
         }
-        else if (
-            strncmp(*argv, "-single-header", 14) == 0 ||
-            strncmp(*argv, "/single-header", 14) == 0)
+        else if (check_argument_equals(*argv, {"-single-header", "/single-header"}))
         {
             singleHeader = true;
             continue;
         }
-        else if (strncmp(*argv, "-l", 2) == 0) {
+        else if (check_argument_equals(*argv, {"-l"})) {
             std::cout.imbue(std::locale(""));
             separator = "\t";
             continue;
         }
-        else if (strncmp(*argv, "-tab", 4) == 0) {
+        else if (check_argument_equals(*argv, {"-tab"})) {
             separator = "\t";
             continue;
         }
-        else if (strncmp(*argv, "--yescores", 10) == 0 ||
-            strncmp(*argv, "-yc", 3) == 0 ||
-            strncmp(*argv, "/yc", 3) == 0)
+        else if (check_argument_equals(*argv, {"--yescores", "-yc", "/yc"}))
         {
             argv++;
             argc--;
@@ -1973,21 +1957,19 @@ int main(int argc, char* argv[])
             }
             continue;
         }
-        else if (strncmp(*argv, "-out", 4) == 0 || strncmp(*argv, "/out", 4) == 0)
+        else if (check_argument_equals(*argv, {"-out", "/out"}))
         {
             argv++;
             argc--;
             continue;
         }
-        else if (strncmp(*argv, "-ep", 3) == 0 || strncmp(*argv, "/ep", 3) == 0)
+        else if (check_argument_equals(*argv, {"-ep", "/ep"}))
         {
             argv++;
             argc--;
             continue;
         }
-        else if (
-            strncmp(*argv, "-edp", 4) == 0 ||
-            strncmp(*argv, "/edp", 4) == 0)
+        else if (check_argument_equals(*argv, {"-edp", "/edp"}))
         {
             sampleSeparator = true;
             defaultDelay = 0.2;
@@ -1995,7 +1977,7 @@ int main(int argc, char* argv[])
             m->printDetailedSystemTopology();
             continue;
         }
-        else if (strncmp(*argv, "-el", 3) == 0 || strncmp(*argv, "/el", 3) == 0)
+        else if (check_argument_equals(*argv, {"-el", "/el"}))
         {
             argv++;
             argc--;
@@ -2005,7 +1987,7 @@ int main(int argc, char* argv[])
             }
             continue;
         }
-        else if (strncmp(*argv, "-e", 2) == 0)
+        else if (check_argument_equals(*argv, {"-e"}))
         {
             argv++;
             argc--;
@@ -2013,60 +1995,40 @@ int main(int argc, char* argv[])
             {
                 exit(EXIT_FAILURE);
             }
-
             continue;
         }
+        else if (CheckAndForceRTMAbortMode(*argv, m))
+        {
+            forceRTMAbortMode = true;
+            continue;
+        }
+        else if (check_argument_equals(*argv, {"-f", "/f"}))
+        {
+            flushLine = true;
+            continue;
+        }
+        else if (check_argument_equals(*argv, {"-s", "/s"}))
+        {
+            sampleSeparator = true;
+            continue;
+        }
+        else if (check_argument_equals(*argv, {"-v", "/v"}))
+        {
+            verbose = true;
+            continue;
+        }
+        else if (check_argument_equals(*argv, {"--"}))
+        {
+            argv++;
+            sysCmd = *argv;
+            sysArgv = argv;
+            break;
+        }
         else
-            if (CheckAndForceRTMAbortMode(*argv, m))
-            {
-                forceRTMAbortMode = true;
-                continue;
-            }
-            else if (
-                strncmp(*argv, "-f", 2) == 0 ||
-                strncmp(*argv, "/f", 2) == 0)
-            {
-                flushLine = true;
-                continue;
-            }
-            else if (
-                strncmp(*argv, "-s", 2) == 0 ||
-                strncmp(*argv, "/s", 2) == 0)
-            {
-                sampleSeparator = true;
-                continue;
-            }
-            else if (
-                strncmp(*argv, "-v", 2) == 0 ||
-                strncmp(*argv, "/v", 2) == 0)
-            {
-                verbose = true;
-                continue;
-            }
-            else if (strncmp(*argv, "--", 2) == 0)
-            {
-                argv++;
-                sysCmd = *argv;
-                sysArgv = argv;
-                break;
-            }
-            else
-            {
-                // any other options positional that is a floating point number is treated as <delay>,
-                // while the other options are ignored with a warning issues to stderr
-                double delay_input = 0.0;
-                std::istringstream is_str_stream(*argv);
-                is_str_stream >> noskipws >> delay_input;
-                if (is_str_stream.eof() && !is_str_stream.fail()) {
-                    delay = delay_input;
-                }
-                else {
-                    cerr << "WARNING: unknown command-line option: \"" << *argv << "\". Ignoring it.\n";
-                    print_usage(program);
-                    exit(EXIT_FAILURE);
-                }
-                continue;
-            }
+        {
+            delay = parse_delay(*argv, program, (print_usage_func)print_usage);
+            continue;
+        }
     } while (argc > 1); // end of command line parsing loop
 
     if (reset_pmu)
