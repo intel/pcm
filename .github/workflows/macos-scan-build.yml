@@ -2,9 +2,9 @@ name: Mac OS X scan-build
 
 on:
   push:
-    branches: [ macos-scan-build ]
+    branches: [ master ]
   pull_request:
-    branches: [ macos-scan-build ]
+    branches: [ master ]
 
 jobs:
   build:
