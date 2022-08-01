@@ -491,20 +491,13 @@ int main(int argc, char * argv[])
         {
             continue;
         }
-        else if (strncmp(*argv, "--PMM",6) == 0 || strncmp(*argv, "-pmm", 5) == 0)
+        else if (check_argument_equals(*argv, {"--PMM", "-pmm"}))
         {
-            argv++;
-            argc--;
             enable_pmm = true;
             continue;
         }
-
-        else if (strncmp(*argv, "--verbose", 9) == 0 ||
-                             strncmp(*argv, "-v", 2) == 0 ||
-                             strncmp(*argv, "/v", 2) == 0)
+        else if (check_argument_equals(*argv, {"--verbose", "-v", "/v"}))
         {
-            argv++;
-            argc--;
             enable_verbose = true;
             continue;
         }

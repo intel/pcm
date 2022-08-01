@@ -89,7 +89,7 @@ double getNormalizedPCUCounter(uint32 counter, const ServerUncoreCounterState & 
 int default_freq_band[3] = { 12, 20, 40 };
 int freq_band[3];
 
-void print_usage(const string progname)
+void print_usage(const string & progname)
 {
     cout << "\n Usage: \n " << progname
          << " --help | [delay] [options] [-- external_program [external_program_options]]\n";
@@ -161,6 +161,8 @@ int main(int argc, char * argv[])
         {
             argv++;
             argc--;
+            string arg_value;
+
             if (check_argument_equals(*argv, {"--help", "-h", "/h"}))
             {
                 print_usage(program);
@@ -171,61 +173,58 @@ int main(int argc, char * argv[])
                 // handled in check_and_set_silent
                 continue;
             }
-            else if (strncmp(*argv, "-csv", 4) == 0 ||
-                     strncmp(*argv, "/csv", 4) == 0)
+            else if (check_argument_equals(*argv, {"-csv", "/csv"}))
             {
                 csv = true;
-                string cmd = string(*argv);
-                size_t found = cmd.find('=', 4);
-                if (found != string::npos) {
-                    string filename = cmd.substr(found + 1);
-                    if (!filename.empty()) {
-                        m->setOutput(filename);
-                    }
+            }
+            else if (extract_argument_value(*argv, {"-csv", "/csv"}, arg_value))
+            {
+                csv = true;
+                if (!arg_value.empty()) {
+                    m->setOutput(arg_value);
                 }
                 continue;
             }
-            else
-            if (mainLoop.parseArg(*argv))
+            else if (mainLoop.parseArg(*argv))
             {
                 continue;
             }
-            else if (strncmp(*argv, "-m", 2) == 0)
+            else if (check_argument_equals(*argv, {"-m"}))
             {
                 argv++;
                 argc--;
                 imc_profile = atoi(*argv);
                 continue;
             }
-            else if (strncmp(*argv, "-p", 2) == 0)
+            else if (check_argument_equals(*argv, {"-p"}))
             {
                 argv++;
                 argc--;
                 pcu_profile = atoi(*argv);
                 continue;
             }
-            else if (strncmp(*argv, "-a", 2) == 0)
+            else if (check_argument_equals(*argv, {"-a"}))
             {
                 argv++;
                 argc--;
                 freq_band[0] = atoi(*argv);
                 continue;
             }
-            else if (strncmp(*argv, "-b", 2) == 0)
+            else if (check_argument_equals(*argv, {"-b"}))
             {
                 argv++;
                 argc--;
                 freq_band[1] = atoi(*argv);
                 continue;
             }
-            else if (strncmp(*argv, "-c", 2) == 0)
+            else if (check_argument_equals(*argv, {"-c"}))
             {
                 argv++;
                 argc--;
                 freq_band[2] = atoi(*argv);
                 continue;
             }
-            else if (strncmp(*argv, "--", 2) == 0)
+            else if (check_argument_equals(*argv, {"--"}))
             {
                 argv++;
                 sysCmd = *argv;
@@ -234,18 +233,7 @@ int main(int argc, char * argv[])
             }
             else
             {
-                // any other options positional that is a floating point number is treated as <delay>,
-                // while the other options are ignored with a warning issues to stderr
-                double delay_input = 0.0;
-                istringstream is_str_stream(*argv);
-                is_str_stream >> noskipws >> delay_input;
-                if (is_str_stream.eof() && !is_str_stream.fail()) {
-                    delay = delay_input;
-                } else {
-                    cerr << "WARNING: unknown command-line option: \"" << *argv << "\". Ignoring it.\n";
-                    print_usage(program);
-                    exit(EXIT_FAILURE);
-                }
+                delay = parse_delay(*argv, program, (print_usage_func)print_usage);
                 continue;
             }
         } while (argc > 1); // end of command line partsing loop

@@ -38,6 +38,11 @@ namespace pcm {
 #endif
 #endif // _MSC_VER
 
+typedef void (* print_usage_func)(const std::string & progname);
+double parse_delay(const char * arg, const std::string & progname, print_usage_func print_usage_func);
+bool extract_argument_value(const char * arg, std::initializer_list<const char*> arg_names, std::string & value);
+bool check_argument_equals(const char * arg, std::initializer_list<const char*> arg_names);
+
 void exit_cleanup(void);
 void set_signal_handlers(void);
 void set_real_time_priority(const bool & silent);
@@ -342,19 +347,13 @@ public:
     MainLoop() {}
     bool parseArg(const char * arg)
     {
-        if (strncmp(arg, "-i", 2) == 0 ||
-            strncmp(arg, "/i", 2) == 0)
+        std::string arg_value;
+        if (extract_argument_value(arg, {"-i", "/i"}, arg_value))
         {
-            const auto cmd = std::string(arg);
-            const auto found = cmd.find('=', 2);
-            if (found != std::string::npos) {
-                const auto tmp = cmd.substr(found + 1);
-                if (!tmp.empty()) {
-                    numberOfIterations = (unsigned int)atoi(tmp.c_str());
-                }
-            }
+            numberOfIterations = (unsigned int)atoi(arg_value.c_str());
             return true;
         }
+        
         return false;
     }
     unsigned getNumberOfIterations() const
@@ -517,16 +516,11 @@ void print_pid_collection_message(int pid);
 
 inline bool isPIDOption(char * argv [])
 {
-    return strncmp(*argv, "-pid", 4) == 0 || strncmp(*argv, "/pid", 4) == 0;
+    return check_argument_equals(*argv, {"-pid", "/pid"});
 }
 
 inline void parsePID(int argc, char* argv[], int& pid)
 {
     parseParam(argc, argv, "pid", [&pid](const char* p) { if (p) pid = atoi(p); });
 }
-
-bool extract_argument_value(const char* arg, std::initializer_list<const char*> arg_names, std::string& value);
-
-bool check_argument_equals(const char* arg, std::initializer_list<const char*> arg_names);
-
 } // namespace pcm

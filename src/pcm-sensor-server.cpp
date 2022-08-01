@@ -3115,10 +3115,12 @@ int main( int argc, char* argv[] ) {
     check_and_set_silent(argc, argv, nullStream);
 
     if ( argc > 1 ) {
+        std::string arg_value;
+
         for ( int i=1; i < argc; ++i ) {
-            if ( 0 == strncmp( argv[i], "-d", 2 ) )
+            if ( check_argument_equals( argv[i], {"-d"} ) )
                 daemonMode = true;
-            else if ( 0 == strncmp( argv[i], "-p", 2 ) )
+            else if ( check_argument_equals( argv[i], {"-p"} ) )
             {
                 if ( (++i) < argc ) {
                     std::stringstream ss( argv[i] );
@@ -3133,16 +3135,16 @@ int main( int argc, char* argv[] ) {
                 }
             }
 #if defined (USE_SSL)
-            else if ( 0 == strncmp( argv[i], "-s" , 2 ) )
+            else if ( check_argument_equals( argv[i], {"-s"} ) )
             {
                 useSSL = true;
             }
 #endif
-            else if ( 0 == strncmp( argv[i], "-r", 2 ) || 0 == strncmp( argv[i], "--reset", 7 ) )
+            else if ( check_argument_equals( argv[i], {"-r", "--reset"} ) )
             {
                 forcedProgramming = true;
             }
-            else if ( 0 == strncmp( argv[i], "-D", 2 ) || 0 == strncmp( argv[i], "--debug", 7 ) )
+            else if ( check_argument_equals( argv[i], {"-D", "--debug"} ) )
             {
                 if ( (++i) < argc ) {
                     std::stringstream ss( argv[i] );
@@ -3156,22 +3158,23 @@ int main( int argc, char* argv[] ) {
                     throw std::runtime_error( "main: Error no debug level argument given" );
                 }
             }
-            else if ( 0 == strncmp( argv[i], "-R", 2 ) || 0 == strncmp( argv[i], "--real-time", 11 ) )
+            else if ( check_argument_equals( argv[i], {"-R", "--real-time"} ) )
             {
                 useRealtimePriority = true;
             }
-            else if ( check_argument_equals( *argv, {"--help", "-h", "/h"} ) )
+            else if ( check_argument_equals( argv[i], {"--help", "-h", "/h"} ) )
             {
                 printHelpText( argv[0] );
                 exit(0);
             }
-            else if ( check_argument_equals( *argv, {"-silent", "/silent"} ) )
+            else if ( check_argument_equals( argv[i], {"-silent", "/silent"} ) )
             {
                 // handled in check_and_set_silent
                 continue;
             }
 #if defined (USE_SSL)
-            else if ( 0 == strncmp( "-C", argv[i], 2 ) || 0 == strncmp( "--certificateFile", argv[i], 17 ) ) {
+            else if ( check_argument_equals( argv[i], {"-C", "--certificateFile"} ) ) {
+
                 if ( (++i) < argc ) {
                     std::ifstream fp( argv[i] );
                     if ( ! fp.is_open() ) {
@@ -3186,7 +3189,8 @@ int main( int argc, char* argv[] ) {
                     exit( 3 );
                 }
             }
-            else if ( 0 == strncmp( "-P", argv[i], 2 ) || 0 == strncmp( "--privateKeyFile", argv[i], 16 ) ) {
+            else if ( check_argument_equals( argv[i], {"-P", "--privateKeyFile"} ) ) {
+
                 if ( (++i) < argc ) {
                     std::ifstream fp( argv[i] );
                     if ( ! fp.is_open() ) {
