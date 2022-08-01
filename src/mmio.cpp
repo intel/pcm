@@ -160,10 +160,9 @@ OwnMMIORange::~OwnMMIORange()
 
 #include "PCIDriverInterface.h"
 
-MMIORange::MMIORange(uint64 physical_address, uint64 size_, bool readonly_) :
+MMIORange::MMIORange(uint64 physical_address, uint64 size_, bool) :
     mmapAddr(NULL),
-    size(size_),
-    readonly(readonly_)
+    size(size_)
 {
     if (size > 4096)
     {
