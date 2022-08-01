@@ -374,7 +374,8 @@ vector<string> build_csv(vector<struct iio_stacks_on_socket>& iios, vector<struc
 {
     vector<string> result;
     vector<string> current_row;
-    auto header = combine_stack_name_and_counter_names("Name");
+    auto header = combine_stack_name_and_counter_names("Part");
+    header.insert(header.begin(), "Name");
     if (show_root_port)
         header.insert(header.begin(), "Root Port");
     header.insert(header.begin(), "Socket");

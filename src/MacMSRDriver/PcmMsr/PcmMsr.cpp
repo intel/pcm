@@ -249,10 +249,11 @@ void* PcmMsrDriverClassName::mapMemory (uint32_t address, UInt8 **virtual_addres
 	
     IOMemoryMap        *memory_map        = NULL;
     IOMemoryDescriptor *memory_descriptor = NULL;
-	
+	#ifndef __clang_analyzer__ // address a false-positive
     memory_descriptor = IOMemoryDescriptor::withPhysicalAddress(address,
                                                                 4096,
                                                                 kIODirectionInOut);
+    #endif
     if (memory_descriptor) {
         IOReturn ioErr = memory_descriptor->prepare(kIODirectionInOut);
         if (ioErr == kIOReturnSuccess) {
@@ -268,8 +269,11 @@ void* PcmMsrDriverClassName::mapMemory (uint32_t address, UInt8 **virtual_addres
 			}
         }
         else {
-            memory_descriptor->release();
 			IOLog("%s[%p]::%s() -- IOMemoryDescriptor::prepare() failure\n", getName(), this, __FUNCTION__);
+        }
+        if (!memory_map)
+        {
+            memory_descriptor->release();
         }
     } else {
 		IOLog("%s[%p]::%s() -- IOMemoryDescriptor::withPhysicalAddress() failure\n", getName(), this, __FUNCTION__);
@@ -288,7 +292,9 @@ void PcmMsrDriverClassName::unmapMemory (void *memory_map)
 	
     if (m_map) {
         m_map->getMemoryDescriptor()->complete();
+        #ifndef __clang_analyzer__ // address a false-positive
         m_map->getMemoryDescriptor()->release();
+        #endif
         m_map->unmap();
         m_map->release();
     }

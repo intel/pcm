@@ -134,10 +134,14 @@ public:
 
 class MMIORange
 {
+#ifndef __APPLE__
     int32 fd;
+#endif
     char * mmapAddr;
     const uint64 size;
+#ifndef __APPLE__
     const bool readonly;
+#endif
 public:
     MMIORange(uint64 baseAddr_, uint64 size_, bool readonly_ = true);
     uint32 read32(uint64 offset);

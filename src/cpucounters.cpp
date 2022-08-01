@@ -1025,6 +1025,8 @@ bool PCM::discoverSystemTopology()
         return false;
     }
 
+    (void) coreMaskWidth; // to supress warnings on MacOS (unused vars)
+
     uint32 l2CacheMaskShift = 0;
 #ifdef PCM_DEBUG_TOPOLOGY
     uint32 threadsSharingL2;
@@ -1045,6 +1047,7 @@ bool PCM::discoverSystemTopology()
               << " [the most significant bit = " << l2CacheMaskShift << "]\n";
 #endif
 
+#ifndef __APPLE__
     auto populateEntry = [&smtMaskWidth, &coreMaskWidth, &l2CacheMaskShift](TopologyEntry & entry, const int apic_id)
     {
         entry.thread_id = smtMaskWidth ? extract_bits_ui(apic_id, 0, smtMaskWidth - 1) : 0;
@@ -1052,6 +1055,7 @@ bool PCM::discoverSystemTopology()
         entry.socket = extract_bits_ui(apic_id, smtMaskWidth + coreMaskWidth, 31);
         entry.tile_id = extract_bits_ui(apic_id, l2CacheMaskShift, 31);
     };
+#endif
 
     auto populateHybridEntry = [this](TopologyEntry& entry, int core) -> bool
     {
@@ -7467,7 +7471,7 @@ void ServerPCICFGUncore::cleanupMemTest(const ServerPCICFGUncore::MemTestParam &
         munmap(b, memBufferBlockSize);
 #elif defined(_MSC_VER)
         VirtualFree(b, memBufferBlockSize, MEM_RELEASE);
-#elif defined(__FreeBSD__)
+#elif defined(__FreeBSD__) || defined(__APPLE__)
         (void) b;                  // avoid the unused variable warning
         (void) memBufferBlockSize; // avoid the unused variable warning
 #else

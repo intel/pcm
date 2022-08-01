@@ -14,7 +14,7 @@ void checkAlignment(char const * debugMessage, void* ptr)
 	if(currentAlignment != 0)
 	{
 		printf("Failed\n");
-		printf("Current alignment: %lu\n\n", currentAlignment);
+		printf("Current alignment: %llu\n\n", (unsigned long long)currentAlignment);
 		exit(EXIT_FAILURE);
 	}
 	else
