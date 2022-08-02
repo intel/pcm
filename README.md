@@ -17,7 +17,7 @@ Current Build Status
 - Linux and OSX: [![Build Status](https://travis-ci.com/opcm/pcm.svg?branch=master)](https://travis-ci.com/opcm/pcm)
 - Windows: [![Build status](https://ci.appveyor.com/api/projects/status/github/opcm/pcm?branch=master&svg=true)](https://ci.appveyor.com/project/opcm/pcm)
 - FreeBSD: [![Build Status](https://api.cirrus-ci.com/github/opcm/pcm.svg)](https://cirrus-ci.com/github/opcm/pcm)
-- Docker Hub: [![Build status](https://img.shields.io/docker/cloud/build/opcm/pcm.svg)](doc/DOCKER_README.md) [![pulls](https://img.shields.io/docker/pulls/opcm/pcm.svg)](doc/DOCKER_README.md)
+- Docker Hub: [![Build status](https://img.shields.io/docker/cloud/build/opcm/pcm.svg)](doc/DOCKER_README.md)
 
 --------------------------------------------------------------------------------
 PCM Tools
