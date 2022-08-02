@@ -69,35 +69,36 @@ double getAverageUncoreFrequencyGhz(const UncoreStateType& before, const UncoreS
     return getAverageUncoreFrequency(before, after) / 1e9;
 }
 
-void print_help(const string prog_name)
+void print_help(const string & prog_name)
 {
-    cerr << "\n Usage: \n " << prog_name
+    cout << "\n Usage: \n " << prog_name
         << " --help | [delay] [options] [-- external_program [external_program_options]]\n";
-    cerr << "   <delay>                           => time interval to sample performance counters.\n";
-    cerr << "                                        If not specified, or 0, with external program given\n";
-    cerr << "                                        will read counters only after external program finishes\n";
-    cerr << " Supported <options> are: \n";
-    cerr << "  -h    | --help      | /h           => print this help and exit\n";
-    cerr << "  -pid PID | /pid PID                => collect core metrics only for specified process ID\n";
+    cout << "   <delay>                           => time interval to sample performance counters.\n";
+    cout << "                                        If not specified, or 0, with external program given\n";
+    cout << "                                        will read counters only after external program finishes\n";
+    cout << " Supported <options> are: \n";
+    cout << "  -h    | --help      | /h           => print this help and exit\n";
+    cout << "  -silent                            => silence information output and print only measurements\n";
+    cout << "  -pid PID | /pid PID                => collect core metrics only for specified process ID\n";
 #ifdef _MSC_VER
-    cerr << "  --uninstallDriver   | --installDriver=> (un)install driver\n";
+    cout << "  --uninstallDriver   | --installDriver=> (un)install driver\n";
 #endif
-    cerr << "  -r    | --reset     | /reset       => reset PMU configuration (at your own risk)\n";
-    cerr << "  -nc   | --nocores   | /nc          => hide core related output\n";
-    cerr << "  -yc   | --yescores  | /yc          => enable specific cores to output\n";
-    cerr << "  -ns   | --nosockets | /ns          => hide socket related output\n";
-    cerr << "  -nsys | --nosystem  | /nsys        => hide system related output\n";
-    cerr << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or\n"
+    cout << "  -r    | --reset     | /reset       => reset PMU configuration (at your own risk)\n";
+    cout << "  -nc   | --nocores   | /nc          => hide core related output\n";
+    cout << "  -yc   | --yescores  | /yc          => enable specific cores to output\n";
+    cout << "  -ns   | --nosockets | /ns          => hide socket related output\n";
+    cout << "  -nsys | --nosystem  | /nsys        => hide system related output\n";
+    cout << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or\n"
         << "                                        to a file, in case filename is provided\n"
         << "                                        the format used is documented here: https://www.intel.com/content/www/us/en/developer/articles/technical/intel-pcm-column-names-decoder-ring.html\n";
-    cerr << "  -i[=number] | /i[=number]          => allow to determine number of iterations\n";
+    cout << "  -i[=number] | /i[=number]          => allow to determine number of iterations\n";
     print_help_force_rtm_abort_mode(37);
-    cerr << " Examples:\n";
-    cerr << "  " << prog_name << " 1 -nc -ns          => print counters every second without core and socket output\n";
-    cerr << "  " << prog_name << " 1 -i=10            => print counters every second 10 times and exit\n";
-    cerr << "  " << prog_name << " 0.5 -csv=test.log  => twice a second save counter values to test.log in CSV format\n";
-    cerr << "  " << prog_name << " /csv 5 2>/dev/null => one sampe every 5 seconds, and discard all diagnostic output\n";
-    cerr << "\n";
+    cout << " Examples:\n";
+    cout << "  " << prog_name << " 1 -nc -ns          => print counters every second without core and socket output\n";
+    cout << "  " << prog_name << " 1 -i=10            => print counters every second 10 times and exit\n";
+    cout << "  " << prog_name << " 0.5 -csv=test.log  => twice a second save counter values to test.log in CSV format\n";
+    cout << "  " << prog_name << " /csv 5 2>/dev/null => one sampe every 5 seconds, and discard all diagnostic output\n";
+    cout << "\n";
 }
 
 
@@ -1133,13 +1134,16 @@ void print_csv(PCM * m,
 
 int main(int argc, char * argv[])
 {
-    set_signal_handlers();
-
+    null_stream nullStream2;
 #ifdef PCM_FORCE_SILENT
-    null_stream nullStream1, nullStream2;
+    null_stream nullStream1;
     std::cout.rdbuf(&nullStream1);
     std::cerr.rdbuf(&nullStream2);
+#else
+    check_and_set_silent(argc, argv, nullStream2);
 #endif
+
+    set_signal_handlers();
 
     cerr << "\n";
     cerr << " Processor Counter Monitor " << PCM_VERSION << "\n";
@@ -1173,22 +1177,23 @@ int main(int argc, char * argv[])
     {
         argv++;
         argc--;
+        std::string arg_value;
+
         if (*argv == nullptr)
         {
             continue;
         }
-        else
-        if (strncmp(*argv, "--help", 6) == 0 ||
-            strncmp(*argv, "-h", 2) == 0 ||
-            strncmp(*argv, "/h", 2) == 0)
+        else if (check_argument_equals(*argv, {"--help", "-h", "/h"}))
         {
             print_help(program);
             exit(EXIT_FAILURE);
         }
-        else
-        if (strncmp(*argv, "--yescores", 10) == 0 ||
-            strncmp(*argv, "-yc", 3) == 0 ||
-            strncmp(*argv, "/yc", 3) == 0)
+        else if (check_argument_equals(*argv, {"-silent", "/silent"}))
+        {
+            // handled in check_and_set_silent
+            continue;
+        }
+        else if (check_argument_equals(*argv, {"--yescores", "-yc", "/yc"}))
         {
             argv++;
             argc--;
@@ -1223,41 +1228,30 @@ int main(int argc, char * argv[])
             }
             continue;
         }
-        if (strncmp(*argv, "--nocores", 9) == 0 ||
-            strncmp(*argv, "-nc", 3) == 0 ||
-            strncmp(*argv, "/nc", 3) == 0)
+        else if (check_argument_equals(*argv, {"--nocores", "-nc", "/nc"}))
         {
             show_core_output = false;
             continue;
         }
-        else
-        if (strncmp(*argv, "--nosockets", 11) == 0 ||
-            strncmp(*argv, "-ns", 3) == 0 ||
-            strncmp(*argv, "/ns", 3) == 0)
+        else if (check_argument_equals(*argv, {"--nosockets", "-ns", "/ns"}))
         {
             show_socket_output = false;
             continue;
         }
-        else
-        if (strncmp(*argv, "--nosystem", 10) == 0 ||
-            strncmp(*argv, "-nsys", 5) == 0 ||
-            strncmp(*argv, "/nsys", 5) == 0)
+        else if (check_argument_equals(*argv, {"--nosystem", "-nsys", "/nsys"}))
         {
             show_system_output = false;
             continue;
         }
-        else
-        if (strncmp(*argv, "-csv", 4) == 0 ||
-            strncmp(*argv, "/csv", 4) == 0)
+        else if (check_argument_equals(*argv, {"-csv", "/csv"}))
         {
             csv_output = true;
-            string cmd = string(*argv);
-            size_t found = cmd.find('=', 4);
-            if (found != string::npos) {
-                string filename = cmd.substr(found + 1);
-                if (!filename.empty()) {
-                    m->setOutput(filename);
-                }
+        }
+        else if (extract_argument_value(*argv, {"-csv", "/csv"}, arg_value))
+        {
+            csv_output = true;
+            if (!arg_value.empty()) {
+                m->setOutput(arg_value);
             }
             continue;
         }
@@ -1267,41 +1261,33 @@ int main(int argc, char * argv[])
             argc--;
             continue;
         }
-        else
-        if (mainLoop.parseArg(*argv))
+        else if (mainLoop.parseArg(*argv))
         {
             continue;
         }
-        else
-        if (strncmp(*argv, "-reset", 6) == 0 ||
-            strncmp(*argv, "-r", 2) == 0 ||
-            strncmp(*argv, "/reset", 6) == 0)
+        else if (check_argument_equals(*argv, {"-reset", "/reset", "-r"}))
         {
             reset_pmu = true;
             continue;
         }
-        else
-        if (CheckAndForceRTMAbortMode(*argv, m))
+        else if (CheckAndForceRTMAbortMode(*argv, m))
         {
             continue;
         }
-        else
-        if (strncmp(*argv, "--noJKTWA", 9) == 0)
+        else if (check_argument_equals(*argv, {"--noJKTWA"}))
         {
             disable_JKT_workaround = true;
             continue;
         }
 #ifdef _MSC_VER
-        else
-        if (strncmp(*argv, "--uninstallDriver", 17) == 0)
+        else if (check_argument_equals(*argv, {"--uninstallDriver"}))
         {
             Driver tmpDrvObject;
             tmpDrvObject.uninstall();
             cerr << "msr.sys driver has been uninstalled. You might need to reboot the system to make this effective.\n";
             exit(EXIT_SUCCESS);
         }
-        else
-        if (strncmp(*argv, "--installDriver", 15) == 0)
+        else if (check_argument_equals(*argv, {"--installDriver"}))
         {
             Driver tmpDrvObject = Driver(Driver::msrLocalPath());
             if (!tmpDrvObject.start())
@@ -1313,8 +1299,7 @@ int main(int argc, char * argv[])
             exit(EXIT_SUCCESS);
         }
 #endif
-        else
-        if (strncmp(*argv, "--", 2) == 0)
+        else if (check_argument_equals(*argv, {"--"}))
         {
             argv++;
             sysCmd = *argv;
@@ -1323,20 +1308,7 @@ int main(int argc, char * argv[])
         }
         else
         {
-            // any other options positional that is a floating point number is treated as <delay>,
-            // while the other options are ignored with a warning issues to stderr
-            double delay_input = 0.0;
-            std::istringstream is_str_stream(*argv);
-            is_str_stream >> noskipws >> delay_input;
-            if (is_str_stream.eof() && !is_str_stream.fail() && delay == -1) {
-                delay = delay_input;
-                cerr << "Delay: " << delay << "\n";
-            }
-            else {
-                cerr << "WARNING: unknown command-line option: \"" << *argv << "\". Ignoring it.\n";
-                print_help(program);
-                exit(EXIT_FAILURE);
-            }
+            delay = parse_delay(*argv, program, (print_usage_func)print_help);
             continue;
         }
     } while (argc > 1); // end of command line partsing loop
