@@ -35,24 +35,25 @@
 using namespace std;
 using namespace pcm;
 
-void print_usage(const string progname)
+void print_usage(const string & progname)
 {
-    cerr << "\n Usage: \n " << progname
+    cout << "\n Usage: \n " << progname
          << " --help | [delay] [options] [-- external_program [external_program_options]]\n";
-    cerr << "   <delay>                           => time interval to sample performance counters.\n";
-    cerr << "                                        If not specified, or 0, with external program given\n";
-    cerr << "                                        will read counters only after external program finishes\n";
-    cerr << " Supported <options> are: \n";
-    cerr << "  -h    | --help  | /h               => print this help and exit\n";
-    cerr << "  -pid PID | /pid PID                => collect core metrics only for specified process ID\n";
-    cerr << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or\n"
+    cout << "   <delay>                           => time interval to sample performance counters.\n";
+    cout << "                                        If not specified, or 0, with external program given\n";
+    cout << "                                        will read counters only after external program finishes\n";
+    cout << " Supported <options> are: \n";
+    cout << "  -h    | --help  | /h               => print this help and exit\n";
+    cout << "  -silent                            => silence information output and print only measurements\n";
+    cout << "  -pid PID | /pid PID                => collect core metrics only for specified process ID\n";
+    cout << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or\n"
          << "                                        to a file, in case filename is provided\n";
-    cerr << "  -i[=number] | /i[=number]          => allow to determine number of iterations\n";
-    cerr << " Examples:\n";
-    cerr << "  " << progname << " 1                  => print counters every second without core and socket output\n";
-    cerr << "  " << progname << " 0.5 -csv=test.log  => twice a second save counter values to test.log in CSV format\n";
-    cerr << "  " << progname << " /csv 5 2>/dev/null => one sample every 5 seconds, and discard all diagnostic output\n";
-    cerr << "\n";
+    cout << "  -i[=number] | /i[=number]          => allow to determine number of iterations\n";
+    cout << " Examples:\n";
+    cout << "  " << progname << " 1                  => print counters every second without core and socket output\n";
+    cout << "  " << progname << " 0.5 -csv=test.log  => twice a second save counter values to test.log in CSV format\n";
+    cout << "  " << progname << " /csv 5 2>/dev/null => one sample every 5 seconds, and discard all diagnostic output\n";
+    cout << "\n";
 }
 
 template <class StateType>
@@ -86,13 +87,16 @@ void print_stats(const StateType & BeforeState, const StateType & AfterState, bo
 
 int main(int argc, char * argv[])
 {
-    set_signal_handlers();
-
+    null_stream nullStream2;
 #ifdef PCM_FORCE_SILENT
-    null_stream nullStream1, nullStream2;
+    null_stream nullStream1;
     cout.rdbuf(&nullStream1);
     cerr.rdbuf(&nullStream2);
+#else
+    check_and_set_silent(argc, argv, nullStream2);
 #endif
+
+    set_signal_handlers();
 
     cerr << "\n";
     cerr << " Processor Counter Monitor: NUMA monitoring utility \n";
@@ -114,31 +118,32 @@ int main(int argc, char * argv[])
         {
             argv++;
             argc--;
+            string arg_value;
+
             if (*argv == nullptr)
             {
                 continue;
             }
-            else
-            if (strncmp(*argv, "--help", 6) == 0 ||
-                strncmp(*argv, "-h", 2) == 0 ||
-                strncmp(*argv, "/h", 2) == 0)
+            else if (check_argument_equals(*argv, {"--help", "-h", "/h"}))
             {
                 print_usage(program);
                 exit(EXIT_FAILURE);
             }
-            else if (strncmp(*argv, "-csv", 4) == 0 ||
-                     strncmp(*argv, "/csv", 4) == 0)
+            else if (check_argument_equals(*argv, {"-silent", "/silent"}))
+            {
+                // handled in check_and_set_silent
+                continue;
+            }
+            else if (check_argument_equals(*argv, {"-csv", "/csv"}))
             {
                 csv = true;
-                string cmd = string(*argv);
-                size_t found = cmd.find('=', 4);
-                if (found != string::npos) {
-                    string filename = cmd.substr(found + 1);
-                    if (!filename.empty()) {
-                        m->setOutput(filename);
-                    }
+            }
+            else if (extract_argument_value(*argv, {"-csv", "/csv"}, arg_value))
+            {
+                csv = true;
+                if (!arg_value.empty()) {
+                    m->setOutput(arg_value);
                 }
-                continue;
             }
             else if (isPIDOption(argv))
             {
@@ -150,7 +155,7 @@ int main(int argc, char * argv[])
             {
                 continue;
             }
-            else if (strncmp(*argv, "--", 2) == 0)
+            else if (check_argument_equals(*argv, {"--"}))
             {
                 argv++;
                 sysCmd = *argv;
@@ -159,18 +164,7 @@ int main(int argc, char * argv[])
             }
             else
             {
-                // any other options positional that is a floating point number is treated as <delay>,
-                // while the other options are ignored with a warning issues to stderr
-                double delay_input = 0.0;
-                istringstream is_str_stream(*argv);
-                is_str_stream >> noskipws >> delay_input;
-                if (is_str_stream.eof() && !is_str_stream.fail()) {
-                    delay = delay_input;
-                } else {
-                    cerr << "WARNING: unknown command-line option: \"" << *argv << "\". Ignoring it.\n";
-                    print_usage(program);
-                    exit(EXIT_FAILURE);
-                }
+                delay = parse_delay(*argv, program, (print_usage_func)print_usage);
                 continue;
             }
         } while (argc > 1); // end of command line partsing loop

@@ -450,17 +450,22 @@ void collect_data(PCM *m, bool enable_pmm, bool enable_verbose, int delay_ms, Ma
 
 void print_usage()
 {
-    cerr << "\nUsage: \n";
-    cerr << " -h | --help | /h          => print this help and exit\n";
-    cerr << " --PMM | -pmm              => to enable PMM (Default DDR uncore latency)\n";
-    cerr << " -i[=number] | /i[=number] => allow to determine number of iterations\n";
-    cerr << " -v | --verbose            => verbose Output\n";
-    cerr << "\n";
+    cout << "\nUsage: \n";
+    cout << " -h | --help | /h          => print this help and exit\n";
+    cout << " --PMM | -pmm              => to enable PMM (Default DDR uncore latency)\n";
+    cout << " -i[=number] | /i[=number] => allow to determine number of iterations\n";
+    cout << " -silent                   => silence information output and print only measurements\n";
+    cout << " -v | --verbose            => verbose Output\n";
+    cout << "\n";
 }
 
 int main(int argc, char * argv[])
-{
+{   
+    null_stream nullStream;
+    check_and_set_silent(argc, argv, nullStream);
+    
     set_signal_handlers();
+
     std::cout << "\n Processor Counter Monitor " << PCM_VERSION << "\n";
     std::cout << "\n This utility measures Latency information\n\n";
     bool enable_pmm = false;
@@ -472,31 +477,27 @@ int main(int argc, char * argv[])
         argv++;
         argc--;
 
-        if (strncmp(*argv, "--help", 6) == 0 ||
-                                strncmp(*argv, "-h", 2) == 0 ||
-                                strncmp(*argv, "/h", 2) == 0)
+        if (check_argument_equals(*argv, {"--help", "-h", "/h"}))
         {
             print_usage();
             exit(EXIT_FAILURE);
+        }
+        else if (check_argument_equals(*argv, {"-silent", "/silent"}))
+        {
+            // handled in check_and_set_silent
+            continue;
         }
         else if (mainLoop.parseArg(*argv))
         {
             continue;
         }
-        else if (strncmp(*argv, "--PMM",6) == 0 || strncmp(*argv, "-pmm", 5) == 0)
+        else if (check_argument_equals(*argv, {"--PMM", "-pmm"}))
         {
-            argv++;
-            argc--;
             enable_pmm = true;
             continue;
         }
-
-        else if (strncmp(*argv, "--verbose", 9) == 0 ||
-                             strncmp(*argv, "-v", 2) == 0 ||
-                             strncmp(*argv, "/v", 2) == 0)
+        else if (check_argument_equals(*argv, {"--verbose", "-v", "/v"}))
         {
-            argv++;
-            argc--;
             enable_verbose = true;
             continue;
         }

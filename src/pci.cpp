@@ -257,6 +257,7 @@ bool PciHandle::exists(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 func
     struct pci_match_conf pattern;
     struct pci_conf conf[4];
     int fd;
+    int ret;
 
     fd = ::open("/dev/pci", O_RDWR, 0);
     if (fd < 0) return false;
@@ -274,7 +275,10 @@ bool PciHandle::exists(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 func
     pc.match_buf_len = sizeof(conf);
     pc.matches = conf;
 
-    if (ioctl(fd, PCIOCGETCONF, &pc)) return false;
+    ret = ioctl(fd, PCIOCGETCONF, &pc);
+    ::close(fd);
+
+    if (ret) return false;
 
     if (pc.status != PCI_GETCONF_LAST_DEVICE) return false;
 

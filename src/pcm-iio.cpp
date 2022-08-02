@@ -1124,65 +1124,35 @@ void print_PCIeMapping(const std::vector<struct iio_stacks_on_socket>& iios, con
     }
 }
 
-bool check_argument_equals(const char* arg, std::initializer_list<const char*> arg_names)
-{
-    const auto arg_len = strlen(arg);
-    for (const auto& arg_name: arg_names) {
-        if (arg_len == strlen(arg_name) && strncmp(arg, arg_name, arg_len) == 0) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-bool extract_argument_value(const char* arg, std::initializer_list<const char*> arg_names, std::string& value)
-{
-    const auto arg_len = strlen(arg);
-    for (const auto& arg_name: arg_names) {
-        const auto arg_name_len = strlen(arg_name);
-        if (arg_len > arg_name_len && strncmp(arg, arg_name, arg_name_len) == 0 && arg[arg_name_len] == '=') {
-            value = arg + arg_name_len + 1;
-            const auto last_pos = value.find_last_not_of("\"");
-            if (last_pos != string::npos) {
-                value.erase(last_pos + 1);
-            }
-            const auto first_pos = value.find_first_not_of("\"");
-            if (first_pos != string::npos) {
-                value.erase(0, first_pos);
-            }
-
-            return true;
-        }
-    }
-
-    return false;
-}
-
 void print_usage(const string& progname)
 {
-    cerr << "\n Usage: \n " << progname << " --help | [interval] [options] \n";
-    cerr << "   <interval>                           => time interval in seconds (floating point number is accepted)\n";
-    cerr << "                                        to sample performance counters.\n";
-    cerr << "                                        If not specified - 3.0 is used\n";
-    cerr << " Supported <options> are: \n";
-    cerr << "  -h    | --help  | /h               => print this help and exit\n";
-    cerr << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or\n"
+    cout << "\n Usage: \n " << progname << " --help | [interval] [options] \n";
+    cout << "   <interval>                           => time interval in seconds (floating point number is accepted)\n";
+    cout << "                                        to sample performance counters.\n";
+    cout << "                                        If not specified - 3.0 is used\n";
+    cout << " Supported <options> are: \n";
+    cout << "  -h    | --help  | /h               => print this help and exit\n";
+    cout << "  -silent                            => silence information output and print only measurements\n";
+    cout << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or\n"
          << "                                        to a file, in case filename is provided\n";
-    cerr << "  -csv-delimiter=<value>  | /csv-delimiter=<value>   => set custom csv delimiter\n";
-    cerr << "  -human-readable | /human-readable  => use human readable format for output (for csv only)\n";
-    cerr << "  -root-port | /root-port            => add root port devices to output (for csv only)\n";
-    cerr << "  -i[=number] | /i[=number]          => allow to determine number of iterations\n";
-    cerr << " Examples:\n";
-    cerr << "  " << progname << " 1.0 -i=10             => print counters every second 10 times and exit\n";
-    cerr << "  " << progname << " 0.5 -csv=test.log     => twice a second save counter values to test.log in CSV format\n";
-    cerr << "  " << progname << " -csv -human-readable  => every 3 second print counters in human-readable CSV format\n";
-    cerr << "\n";
+    cout << "  -csv-delimiter=<value>  | /csv-delimiter=<value>   => set custom csv delimiter\n";
+    cout << "  -human-readable | /human-readable  => use human readable format for output (for csv only)\n";
+    cout << "  -root-port | /root-port            => add root port devices to output (for csv only)\n";
+    cout << "  -i[=number] | /i[=number]          => allow to determine number of iterations\n";
+    cout << " Examples:\n";
+    cout << "  " << progname << " 1.0 -i=10             => print counters every second 10 times and exit\n";
+    cout << "  " << progname << " 0.5 -csv=test.log     => twice a second save counter values to test.log in CSV format\n";
+    cout << "  " << progname << " -csv -human-readable  => every 3 second print counters in human-readable CSV format\n";
+    cout << "\n";
 }
 
 int main(int argc, char * argv[])
-{
+{    
+    null_stream nullStream;
+    check_and_set_silent(argc, argv, nullStream);
+
     set_signal_handlers();
+
     std::cout << "\n Processor Counter Monitor " << PCM_VERSION << "\n";
     std::cout << "\n This utility measures Skylake-SP IIO information\n\n";
 
@@ -1208,6 +1178,10 @@ int main(int argc, char * argv[])
             print_usage(program);
             exit(EXIT_FAILURE);
         }
+        else if (check_argument_equals(*argv, {"-silent", "/silent"})) {
+            // handled in check_and_set_silent
+            continue;
+        }
         else if (extract_argument_value(*argv, {"-csv-delimiter", "/csv-delimiter"}, arg_value)) {
             csv_delimiter = std::move(arg_value);
         }
@@ -1228,24 +1202,8 @@ int main(int argc, char * argv[])
             continue;
         }
         else {
-            // any other options positional that is a floating point number is treated as <delay>,
-            // while the other options are ignored with a warning issues to stderr
-            double delay_input = 0.0;
-            istringstream is_str_stream(*argv);
-            is_str_stream >> noskipws >> delay_input;
-            if (is_str_stream.eof() && !is_str_stream.fail()) {
-                if (delay_input < 0) {
-                    cerr << "Invalid delay specified: \"" << *argv << "\". Delay should be positive.\n";
-                    print_usage(program);
-                    exit(EXIT_FAILURE);
-                }
-                delay = delay_input;
-            }
-            else {
-                cerr << "WARNING: unknown command-line option: \"" << *argv << "\". Ignoring it.\n";
-                print_usage(program);
-                exit(EXIT_FAILURE);
-            }
+            delay = parse_delay(*argv, program, (print_usage_func)print_usage);
+            continue;
         }
     }
 

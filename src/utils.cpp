@@ -559,7 +559,7 @@ void drawStackedBar(const std::string & label, std::vector<StackedBarItem> & h, 
 
 bool CheckAndForceRTMAbortMode(const char * arg, PCM * m)
 {
-    if (strncmp(arg, "-force-rtm-abort-mode", 21) == 0)
+    if (check_argument_equals(arg, {"-force-rtm-abort-mode"}))
     {
         m->enableForceRTMAbortMode();
         return true;
@@ -629,12 +629,12 @@ void print_help_force_rtm_abort_mode(const int alignment)
     const auto m = PCM::getInstance();
     if (m->isForceRTMAbortModeAvailable() && (m->getMaxCustomCoreEvents() < 4))
     {
-        std::cerr << "  -force-rtm-abort-mode";
+        std::cout << "  -force-rtm-abort-mode";
         for (int i = 0; i < (alignment - 23); ++i)
         {
-            std::cerr << " ";
+            std::cout << " ";
         }
-        std::cerr << "=> force RTM transaction abort mode to enable more programmable counters\n";
+        std::cout << "=> force RTM transaction abort mode to enable more programmable counters\n";
     }
 }
 
@@ -666,13 +666,81 @@ void print_pid_collection_message(int pid)
     }
 }
 
-void check_and_set_silent(int argc, char * argv[], null_stream &nullStream2) {
+double parse_delay(const char *arg, const std::string& progname, print_usage_func print_usage_func)
+{
+    // any other options positional that is a floating point number is treated as <delay>,
+    // while the other options are ignored with a warning issues to stderr
+    double delay_input = 0.0;
+    std::istringstream is_str_stream(arg);
+    is_str_stream >> std::noskipws >> delay_input;
+    if(is_str_stream.eof() && !is_str_stream.fail())
+    {
+        if (delay_input < 0)
+        {
+            std::cerr << "Invalid delay specified: \"" << *arg << "\". Delay should be positive.\n";
+            if(print_usage_func)
+            {
+                print_usage_func(progname);
+            }
+            exit(EXIT_FAILURE);
+        }
+        return delay_input;
+    } 
+    else 
+    {
+        std::cerr << "WARNING: unknown command-line option: \"" << *arg << "\". Ignoring it.\n";
+        if(print_usage_func)
+        {
+            print_usage_func(progname);
+        }
+        exit(EXIT_FAILURE);
+    }
+}
+
+bool extract_argument_value(const char* arg, std::initializer_list<const char*> arg_names, std::string& value)
+{
+    const auto arg_len = strlen(arg);
+    for (const auto& arg_name: arg_names) {
+        const auto arg_name_len = strlen(arg_name);
+        if (arg_len > arg_name_len && strncmp(arg, arg_name, arg_name_len) == 0 && arg[arg_name_len] == '=') {
+            value = arg + arg_name_len + 1;
+            const auto last_pos = value.find_last_not_of("\"");
+            if (last_pos != std::string::npos) {
+                value.erase(last_pos + 1);
+            }
+            const auto first_pos = value.find_first_not_of("\"");
+            if (first_pos != std::string::npos) {
+                value.erase(0, first_pos);
+            }
+
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool check_argument_equals(const char* arg, std::initializer_list<const char*> arg_names)
+{
+    const auto arg_len = strlen(arg);
+    for (const auto& arg_name: arg_names) {
+        if (arg_len == strlen(arg_name) && strncmp(arg, arg_name, arg_len) == 0) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+void check_and_set_silent(int argc, char * argv[], null_stream &nullStream2)
+{
     if (argc > 1) do
     {
         argv++;
         argc--;
-        if (strncmp(*argv, "-s", 2) == 0 ||
-            strncmp(*argv, "/s", 2) == 0)
+
+        if (check_argument_equals(*argv, {"--help", "-h", "/h"}) ||
+            check_argument_equals(*argv, {"-silent", "/silent"}))
         {
             std::cerr.rdbuf(&nullStream2);
             return;

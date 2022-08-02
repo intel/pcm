@@ -329,6 +329,7 @@ void pcm_cpuid_bsd(int leaf, PCM_CPUID_INFO& info, int core)
     {
         info.array[i] = cpuid_args_freebsd.data[i];
     }
+    ::close(fd);
 }
 #endif
 
