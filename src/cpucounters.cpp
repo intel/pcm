@@ -3179,7 +3179,7 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
                 }
             }
 
-            if (programPerfEvent(e, PERF_GEN_EVENT_0_POS + j, std::string("generic event #") + std::to_string(i)) == false)
+            if (programPerfEvent(e, PERF_GEN_EVENT_0_POS + j, std::string("generic event #") + std::to_string(j) + std::string(" on core #") + std::to_string(i)) == false)
             {
                 return PCM::UnknownError;
             }
