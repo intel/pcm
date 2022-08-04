@@ -439,9 +439,9 @@ void print_output(PCM * m,
         if (m->dramEnergyMetricsAvailable())
             cout << " DIMM energy |";
         if (m->LLCReadMissLatencyMetricsAvailable())
-            cout << " LLCRDMISSLAT (ns)";
+            cout << " LLCRDMISSLAT (ns)|";
         if (m->uncoreFrequencyMetricAvailable())
-            cout << " UncFREQ (Ghz)";
+            cout << " UncFREQ (Ghz)|";
         cout << "\n";
         cout << longDiv;
         for (uint32 i = 0; i < m->getNumSockets(); ++i)
@@ -463,20 +463,20 @@ void print_output(PCM * m,
                     cout << "    " << setw(5) << getIARequestBytesFromMC(sktstate1[i], sktstate2[i]) / double(1e9);
                     cout << "    " << setw(5) << getGTRequestBytesFromMC(sktstate1[i], sktstate2[i]) / double(1e9);
                 }
-                cout << "     ";
                 if(m->packageEnergyMetricsAvailable()) {
-                  cout << setw(6) << getConsumedJoules(sktstate1[i], sktstate2[i]);
+                    cout << "     ";
+                    cout << setw(6) << getConsumedJoules(sktstate1[i], sktstate2[i]);
                 }
-                cout << "     ";
                 if(m->dramEnergyMetricsAvailable()) {
-                  cout << setw(6) << getDRAMConsumedJoules(sktstate1[i], sktstate2[i]);
+                    cout << "     ";
+                    cout << setw(6) << getDRAMConsumedJoules(sktstate1[i], sktstate2[i]);
                 }
-                cout << "         ";
                 if (m->LLCReadMissLatencyMetricsAvailable()) {
-                  cout << setw(6) << getLLCReadMissLatency(sktstate1[i], sktstate2[i]);
+                    cout << "         ";
+                    cout << setw(6) << getLLCReadMissLatency(sktstate1[i], sktstate2[i]);
                 }
-                cout << " ";
                 if (m->uncoreFrequencyMetricAvailable()) {
+                    cout << "             ";
                     cout << setw(4) << getAverageUncoreFrequencyGhz(sktstate1[i], sktstate2[i]);
                 }
                 cout << "\n";
@@ -494,20 +494,20 @@ void print_output(PCM * m,
                         "     " << setw(5) << getBytesWrittenToPMM(sstate1, sstate2) / double(1e9);
             if (m->memoryIOTrafficMetricAvailable())
                 cout << "    " << setw(5) << getIORequestBytesFromMC(sstate1, sstate2) / double(1e9);
-            cout << "     ";
             if (m->packageEnergyMetricsAvailable()) {
+                cout << "     ";
                 cout << setw(6) << getConsumedJoules(sstate1, sstate2);
             }
-            cout << "     ";
             if (m->dramEnergyMetricsAvailable()) {
+                cout << "     ";
                 cout << setw(6) << getDRAMConsumedJoules(sstate1, sstate2);
             }
-            cout << "         ";
             if (m->LLCReadMissLatencyMetricsAvailable()) {
+                cout << "         ";
                 cout << setw(6) << getLLCReadMissLatency(sstate1, sstate2);
             }
-            cout << " ";
             if (m->uncoreFrequencyMetricAvailable()) {
+                cout << "             ";
                 cout << setw(4) << getAverageUncoreFrequencyGhz(sstate1, sstate2);
             }
             cout << "\n";
