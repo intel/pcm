@@ -439,9 +439,9 @@ void print_output(PCM * m,
         if (m->dramEnergyMetricsAvailable())
             cout << " DIMM energy |";
         if (m->LLCReadMissLatencyMetricsAvailable())
-            cout << " LLCRDMISSLAT (ns)";
+            cout << " LLCRDMISSLAT (ns)|";
         if (m->uncoreFrequencyMetricAvailable())
-            cout << " UncFREQ (Ghz)";
+            cout << " UncFREQ (Ghz)|";
         cout << "\n";
         cout << longDiv;
         for (uint32 i = 0; i < m->getNumSockets(); ++i)
@@ -475,7 +475,7 @@ void print_output(PCM * m,
                 if (m->LLCReadMissLatencyMetricsAvailable()) {
                   cout << setw(6) << getLLCReadMissLatency(sktstate1[i], sktstate2[i]);
                 }
-                cout << " ";
+                cout << "             ";
                 if (m->uncoreFrequencyMetricAvailable()) {
                     cout << setw(4) << getAverageUncoreFrequencyGhz(sktstate1[i], sktstate2[i]);
                 }
@@ -506,7 +506,7 @@ void print_output(PCM * m,
             if (m->LLCReadMissLatencyMetricsAvailable()) {
                 cout << setw(6) << getLLCReadMissLatency(sstate1, sstate2);
             }
-            cout << " ";
+            cout << "             ";
             if (m->uncoreFrequencyMetricAvailable()) {
                 cout << setw(4) << getAverageUncoreFrequencyGhz(sstate1, sstate2);
             }
