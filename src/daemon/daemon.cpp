@@ -311,6 +311,12 @@ namespace PCMDaemon {
         }
 
         //Store shm id in a file (shmIdLocation_)
+        int success = remove(shmIdLocation_.c_str());
+        if (success != 0)
+        {
+            std::cerr << "Failed to delete shared memory id location: " << shmIdLocation_ << " (errno=" << errno << ")\n";
+        }
+
         FILE* fp = fopen(shmIdLocation_.c_str(), "w");
         if (!fp)
         {
@@ -328,7 +334,7 @@ namespace PCMDaemon {
             shmData.shm_perm.gid = gid;
             shmData.shm_perm.mode = mode;
 
-            int success = shmctl(sharedMemoryId_, IPC_SET, &shmData);
+            success = shmctl(sharedMemoryId_, IPC_SET, &shmData);
             if (success < 0)
             {
                 std::cerr << "Failed to IPC_SET (errno=" << errno << ")\n";
