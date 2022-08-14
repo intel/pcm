@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2012, Intel Corporation
 // written by Austen Ott
-//    
+//
 #include <IOKit/IOLib.h>
 #include <libkern/sysctl.h>
 #include "PcmMsr.h"
@@ -63,7 +63,7 @@ void cpuGetTopoData(void* pTopos){
     entries[cpu].os_id = cpu;
     cpuid(0xB, 1, info[0], info[1], info[2], info[3]);
     entries[cpu].socket = info[3] >> info[0] & 0xF;
-    
+
     cpuid(0xB, 0, info[0], info[1], info[2], info[3]);
     entries[cpu].core_id = info[3] >> info[0] & 0xF;
 }
@@ -75,15 +75,15 @@ OSDefineMetaClassAndStructors(com_intel_driver_PcmMsr, IOService)
 bool PcmMsrDriverClassName::start(IOService* provider){
     bool	success;
     success = super::start(provider);
-	
+
 	if (!g_pci_driver) {
 		g_pci_driver = this;
 	}
-	
+
 	if (success) {
-		registerService();        
+		registerService();
 	}
-	
+
     return success;
 }
 uint32_t PcmMsrDriverClassName::getNumCores()
@@ -149,9 +149,9 @@ IOReturn PcmMsrDriverClassName::readMSR(pcm_msr_data_t* idatas,pcm_msr_data_t* o
     // All the msr_nums should be the same, so we just use the first one to pass to all cores
     IOReturn ret = kIOReturnBadArgument;
     if(idatas->cpu_num < num_cores)
-    {        
+    {
         mp_rendezvous_no_intrs(cpuReadMSR, (void*)idatas);
-        
+
         odatas->cpu_num = idatas->cpu_num;
         odatas->msr_num = idatas->msr_num;
         odatas->value = idatas->value;
@@ -169,14 +169,14 @@ IOReturn PcmMsrDriverClassName::writeMSR(pcm_msr_data_t* idata){
     if(idata->cpu_num < num_cores)
     {
         mp_rendezvous_no_intrs(cpuWriteMSR, (void*)idata);
-        
+
         ret = kIOReturnSuccess;
     }
     else
     {
         IOLog("Tried to write to a core with id higher than max core id.\n");
     }
-    
+
     return ret;
 }
 
@@ -210,7 +210,7 @@ IOReturn PcmMsrDriverClassName::decrementNumInstances(uint32_t* num_insts){
 uint32_t PcmMsrDriverClassName::read(uint32_t pci_address)
 {
     uint32_t value = 0;
-	
+
     __asm__("\t"
 			"movw $0xCF8,%%dx\n\t"
 			"andb $0xFC,%%al\n\t"
@@ -220,7 +220,7 @@ uint32_t PcmMsrDriverClassName::read(uint32_t pci_address)
 			: "=a"(value)
 			: "a"(pci_address)
 			: "%edx");
-	
+
     return value;
 }
 
@@ -228,7 +228,7 @@ uint32_t PcmMsrDriverClassName::read(uint32_t pci_address)
 // write
 void PcmMsrDriverClassName::write(uint32_t pci_address, uint32_t value)
 {
-	
+
 	__asm__("\t"
 			"movw $0xCF8,%%dx\n\t"
 			"andb $0xFC,%%al\n\t"
@@ -246,7 +246,7 @@ void PcmMsrDriverClassName::write(uint32_t pci_address, uint32_t value)
 void* PcmMsrDriverClassName::mapMemory (uint32_t address, UInt8 **virtual_address)
 {
 	PRINT_DEBUG("%s[%p]::%s()\n", getName(), this, __FUNCTION__);
-	
+
     IOMemoryMap        *memory_map        = NULL;
     IOMemoryDescriptor *memory_descriptor = NULL;
 	#ifndef __clang_analyzer__ // address a false-positive
@@ -278,7 +278,7 @@ void* PcmMsrDriverClassName::mapMemory (uint32_t address, UInt8 **virtual_addres
     } else {
 		IOLog("%s[%p]::%s() -- IOMemoryDescriptor::withPhysicalAddress() failure\n", getName(), this, __FUNCTION__);
 	}
-	
+
     return (void*)memory_map;
 }
 
@@ -287,9 +287,9 @@ void* PcmMsrDriverClassName::mapMemory (uint32_t address, UInt8 **virtual_addres
 void PcmMsrDriverClassName::unmapMemory (void *memory_map)
 {
 	PRINT_DEBUG("%s[%p]::%s()\n", getName(), this, __FUNCTION__);
-	
+
     IOMemoryMap *m_map = (IOMemoryMap*)memory_map;
-	
+
     if (m_map) {
         m_map->getMemoryDescriptor()->complete();
         #ifndef __clang_analyzer__ // address a false-positive
@@ -298,6 +298,6 @@ void PcmMsrDriverClassName::unmapMemory (void *memory_map)
         m_map->unmap();
         m_map->release();
     }
-	
+
     return;
 }
