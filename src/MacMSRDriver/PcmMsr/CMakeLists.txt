@@ -9,6 +9,8 @@ add_executable(
 )
 
 set_target_properties(PcmMsrDriver PROPERTIES BUNDLE_EXTENSION kext MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/PcmMsr-Info.plist)
+
+
 target_include_directories(PcmMsrDriver PRIVATE
         ${CMAKE_OSX_SYSROOT}/System/Library/Frameworks/Kernel.framework/PrivateHeaders
         ${CMAKE_OSX_SYSROOT}/System/Library/Frameworks/Kernel.framework/Headers
@@ -19,6 +21,11 @@ target_compile_definitions(PcmMsrDriver PRIVATE
         -DDRIVER_PRIVATE
         -DAPPLE
         -DNeXT
+)
+
+target_compile_options(PcmMsrDriver PRIVATE
+        "-ffreestanding"
+        "-fapple-kext"
 )
 
 target_link_libraries(PcmMsrDriver PRIVATE ${IOKIT_LIBRARY}
