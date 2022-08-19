@@ -51,3 +51,14 @@ PCM Execution
 Now you can run ./pcm utility.
 See description of other built utilities in LINUX_HOWTO.txt
 
+Logging/Debugging
+----------------------
+
+Sometimes you will get errors while running utilities that may come from the kernel, and you can use something like this DTrace script to correlate it with user-land behavior:
+
+$ sudo dtrace -n 'fbt:mach_kernel:_ZN*IOUser*:return /execname == "pcm"/ { @hgram[probefunc, arg1, ustack(20)] = count(); }' -c ./pcm
+
+Various commands that can help diagnose errors:
+
+$ kmutil log stream
+$ kmutil inspect -b com.intel.driver.PcmMsr
