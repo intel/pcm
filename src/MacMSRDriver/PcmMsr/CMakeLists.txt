@@ -41,4 +41,4 @@ target_link_libraries(PcmMsrDriver PRIVATE ${IOKIT_LIBRARY}
 # PcmMsrDriver.kext is built here and located in 'build/bin'
 set(LIB_EXT_PATH "/Library/Extensions")
 install(TARGETS PcmMsrDriver DESTINATION "${LIB_EXT_PATH}/")
-install(CODE "execute_process(COMMAND kmutil load ${LIB_EXT_PATH}/PcmMsrDriver.kext)")
+install(CODE "execute_process(COMMAND kmutil load -b com.intel.driver.PcmMsr)")
