@@ -870,7 +870,7 @@ private:
         PERF_TOPDOWN_RETIRING_POS = PERF_TOPDOWN_SLOTS_POS + 4
     };
 
-    std::unordered_map<int, int> perfTopDownPos;
+    std::array<int, (PERF_TOPDOWN_RETIRING_POS + 1)> perfTopDownPos;
 
     enum {
         PERF_GROUP_LEADER_COUNTER = PERF_INST_RETIRED_POS,
