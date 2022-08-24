@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2012, Intel Corporation
 // written by Austen Ott
-//    
+//
 #ifndef MSRACCESSOR_HEADER
 #define MSRACCESSOR_HEADER
 

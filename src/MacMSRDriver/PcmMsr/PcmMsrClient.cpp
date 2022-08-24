@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2012, Intel Corporation
 // written by Austen Ott
-//    
+//
 #include <IOKit/IOLib.h>
 #include <IOKit/IOKitKeys.h>
 #include <libkern/OSByteOrder.h>
@@ -12,67 +12,71 @@
 OSDefineMetaClassAndStructors(com_intel_driver_PcmMsrClient, IOUserClient)
 
 const IOExternalMethodDispatch PcmMsrClientClassName::sMethods[kNumberOfMethods] = {
-    { (IOExternalMethodAction) &PcmMsrClientClassName::sOpenDriver, 0, 0, 0, 0},
-    { (IOExternalMethodAction) &PcmMsrClientClassName::sCloseDriver, 0, 0, 0, 0},
-    { (IOExternalMethodAction) &PcmMsrClientClassName::sReadMSR, 0, kIOUCVariableStructureSize, 0, kIOUCVariableStructureSize},
-    { (IOExternalMethodAction) &PcmMsrClientClassName::sWriteMSR, 0, kIOUCVariableStructureSize, 0, 0},
-    { (IOExternalMethodAction) &PcmMsrClientClassName::sBuildTopology, 0, 0, 0, kIOUCVariableStructureSize},
-    { (IOExternalMethodAction) &PcmMsrClientClassName::sGetNumInstances, 0, 0, 1, 0},
-    { (IOExternalMethodAction) &PcmMsrClientClassName::sIncrementNumInstances, 0, 0, 1, 0},
-    { (IOExternalMethodAction) &PcmMsrClientClassName::sDecrementNumInstances, 0, 0, 1, 0},
-	{ (IOExternalMethodAction) &PcmMsrClientClassName::sRead, 1, 0, 1, 0 },
-	{ (IOExternalMethodAction) &PcmMsrClientClassName::sWrite, 2, 0, 0, 0 },
-	{ (IOExternalMethodAction) &PcmMsrClientClassName::sMapMemory, 1, 0, 2, 0 },
-	{ (IOExternalMethodAction) &PcmMsrClientClassName::sUnmapMemory, 1, 0, 0, 0 },
-	{ (IOExternalMethodAction) &PcmMsrClientClassName::sReadMemory, 1, 0, 1, 0 }
+                                                                                    { (IOExternalMethodAction) &PcmMsrClientClassName::sOpenDriver, 0, 0, 0, 0},
+                                                                                    { (IOExternalMethodAction) &PcmMsrClientClassName::sCloseDriver, 0, 0, 0, 0},
+                                                                                    { (IOExternalMethodAction) &PcmMsrClientClassName::sReadMSR, 0, kIOUCVariableStructureSize, 0, kIOUCVariableStructureSize},
+                                                                                    { (IOExternalMethodAction) &PcmMsrClientClassName::sWriteMSR, 0, kIOUCVariableStructureSize, 0, 0},
+                                                                                    { (IOExternalMethodAction) &PcmMsrClientClassName::sBuildTopology, 0, 0, 0, kIOUCVariableStructureSize},
+                                                                                    { (IOExternalMethodAction) &PcmMsrClientClassName::sGetNumInstances, 0, 0, 1, 0},
+                                                                                    { (IOExternalMethodAction) &PcmMsrClientClassName::sIncrementNumInstances, 0, 0, 1, 0},
+                                                                                    { (IOExternalMethodAction) &PcmMsrClientClassName::sDecrementNumInstances, 0, 0, 1, 0},
+                                                                                    { (IOExternalMethodAction) &PcmMsrClientClassName::sRead, 1, 0, 1, 0 },
+                                                                                    { (IOExternalMethodAction) &PcmMsrClientClassName::sWrite, 2, 0, 0, 0 },
+                                                                                    { (IOExternalMethodAction) &PcmMsrClientClassName::sMapMemory, 1, 0, 2, 0 },
+                                                                                    { (IOExternalMethodAction) &PcmMsrClientClassName::sUnmapMemory, 1, 0, 0, 0 },
+                                                                                    { (IOExternalMethodAction) &PcmMsrClientClassName::sReadMemory, 1, 0, 1, 0 }
 
 };
 
-IOReturn PcmMsrClientClassName::externalMethod(uint32_t selector, IOExternalMethodArguments* args,													IOExternalMethodDispatch* dispatch, OSObject* target, void* reference)
+IOReturn PcmMsrClientClassName::externalMethod(uint32_t selector, IOExternalMethodArguments* args,                                                                                                        IOExternalMethodDispatch* dispatch, OSObject* target, void* reference)
 {
-    if (selector < (uint32_t) kNumberOfMethods) {
+    if (selector < (uint32_t) kNumberOfMethods)
+    {
         dispatch = (IOExternalMethodDispatch *) &sMethods[selector];
-        
-        if (!target) {
-			target = this;
-		}
+
+        if (!target)
+        {
+            target = this;
+        }
     }
-	
-	return super::externalMethod(selector, args, dispatch, target, reference);
+
+    return super::externalMethod(selector, args, dispatch, target, reference);
 }
 
 bool PcmMsrClientClassName::start(IOService* provider)
 {
-	bool result = false;
-    
+    bool result = false;
+
     fProvider = OSDynamicCast(PcmMsrDriverClassName, provider);
-    
-    if (fProvider != NULL) {
-		result = super::start(provider);
-	}
+
+    if (fProvider != NULL)
+    {
+        result = super::start(provider);
+    }
     else
- 		IOLog("PcmMsrClientClassName::start failed.\n");
-        
+        IOLog("PcmMsrClientClassName::start failed.\n");
+
     return result;
 }
 
 IOReturn PcmMsrClientClassName::clientClose(void)
-{    
+{
     closeUserClient();
-    
-	if (!terminate()) {
-		IOLog("PcmMsrClientClassName::clientClose failed.\n");
-	}
-	
+
+    if (!terminate())
+    {
+        IOLog("PcmMsrClientClassName::clientClose failed.\n");
+    }
+
     return kIOReturnSuccess;
 }
 
 bool PcmMsrClientClassName::didTerminate(IOService* provider, IOOptionBits options, bool* defer)
-{	
-	closeUserClient();
-	*defer = false;
-	
-	return super::didTerminate(provider, options, defer);
+{
+    closeUserClient();
+    *defer = false;
+
+    return super::didTerminate(provider, options, defer);
 }
 
 
@@ -83,16 +87,16 @@ IOReturn PcmMsrClientClassName::sOpenDriver(PcmMsrClientClassName* target, void*
 
 IOReturn PcmMsrClientClassName::openUserClient(void)
 {
-    IOReturn	result = kIOReturnSuccess;
-    
+    IOReturn        result = kIOReturnSuccess;
+
     if (fProvider == NULL || isInactive()) {
         result = kIOReturnNotAttached;
-		IOLog("%s::%s returned kIOReturnNotAttached.\n", getName(), __FUNCTION__);
-	} else if (!fProvider->open(this)) {
-		result = kIOReturnExclusiveAccess;
-		IOLog("%s::%s returned kIOReturnExclusiveAccess.\n", getName(), __FUNCTION__);
-	}
-	
+        IOLog("%s::%s returned kIOReturnNotAttached.\n", getName(), __FUNCTION__);
+    } else if (!fProvider->open(this)) {
+        result = kIOReturnExclusiveAccess;
+        IOLog("%s::%s returned kIOReturnExclusiveAccess.\n", getName(), __FUNCTION__);
+    }
+
     return result;
 }
 
@@ -101,7 +105,7 @@ IOReturn PcmMsrClientClassName::checkActiveAndOpened (const char* memberFunction
     if (fProvider == NULL || isInactive()) {
         IOLog("%s::%s returned kIOReturnNotAttached.\n", getName(), memberFunction);
         return (IOReturn)kIOReturnNotAttached;
-        
+
     } else if (!fProvider->isOpen(this)) {
         IOLog("%s::%s returned kIOReturnNotOpen.\n", getName(), memberFunction);
         return  (IOReturn)kIOReturnNotOpen;
@@ -117,10 +121,10 @@ IOReturn PcmMsrClientClassName::sCloseDriver(PcmMsrClientClassName* target, void
 
 IOReturn PcmMsrClientClassName::closeUserClient(void)
 {
-    IOReturn	result = checkActiveAndOpened (__FUNCTION__);
-    
+    IOReturn        result = checkActiveAndOpened (__FUNCTION__);
+
     if (result == kIOReturnSuccess)
- 		fProvider->close(this);
+        fProvider->close(this);
 
     return result;
 }
@@ -131,11 +135,11 @@ IOReturn PcmMsrClientClassName::sReadMSR(PcmMsrClientClassName* target, void* re
 
 IOReturn PcmMsrClientClassName::readMSR(pcm_msr_data_t* idata, pcm_msr_data_t* odata)
 {
-    IOReturn	result = checkActiveAndOpened (__FUNCTION__);
-    
+    IOReturn        result = checkActiveAndOpened (__FUNCTION__);
+
     if (result == kIOReturnSuccess)
- 		result = fProvider->readMSR(idata, odata);
-    
+        result = fProvider->readMSR(idata, odata);
+
     return result;
 }
 
@@ -145,11 +149,11 @@ IOReturn PcmMsrClientClassName::sWriteMSR(PcmMsrClientClassName* target, void* r
 
 IOReturn PcmMsrClientClassName::writeMSR(pcm_msr_data_t* data)
 {
-    IOReturn	result = checkActiveAndOpened (__FUNCTION__);
-    
+    IOReturn        result = checkActiveAndOpened (__FUNCTION__);
+
     if (result == kIOReturnSuccess)
-		result = fProvider->writeMSR(data);
-    
+        result = fProvider->writeMSR(data);
+
     return result;
 }
 
@@ -160,11 +164,11 @@ IOReturn PcmMsrClientClassName::sBuildTopology(PcmMsrClientClassName* target, vo
 IOReturn PcmMsrClientClassName::buildTopology(topologyEntry* data, size_t output_size)
 {
     uint32_t num_cores = (uint32_t) (output_size / sizeof(topologyEntry) );
-    IOReturn	result = checkActiveAndOpened (__FUNCTION__);
-    
+    IOReturn        result = checkActiveAndOpened (__FUNCTION__);
+
     if (result == kIOReturnSuccess)
-		result = fProvider->buildTopology(data, num_cores);
-    
+        result = fProvider->buildTopology(data, num_cores);
+
     return result;
 }
 
@@ -199,21 +203,21 @@ IOReturn PcmMsrClientClassName::sRead(PcmMsrClientClassName* target, void* refer
 }
 IOReturn PcmMsrClientClassName::read(const uint64_t* input, uint32_t inputSize, uint64_t* output, uint32_t outputSize)
 {
-	PRINT_DEBUG("%s[%p]::%s()\n", getName(), this, __FUNCTION__);
-	
-	if (inputSize != 1) {
-		IOLog("%s[%p]::%s(): returning kIOReturnBadArgument.\n", getName(), this, __FUNCTION__);
-		return kIOReturnBadArgument;
-	}
-	
-	uint32_t addr = (uint32_t)input[0];
-	PRINT_DEBUG("addr: %x\n", addr);
-	
-	if (g_pci_driver) {
+    PRINT_DEBUG("%s[%p]::%s()\n", getName(), this, __FUNCTION__);
+
+    if (inputSize != 1) {
+        IOLog("%s[%p]::%s(): returning kIOReturnBadArgument.\n", getName(), this, __FUNCTION__);
+        return kIOReturnBadArgument;
+    }
+
+    uint32_t addr = (uint32_t)input[0];
+    PRINT_DEBUG("addr: %x\n", addr);
+
+    if (g_pci_driver) {
         output[0] = g_pci_driver->read(addr);
     }
-	IOLog("val: %llx\n", output[0]);
-	
+    IOLog("val: %llx\n", output[0]);
+
     return kIOReturnSuccess;
 }
 
@@ -224,21 +228,21 @@ IOReturn PcmMsrClientClassName::sWrite(PcmMsrClientClassName* target, void* refe
 }
 IOReturn PcmMsrClientClassName::write(const uint64_t* input, uint32_t inputSize)
 {
-	PRINT_DEBUG("%s[%p]::%s()\n", getName(), this, __FUNCTION__);
-	
-	if (inputSize != 2) {
-		IOLog("%s[%p]::%s(): returning kIOReturnBadArgument.\n", getName(), this, __FUNCTION__);
-		return kIOReturnBadArgument;
-	}
-	
-	uint32_t addr = (uint32_t)input[0];
-	uint32_t val  = (uint32_t)input[1];
-	PRINT_DEBUG("addr: %x, val: %x\n", addr, val);
-	
-	if (g_pci_driver) {
+    PRINT_DEBUG("%s[%p]::%s()\n", getName(), this, __FUNCTION__);
+
+    if (inputSize != 2) {
+        IOLog("%s[%p]::%s(): returning kIOReturnBadArgument.\n", getName(), this, __FUNCTION__);
+        return kIOReturnBadArgument;
+    }
+
+    uint32_t addr = (uint32_t)input[0];
+    uint32_t val  = (uint32_t)input[1];
+    PRINT_DEBUG("addr: %x, val: %x\n", addr, val);
+
+    if (g_pci_driver) {
         g_pci_driver->write(addr, val);
     }
-	
+
     return kIOReturnSuccess;
 }
 
@@ -249,25 +253,25 @@ IOReturn PcmMsrClientClassName::sMapMemory(PcmMsrClientClassName* target, void* 
 }
 IOReturn PcmMsrClientClassName::mapMemory(const uint64_t* input, uint32_t inputSize, uint64_t* output, uint32_t outputSize)
 {
-	PRINT_DEBUG("%s[%p]::%s()\n", getName(), this, __FUNCTION__);
-	
-	if (inputSize != 1) {
-		IOLog("%s[%p]::%s(): returning kIOReturnBadArgument.\n", getName(), this, __FUNCTION__);
-		return kIOReturnBadArgument;
-	}
-	
-	uint32_t address = (uint32_t)input[0];
-	PRINT_DEBUG("address: %x\n", address);
-	
-	if (g_pci_driver) {
-		uint8_t* virtual_address = NULL;
-		void* memory_map = g_pci_driver->mapMemory(address, (uint8_t**)&virtual_address);
-		output[0] = (uint64_t)memory_map;
-		output[1] = (uint64_t)virtual_address;
-		PRINT_DEBUG("memory_map: %p\n", memory_map);
-		PRINT_DEBUG("virtual_address: %p\n", virtual_address);
+    PRINT_DEBUG("%s[%p]::%s()\n", getName(), this, __FUNCTION__);
+
+    if (inputSize != 1) {
+        IOLog("%s[%p]::%s(): returning kIOReturnBadArgument.\n", getName(), this, __FUNCTION__);
+        return kIOReturnBadArgument;
     }
-	
+
+    uint32_t address = (uint32_t)input[0];
+    PRINT_DEBUG("address: %x\n", address);
+
+    if (g_pci_driver) {
+        uint8_t* virtual_address = NULL;
+        void* memory_map = g_pci_driver->mapMemory(address, (uint8_t**)&virtual_address);
+        output[0] = (uint64_t)memory_map;
+        output[1] = (uint64_t)virtual_address;
+        PRINT_DEBUG("memory_map: %p\n", memory_map);
+        PRINT_DEBUG("virtual_address: %p\n", virtual_address);
+    }
+
     return kIOReturnSuccess;
 }
 
@@ -278,20 +282,20 @@ IOReturn PcmMsrClientClassName::sUnmapMemory(PcmMsrClientClassName* target, void
 }
 IOReturn PcmMsrClientClassName::unmapMemory(const uint64_t* input, uint32_t inputSize)
 {
-	PRINT_DEBUG("%s[%p]::%s()\n", getName(), this, __FUNCTION__);
-	
-	if (inputSize != 1) {
-		IOLog("%s[%p]::%s(): returning kIOReturnBadArgument.\n", getName(), this, __FUNCTION__);
-		return kIOReturnBadArgument;
-	}
-	
-	void* memory_map = (void*)input[0];
-	PRINT_DEBUG("memory_map: %p\n", memory_map);
-	
-	if (g_pci_driver) {
-		g_pci_driver->unmapMemory(memory_map);
+    PRINT_DEBUG("%s[%p]::%s()\n", getName(), this, __FUNCTION__);
+
+    if (inputSize != 1) {
+        IOLog("%s[%p]::%s(): returning kIOReturnBadArgument.\n", getName(), this, __FUNCTION__);
+        return kIOReturnBadArgument;
     }
-	
+
+    void* memory_map = (void*)input[0];
+    PRINT_DEBUG("memory_map: %p\n", memory_map);
+
+    if (g_pci_driver) {
+        g_pci_driver->unmapMemory(memory_map);
+    }
+
     return kIOReturnSuccess;
 }
 
@@ -302,22 +306,23 @@ IOReturn PcmMsrClientClassName::sReadMemory(PcmMsrClientClassName* target, void*
 }
 IOReturn PcmMsrClientClassName::readMemory(const uint64_t* input, uint32_t inputSize, uint64_t* output, uint32_t outputSize)
 {
-	PRINT_DEBUG("%s[%p]::%s()\n", getName(), this, __FUNCTION__);
-	
-	if (inputSize != 1) {
-		IOLog("%s[%p]::%s(): returning kIOReturnBadArgument.\n", getName(), this, __FUNCTION__);
-		return kIOReturnBadArgument;
-	}
-	
-	uint8_t* address = (uint8_t*)input[0];
-	PRINT_DEBUG("address: %p\n", address);
-	
-	uint32_t val = 0;
-	if (g_pci_driver) {
-		val = *(uint32_t*)address;
+    PRINT_DEBUG("%s[%p]::%s()\n", getName(), this, __FUNCTION__);
+
+    if (inputSize != 1)
+    {
+        IOLog("%s[%p]::%s(): returning kIOReturnBadArgument.\n", getName(), this, __FUNCTION__);
+        return kIOReturnBadArgument;
     }
-	output[0] = (uint64_t)val;
-	PRINT_DEBUG("val: %x\n", val);
-	
+
+    uint8_t* address = (uint8_t*)input[0];
+    PRINT_DEBUG("address: %p\n", address);
+
+    uint32_t val = 0;
+    if (g_pci_driver) {
+        val = *(uint32_t*)address;
+    }
+    output[0] = (uint64_t)val;
+    PRINT_DEBUG("val: %x\n", val);
+
     return kIOReturnSuccess;
 }

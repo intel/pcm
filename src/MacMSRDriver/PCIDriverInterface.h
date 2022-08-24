@@ -29,5 +29,5 @@ uint32_t PCIDriver_readMemory64(uint8_t* address, uint64_t* val);
 #ifdef __cplusplus
 }
 #endif
-	
+
 #endif

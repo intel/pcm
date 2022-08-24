@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2012, Intel Corporation
 // written by Austen Ott
-//    
+//
 #define PcmMsrDriverClassName com_intel_driver_PcmMsr
 #define kPcmMsrDriverClassName "com_intel_driver_PcmMsr"
 #ifndef USER_KERNEL_SHARED

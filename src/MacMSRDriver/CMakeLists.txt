@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright (c) 2022, Intel Corporation
- 
+
 set(CMAKE_MACOSX_RPATH 1)
 
 set(CMAKE_CXX_FLAGS "-Wall")
