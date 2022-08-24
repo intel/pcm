@@ -1,4 +1,4 @@
-# Processor Counter Monitor (PCM) Prometheus exporter [![Build Status](https://travis-ci.com/opcm/pcm.svg?branch=master)](https://travis-ci.com/opcm/pcm) [![pulls](https://img.shields.io/docker/pulls/opcm/pcm.svg)](DOCKER_README.md)
+# Processor Counter Monitor (PCM) Prometheus exporter [![Build Status](https://travis-ci.com/opcm/pcm.svg?branch=master)](https://travis-ci.com/opcm/pcm)
 
 
 pcm-sensor-server is a collector exposing Intel processor metrics over http in JSON or Prometheus (exporter text based) format. Also [available as a docker container](DOCKER_README.md).

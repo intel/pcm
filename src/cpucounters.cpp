@@ -3180,7 +3180,7 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
                 }
             }
 
-            if (programPerfEvent(e, PERF_GEN_EVENT_0_POS + j, std::string("generic event #") + std::to_string(i)) == false)
+            if (programPerfEvent(e, PERF_GEN_EVENT_0_POS + j, std::string("generic event #") + std::to_string(j) + std::string(" on core #") + std::to_string(i)) == false)
             {
                 return PCM::UnknownError;
             }
@@ -3265,10 +3265,11 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
                     }
                 }
                 EventSelectRegister reg;
-                setEvent(reg, eventSel, umask);
+                reg.fields.event_select = eventSel;
+                reg.fields.umask = umask;
                 perf_event_attr e = PCM_init_perf_event_attr();
                 e.type = PERF_TYPE_RAW;
-                e.config = (1ULL << 63ULL) + reg.value;
+                e.config = reg.value;
                 // std::cerr << "Programming perf event " << std::hex << e.config << "\n";
                 if (programPerfEvent(e, event.second, std::string("event ") + event.first + " " + eventDesc) == false)
                 {
@@ -4289,6 +4290,7 @@ void PCM::readPerfData(uint32 core, std::vector<uint64> & outData)
         }
         uint64 data[1 + PERF_MAX_COUNTERS];
         const int32 bytes2read = sizeof(uint64) * (1 + num_counters);
+        assert(num_counters <= PERF_MAX_COUNTERS);
         int result = ::read(perfEventHandle[core][leader], data, bytes2read);
         // data layout: nr counters; counter 0, counter 1, counter 2,...
         if (result != bytes2read)
@@ -4301,7 +4303,17 @@ void PCM::readPerfData(uint32 core, std::vector<uint64> & outData)
             std::cerr << "Number of counters read from perf is wrong. Elements read: " << data[0] << "\n";
         }
         else
-        {  // copy all counters, they start from position 1 in data
+        {
+            /*
+            if (core == 0)
+            {
+                std::unique_lock<std::mutex> _(instanceCreationMutex);
+                std::cerr << "DEBUG: perf raw: " << std::dec;
+                for (uint32 p=0; p < (1 + num_counters) ; ++p) std::cerr << data[p] << " ";
+                std::cerr << "\n";
+            }
+            */
+            // copy all counters, they start from position 1 in data
             std::copy((data + 1), (data + 1) + data[0], outData.begin());
         }
     };
@@ -4386,7 +4398,7 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
             cBackendBoundSlots =    perfData[m->perfTopDownPos[PCM::PERF_TOPDOWN_BACKEND_POS]];
             cRetiringSlots =        perfData[m->perfTopDownPos[PCM::PERF_TOPDOWN_RETIRING_POS]];
             cAllSlotsRaw =          perfData[m->perfTopDownPos[PCM::PERF_TOPDOWN_SLOTS_POS]];
-//          if (core_id == 0) std::cout << "DEBUG: "<< cAllSlotsRaw << " " << cFrontendBoundSlots << " " << cBadSpeculationSlots << " " << cBackendBoundSlots << " " << cRetiringSlots << std::endl;
+//          if (core_id == 0) std::cout << "DEBUG: All: "<< cAllSlotsRaw << " FE: " << cFrontendBoundSlots << " BAD-SP: " << cBadSpeculationSlots << " BE: " << cBackendBoundSlots << " RET: " << cRetiringSlots << std::endl;
         }
     }
     else
