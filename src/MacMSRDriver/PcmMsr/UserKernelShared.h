@@ -21,25 +21,17 @@ typedef struct {
 } k_pcm_msr_data_t;
 
 // The topologyEntry struct that is used by PCM
-typedef struct{
+typedef struct
+{
     uint32_t os_id;
     uint32_t thread_id;
     uint32_t core_id;
     uint32_t tile_id;
     uint32_t socket;
+    uint32_t native_cpu_model;
+    uint32_t core_type; // This is an enum in the userland structure.
+    uint32_t padding;
 } topologyEntry;
-
-// A kernel version of the topology entry structure. It has
-// an extra unused int to explicitly align the struct on a 64bit
-// boundary, preventing the compiler from adding extra padding.
-typedef struct{
-    uint32_t os_id;
-    uint32_t thread_id;
-    uint32_t core_id;
-    uint32_t tile_id;
-    uint32_t socket;
-    char padding[108];
-} kTopologyEntry;
 
 enum {
     kOpenDriver,
