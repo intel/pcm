@@ -40,7 +40,7 @@ inline void WRMSR(uint32_t msr, uint64_t value)
 
 void cpuReadMSR(void* pIData){
     pcm_msr_data_t* data = (pcm_msr_data_t*)pIData;
-    volatile uint cpu = cpu_number();
+    int cpu = cpu_number();
     if(data->cpu_num == cpu)
     {
         data->value = RDMSR(data->msr_num);
@@ -49,7 +49,7 @@ void cpuReadMSR(void* pIData){
 
 void cpuWriteMSR(void* pIDatas){
     pcm_msr_data_t* idatas = (pcm_msr_data_t*)pIDatas;
-    volatile uint cpu = cpu_number();
+    int cpu = cpu_number();
     if(idatas->cpu_num == cpu)
     {
         WRMSR(idatas->msr_num, idatas->value);
@@ -58,7 +58,7 @@ void cpuWriteMSR(void* pIDatas){
 
 void cpuGetTopoData(void* pTopos){
     topologyEntry* entries = (topologyEntry*)pTopos;
-    volatile uint cpu = cpu_number();
+    int cpu = cpu_number();
     int info[4];
     entries[cpu].os_id = cpu;
     cpuid(0xB, 1, info[0], info[1], info[2], info[3]);
@@ -86,50 +86,34 @@ bool PcmMsrDriverClassName::start(IOService* provider){
 
     return success;
 }
-uint32_t PcmMsrDriverClassName::getNumCores()
+
+int32_t PcmMsrDriverClassName::getNumCores()
 {
-    size_t size;
-    char* pParam;
-    uint32_t ret = 0;
-    if(!sysctlbyname("hw.logicalcpu", NULL, &size, NULL, 0))
+    int32_t ncpus = 0;
+    size_t ncpus_size = sizeof(ncpus);
+    if(sysctlbyname("hw.logicalcpu", &ncpus, &ncpus_size, NULL, 0))
     {
-        if(NULL != (pParam = (char*)IOMalloc(size)))
-        {
-            if(!sysctlbyname("hw.logicalcpu", (void*)pParam, &size, NULL, 0))
-            {
-                if(sizeof(int) == size)
-                    ret = *(int*)pParam;
-                else if(sizeof(long) == size)
-                    ret = (uint32_t) *(long*)pParam;
-                else if(sizeof(long long) == size)
-                    ret = (uint32_t) *(long long*)pParam;
-                else
-                    ret = *(int*)pParam;
-            }
-            IOFree(pParam, size);
-        }
+         IOLog("%s[%p]::%s() -- sysctl failure retrieving hw.logicalcpu",
+               getName(), this, __FUNCTION__);
+         ncpus = 0;
     }
-    return ret;
+
+    return ncpus;
 }
 
 bool PcmMsrDriverClassName::init(OSDictionary *dict)
 {
-    num_cores = getNumCores();
     bool result = super::init(dict);
-    topologies = 0;
-    if(result && num_cores != 0)
-    {
-        topologies = (topologyEntry*)IOMallocAligned(sizeof(topologyEntry)*num_cores, 32);
+
+    if (result) {
+         num_cores = getNumCores();
     }
-    return (result && topologies && num_cores != 0);
+
+    return result && num_cores;
 }
 
 void PcmMsrDriverClassName::free()
 {
-    if (topologies)
-    {
-        IOFreeAligned(topologies, sizeof(topologyEntry)*num_cores);
-    }
     super::free();
 }
 
@@ -182,14 +166,34 @@ IOReturn PcmMsrDriverClassName::writeMSR(pcm_msr_data_t* idata){
     return ret;
 }
 
-IOReturn PcmMsrDriverClassName::buildTopology(topologyEntry* odata, uint32_t input_num_cores){
+IOReturn PcmMsrDriverClassName::buildTopology(topologyEntry* odata, uint32_t input_num_cores)
+{
+     size_t topologyBufferSize;
+
+     // TODO figure out when input_num_cores is used rather than num_cores
+     if (os_mul_overflow(sizeof(topologyEntry), (size_t) num_cores, &topologyBufferSize))
+     {
+          return kIOReturnBadArgument;
+     }
+
+    topologyEntry *topologies =
+         (topologyEntry *)IOMallocAligned(topologyBufferSize, 32);
+
+    if (topologies == nullptr)
+    {
+        return kIOReturnNoMemory;
+    }
+
     mp_rendezvous_no_intrs(cpuGetTopoData, (void*)topologies);
+
     for(uint32_t i = 0; i < num_cores && i < input_num_cores; i++)
     {
         odata[i].core_id = topologies[i].core_id;
         odata[i].os_id = topologies[i].os_id;
         odata[i].socket = topologies[i].socket;
     }
+
+    IOFreeAligned(topologies, topologyBufferSize);
     return kIOReturnSuccess;
 }
 

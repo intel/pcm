@@ -23,14 +23,14 @@ typedef struct {
 // The topologyEntry struct that is used by PCM
 typedef struct
 {
-    uint32_t os_id;
-    uint32_t thread_id;
-    uint32_t core_id;
-    uint32_t tile_id;
-    uint32_t socket;
-    uint32_t native_cpu_model;
-    uint32_t core_type; // This is an enum in the userland structure.
-    uint32_t padding;
+    int32_t os_id;
+    int32_t thread_id;
+    int32_t core_id;
+    int32_t tile_id;
+    int32_t socket;
+    int32_t native_cpu_model;
+    int32_t core_type; // This is an enum in the userland structure.
+    int32_t padding;
 } topologyEntry;
 
 enum {
