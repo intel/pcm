@@ -37,7 +37,7 @@ private:
     // number of providers currently using the driver
     uint32_t num_clients = 0;
     uint32_t num_cores;
-    kTopologyEntry *topologies;
+    topologyEntry *topologies;
 };
 
 #ifdef DEBUG

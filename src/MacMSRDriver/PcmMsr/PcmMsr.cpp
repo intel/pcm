@@ -57,7 +57,7 @@ void cpuWriteMSR(void* pIDatas){
 }
 
 void cpuGetTopoData(void* pTopos){
-    kTopologyEntry* entries = (kTopologyEntry*)pTopos;
+    topologyEntry* entries = (topologyEntry*)pTopos;
     volatile uint cpu = cpu_number();
     int info[4];
     entries[cpu].os_id = cpu;
@@ -119,15 +119,17 @@ bool PcmMsrDriverClassName::init(OSDictionary *dict)
     topologies = 0;
     if(result && num_cores != 0)
     {
-        topologies = (kTopologyEntry*)IOMallocAligned(sizeof(kTopologyEntry)*num_cores, 128);
+        topologies = (topologyEntry*)IOMallocAligned(sizeof(topologyEntry)*num_cores, 32);
     }
     return (result && topologies && num_cores != 0);
 }
 
 void PcmMsrDriverClassName::free()
 {
-    if(topologies)
-        IOFreeAligned(topologies, sizeof(kTopologyEntry)*num_cores);
+    if (topologies)
+    {
+        IOFreeAligned(topologies, sizeof(topologyEntry)*num_cores);
+    }
     super::free();
 }
 
