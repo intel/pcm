@@ -21,7 +21,7 @@ public:
     virtual bool handleIsOpen(const IOService* forClient) const override;
     virtual void handleClose(IOService* forClient, IOOptionBits opts) override;
     
-    virtual uint32_t getNumCores();
+    virtual int32_t getNumCores();
     
     virtual IOReturn incrementNumInstances(uint32_t* num_instances);
     virtual IOReturn decrementNumInstances(uint32_t* num_instances);
@@ -36,8 +36,7 @@ public:
 private:
     // number of providers currently using the driver
     uint32_t num_clients = 0;
-    uint32_t num_cores;
-    topologyEntry *topologies;
+    int32_t num_cores;
 };
 
 #ifdef DEBUG
