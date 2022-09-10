@@ -26,15 +26,14 @@ target_compile_definitions(PcmMsrDriver PRIVATE
 
 target_compile_options(PcmMsrDriver PRIVATE
         "-ffreestanding"
-        "-fapple-kext"
+        "$<$<COMPILE_LANGUAGE:CXX>:-fapple-kext>"
 )
 
-target_link_libraries(PcmMsrDriver PRIVATE ${IOKIT_LIBRARY}
+target_link_libraries(PcmMsrDriver PRIVATE
         "-lkmodc++"
         "-lkmod"
         "-lcc_kext"
         "-nostdlib"
-        "-Xlinker -object_path_lto"
         "-Xlinker -export_dynamic"
         "-Xlinker -kext"
 )

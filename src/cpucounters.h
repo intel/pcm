@@ -61,7 +61,9 @@
 #endif
 #endif
 
+#ifdef __linux__
 #include "resctrl.h"
+#endif
 
 namespace pcm {
 

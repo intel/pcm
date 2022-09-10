@@ -18,37 +18,40 @@ extern "C"
 #endif
 int PCIDriver_setupDriver()
 {
-	kern_return_t   kern_result;
-    io_iterator_t   iterator;
-    bool            driverFound = false;
-    io_service_t    local_driver_service;
-    
-	// get services
-    kern_result = IOServiceGetMatchingServices(kIOMasterPortDefault, IOServiceMatching(kPcmMsrDriverClassName), &iterator);
-	if (kern_result != KERN_SUCCESS) {
-		fprintf(stderr, "[error] IOServiceGetMatchingServices returned 0x%08x\n", kern_result);
-        return kern_result;
-    }
-	
-	// find service
-	while ((local_driver_service = IOIteratorNext(iterator)) != IO_OBJECT_NULL) {
-        driverFound = true;
-        break;
-    }
-	if (driverFound == false) {  
-        fprintf(stderr, "[error] No matching drivers found \"%s\".\n", kPcmMsrDriverClassName);
-        return KERN_FAILURE;
-    }
-	IOObjectRelease(iterator);
+     kern_return_t   kern_result;
+     io_iterator_t   iterator;
+     bool            driverFound = false;
+     io_service_t    local_driver_service;
 
-	// connect to service
-    kern_result = IOServiceOpen(local_driver_service, mach_task_self(), 0, &PCIDriver_connect);
-    if (kern_result != KERN_SUCCESS) {
-        fprintf(stderr, "[error] IOServiceOpen returned 0x%08x\n", kern_result);
-		return kern_result;
-    }
-	
-	return KERN_SUCCESS;
+     // get services
+     kern_result = IOServiceGetMatchingServices(kIOMainPortDefault,
+                                                IOServiceMatching(kPcmMsrDriverClassName),
+                                                &iterator);
+     if (kern_result != KERN_SUCCESS) {
+          fprintf(stderr, "[error] IOServiceGetMatchingServices returned 0x%08x\n", kern_result);
+          return kern_result;
+     }
+
+     // find service
+     while ((local_driver_service = IOIteratorNext(iterator)) != IO_OBJECT_NULL) {
+          driverFound = true;
+          break;
+     }
+
+     if (driverFound == false) {
+          fprintf(stderr, "[error] No matching drivers found \"%s\".\n", kPcmMsrDriverClassName);
+          return KERN_FAILURE;
+     }
+     IOObjectRelease(iterator);
+
+     // connect to service
+     kern_result = IOServiceOpen(local_driver_service, mach_task_self(), 0, &PCIDriver_connect);
+     if (kern_result != KERN_SUCCESS) {
+          fprintf(stderr, "[error] IOServiceOpen returned 0x%08x\n", kern_result);
+          return kern_result;
+     }
+
+     return KERN_SUCCESS;
 }
 
 
