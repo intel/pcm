@@ -38,7 +38,11 @@ pcm-raw -e core/config=0x00000000004300c5,name=BR_MISP_RETIRED.ALL_BRANCHES -e c
 Collecting Events By Names From Event Lists (https://download.01.org/perfmon/)
 --------------------------------------------------------------------------------
 
-pcm-raw can also automatically lookup the events from the json event lists (https://download.01.org/perfmon/) and translate them to raw encodings itself. To make this work you need to download simdjson library in the PCM source directory and recompile PCM:
+pcm-raw can also automatically lookup the events from the json event lists (https://download.01.org/perfmon/) and translate them to raw encodings itself. To make this work you need to checkout PCM with simdjson submodule:
+
+* use git clone --recursive flag when cloning pcm repository, or
+* update submodule with command `git submodule update --init --recursive`, or
+* download simdjson library in the PCM source directory and recompile PCM:
 
 1. change to PCM 'src/' directory
 2. git clone https://github.com/simdjson/simdjson.git

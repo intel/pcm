@@ -14,11 +14,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+      with:
+        submodules: recursive
     - name: kw
       run: |
-        cd src
-        git clone https://github.com/simdjson/simdjson.git
-        cd ..
         mkdir build
         cd build
         cmake ..
