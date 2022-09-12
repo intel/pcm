@@ -40,11 +40,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - name: install simdjson
-      uses: actions/checkout@v2
       with:
-        repository: simdjson/simdjson
-        path: src/simdjson
+        submodules: recursive
     - name: cmake
       run: |
         rm -rf ${{ github.workspace }}/build

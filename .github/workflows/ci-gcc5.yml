@@ -14,6 +14,11 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    - name: install simdjson
+      uses: actions/checkout@v2
+      with:
+        repository: simdjson/simdjson
+        path: src/simdjson
     - name: Configure CMake
       run: |
         cmake --version

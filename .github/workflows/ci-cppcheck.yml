@@ -14,6 +14,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+      with:
+        submodules: recursive
     - name: cppcheck_script
       run: |
         sh ${{ github.workspace }}/scripts/cppcheck.sh . `getconf _NPROCESSORS_ONLN`
