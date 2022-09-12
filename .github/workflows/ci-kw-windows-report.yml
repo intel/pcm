@@ -6,19 +6,18 @@ jobs:
   build:
 
     runs-on: ci-kw-windows
-    if: ${{ github.repository != 'opcm/pcm' }}
+    if: ${{ github.repository != 'intel/pcm' }}
 
     steps:
     - uses: actions/checkout@v2
-    
+      with:
+        submodules: recursive
+
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@v1.0.2
     
     - name: kw
       run: |
-        cd ${{github.workspace}}\src
-        git clone https://github.com/simdjson/simdjson.git
-        cd ..
         mkdir build
         cd build
         cmake ..

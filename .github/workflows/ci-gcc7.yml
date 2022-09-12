@@ -10,15 +10,15 @@ jobs:
   build:
 
     runs-on: ci-gcc7
-    if: ${{ github.repository != 'opcm/pcm' }}
+    if: ${{ github.repository != 'intel/pcm' }}
 
     steps:
     - uses: actions/checkout@v2
-    - name: Preparation
-      run: |
-        cd ${{ github.workspace }}/src
-        git clone https://github.com/simdjson/simdjson.git
-        cd ..
+    - name: install simdjson
+      uses: actions/checkout@v2
+      with:
+        repository: simdjson/simdjson
+        path: src/simdjson
     - name: Configure CMake
       run: |
         cmake --version

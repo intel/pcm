@@ -9,15 +9,12 @@ on:
 jobs:
   job-build1:
     runs-on: ci-gcc9
-    if: ${{ github.repository != 'opcm/pcm' }}
+    if: ${{ github.repository != 'intel/pcm' }}
 
     steps:
     - uses: actions/checkout@v2
-    - name: Preparation
-      run: |
-        cd ${{ github.workspace }}/src
-        git clone https://github.com/simdjson/simdjson.git
-        cd ..
+      with:
+        submodules: recursive
     - name: Configure CMake
       run: |
         cmake --version
@@ -35,15 +32,12 @@ jobs:
 
   job-build2:
     runs-on: ci-test
-    if: ${{ github.repository != 'opcm/pcm' }}
+    if: ${{ github.repository != 'intel/pcm' }}
 
     steps:
     - uses: actions/checkout@v2
-    - name: Preparation
-      run: |
-        cd ${{ github.workspace }}/src
-        git clone https://github.com/simdjson/simdjson.git
-        cd ..
+      with:
+        submodules: recursive
     - name: Configure CMake
       run: |
         cmake --version

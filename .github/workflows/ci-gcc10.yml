@@ -10,15 +10,12 @@ jobs:
   build:
 
     runs-on: ci-gcc10
-    if: ${{ github.repository != 'opcm/pcm' }}
+    if: ${{ github.repository != 'intel/pcm' }}
 
     steps:
     - uses: actions/checkout@v2
-    - name: Preparation
-      run: |
-        cd ${{ github.workspace }}/src
-        git clone https://github.com/simdjson/simdjson.git
-        cd ..
+      with:
+        submodules: recursive
     - name: Configure CMake
       run: |
         cmake --version
