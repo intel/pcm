@@ -53,7 +53,7 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: |
-            opcm/pcm:latest
-            ghcr.io/opcm/pcm:latest
+            intel/pcm:latest
+            ghcr.io/intel/pcm:latest
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache
