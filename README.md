@@ -55,6 +55,18 @@ And finally a daemon that stores core, memory and QPI counters in shared memory 
 Building PCM Tools
 --------------------------------------------------------------------------------
 
+Clone PCM repository with submodules:
+
+```
+git clone --recursive https://github.com/opcm/pcm.git
+```
+
+or clone the repository first, and then update submodules with:
+
+```
+git submodule update --init --recursive
+```
+
 Install cmake then:
 
 ```

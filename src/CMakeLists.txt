@@ -113,7 +113,9 @@ if(SIMDJSON_IS_APPLICABLE)
         else()
             message(WARNING
                 " ${CMAKE_CURRENT_SOURCE_DIR}/simdjson/singleheader/simdjson.h doesn't exist\n"
-                " Run 'git clone https://github.com/simdjson/simdjson.git' in 'src' directory to get simdjson library")
+                " Use `git clone --recursive` flag when cloning pcm repository to clone simdjson submodule as well or\n"
+                " update submodule with command 'git submodule update --init --recursive' or\n"
+                " run 'git clone https://github.com/simdjson/simdjson.git' in 'src' directory to get simdjson library")
         endif()
     endif(simdjson_FOUND)
 endif(SIMDJSON_IS_APPLICABLE)
