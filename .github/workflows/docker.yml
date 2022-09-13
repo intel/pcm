@@ -34,11 +34,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildx-
 
-#      - name: Login to DockerHub
-#        uses: docker/login-action@v1 
-#        with:
-#          username: ${{ secrets.DOCKERHUB_USERNAME }}
-#          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Login to DockerHub
+        uses: docker/login-action@v1 
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
           
       - name: Log in to the Container registry
         uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
@@ -54,6 +54,6 @@ jobs:
           push: true
           tags: |
             ghcr.io/intel/pcm:latest
-#            opcm/pcm:latest
+            opcm/pcm:latest
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache
