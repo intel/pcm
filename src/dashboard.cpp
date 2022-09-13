@@ -532,7 +532,7 @@ std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int
     {
         hostname = buffer;
     }
-    Dashboard dashboard("Processor Counter Monitor (PCM) Dashboard - " + hostname);
+    Dashboard dashboard("Intel(r) Performance Counter Monitor (Intel(r) PCM) Dashboard - " + hostname);
     auto createTarget = [type](const std::string& title, const std::string& inluxdbMetric, const std::string& prometheusExpr) -> std::shared_ptr<Target>
     {
         std::shared_ptr<Target> t;

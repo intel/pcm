@@ -124,7 +124,7 @@ int main(int argc, char * argv[])
     set_signal_handlers();
 
     cerr << "\n";
-    cerr << " Processor Counter Monitor: PCIe Bandwidth Monitoring Utility \n";
+    cerr << " Intel(r) Performance Counter Monitor: PCIe Bandwidth Monitoring Utility \n";
     cerr << " This utility measures PCIe bandwidth in real-time\n";
     cerr << "\n";
     print_events();

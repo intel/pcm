@@ -1827,7 +1827,7 @@ int main(int argc, char* argv[])
     set_real_time_priority(true);
 
     cerr << "\n";
-    cerr << " Processor Counter Monitor: Raw Event Monitoring Utility \n";
+    cerr << " Intel(r) Performance Counter Monitor: Raw Event Monitoring Utility \n";
     cerr << "\n";
 
     std::vector<PCM::RawPMUConfigs> PMUConfigs(1);

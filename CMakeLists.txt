@@ -120,9 +120,9 @@ if(UNIX)
     set(CPACK_PACKAGE_NAME    "pcm")
     set(CPACK_PACKAGE_VERSION "0000")
 
-    set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Processor Counter Monitor (PCM)")
+    set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Intel(r) Performance Counter Monitor (Intel(r) PCM)")
     set(CPACK_PACKAGE_DESCRIPTION "\
-    Processor Counter Monitor (PCM) is an application programming\n\
+    Intel(r) Performance Counter Monitor (Intel(r) PCM) is an application programming\n\
     interface (API) and a set of tools based on the API to monitor\n\
     performance and energy metrics of Intel(r) Core(tm), Xeon(r), Atom(tm)\n\
     and Xeon Phi(tm) processors. PCM works on Linux, Windows, Mac OS X,\n\

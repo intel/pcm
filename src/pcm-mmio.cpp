@@ -50,7 +50,7 @@ void doOp(const uint64 address, const uint64 offset, const bool write, T value, 
 
 int main(int argc, char * argv[])
 {
-    std::cout << "\n Processor Counter Monitor " << PCM_VERSION << "\n";
+    std::cout << "\n Intel(r) Performance Counter Monitor " << PCM_VERSION << "\n";
 
     std::cout << "\n MMIO register read/write utility\n\n";
 

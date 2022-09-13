@@ -1153,7 +1153,7 @@ int main(int argc, char * argv[])
 
     set_signal_handlers();
 
-    std::cout << "\n Processor Counter Monitor " << PCM_VERSION << "\n";
+    std::cout << "\n Intel(r) Performance Counter Monitor " << PCM_VERSION << "\n";
     std::cout << "\n This utility measures Skylake-SP IIO information\n\n";
 
     string program = string(argv[0]);
