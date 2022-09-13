@@ -1,0 +1,33 @@
+name: FreeBSD build
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+
+    runs-on: macos-12
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+    - name: build in FreeBSD VM
+      id: build
+      uses: vmactions/freebsd-vm@v0
+      with:
+        usesh: true
+        prepare: |
+          pkg install -y curl gmake cmake
+
+        run: |
+          pwd
+          ls -lah
+          whoami
+          env
+          freebsd-version
+          cmake -B build -DCMAKE_INSTALL_PREFIX=.
+          cd build && gmake install

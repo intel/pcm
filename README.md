@@ -14,11 +14,11 @@ Processor Counter Monitor (PCM) is an application programming interface (API) an
 Current Build Status
 --------------------------------------------------------------------------------
 
-- Linux: [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/intel/pcm/Linux%20make)](https://github.com/intel/pcm/actions/workflows/linux_make.yml?query=branch%3Amaster)
+- Linux: [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/intel/pcm/Linux%20make/master)](https://github.com/intel/pcm/actions/workflows/linux_make.yml?query=branch%3Amaster)
 - Windows: [![Build status](https://ci.appveyor.com/api/projects/status/github/intel/pcm?branch=master&svg=true)](https://ci.appveyor.com/project/opcm/pcm)
-- FreeBSD: [![Build Status](https://api.cirrus-ci.com/github/opcm/pcm.svg)](https://cirrus-ci.com/github/opcm/pcm)
-- OS X: [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/intel/pcm/Mac%20OS%20X%20build)](https://github.com/intel/pcm/actions/workflows/macosx_build.yml?query=branch%3Amaster)
-- Docker container: [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/intel/pcm/Docker%20Build)](doc/DOCKER_README.md)
+- FreeBSD: [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/intel/pcm/FreeBSD%20build/master)](https://github.com/intel/pcm/actions/workflows/freebsd_build.yml?query=branch%3Amaster)
+- OS X: [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/intel/pcm/Mac%20OS%20X%20build/master)](https://github.com/intel/pcm/actions/workflows/macosx_build.yml?query=branch%3Amaster)
+- Docker container: [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/intel/pcm/Docker%20Build/master)](doc/DOCKER_README.md)
 
 --------------------------------------------------------------------------------
 PCM Tools
