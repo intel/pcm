@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2012, Intel Corporation
 // written by Austen Ott
-//    
+//
 #include "MSRAccessor.h"
 #include <exception>
 MSRAccessor::MSRAccessor(){
-    service = IOServiceGetMatchingService(kIOMasterPortDefault, IOServiceMatching(kPcmMsrDriverClassName));
+    service = IOServiceGetMatchingService(kIOMainPortDefault,
+                                          IOServiceMatching(kPcmMsrDriverClassName));
     openConnection();
 }
 
