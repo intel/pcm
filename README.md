@@ -14,10 +14,11 @@ Processor Counter Monitor (PCM) is an application programming interface (API) an
 Current Build Status
 --------------------------------------------------------------------------------
 
-- Linux and OSX: [![Build Status](https://travis-ci.com/opcm/pcm.svg?branch=master)](https://travis-ci.com/opcm/pcm)
+- Linux: ![GitHub Workflow Status](https://img.shields.io/github/workflow/status/intel/pcm/Linux%20make)
 - Windows: [![Build status](https://ci.appveyor.com/api/projects/status/github/intel/pcm?branch=master&svg=true)](https://ci.appveyor.com/project/opcm/pcm)
 - FreeBSD: [![Build Status](https://api.cirrus-ci.com/github/opcm/pcm.svg)](https://cirrus-ci.com/github/opcm/pcm)
-- Docker Hub: [![Build status](https://img.shields.io/docker/cloud/build/opcm/pcm.svg)](doc/DOCKER_README.md)
+- OS X: ![GitHub Workflow Status](https://img.shields.io/github/workflow/status/intel/pcm/Mac%20OS%20X%20build)
+- Docker container: [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/intel/pcm/Docker%20Build)](doc/DOCKER_README.md)
 
 --------------------------------------------------------------------------------
 PCM Tools
