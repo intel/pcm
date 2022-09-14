@@ -870,6 +870,8 @@ bool addEvent(PCM::RawPMUConfigs & curPMUConfigs, string eventStr)
         else if (pcm_sscanf(item) >> s_expect("name=") >> setw(255) >> config.second)
         {
             // matched and initialized name
+            if (check_for_injections(config.second))
+                return false;
         }
         else if (item == "fixed")
         {

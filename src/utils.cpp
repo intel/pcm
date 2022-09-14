@@ -5,6 +5,7 @@
 #include <iostream>
 #include <cassert>
 #include <climits>
+#include <algorithm>
 #ifdef _MSC_VER
 #include <process.h>
 #include <comdef.h>
@@ -748,4 +749,13 @@ void check_and_set_silent(int argc, char * argv[], null_stream &nullStream2)
     } while (argc > 1);
 }
 
+bool check_for_injections(const std::string & str)
+{
+    const std::array<char, 4> symbols = {'=', '+', '-', '@'};
+    if (std::find(std::begin(symbols), std::end(symbols), str[0]) != std::end(symbols)) {
+        std::cerr << "ERROR: First letter in event name: " << str << " cannot be \"" << str[0] << "\" , please use escape \"\\\" or remove it\n";
+        return true;
+    }
+    return false;
+}
 } // namespace pcm
