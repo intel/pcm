@@ -4084,6 +4084,17 @@ void PCM::cleanupRDT(const bool silent)
 
 void PCM::setOutput(const std::string filename, const bool cerrToo)
 {
+     const auto pos = filename.find_last_of("/");
+     if (pos != std::string::npos) {
+         const std::string dir_name = filename.substr(0, pos);
+         struct stat info;
+         if (stat(dir_name.c_str(), &info) != 0)
+         {
+             std::cerr << "Output directory: " << dir_name << " doesn't exist\n";
+             exit(EXIT_FAILURE);
+         }
+     }
+
      outfile = new std::ofstream(filename.c_str());
      backup_ofile = std::cout.rdbuf();
      std::cout.rdbuf(outfile->rdbuf());
