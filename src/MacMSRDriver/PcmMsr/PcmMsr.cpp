@@ -168,32 +168,12 @@ IOReturn PcmMsrDriverClassName::writeMSR(pcm_msr_data_t* idata){
 
 IOReturn PcmMsrDriverClassName::buildTopology(topologyEntry* odata, uint32_t input_num_cores)
 {
-     size_t topologyBufferSize;
-
-     // TODO figure out when input_num_cores is used rather than num_cores
-     if (os_mul_overflow(sizeof(topologyEntry), (size_t) num_cores, &topologyBufferSize))
-     {
-          return kIOReturnBadArgument;
-     }
-
-    topologyEntry *topologies =
-         (topologyEntry *)IOMallocAligned(topologyBufferSize, 32);
-
-    if (topologies == nullptr)
-    {
-        return kIOReturnNoMemory;
+    if (odata == nullptr) {
+         return kIOReturnBadArgument;
     }
 
-    mp_rendezvous_no_intrs(cpuGetTopoData, (void*)topologies);
+    mp_rendezvous_no_intrs(cpuGetTopoData, (void*)odata);
 
-    for(uint32_t i = 0; i < num_cores && i < input_num_cores; i++)
-    {
-        odata[i].core_id = topologies[i].core_id;
-        odata[i].os_id = topologies[i].os_id;
-        odata[i].socket = topologies[i].socket;
-    }
-
-    IOFreeAligned(topologies, topologyBufferSize);
     return kIOReturnSuccess;
 }
 
