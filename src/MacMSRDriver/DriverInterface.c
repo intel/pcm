@@ -32,33 +32,56 @@ kern_return_t getTopologyInfo(io_connect_t connect, topologyEntry* data, size_t*
 
 kern_return_t getNumClients(io_connect_t connect, uint32_t* num_insts)
 {
-	kern_return_t	kernResult;
-        size_t          num_outputs = 1;
+        kern_return_t   kernResult;
+        uint32_t        output_count = 1;
         uint64_t        knum_insts;
 
-        kernResult = IOConnectCallStructMethod(connect,	kGetNumInstances, NULL, 0, &knum_insts, &num_outputs);
-        *num_insts = (uint32_t)knum_insts;
+        kernResult = IOConnectCallScalarMethod(connect,
+                                               kGetNumInstances,
+                                               NULL, 0,
+                                               &knum_insts, &output_count);
+
+        if (kernResult == kIOReturnSuccess)
+        {
+             *num_insts = (uint32_t) knum_insts;
+        }
+
         return kernResult;
 }
 
 kern_return_t incrementNumClients(io_connect_t connect, uint32_t* num_insts)
 {
-	kern_return_t	kernResult;
-        size_t          num_outputs = 1;
+        kern_return_t   kernResult;
+        uint32_t        output_count = 1;
         uint64_t        knum_insts;
 
-        kernResult = IOConnectCallStructMethod(connect,	kIncrementNumInstances, NULL, 0, &knum_insts, &num_outputs);
-        *num_insts = (uint32_t)knum_insts;
+        kernResult = IOConnectCallScalarMethod(connect,
+                                               kIncrementNumInstances,
+                                               NULL, 0,
+                                               &knum_insts, &output_count);
+
+        if (kernResult == kIOReturnSuccess)
+        {
+             *num_insts = (uint32_t) knum_insts;
+        }
+
         return kernResult;
 }
 
 kern_return_t decrementNumClients(io_connect_t connect, uint32_t* num_insts)
 {
-	kern_return_t	kernResult;
-        size_t          num_outputs = 1;
+        kern_return_t   kernResult;
+        uint32_t        output_count = 1;
         uint64_t        knum_insts;
 
-        kernResult = IOConnectCallStructMethod(connect,	kDecrementNumInstances, NULL, 0, &knum_insts, &num_outputs);
-        *num_insts = (uint32_t)knum_insts;
+        kernResult = IOConnectCallScalarMethod(connect, kDecrementNumInstances,
+                                               NULL, 0,
+                                               &knum_insts, &output_count);
+
+        if (kernResult == kIOReturnSuccess)
+        {
+             *num_insts = (uint32_t) knum_insts;
+        }
+
         return kernResult;
 }
