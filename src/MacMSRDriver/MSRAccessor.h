@@ -2,12 +2,12 @@
 // Copyright (c) 2012, Intel Corporation
 // written by Austen Ott
 //    
-#include <IOKit/IOKitLib.h>
-extern "C" {
-#include "DriverInterface.h"
-}
 
-class MSRAccessor{
+#include <IOKit/IOKitLib.h>
+#include "PcmMsr/UserKernelShared.h"
+
+class MSRAccessor
+{
 private:
     io_service_t service;
     io_connect_t connect;
