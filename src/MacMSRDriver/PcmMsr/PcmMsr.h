@@ -14,7 +14,7 @@ public:
     
     virtual IOReturn writeMSR(pcm_msr_data_t* data);
     virtual IOReturn readMSR(pcm_msr_data_t* idata,pcm_msr_data_t* odata);
-    virtual IOReturn buildTopology(topologyEntry* odata, uint32_t input_num_cores);
+    virtual IOReturn buildTopology(TopologyEntry* odata, uint32_t input_num_cores);
     virtual bool init(OSDictionary *dict) override;
     virtual void free(void) override;
     virtual bool handleOpen(IOService* forClient, IOOptionBits opts, void* args) override;

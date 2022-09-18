@@ -57,7 +57,7 @@ void cpuWriteMSR(void* pIDatas){
 }
 
 void cpuGetTopoData(void* pTopos){
-    topologyEntry* entries = (topologyEntry*)pTopos;
+    TopologyEntry* entries = (TopologyEntry*)pTopos;
     int cpu = cpu_number();
     int info[4];
     entries[cpu].os_id = cpu;
@@ -166,18 +166,18 @@ IOReturn PcmMsrDriverClassName::writeMSR(pcm_msr_data_t* idata){
     return ret;
 }
 
-IOReturn PcmMsrDriverClassName::buildTopology(topologyEntry* odata, uint32_t input_num_cores)
+IOReturn PcmMsrDriverClassName::buildTopology(TopologyEntry* odata, uint32_t input_num_cores)
 {
      size_t topologyBufferSize;
 
      // TODO figure out when input_num_cores is used rather than num_cores
-     if (os_mul_overflow(sizeof(topologyEntry), (size_t) num_cores, &topologyBufferSize))
+     if (os_mul_overflow(sizeof(TopologyEntry), (size_t) num_cores, &topologyBufferSize))
      {
           return kIOReturnBadArgument;
      }
 
-    topologyEntry *topologies =
-         (topologyEntry *)IOMallocAligned(topologyBufferSize, 32);
+    TopologyEntry *topologies =
+         (TopologyEntry *)IOMallocAligned(topologyBufferSize, 32);
 
     if (topologies == nullptr)
     {

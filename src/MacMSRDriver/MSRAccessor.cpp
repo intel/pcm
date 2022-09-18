@@ -18,7 +18,7 @@ MSRAccessor::MSRAccessor()
 
 int32_t MSRAccessor::buildTopology(uint32_t num_cores, void* pTopos)
 {
-    size_t topology_struct_size = sizeof(topologyEntry)*num_cores;
+    size_t topology_struct_size = sizeof(TopologyEntry)*num_cores;
 
     kern_return_t ret = IOConnectCallStructMethod(connect, kBuildTopology,
                                                   NULL, 0,
