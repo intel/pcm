@@ -216,4 +216,8 @@ if(MSVC)
         COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${PROJECT_SOURCE_DIR}/src/PMURegisterDeclarations"
         "$<TARGET_FILE_DIR:pcm-raw>/PMURegisterDeclarations")
+    add_custom_command(TARGET pcm-service POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${PROJECT_SOURCE_DIR}/src/windows/pcm-service.exe.config"
+        $<TARGET_FILE_DIR:pcm-service>)
 endif(MSVC)
