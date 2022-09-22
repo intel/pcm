@@ -44,7 +44,7 @@ protected:
     virtual IOReturn writeMSR(pcm_msr_data_t* data);
     
     static IOReturn sBuildTopology(PcmMsrClientClassName* target, void* reference, IOExternalMethodArguments* args);
-    virtual IOReturn buildTopology(topologyEntry* data, size_t output_size);
+    virtual IOReturn buildTopology(TopologyEntry* data, size_t output_size);
     
     static IOReturn sGetNumInstances(PcmMsrClientClassName* target, void* reference, IOExternalMethodArguments* args);
     virtual IOReturn getNumInstances(uint32_t* num_insts);
