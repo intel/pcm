@@ -978,7 +978,7 @@ int main(int argc, char * argv[])
     set_signal_handlers();
 
     cerr << "\n";
-    cerr << " Processor Counter Monitor: Memory Bandwidth Monitoring Utility " << PCM_VERSION << "\n";
+    cerr << " Intel(r) Performance Counter Monitor: Memory Bandwidth Monitoring Utility " << PCM_VERSION << "\n";
     cerr << "\n";
 
     cerr << " This utility measures memory bandwidth per channel or per DIMM rank in real-time\n";

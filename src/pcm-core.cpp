@@ -274,7 +274,7 @@ int main(int argc, char * argv[])
 	set_signal_handlers();
 
 	cerr << "\n";
-	cerr << " Processor Counter Monitor: Core Monitoring Utility \n";
+	cerr << " Intel(r) Performance Counter Monitor: Core Monitoring Utility \n";
 	cerr << "\n";
 
 	double delay = -1.0;
