@@ -75,10 +75,15 @@ endif(UNIX)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
-if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT OR ${CMAKE_INSTALL_PREFIX} STREQUAL "/usr")  # default is "/usr/local", pcm default is "/usr"
+# If the Cmake install prefix is the default (i.e., new build
+# directory), which means it's /usr/local, or it's been specified as
+# /usr, force /usr into the cache (why? shouldn't it already be
+# put into the cache by CMake?).  Otherwise, the user has specified
+# it, so we use that and don't modify it.  On macOS, we accept the
+# default or whatever the user specifies, but don't use this logic
+# because /usr is read-only except for /usr/local.
+if((NOT APPLE AND CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT) OR ${CMAKE_INSTALL_PREFIX} STREQUAL "/usr")  
   set(CMAKE_INSTALL_PREFIX "/usr" CACHE PATH "..." FORCE)
-else()
-  set(CMAKE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}/usr" CACHE PATH "..." FORCE)
 endif()
 
 add_subdirectory(src)
