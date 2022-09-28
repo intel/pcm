@@ -7,22 +7,23 @@
 #pragma warning(disable : 4996) // for sprintf
 #include <windows.h>
 #include "windows/windriver.h"
-#else
-#include <unistd.h>
 #endif
-#include <fstream>
 #include <stdlib.h>
 #include <cstdint>
-#include <numeric>
-#include <bitset>
-#include <algorithm>
-#include <string.h>
 #ifdef _MSC_VER
 #include "freegetopt/getopt.h"
 #endif
 
-#include "lspci.h"
 #include "utils.h"
+#include <iomanip>
+#include <iostream>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+#include "types.h"
+#include "version.h"
+
 using namespace std;
 using namespace pcm;
 

@@ -13,7 +13,12 @@
 #include <memory>
 #include <vector>
 #include <array>
-#include "mmio.h"
+#include <stddef.h>
+#include "types.h"
+
+namespace pcm {
+  class MMIORange;
+}
 
 namespace pcm {
 

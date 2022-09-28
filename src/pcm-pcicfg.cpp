@@ -2,20 +2,22 @@
 // Copyright (c) 2012, 2018 Intel Corporation
 
 // written by Roman Dementiev
-#include "cpucounters.h"
 #ifdef _MSC_VER
 #include <windows.h>
 #include "windows/windriver.h"
-#else
-#include <unistd.h>
 #endif
 #include <iostream>
-#include <stdlib.h>
-#include <iomanip>
-#include <string.h>
 #ifdef _MSC_VER
 #include "freegetopt/getopt.h"
 #endif
+#ifdef __linux__
+#include <bits/getopt_core.h>
+#endif
+#include <exception>
+#include "pci.h"
+#include "types.h"
+#include "utils.h"
+#include "version.h"
 
 using namespace pcm;
 

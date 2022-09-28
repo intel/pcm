@@ -9,33 +9,39 @@
 #define strtok_r strtok_s
 #include <windows.h>
 #include "windows/windriver.h"
-#else
-#include <unistd.h>
-#include <signal.h>
-#include <sys/time.h> // for gettimeofday()
+#include "freegetopt/getopt.h"
 #endif
-#include <math.h>
-#include <iomanip>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <string>
+
 #include <assert.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <algorithm>
+#include <array>
 #include <bitset>
+#include <cctype>
+#include <exception>
+#include <iomanip>
+#include <iostream>
+#include <locale>
+#include <map>
+#include <memory>
 #include <regex>
+#include <fstream>
+#include <sstream>
+#include <stdexcept>
+#include <string>
 #include <unordered_map>
+#include <utility>
+#include <vector>
 #include "cpucounters.h"
+#include "types.h"
 #include "utils.h"
 
 #if PCM_SIMDJSON_AVAILABLE
 #include "simdjson.h"
 #endif
 
-#ifdef _MSC_VER
-#include "freegetopt/getopt.h"
-#endif
-
-#include <vector>
 #define PCM_DELAY_MIN 0.015 // 15 milliseconds is practical on most modern CPUs
 #define MAX_CORES 4096
 

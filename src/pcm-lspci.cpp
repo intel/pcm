@@ -7,8 +7,6 @@
 #pragma warning(disable : 4996) // for sprintf
 #include <windows.h>
 #include "windows/windriver.h"
-#else
-#include <unistd.h>
 #endif
 #include <iostream>
 #include <stdlib.h>
@@ -17,6 +15,9 @@
 #include "freegetopt/getopt.h"
 #endif
 
+#include <vector>
+#include "pci.h"
+#include "types.h"
 #include "lspci.h"
 using namespace std;
 using namespace pcm;

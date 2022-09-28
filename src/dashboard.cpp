@@ -4,6 +4,8 @@
 #include <vector>
 #include <memory>
 #include <unistd.h>
+#include <initializer_list>
+#include <mutex>
 #include "cpucounters.h"
 #include "dashboard.h"
 

@@ -5,6 +5,8 @@
 //
 
 #include <iostream>
+#include <exception>
+#include "mmio.h"
 #include "bw.h"
 #include "pci.h"
 #include "utils.h"

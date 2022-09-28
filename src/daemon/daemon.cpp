@@ -4,7 +4,6 @@
 
 #include <cstdlib>
 #include <iostream>
-#include <cstring>
 #include <algorithm>
 #include <unistd.h>
 #include <sys/types.h>
@@ -12,6 +11,20 @@
 #include <sys/shm.h>
 #include <errno.h>
 #include <time.h>
+#include <bits/getopt_core.h>
+#include <bits/types/struct_tm.h>
+#include <ctype.h>
+#include <grp.h>
+#include <stdio.h>
+#include <memory>
+#include <new>
+#include <utility>
+#include "types.h"
+#include "utils.h"
+
+#ifdef __linux__
+#include <ext/alloc_traits.h>
+#endif
 
 #ifndef CLOCK_MONOTONIC_RAW
 #define CLOCK_MONOTONIC_RAW             (4) /* needed for SLES11 */
@@ -19,7 +32,7 @@
 
 #include "daemon.h"
 #include "common.h"
-#include "pcm.h"
+#include "exceptions/unsupported_processor_exception.hpp"
 
 namespace PCMDaemon {
 

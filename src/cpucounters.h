@@ -26,13 +26,9 @@
 #include "topologyentry.h"
 #include "msr.h"
 #include "pci.h"
-#include "bw.h"
-#include "width_extender.h"
-#include "exceptions/unsupported_processor_exception.hpp"
 
 #include <vector>
 #include <array>
-#include <limits>
 #include <string>
 #include <memory>
 #include <map>
@@ -40,20 +36,17 @@
 #include <string.h>
 #include <assert.h>
 
-#ifdef PCM_USE_PERF
-#include <linux/perf_event.h>
-#include <errno.h>
-#define PCM_PERF_COUNT_HW_REF_CPU_CYCLES (9)
-#endif
+#include <algorithm>
+#include <exception>
+#include <iostream>
+#include <type_traits>
+#include <utility>
+#include "mmio.h"
+#include "utils.h"
+#include "width_extender.h"
 
-#ifndef _MSC_VER
-#define NOMINMAX
-#include <semaphore.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <sys/syscall.h>
-#include <unistd.h>
+#ifdef PCM_USE_PERF
+#define PCM_PERF_COUNT_HW_REF_CPU_CYCLES (9)
 #endif
 
 #ifdef _MSC_VER
@@ -67,19 +60,23 @@
 #endif
 
 namespace pcm {
+  class FreeRunningBWCounters;
+  class ServerBW;
+  class SystemCounterState;
+  class SocketCounterState;
+  class CoreCounterState;
+  class ServerUncoreCounterState;
+  class PCM;
+  class CoreTaskQueue;
+  class SystemRoot;
+}
+
+namespace pcm {
 
 #ifdef _MSC_VER
 void PCM_API restrictDriverAccess(LPCTSTR path);
 #endif
 
-class SystemCounterState;
-class SocketCounterState;
-class CoreCounterState;
-class BasicCounterState;
-class ServerUncoreCounterState;
-class PCM;
-class CoreTaskQueue;
-class SystemRoot;
 
 /*
         CPU performance monitoring routines
@@ -502,8 +499,6 @@ public:
 typedef SimpleCounterState PCIeCounterState;
 typedef SimpleCounterState IIOCounterState;
 typedef std::vector<uint64> eventGroup_t;
-
-class PerfVirtualControlRegister;
 
 /*!
         \brief CPU Performance Monitor

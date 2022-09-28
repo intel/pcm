@@ -13,6 +13,7 @@
 */
 
 #include "types.h"
+#include <stdexcept>
 
 #ifdef _MSC_VER
 #include "windows.h"

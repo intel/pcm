@@ -7,6 +7,8 @@
 #include <iostream>
 #include <iomanip>
 #include <cstdlib>
+#include <string>
+#include "daemon/common.h"
 
 #include "client.h"
 

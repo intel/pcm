@@ -11,6 +11,12 @@
 #include <string>
 #include <initializer_list>
 #include <algorithm>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#include <iomanip>
+#include <memory>
+#include "types.h"
 
 #if defined(_MSC_VER)
 typedef unsigned int uint;

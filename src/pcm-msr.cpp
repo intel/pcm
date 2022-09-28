@@ -6,13 +6,18 @@
 #ifdef _MSC_VER
 #include <windows.h>
 #include "windows/windriver.h"
-#else
-#include <unistd.h>
 #endif
 #include <iostream>
-#include <stdlib.h>
-#include <iomanip>
-#include <string.h>
+
+#ifdef __linux__
+#include <bits/getopt_core.h>
+#endif
+#include <exception>
+#include "msr.h"
+#include "types.h"
+#include "utils.h"
+#include "version.h"
+
 #ifdef _MSC_VER
 #include "freegetopt/getopt.h"
 #endif

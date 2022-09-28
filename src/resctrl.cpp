@@ -7,10 +7,18 @@
 #include "resctrl.h"
 #include "cpucounters.h"
 #include <sys/stat.h>
-#include <sys/types.h>
 #include <string>
 #include <iostream>
-#include <cstdlib>
+#include <errno.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <iomanip>
+#include <mutex>
+#include <sstream>
+#include <utility>
+#include "types.h"
+#include "utils.h"
 
 namespace pcm
 {

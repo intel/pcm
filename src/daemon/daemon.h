@@ -8,10 +8,12 @@
 #include <sys/types.h>
 #include <map>
 #include <string>
-#include <grp.h>
 
 #include "common.h"
-#include "pcm.h"
+#include <vector>
+#include "cpucounters.h"
+
+using namespace pcm;
 
 namespace PCMDaemon {
 

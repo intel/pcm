@@ -8,10 +8,6 @@
 #ifdef _MSC_VER
 #include <windows.h>
 #include "windows/windriver.h"
-#else
-#include <unistd.h>
-#include <signal.h>
-#include <sys/time.h> // for gettimeofday()
 #endif
 #include <iostream>
 #include <stdlib.h>
@@ -20,6 +16,20 @@
 #include "freegetopt/getopt.h"
 #endif
 #include "utils.h"
+#include <stdint.h>
+#include <utility>
+#include "types.h"
+#include <assert.h>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+#include "types.h"
+#include "version.h"
+
+#ifdef __linux__
+#include <ext/alloc_traits.h>
+#endif
 
 #define PCM_DELAY_DEFAULT 1.0       // in seconds
 #define PCM_DELAY_MIN 0.015         // 15 milliseconds is practical on most modern CPUs

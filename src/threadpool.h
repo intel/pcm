@@ -11,6 +11,9 @@
 #include <mutex>
 #include <condition_variable>
 #include <queue>
+#include <stddef.h>
+#include <memory>
+#include <vector>
 
 namespace pcm {
 
@@ -41,8 +44,6 @@ public:
 private:
     std::packaged_task<ReturnType()> task_;
 };
-
-class WorkQueue;
 
 class ThreadPool {
 private:

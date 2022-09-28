@@ -11,18 +11,28 @@
 #include "types.h"
 #include "cpucounters.h"
 #include "threadpool.h"
-
-namespace pcm {
+#include <stddef.h>
+#include <chrono>
+#include <iomanip>
+#include <memory>
+#include <ostream>
+#include <stdexcept>
+#include "debug.h"
 
 // all can be done with forwards, anything hat actually uses PCM should be put in the topology.cpp file
-class PCM;
+namespace pcm {
+    class SafeMsrHandle;
+    class PCM;
+    class SystemRoot;
+    class Socket;
+    class Core;
+    class HyperThread;
+    class ServerUncore;
+    class ClientUncore;
 
-class SystemRoot;
-class Socket;
-class Core;
-class HyperThread;
-class ServerUncore;
-class ClientUncore;
+}
+
+namespace pcm {
 
 class Visitor {
 public:

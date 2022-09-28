@@ -8,11 +8,8 @@
 #pragma warning(disable : 4996) // for sprintf
 #include <windows.h>
 #include "windows/windriver.h"
-#else
-#include <unistd.h>
 #endif
 #include <memory>
-#include <fstream>
 #include <stdlib.h>
 #include <stdexcept>      // std::length_error
 #include <cstdint>
@@ -22,6 +19,18 @@
 #include "freegetopt/getopt.h"
 #endif
 
+#include <cstdio>
+#include <iomanip>
+#include <iostream>
+#include <iterator>
+#include <limits>
+#include <map>
+#include <string>
+#include <utility>
+#include <vector>
+#include "pci.h"
+#include "types.h"
+#include "version.h"
 #include "lspci.h"
 #include "utils.h"
 using namespace std;

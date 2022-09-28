@@ -8,15 +8,18 @@
 #include <iostream>
 #include <stdexcept>
 #include <stdio.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <fcntl.h>
+#include <exception>
+#include <iomanip>
+#include <memory>
+#include <string>
+
 #include "pci.h"
 
 #ifndef _MSC_VER
 #include <sys/mman.h>
 #include <errno.h>
-#include <strings.h>
+#include <unistd.h>
 #endif
 
 #ifdef _MSC_VER

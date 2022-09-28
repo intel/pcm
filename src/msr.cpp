@@ -4,9 +4,7 @@
 //            Austen Ott
 //            Jim Harris (FreeBSD)
 
-#include <sys/types.h>
 #include <stdio.h>
-#include <sys/stat.h>
 #include <fcntl.h>
 #ifndef _MSC_VER
 #include <unistd.h>
@@ -14,7 +12,12 @@
 #include "types.h"
 #include "msr.h"
 #include "utils.h"
-#include <assert.h>
+
+#include <errno.h>
+#include <string.h>
+#include <exception>
+#include <iostream>
+#include <string>
 
 #ifdef _MSC_VER
 
@@ -29,8 +32,6 @@
 #include <sys/ioccom.h>
 #include <sys/cpuctl.h>
 #endif
-
-#include <mutex>
 
 namespace pcm {
 

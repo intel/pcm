@@ -10,23 +10,22 @@
 #ifdef _MSC_VER
 #include <windows.h>
 #include "windows/windriver.h"
-#else
-#include <unistd.h>
-#include <signal.h>
-#include <sys/time.h> // for gettimeofday()
+#include "freegetopt/getopt.h"
 #endif
-#include <math.h>
 #include <iomanip>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <string>
-#include <assert.h>
 #include "cpucounters.h"
 #include "utils.h"
-#ifdef _MSC_VER
-#include "freegetopt/getopt.h"
-#endif
+#include <memory>
+#include <string>
+#include <vector>
+#include "types.h"
+#include "version.h"
+#include <utility>
+#include "exceptions/unsupported_processor_exception.hpp"
 
 #include <vector>
 #define PCM_DELAY_DEFAULT 1.0       // in seconds

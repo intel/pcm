@@ -14,9 +14,11 @@
 */
 #include <iostream>
 #include <string>
-#include <sstream>
 #include "cpuasynchcounter.h"
 #include "utils.h"
+#include "cpucounters.h"
+#include "types.h"
+#include "version.h"
 
 using namespace std;
 using namespace pcm;

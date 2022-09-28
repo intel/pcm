@@ -10,17 +10,18 @@
 
 #ifdef __linux__
 
-#include <stdlib.h>
 #include <stdio.h>
 #include <unordered_map>
 #include <vector>
-#include <mutex>
-#include <memory>
+#include <string>
 
 namespace pcm
 {
     class PCM;
+}
 
+namespace pcm
+{
     class Resctrl
     {
         PCM & pcm;

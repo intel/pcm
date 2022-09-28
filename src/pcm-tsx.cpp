@@ -10,18 +10,12 @@
 #ifdef _MSC_VER
 #include <windows.h>
 #include "windows/windriver.h"
-#else
-#include <unistd.h>
-#include <signal.h>
-#include <sys/time.h> // for gettimeofday()
 #endif
-#include <math.h>
 #include <iomanip>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <string>
-#include <assert.h>
 #include "cpucounters.h"
 #include "utils.h"
 #ifdef _MSC_VER
@@ -29,6 +23,10 @@
 #endif
 
 #include <vector>
+#include <memory>
+#include <utility>
+#include "types.h"
+
 #define PCM_DELAY_DEFAULT 1.0       // in seconds
 #define PCM_DELAY_MIN 0.015         // 15 milliseconds is practical on most modern CPUs
 

@@ -17,12 +17,8 @@
 #include "windows.h"
 #include "winpmem\winpmem.h"
 #include "Winmsrdriver\msrstruct.h"
-#else
-#include <unistd.h>
-#endif
-
 #include "mutex.h"
-#include <memory>
+#endif
 
 namespace pcm {
 

@@ -3,7 +3,6 @@
 // written by Andrey Semin and many others
 
 #include <iostream>
-#include <cassert>
 #include <climits>
 #ifdef _MSC_VER
 #include <process.h>
@@ -11,7 +10,16 @@
 #else
 #include <sys/wait.h> // for waitpid()
 #include <unistd.h> // for ::sleep
+#include <sched.h>
 #endif
+
+
+#include <errno.h>
+#include <csignal>
+#include <cstdlib>
+#include <cstring>
+#include <fstream>
+
 #include "utils.h"
 #include "cpucounters.h"
 

@@ -14,20 +14,22 @@
 #include "windows/windriver.h"
 #else
 #include <unistd.h>
-#include <signal.h>   // for atexit()
-#include <sys/time.h> // for gettimeofday()
 #endif
-#include <math.h>
 #include <iomanip>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <cstring>
 #include <sstream>
-#include <assert.h>
 #include <bitset>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
 #include "cpucounters.h"
 #include "utils.h"
+#include "types.h"
+#include "version.h"
 
 #define SIZE (10000000)
 #define PCM_DELAY_DEFAULT 1.0 // in seconds

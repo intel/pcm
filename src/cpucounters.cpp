@@ -46,7 +46,9 @@
 #include "winring0/OlsApiInit.h"
 #include "windows/windriver.h"
 #else
+#include <sched.h>
 #include <pthread.h>
+#include <unistd.h>
 #if defined(__FreeBSD__) || (defined(__DragonFly__) && __DragonFly_version >= 400707)
 #include <pthread_np.h>
 #include <sys/_cpuset.h>
@@ -58,20 +60,37 @@
 #include <sys/mman.h>
 #include <dirent.h>
 #include <sys/resource.h>
+#include <bits/strings_fortified.h>
+
+#ifdef PCM_USE_PERF
+#include <linux/perf_event.h>
+#include <syscall.h>
+#endif
+
 #endif
 #endif
 
 #include <string.h>
-#include <limits>
 #include <map>
 #include <algorithm>
 #include <thread>
 #include <future>
-#include <functional>
 #include <queue>
 #include <condition_variable>
 #include <mutex>
 #include <atomic>
+#include <fcntl.h>
+#include <sys/types.h>
+#include <cstdlib>
+#include <fstream>
+#include <initializer_list>
+#include <iomanip>
+#include <stdexcept>
+#include <system_error>
+#include "bw.h"
+#include "exceptions/unsupported_processor_exception.hpp"
+#include "mutex.h"
+#include "width_extender.h"
 
 #ifdef __APPLE__
 #include <sys/types.h>

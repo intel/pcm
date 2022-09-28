@@ -1,6 +1,10 @@
 #define UNIT_TEST 1
 
 #include "../src/pcm-sensor-server.cpp"
+#include <iostream>
+#include <stdexcept>
+#include <string>
+#include <vector>
 
 #undef UNIT_TEST
 

@@ -10,22 +10,33 @@
 #pragma once
 
 #include <cstdio>
-#include <cstring>
-#include <fstream>
-#include <time.h>
 #include "types.h"
 #include <vector>
 #include <chrono>
 #include <math.h>
 #include <assert.h>
+#include <stdlib.h>
+#include <initializer_list>
+#include <iomanip>
+#include <iostream>
+#include <string>
+#include <type_traits>
+#include <utility>
+
+#ifdef __linux__
+#include <bits/types/struct_tm.h>
+#endif
 
 #ifndef _MSC_VER
-#include <csignal>
 #include <ctime>
-#include <cmath>
+#include <unistd.h>
 #else
 #include <intrin.h>
 #endif
+
+namespace pcm {
+  class PCM;
+}
 
 namespace pcm {
 
@@ -313,7 +324,6 @@ inline void printDateForJson(const std::string& separator, const std::string &js
 
 std::vector<std::string> split(const std::string & str, const char delim);
 
-class PCM;
 bool CheckAndForceRTMAbortMode(const char * argv, PCM * m);
 
 void print_help_force_rtm_abort_mode(const int alignment);

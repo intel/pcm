@@ -11,21 +11,19 @@
 #define strtok_r strtok_s
 #include <windows.h>
 #include "windows/windriver.h"
-#else
-#include <unistd.h>
-#include <signal.h>
-#include <sys/time.h> // for gettimeofday()
 #endif
-#include <math.h>
 #include <iomanip>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <string>
-#include <assert.h>
 #include <bitset>
 #include "cpucounters.h"
 #include "utils.h"
+#include <stdint.h>
+#include <utility>
+#include "types.h"
+
 #ifdef _MSC_VER
 #include "freegetopt/getopt.h"
 #endif
