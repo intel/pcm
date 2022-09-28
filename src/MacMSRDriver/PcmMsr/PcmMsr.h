@@ -14,14 +14,14 @@ public:
     
     virtual IOReturn writeMSR(pcm_msr_data_t* data);
     virtual IOReturn readMSR(pcm_msr_data_t* idata,pcm_msr_data_t* odata);
-    virtual IOReturn buildTopology(topologyEntry* odata, uint32_t input_num_cores);
+    virtual IOReturn buildTopology(TopologyEntry* odata, uint32_t input_num_cores);
     virtual bool init(OSDictionary *dict) override;
     virtual void free(void) override;
     virtual bool handleOpen(IOService* forClient, IOOptionBits opts, void* args) override;
     virtual bool handleIsOpen(const IOService* forClient) const override;
     virtual void handleClose(IOService* forClient, IOOptionBits opts) override;
     
-    virtual uint32_t getNumCores();
+    virtual int32_t getNumCores();
     
     virtual IOReturn incrementNumInstances(uint32_t* num_instances);
     virtual IOReturn decrementNumInstances(uint32_t* num_instances);
@@ -36,8 +36,7 @@ public:
 private:
     // number of providers currently using the driver
     uint32_t num_clients = 0;
-    uint32_t num_cores;
-    kTopologyEntry *topologies;
+    int32_t num_cores;
 };
 
 #ifdef DEBUG

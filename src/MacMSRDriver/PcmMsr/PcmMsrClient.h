@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2012, Intel Corporation
 // written by Austen Ott
-//    
+//
 #include <IOKit/IOService.h>
 #include <IOKit/IOUserClient.h>
 #include "PcmMsr.h"
@@ -11,24 +11,26 @@
 class PcmMsrClientClassName : public IOUserClient
 {
     OSDeclareDefaultStructors(com_intel_driver_PcmMsrClient)
-    
+
 protected:
     PcmMsrDriverClassName*                  fProvider;
     static const IOExternalMethodDispatch   sMethods[kNumberOfMethods];
-    
+
 public:
-    virtual bool start(IOService *provider);
-    
-    virtual IOReturn clientClose(void);
-    
-    virtual bool didTerminate(IOService* provider, IOOptionBits opts, bool* defer);
-    
+    virtual bool start(IOService *provider) override;
+
+    virtual IOReturn clientClose(void) override;
+
+    virtual bool didTerminate(IOService* provider, IOOptionBits opts, bool* defer) override;
+
 protected:
     IOReturn checkActiveAndOpened (const char* memberFunction);
-    
-    virtual IOReturn externalMethod(uint32_t selector, IOExternalMethodArguments* arguments,
-									IOExternalMethodDispatch* dispatch, OSObject* target, void* reference);
-    
+
+    virtual IOReturn externalMethod(uint32_t selector,
+                                    IOExternalMethodArguments* arguments,
+                                    IOExternalMethodDispatch* dispatch,
+                                    OSObject* target, void* reference) override;
+
     static IOReturn sOpenDriver(PcmMsrClientClassName* target, void* reference, IOExternalMethodArguments* args);
     virtual IOReturn openUserClient(void);
     
@@ -42,7 +44,7 @@ protected:
     virtual IOReturn writeMSR(pcm_msr_data_t* data);
     
     static IOReturn sBuildTopology(PcmMsrClientClassName* target, void* reference, IOExternalMethodArguments* args);
-    virtual IOReturn buildTopology(topologyEntry* data, size_t output_size);
+    virtual IOReturn buildTopology(TopologyEntry* data, size_t output_size);
     
     static IOReturn sGetNumInstances(PcmMsrClientClassName* target, void* reference, IOExternalMethodArguments* args);
     virtual IOReturn getNumInstances(uint32_t* num_insts);

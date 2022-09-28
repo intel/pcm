@@ -1,13 +1,13 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright (c) 2022, Intel Corporation
- 
+
 set(CMAKE_MACOSX_RPATH 1)
 
 set(CMAKE_CXX_FLAGS "-Wall")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g")
 
-file(GLOB LIB_FILES DriverInterface.c PCIDriverInterface.cpp MSRAccessor.cpp)
+file(GLOB LIB_FILES PCIDriverInterface.cpp MSRAccessor.cpp)
 
 find_library(IOKIT_LIBRARY IOKit)
 add_library(PcmMsr SHARED ${LIB_FILES})
@@ -17,6 +17,3 @@ add_subdirectory(PcmMsr)
 
 # Installation
 install(TARGETS PcmMsr DESTINATION "local/lib")
-install(FILES MSRAccessorPublic.h DESTINATION "local/include" RENAME MSRAccessor.h)
-install(FILES MSRKernel.h DESTINATION "local/include")
-install(FILES PCIDriverInterface.h DESTINATION "local/include")

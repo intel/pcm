@@ -9,7 +9,7 @@ on:
 jobs:
   job-build1:
     runs-on: ci-gcc9
-    if: ${{ github.repository != 'opcm/pcm' }}
+    if: ${{ github.repository != 'intel/pcm' }}
 
     steps:
     - uses: actions/checkout@v2
@@ -32,7 +32,7 @@ jobs:
 
   job-build2:
     runs-on: ci-test
-    if: ${{ github.repository != 'opcm/pcm' }}
+    if: ${{ github.repository != 'intel/pcm' }}
 
     steps:
     - uses: actions/checkout@v2

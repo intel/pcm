@@ -14,10 +14,11 @@ Intel&reg; Performance Counter Monitor (Intel&reg; PCM) is an application progra
 Current Build Status
 --------------------------------------------------------------------------------
 
-- Linux and OSX: [![Build Status](https://travis-ci.com/opcm/pcm.svg?branch=master)](https://travis-ci.com/opcm/pcm)
-- Windows: [![Build status](https://ci.appveyor.com/api/projects/status/github/opcm/pcm?branch=master&svg=true)](https://ci.appveyor.com/project/opcm/pcm)
-- FreeBSD: [![Build Status](https://api.cirrus-ci.com/github/opcm/pcm.svg)](https://cirrus-ci.com/github/opcm/pcm)
-- Docker Hub: [![Build status](https://img.shields.io/docker/cloud/build/opcm/pcm.svg)](doc/DOCKER_README.md)
+- Linux: [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/intel/pcm/Linux%20make/master)](https://github.com/intel/pcm/actions/workflows/linux_make.yml?query=branch%3Amaster)
+- Windows: [![Build status](https://ci.appveyor.com/api/projects/status/github/intel/pcm?branch=master&svg=true)](https://ci.appveyor.com/project/opcm/pcm)
+- FreeBSD: [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/intel/pcm/FreeBSD%20build/master)](https://github.com/intel/pcm/actions/workflows/freebsd_build.yml?query=branch%3Amaster)
+- OS X: [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/intel/pcm/Mac%20OS%20X%20build/master)](https://github.com/intel/pcm/actions/workflows/macosx_build.yml?query=branch%3Amaster)
+- Docker container: [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/intel/pcm/Docker%20Build/master)](doc/DOCKER_README.md)
 
 --------------------------------------------------------------------------------
 PCM Tools

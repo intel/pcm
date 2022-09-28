@@ -13,6 +13,8 @@
 
 #undef PCM_DEBUG
 
+#ifndef KERNEL
+
 #include <iostream>
 #include <istream>
 #include <sstream>
@@ -22,6 +24,8 @@
 #ifdef _MSC_VER
 #include <windows.h>
 #endif
+
+#endif // #ifndef KERNEL
 
 namespace pcm {
 
@@ -383,6 +387,8 @@ struct FixedEventControlRegister
     FixedEventControlRegister() : value(0) {}
 };
 
+#ifndef KERNEL
+
 inline std::ostream & operator << (std::ostream & o, const FixedEventControlRegister & reg)
 {
     o << "os0\t\t" << reg.fields.os0 << "\n";
@@ -403,6 +409,8 @@ inline std::ostream & operator << (std::ostream & o, const FixedEventControlRegi
     o << "reserved1\t" << reg.fields.reserved1 << "\n";
     return o;
 }
+
+#endif // #ifndef KERNEL
 
 // UNCORE COUNTER CONTROL
 
@@ -1256,6 +1264,8 @@ union cvt_ds
     } ui32;
 };
 
+#ifndef KERNEL
+
 struct MCFGRecord
 {
     unsigned long long baseAddress;
@@ -1297,6 +1307,8 @@ struct MCFGHeader
         std::cout << "Header: length=" << length << " nrecords=" << nrecords() << "\n";
     }
 };
+
+#endif // #ifndef KERNEL
 
 } // namespace pcm
 

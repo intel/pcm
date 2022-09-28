@@ -6,10 +6,17 @@
 set(PROJECT_NAMES pcm pcm-numa pcm-latency pcm-power pcm-msr pcm-memory pcm-tsx pcm-pcie pcm-core pcm-iio pcm-lspci pcm-pcicfg pcm-mmio pcm-raw)
 
 file(GLOB COMMON_SOURCES msr.cpp cpucounters.cpp pci.cpp mmio.cpp bw.cpp utils.cpp topology.cpp debug.cpp threadpool.cpp)
-file(GLOB UNUX_SOURCES dashboard.cpp resctrl.cpp)
+
+if (APPLE)
+  file(GLOB UNUX_SOURCES dashboard.cpp)
+else()
+  file(GLOB UNUX_SOURCES dashboard.cpp resctrl.cpp)
+endif()
 
 if(UNIX)  # LINUX, FREE_BSD, APPLE
-    set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS} -s")  # --strip-unneeded for packaging
+    if (NOT APPLE)
+      set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS} -s")  # --strip-unneeded for packaging
+    endif()
 
     list(APPEND PROJECT_NAMES pcm-sensor)
     if(LINUX)
