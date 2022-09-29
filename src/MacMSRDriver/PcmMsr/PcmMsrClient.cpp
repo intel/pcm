@@ -154,12 +154,12 @@ IOReturn PcmMsrClientClassName::writeMSR(pcm_msr_data_t* data)
 }
 
 IOReturn PcmMsrClientClassName::sBuildTopology(PcmMsrClientClassName* target, void* reference, IOExternalMethodArguments* args){
-    return target -> buildTopology((topologyEntry*)args->structureOutput, args->structureOutputSize);
+    return target -> buildTopology((TopologyEntry*)args->structureOutput, args->structureOutputSize);
 }
 
-IOReturn PcmMsrClientClassName::buildTopology(topologyEntry* data, size_t output_size)
+IOReturn PcmMsrClientClassName::buildTopology(TopologyEntry* data, size_t output_size)
 {
-    uint32_t num_cores = (uint32_t) (output_size / sizeof(topologyEntry) );
+    uint32_t num_cores = (uint32_t) (output_size / sizeof(TopologyEntry) );
     IOReturn	result = checkActiveAndOpened (__FUNCTION__);
     
     if (result == kIOReturnSuccess)

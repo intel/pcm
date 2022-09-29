@@ -1276,8 +1276,11 @@ bool PCM::discoverSystemTopology()
         MSR.push_back(std::make_shared<SafeMsrHandle>(i));
     }
 
-    TopologyEntry *entries = new TopologyEntry[num_cores];
-    MSR[0]->buildTopology(num_cores, entries);
+    TopologyEntry entries[num_cores];
+    if (MSR[0]->buildTopology(num_cores, entries) != 0) {
+      std::cerr << "Unable to build CPU topology" << std::endl;
+      return false;
+    }
     for(int i = 0; i < num_cores; i++){
         socketIdMap[entries[i].socket] = 0;
         if(entries[i].os_id >= 0)
@@ -1285,15 +1288,13 @@ bool PCM::discoverSystemTopology()
             if(entries[i].core_id == 0 && entries[i].socket == 0) ++threads_per_core;
             if (populateHybridEntry(entries[i], i) == false)
             {
-                delete[] entries;
                 return false;
             }
             topology.push_back(entries[i]);
         }
     }
-    delete[] entries;
 // End of OSX specific code
-#endif // end of ifndef __APPLE__
+#endif
 
 #endif //end of ifdef _MSC_VER
 
@@ -4537,14 +4538,14 @@ PCM::ErrorCode PCM::programServerUncoreLatencyMetrics(bool enable_pmm)
     if (enable_pmm == false)
     {   //DDR is false
         if (ICX == cpu_model)
-	{ 
+	{
             DDRConfig[0] = MC_CH_PCI_PMON_CTL_EVENT(0x80) + MC_CH_PCI_PMON_CTL_UMASK(1);  // DRAM RPQ occupancy
             DDRConfig[1] = MC_CH_PCI_PMON_CTL_EVENT(0x10) + MC_CH_PCI_PMON_CTL_UMASK(1);  // DRAM RPQ Insert
             DDRConfig[2] = MC_CH_PCI_PMON_CTL_EVENT(0x81) + MC_CH_PCI_PMON_CTL_UMASK(0);  // DRAM WPQ Occupancy
             DDRConfig[3] = MC_CH_PCI_PMON_CTL_EVENT(0x20) + MC_CH_PCI_PMON_CTL_UMASK(0);  // DRAM WPQ Insert
-	    
+
 	} else {
-	    
+
             DDRConfig[0] = MC_CH_PCI_PMON_CTL_EVENT(0x80) + MC_CH_PCI_PMON_CTL_UMASK(0);  // DRAM RPQ occupancy
             DDRConfig[1] = MC_CH_PCI_PMON_CTL_EVENT(0x10) + MC_CH_PCI_PMON_CTL_UMASK(0);  // DRAM RPQ Insert
             DDRConfig[2] = MC_CH_PCI_PMON_CTL_EVENT(0x81) + MC_CH_PCI_PMON_CTL_UMASK(0);  // DRAM WPQ Occupancy

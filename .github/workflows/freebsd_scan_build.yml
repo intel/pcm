@@ -1,0 +1,34 @@
+name: FreeBSD clang-scan build
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+
+    runs-on: macos-12
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+    - name: clang scan build in FreeBSD VM
+      id: clang-scan-build
+      uses: vmactions/freebsd-vm@v0
+      with:
+        usesh: true
+        prepare: |
+          pkg install -y curl gmake cmake devel/llvm llvm
+
+        run: |
+          pwd
+          ls -lah
+          whoami
+          env
+          freebsd-version
+          scan-build cmake -B build -DCMAKE_INSTALL_PREFIX=.
+          cd build
+          scan-build --exclude src/simdjson --status-bugs gmake -j
