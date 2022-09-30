@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2016-2020, Intel Corporation
 
-#include <utility>
 #include "cpucounters.h"
 #include "topology.h"
+
+#include <utility>
 
 namespace pcm {
 

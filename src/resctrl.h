@@ -11,9 +11,9 @@
 #ifdef __linux__
 
 #include <stdio.h>
+#include <string>
 #include <unordered_map>
 #include <vector>
-#include <string>
 
 namespace pcm
 {

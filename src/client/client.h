@@ -3,6 +3,7 @@
 // written by Steven Briscoe
 
 #include <string>
+
 #include "../daemon/common.h"
 
 #ifndef CLIENT_H_

@@ -2,37 +2,33 @@
 // Copyright (c) 2009-2018,2022 Intel Corporation
 // written by Steven Briscoe
 
-#include <cstdlib>
-#include <iostream>
-#include <algorithm>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
-#include <errno.h>
-#include <time.h>
-#include <bits/getopt_core.h>
-#include <bits/types/struct_tm.h>
-#include <ctype.h>
-#include <grp.h>
-#include <stdio.h>
-#include <memory>
-#include <new>
-#include <utility>
+#include "common.h"
+#include "daemon.h"
+#include "exceptions/unsupported_processor_exception.hpp"
 #include "types.h"
 #include "utils.h"
+
+#include <algorithm>
+#include <bits/getopt_core.h>
+#include <bits/types/struct_tm.h>
+#include <cstdlib>
+#include <ctype.h>
+#include <errno.h>
+#include <grp.h>
+#include <iostream>
+#include <memory>
+#include <new>
+#include <stdio.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <sys/types.h>
+#include <time.h>
+#include <unistd.h>
+#include <utility>
 
 #ifdef __linux__
 #include <ext/alloc_traits.h>
 #endif
-
-#ifndef CLOCK_MONOTONIC_RAW
-#define CLOCK_MONOTONIC_RAW             (4) /* needed for SLES11 */
-#endif
-
-#include "daemon.h"
-#include "common.h"
-#include "exceptions/unsupported_processor_exception.hpp"
 
 namespace PCMDaemon {
 

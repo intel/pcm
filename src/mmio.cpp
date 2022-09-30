@@ -4,21 +4,19 @@
 //            Patrick Konsor
 //
 
-#include <iostream>
-#include <string.h>
 #include <exception>
 #include <fcntl.h>
-#include "mmio.h"
+#include <iostream>
+#include <string.h>
 
-#ifndef _MSC_VER
-#include <sys/mman.h>
-#include <errno.h>
-#endif
+#include "mmio.h"
+#include "utils.h"
 
 #ifdef _MSC_VER
 #include <windows.h>
-#include "utils.h"
 #else
+#include <errno.h>
+#include <sys/mman.h>
 #include <unistd.h>
 #endif
 

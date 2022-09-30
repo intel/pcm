@@ -5,27 +5,27 @@
 // added PPD cycles by Thomas Willhalm
 
 #include "cpucounters.h"
+#include "types.h"
+#include "types.h"
+#include "utils.h"
+#include "version.h"
+
+#include <assert.h>
+#include <iomanip>
+#include <iostream>
+#include <memory>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string>
+#include <utility>
+#include <utility>
+#include <vector>
+
 #ifdef _MSC_VER
+#include "freegetopt/getopt.h"
 #include <windows.h>
 #include "windows/windriver.h"
 #endif
-#include <iostream>
-#include <stdlib.h>
-#include <iomanip>
-#ifdef _MSC_VER
-#include "freegetopt/getopt.h"
-#endif
-#include "utils.h"
-#include <stdint.h>
-#include <utility>
-#include "types.h"
-#include <assert.h>
-#include <memory>
-#include <string>
-#include <utility>
-#include <vector>
-#include "types.h"
-#include "version.h"
 
 #ifdef __linux__
 #include <ext/alloc_traits.h>

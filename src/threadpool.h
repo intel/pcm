@@ -5,14 +5,14 @@
 
 #include "debug.h"
 
-#include <thread>
-#include <future>
-#include <functional>
-#include <mutex>
 #include <condition_variable>
+#include <functional>
+#include <future>
+#include <memory>
+#include <mutex>
 #include <queue>
 #include <stddef.h>
-#include <memory>
+#include <thread>
 #include <vector>
 
 namespace pcm {

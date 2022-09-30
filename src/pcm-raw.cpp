@@ -4,39 +4,40 @@
  /*!     \file pcm-raw.cpp
          \brief Example of using CPU counters: implements a performance counter monitoring utility with raw events interface
    */
-#include <iostream>
-#ifdef _MSC_VER
-#define strtok_r strtok_s
-#include <windows.h>
-#include "windows/windriver.h"
-#include "freegetopt/getopt.h"
-#endif
 
-#include <assert.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include "cpucounters.h"
+#include "types.h"
+#include "utils.h"
+
 #include <algorithm>
 #include <array>
+#include <assert.h>
 #include <bitset>
 #include <cctype>
 #include <exception>
+#include <fstream>
 #include <iomanip>
+#include <iostream>
 #include <iostream>
 #include <locale>
 #include <map>
 #include <memory>
 #include <regex>
-#include <fstream>
 #include <sstream>
 #include <stdexcept>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string>
 #include <unordered_map>
 #include <utility>
 #include <vector>
-#include "cpucounters.h"
-#include "types.h"
-#include "utils.h"
+
+#ifdef _MSC_VER
+#include "freegetopt/getopt.h"
+#include "windows/windriver.h"
+#include <windows.h>
+#endif
 
 #if PCM_SIMDJSON_AVAILABLE
 #include "simdjson.h"

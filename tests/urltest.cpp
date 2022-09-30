@@ -1,12 +1,11 @@
 #define UNIT_TEST 1
-
 #include "../src/pcm-sensor-server.cpp"
+#undef UNIT_TEST
+
 #include <iostream>
 #include <stdexcept>
 #include <string>
 #include <vector>
-
-#undef UNIT_TEST
 
 std::vector<std::string> urls{
     "http://otto:test@www.intel.com/~otto/file1.txt",

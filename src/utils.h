@@ -9,22 +9,23 @@
 
 #pragma once
 
-#include <cstdio>
 #include "types.h"
-#include <vector>
-#include <chrono>
-#include <math.h>
+
 #include <assert.h>
-#include <stdlib.h>
+#include <chrono>
+#include <cstdio>
 #include <initializer_list>
 #include <iomanip>
 #include <iostream>
+#include <math.h>
+#include <stdlib.h>
 #include <string>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 #ifdef __linux__
-#include <bits/types/struct_tm.h>
+#include <time.h>
 #endif
 
 #ifndef _MSC_VER

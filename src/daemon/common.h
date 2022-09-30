@@ -5,6 +5,7 @@
 #ifndef COMMON_H_
 #define COMMON_H_
 
+#include <algorithm>
 #include <cstring>
 #include <stdint.h>
 

@@ -5,13 +5,13 @@
 #ifndef DAEMON_H_
 #define DAEMON_H_
 
+#include "common.h"
+#include "cpucounters.h"
+
+#include <string>
 #include <sys/types.h>
 #include <map>
-#include <string>
-
-#include "common.h"
 #include <vector>
-#include "cpucounters.h"
 
 using namespace pcm;
 

@@ -10,10 +10,11 @@
 
 */
 
-#include <memory>
-#include <vector>
 #include <array>
+#include <memory>
 #include <stddef.h>
+#include <vector>
+
 #include "types.h"
 
 namespace pcm {

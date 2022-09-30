@@ -2,15 +2,15 @@
 // Copyright (c) 2009-2017, Intel Corporation
 // written by Steven Briscoe
 
-#include <iostream>
-#include <unistd.h>
-#include <sys/shm.h>
 #include <errno.h>
+#include <iostream>
+#include <sstream>
 #include <stdexcept>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sstream>
+#include <sys/shm.h>
+#include <unistd.h>
 
 #include "../daemon/common.h"
 #include "client.h"

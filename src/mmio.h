@@ -14,10 +14,10 @@
 #include "types.h"
 
 #ifdef _MSC_VER
-#include "windows.h"
-#include "winpmem\winpmem.h"
-#include "Winmsrdriver\msrstruct.h"
 #include "mutex.h"
+#include "windows.h"
+#include "winmsrdriver\msrstruct.h"
+#include "winpmem\winpmem.h"
 #endif
 
 namespace pcm {

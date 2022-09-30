@@ -15,6 +15,8 @@
 
 #include "types.h"
 
+#include <vector>
+
 #ifdef _MSC_VER
 #include "windows.h"
 #endif
@@ -22,8 +24,6 @@
 #ifdef __APPLE__
 #include "PCIDriverInterface.h"
 #endif
-
-#include <vector>
 
 namespace pcm {
 

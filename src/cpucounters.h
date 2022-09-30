@@ -22,42 +22,36 @@
 #undef PCM_DEBUG_TOPOLOGY // debug of topology enumeration routine
 #undef PCM_UNCORE_PMON_BOX_CHECK_STATUS // debug only
 
-#include "types.h"
-#include "topologyentry.h"
 #include "msr.h"
 #include "pci.h"
-
-#include <vector>
-#include <array>
-#include <string>
-#include <memory>
-#include <map>
-#include <unordered_map>
-#include <string.h>
-#include <assert.h>
+#include "types.h"
+#include "topologyentry.h"
 
 #include <algorithm>
+#include <array>
+#include <assert.h>
 #include <exception>
 #include <iostream>
+#include <map>
+#include <memory>
+#include <unordered_map>
+#include <string>
+#include <string.h>
 #include <type_traits>
 #include <utility>
+#include <vector>
+
 #include "mmio.h"
 #include "utils.h"
 #include "width_extender.h"
 
-#ifdef PCM_USE_PERF
 #define PCM_PERF_COUNT_HW_REF_CPU_CYCLES (9)
-#endif
 
 #ifdef _MSC_VER
-#if _MSC_VER>= 1600
 #include <intrin.h>
 #endif
-#endif
 
-#ifdef __linux__
 #include "resctrl.h"
-#endif
 
 namespace pcm {
   class FreeRunningBWCounters;

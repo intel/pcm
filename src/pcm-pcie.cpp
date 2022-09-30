@@ -7,14 +7,17 @@
 /*!     \file pcm-pcie.cpp
   \brief Example of using uncore CBo counters: implements a performance counter monitoring utility for monitoring PCIe bandwidth
   */
+
+#include "pcm-pcie.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string>
+
 #ifdef _MSC_VER
 #include <windows.h>
 #include "windows/windriver.h"
 #endif
-#include <stdlib.h>
-#include <stdio.h>
-#include <string>
-#include "pcm-pcie.h"
 
 #define PCM_DELAY_DEFAULT 1.0 // in seconds
 #define PCM_DELAY_MIN 0.015 // 15 milliseconds is practical on most modern CPUs

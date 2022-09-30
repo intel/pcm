@@ -5,30 +5,27 @@
 //	      Austen Ott
 //            Jim Harris (FreeBSD)
 
+#include "pci.h"
+#include "utils.h"
+
+#include <exception>
+#include <fcntl.h>
+#include <iomanip>
 #include <iostream>
+#include <memory>
 #include <stdexcept>
 #include <stdio.h>
-#include <fcntl.h>
-#include <exception>
-#include <iomanip>
-#include <memory>
 #include <string>
-
-#include "pci.h"
 
 #ifndef _MSC_VER
 #include <sys/mman.h>
 #include <errno.h>
 #include <unistd.h>
-#endif
-
-#ifdef _MSC_VER
-
+#else
 #include <windows.h>
 #include "Winmsrdriver\msrstruct.h"
 #include "winring0/OlsDef.h"
 #include "winring0/OlsApiInitExt.h"
-#include "utils.h"
 #endif
 
 #if defined (__FreeBSD__) || defined(__DragonFly__)

@@ -6,34 +6,22 @@
 constexpr unsigned int DEFAULT_HTTP_PORT = 9738;
 constexpr unsigned int DEFAULT_HTTPS_PORT = DEFAULT_HTTP_PORT;
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <signal.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <sched.h>
-
-#include <cstring>
-#include <ctime>
-#include <vector>
-#include <unordered_map>
-#include <fstream>
-
 #include "cpucounters.h"
+#include "dashboard.h"
 #include "debug.h"
 #include "topology.h"
-#include "dashboard.h"
+#include "types.h"
+#include "utils.h"
+
+#include <arpa/inet.h>
 #include <assert.h>
-#include <bits/types/struct_sched_param.h>
-#include <bits/types/struct_tm.h>
+#include <atomic>
+#include <cstring>
+#include <ctime>
 #include <ctype.h>
 #include <errno.h>
-#include <stdint.h>
-#include <sys/time.h>
-#include <atomic>
 #include <exception>
+#include <fstream>
 #include <functional>
 #include <iomanip>
 #include <iostream>
@@ -41,13 +29,22 @@ constexpr unsigned int DEFAULT_HTTPS_PORT = DEFAULT_HTTP_PORT;
 #include <locale>
 #include <memory>
 #include <mutex>
+#include <netinet/in.h>
+#include <sched.h>
+#include <signal.h>
 #include <stdexcept>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string>
+#include <sys/socket.h>
+#include <sys/time.h>
 #include <thread>
 #include <type_traits>
+#include <unistd.h>
+#include <unordered_map>
 #include <utility>
-#include "types.h"
-#include "utils.h"
+#include <vector>
 
 #define PCMWebServerVersion "0.1"
 #if defined (USE_SSL)

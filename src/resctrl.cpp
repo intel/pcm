@@ -4,21 +4,22 @@
 
 #ifdef __linux__
 
-#include "resctrl.h"
 #include "cpucounters.h"
-#include <sys/stat.h>
-#include <string>
-#include <iostream>
-#include <errno.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <iomanip>
-#include <mutex>
-#include <sstream>
-#include <utility>
+#include "resctrl.h"
 #include "types.h"
 #include "utils.h"
+
+#include <errno.h>
+#include <iomanip>
+#include <iostream>
+#include <mutex>
+#include <sstream>
+#include <stdlib.h>
+#include <string.h>
+#include <string>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <utility>
 
 namespace pcm
 {

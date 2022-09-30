@@ -2,22 +2,24 @@
 // Copyright (c) 2012, 2018 Intel Corporation
 
 // written by Roman Dementiev
-#ifdef _MSC_VER
-#include <windows.h>
-#include "windows/windriver.h"
-#endif
-#include <iostream>
-#ifdef _MSC_VER
-#include "freegetopt/getopt.h"
-#endif
-#ifdef __linux__
-#include <bits/getopt_core.h>
-#endif
-#include <exception>
+
 #include "pci.h"
 #include "types.h"
 #include "utils.h"
 #include "version.h"
+
+#include <exception>
+#include <iostream>
+
+#ifdef _MSC_VER
+#include "freegetopt/getopt.h"
+#include <windows.h>
+#include "windows/windriver.h"
+#endif
+
+#ifdef __linux__
+#include <getopt.h>
+#endif
 
 using namespace pcm;
 

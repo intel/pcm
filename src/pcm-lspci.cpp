@@ -2,23 +2,24 @@
 // Copyright (c) 2017-2018, Intel Corporation
 
 // written by Patrick Lu
+
 #include "cpucounters.h"
+#include "lspci.h"
+#include "pci.h"
+#include "types.h"
+
+#include <cstdint>
+#include <iostream>
+#include <stdlib.h>
+#include <vector>
+
 #ifdef _MSC_VER
 #pragma warning(disable : 4996) // for sprintf
 #include <windows.h>
 #include "windows/windriver.h"
-#endif
-#include <iostream>
-#include <stdlib.h>
-#include <cstdint>
-#ifdef _MSC_VER
 #include "freegetopt/getopt.h"
 #endif
 
-#include <vector>
-#include "pci.h"
-#include "types.h"
-#include "lspci.h"
 using namespace std;
 using namespace pcm;
 

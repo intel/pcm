@@ -4,10 +4,11 @@
 //            Patrick Konsor
 //
 
-#include <iostream>
 #include <exception>
-#include "mmio.h"
+#include <iostream>
+
 #include "bw.h"
+#include "mmio.h"
 #include "pci.h"
 #include "utils.h"
 

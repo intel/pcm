@@ -7,25 +7,25 @@
   \brief Example of using CPU counters: implements a performance counter monitoring utility for Intel Transactional Synchronization Extensions
   */
 #include <iostream>
+
+#include "cpucounters.h"
+#include "types.h"
+#include "utils.h"
+
+#include <iomanip>
+#include <memory>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <string>
+#include <utility>
+#include <vector>
+
 #ifdef _MSC_VER
+#include "freegetopt/getopt.h"
 #include <windows.h>
 #include "windows/windriver.h"
 #endif
-#include <iomanip>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <string>
-#include "cpucounters.h"
-#include "utils.h"
-#ifdef _MSC_VER
-#include "freegetopt/getopt.h"
-#endif
-
-#include <vector>
-#include <memory>
-#include <utility>
-#include "types.h"
 
 #define PCM_DELAY_DEFAULT 1.0       // in seconds
 #define PCM_DELAY_MIN 0.015         // 15 milliseconds is practical on most modern CPUs

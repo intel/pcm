@@ -7,22 +7,24 @@
 /*!     \file pcm-memory.cpp
   \brief Example of using CPU counters: implements a performance counter monitoring utility for memory controller channels and DIMMs (ranks) + PMM memory traffic
   */
+#include "cpucounters.h"
+#include "types.h"
+#include "utils.h"
+#include "version.h"
+
+#include <algorithm>
+#include <iomanip>
 #include <iostream>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <string>
+#include <utility>
+
 #ifdef _MSC_VER
 #include <windows.h>
 #include "windows/windriver.h"
 #endif
-#include <iomanip>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <string>
-#include "cpucounters.h"
-#include "utils.h"
-#include <algorithm>
-#include <utility>
-#include "types.h"
-#include "version.h"
 
 #define PCM_DELAY_DEFAULT 1.0 // in seconds
 #define PCM_DELAY_MIN 0.015 // 15 milliseconds is practical on most modern CPUs
