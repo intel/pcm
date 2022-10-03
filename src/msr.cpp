@@ -4,33 +4,33 @@
 //            Austen Ott
 //            Jim Harris (FreeBSD)
 
-#include <sys/types.h>
-#include <stdio.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#ifndef _MSC_VER
-#include <unistd.h>
-#endif
-#include "types.h"
 #include "msr.h"
+#include "types.h"
 #include "utils.h"
-#include <assert.h>
+
+#include <errno.h>
+#include <exception>
+#include <fcntl.h>
+#include <iostream>
+#include <stdio.h>
+#include <string.h>
+#include <string>
 
 #ifdef _MSC_VER
-
-#include <windows.h>
 #include "utils.h"
 #include "Winmsrdriver\msrstruct.h"
 #include "winring0/OlsApiInitExt.h"
-
+#include <windows.h>
+#else
+#include <unistd.h>
 #endif
 
 #if defined(__FreeBSD__) || defined(__DragonFly__)
-#include <sys/ioccom.h>
-#include <sys/cpuctl.h>
-#endif
 
-#include <mutex>
+#include <sys/cpuctl.h>
+#include <sys/ioccom.h>
+
+#endif
 
 namespace pcm {
 

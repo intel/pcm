@@ -3,14 +3,21 @@
 #pragma once
 //written by Roman Sudarikov
 
-#include <iostream>
 #include "cpucounters.h"
+#include "types.h"
 #include "utils.h"
-#include <vector>
-#include <array>
-#include <string>
-#include <initializer_list>
+
 #include <algorithm>
+#include <array>
+#include <initializer_list>
+#include <iomanip>
+#include <iostream>
+#include <memory>
+#include <stdlib.h>
+#include <string.h>
+#include <string>
+#include <sys/types.h>
+#include <vector>
 
 #if defined(_MSC_VER)
 typedef unsigned int uint;

@@ -13,70 +13,99 @@
 
 //#define PCM_TEST_FALLBACK_TO_ATOM
 
-#include <stdio.h>
-#include <assert.h>
 #ifdef PCM_EXPORTS
-// pcm-lib.h includes cpucounters.h
 #include "windows\pcm-lib.h"
-#else
-#include "cpucounters.h"
 #endif
+
+#include "bw.h"
+#include "cpucounters.h"
+#include "exceptions/unsupported_processor_exception.hpp"
 #include "msr.h"
+#include "mutex.h"
 #include "pci.h"
+#include "topology.h"
 #include "types.h"
 #include "utils.h"
-#include "topology.h"
+#include "width_extender.h"
 
-#if defined (__FreeBSD__) || defined(__DragonFly__)
-#include <sys/param.h>
-#include <sys/module.h>
+#include <algorithm>
+#include <assert.h>
+#include <atomic>
+#include <condition_variable>
+#include <cstdlib>
+#include <fcntl.h>
+#include <fstream>
+#include <future>
+#include <initializer_list>
+#include <iomanip>
+#include <map>
+#include <mutex>
+#include <queue>
+#include <stdexcept>
+#include <stdio.h>
+#include <string.h>
+#include <system_error>
 #include <sys/types.h>
-#include <sys/sysctl.h>
-#include <sys/sem.h>
-#include <sys/ioccom.h>
-#include <sys/cpuctl.h>
-#include <machine/cpufunc.h>
-#endif
+#include <thread>
 
 #ifdef _MSC_VER
-#include <intrin.h>
-#include <windows.h>
+
 #include <comdef.h>
+#include <intrin.h>
 #include <tchar.h>
-#include "winring0/OlsApiInit.h"
+#include <windows.h>
 #include "windows/windriver.h"
+#include "winring0/OlsApiInit.h"
+
 #else
+
+#include <sched.h>
 #include <pthread.h>
-#if defined(__FreeBSD__) || (defined(__DragonFly__) && __DragonFly_version >= 400707)
-#include <pthread_np.h>
-#include <sys/_cpuset.h>
-#include <sys/cpuset.h>
-#endif
+#include <unistd.h>
+
 #include <errno.h>
 #include <sys/time.h>
+
+#endif
+
 #ifdef __linux__
+
 #include <sys/mman.h>
 #include <dirent.h>
 #include <sys/resource.h>
-#endif
+#include <bits/strings_fortified.h>
+
 #endif
 
-#include <string.h>
-#include <limits>
-#include <map>
-#include <algorithm>
-#include <thread>
-#include <future>
-#include <functional>
-#include <queue>
-#include <condition_variable>
-#include <mutex>
-#include <atomic>
+#ifdef PCM_USE_PERF
+
+#include <linux/perf_event.h>
+#include <syscall.h>
+
+#endif
 
 #ifdef __APPLE__
-#include <sys/types.h>
-#include <sys/sysctl.h>
+
 #include <sys/sem.h>
+#include <sys/sysctl.h>
+#include <sys/types.h>
+
+#endif
+
+#if defined (__FreeBSD__) || defined(__DragonFly__)
+
+#include <machine/cpufunc.h>
+#include <pthread_np.h>
+#include <sys/_cpuset.h>
+#include <sys/cpuctl.h>
+#include <sys/cpuset.h>
+#include <sys/ioccom.h>
+#include <sys/module.h>
+#include <sys/param.h>
+#include <sys/sem.h>
+#include <sys/sysctl.h>
+#include <sys/types.h>
+
 #endif
 
 namespace pcm {

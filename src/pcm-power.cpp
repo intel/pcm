@@ -5,21 +5,31 @@
 // added PPD cycles by Thomas Willhalm
 
 #include "cpucounters.h"
-#ifdef _MSC_VER
-#include <windows.h>
-#include "windows/windriver.h"
-#else
-#include <unistd.h>
-#include <signal.h>
-#include <sys/time.h> // for gettimeofday()
-#endif
-#include <iostream>
-#include <stdlib.h>
+#include "types.h"
+#include "types.h"
+#include "utils.h"
+#include "version.h"
+
+#include <assert.h>
 #include <iomanip>
+#include <iostream>
+#include <memory>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string>
+#include <utility>
+#include <utility>
+#include <vector>
+
 #ifdef _MSC_VER
 #include "freegetopt/getopt.h"
+#include <windows.h>
+#include "windows/windriver.h"
 #endif
-#include "utils.h"
+
+#ifdef __linux__
+#include <ext/alloc_traits.h>
+#endif
 
 #define PCM_DELAY_DEFAULT 1.0       // in seconds
 #define PCM_DELAY_MIN 0.015         // 15 milliseconds is practical on most modern CPUs

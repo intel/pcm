@@ -5,12 +5,15 @@
 
 #include "debug.h"
 
-#include <thread>
-#include <future>
-#include <functional>
-#include <mutex>
 #include <condition_variable>
+#include <functional>
+#include <future>
+#include <memory>
+#include <mutex>
 #include <queue>
+#include <stddef.h>
+#include <thread>
+#include <vector>
 
 namespace pcm {
 
@@ -41,8 +44,6 @@ public:
 private:
     std::packaged_task<ReturnType()> task_;
 };
-
-class WorkQueue;
 
 class ThreadPool {
 private:

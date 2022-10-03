@@ -3,27 +3,38 @@
 
 // written by Patrick Lu,
 //            Aaron Cruz
+
 #include "cpucounters.h"
+#include "lspci.h"
+#include "pci.h"
+#include "types.h"
+#include "utils.h"
+#include "version.h"
+
+#include <algorithm>
+#include <cstdint>
+#include <cstdio>
+#include <iomanip>
+#include <iostream>
+#include <iterator>
+#include <limits>
+#include <map>
+#include <memory>
+#include <numeric>
+#include <stdexcept>      // std::length_error
+#include <stdlib.h>
+#include <string>
+#include <utility>
+#include <vector>
+
 #ifdef _MSC_VER
 #pragma warning(disable : 4996) // for sprintf
 #include <windows.h>
 #include "windows/windriver.h"
-#else
-#include <unistd.h>
-#endif
-#include <memory>
-#include <fstream>
-#include <stdlib.h>
-#include <stdexcept>      // std::length_error
-#include <cstdint>
-#include <numeric>
-#include <algorithm>
-#ifdef _MSC_VER
 #include "freegetopt/getopt.h"
 #endif
 
-#include "lspci.h"
-#include "utils.h"
+
 using namespace std;
 using namespace pcm;
 

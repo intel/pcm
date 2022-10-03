@@ -2,18 +2,25 @@
 // Copyright (c) 2009-2018, Intel Corporation
 // written by Andrey Semin and many others
 
-#include <iostream>
-#include <cassert>
+#include "cpucounters.h"
+#include "utils.h"
+
 #include <climits>
+#include <csignal>
+#include <cstdlib>
+#include <cstring>
+#include <errno.h>
+#include <fstream>
+#include <iostream>
+
 #ifdef _MSC_VER
 #include <process.h>
 #include <comdef.h>
 #else
 #include <sys/wait.h> // for waitpid()
 #include <unistd.h> // for ::sleep
+#include <sched.h>
 #endif
-#include "utils.h"
-#include "cpucounters.h"
 
 namespace pcm {
 

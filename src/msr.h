@@ -12,16 +12,19 @@
         Implemented and tested for Linux and 64-bit Windows 7
 */
 
+#include "mutex.h"
 #include "types.h"
 
+#include <memory>
+#include <stdexcept>
+
 #ifdef _MSC_VER
-#include "windows.h"
-#elif __APPLE__
-#include <MSRAccessor.h>
+#include <windows.h>
 #endif
 
-#include "mutex.h"
-#include <memory>
+#ifdef __APPLE__
+#include <MSRAccessor.h>
+#endif
 
 namespace pcm {
 

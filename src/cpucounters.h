@@ -22,49 +22,48 @@
 #undef PCM_DEBUG_TOPOLOGY // debug of topology enumeration routine
 #undef PCM_UNCORE_PMON_BOX_CHECK_STATUS // debug only
 
-#include "types.h"
-#include "topologyentry.h"
 #include "msr.h"
 #include "pci.h"
-#include "bw.h"
-#include "width_extender.h"
-#include "exceptions/unsupported_processor_exception.hpp"
+#include "types.h"
+#include "topologyentry.h"
 
-#include <vector>
+#include <algorithm>
 #include <array>
-#include <limits>
-#include <string>
-#include <memory>
-#include <map>
-#include <unordered_map>
-#include <string.h>
 #include <assert.h>
+#include <exception>
+#include <iostream>
+#include <map>
+#include <memory>
+#include <unordered_map>
+#include <string>
+#include <string.h>
+#include <type_traits>
+#include <utility>
+#include <vector>
 
-#ifdef PCM_USE_PERF
-#include <linux/perf_event.h>
-#include <errno.h>
+#include "mmio.h"
+#include "utils.h"
+#include "width_extender.h"
+
 #define PCM_PERF_COUNT_HW_REF_CPU_CYCLES (9)
-#endif
-
-#ifndef _MSC_VER
-#define NOMINMAX
-#include <semaphore.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <sys/syscall.h>
-#include <unistd.h>
-#endif
 
 #ifdef _MSC_VER
-#if _MSC_VER>= 1600
 #include <intrin.h>
 #endif
-#endif
 
-#ifdef __linux__
 #include "resctrl.h"
-#endif
+
+namespace pcm {
+  class FreeRunningBWCounters;
+  class ServerBW;
+  class SystemCounterState;
+  class SocketCounterState;
+  class CoreCounterState;
+  class ServerUncoreCounterState;
+  class PCM;
+  class CoreTaskQueue;
+  class SystemRoot;
+}
 
 namespace pcm {
 
@@ -72,14 +71,6 @@ namespace pcm {
 void PCM_API restrictDriverAccess(LPCTSTR path);
 #endif
 
-class SystemCounterState;
-class SocketCounterState;
-class CoreCounterState;
-class BasicCounterState;
-class ServerUncoreCounterState;
-class PCM;
-class CoreTaskQueue;
-class SystemRoot;
 
 /*
         CPU performance monitoring routines
@@ -502,8 +493,6 @@ public:
 typedef SimpleCounterState PCIeCounterState;
 typedef SimpleCounterState IIOCounterState;
 typedef std::vector<uint64> eventGroup_t;
-
-class PerfVirtualControlRegister;
 
 /*!
         \brief CPU Performance Monitor

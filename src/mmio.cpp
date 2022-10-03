@@ -4,27 +4,21 @@
 //            Patrick Konsor
 //
 
+#include <exception>
+#include <fcntl.h>
 #include <iostream>
 #include <string.h>
-#ifndef _MSC_VER
-#include <sys/types.h>
-#endif
-#include <sys/stat.h>
-#include <fcntl.h>
-#include "pci.h"
-#include "mmio.h"
 
-#ifndef _MSC_VER
-#include <sys/mman.h>
-#include <errno.h>
-#endif
+#include "mmio.h"
+#include "utils.h"
 
 #ifdef _MSC_VER
 #include <windows.h>
-#include "utils.h"
+#else
+#include <errno.h>
+#include <sys/mman.h>
+#include <unistd.h>
 #endif
-
-#include <assert.h>
 
 namespace pcm {
 

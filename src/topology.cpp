@@ -4,6 +4,8 @@
 #include "cpucounters.h"
 #include "topology.h"
 
+#include <utility>
+
 namespace pcm {
 
 UncoreCounterState ServerUncore::uncoreCounterState( void ) const

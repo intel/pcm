@@ -12,11 +12,14 @@
 /*!     \file pcm-sensor.cpp
         \brief Example of using CPU counters: implements a graphical plugin for KDE ksysguard
 */
+#include "cpuasynchcounter.h"
+#include "cpucounters.h"
+#include "types.h"
+#include "utils.h"
+#include "version.h"
+
 #include <iostream>
 #include <string>
-#include <sstream>
-#include "cpuasynchcounter.h"
-#include "utils.h"
 
 using namespace std;
 using namespace pcm;

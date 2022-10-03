@@ -6,29 +6,31 @@
 /*!     \file pcm-numa.cpp
   \brief Example of using CPU counters: implements a performance counter monitoring utility for NUMA (remote and local memory accesses counting). Example for programming offcore response events
 */
-#include <iostream>
-#ifdef _MSC_VER
-#include <windows.h>
-#include "windows/windriver.h"
-#else
-#include <unistd.h>
-#include <signal.h>
-#include <sys/time.h> // for gettimeofday()
-#endif
-#include <math.h>
+
+#include "cpucounters.h"
+#include "exceptions/unsupported_processor_exception.hpp"
+#include "types.h"
+#include "utils.h"
+#include "version.h"
+
 #include <iomanip>
-#include <stdlib.h>
+#include <iostream>
+#include <memory>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <string>
-#include <assert.h>
-#include "cpucounters.h"
-#include "utils.h"
+#include <string>
+#include <utility>
+#include <vector>
+#include <vector>
+
 #ifdef _MSC_VER
 #include "freegetopt/getopt.h"
+#include "windows/windriver.h"
+#include <windows.h>
 #endif
 
-#include <vector>
 #define PCM_DELAY_DEFAULT 1.0       // in seconds
 #define PCM_DELAY_MIN 0.015         // 15 milliseconds is practical on most modern CPUs
 

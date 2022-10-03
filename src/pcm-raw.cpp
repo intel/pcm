@@ -4,38 +4,45 @@
  /*!     \file pcm-raw.cpp
          \brief Example of using CPU counters: implements a performance counter monitoring utility with raw events interface
    */
-#include <iostream>
-#ifdef _MSC_VER
-#define strtok_r strtok_s
-#include <windows.h>
-#include "windows/windriver.h"
-#else
-#include <unistd.h>
-#include <signal.h>
-#include <sys/time.h> // for gettimeofday()
-#endif
-#include <math.h>
-#include <iomanip>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <string>
+
+#include "cpucounters.h"
+#include "types.h"
+#include "utils.h"
+
+#include <algorithm>
+#include <array>
 #include <assert.h>
 #include <bitset>
+#include <cctype>
+#include <exception>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <iostream>
+#include <locale>
+#include <map>
+#include <memory>
 #include <regex>
+#include <sstream>
+#include <stdexcept>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string>
 #include <unordered_map>
-#include "cpucounters.h"
-#include "utils.h"
+#include <utility>
+#include <vector>
+
+#ifdef _MSC_VER
+#include "freegetopt/getopt.h"
+#include "windows/windriver.h"
+#include <windows.h>
+#endif
 
 #if PCM_SIMDJSON_AVAILABLE
 #include "simdjson.h"
 #endif
 
-#ifdef _MSC_VER
-#include "freegetopt/getopt.h"
-#endif
-
-#include <vector>
 #define PCM_DELAY_MIN 0.015 // 15 milliseconds is practical on most modern CPUs
 #define MAX_CORES 4096
 

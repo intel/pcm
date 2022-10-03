@@ -2,27 +2,27 @@
 // Copyright (c) 2018, Intel Corporation
 //
 // written by Subhiksha Ravisundar
+
 #include "cpucounters.h"
+#include "types.h"
+#include "utils.h"
+#include "version.h"
+#include <cstdint>
+#include <iomanip>
+#include <iostream>
+#include <memory>
+#include <stdlib.h>
+#include <string>
+#include <utility>
+#include <vector>
+
 #ifdef _MSC_VER
 #pragma warning(disable : 4996) // for sprintf
 #include <windows.h>
 #include "windows/windriver.h"
-#else
-#include <unistd.h>
-#endif
-#include <fstream>
-#include <stdlib.h>
-#include <cstdint>
-#include <numeric>
-#include <bitset>
-#include <algorithm>
-#include <string.h>
-#ifdef _MSC_VER
 #include "freegetopt/getopt.h"
 #endif
 
-#include "lspci.h"
-#include "utils.h"
 using namespace std;
 using namespace pcm;
 

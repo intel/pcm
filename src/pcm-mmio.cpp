@@ -2,20 +2,24 @@
 // Copyright (c) 2012-2020, Intel Corporation
 
 // written by Roman Dementiev
-#include "cpucounters.h"
-#ifdef _MSC_VER
-#include <windows.h>
-#include "windows/windriver.h"
-#else
-#include <unistd.h>
-#endif
-#include <iostream>
+
+#include "mmio.h"
+#include "types.h"
+#include "utils.h"
+#include "version.h"
+
+#include <exception>
 #include <functional>
-#include <stdlib.h>
-#include <iomanip>
-#include <string.h>
+#include <iostream>
+
 #ifdef _MSC_VER
 #include "freegetopt/getopt.h"
+#include "windows/windriver.h"
+#include <windows.h>
+#endif
+
+#ifdef __linux__
+#include <bits/getopt_core.h>
 #endif
 
 using namespace pcm;

@@ -2,15 +2,12 @@
 // Copyright (c) 2009-2017, Intel Corporation
 // written by Steven Briscoe
 
-#include <sys/types.h>
 #include <string>
-#include <grp.h>
 
+#include "../daemon/common.h"
 
 #ifndef CLIENT_H_
 #define CLIENT_H_
-
-#include "../daemon/common.h"
 
 namespace PCMDaemon {
 

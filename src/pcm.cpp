@@ -8,26 +8,30 @@
 /*!     \file pcm.cpp
 \brief Example of using CPU counters: implements a simple performance counter monitoring utility
 */
+#include "cpucounters.h"
+#include "types.h"
+#include "utils.h"
+#include "version.h"
+
+#include <bitset>
+#include <cstring>
+#include <iomanip>
 #include <iostream>
+#include <memory>
+#include <sstream>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <string>
+#include <utility>
+#include <vector>
+
 #ifdef _MSC_VER
 #include <windows.h>
 #include "windows/windriver.h"
 #else
 #include <unistd.h>
-#include <signal.h>   // for atexit()
-#include <sys/time.h> // for gettimeofday()
 #endif
-#include <math.h>
-#include <iomanip>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <cstring>
-#include <sstream>
-#include <assert.h>
-#include <bitset>
-#include "cpucounters.h"
-#include "utils.h"
 
 #define SIZE (10000000)
 #define PCM_DELAY_DEFAULT 1.0 // in seconds

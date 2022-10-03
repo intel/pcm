@@ -4,10 +4,12 @@
 
 //Test program for PCM Daemon client
 
-#include <iostream>
-#include <iomanip>
 #include <cstdlib>
+#include <iomanip>
+#include <iostream>
+#include <string>
 
+#include "daemon/common.h"
 #include "client.h"
 
 void printTitle(std::string title)

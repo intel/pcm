@@ -6,31 +6,29 @@
 /*!     \file pcm-core.cpp
   \brief Example of using CPU counters: implements a performance counter monitoring utility for Intel Core, Offcore events
   */
-#include <iostream>
-#ifdef _MSC_VER
-#define strtok_r strtok_s
-#include <windows.h>
-#include "windows/windriver.h"
-#else
-#include <unistd.h>
-#include <signal.h>
-#include <sys/time.h> // for gettimeofday()
-#endif
-#include <math.h>
+
+#include "cpucounters.h"
+#include "types.h"
+#include "utils.h"
+
+#include <bitset>
 #include <iomanip>
-#include <stdlib.h>
+#include <iostream>
+#include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <string>
-#include <assert.h>
-#include <bitset>
-#include "cpucounters.h"
-#include "utils.h"
+#include <utility>
+#include <vector>
+
 #ifdef _MSC_VER
+#define strtok_r strtok_s
 #include "freegetopt/getopt.h"
+#include "windows/windriver.h"
+#include <windows.h>
 #endif
 
-#include <vector>
 #define PCM_DELAY_DEFAULT 1.0 // in seconds
 #define PCM_DELAY_MIN 0.015 // 15 milliseconds is practical on most modern CPUs
 #define MAX_CORES 4096

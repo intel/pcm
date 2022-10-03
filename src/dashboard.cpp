@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2020, Intel Corporation
 
-#include <vector>
-#include <memory>
-#include <unistd.h>
 #include "cpucounters.h"
 #include "dashboard.h"
+
+#include <initializer_list>
+#include <memory>
+#include <mutex>
+#include <unistd.h>
+#include <vector>
 
 namespace pcm {
 

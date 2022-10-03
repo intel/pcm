@@ -10,10 +10,16 @@
 
 */
 
-#include <memory>
-#include <vector>
 #include <array>
-#include "mmio.h"
+#include <memory>
+#include <stddef.h>
+#include <vector>
+
+#include "types.h"
+
+namespace pcm {
+  class MMIORange;
+}
 
 namespace pcm {
 
