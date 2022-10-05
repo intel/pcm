@@ -22,4 +22,4 @@ jobs:
     - name: make
       run: |
         cd ${{ github.workspace }}/build
-        /usr/local/opt/llvm/bin/scan-build --exclude src/simdjson --status-bugs make -j
+        $(brew --prefix llvm@14)/bin/scan-build --exclude src/simdjson --status-bugs make -j
