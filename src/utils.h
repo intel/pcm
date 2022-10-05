@@ -42,6 +42,7 @@ typedef void (* print_usage_func)(const std::string & progname);
 double parse_delay(const char * arg, const std::string & progname, print_usage_func print_usage_func);
 bool extract_argument_value(const char * arg, std::initializer_list<const char*> arg_names, std::string & value);
 bool check_argument_equals(const char * arg, std::initializer_list<const char*> arg_names);
+bool check_for_injections(const std::string & str);
 
 void exit_cleanup(void);
 void set_signal_handlers(void);

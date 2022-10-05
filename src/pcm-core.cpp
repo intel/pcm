@@ -245,7 +245,10 @@ void build_event(const char * argv, EventSelectRegister *reg, int idx)
 				}
 				events[idx].msr_value = tmp2;
 			}
-			else if(pcm_sscanf(subtoken) >> s_expect("name=") >> setw(255) >> events[idx].name) ;
+			else if(pcm_sscanf(subtoken) >> s_expect("name=") >> setw(255) >> events[idx].name) {
+				if (check_for_injections(events[idx].name))
+					throw events[idx].name;
+			}
 			else
 			{
 				cerr << "Event '" << subtoken << "' is not supported. See the list of supported events\n";
@@ -271,7 +274,7 @@ int main(int argc, char * argv[])
 	set_signal_handlers();
 
 	cerr << "\n";
-	cerr << " Processor Counter Monitor: Core Monitoring Utility \n";
+	cerr << " Intel(r) Performance Counter Monitor: Core Monitoring Utility \n";
 	cerr << "\n";
 
 	double delay = -1.0;

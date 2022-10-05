@@ -138,7 +138,7 @@ int main(int argc, char * argv[])
 
     set_signal_handlers();
 
-    cerr << "\n Processor Counter Monitor " << PCM_VERSION << "\n";
+    cerr << "\n Intel(r) Performance Counter Monitor " << PCM_VERSION << "\n";
     cerr << "\n Power Monitoring Utility\n";
 
     int imc_profile = 0;

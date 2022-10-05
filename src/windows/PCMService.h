@@ -140,7 +140,7 @@ namespace PCMServiceNS {
                 counterCollection->Add( counter );
                 counter = gcnew CounterCreationData(MetricCoreResC7Base, "", PerformanceCounterType::RawBase);
                 counterCollection->Add(counter);
-                PerformanceCounterCategory::Create(CountersCore, "Processor Counter Monitor", PerformanceCounterCategoryType::MultiInstance, counterCollection);
+                PerformanceCounterCategory::Create(CountersCore, "Intel(r) Performance Counter Monitor", PerformanceCounterCategoryType::MultiInstance, counterCollection);
             }
 
             if (collectionInformation_->socket)
@@ -186,7 +186,7 @@ namespace PCMServiceNS {
                 counterCollection->Add( counter );
                 counter = gcnew CounterCreationData(MetricSocketResC10Base, "", PerformanceCounterType::RawBase);
                 counterCollection->Add(counter);
-                PerformanceCounterCategory::Create(CountersSocket, "Processor Counter Monitor", PerformanceCounterCategoryType::MultiInstance, counterCollection);
+                PerformanceCounterCategory::Create(CountersSocket, "Intel(r) Performance Counter Monitor", PerformanceCounterCategoryType::MultiInstance, counterCollection);
             }
 
             if (collectionInformation_->qpi)
@@ -194,7 +194,7 @@ namespace PCMServiceNS {
                 counterCollection->Clear();
                 counter = gcnew CounterCreationData(MetricQpiBand, L"Displays the incoming bandwidth in bytes/s of this " + gcnew System::String(m_->xPI()) + L" link", PerformanceCounterType::CounterDelta64);
                 counterCollection->Add( counter );
-                PerformanceCounterCategory::Create(CountersQpi, "Processor Counter Monitor", PerformanceCounterCategoryType::MultiInstance, counterCollection);
+                PerformanceCounterCategory::Create(CountersQpi, "Intel(r) Performance Counter Monitor", PerformanceCounterCategoryType::MultiInstance, counterCollection);
             }
 
             log_->WriteEntry(Globals::ServiceName, "New categories added.");

@@ -270,7 +270,7 @@ int main(int argc, char * argv[])
 
 
     cerr << "\n";
-    cerr << " Processor Counter Monitor: Intel(r) Transactional Synchronization Extensions Monitoring Utility \n";
+    cerr << " Intel(r) Performance Counter Monitor: Intel(r) Transactional Synchronization Extensions Monitoring Utility \n";
     cerr << "\n";
 
     double delay = -1.0;
