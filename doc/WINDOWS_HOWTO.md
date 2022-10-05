@@ -56,3 +56,16 @@ If you do not want or cannot compile the msr.sys driver you might use a third-pa
 Known limitations:
 
 Running PCM.exe under Cygwin shell is possible, but due to incompatibilities of signals/events handling between Windows and Cygwin, the PCM may not cleanup PMU configuration after Ctrl+C or Ctrl+Break pressed. The subsequent run of PCM will require to do PMU configuration reset, so adding -r command line option to PCM will be required.
+
+PCM-Service FAQ:
+Q: Help my service wont start, what can I do to diagnose the problem?
+A: Please check in the Windows Application "Event Viewer" under "Windows Logs" and then under "Application". PCM-Service writes its messages here, just look for errors. If you can't figure it out how to fix it, create a bug report and make sure to paste the text from the Event Viewer in the bug report so we can diagnose the issue.
+
+Q: I see a message in the Events Viewer that PCM-Service does not start because the "custom counter file view is out of memory", how do I fix this?
+A: Despite that PCM-Service is reserving more memory than the standard 512kB this error can still occur if there is another application that uses performance counters is initialized before PCM. There are two options:
+1. identify the application or service that starts before PCM-Service and stop or disable it and consequently reboot and try again
+2. [find your machine.config file](https://stackoverflow.com/questions/2325473/where-is-machine-config) and add
+`<system.diagnostics>
+<performanceCounters filemappingsize="2097152" />
+</system.diagnostics>`
+to that file

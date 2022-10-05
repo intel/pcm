@@ -870,6 +870,8 @@ bool addEvent(PCM::RawPMUConfigs & curPMUConfigs, string eventStr)
         else if (pcm_sscanf(item) >> s_expect("name=") >> setw(255) >> config.second)
         {
             // matched and initialized name
+            if (check_for_injections(config.second))
+                return false;
         }
         else if (item == "fixed")
         {
@@ -1827,7 +1829,7 @@ int main(int argc, char* argv[])
     set_real_time_priority(true);
 
     cerr << "\n";
-    cerr << " Processor Counter Monitor: Raw Event Monitoring Utility \n";
+    cerr << " Intel(r) Performance Counter Monitor: Raw Event Monitoring Utility \n";
     cerr << "\n";
 
     std::vector<PCM::RawPMUConfigs> PMUConfigs(1);

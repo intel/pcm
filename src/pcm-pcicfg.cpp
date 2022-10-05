@@ -30,7 +30,7 @@ void print_usage(const char * progname)
 
 int main(int argc, char * argv[])
 {
-    std::cout << "\n Processor Counter Monitor " << PCM_VERSION << "\n";
+    std::cout << "\n Intel(r) Performance Counter Monitor " << PCM_VERSION << "\n";
 
     std::cout << "\n PCICFG read/write utility\n\n";
 

@@ -2,7 +2,7 @@
 Name:            pcm
 Version:         0
 Release:         0
-Summary:         Processor Counter Monitor
+Summary:         Intel(r) Performance Counter Monitor
 Group:           System/Monitoring
 License:         BSD-3-Clause
 Url:             https://github.com/opcm/pcm/archive
@@ -17,7 +17,7 @@ BuildRequires:  cmake
 
 %description
 
-Processor Counter Monitor (PCM) is an application programming interface (API) and a set of tools based on the API to monitor performance and energy metrics of Intel(r) Core(tm), Xeon(r), Atom(tm) and Xeon Phi(tm) processors. PCM works on Linux, Windows, Mac OS X, FreeBSD and DragonFlyBSD operating systems.
+Intel(r) Performance Counter Monitor (Intel(r) PCM) is an application programming interface (API) and a set of tools based on the API to monitor performance and energy metrics of Intel(r) Core(tm), Xeon(r), Atom(tm) and Xeon Phi(tm) processors. PCM works on Linux, Windows, Mac OS X, FreeBSD and DragonFlyBSD operating systems.
 
 %prep
 %setup -n pcm-master

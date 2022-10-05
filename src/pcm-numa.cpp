@@ -99,7 +99,7 @@ int main(int argc, char * argv[])
     set_signal_handlers();
 
     cerr << "\n";
-    cerr << " Processor Counter Monitor: NUMA monitoring utility \n";
+    cerr << " Intel(r) Performance Counter Monitor: NUMA monitoring utility \n";
     cerr << "\n";
 
     double delay = -1.0;

@@ -2935,10 +2935,10 @@ void PCM::checkError(const PCM::ErrorCode code)
     case PCM::Success:
         break;
     case PCM::MSRAccessDenied:
-        std::cerr << "Access to Processor Counter Monitor has denied (no MSR or PCI CFG space access).\n";
+        std::cerr << "Access to Intel(r) Performance Counter Monitor has denied (no MSR or PCI CFG space access).\n";
         exit(EXIT_FAILURE);
     case PCM::PMUBusy:
-        std::cerr << "Access to Processor Counter Monitor has denied (Performance Monitoring Unit is occupied by other application)\n";
+        std::cerr << "Access to Intel(r) Performance Counter Monitor has denied (Performance Monitoring Unit is occupied by other application)\n";
         std::cerr << "Try to stop the application that uses PMU, or reset PMU configuration from PCM application itself\n";
         std::cerr << "You can try to reset PMU configuration now. Try to reset? (y/n)\n";
         char yn;
@@ -2950,7 +2950,7 @@ void PCM::checkError(const PCM::ErrorCode code)
         }
         exit(EXIT_FAILURE);
     default:
-        std::cerr << "Access to Processor Counter Monitor has denied (Unknown error).\n";
+        std::cerr << "Access to Intel(r) Performance Counter Monitor has denied (Unknown error).\n";
         exit(EXIT_FAILURE);
     }
 }
@@ -4085,6 +4085,17 @@ void PCM::cleanupRDT(const bool silent)
 
 void PCM::setOutput(const std::string filename, const bool cerrToo)
 {
+     const auto pos = filename.find_last_of("/");
+     if (pos != std::string::npos) {
+         const std::string dir_name = filename.substr(0, pos);
+         struct stat info;
+         if (stat(dir_name.c_str(), &info) != 0)
+         {
+             std::cerr << "Output directory: " << dir_name << " doesn't exist\n";
+             exit(EXIT_FAILURE);
+         }
+     }
+
      outfile = new std::ofstream(filename.c_str());
      backup_ofile = std::cout.rdbuf();
      std::cout.rdbuf(outfile->rdbuf());
