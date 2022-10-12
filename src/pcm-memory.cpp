@@ -69,6 +69,7 @@ bool anyPmem(const ServerUncoreMemoryMetrics & metrics)
 }
 
 bool skipInactiveChannels = true;
+bool enforceFlush = false;
 
 void print_help(const string & prog_name)
 {
@@ -92,6 +93,7 @@ void print_help(const string & prog_name)
     cout << "  -i[=number] | /i[=number]          => allow to determine number of iterations\n";
     cout << "  -silent                            => silence information output and print only measurements\n";
     cout << "  -u                                 => update measurements instead of printing new ones\n";
+    cout << "  -f    | /f                         => enforce flushing output\n";
 #ifdef _MSC_VER
     cout << "  --uninstallDriver | --installDriver=> (un)install driver\n";
 #endif
@@ -1100,6 +1102,11 @@ int main(int argc, char * argv[])
             print_update = true;
             continue;
         }
+        else if (check_argument_equals(*argv, { "-f", "/f" }))
+        {
+            enforceFlush = true;
+            continue;
+        }
 #ifdef _MSC_VER
         else if (check_argument_equals(*argv, {"--uninstallDriver"}))
         {
@@ -1206,7 +1213,7 @@ int main(int argc, char * argv[])
 
     mainLoop([&]()
     {
-        if(!csv) cout << flush;
+        if (enforceFlush || !csv) cout << flush;
 
         calibratedSleep(delay, sysCmd, mainLoop, m);
 
