@@ -92,6 +92,7 @@ void print_help(const string & prog_name)
     cout << "  -all | /all                        => Display all channels (even with no traffic)\n";
     cout << "  -i[=number] | /i[=number]          => allow to determine number of iterations\n";
     cout << "  -silent                            => silence information output and print only measurements\n";
+    cout << "  --version                          => print application version\n";
     cout << "  -u                                 => update measurements instead of printing new ones\n";
     cout << "  -f    | /f                         => enforce flushing output\n";
 #ifdef _MSC_VER
@@ -968,6 +969,9 @@ void calculate_bandwidth_rank(PCM *m, const ServerUncoreCounterState uncState1[]
 
 int main(int argc, char * argv[])
 {
+    if(print_version(argc, argv))
+        exit(EXIT_SUCCESS);
+
     null_stream nullStream2;
 #ifdef PCM_FORCE_SILENT
     null_stream nullStream1;

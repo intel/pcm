@@ -23,15 +23,19 @@ void print_usage(const char * progname)
 {
     std::cout << "Usage " << progname << " [-w value] [-c core] [-a] [-d] msr\n\n";
     std::cout << "  Reads/writes specified msr (model specific register) \n";
-    std::cout << "   -w value : write the value before reading \n";
-    std::cout << "   -c core  : perform msr read/write on specified core (default is 0)\n";
-    std::cout << "   -d       : output all numbers in dec (default is hex)\n";
-    std::cout << "   -a       : perform msr read/write operations on all cores\n";
+    std::cout << "   -w value  : write the value before reading \n";
+    std::cout << "   -c core   : perform msr read/write on specified core (default is 0)\n";
+    std::cout << "   -d        : output all numbers in dec (default is hex)\n";
+    std::cout << "   -a        : perform msr read/write operations on all cores\n";
+    std::cout << "   --version : print application version\n";
     std::cout << "\n";
 }
 
 int main(int argc, char * argv[])
 {
+    if(print_version(argc, argv))
+        return 0;
+
     std::cout << "\n Intel(r) Performance Counter Monitor " << PCM_VERSION << "\n";
 
     std::cout << "\n MSR read/write utility\n\n";

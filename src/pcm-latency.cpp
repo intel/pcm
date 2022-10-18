@@ -455,12 +455,17 @@ void print_usage()
     cout << " --PMM | -pmm              => to enable PMM (Default DDR uncore latency)\n";
     cout << " -i[=number] | /i[=number] => allow to determine number of iterations\n";
     cout << " -silent                   => silence information output and print only measurements\n";
+    cout << " --version                 => print application version\n";
     cout << " -v | --verbose            => verbose Output\n";
     cout << "\n";
 }
 
 int main(int argc, char * argv[])
 {   
+
+    if(print_version(argc, argv))
+        exit(EXIT_SUCCESS);
+
     null_stream nullStream;
     check_and_set_silent(argc, argv, nullStream);
     

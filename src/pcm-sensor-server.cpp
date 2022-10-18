@@ -3098,11 +3098,16 @@ void printHelpText( std::string const & programName ) {
 #endif
     std::cout << "    -h|--help            : This information\n";
     std::cout << "    -silent              : Silence information output and print only measurements\n";
+    std::cout << "    --version            : Print application version\n";
 }
 
 #if not defined( UNIT_TEST )
 /* Main */
 int main( int argc, char* argv[] ) {
+
+    if(print_version(argc, argv))
+        exit(EXIT_SUCCESS);
+
     // Argument handling
     bool daemonMode = false;
 #if defined (USE_SSL)

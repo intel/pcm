@@ -52,6 +52,7 @@ void print_usage(const string & progname)
     cout << " Supported <options> are: \n";
     cout << "  -h    | --help      | /h               => print this help and exit\n";
     cout << "  -silent                                => silence information output and print only measurements\n";
+    cout << "  --version                              => print application version\n";
     cout << "  -e event1 [-e event2] [-e event3] ..   => list of custom events to monitor\n";
     cout << "  -pid PID | /pid PID                    => collect core metrics only for specified process ID\n";
     cout << "  -r    | --reset     | /reset           => reset PMU configuration (at your own risk)\n";
@@ -1809,6 +1810,9 @@ void printAll(const PCM::RawPMUConfigs& curPMUConfigs,
 
 int main(int argc, char* argv[])
 {
+    if(print_version(argc, argv))
+        exit(EXIT_SUCCESS);
+
     parseParam(argc, argv, "out", [](const char* p) {
             const string filename{ p };
             if (!filename.empty()) {

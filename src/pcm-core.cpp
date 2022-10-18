@@ -120,6 +120,7 @@ void print_usage(const string & progname)
 	cout << " Supported <options> are: \n";
 	cout << "  -h    | --help      | /h               => print this help and exit\n";
 	cout << "  -silent                                => silence information output and print only measurements\n";
+	cout << "  --version                              => print application version\n";
 	cout << "  -c    | /c                             => print CPU Model name and exit (used for pmu-query.py)\n";
 	cout << "  -csv[=file.csv]     | /csv[=file.csv]  => output compact CSV format to screen or\n"
 		<< "                                            to a file, in case filename is provided\n";
@@ -262,6 +263,9 @@ void build_event(const char * argv, EventSelectRegister *reg, int idx)
 
 int main(int argc, char * argv[])
 {
+	if(print_version(argc, argv))
+		exit(EXIT_SUCCESS);
+
 	null_stream nullStream2;
 #ifdef PCM_FORCE_SILENT
 	null_stream nullStream1;
