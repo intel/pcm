@@ -102,6 +102,25 @@ uint64 ClientBW::getIoRequests()
     return mmioRange->read32(PCM_CLIENT_IMC_DRAM_IO_REQUESTS - PCM_CLIENT_IMC_EVENT_BASE);
 }
 
+#define PCM_ADL_IMC_EVENT_BASE       (0xd000)
+#define PCM_ADL_IMC_DRAM_DATA_READS  (0x858)
+#define PCM_ADL_IMC_DRAM_DATA_WRITES (0x8A0)
+
+ADLClientBW::ADLClientBW()
+{
+    mmioRange = std::make_shared<MMIORange>(getClientIMCStartAddr() + PCM_ADL_IMC_EVENT_BASE, 0x1000);
+}
+
+uint64 ADLClientBW::getImcReads()
+{
+    return mmioRange->read32(PCM_ADL_IMC_DRAM_DATA_READS);
+}
+
+uint64 ADLClientBW::getImcWrites()
+{
+    return mmioRange->read32(PCM_ADL_IMC_DRAM_DATA_WRITES);
+}
+
 #define PCM_SERVER_IMC_DRAM_DATA_READS  (0x2290)
 #define PCM_SERVER_IMC_DRAM_DATA_WRITES (0x2298)
 #define PCM_SERVER_IMC_PMM_DATA_READS   (0x22a0)

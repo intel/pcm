@@ -800,7 +800,8 @@ void PCM::initCStateSupportTables()
         case APOLLO_LAKE:
         case DENVERTON:
         case ADL:
-	case SNOWRIDGE:
+        case RPL:
+        case SNOWRIDGE:
             PCM_CSTATE_ARRAY(pkgCStateMsr, PCM_PARAM_PROTECT({0, 0, 0x3F8, 0, 0x3F9, 0, 0x3FA, 0, 0, 0, 0 }) );
         case NEHALEM_EP:
         case NEHALEM:
@@ -868,7 +869,8 @@ void PCM::initCStateSupportTables()
         case DENVERTON:
         PCM_SKL_PATH_CASES
         case ADL:
-	case SNOWRIDGE:
+        case RPL:
+        case SNOWRIDGE:
         case ICX:
             PCM_CSTATE_ARRAY(coreCStateMsr, PCM_PARAM_PROTECT({0, 0, 0, 0x3FC, 0, 0, 0x3FD, 0x3FE, 0, 0, 0}) );
         case KNL:
@@ -1507,6 +1509,7 @@ bool PCM::detectNominalFrequency()
                || cpu_model == SNOWRIDGE
                || cpu_model == KNL
                || cpu_model == ADL
+               || cpu_model == RPL
                || cpu_model == SKX
                || cpu_model == ICX
                ) ? (100000000ULL) : (133333333ULL);
@@ -1637,9 +1640,16 @@ void PCM::initUncoreObjects()
            switch (cpu_model)
            {
            case TGL:
-           case ADL:
+           case ADL: // TGLClientBW works fine for ADL
+           case RPL: // TGLClientBW works fine for ADL
                clientBW = std::make_shared<TGLClientBW>();
                break;
+/*         Disabled since ADLClientBW requires 2x multiplier for BW on top
+           case ADL:
+           case RPL:
+               clientBW = std::make_shared<ADLClientBW>();
+               break;
+*/
            default:
                clientBW = std::make_shared<ClientBW>();
            }
@@ -2377,6 +2387,7 @@ bool PCM::isCPUModelSupported(const int model_)
             || model_ == RKL
             || model_ == TGL
             || model_ == ADL
+            || model_ == RPL
             || model_ == SKX
             || model_ == ICX
            );
@@ -2413,6 +2424,11 @@ bool PCM::checkModel()
             break;
         case ADL_1:
             cpu_model = ADL;
+            break;
+        case RPL_1:
+        case RPL_2:
+        case RPL_3:
+            cpu_model = RPL;
             break;
     }
 
@@ -2540,6 +2556,11 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
         canUsePerf = false;
         if (!silent) std::cerr << "Installed Linux kernel perf does not support hardware top-down level-1 counters. Using direct PMU programming instead.\n";
     }
+    if (canUsePerf && (cpu_model == ADL || cpu_model == RPL))
+    {
+        canUsePerf = false;
+        if (!silent) std::cerr << "Linux kernel perf rejects an architectural event on your platform. Using direct PMU programming instead.\n";
+    }
 
     if (canUsePerf == false && noMSRMode())
     {
@@ -2597,6 +2618,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
         else
         switch ( cpu_model ) {
             case ADL:
+            case RPL:
                 hybridAtomEventDesc[0].event_number = ARCH_LLC_MISS_EVTNR;
                 hybridAtomEventDesc[0].umask_value = ARCH_LLC_MISS_UMASK;
                 hybridAtomEventDesc[1].event_number = ARCH_LLC_REFERENCE_EVTNR;
@@ -3889,6 +3911,8 @@ const char * PCM::getUArchCodename(const int32 cpu_model_param) const
             return "Tiger Lake";
         case ADL:
             return "Alder Lake";
+        case RPL:
+            return "Raptor Lake";
         case SKX:
             if (cpu_model_param >= 0)
             {

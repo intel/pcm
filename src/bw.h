@@ -41,6 +41,16 @@ namespace pcm {
         uint64 getImcWrites() override;
     };
 
+    class ADLClientBW : public FreeRunningBWCounters
+    {
+        std::shared_ptr<MMIORange> mmioRange;
+    public:
+        ADLClientBW();
+
+        uint64 getImcReads() override;
+        uint64 getImcWrites() override;
+    };
+
     class ClientBW : public FreeRunningBWCounters
     {
         std::shared_ptr<MMIORange> mmioRange;
