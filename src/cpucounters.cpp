@@ -2412,6 +2412,9 @@ bool PCM::checkModel()
             cpu_model = TGL;
             break;
         case ADL_1:
+        case RPL:
+        case RPL_1:
+        case RPL_2:
             cpu_model = ADL;
             break;
     }
