@@ -14,6 +14,7 @@ Intel_SSA
 My Inspector XE Results - pcm
 .gitignore
 .gitattributes
+.github
 .*\.txt
 .*\.pdf
 .*\.docx
@@ -35,3 +36,4 @@ My Inspector XE Results - pcm
 .cproject
 .project
 makefile
+sources
