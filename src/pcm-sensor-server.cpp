@@ -164,6 +164,8 @@ std::ostream& operator<<( std::ostream& os, date const & d ) {
     return os;
 }
 
+/* Not used right now
+
 std::string read_ndctl_info( std::ofstream& logfile ) {
     int pipes[2];
     if ( pipe( pipes ) == -1 ) {
@@ -195,6 +197,8 @@ std::string read_ndctl_info( std::ofstream& logfile ) {
     }
     return ndctl.str();
 }
+
+*/
 
 class HTTPServer;
 
