@@ -64,7 +64,7 @@ void print_usage(const string & progname)
     cout << "  event description example: -e core/config=0x30203,name=LD_BLOCKS.STORE_FORWARD/ -e core/fixed,config=0x333/ \n";
     cout << "                             -e cha/config=0,name=UNC_CHA_CLOCKTICKS/ -e imc/fixed,name=DRAM_CLOCKS/\n";
 #ifdef PCM_SIMDJSON_AVAILABLE
-    cout << "                             -e NAME where the NAME is an event from https://download.01.org/perfmon/ event lists\n";
+    cout << "                             -e NAME where the NAME is an event from https://github.com/intel/perfmon event lists\n";
     cout << "  -ep path | /ep path                    => path to event list directory (default is the current directory)\n";
 #endif
     cout << "  -yc   | --yescores  | /yc              => enable specific cores to output\n";
@@ -197,7 +197,7 @@ bool initPMUEventMap()
     if (!in.is_open())
     {
         cerr << "ERROR: File " << mapfilePath << " can't be open. \n";
-        cerr << "       Download it from https://download.01.org/perfmon/" << mapfile << " \n";
+        cerr << "       Download it from https://raw.githubusercontent.com/intel/perfmon/main/" << mapfile << " \n";
         return false;
     }
     int32 FMSPos = -1;
@@ -262,7 +262,7 @@ bool initPMUEventMap()
         std::string path;
         auto printError = [&evfile]()
         {
-            cerr << "Make sure you have downloaded " << evfile.second << " from https://download.01.org/perfmon/" + evfile.second + " \n";
+            cerr << "Make sure you have downloaded " << evfile.second << " from https://raw.githubusercontent.com/intel/perfmon/main/" + evfile.second + " \n";
         };
         try {
 

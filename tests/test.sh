@@ -179,8 +179,8 @@ fi
 echo Testing pcm-raw with event files
 echo   Download necessary files
 if [ ! -f "mapfile.csv" ]; then
-    echo "Downloading https://download.01.org/perfmon/mapfile.csv"
-    wget -q --timeout=10 https://download.01.org/perfmon/mapfile.csv
+    echo "Downloading https://raw.githubusercontent.com/intel/perfmon/main/mapfile.csv"
+    wget -q --timeout=10 https://raw.githubusercontent.com/intel/perfmon/main/mapfile.csv
     if [ "$?" -ne "0" ]; then
         echo "Could not download mapfile.csv"
         exit 1
@@ -206,22 +206,21 @@ done
 for DIR in $DIRS
 do
     if [ ! -d $DIR ]; then
-        mkdir $DIR
+        mkdir -p $DIR
         cd $DIR
 
-        DIRPATH="https://download.01.org/perfmon/${DIR}/"
-        echo "Downloading all files from ${DIRPATH}"
+        DIRPATH="https://github.com/intel/perfmon.git"
+        echo "Downloading all files from ${DIRPATH} using git"
 
-        wget -q --timeout=10 -r -l1 --no-parent -A "*.json" $DIRPATH
+        git clone $DIRPATH
         if [ "$?" -ne "0" ]; then
             cd ..
-            echo "Could not download $DIR"
+            echo "Could not download ${DIRPATH}"
             exit 1
         fi
-        wget -q --timeout=10 -r -l1 --no-parent -A "*.tsv" $DIRPATH
-        mv download.01.org/perfmon/${DIR}/* .
-        rm -rf download.01.org
-        cd ..
+        mv perfmon/${DIR}/* .
+        rm -rf perfmon
+        cd ../..
     fi
 done
 
@@ -246,7 +245,7 @@ do
     CMD="find . -type f -regex '\.\/${TYPE}_v[0-9]*\.[0-9]*.tsv'"
     TSVFILE=$(eval $CMD)
     TSVFILE="${TSVFILE:2}"
-    cd ..
+    cd ../..
     CMD="sed -i 's/${BASE}/${TSVFILE}/g' mapfile.csv"
     eval $CMD
 done
