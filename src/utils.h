@@ -515,6 +515,8 @@ void check_and_set_silent(int argc, char * argv[], null_stream &nullStream2);
 
 void print_pid_collection_message(int pid);
 
+bool print_version(int argc, char * argv[]);
+
 inline bool isPIDOption(char * argv [])
 {
     return check_argument_equals(*argv, {"-pid", "/pid"});
