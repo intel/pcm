@@ -21,6 +21,9 @@
 #include "common.h"
 #include "pcm.h"
 
+constexpr auto MEMORY_READ = 0;
+constexpr auto MEMORY_WRITE = 1;
+
 namespace PCMDaemon {
 
     std::string Daemon::shmIdLocation_;

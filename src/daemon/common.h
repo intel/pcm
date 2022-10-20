@@ -13,8 +13,6 @@ constexpr const char DEFAULT_SHM_ID_LOCATION[] = "/tmp/opcm-daemon-shm-id";
 constexpr auto MAX_CPU_CORES = 4096;
 constexpr auto MAX_SOCKETS = 256;
 constexpr auto MEMORY_MAX_IMC_CHANNELS = 12;
-constexpr auto MEMORY_READ = 0;
-constexpr auto MEMORY_WRITE = 1;
 constexpr auto QPI_MAX_LINKS = MAX_SOCKETS * 4;
 
 constexpr auto VERSION_SIZE = 12;
