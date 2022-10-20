@@ -35,10 +35,10 @@ pcm-raw -e core/config=0x00000000004300c5,name=BR_MISP_RETIRED.ALL_BRANCHES -e c
 4. View/process the csv file using your favorite method. For example just open it in Excel.
 
 --------------------------------------------------------------------------------
-Collecting Events By Names From Event Lists (https://download.01.org/perfmon/)
+Collecting Events By Names From Event Lists (https://github.com/intel/perfmon/)
 --------------------------------------------------------------------------------
 
-pcm-raw can also automatically lookup the events from the json event lists (https://download.01.org/perfmon/) and translate them to raw encodings itself. To make this work you need to checkout PCM with simdjson submodule:
+pcm-raw can also automatically lookup the events from the json event lists (https://github.com/intel/perfmon/) and translate them to raw encodings itself. To make this work you need to checkout PCM with simdjson submodule:
 
 * use git clone --recursive flag when cloning pcm repository, or
 * update submodule with command `git submodule update --init --recursive`, or
@@ -124,4 +124,4 @@ The unit can be logical core, memory channel, CHA, etc, depending on the event t
 
 Limitations:
 
-Event-to-counter scheduling restrictions are not validated. The events are scheduled in order. The user need to make sure events are ordered correctly using emon or manually inspecting counter event restrictions specified in json files (https://download.01.org/perfmon/).
+Event-to-counter scheduling restrictions are not validated. The events are scheduled in order. The user need to make sure events are ordered correctly using emon or manually inspecting counter event restrictions specified in json files (https://github.com/intel/perfmon/).

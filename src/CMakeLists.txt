@@ -99,7 +99,7 @@ if((CMAKE_CXX_COMPILER_ID STREQUAL "GNU"   AND CMAKE_CXX_COMPILER_VERSION VERSIO
      message(WARNING
            " ${CMAKE_CXX_COMPILER} ${CMAKE_CXX_COMPILER_VERSION} is incompartible with simdjson features' requirements.\n"
            " Refer to simdjson support matrix - https://github.com/simdjson/simdjson/blob/master/doc/basics.md .\n"
-           " Parsing events from 01.org/perfmon won't be supported.")
+           " Parsing events from https://github.com/intel/perfmon won't be supported.")
         set(SIMDJSON_IS_APPLICABLE FALSE)
 endif()
 

@@ -33,7 +33,7 @@ except getopt.GetoptError as err:
 
 if filename is None:
     # vefified that link to mapfile.csv is safe and correct (20-07-2022)
-    map_file_raw = urllib.request.urlopen("https://download.01.org/perfmon/mapfile.csv").read().decode('utf-8')  # nosec
+    map_file_raw = urllib.request.urlopen("https://raw.githubusercontent.com/intel/perfmon/main/mapfile.csv").read().decode('utf-8')  # nosec
     map_dict = csv.DictReader(io.StringIO(map_file_raw), delimiter=',')
     map_file = []
     core_path = ""
@@ -71,7 +71,7 @@ if filename is None:
     if core_path:
         # vefified that links, created on base of map_file are correct (20-07-2022)
         json_core_data = urllib.request.urlopen(  # nosec
-            "https://download.01.org/perfmon" + core_path
+            "https://raw.githubusercontent.com/intel/perfmon/main" + core_path
         )
         core_events = json.load(json_core_data)
         if download_flag:
@@ -84,7 +84,7 @@ if filename is None:
     if offcore_path:
         # vefified that links, created on base of map_file are correct (20-07-2022)
         json_offcore_data = urllib.request.urlopen(  # nosec
-            "https://download.01.org/perfmon" + offcore_path
+            "https://raw.githubusercontent.com/intel/perfmon/main" + offcore_path
         )
         offcore_events = json.load(json_offcore_data)
         if download_flag:
