@@ -13,6 +13,8 @@
 #include "common.h"
 #include "pcm.h"
 
+#define PCMDaemon PCMDaemon_V2_0_0
+
 namespace PCMDaemon {
 
 	enum Mode { DIFFERENCE, ABSOLUTE };

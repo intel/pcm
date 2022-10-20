@@ -9,7 +9,6 @@
 #include <stdint.h>
 
 constexpr const char DEFAULT_SHM_ID_LOCATION[] = "/tmp/opcm-daemon-shm-id";
-constexpr const char VERSION[] = "2.0.0";
 
 constexpr auto MAX_CPU_CORES = 4096;
 constexpr auto MAX_SOCKETS = 256;
@@ -20,10 +19,18 @@ constexpr auto QPI_MAX_LINKS = MAX_SOCKETS * 4;
 
 constexpr auto VERSION_SIZE = 12;
 
-constexpr auto ALIGNMENT = 64;
+constexpr int ALIGNMENT = 64;
 #define ALIGN(x) __attribute__((aligned((x))))
 
-namespace PCMDaemon {
+struct Version
+{
+    char version[VERSION_SIZE]; // version (null-terminated string)
+};
+
+constexpr const char VERSION[] = "2.0.0";
+
+namespace PCMDaemon_V2_0_0 {
+
     typedef int int32;
     typedef long int64;
     typedef unsigned int uint32;
@@ -225,8 +232,7 @@ namespace PCMDaemon {
 
     typedef struct SharedPCMCounters SharedPCMCounters;
 
-    struct SharedPCMState {
-        char version[VERSION_SIZE]; // version (null-terminated string)
+    struct SharedPCMState : public Version {
         uint64 lastUpdateTscBegin;  // time stamp counter (TSC) obtained via rdtsc instruction *before* the state update
         uint64 timestamp;           // monotonic time since some unspecified starting point in nanoseconds *after* the state update
         uint64 cyclesToGetPCMState; // time it took to update the state measured in TSC cycles
