@@ -19,8 +19,7 @@ constexpr auto QPI_MAX_LINKS = MAX_SOCKETS * 4;
 
 constexpr auto VERSION_SIZE = 12;
 
-constexpr int ALIGNMENT = 64;
-#define ALIGN(x) __attribute__((aligned((x))))
+#define ALIGN64 __attribute__((aligned((64))))
 
 struct Version
 {
@@ -49,7 +48,7 @@ namespace PCMDaemon_V2_0_0 {
             numOfSockets(0),
             numOfOnlineSockets(0),
             numOfQPILinksPerSocket(0) {}
-    } ALIGN(ALIGNMENT);
+    } ALIGN64;
 
     typedef struct PCMSystem PCMSystem;
 
@@ -87,14 +86,14 @@ namespace PCMDaemon_V2_0_0 {
             localMemoryBW(0),
             remoteMemoryBWAvailable(false),
             remoteMemoryBW(0) {}
-    } ALIGN(ALIGNMENT);
+    } ALIGN64;
 
     typedef struct PCMCoreCounter PCMCoreCounter;
 
     struct PCMCore {
         PCMCoreCounter cores[MAX_CPU_CORES];
         bool packageEnergyMetricsAvailable;  // true if CPU package (a.k.a. socket) energy metric is available
-        double energyUsedBySockets[MAX_SOCKETS] ALIGN(ALIGNMENT); // energy consumed/used by CPU (socket) in Joules
+        double energyUsedBySockets[MAX_SOCKETS] ALIGN64; // energy consumed/used by CPU (socket) in Joules
 
     public:
         PCMCore() :
@@ -104,7 +103,7 @@ namespace PCMDaemon_V2_0_0 {
                 energyUsedBySockets[i] = -1.0;
             }
         }
-    } ALIGN(ALIGNMENT);
+    } ALIGN64;
 
     typedef struct PCMCore PCMCore;
 
@@ -118,7 +117,7 @@ namespace PCMDaemon_V2_0_0 {
             read(-1.0),
             write(-1.0),
             total(-1.0) {}
-    } ALIGN(ALIGNMENT);
+    } ALIGN64;
 
     typedef struct PCMMemoryChannelCounter PCMMemoryChannelCounter;
 
@@ -144,7 +143,7 @@ namespace PCMDaemon_V2_0_0 {
             total(-1.0),
             pmmMemoryModeHitRate(-1.0),
             dramEnergy(0.0) {}
-    } ALIGN(ALIGNMENT);
+    } ALIGN64;
 
     typedef struct PCMMemorySocketCounter PCMMemorySocketCounter;
 
@@ -162,7 +161,7 @@ namespace PCMDaemon_V2_0_0 {
             pmmRead(-1.0),
             pmmWrite(-1.0),
             total(-1.0) {}
-    } ALIGN(ALIGNMENT);
+    } ALIGN64;
 
     typedef struct PCMMemorySystemCounter PCMMemorySystemCounter;
 
@@ -177,7 +176,7 @@ namespace PCMDaemon_V2_0_0 {
             dramEnergyMetricsAvailable(false),
             pmmMetricsAvailable(false)
         {}
-    } ALIGN(ALIGNMENT);
+    } ALIGN64;
 
     typedef struct PCMMemory PCMMemory;
 
@@ -189,7 +188,7 @@ namespace PCMDaemon_V2_0_0 {
         PCMQPILinkCounter() :
             bytes(0),
             utilization(-1.0) {}
-    } ALIGN(ALIGNMENT);
+    } ALIGN64;
 
     typedef struct PCMQPILinkCounter PCMQPILinkCounter;
 
@@ -201,7 +200,7 @@ namespace PCMDaemon_V2_0_0 {
     public:
         PCMQPISocketCounter() :
             total(0) {}
-    } ALIGN(ALIGNMENT);
+    } ALIGN64;
 
     typedef struct PCMQPISocketCounter PCMQPISocketCounter;
 
@@ -219,7 +218,7 @@ namespace PCMDaemon_V2_0_0 {
             outgoingTotal(0),
             incomingQPITrafficMetricsAvailable(false),
             outgoingQPITrafficMetricsAvailable(false) {}
-    } ALIGN(ALIGNMENT);
+    } ALIGN64;
 
     typedef struct PCMQPI PCMQPI;
 
@@ -228,7 +227,7 @@ namespace PCMDaemon_V2_0_0 {
         PCMCore core;
         PCMMemory memory;
         PCMQPI qpi;
-    } ALIGN(ALIGNMENT);
+    } ALIGN64;
 
     typedef struct SharedPCMCounters SharedPCMCounters;
 
@@ -250,7 +249,7 @@ namespace PCMDaemon_V2_0_0 {
         {
             std::fill(this->version, this->version + VERSION_SIZE, 0);
         }
-    } ALIGN(ALIGNMENT);
+    } ALIGN64;
 
     typedef struct SharedPCMState SharedPCMState;
 }

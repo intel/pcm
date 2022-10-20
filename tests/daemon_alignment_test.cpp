@@ -5,6 +5,8 @@
 
 #include "../src/daemon/common.h"
 
+#define ALIGNMENT 64
+
 #define PCMDaemon PCMDaemon_V2_0_0
 
 void checkAlignment(char const * debugMessage, void* ptr)
