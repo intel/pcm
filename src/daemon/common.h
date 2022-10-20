@@ -8,19 +8,19 @@
 #include <cstring>
 #include <stdint.h>
 
-static const char DEFAULT_SHM_ID_LOCATION[] = "/tmp/opcm-daemon-shm-id";
-static const char VERSION[] = "2.0.0";
+constexpr const char DEFAULT_SHM_ID_LOCATION[] = "/tmp/opcm-daemon-shm-id";
+constexpr const char VERSION[] = "2.0.0";
 
-#define MAX_CPU_CORES 4096
-#define MAX_SOCKETS 256
-#define MEMORY_MAX_IMC_CHANNELS (12)
-#define MEMORY_READ 0
-#define MEMORY_WRITE 1
-#define QPI_MAX_LINKS (MAX_SOCKETS * 4)
+constexpr auto MAX_CPU_CORES = 4096;
+constexpr auto MAX_SOCKETS = 256;
+constexpr auto MEMORY_MAX_IMC_CHANNELS = 12;
+constexpr auto MEMORY_READ = 0;
+constexpr auto MEMORY_WRITE = 1;
+constexpr auto QPI_MAX_LINKS = MAX_SOCKETS * 4;
 
-#define VERSION_SIZE 12
+constexpr auto VERSION_SIZE = 12;
 
-#define ALIGNMENT 64
+constexpr auto ALIGNMENT = 64;
 #define ALIGN(x) __attribute__((aligned((x))))
 
 namespace PCMDaemon {
