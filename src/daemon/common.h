@@ -7,25 +7,24 @@
 #include <cstring>
 #include <stdint.h>
 
-constexpr const char DEFAULT_SHM_ID_LOCATION[] = "/tmp/opcm-daemon-shm-id";
-
-constexpr auto MAX_CPU_CORES = 4096;
-constexpr auto MAX_SOCKETS = 256;
-constexpr auto MEMORY_MAX_IMC_CHANNELS = 12;
-constexpr auto QPI_MAX_LINKS = MAX_SOCKETS * 4;
-
-constexpr auto VERSION_SIZE = 12;
-
+#ifndef ALIGN64
 #define ALIGN64 __attribute__((aligned((64))))
+#endif
 
-struct Version
-{
-    char version[VERSION_SIZE]; // version (null-terminated string)
-};
+namespace PCMDaemon {
 
-constexpr const char VERSION[] = "2.0.0";
+    constexpr auto VERSION_SIZE = 12;
+    constexpr const char VERSION[] = "2.0.0";
+    constexpr const char DEFAULT_SHM_ID_LOCATION[] = "/tmp/opcm-daemon-shm-id";
+    constexpr auto MAX_CPU_CORES = 4096;
+    constexpr auto MAX_SOCKETS = 256;
+    constexpr auto MEMORY_MAX_IMC_CHANNELS = 12;
+    constexpr auto QPI_MAX_LINKS = MAX_SOCKETS * 4;
 
-namespace PCMDaemon_V2_0_0 {
+    struct Version
+    {
+        char version[VERSION_SIZE]; // version (null-terminated string)
+    };
 
     typedef int int32;
     typedef long int64;

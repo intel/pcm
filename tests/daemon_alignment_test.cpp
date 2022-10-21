@@ -7,8 +7,6 @@
 
 #define ALIGNMENT 64
 
-#define PCMDaemon PCMDaemon_V2_0_0
-
 void checkAlignment(char const * debugMessage, void* ptr)
 {
 	printf("Checking: %-20s\t\t", debugMessage);
@@ -47,42 +45,42 @@ int main()
     checkAlignment("pcm memory", &pcmState->pcm.memory);
     checkAlignment("pcm qpi", &pcmState->pcm.qpi);
 
-    for(uint32_t i(0); i < MAX_CPU_CORES; ++i)
+    for(uint32_t i(0); i < PCMDaemon::MAX_CPU_CORES; ++i)
     {
     	checkAlignment("pcm core cores", &pcmState->pcm.core.cores[i]);
     }
 
     checkAlignment("pcm core energyUsed", &pcmState->pcm.core.energyUsedBySockets);
 
-    for(uint32_t i(0); i < MAX_SOCKETS; ++i)
+    for(uint32_t i(0); i < PCMDaemon::MAX_SOCKETS; ++i)
     {
     	checkAlignment("pcm memory sockets", &pcmState->pcm.memory.sockets[i]);
     }
 
-    for(uint32_t i(0); i < MAX_SOCKETS; ++i)
+    for(uint32_t i(0); i < PCMDaemon::MAX_SOCKETS; ++i)
     {
     	checkAlignment("pcm qpi incoming", &pcmState->pcm.qpi.incoming[i]);
     }
     
-    for(uint32_t i(0); i < MAX_SOCKETS; ++i)
+    for(uint32_t i(0); i < PCMDaemon::MAX_SOCKETS; ++i)
     {
-    	for(uint32_t j(0); j < QPI_MAX_LINKS; ++j)
-    	{
-    		checkAlignment("pcm qpi incoming links", &pcmState->pcm.qpi.incoming[i].links[j]);
-    	}
+        for(uint32_t j(0); j < PCMDaemon::QPI_MAX_LINKS; ++j)
+        {
+            checkAlignment("pcm qpi incoming links", &pcmState->pcm.qpi.incoming[i].links[j]);
+        }
     }
 
-    for(uint32_t i(0); i < MAX_SOCKETS; ++i)
+    for(uint32_t i(0); i < PCMDaemon::MAX_SOCKETS; ++i)
     {
     	checkAlignment("pcm qpi outgoing", &pcmState->pcm.qpi.outgoing[i]);
     }
 
-    for(uint32_t i(0); i < MAX_SOCKETS; ++i)
+    for(uint32_t i(0); i < PCMDaemon::MAX_SOCKETS; ++i)
     {
-    	for(uint32_t j(0); j < QPI_MAX_LINKS; ++j)
-    	{
-    		checkAlignment("pcm qpi outgoing links", &pcmState->pcm.qpi.outgoing[i].links[j]);
-    	}
+        for(uint32_t j(0); j < PCMDaemon::QPI_MAX_LINKS; ++j)
+        {
+            checkAlignment("pcm qpi outgoing links", &pcmState->pcm.qpi.outgoing[i].links[j]);
+        }
     }
 
     free(pcmState);

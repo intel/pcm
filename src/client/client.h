@@ -12,8 +12,6 @@
 
 #include "../daemon/common.h"
 
-#define PCMDaemon PCMDaemon_V2_0_0
-
 namespace PCMDaemon {
 
 	class Client {
