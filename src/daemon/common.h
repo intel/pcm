@@ -2,8 +2,7 @@
 // Copyright (c) 2009-2018,2022 Intel Corporation
 // written by Steven Briscoe
 
-#ifndef COMMON_H_
-#define COMMON_H_
+#pragma once
 
 #include <cstring>
 #include <stdint.h>
@@ -251,5 +250,3 @@ namespace PCMDaemon_V2_0_0 {
 
     typedef struct SharedPCMState SharedPCMState;
 }
-
-#endif /* COMMON_H_ */
