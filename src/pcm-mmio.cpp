@@ -24,9 +24,10 @@ void print_usage(const char* progname)
 {
     std::cout << "Usage " << progname << " [-w value] [-q] [-d] address\n\n";
     std::cout << "  Reads/writes MMIO (memory mapped) register in the specified address\n";
-    std::cout << "   -w value : write the value before reading \n";
-    std::cout << "   -q       : read/write 64-bit quad word (default is 32-bit double word)\n";
-    std::cout << "   -d       : output all numbers in dec (default is hex)\n";
+    std::cout << "   -w value  : write the value before reading \n";
+    std::cout << "   -q        : read/write 64-bit quad word (default is 32-bit double word)\n";
+    std::cout << "   -d        : output all numbers in dec (default is hex)\n";
+    std::cout << "   --version : print application version\n";
     std::cout << "\n";
 }
 
@@ -50,6 +51,9 @@ void doOp(const uint64 address, const uint64 offset, const bool write, T value, 
 
 int main(int argc, char * argv[])
 {
+    if(print_version(argc, argv))
+        exit(EXIT_SUCCESS);
+
     std::cout << "\n Intel(r) Performance Counter Monitor " << PCM_VERSION << "\n";
 
     std::cout << "\n MMIO register read/write utility\n\n";

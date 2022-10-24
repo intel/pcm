@@ -153,6 +153,7 @@ void print_usage(const string & progname)
     cout << " Supported <options> are: \n";
     cout << "  -h    | --help  | /h               => print this help and exit\n";
     cout << "  -silent                            => silence information output and print only measurements\n";
+    cout << "  --version                          => print application version\n";
     cout << "  -F    | -force                     => force running this program despite lack of HW RTM support (optional)\n";
     cout << "  -pid PID | /pid PID                => collect core metrics only for specified process ID\n";
     cout << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or\n"
@@ -257,6 +258,9 @@ int findEvent(const char * name)
 
 int main(int argc, char * argv[])
 {
+    if(print_version(argc, argv))
+        exit(EXIT_SUCCESS);
+
     null_stream nullStream2;
 #ifdef PCM_FORCE_SILENT
     null_stream nullStream1;

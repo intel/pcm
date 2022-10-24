@@ -1133,6 +1133,7 @@ void print_usage(const string& progname)
     cout << " Supported <options> are: \n";
     cout << "  -h    | --help  | /h               => print this help and exit\n";
     cout << "  -silent                            => silence information output and print only measurements\n";
+    cout << "  --version                          => print application version\n";
     cout << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or\n"
          << "                                        to a file, in case filename is provided\n";
     cout << "  -csv-delimiter=<value>  | /csv-delimiter=<value>   => set custom csv delimiter\n";
@@ -1148,6 +1149,9 @@ void print_usage(const string& progname)
 
 int main(int argc, char * argv[])
 {    
+    if(print_version(argc, argv))
+        exit(EXIT_SUCCESS);
+
     null_stream nullStream;
     check_and_set_silent(argc, argv, nullStream);
 

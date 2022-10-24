@@ -23,13 +23,17 @@ void print_usage(const char * progname)
 {
     std::cout << "Usage " << progname << " [-w value] [-d] group bus device function offset\n\n";
     std::cout << "  Reads/writes 32-bit PCICFG register \n";
-    std::cout << "   -w value : write the value before reading \n";
-    std::cout << "   -d       : output all numbers in dec (default is hex)\n";
+    std::cout << "   -w value  : write the value before reading \n";
+    std::cout << "   -d        : output all numbers in dec (default is hex)\n";
+    std::cout << "   --version : print application version\n";
     std::cout << "\n";
 }
 
 int main(int argc, char * argv[])
 {
+    if(print_version(argc, argv))
+        return 0;
+
     std::cout << "\n Intel(r) Performance Counter Monitor " << PCM_VERSION << "\n";
 
     std::cout << "\n PCICFG read/write utility\n\n";

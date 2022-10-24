@@ -52,6 +52,7 @@ void print_usage(const string & progname)
     cout << " Supported <options> are: \n";
     cout << "  -h    | --help      | /h               => print this help and exit\n";
     cout << "  -silent                                => silence information output and print only measurements\n";
+    cout << "  --version                              => print application version\n";
     cout << "  -e event1 [-e event2] [-e event3] ..   => list of custom events to monitor\n";
     cout << "  -pid PID | /pid PID                    => collect core metrics only for specified process ID\n";
     cout << "  -r    | --reset     | /reset           => reset PMU configuration (at your own risk)\n";
@@ -63,7 +64,7 @@ void print_usage(const string & progname)
     cout << "  event description example: -e core/config=0x30203,name=LD_BLOCKS.STORE_FORWARD/ -e core/fixed,config=0x333/ \n";
     cout << "                             -e cha/config=0,name=UNC_CHA_CLOCKTICKS/ -e imc/fixed,name=DRAM_CLOCKS/\n";
 #ifdef PCM_SIMDJSON_AVAILABLE
-    cout << "                             -e NAME where the NAME is an event from https://download.01.org/perfmon/ event lists\n";
+    cout << "                             -e NAME where the NAME is an event from https://github.com/intel/perfmon event lists\n";
     cout << "  -ep path | /ep path                    => path to event list directory (default is the current directory)\n";
 #endif
     cout << "  -yc   | --yescores  | /yc              => enable specific cores to output\n";
@@ -196,7 +197,7 @@ bool initPMUEventMap()
     if (!in.is_open())
     {
         cerr << "ERROR: File " << mapfilePath << " can't be open. \n";
-        cerr << "       Download it from https://download.01.org/perfmon/" << mapfile << " \n";
+        cerr << "       Download it from https://raw.githubusercontent.com/intel/perfmon/main/" << mapfile << " \n";
         return false;
     }
     int32 FMSPos = -1;
@@ -261,7 +262,7 @@ bool initPMUEventMap()
         std::string path;
         auto printError = [&evfile]()
         {
-            cerr << "Make sure you have downloaded " << evfile.second << " from https://download.01.org/perfmon/" + evfile.second + " \n";
+            cerr << "Make sure you have downloaded " << evfile.second << " from https://raw.githubusercontent.com/intel/perfmon/main/" + evfile.second + " \n";
         };
         try {
 
@@ -1809,6 +1810,9 @@ void printAll(const PCM::RawPMUConfigs& curPMUConfigs,
 
 int main(int argc, char* argv[])
 {
+    if(print_version(argc, argv))
+        exit(EXIT_SUCCESS);
+
     parseParam(argc, argv, "out", [](const char* p) {
             const string filename{ p };
             if (!filename.empty()) {

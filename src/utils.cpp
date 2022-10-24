@@ -758,4 +758,22 @@ bool check_for_injections(const std::string & str)
     }
     return false;
 }
+
+bool print_version(int argc, char * argv[])
+{
+    if (argc > 1) do
+    {
+        argv++;
+        argc--;
+
+        if (check_argument_equals(*argv, {"--version"}))
+        {
+            std::cout << "version: " << PCM_VERSION << "\n";
+            return true;
+        }
+    } while (argc > 1);
+
+    return false;
+}
+
 } // namespace pcm
