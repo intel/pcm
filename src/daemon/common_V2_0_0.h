@@ -6,6 +6,7 @@
 
 #include <cstring>
 #include <stdint.h>
+#include <algorithm>
 
 #ifndef ALIGN64
 #define ALIGN64 __attribute__((aligned((64))))
