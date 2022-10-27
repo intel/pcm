@@ -94,7 +94,7 @@ void print_help(const string & prog_name)
     cout << "  -silent                            => silence information output and print only measurements\n";
     cout << "  --version                          => print application version\n";
     cout << "  -u                                 => update measurements instead of printing new ones\n";
-    cout << "  -f    | /f                         => enforce flushing output\n";
+    print_enforce_flush_option_help();
 #ifdef _MSC_VER
     cout << "  --uninstallDriver | --installDriver=> (un)install driver\n";
 #endif
@@ -1106,11 +1106,7 @@ int main(int argc, char * argv[])
             print_update = true;
             continue;
         }
-        else if (check_argument_equals(*argv, { "-f", "/f" }))
-        {
-            enforceFlush = true;
-            continue;
-        }
+        PCM_ENFORCE_FLUSH_OPTION
 #ifdef _MSC_VER
         else if (check_argument_equals(*argv, {"--uninstallDriver"}))
         {

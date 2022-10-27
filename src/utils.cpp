@@ -759,6 +759,11 @@ bool check_for_injections(const std::string & str)
     return false;
 }
 
+void print_enforce_flush_option_help()
+{
+    std::cout << "  -f    | /f                         => enforce flushing output\n";
+}
+
 bool print_version(int argc, char * argv[])
 {
     if (argc > 1) do

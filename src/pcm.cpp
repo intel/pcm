@@ -93,6 +93,7 @@ void print_help(const string & prog_name)
         << "                                        to a file, in case filename is provided\n"
         << "                                        the format used is documented here: https://www.intel.com/content/www/us/en/developer/articles/technical/intel-pcm-column-names-decoder-ring.html\n";
     cout << "  -i[=number] | /i[=number]          => allow to determine number of iterations\n";
+    print_enforce_flush_option_help();
     print_help_force_rtm_abort_mode(37);
     cout << " Examples:\n";
     cout << "  " << prog_name << " 1 -nc -ns          => print counters every second without core and socket output\n";
@@ -1168,6 +1169,7 @@ int main(int argc, char * argv[])
     bool csv_output = false;
     bool reset_pmu = false;
     bool disable_JKT_workaround = false; // as per http://software.intel.com/en-us/articles/performance-impact-when-sampling-certain-llc-events-on-snb-ep-with-vtune
+    bool enforceFlush = false;
 
     parsePID(argc, argv, pid);
 
@@ -1283,6 +1285,7 @@ int main(int argc, char * argv[])
             disable_JKT_workaround = true;
             continue;
         }
+        PCM_ENFORCE_FLUSH_OPTION
 #ifdef _MSC_VER
         else if (check_argument_equals(*argv, {"--uninstallDriver"}))
         {
@@ -1377,7 +1380,7 @@ int main(int argc, char * argv[])
 
     mainLoop([&]()
     {
-        if (!csv_output) cout << std::flush;
+        if (enforceFlush || !csv_output) cout << std::flush;
 
         calibratedSleep(delay, sysCmd, mainLoop, m);
 
