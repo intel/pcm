@@ -616,6 +616,16 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
                 PMUDeclObj = (*PMURegisterDeclarations)[pmuName]["programmable"].get_object();
             }
             auto& myPMUConfigs = fixed ? curPMUConfigs[pmuName].fixed : curPMUConfigs[pmuName].programmable;
+            simdjson::dom::object MSRObject;
+            auto setMSRValue = [&setConfig,&MSRObject,&config,&myPMUConfigs](const string & valueStr)
+            {
+                const auto value = read_number(valueStr.c_str());
+                const auto position = int64_t(MSRObject["Position"]);
+                // update the first event
+                setConfig(myPMUConfigs.empty() ? config : myPMUConfigs.front(), MSRObject, value, position);
+                // update the current as well for display
+                setConfig(config, MSRObject, value, position);
+            };
             for (const auto & registerKeyValue : PMUDeclObj)
             {
                 // cout << "Setting " << registerKeyValue.key << " : " << registerKeyValue.value << "\n";
@@ -644,12 +654,9 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
                         MSRIndexStr = MSRIndexes[offcoreEventIndex];
                     }
                     // cout << " MSR field " << fieldNameStr << " value is " << MSRIndexStr << " (" << read_number(MSRIndexStr.c_str()) << ") offcore=" << offcore << "\n";
-                    simdjson::dom::object MSRObject = registerKeyValue.value[MSRIndexStr];
+                    MSRObject = registerKeyValue.value[MSRIndexStr];
                     const string msrValueStr = EventMap::getField(eventStr, "MSRValue");
-                    // update the first event
-                    setConfig(myPMUConfigs.empty() ? config : myPMUConfigs.front(), MSRObject, read_number(msrValueStr.c_str()), int64_t(MSRObject["Position"]));
-                    // update the current as well for display
-                    setConfig(config, MSRObject, read_number(msrValueStr.c_str()), int64_t(MSRObject["Position"]));
+                    setMSRValue(msrValueStr);
                     continue;
                 }
                 const int64_t position = int64_t(fieldDescriptionObj["Position"]);
@@ -774,6 +781,10 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
                 else if (assignment.size() == 2 && assignment[0] == "umask_ext")
                 {
                     setField("UMaskExt", read_number(assignment[1].c_str()));
+                }
+                else if (assignment.size() == 2 && assignment[0] == "ocr_msr_val")
+                {
+                    setMSRValue(assignment[1]);
                 }
                 else
                 {
