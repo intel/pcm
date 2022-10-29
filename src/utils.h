@@ -509,6 +509,9 @@ inline HANDLE openMSRDriver()
 }
 #endif
 
+#define PCM_ENFORCE_FLUSH_OPTION else if (check_argument_equals(*argv, { "-f", "/f" })) { enforceFlush = true; continue; }
+void print_enforce_flush_option_help();
+
 // called before everything else to read '-s' arg and
 // silence all following err output
 void check_and_set_silent(int argc, char * argv[], null_stream &nullStream2);
