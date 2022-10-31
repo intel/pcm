@@ -778,6 +778,11 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
                 {
                     setField("Threshold", read_number(assignment[1].c_str()));
                 }
+                else if (assignment.size() == 2 && assignment[0] == "tid")
+                {
+                    setField("TIDEnable", 1);
+                    setField("TID", read_number(assignment[1].c_str()));
+                }
                 else if (assignment.size() == 2 && assignment[0] == "umask_ext")
                 {
                     setField("UMaskExt", read_number(assignment[1].c_str()));
