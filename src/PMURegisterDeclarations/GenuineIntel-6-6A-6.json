@@ -67,8 +67,10 @@
             "EventCode":   {"Config": 0, "Position": 0, "Width": 8},
             "UMask":       {"Config": 0, "Position": 8, "Width": 8},
             "EdgeDetect":  {"Config": 0, "Position": 18, "Width": 1, "DefaultValue": 0},
+            "TIDEnable":   {"Config": 0, "Position": 19, "Width": 1, "DefaultValue": 0},
             "Threshold":   {"Config": 0, "Position": 24, "Width": 8, "DefaultValue": 0},
-            "UMaskExt":    {"Config": 0, "Position": 32, "Width": 26}
+            "UMaskExt":    {"Config": 0, "Position": 32, "Width": 26},
+            "TID":         {"Config": 1, "Position": 0,  "Width": 9, "DefaultValue": 0}
         }
     },
     "imc" : {
