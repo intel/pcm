@@ -60,6 +60,13 @@ if [ "$?" -ne "0" ]; then
     exit 1
 fi
 
+echo Testing pcm-memory with csv output
+./pcm-memory -csv=pcm-memory.csv -- sleep 1
+if [ "$?" -ne "0" ]; then
+    echo "Error in pcm-memory"
+    exit 1
+fi
+
 echo Testing pcm-memory with -rank
 ./pcm-memory -rank=1 -- sleep 1
 if [ "$?" -ne "0" ]; then
