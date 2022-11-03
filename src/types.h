@@ -56,6 +56,7 @@ typedef signed int int32;
 
 constexpr auto IA32_PERF_GLOBAL_STATUS = 0x38E;
 constexpr auto IA32_PERF_GLOBAL_OVF_CTRL = 0x390;
+constexpr auto IA32_PEBS_ENABLE_ADDR = 0x3F1;
 
 #define PERF_MAX_FIXED_COUNTERS          (3)
 #define PERF_MAX_CUSTOM_COUNTERS         (8)

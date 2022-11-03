@@ -854,6 +854,7 @@ private:
     int run_state;                 // either running (1) or sleeping (0)
 
     bool needToRestoreNMIWatchdog;
+    bool cleanupPEBS{false};
 
     std::vector<std::vector<EventSelectRegister> > lastProgrammedCustomCounters;
     uint32 checkCustomCoreProgramming(std::shared_ptr<SafeMsrHandle> msr);
