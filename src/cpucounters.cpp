@@ -405,8 +405,9 @@ void PCM::readCoreCounterConfig(const bool complainAboutMSR)
         }
         if (aws_workaround == true && vm == true && linux_arch_perfmon == true && core_gen_counter_num_max > 3)
         {
-            core_gen_counter_num_max = 3;
-            std::cerr << "INFO: Reducing the number of programmable counters to 3 to workaround the fixed cycle counter virtualization issue on AWS.\n";
+            --core_gen_counter_num_max;
+            std::cerr << "INFO: Reducing the number of programmable counters to " << core_gen_counter_num_max <<
+		          " to workaround the fixed cycle counter virtualization issue on AWS.\n";
             std::cerr << "      You can disable the workaround by setting PCM_NO_AWS_WORKAROUND=1 environment variable\n";
         }
         if (isNMIWatchdogEnabled(true) && keepNMIWatchdogEnabled())
