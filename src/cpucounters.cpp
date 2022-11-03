@@ -3149,6 +3149,7 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
             reg.fields.in_txcp = 0;
     };
     EventSelectRegister event_select_reg;
+    uint64 PEBSEnable = 0ULL;
     for (uint32 j = 0; j < core_gen_counter_num_used; ++j)
     {
         if (hybrid == false || (hybrid == true && topology[i].core_type == TopologyEntry::Core))
@@ -3179,13 +3180,17 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
         }
 
         result.push_back(event_select_reg);
+        if (pExtDesc != nullptr && event_select_reg.fields.event_select == LOAD_LATENCY_EVTNR && event_select_reg.fields.umask == LOAD_LATENCY_UMASK)
+        {
+            PEBSEnable |= (1ULL << j);
+        }
 #ifdef PCM_USE_PERF
         if (canUsePerf)
         {
             perf_event_attr e = PCM_init_perf_event_attr();
             e.type = PERF_TYPE_RAW;
             e.config = (1ULL << 63ULL) + event_select_reg.value;
-	    if (pExtDesc != nullptr)
+            if (pExtDesc != nullptr)
             {
                 if (event_select_reg.fields.event_select == getOCREventNr(0, i).first && event_select_reg.fields.umask == getOCREventNr(0, i).second)
                     e.config1 = pExtDesc->OffcoreResponseMsrValue[0];
@@ -3251,6 +3256,11 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
 
         MSR[i]->write(IA32_PERF_GLOBAL_OVF_CTRL, value);
         MSR[i]->write(IA32_CR_PERF_GLOBAL_CTRL, value);
+        if (PEBSEnable)
+        {
+            cleanupPEBS = true;
+            MSR[i]->write(IA32_PEBS_ENABLE_ADDR, PEBSEnable);
+        }
     }
 #ifdef PCM_USE_PERF
     else
@@ -3984,7 +3994,12 @@ void PCM::cleanupPMU(const bool silent)
         {
             MSR[i]->write(IA32_PERFEVTSEL0_ADDR + j, 0);
         }
+        if (cleanupPEBS)
+        {
+            MSR[i]->write(IA32_PEBS_ENABLE_ADDR, 0ULL);
+        }
     }
+    cleanupPEBS = false;
 
     if(cpu_model == JAKETOWN)
         enableJKTWorkaround(false);
