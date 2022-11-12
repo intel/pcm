@@ -19,7 +19,7 @@ if(UNIX)  # LINUX, FREE_BSD, APPLE
     endif()
 
     list(APPEND PROJECT_NAMES pcm-sensor)
-    if(LINUX)
+    if(NOT APPLE)
         list(APPEND PROJECT_NAMES pcm-sensor-server)
     endif()
 
