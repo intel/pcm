@@ -290,7 +290,12 @@ bool initPMUEventMap()
 
                 if (path.find(".json") != std::string::npos) {
                     JSONparsers.push_back(std::make_shared<simdjson::dom::parser>());
-                    for (simdjson::dom::object eventObj : JSONparsers.back()->load(path)) {
+                    auto JSONObjects = JSONparsers.back()->load(path);
+                    if (JSONObjects["Header"].error() != NO_SUCH_FIELD)
+                    {
+                        JSONObjects = JSONObjects["Events"];
+                    }
+                    for (simdjson::dom::object eventObj : JSONObjects) {
                         // cout << "Event ----------------\n";
                         const std::string EventName{eventObj["EventName"].get_c_str()};
                         if (EventName.empty())
