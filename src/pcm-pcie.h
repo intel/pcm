@@ -342,6 +342,136 @@ void LegacyPlatform::printAggregatedEvents()
     }
 }
 
+//SPR
+class EagleStreamPlatform: public LegacyPlatform
+{
+public:
+    EagleStreamPlatform(PCM *m, bool csv, bool bandwidth, bool verbose, uint32 delay) :
+        LegacyPlatform( {"PCIRdCur", "ItoM", "ItoMCacheNear", "UCRdF", "WiL", "WCiL", "WCiLF"},
+                        {
+                            {0xC8F3FE00000435, 0xC8F3FD00000435, 0xCC43FE00000435, 0xCC43FD00000435},
+                            {0xCD43FE00000435, 0xCD43FD00000435, 0xC877DE00000135, 0xC87FDE00000135},
+                            {0xC86FFE00000135, 0xC867FE00000135,},
+                        },
+                        m, csv, bandwidth, verbose, delay)
+    {
+    };
+
+private:
+    enum eventIdx {
+        PCIRdCur,
+        ItoM,
+        ItoMCacheNear,
+        UCRdF,
+        WiL,
+        WCiL,
+        WCiLF
+    };
+
+    enum Events {
+            PCIRdCur_miss,
+            PCIRdCur_hit,
+            ItoM_miss,
+            ItoM_hit,
+            ItoMCacheNear_miss,
+            ItoMCacheNear_hit,
+            UCRdF_miss,
+            WiL_miss,
+            WCiL_miss,
+            WCiLF_miss,
+            eventLast
+    };
+
+    virtual uint64 getReadBw(uint socket, eventFilter filter);
+    virtual uint64 getWriteBw(uint socket, eventFilter filter);
+    virtual uint64 getReadBw();
+    virtual uint64 getWriteBw();
+    virtual uint64 event(uint socket, eventFilter filter, uint idx);
+};
+
+uint64 EagleStreamPlatform::event(uint socket, eventFilter filter, uint idx)
+{
+    uint64 event = 0;
+    switch (idx)
+    {
+        case PCIRdCur:
+            if(filter == TOTAL)
+                event = eventSample[socket][PCIRdCur_miss] +
+                        eventSample[socket][PCIRdCur_hit];
+                else if (filter == MISS)
+                    event = eventSample[socket][PCIRdCur_miss];
+                else if (filter == HIT)
+                    event = eventSample[socket][PCIRdCur_hit];
+            break;
+        case ItoM:
+            if(filter == TOTAL)
+                event = eventSample[socket][ItoM_miss] +
+                        eventSample[socket][ItoM_hit];
+                else if (filter == MISS)
+                    event = eventSample[socket][ItoM_miss];
+                else if (filter == HIT)
+                    event = eventSample[socket][ItoM_hit];
+            break;
+        case ItoMCacheNear:
+            if(filter == TOTAL)
+                event = eventSample[socket][ItoMCacheNear_miss] +
+                        eventSample[socket][ItoMCacheNear_hit];
+                else if (filter == MISS)
+                    event = eventSample[socket][ItoMCacheNear_miss];
+                else if (filter == HIT)
+                    event = eventSample[socket][ItoMCacheNear_hit];
+            break;
+        case UCRdF:
+                if(filter == TOTAL || filter == MISS)
+                    event = eventSample[socket][UCRdF_miss];
+            break;
+        case WiL:
+                if(filter == TOTAL || filter == MISS)
+                    event = eventSample[socket][WiL_miss];
+            break;
+        case WCiL:
+                if(filter == TOTAL || filter == MISS)
+                    event = eventSample[socket][WCiL_miss];
+            break;
+        case WCiLF:
+                if(filter == TOTAL || filter == MISS)
+                    event = eventSample[socket][WCiLF_miss];
+            break;
+        default:
+            break;
+    }
+    return event;
+}
+
+uint64 EagleStreamPlatform::getReadBw(uint socket, eventFilter filter)
+{
+    uint64 readBw = event(socket, filter, PCIRdCur);
+    return (readBw * 64ULL);
+}
+
+uint64 EagleStreamPlatform::getWriteBw(uint socket, eventFilter filter)
+{
+    uint64 writeBw = event(socket, filter, ItoM) +
+                     event(socket, filter, ItoMCacheNear);
+    return (writeBw * 64ULL);
+}
+uint64 EagleStreamPlatform::getReadBw()
+{
+    uint64 readBw = 0;
+    for (uint socket = 0; socket < m_socketCount; socket++)
+        readBw += (event(socket, TOTAL, PCIRdCur));
+    return (readBw * 64ULL);
+}
+
+uint64 EagleStreamPlatform::getWriteBw()
+{
+    uint64 writeBw = 0;
+    for (uint socket = 0; socket < m_socketCount; socket++)
+        writeBw += (event(socket, TOTAL, ItoM) +
+                    event(socket, TOTAL, ItoMCacheNear));
+    return (writeBw * 64ULL);
+}
+
 //ICX
 class WhitleyPlatform: public LegacyPlatform
 {

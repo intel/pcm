@@ -33,6 +33,7 @@ PCM provides a number of command-line utilities for real-time monitoring:
 ![pcm-memory output](https://raw.githubusercontent.com/wiki/opcm/pcm/pcm-memory.x.JPG)
 - **pcm-latency** : monitor L1 cache miss and DDR/PMM memory latency
 - **pcm-pcie** : monitor PCIe bandwidth per-socket
+- **pcm-accel** : monitor IAA and DSA accelerators
 - **pcm-iio** : monitor PCIe bandwidth per PCIe device
 ![pcm-iio output](https://raw.githubusercontent.com/wiki/opcm/pcm/pcm-iio.png)
 - **pcm-numa** : monitor local and remote memory accesses

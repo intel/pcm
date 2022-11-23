@@ -133,12 +133,15 @@ std::vector<size_t> getServerMemBars(const uint32 numIMC, const uint32 root_segm
     PciHandleType ubox0Handle(root_segment_ubox0, root_bus_ubox0, SERVER_UBOX0_REGISTER_DEV_ADDR, SERVER_UBOX0_REGISTER_FUNC_ADDR);
     uint32 mmioBase = 0;
     ubox0Handle.read32(0xd0, &mmioBase);
+    // std::cout << "mmioBase is 0x" << std::hex << mmioBase << std::dec << std::endl;
     for (uint32 i = 0; i < numIMC; ++i)
     {
         uint32 memOffset = 0;
         ubox0Handle.read32(0xd8 + i * 4, &memOffset);
-        size_t memBar = ((mmioBase & ((1ULL << 29ULL) - 1ULL)) << 23ULL) |
-            ((memOffset & ((1ULL << 11ULL) - 1ULL)) << 12ULL);
+        // std::cout << "memOffset for imc "<<i<<" is 0x" << std::hex << memOffset << std::dec << std::endl;
+        size_t memBar = ((size_t(mmioBase) & ((1ULL << 29ULL) - 1ULL)) << 23ULL) |
+            ((size_t(memOffset) & ((1ULL << 11ULL) - 1ULL)) << 12ULL);
+        // std::cout << "membar for imc "<<i<<" is 0x" << std::hex << memBar << std::dec << std::endl;
         if (memBar == 0)
         {
             std::cerr << "ERROR: memBar " << i << " is zero." << std::endl;
@@ -163,6 +166,7 @@ uint64 ServerBW::getImcReads()
     uint64 result = 0;
     for (auto & mmio: mmioRanges)
     {
+        // std::cout << "PCM_SERVER_IMC_DRAM_DATA_READS: " << mmio->read64(PCM_SERVER_IMC_DRAM_DATA_READS) << std::endl;
         result += mmio->read64(PCM_SERVER_IMC_DRAM_DATA_READS);
     }
     return result;

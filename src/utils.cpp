@@ -15,6 +15,7 @@
 #endif
 #include "utils.h"
 #include "cpucounters.h"
+#include <numeric>
 
 namespace pcm {
 
@@ -781,4 +782,244 @@ bool print_version(int argc, char * argv[])
     return false;
 }
 
+std::string dos2unix(std::string in)
+{
+    if (in.length() > 0 && int(in[in.length() - 1]) == 13)
+    {
+        in.erase(in.length() - 1);
+    }
+    return in;
+}
+
+std::string a_title(const std::string &init, const std::string &name) {
+    char begin = init[0];
+    std::string row = init;
+    row += name;
+    return row + begin;
+}
+
+std::string a_data (std::string init, struct data d) {
+    char begin = init[0];
+    std::string row = init;
+    std::string str_d = unit_format(d.value);
+    row += str_d;
+    if (str_d.size() > d.width)
+        throw std::length_error("counter value > event_name length");
+    row += std::string(d.width - str_d.size(), ' ');
+    return row + begin;
+}
+
+std::string build_line(std::string init, std::string name, bool last_char = true, char this_char = '_')
+{
+    char begin = init[0];
+    std::string row = init;
+    row += std::string(name.size(), this_char);
+    if (last_char == true)
+        row += begin;
+    return row;
+}
+
+std::string a_header_footer (std::string init, std::string name)
+{
+    return build_line(init, name);
+}
+
+std::string build_csv_row(const std::vector<std::string>& chunks, const std::string& delimiter)
+{
+    return std::accumulate(chunks.begin(), chunks.end(), std::string(""),
+                           [delimiter](const std::string &left, const std::string &right){
+                               return left.empty() ? right : left + delimiter + right;
+                           });
+}
+
+
+std::vector<struct data> prepare_data(const std::vector<uint64_t> &values, const std::vector<std::string> &headers)
+{
+    std::vector<struct data> v;
+    uint32_t idx = 0;
+    for (std::vector<std::string>::const_iterator iunit = std::next(headers.begin()); iunit != headers.end() && idx < values.size(); ++iunit, idx++)
+    {
+        struct data d;
+        d.width = (uint32_t)iunit->size();
+        d.value = values[idx];
+        v.push_back(d);
+    }
+
+    return v;
+}
+
+void display(const std::vector<std::string> &buff, std::ostream& stream)
+{
+    for (std::vector<std::string>::const_iterator iunit = buff.begin(); iunit != buff.end(); ++iunit)
+        stream << *iunit << "\n";
+    stream << std::flush;
+}
+
+void print_nameMap(std::map<std::string,std::pair<uint32_t,std::map<std::string,uint32_t>>>& nameMap)
+{
+    for (std::map<std::string,std::pair<uint32_t,std::map<std::string,uint32_t>>>::const_iterator iunit = nameMap.begin(); iunit != nameMap.end(); ++iunit)
+    {
+        std::string h_name = iunit->first;
+        std::pair<uint32_t,std::map<std::string,uint32_t>> value = iunit->second;
+        uint32_t hid = value.first;
+        std::map<std::string,uint32_t> vMap = value.second;
+        std::cout << "H name: " << h_name << " id =" << hid << " vMap size:" << vMap.size() << "\n";
+        for (std::map<std::string,uint32_t>::const_iterator junit = vMap.begin(); junit != vMap.end(); ++junit)
+        {
+            std::string v_name = junit->first;
+            uint32_t vid = junit->second;
+            std::cout << "V name: " << v_name << " id =" << vid << "\n";
+        }
+    }
+}
+
+//! \brief load_events: parse the evt config file.
+//! \param fn:event config file name.
+//! \param ofm: operation field map struct.
+//! \param pfn_evtcb: see below.
+//! \param evtcb_ctx: pointer of the callback context(user define).
+//! \return -1 means fail, 0 means success.
+
+//! \brief pfn_evtcb: call back func of event config file processing, app should provide it.
+//! \param void *: pointer of the callback context.
+//! \param counter &: common base counter struct.
+//! \param std::map<std::string, uint32_t> &: operation field map struct.
+//! \param std::string: event field name.
+//! \param uint64: event field value.
+//! \return -1 means fail with app exit, 0 means success or fail with continue.
+int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm, int (*pfn_evtcb)(evt_cb_type, void *, counter &, std::map<std::string, uint32_t> &, std::string, uint64), void *evtcb_ctx)
+{
+    struct counter ctr;
+    std::map<std::string,std::pair<uint32_t,std::map<std::string,uint32_t>>> nameMap;
+
+    std::ifstream in(fn);
+    std::string line, item;
+    if (!in.is_open())
+    {
+        const auto alt_fn = std::string("/usr/share/pcm/") + fn;
+        in.open(alt_fn);
+        if (!in.is_open())
+        {
+            in.close();
+            const auto err_msg = std::string("event file ") + fn + " or " + alt_fn + " is not available. Copy it from PCM build directory.";
+            throw std::invalid_argument(err_msg);
+        }
+    }
+   
+    while (std::getline(in, line)) 
+    {
+        //TODO: substring until #, if len == 0, skip, else parse normally
+        //Set default value if the item is NOT availalbe in cfg file.
+        ctr.h_event_name = "INVALID";
+        ctr.v_event_name = "INVALID";
+        ctr.ccr = 0;
+        ctr.idx = 0;
+        ctr.multiplier = 1;
+        ctr.divider = 1;
+        ctr.h_id = 0;
+        ctr.v_id = 0;
+        
+        if (pfn_evtcb(EVT_LINE_START, evtcb_ctx, ctr, ofm, "", 0))
+        {
+            in.close();
+            const auto err_msg = std::string("event line processing(start) fault.\n");
+            throw std::invalid_argument(err_msg);
+        }
+
+        /* Ignore anyline with # */
+        if (line.find("#") != std::string::npos)
+            continue;
+        /* If line does not have any deliminator, we ignore it as well */
+        if (line.find("=") == std::string::npos)
+            continue;
+
+        std::string h_name, v_name;
+        std::istringstream iss(line);
+        while (std::getline(iss, item, ',')) 
+        {
+            std::string key, value;
+            uint64 numValue;
+            /* assume the token has the format <key>=<value> */
+            key = item.substr(0,item.find("="));
+            value = item.substr(item.find("=")+1);
+
+            if (key.empty() || value.empty())
+                continue; //skip the item if the token invalid
+
+            std::istringstream iss2(value);
+            iss2 >> std::setbase(0) >> numValue;
+
+            //cout << "Key:" << key << " Value:" << value << " opcodeFieldMap[key]:" << ofm[key] << "\n";
+            switch (ofm[key]) 
+            {
+                case PCM::H_EVENT_NAME:
+                    h_name = dos2unix(value);
+                    ctr.h_event_name = h_name;
+                    if (nameMap.find(h_name) == nameMap.end()) 
+                    {
+                        /* It's a new horizontal event name */
+                        uint32_t next_h_id = (uint32_t)nameMap.size();
+                        std::pair<uint32_t,std::map<std::string,uint32_t>> nameMap_value(next_h_id, std::map<std::string,uint32_t>());
+                        nameMap[h_name] = nameMap_value;
+                    }
+                    ctr.h_id = (uint32_t)nameMap.size() - 1;
+                    //cout << "h_name:" << ctr.h_event_name << "h_id: "<< ctr.h_id << "\n";
+                    break;
+                case PCM::V_EVENT_NAME:
+                    {
+                        v_name = dos2unix(value);
+                        ctr.v_event_name = v_name;
+                        //XXX: If h_name comes after v_name, we'll have a problem.
+                        //XXX: It's very weird, I forgot to assign nameMap[h_name] = nameMap_value earlier (:298), but this part still works?
+                        std::map<std::string,uint32_t> &v_nameMap = nameMap[h_name].second;
+                        if (v_nameMap.find(v_name) == v_nameMap.end()) 
+                        {
+                            v_nameMap[v_name] = (unsigned int)v_nameMap.size() - 1;
+                            //cout << "v_name(" << v_name << ")="<< v_nameMap[v_name] << "\n";
+                        }
+                        else
+                        {
+                            in.close();
+                            const auto err_msg = std::string("Detect duplicated v_name:") + v_name + "\n";
+                            throw std::invalid_argument(err_msg);
+                        }
+                        ctr.v_id = (uint32_t)v_nameMap.size() - 1;
+                        //cout << "h_name:" << ctr.h_event_name << ",hid=" << ctr.h_id << ",v_name:" << ctr.v_event_name << ",v_id: "<< ctr.v_id << "\n";
+                        break;
+                    }
+                //TODO: double type for multiplier. drop divider variable
+                case PCM::MULTIPLIER:
+                    ctr.multiplier = (int)numValue;
+                    break;
+                case PCM::DIVIDER:
+                    ctr.divider = (int)numValue;
+                    break;
+                case PCM::COUNTER_INDEX:
+                    ctr.idx = (int)numValue;
+                    break;
+
+                default:
+                    if (pfn_evtcb(EVT_LINE_FIELD, evtcb_ctx, ctr, ofm, key, numValue))
+                    {
+                        in.close();
+                        const auto err_msg = std::string("event line processing(field) fault.\n");
+                        throw std::invalid_argument(err_msg);
+                    }
+                    break;
+            }
+        }       
+
+        //std::cout << "Finish parsing: " << line << "\n";
+        if (pfn_evtcb(EVT_LINE_COMPLETE, evtcb_ctx, ctr, ofm, "", 0))
+        {
+            in.close();
+            const auto err_msg = std::string("event line processing(end) fault.\n");
+            throw std::invalid_argument(err_msg);
+        }        
+    }
+
+    //print_nameMap(nameMap); //DEBUG purpose
+    in.close();
+    return 0;
+}
 } // namespace pcm

@@ -743,8 +743,9 @@ void calculate_bandwidth(PCM *m,
     //const uint32 num_edc_channels = m->getEDCChannelsPerSocket();
     memdata_t md;
     md.metrics = metrics;
-    md.M2M_NM_read_hit_rate_supported = (m->getCPUModel() == PCM::SKX);
-    md.iMC_NM_hit_rate_supported = (m->getCPUModel() == PCM::ICX);
+    const auto cpu_model = m->getCPUModel();
+    md.M2M_NM_read_hit_rate_supported = (cpu_model == PCM::SKX);
+    md.iMC_NM_hit_rate_supported = (cpu_model == PCM::ICX);
     static bool mm_once = true;
     if (metrics == Pmem && md.M2M_NM_read_hit_rate_supported == false && md.iMC_NM_hit_rate_supported == true && mm_once)
     {
@@ -876,8 +877,16 @@ void calculate_bandwidth(PCM *m,
         }
         if (metrics == PmemMemoryMode)
         {
-            md.iMC_Rd_socket[skt] += toBW(getFreeRunningCounter(ServerUncoreCounterState::ImcReads, uncState1[skt], uncState2[skt]));
-            md.iMC_Wr_socket[skt] += toBW(getFreeRunningCounter(ServerUncoreCounterState::ImcWrites, uncState1[skt], uncState2[skt]));
+            const int64 imcReads = getFreeRunningCounter(ServerUncoreCounterState::ImcReads, uncState1[skt], uncState2[skt]);
+            if (imcReads >= 0)
+            {
+                md.iMC_Rd_socket[skt] += toBW(imcReads);
+            }
+            const int64 imcWrites = getFreeRunningCounter(ServerUncoreCounterState::ImcWrites, uncState1[skt], uncState2[skt]);
+            if (imcWrites >= 0)
+            {
+                md.iMC_Wr_socket[skt] += toBW(imcWrites);
+            }
         }
         if (metrics == PmemMixedMode || metrics == PmemMemoryMode)
         {
@@ -1153,6 +1162,16 @@ int main(int argc, char * argv[])
     if (anyPmem(metrics) && (m->PMMTrafficMetricsAvailable() == false))
     {
         cerr << "PMM/Pmem traffic metrics are not available on your processor.\n";
+        exit(EXIT_FAILURE);
+    }
+    if (metrics == PmemMemoryMode && m->PMMMemoryModeMetricsAvailable() == false)
+    {
+       cerr << "PMM Memory Mode metrics are not available on your processor.\n";
+       exit(EXIT_FAILURE);
+    }
+    if (metrics == PmemMixedMode && m->PMMMixedModeMetricsAvailable() == false)
+    {
+        cerr << "PMM Mixed Mode metrics are not available on your processor.\n";
         exit(EXIT_FAILURE);
     }
     if((rankA >= 0 || rankB >= 0) && anyPmem(metrics))
