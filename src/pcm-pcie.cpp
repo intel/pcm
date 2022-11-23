@@ -54,6 +54,9 @@ void print_events()
     cout << "     ItoM      - PCIe write full cache line\n";
     cout << "     RFO       - PCIe partial Write\n";
     cout << "   CPU MMIO events (CPU reading/writing to PCIe devices):\n";
+    cout << "     UCRdF     - read from uncacheable memory, including MMIO\n";
+    cout << "     WCiL      - streaming store (partial cache line), includes MOVDIRI\n\n";
+    cout << "     WCiLF     - streaming store (full cache line), includes MOVDIR64\n\n";
     cout << "     PRd       - MMIO Read [Haswell Server only] (Partial Cache Line)\n";
     cout << "     WiL       - MMIO Write (Full/Partial)\n\n";
     cout << " * - NOTE: Depending on the configuration of your BIOS, this tool may report '0' if the message\n";
@@ -93,6 +96,8 @@ void print_usage(const string & progname)
 IPlatform *IPlatform::getPlatform(PCM *m, bool csv, bool print_bandwidth, bool print_additional_info, uint32 delay)
 {
     switch (m->getCPUModel()) {
+        case PCM::SPR:
+            return new EagleStreamPlatform(m, csv, print_bandwidth, print_additional_info, delay);
         case PCM::ICX:
         case PCM::SNOWRIDGE:
             return new WhitleyPlatform(m, csv, print_bandwidth, print_additional_info, delay);

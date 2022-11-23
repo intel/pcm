@@ -143,6 +143,20 @@ const vector<TSXEvent> iclEventDefinition = {
     { "TX_EXEC.MISC3", 0x5D, 0x04, "Counts the number of times an instruction execution caused the nest count supported to be exceeded" }
 };
 
+const vector<TSXEvent> sprEventDefinition = {
+    { "RTM_RETIRED.START", 0xC9, 0x01, "Number of times an RTM execution started." },
+    { "RTM_RETIRED.COMMIT", 0xC9, 0x02, "Number of times an RTM execution successfully committed" },
+    { "RTM_RETIRED.ABORTED", 0xC9, 0x04, "Number of times an RTM execution aborted." },
+    { "RTM_RETIRED.ABORTED_MEM", 0xC9, 0x08, "Number of times an RTM execution aborted due to various memory events (e.g. read/write capacity and conflicts)" },
+    { "RTM_RETIRED.ABORTED_UNFRIENDLY", 0xC9, 0x20, "Number of times an RTM execution aborted due to HLE-unfriendly instructions" },
+    { "RTM_RETIRED.ABORTED_MEMTYPE", 0xC9, 0x40, "Number of times an RTM execution aborted due to incompatible memory type" },
+    { "RTM_RETIRED.ABORTED_EVENTS", 0xC9, 0x80, "Number of times an RTM execution aborted due to none of the previous 4 categories (e.g. interrupt)" },
+
+    { "TX_MEM.ABORT_CONFLICT", 0x54, 0x01, "Number of times a transactional abort was signaled due to a data conflict on a transactionally accessed address" },
+    { "TX_MEM.ABORT_CAPACITY_WRITE", 0x54, 0x02, "Speculatively counts the number of TSX aborts due to a data capacity limitation for transactional writes." },
+    { "TX_MEM.ABORT_CAPACITY_READ", 0x54, 0x80, "Speculatively counts the number of TSX aborts due to a data capacity limitation for transactional reads" }
+};
+
 void print_usage(const string & progname)
 {
     cout << "\n Usage: \n " << progname
@@ -302,6 +316,9 @@ int main(int argc, char * argv[])
     case PCM::ICX:
     case PCM::RKL:
         eventDefinition = iclEventDefinition;
+        break;
+    case PCM::SPR:
+        eventDefinition = sprEventDefinition;
         break;
     }
 

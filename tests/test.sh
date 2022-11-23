@@ -81,6 +81,13 @@ if [ "$?" -ne "0" ]; then
     exit 1
 fi
 
+echo Testing pcm-iio --list
+./pcm-iio --list
+if [ "$?" -ne "0" ]; then
+    echo "Error in pcm-iio"
+    exit 1
+fi
+
 echo Testing pcm-iio
 ./pcm-iio -i=1
 if [ "$?" -ne "0" ]; then
