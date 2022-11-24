@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: BSD-3-Clause
-// Copyright (c) 2017-2018, Intel Corporation
+// Copyright (c) 2017-2022, Intel Corporation
 
 // written by Patrick Lu,
 //            Aaron Cruz
+//            and others
 #include "cpucounters.h"
 #ifdef _MSC_VER
 #pragma warning(disable : 4996) // for sprintf
