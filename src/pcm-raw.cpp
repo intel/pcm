@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-// Copyright (c) 2009-2020, Intel Corporation
+// Copyright (c) 2009-2022, Intel Corporation
 
  /*!     \file pcm-raw.cpp
          \brief Example of using CPU counters: implements a performance counter monitoring utility with raw events interface

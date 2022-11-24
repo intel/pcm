@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: BSD-3-Clause
-// Copyright (c) 2009-2020, Intel Corporation
+// Copyright (c) 2009-2022, Intel Corporation
 // written by Roman Dementiev
 //            Thomas Willhalm
+//            and others
 
 #ifndef CPUCOUNTERS_HEADER
 #define CPUCOUNTERS_HEADER
