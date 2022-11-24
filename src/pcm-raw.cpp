@@ -1906,7 +1906,11 @@ int main(int argc, char* argv[])
         argc--;
         string arg_value;
 
-        if (check_argument_equals(*argv, {"--help", "-h", "/h"}))
+        if (*argv == nullptr)
+        {
+            continue;
+        }
+        else if (check_argument_equals(*argv, {"--help", "-h", "/h"}))
         {
             print_usage(program);
             exit(EXIT_FAILURE);
@@ -2034,7 +2038,13 @@ int main(int argc, char* argv[])
         {
             argv++;
             argc--;
-            if (addEvents(PMUConfigs, *argv) == false)
+            const auto p = *argv;
+            if (p == nullptr)
+            {
+                cerr << "ERROR: no parameter value provided for 'el' option\n";
+                exit(EXIT_FAILURE);
+            }
+            else if (addEvents(PMUConfigs, p) == false)
             {
                 exit(EXIT_FAILURE);
             }
@@ -2044,7 +2054,12 @@ int main(int argc, char* argv[])
         {
             argv++;
             argc--;
-            if (addEvent(PMUConfigs[0], *argv) == false)
+            const auto p = *argv;
+            if (p == nullptr)
+            {
+                cerr << "ERROR: no parameter value provided for 'e' option\n";
+                exit(EXIT_FAILURE);
+            } else if (addEvent(PMUConfigs[0], p) == false)
             {
                 exit(EXIT_FAILURE);
             }
