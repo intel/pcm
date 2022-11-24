@@ -29,6 +29,7 @@
 #include "bw.h"
 #include "width_extender.h"
 #include "exceptions/unsupported_processor_exception.hpp"
+#include "uncore_pmu_discovery.h"
 
 #include <vector>
 #include <array>
@@ -154,11 +155,14 @@ public:
     }
     void operator = (uint64 val) override
     {
+        // std::cout << std::hex << "MMIORegister64 writing " << val << " at offset " << offset << std::dec << std::endl;
         handle->write64(offset, val);
     }
     operator uint64 () override
     {
-        return handle->read64(offset);
+        const uint64 val = handle->read64(offset);
+        // std::cout << std::hex << "MMIORegister64 read " << val << " from offset " << offset << std::dec << std::endl;
+        return val;
     }
 };
 
@@ -174,11 +178,14 @@ public:
     }
     void operator = (uint64 val) override
     {
+        // std::cout << std::hex << "MMIORegister32 writing " << val << " at offset " << offset << std::dec << std::endl;
         handle->write32(offset, (uint32)val);
     }
     operator uint64 () override
     {
-        return (uint64)handle->read32(offset);
+        const uint64 val = (uint64)handle->read32(offset);
+        // std::cout << std::hex << "MMIORegister32 read " << val << " from offset " << offset << std::dec << std::endl;
+        return val;
     }
 };
 
@@ -200,6 +207,7 @@ public:
     {
         uint64 value = 0;
         handle->read(offset, &value);
+        // std::cout << "reading MSR " << offset << " returning " << value << std::endl;
         return value;
     }
 };
@@ -233,6 +241,8 @@ public:
 class UncorePMU
 {
     typedef std::shared_ptr<HWRegister> HWRegisterPtr;
+    uint32 cpu_model_;
+    uint32 getCPUModel();
     HWRegisterPtr unitControl;
 public:
     HWRegisterPtr counterControl[4];
@@ -241,43 +251,75 @@ public:
     HWRegisterPtr fixedCounterValue;
     HWRegisterPtr filter[2];
 
-    UncorePMU(const HWRegisterPtr & unitControl_,
-        const HWRegisterPtr & counterControl0,
-        const HWRegisterPtr & counterControl1,
-        const HWRegisterPtr & counterControl2,
-        const HWRegisterPtr & counterControl3,
-        const HWRegisterPtr & counterValue0,
-        const HWRegisterPtr & counterValue1,
-        const HWRegisterPtr & counterValue2,
-        const HWRegisterPtr & counterValue3,
-        const HWRegisterPtr & fixedCounterControl_ = HWRegisterPtr(),
-        const HWRegisterPtr & fixedCounterValue_ = HWRegisterPtr(),
-        const HWRegisterPtr & filter0 = HWRegisterPtr(),
-        const HWRegisterPtr & filter1 = HWRegisterPtr()
-    ) :
-        unitControl(unitControl_),
-        counterControl{ counterControl0, counterControl1, counterControl2, counterControl3 },
-        counterValue{ counterValue0, counterValue1, counterValue2, counterValue3 },
-        fixedCounterControl(fixedCounterControl_),
-        fixedCounterValue(fixedCounterValue_),
-        filter{ filter0 , filter1 }
-    {
-    }
-    UncorePMU() {}
+    UncorePMU(const HWRegisterPtr& unitControl_,
+        const HWRegisterPtr& counterControl0,
+        const HWRegisterPtr& counterControl1,
+        const HWRegisterPtr& counterControl2,
+        const HWRegisterPtr& counterControl3,
+        const HWRegisterPtr& counterValue0,
+        const HWRegisterPtr& counterValue1,
+        const HWRegisterPtr& counterValue2,
+        const HWRegisterPtr& counterValue3,
+        const HWRegisterPtr& fixedCounterControl_ = HWRegisterPtr(),
+        const HWRegisterPtr& fixedCounterValue_ = HWRegisterPtr(),
+        const HWRegisterPtr& filter0 = HWRegisterPtr(),
+        const HWRegisterPtr& filter1 = HWRegisterPtr()
+    );
+    UncorePMU() : cpu_model_(0U) {}
     virtual ~UncorePMU() {}
     bool valid() const
     {
         return unitControl.get() != nullptr;
-    }
-    void writeUnitControl(const uint32 value)
-    {
-        *unitControl = value;
     }
     void cleanup();
     void freeze(const uint32 extra);
     bool initFreeze(const uint32 extra, const char* xPICheckMsg = nullptr);
     void unfreeze(const uint32 extra);
     void resetUnfreeze(const uint32 extra);
+};
+
+class IDX_PMU
+{
+    typedef std::shared_ptr<HWRegister> HWRegisterPtr;
+    uint32 cpu_model_;
+    uint32 getCPUModel();
+    bool perf_mode_;
+    HWRegisterPtr resetControl;
+    HWRegisterPtr freezeControl;
+public:
+    std::vector<HWRegisterPtr> counterControl;
+    std::vector<HWRegisterPtr> counterValue;
+    std::vector<HWRegisterPtr> counterFilterWQ;
+    std::vector<HWRegisterPtr> counterFilterENG;
+    std::vector<HWRegisterPtr> counterFilterTC;
+    std::vector<HWRegisterPtr> counterFilterPGSZ;
+    std::vector<HWRegisterPtr> counterFilterXFERSZ; 
+
+    IDX_PMU(const bool perfMode_,
+        const HWRegisterPtr& resetControl_,
+        const HWRegisterPtr& freezeControl_,
+        const std::vector<HWRegisterPtr> & counterControl,
+        const std::vector<HWRegisterPtr> & counterValue,
+        const std::vector<HWRegisterPtr> & counterFilterWQ,
+        const std::vector<HWRegisterPtr> & counterFilterENG,
+        const std::vector<HWRegisterPtr> & counterFilterTC,
+        const std::vector<HWRegisterPtr> & counterFilterPGSZ,
+        const std::vector<HWRegisterPtr> & counterFilterXFERSZ
+    );
+
+    IDX_PMU() : cpu_model_(0U), perf_mode_(0U) {}
+    size_t size() const { return counterControl.size(); }
+    virtual ~IDX_PMU() {}
+    bool valid() const
+    {
+        return resetControl.get() != nullptr;
+    }
+    void cleanup();
+    void freeze();
+    bool initFreeze();
+    void unfreeze();
+    void resetUnfreeze();
+    bool getPERFMode();
 };
 
 enum ServerUncoreMemoryMetrics
@@ -334,7 +376,6 @@ class ServerPCICFGUncore
     void cleanupMemTest(const MemTestParam & param);
     void cleanupQPIHandles();
     void cleanupPMUs();
-    void writeAllUnitControl(const uint32 value);
     void initDirect(uint32 socket_, const PCM * pcm);
     void initPerf(uint32 socket_, const PCM * pcm);
     void initBuses(uint32 socket_, const PCM * pcm);
@@ -501,6 +542,8 @@ public:
 
 typedef SimpleCounterState PCIeCounterState;
 typedef SimpleCounterState IIOCounterState;
+typedef SimpleCounterState IDXCounterState;
+
 typedef std::vector<uint64> eventGroup_t;
 
 class PerfVirtualControlRegister;
@@ -568,10 +611,13 @@ class PCM_API PCM
     std::vector<std::map<int32, UncorePMU> > iioPMUs;
     std::vector<std::map<int32, UncorePMU> > irpPMUs;
     std::vector<UncorePMU> uboxPMUs;
+    std::vector<std::vector<IDX_PMU> > idxPMUs;
+
     double joulesPerEnergyUnit;
     std::vector<std::shared_ptr<CounterWidthExtender> > energy_status;
     std::vector<std::shared_ptr<CounterWidthExtender> > dram_energy_status;
     std::vector<std::vector<UncorePMU> > cboPMUs;
+    std::vector<std::vector<UncorePMU> > mdfPMUs;
 
     std::vector<std::shared_ptr<CounterWidthExtender> > memory_bw_local;
     std::vector<std::shared_ptr<CounterWidthExtender> > memory_bw_total;
@@ -588,6 +634,8 @@ class PCM_API PCM
     std::shared_ptr<CounterWidthExtender> clientIoRequests;
 
     std::vector<std::shared_ptr<ServerBW> > serverBW;
+
+    std::shared_ptr<UncorePMUDiscovery> uncorePMUDiscovery;
 
     bool disable_JKT_workaround;
     bool blocked;              // track if time-driven counter update is running or not: PCM is blocked
@@ -708,8 +756,7 @@ public:
         IIO_PCIe1 = 2,
         IIO_PCIe2 = 3,
         IIO_MCP0 = 4,
-        IIO_MCP1 = 5,
-        IIO_STACK_COUNT = 6
+        IIO_MCP1 = 5
     };
 
     // Offsets/enumeration of IIO stacks Skylake server.
@@ -742,6 +789,14 @@ public:
         SNR_IIO_HQM         = 3,
         SNR_IIO_PCIe0       = 4,
         SNR_IIO_STACK_COUNT = 5
+    };
+
+    enum IDX_IP
+    {
+        IDX_IAA = 0,
+        IDX_DSA,
+        IDX_HCx,
+        IDX_MAX
     };
 
     struct SimplePCIeDevInfo
@@ -854,6 +909,7 @@ private:
     int run_state;                 // either running (1) or sleeping (0)
 
     bool needToRestoreNMIWatchdog;
+    bool cleanupPEBS{false};
 
     std::vector<std::vector<EventSelectRegister> > lastProgrammedCustomCounters;
     uint32 checkCustomCoreProgramming(std::shared_ptr<SafeMsrHandle> msr);
@@ -933,13 +989,21 @@ private:
     {
         if (!eventsBegin) return;
         Iterator curEvent = eventsBegin;
+        const auto cpu_model = PCM::getInstance()->getCPUModel();
         for (int c = 0; curEvent != eventsEnd; ++c, ++curEvent)
         {
             auto ctrl = pmu.counterControl[c];
             if (ctrl.get() != nullptr)
             {
-                *ctrl = MC_CH_PCI_PMON_CTL_EN;
-                *ctrl = MC_CH_PCI_PMON_CTL_EN | *curEvent;
+                if (PCM::SPR == cpu_model)
+                {
+                    *ctrl = *curEvent;
+                }
+                else
+                {
+                    *ctrl = MC_CH_PCI_PMON_CTL_EN;
+                    *ctrl = MC_CH_PCI_PMON_CTL_EN | *curEvent;
+                }
             }
         }
         if (extra)
@@ -1042,6 +1106,18 @@ public:
 
     //! \brief Returns the number of IIO stacks per socket
     uint32 getMaxNumOfIIOStacks() const;
+
+    //! \brief Returns the number of MDFs boxes per socket
+    uint32 getMaxNumOfMDFs() const;
+
+    /*! \brief Returns the number of IDX accel devs
+        \param accel index of IDX accel
+    */
+    uint32 getNumOfIDXAccelDevs(int accel) const;
+
+    //! \brief Returns the number of IDX counters
+    uint32 getMaxNumOfIDXAccelCtrs() const;
+
 
     /*!
             \brief Returns PCM object
@@ -1170,6 +1246,7 @@ public:
        bool useGLCOCREvent = false;
        switch (cpu_model)
        {
+       case SPR:
        case ADL: // ADL big core (GLC)
        case RPL:
            useGLCOCREvent = true;
@@ -1375,6 +1452,7 @@ public:
         SKX = 85,
         ICX_D = 108,
         ICX = 106,
+        SPR = 143,
         END_OF_MODEL_LIST = 0x0ffff
     };
 
@@ -1452,6 +1530,7 @@ public:
         case BDX:
         case SKX:
         case ICX:
+        case SPR:
             return (server_pcicfg_uncore.size() && server_pcicfg_uncore[0].get()) ? (server_pcicfg_uncore[0]->getNumQPIPorts()) : 0;
         }
         return 0;
@@ -1475,6 +1554,7 @@ public:
         case BDX_DE:
         case SKX:
         case ICX:
+        case SPR:
         case BDX:
         case KNL:
             return (server_pcicfg_uncore.size() && server_pcicfg_uncore[0].get()) ? (server_pcicfg_uncore[0]->getNumMC()) : 0;
@@ -1500,6 +1580,7 @@ public:
         case BDX_DE:
         case SKX:
         case ICX:
+        case SPR:
         case BDX:
         case KNL:
         case SNOWRIDGE:
@@ -1528,6 +1609,7 @@ public:
         case BDX_DE:
         case SKX:
         case ICX:
+        case SPR:
         case BDX:
         case KNL:
         case SNOWRIDGE:
@@ -1584,6 +1666,8 @@ public:
             return 2;
         case ICX:
             return 5;
+        case SPR:
+            return 6;
         }
         if (isAtom())
         {
@@ -1632,6 +1716,7 @@ public:
         case SKX:
         case ICX:
         case SNOWRIDGE:
+        case SPR:
         case KNL:
             return true;
         default:
@@ -1743,6 +1828,10 @@ public:
     //! \param filter1 raw filter1 value
     void programCboRaw(const uint64* events, const uint64 filter0, const uint64 filter1);
 
+    //! \brief Program MDF counters
+    //! \param events array with four raw event values
+    void programMDF(const uint64* events);
+
     //! \brief Get the state of PCIe counter(s)
     //! \param socket_ socket of the PCIe controller
     //! \return State of PCIe counter(s)
@@ -1758,6 +1847,16 @@ public:
     //! \param IIOStack id of the IIO stack to program (-1 for all, if parameter omitted)
     void programIRPCounters(uint64 rawEvents[4], int IIOStack = -1);
 
+    //! \brief Program IDX events
+    //! \param events config of event to program
+    //! \param filters_wq filters(work queue) of event to program 
+    //! \param filters_eng filters(engine) of event to program 
+    //! \param filters_tc filters(traffic class) of event to program 
+    //! \param filters_pgsz filters(page size) of event to program 
+    //! \param filters_xfersz filters(transfer size) of event to program 
+    void programIDXAccelCounters(uint32 accel, std::vector<uint64_t> &events, std::vector<uint32_t> &filters_wq, std::vector<uint32_t> &filters_eng, std::vector<uint32_t> &filters_tc, std::vector<uint32_t> &filters_pgsz, std::vector<uint32_t> &filters_xfersz);
+
+
     //! \brief Get the state of IIO counter
     //! \param socket socket of the IIO stack
     //! \param IIOStack id of the IIO stack
@@ -1769,6 +1868,14 @@ public:
     //! \param IIOStack id of the IIO stack
     //! \param result states of IIO counters (array of four IIOCounterState elements)
     void getIIOCounterStates(int socket, int IIOStack, IIOCounterState * result);
+
+
+    //! \brief Get the state of IDX accel counter
+    //! \param accel ip index
+    //! \param dev device index
+    //! \param counter_id perf couter index 
+    //! \return State of IDX counter
+    IDXCounterState getIDXAccelCounterState(uint32 accel, uint32 dev, uint32 counter_id);
 
     uint64 extractCoreGenCounterValue(uint64 val);
     uint64 extractCoreFixedCounterValue(uint64 val);
@@ -1845,6 +1952,7 @@ public:
                  || cpu_model == PCM::ICX
                  || cpu_model == PCM::ADL
                  || cpu_model == PCM::RPL
+                 || cpu_model == PCM::SPR
                );
     }
 
@@ -1859,6 +1967,7 @@ public:
           || cpu_model == PCM::KNL
           || cpu_model == PCM::SKX
           || cpu_model == PCM::ICX
+          || cpu_model == PCM::SPR
           );
     }
 
@@ -1879,6 +1988,7 @@ public:
             ||  cpu_model == PCM::BDX
             ||  cpu_model == PCM::SKX
             ||  cpu_model == PCM::ICX
+           ||  cpu_model == PCM::SPR
             );
     }
 
@@ -1892,6 +2002,7 @@ public:
             ||  cpu_model == PCM::IVYTOWN
             || (cpu_model == PCM::SKX && cpu_stepping > 1)
             ||  cpu_model == PCM::ICX
+           ||  cpu_model == PCM::SPR
                );
     }
 
@@ -1937,7 +2048,8 @@ public:
         return (
                cpu_model == PCM::SKX
             || cpu_model == PCM::ICX
-	    || cpu_model  == PCM::SNOWRIDGE
+	        || cpu_model  == PCM::SNOWRIDGE
+            || cpu_model == PCM::SPR
         );
     }
 
@@ -1953,6 +2065,7 @@ public:
             || cpu_model == PCM::BDX
             || cpu_model == PCM::SKX
             || cpu_model == PCM::ICX
+            || cpu_model == PCM::SPR
             || useSKLPath()
             );
     }
@@ -1962,6 +2075,7 @@ public:
         return (
             cpu_model == PCM::SKX
             || cpu_model == PCM::ICX
+            || cpu_model == PCM::SPR
             );
     }
 
@@ -1972,7 +2086,23 @@ public:
                     ||  isCPX()
                      || cpu_model == PCM::ICX
                      || cpu_model == PCM::SNOWRIDGE
+                     || cpu_model == SPR
         );
+    }
+
+    bool PMMMemoryModeMetricsAvailable() const
+    {
+       return (
+                  isCLX()
+               || isCPX()
+               || cpu_model == PCM::ICX
+               || cpu_model == PCM::SNOWRIDGE
+              );
+    }
+
+    bool PMMMixedModeMetricsAvailable() const
+    {
+       return PMMMemoryModeMetricsAvailable();
     }
 
     bool LLCReadMissLatencyMetricsAvailable() const
@@ -2010,6 +2140,7 @@ public:
             || cpu_model == PCM::BDX_DE
             || cpu_model == PCM::SKX
             || cpu_model == PCM::ICX
+            || cpu_model == PCM::SPR
             || cpu_model == PCM::BDX
             || cpu_model == PCM::KNL
             );
@@ -2027,6 +2158,7 @@ public:
         return (
             cpu_model_ == PCM::SKX
          || cpu_model_ == PCM::ICX
+         || cpu_model_ == PCM::SPR
                );
     }
 
@@ -2048,6 +2180,7 @@ public:
         return (
             cpu_model == PCM::SKX
          || cpu_model == PCM::ICX
+         || cpu_model == PCM::SPR
                );
     }
 
@@ -2060,6 +2193,7 @@ public:
         return    useSKLPath()
                || PCM::SKX == cpu_model
                || PCM::ICX == cpu_model
+               || PCM::SPR == cpu_model
                ;
     }
 
@@ -2461,6 +2595,18 @@ uint64 getCBOCounter(uint32 cbo, uint32 counter, const CounterStateType& before,
     return after.CBOCounter[cbo][counter] - before.CBOCounter[cbo][counter];
 }
 
+/*! \brief Direct read of MDF PMU counter (counter meaning depends on the programming: power/performance/etc)
+    \param counter counter number
+    \param mdf mdf number
+    \param before CPU counter state before the experiment
+    \param after CPU counter state after the experiment
+*/
+template <class CounterStateType>
+uint64 getMDFCounter(uint32 mdf, uint32 counter, const CounterStateType& before, const CounterStateType& after)
+{
+    return after.MDFCounter[mdf][counter] - before.MDFCounter[mdf][counter];
+}
+
 /*! \brief Direct read of UBOX PMU counter (counter meaning depends on the programming: power/performance/etc)
     \param counter counter number
     \param before CPU counter state before the experiment
@@ -2779,6 +2925,7 @@ public:
         maxChannels = 12,
         maxXPILinks = 6,
         maxCBOs = 128,
+        maxMDFs = 128,
         maxIIOStacks = 16,
         maxCounters = 4
     };
@@ -2799,6 +2946,7 @@ private:
     std::array<std::array<uint64, maxCounters>, maxXPILinks> xPICounter;
     std::array<std::array<uint64, maxCounters>, maxXPILinks> M3UPICounter;
     std::array<std::array<uint64, maxCounters>, maxCBOs> CBOCounter;
+    std::array<std::array<uint64, maxCounters>, maxMDFs> MDFCounter;
     std::array<std::array<uint64, maxCounters>, maxIIOStacks> IIOCounter;
     std::array<std::array<uint64, maxCounters>, maxIIOStacks> IRPCounter;
     std::array<uint64, maxCounters> UBOXCounter;
@@ -2822,6 +2970,8 @@ private:
     friend uint64 getM3UPICounter(uint32 port, uint32 counter, const CounterStateType& before, const CounterStateType& after);
     template <class CounterStateType>
     friend uint64 getCBOCounter(uint32 cbo, uint32 counter, const CounterStateType& before, const CounterStateType& after);
+    template <class CounterStateType>
+    friend uint64 getMDFCounter(uint32 mdf, uint32 counter, const CounterStateType& before, const CounterStateType& after);
     template <class CounterStateType>
     friend uint64 getUBOXCounter(uint32 counter, const CounterStateType& before, const CounterStateType& after);
     template <class CounterStateType>
@@ -2854,6 +3004,7 @@ public:
         xPICounter{{}},
         M3UPICounter{{}},
         CBOCounter{{}},
+        MDFCounter{{}},
         IIOCounter{{}},
         IRPCounter{{}},
         UBOXCounter{{}},

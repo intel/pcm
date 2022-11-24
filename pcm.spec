@@ -67,6 +67,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_sbindir}/pcm-mmio
 %{_sbindir}/pcm-numa
 %{_sbindir}/pcm-pcicfg
+%{_sbindir}/pcm-accel
 %{_sbindir}/pcm-pcie
 %{_sbindir}/pcm-power
 %{_sbindir}/pcm-sensor

@@ -26,6 +26,7 @@
 #else
 #include <intrin.h>
 #endif
+#include <map>
 
 namespace pcm {
 
@@ -529,4 +530,39 @@ inline void parsePID(int argc, char* argv[], int& pid)
 {
     parseParam(argc, argv, "pid", [&pid](const char* p) { if (p) pid = atoi(p); });
 }
+
+struct counter {
+    std::string h_event_name = "";
+    std::string v_event_name = "";
+    uint64_t ccr = 0;
+    int idx = 0; /* Some counters need to be placed in specific index */
+    int multiplier = 0;
+    int divider = 0;
+    uint32_t h_id = 0;
+    uint32_t v_id = 0;
+};
+
+struct data{
+    uint32_t width;
+    uint64_t value;
+};
+
+typedef enum{
+    EVT_LINE_START,
+    EVT_LINE_FIELD,
+    EVT_LINE_COMPLETE
+}evt_cb_type;
+
+std::string dos2unix(std::string in);
+
+std::string a_title (const std::string &init, const std::string &name);
+std::string a_data (std::string init, struct data d);
+std::string a_header_footer(std::string init, std::string name);
+std::string build_line(std::string init, std::string name, bool last_char, char this_char);
+std::string build_csv_row(const std::vector<std::string>& chunks, const std::string& delimiter);
+std::vector<struct data> prepare_data(const std::vector<uint64_t> &values, const std::vector<std::string> &headers);
+void display(const std::vector<std::string> &buff, std::ostream& stream);
+
+void print_nameMap(std::map<std::string,std::pair<uint32_t,std::map<std::string,uint32_t>>>& nameMap);
+int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm, int (*p_fn_evtcb)(evt_cb_type, void *, counter &, std::map<std::string, uint32_t> &, std::string, uint64), void *evtcb_ctx);
 } // namespace pcm

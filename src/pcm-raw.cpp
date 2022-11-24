@@ -290,7 +290,12 @@ bool initPMUEventMap()
 
                 if (path.find(".json") != std::string::npos) {
                     JSONparsers.push_back(std::make_shared<simdjson::dom::parser>());
-                    for (simdjson::dom::object eventObj : JSONparsers.back()->load(path)) {
+                    auto JSONObjects = JSONparsers.back()->load(path);
+                    if (JSONObjects["Header"].error() != NO_SUCH_FIELD)
+                    {
+                        JSONObjects = JSONObjects["Events"];
+                    }
+                    for (simdjson::dom::object eventObj : JSONObjects) {
                         // cout << "Event ----------------\n";
                         const std::string EventName{eventObj["EventName"].get_c_str()};
                         if (EventName.empty())
@@ -1427,6 +1432,14 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
                     [&]() { printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getCBOCounter(u, i, before, after); }, (uint32)m->getMaxNumOfCBoxes(), "C");
                     });
             }
+            else if (type == "mdf")
+            {
+                choose(outputType,
+                    [&]() { printUncoreRows(nullptr, (uint32) m->getMaxNumOfMDFs(), "MDF"); },
+                    [&]() { printUncoreRows(nullptr, (uint32) m->getMaxNumOfMDFs(), type); },
+                    [&]() { printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getMDFCounter(u, i, before, after); }, (uint32)m->getMaxNumOfMDFs(), "MDF");
+                    });
+            }
             else if (type == "irp")
             {
                 choose(outputType,
@@ -1710,6 +1723,24 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs,
                             [s, cbo]() { cout << "SKT" << s << "C" << cbo << separator; },
                             [&event, &i]() { if (event.second.empty()) cout << "CBOEvent" << i << separator;  else cout << event.second << separator; },
                             [&]() { cout << getCBOCounter(cbo, i, BeforeUncoreState[s], AfterUncoreState[s]) << separator; });
+                        ++i;
+                    }
+                }
+            }
+        }
+        else if (type == "mdf")
+        {
+            for (uint32 s = 0; s < m->getNumSockets(); ++s)
+            {
+                for (uint32 mdf = 0; mdf < m->getMaxNumOfMDFs(); ++mdf)
+                {
+                    int i = 0;
+                    for (auto& event : events)
+                    {
+                        choose(outputType,
+                            [s, mdf]() { cout << "SKT" << s << "MDF" << mdf << separator; },
+                            [&event, &i]() { if (event.second.empty()) cout << "MDFEvent" << i << separator;  else cout << event.second << separator; },
+                            [&]() { cout << getMDFCounter(mdf, i, BeforeUncoreState[s], AfterUncoreState[s]) << separator; });
                         ++i;
                     }
                 }

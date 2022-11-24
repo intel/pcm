@@ -60,6 +60,13 @@ if [ "$?" -ne "0" ]; then
     exit 1
 fi
 
+echo Testing pcm-memory with csv output
+./pcm-memory -csv=pcm-memory.csv -- sleep 1
+if [ "$?" -ne "0" ]; then
+    echo "Error in pcm-memory"
+    exit 1
+fi
+
 echo Testing pcm-memory with -rank
 ./pcm-memory -rank=1 -- sleep 1
 if [ "$?" -ne "0" ]; then
@@ -71,6 +78,13 @@ echo Testing pcm-memory with -rank and -csv
 ./pcm-memory -rank=1 -csv -- sleep 1
 if [ "$?" -ne "0" ]; then
     echo "Error in pcm-memory"
+    exit 1
+fi
+
+echo Testing pcm-iio --list
+./pcm-iio --list
+if [ "$?" -ne "0" ]; then
+    echo "Error in pcm-iio"
     exit 1
 fi
 
@@ -269,6 +283,7 @@ if [ ! -f "event_file_test.txt" ]; then
 # group 1
 INST_RETIRED.ANY
 CPU_CLK_UNHALTED.REF_TSC
+MEM_TRANS_RETIRED.LOAD_LATENCY_GT_4
 UNC_CHA_DIR_LOOKUP.SNP
 UNC_CHA_DIR_LOOKUP.NO_SNP
 UNC_M_CAS_COUNT.RD

@@ -209,12 +209,18 @@ class icx_ccr: public ccr {
 
          private:
                  uint64_t* ccr_value = NULL;
- };
+};
+
 struct bdf {
+    uint32_t domainno;
     uint8_t busno;
     uint8_t devno;
     uint8_t funcno;
-    bdf () : busno(0), devno(0), funcno(0) {}
+    bdf() : domainno(0), busno(0), devno(0), funcno(0) {}
+    bdf(uint32_t domain, uint8_t bus, uint8_t device, uint8_t function) :
+        domainno(domain), busno(bus), devno(device), funcno(function) {}
+    bdf(uint8_t bus, uint8_t device, uint8_t function) :
+        domainno(0), busno(bus), devno(device), funcno(function) {}
 };
 
 struct pci {
@@ -252,21 +258,31 @@ struct pci {
         };
         uint32_t link_info;
     };
-    pci () : exist(false), offset_0(0), header_type(0), offset_18(0), link_info(0) {}
-};
 
-struct counter {
-  std::string h_event_name;
-  std::string v_event_name;
-    uint64_t ccr;
-    int idx; /* Some counters need to be placed in specific index */
-    int multiplier;
-    int divider;
-    uint32_t h_id;
-    uint32_t v_id;
-    std::vector<result_content> data;
-};
+    std::vector<uint8_t> parts_no;
+    std::vector<struct pci> child_pci_devs;
 
+    pci() : exist(false), offset_0(0), header_type(0),
+            offset_18(0), link_info(0), parts_no{},
+            child_pci_devs{}
+            {}
+
+    pci(uint32_t domain, uint8_t bus, uint8_t device, uint8_t function) :
+        exist(false), bdf(domain, bus, device, function), offset_0(0), header_type(0),
+        offset_18(0), link_info(0), parts_no{}, child_pci_devs{}
+        {}
+
+    pci(uint8_t bus, uint8_t device, uint8_t function) :
+        exist(false), bdf(bus, device, function), offset_0(0), header_type(0),
+        offset_18(0), link_info(0), parts_no{}, child_pci_devs{}
+        {}
+
+    pci(const struct bdf &address) : exist(false), bdf(address), offset_0(0), header_type(0),
+        offset_18(0), link_info(0), parts_no{}, child_pci_devs{}
+        {}
+
+    bool hasChildDevices() const { return (child_pci_devs.size() != 0); }
+};
 struct iio_skx {
     struct {
         struct {
@@ -282,7 +298,7 @@ struct iio_skx {
 };
 
 struct iio_bifurcated_part {
-    int part_id;
+    int part_id{0};
     /* single device represent root port */
     struct pci root_pci_dev;
     /* Contain child switch and end-point devices */
@@ -296,7 +312,10 @@ struct iio_stack {
     std::vector<uint64_t> values{};
     bool flipped = false;
     /* holding busno for each IIO stack */
+    uint32_t domain{};
     uint8_t busno{};
+
+    iio_stack() : iio_unit_id(0), stack_name(""), domain(0), busno(0) {}
 };
 
 bool operator<(const iio_stack& lh, const iio_stack& rh)
@@ -309,7 +328,11 @@ struct iio_stacks_on_socket {
     uint32_t socket_id{};
 };
 
-bool operator < (const bdf &l, const bdf &r) {
+bool operator<(const bdf &l, const bdf &r) {
+    if (l.domainno < r.domainno)
+        return true;
+    if (l.domainno > r.domainno)
+        return false;
     if (l.busno < r.busno)
         return true;
     if (l.busno > r.busno)
@@ -360,8 +383,8 @@ bool probe_pci(struct pci *p)
     uint32 value;
     p->exist = false;
     struct bdf *bdf = &p->bdf;
-    if (PciHandleType::exists(0, bdf->busno, bdf->devno, bdf->funcno)) {
-        PciHandleType h(0, bdf->busno, bdf->devno, bdf->funcno);
+    if (PciHandleType::exists(bdf->domainno, bdf->busno, bdf->devno, bdf->funcno)) {
+        PciHandleType h(bdf->domainno, bdf->busno, bdf->devno, bdf->funcno);
         // VID:DID
         h.read32(0x0, &value);
         // Invalid VID::DID
