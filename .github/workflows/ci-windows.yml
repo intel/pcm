@@ -33,7 +33,7 @@ jobs:
         chdir ${{github.workspace}}\src\WinMSRDriver
         msbuild MSR.vcxproj /p:Configuration=Release,Platform=x64 /t:Clean,Build /m
     - name: upload-artifact
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: PCMforWindows
         path: build/bin/**/*

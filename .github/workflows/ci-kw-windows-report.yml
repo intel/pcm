@@ -28,7 +28,7 @@ jobs:
         c:\pcm\ci-kw-windows-report.ps1
 
     - name: upload-artifact
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: kw-windows-report-${{ github.sha }}
         path: kw_report.txt
@@ -43,7 +43,7 @@ jobs:
         c:\pcm\ci-kw-windows-report.ps1
 
     - name: upload-artifact-msr
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: kw-windows-msr-report-${{ github.sha }}
         path: kw_report.txt
