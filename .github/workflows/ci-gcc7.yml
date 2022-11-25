@@ -13,9 +13,9 @@ jobs:
     if: ${{ github.repository != 'intel/pcm' }}
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: install simdjson
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: simdjson/simdjson
         path: src/simdjson
