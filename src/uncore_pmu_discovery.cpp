@@ -20,7 +20,7 @@ UncorePMUDiscovery::UncorePMUDiscovery()
     unsigned socket = 0;
     auto processTables = [&socket,this](const uint64 bar)
     {
-        constexpr auto UncoreDiscoverySize = 3UL;
+        constexpr size_t UncoreDiscoverySize = 3UL;
         union UncoreGlobalDiscovery {
             GlobalPMU pmu;
             uint64 table[UncoreDiscoverySize];
