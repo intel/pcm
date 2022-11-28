@@ -10,7 +10,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: cmake
       run: |
         rm -rf ${{ github.workspace }}/build
@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     container: ubuntu:22.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: install dependencies
       run: |
         apt update
@@ -39,7 +39,7 @@ jobs:
   build-source-simdjson:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: recursive
     - name: cmake

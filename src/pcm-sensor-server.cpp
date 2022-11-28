@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-// Copyright (c) 2016-2020, Intel Corporation
+// Copyright (c) 2016-2022, Intel Corporation
 
 // Use port allocated for PCM in prometheus:
 // https://github.com/prometheus/prometheus/wiki/Default-port-allocations

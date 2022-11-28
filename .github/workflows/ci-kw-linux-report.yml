@@ -9,7 +9,7 @@ jobs:
     if: ${{ github.repository != 'intel/pcm' }}
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: recursive
     - name: kw
@@ -24,7 +24,7 @@ jobs:
         ci-kw-linux-report.sh
 
     - name: upload-artifact
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: kw-linux-report-${{ github.sha }}
         path: kw_report.txt

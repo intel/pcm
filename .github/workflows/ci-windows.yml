@@ -16,7 +16,7 @@ jobs:
     if: ${{ github.repository != 'intel/pcm' }}
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: recursive
     - name: Configure CMake
@@ -27,13 +27,13 @@ jobs:
       run: |
         cmake --build ${{github.workspace}}\build --config ${{env.BUILD_TYPE}} --parallel
     - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@v1.0.2
+      uses: microsoft/setup-msbuild@v1.1.3
     - name: Build MSR driver
       run: |
         chdir ${{github.workspace}}\src\WinMSRDriver
         msbuild MSR.vcxproj /p:Configuration=Release,Platform=x64 /t:Clean,Build /m
     - name: upload-artifact
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: PCMforWindows
         path: build/bin/**/*

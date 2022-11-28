@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-// Copyright (c) 2012-2019, Intel Corporation
+// Copyright (c) 2012-2022, Intel Corporation
 // written by Roman Dementiev
 //            Patrick Konsor
 //

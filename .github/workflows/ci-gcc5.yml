@@ -13,9 +13,9 @@ jobs:
     if: ${{ github.repository != 'intel/pcm' }}
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: install simdjson
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: simdjson/simdjson
         path: src/simdjson
@@ -35,7 +35,7 @@ jobs:
         cd ${{ github.workspace }}/build
         make install -j$(nproc)
     - name: upload-artifact
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: PCMforLinuxGCC5
         path: build/bin/*

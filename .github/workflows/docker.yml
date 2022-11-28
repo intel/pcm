@@ -16,7 +16,7 @@ jobs:
           format: YYYY-MM-DD--HH
 
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           submodules: recursive
 

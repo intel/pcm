@@ -9,12 +9,12 @@ jobs:
     if: ${{ github.repository != 'intel/pcm' }}
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: recursive
 
     - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@v1.0.2
+      uses: microsoft/setup-msbuild@v1.1.3
     
     - name: kw
       run: |
@@ -28,7 +28,7 @@ jobs:
         c:\pcm\ci-kw-windows-report.ps1
 
     - name: upload-artifact
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: kw-windows-report-${{ github.sha }}
         path: kw_report.txt
@@ -43,7 +43,7 @@ jobs:
         c:\pcm\ci-kw-windows-report.ps1
 
     - name: upload-artifact-msr
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.1.1
       with:
         name: kw-windows-msr-report-${{ github.sha }}
         path: kw_report.txt
