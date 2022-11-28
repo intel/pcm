@@ -20,6 +20,7 @@ jobs:
       uses: vmactions/freebsd-vm@v0
       with:
         usesh: true
+        sync: sshfs
         prepare: |
           pkg install -y curl gmake cmake
 
