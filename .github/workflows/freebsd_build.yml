@@ -17,7 +17,7 @@ jobs:
         submodules: recursive
     - name: build in FreeBSD VM
       id: build
-      uses: vmactions/freebsd-vm@v0
+      uses: vmactions/freebsd-vm@v0.3.0
       with:
         usesh: true
         prepare: |
