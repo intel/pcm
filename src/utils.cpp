@@ -687,8 +687,8 @@ double parse_delay(const char *arg, const std::string& progname, print_usage_fun
             exit(EXIT_FAILURE);
         }
         return delay_input;
-    } 
-    else 
+    }
+    else
     {
         std::cerr << "WARNING: unknown command-line option: \"" << *arg << "\". Ignoring it.\n";
         if(print_usage_func)
@@ -907,8 +907,8 @@ int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
             throw std::invalid_argument(err_msg);
         }
     }
-   
-    while (std::getline(in, line)) 
+
+    while (std::getline(in, line))
     {
         //TODO: substring until #, if len == 0, skip, else parse normally
         //Set default value if the item is NOT availalbe in cfg file.
@@ -920,7 +920,7 @@ int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
         ctr.divider = 1;
         ctr.h_id = 0;
         ctr.v_id = 0;
-        
+
         if (pfn_evtcb(EVT_LINE_START, evtcb_ctx, ctr, ofm, "", 0))
         {
             in.close();
@@ -937,7 +937,7 @@ int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
 
         std::string h_name, v_name;
         std::istringstream iss(line);
-        while (std::getline(iss, item, ',')) 
+        while (std::getline(iss, item, ','))
         {
             std::string key, value;
             uint64 numValue;
@@ -951,12 +951,12 @@ int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
             std::istringstream iss2(value);
             iss2 >> std::setbase(0) >> numValue;
 
-            switch (ofm[key]) 
+            switch (ofm[key])
             {
                 case PCM::H_EVENT_NAME:
                     h_name = dos2unix(value);
                     ctr.h_event_name = h_name;
-                    if (nameMap.find(h_name) == nameMap.end()) 
+                    if (nameMap.find(h_name) == nameMap.end())
                     {
                         /* It's a new horizontal event name */
                         uint32_t next_h_id = (uint32_t)nameMap.size();
@@ -973,7 +973,7 @@ int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
                         //XXX: If h_name comes after v_name, we'll have a problem.
                         //XXX: It's very weird, I forgot to assign nameMap[h_name] = nameMap_value earlier (:298), but this part still works?
                         std::map<std::string,uint32_t> &v_nameMap = nameMap[h_name].second;
-                        if (v_nameMap.find(v_name) == v_nameMap.end()) 
+                        if (v_nameMap.find(v_name) == v_nameMap.end())
                         {
                             v_nameMap[v_name] = (unsigned int)v_nameMap.size() - 1;
                             //cout << "v_name(" << v_name << ")="<< v_nameMap[v_name] << "\n";
@@ -1008,7 +1008,7 @@ int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
                     }
                     break;
             }
-        }       
+        }
 
         //std::cout << "Finish parsing: " << line << "\n";
         if (pfn_evtcb(EVT_LINE_COMPLETE, evtcb_ctx, ctr, ofm, "", 0))
@@ -1016,7 +1016,7 @@ int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
             in.close();
             const auto err_msg = std::string("event line processing(end) fault.\n");
             throw std::invalid_argument(err_msg);
-        }        
+        }
     }
 
     //print_nameMap(nameMap); //DEBUG purpose

@@ -1198,10 +1198,8 @@ int iio_evt_parse_handler(evt_cb_type cb_type, void *cb_ctx, counter &base_ctr, 
     else if (cb_type == EVT_LINE_FIELD) //this event will be called per field of line
     {
         std::unique_ptr<ccr> pccr(get_ccr(m, context->ctr.ccr));
-
-        //std::cout << "Key:" << key << " Value:" << value << " opcodeFieldMap[key]:" << opcodeFieldMap[key] << "\n";
-        switch (ofm[key]) 
-        { 
+        switch (ofm[key])
+        {
             case PCM::OPCODE:
                 break;
             case PCM::EVENT_SELECT:
@@ -1256,7 +1254,7 @@ int iio_evt_parse_handler(evt_cb_type cb_type, void *cb_ctx, counter &base_ctr, 
         //std::cout << ", idx=0x"<< std::hex << base_ctr.idx << ", multiplier=0x" << std::hex << base_ctr.multiplier << ", divider=0x" << std::hex << base_ctr.divider << std::dec << "\n";
         context->ctrs.push_back(context->ctr);
     }
-    
+
     return 0;
 }
 
@@ -1360,7 +1358,7 @@ void print_usage(const string& progname)
 }
 
 int main(int argc, char * argv[])
-{    
+{
     if(print_version(argc, argv))
         exit(EXIT_SUCCESS);
 
