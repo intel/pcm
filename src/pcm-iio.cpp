@@ -205,7 +205,7 @@ typedef struct
     vector<struct iio_counter> ctrs;
 } iio_evt_parse_context;
 
-vector<string> combine_stack_name_and_counter_names(string stack_name, map<string,std::pair<h_id,std::map<string,v_id>>> nameMap)
+vector<string> combine_stack_name_and_counter_names(string stack_name, const map<string,std::pair<h_id,std::map<string,v_id>>> &nameMap)
 {
 
     vector<string> v;
@@ -279,7 +279,7 @@ void build_pci_tree(vector<string> &buffer, const PCIDB & pciDB, uint32_t column
 }
 
 vector<string> build_display(vector<struct iio_stacks_on_socket>& iios, vector<struct iio_counter>& ctrs, const PCIDB& pciDB,
-                             map<string,std::pair<h_id,std::map<string,v_id>>> nameMap)
+                             const map<string,std::pair<h_id,std::map<string,v_id>>> &nameMap)
 {
     vector<string> buffer;
     vector<string> headers;
@@ -372,7 +372,7 @@ std::string get_root_port_dev(const bool show_root_port, int part_id,  const pcm
 
 vector<string> build_csv(vector<struct iio_stacks_on_socket>& iios, vector<struct iio_counter>& ctrs,
                          const bool human_readable, const bool show_root_port, const std::string& csv_delimiter,
-                         map<string,std::pair<h_id,std::map<string,v_id>>> nameMap)
+                         const map<string,std::pair<h_id,std::map<string,v_id>>> &nameMap)
 {
     vector<string> result;
     vector<string> current_row;
