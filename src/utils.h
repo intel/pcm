@@ -564,5 +564,10 @@ std::vector<struct data> prepare_data(const std::vector<uint64_t> &values, const
 void display(const std::vector<std::string> &buff, std::ostream& stream);
 
 void print_nameMap(std::map<std::string,std::pair<uint32_t,std::map<std::string,uint32_t>>>& nameMap);
-int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm, int (*p_fn_evtcb)(evt_cb_type, void *, counter &, std::map<std::string, uint32_t> &, std::string, uint64), void *evtcb_ctx);
+int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
+                int (*p_fn_evtcb)(evt_cb_type, void *, counter &, std::map<std::string, uint32_t> &, std::string, uint64),
+                void *evtcb_ctx, std::map<std::string,std::pair<uint32_t,std::map<std::string,uint32_t>>> &nameMap);
+int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
+                int (*pfn_evtcb)(evt_cb_type, void *, counter &, std::map<std::string, uint32_t> &, std::string, uint64),
+                void *evtcb_ctx);
 } // namespace pcm

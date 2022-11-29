@@ -878,6 +878,7 @@ void print_nameMap(std::map<std::string,std::pair<uint32_t,std::map<std::string,
 //! \param ofm: operation field map struct.
 //! \param pfn_evtcb: see below.
 //! \param evtcb_ctx: pointer of the callback context(user define).
+//! \param nameMap: human readable metrics names.
 //! \return -1 means fail, 0 means success.
 
 //! \brief pfn_evtcb: call back func of event config file processing, app should provide it.
@@ -887,10 +888,11 @@ void print_nameMap(std::map<std::string,std::pair<uint32_t,std::map<std::string,
 //! \param std::string: event field name.
 //! \param uint64: event field value.
 //! \return -1 means fail with app exit, 0 means success or fail with continue.
-int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm, int (*pfn_evtcb)(evt_cb_type, void *, counter &, std::map<std::string, uint32_t> &, std::string, uint64), void *evtcb_ctx)
+int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
+                int (*pfn_evtcb)(evt_cb_type, void *, counter &, std::map<std::string, uint32_t> &, std::string, uint64),
+                void *evtcb_ctx, std::map<std::string,std::pair<uint32_t,std::map<std::string,uint32_t>>> &nameMap)
 {
     struct counter ctr;
-    std::map<std::string,std::pair<uint32_t,std::map<std::string,uint32_t>>> nameMap;
 
     std::ifstream in(fn);
     std::string line, item;
@@ -1022,4 +1024,13 @@ int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm, int
     in.close();
     return 0;
 }
+
+int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
+                int (*pfn_evtcb)(evt_cb_type, void *, counter &, std::map<std::string, uint32_t> &, std::string, uint64),
+                void *evtcb_ctx)
+{
+    std::map<std::string,std::pair<uint32_t,std::map<std::string,uint32_t>>> nm;
+    return load_events(fn, ofm, pfn_evtcb, evtcb_ctx, nm);
+}
+
 } // namespace pcm
