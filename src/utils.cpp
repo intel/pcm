@@ -951,7 +951,6 @@ int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
             std::istringstream iss2(value);
             iss2 >> std::setbase(0) >> numValue;
 
-            //cout << "Key:" << key << " Value:" << value << " opcodeFieldMap[key]:" << ofm[key] << "\n";
             switch (ofm[key]) 
             {
                 case PCM::H_EVENT_NAME:

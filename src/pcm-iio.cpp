@@ -195,7 +195,6 @@ struct iio_counter : public counter {
   std::vector<result_content> data;
 };
 
-map<string,uint32_t> opcodeFieldMap;
 //TODO: remove binding to stacks amount
 result_content results(max_sockets, stack_content(12, ctr_data()));
 
@@ -1390,6 +1389,7 @@ int main(int argc, char * argv[])
     iio_evt_parse_context evt_ctx;
     // Map with metrics names.
     map<string,std::pair<h_id,std::map<string,v_id>>> nameMap;
+    map<string,uint32_t> opcodeFieldMap;
 
     while (argc > 1) {
         argv++;
