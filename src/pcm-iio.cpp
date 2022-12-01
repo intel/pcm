@@ -195,9 +195,6 @@ struct iio_counter : public counter {
   std::vector<result_content> data;
 };
 
-map<string,uint32_t> opcodeFieldMap;
-//TODO: add description for this nameMap
-map<string,std::pair<h_id,std::map<string,v_id>>> nameMap;
 //TODO: remove binding to stacks amount
 result_content results(max_sockets, stack_content(12, ctr_data()));
 
@@ -208,7 +205,7 @@ typedef struct
     vector<struct iio_counter> ctrs;
 } iio_evt_parse_context;
 
-vector<string> combine_stack_name_and_counter_names(string stack_name)
+vector<string> combine_stack_name_and_counter_names(string stack_name, const map<string,std::pair<h_id,std::map<string,v_id>>> &nameMap)
 {
 
     vector<string> v;
@@ -281,7 +278,8 @@ void build_pci_tree(vector<string> &buffer, const PCIDB & pciDB, uint32_t column
     }
 }
 
-vector<string> build_display(vector<struct iio_stacks_on_socket>& iios, vector<struct iio_counter>& ctrs, const PCIDB& pciDB)
+vector<string> build_display(vector<struct iio_stacks_on_socket>& iios, vector<struct iio_counter>& ctrs, const PCIDB& pciDB,
+                             const map<string,std::pair<h_id,std::map<string,v_id>>> &nameMap)
 {
     vector<string> buffer;
     vector<string> headers;
@@ -292,7 +290,7 @@ vector<string> build_display(vector<struct iio_stacks_on_socket>& iios, vector<s
         buffer.push_back("Socket" + std::to_string(socket->socket_id));
         for (auto stack = socket->stacks.cbegin(); stack != socket->stacks.cend(); ++stack) {
             auto stack_id = stack->iio_unit_id;
-            headers = combine_stack_name_and_counter_names(stack->stack_name);
+            headers = combine_stack_name_and_counter_names(stack->stack_name, nameMap);
             //Print first row
             row = std::accumulate(headers.begin(), headers.end(), string(" "), a_header_footer);
             header_width = row.size();
@@ -373,11 +371,12 @@ std::string get_root_port_dev(const bool show_root_port, int part_id,  const pcm
 }
 
 vector<string> build_csv(vector<struct iio_stacks_on_socket>& iios, vector<struct iio_counter>& ctrs,
-    const bool human_readable, const bool show_root_port, const std::string& csv_delimiter)
+                         const bool human_readable, const bool show_root_port, const std::string& csv_delimiter,
+                         const map<string,std::pair<h_id,std::map<string,v_id>>> &nameMap)
 {
     vector<string> result;
     vector<string> current_row;
-    auto header = combine_stack_name_and_counter_names("Part");
+    auto header = combine_stack_name_and_counter_names("Part", nameMap);
     header.insert(header.begin(), "Name");
     if (show_root_port)
         header.insert(header.begin(), "Root Port");
@@ -1199,10 +1198,8 @@ int iio_evt_parse_handler(evt_cb_type cb_type, void *cb_ctx, counter &base_ctr, 
     else if (cb_type == EVT_LINE_FIELD) //this event will be called per field of line
     {
         std::unique_ptr<ccr> pccr(get_ccr(m, context->ctr.ccr));
-
-        //std::cout << "Key:" << key << " Value:" << value << " opcodeFieldMap[key]:" << opcodeFieldMap[key] << "\n";
-        switch (ofm[key]) 
-        { 
+        switch (ofm[key])
+        {
             case PCM::OPCODE:
                 break;
             case PCM::EVENT_SELECT:
@@ -1257,7 +1254,7 @@ int iio_evt_parse_handler(evt_cb_type cb_type, void *cb_ctx, counter &base_ctr, 
         //std::cout << ", idx=0x"<< std::hex << base_ctr.idx << ", multiplier=0x" << std::hex << base_ctr.multiplier << ", divider=0x" << std::hex << base_ctr.divider << std::dec << "\n";
         context->ctrs.push_back(context->ctr);
     }
-    
+
     return 0;
 }
 
@@ -1361,7 +1358,7 @@ void print_usage(const string& progname)
 }
 
 int main(int argc, char * argv[])
-{    
+{
     if(print_version(argc, argv))
         exit(EXIT_SUCCESS);
 
@@ -1388,6 +1385,9 @@ int main(int argc, char * argv[])
     MainLoop mainLoop;
     PCM * m = PCM::getInstance();
     iio_evt_parse_context evt_ctx;
+    // Map with metrics names.
+    map<string,std::pair<h_id,std::map<string,v_id>>> nameMap;
+    map<string,uint32_t> opcodeFieldMap;
 
     while (argc > 1) {
         argv++;
@@ -1494,7 +1494,7 @@ int main(int argc, char * argv[])
 
     try
     {
-        load_events(ev_file_name, opcodeFieldMap, iio_evt_parse_handler, (void *)&evt_ctx);
+        load_events(ev_file_name, opcodeFieldMap, iio_evt_parse_handler, (void *)&evt_ctx, nameMap);
     }
     catch (std::exception & e)
     {
@@ -1510,8 +1510,8 @@ int main(int argc, char * argv[])
     {
         collect_data(m, delay, iios, evt_ctx.ctrs);
         vector<string> display_buffer = csv ?
-            build_csv(iios, evt_ctx.ctrs, human_readable, show_root_port, csv_delimiter) :
-            build_display(iios, evt_ctx.ctrs, pciDB);
+            build_csv(iios, evt_ctx.ctrs, human_readable, show_root_port, csv_delimiter, nameMap) :
+            build_display(iios, evt_ctx.ctrs, pciDB, nameMap);
         display(display_buffer, *output);
         return true;
     });
