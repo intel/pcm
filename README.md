@@ -90,6 +90,7 @@ On Windows and MacOs additional drivers are required. Please find instructions h
 
 FreeBSD/DragonFlyBSD-specific details can be found in [FREEBSD_HOWTO.txt](doc/FREEBSD_HOWTO.txt)
 
+![pcm-build-run-2](https://user-images.githubusercontent.com/25432609/205663554-c4fa1724-6286-495a-9dbd-0104de3f535f.gif)
 
 --------------------------------------------------------------------------------
 Downloading Pre-Compiled PCM Tools
