@@ -31,4 +31,4 @@ jobs:
           freebsd-version
           scan-build cmake -B build -DCMAKE_INSTALL_PREFIX=.
           cd build
-          scan-build --exclude src/simdjson --status-bugs gmake -j
+          scan-build --exclude src/simdjson --status-bugs gmake
