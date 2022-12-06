@@ -3529,11 +3529,6 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
 
         MSR[i]->write(IA32_PERF_GLOBAL_OVF_CTRL, value);
         MSR[i]->write(IA32_CR_PERF_GLOBAL_CTRL, value);
-        if (PEBSEnable)
-        {
-            cleanupPEBS = true;
-            MSR[i]->write(IA32_PEBS_ENABLE_ADDR, PEBSEnable);
-        }
     }
 #ifdef PCM_USE_PERF
     else
@@ -3586,6 +3581,11 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
         }
     }
 #endif
+    if (PEBSEnable)
+    {
+        cleanupPEBS = true;
+        MSR[i]->write(IA32_PEBS_ENABLE_ADDR, PEBSEnable);
+    }
     return PCM::Success;
 }
 
