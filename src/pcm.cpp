@@ -184,8 +184,8 @@ void print_output(PCM * m,
     if (m->LLCReadMissLatencyMetricsAvailable()) cout << "LLCRDMISSLAT: average latency of last level cache miss for reads and prefetches (in ns)\n";
     if (m->PMMTrafficMetricsAvailable()) cout << " PMM RD : bytes read from PMM memory (in GBytes)\n";
     if (m->PMMTrafficMetricsAvailable()) cout << " PMM WR : bytes written to PMM memory (in GBytes)\n";
-    if (m->MCDRAMmemoryTrafficMetricsAvailable()) cout << " MCDRAM READ  : bytes read from MCDRAM controller (in GBytes)\n";
-    if (m->MCDRAMmemoryTrafficMetricsAvailable()) cout << " MCDRAM WRITE : bytes written to MCDRAM controller (in GBytes)\n";
+    if (m->HBMmemoryTrafficMetricsAvailable()) cout << " HBM READ  : bytes read from HBM controller (in GBytes)\n";
+    if (m->HBMmemoryTrafficMetricsAvailable()) cout << " HBM WRITE : bytes written to HBM controller (in GBytes)\n";
     if (m->memoryIOTrafficMetricAvailable()) {
         cout << " IO    : bytes read/written due to IO requests to memory controller (in GBytes); this may be an over estimate due to same-cache-line partial requests\n";
         cout << " IA    : bytes read/written due to IA requests to memory controller (in GBytes); this may be an over estimate due to same-cache-line partial requests\n";
@@ -428,8 +428,8 @@ void print_output(PCM * m,
             cout << " LOCAL |";
         if (m->PMMTrafficMetricsAvailable())
             cout << " PMM RD | PMM WR |";
-        if (m->MCDRAMmemoryTrafficMetricsAvailable())
-            cout << " MCDRAM READ | MCDRAM WRITE |";
+        if (m->HBMmemoryTrafficMetricsAvailable())
+            cout << " HBM READ | HBM WRITE |";
         if (m->memoryIOTrafficMetricAvailable())
             cout << "   IO   |";
         if (m->memoryIOTrafficMetricAvailable())
@@ -457,7 +457,7 @@ void print_output(PCM * m,
                 if (m->PMMTrafficMetricsAvailable())
                     cout << "     " << setw(5) << getBytesReadFromPMM(sktstate1[i], sktstate2[i]) / double(1e9) <<
                             "     " << setw(5) << getBytesWrittenToPMM(sktstate1[i], sktstate2[i]) / double(1e9);
-                if (m->MCDRAMmemoryTrafficMetricsAvailable())
+                if (m->HBMmemoryTrafficMetricsAvailable())
                     cout << "   " << setw(11) << getBytesReadFromEDC(sktstate1[i], sktstate2[i]) / double(1e9) <<
                             "    " << setw(11) << getBytesWrittenToEDC(sktstate1[i], sktstate2[i]) / double(1e9);
                 if (m->memoryIOTrafficMetricAvailable()) {
@@ -593,7 +593,7 @@ void print_csv_header(PCM * m,
         if (m->PMMTrafficMetricsAvailable())
             print_csv_header_helper(header,2);
 
-        if (m->MCDRAMmemoryTrafficMetricsAvailable())
+        if (m->HBMmemoryTrafficMetricsAvailable())
             print_csv_header_helper(header,2);
 
         print_csv_header_helper(header,7);
@@ -641,7 +641,7 @@ void print_csv_header(PCM * m,
                 print_csv_header_helper(header);
             if (m->PMMTrafficMetricsAvailable())
                 print_csv_header_helper(header,2);
-            if (m->MCDRAMmemoryTrafficMetricsAvailable())
+            if (m->HBMmemoryTrafficMetricsAvailable())
                 print_csv_header_helper(header,2);
             if (m->memoryIOTrafficMetricAvailable())
                 print_csv_header_helper(header,3);
@@ -754,8 +754,8 @@ void print_csv_header(PCM * m,
         if (m->PMMTrafficMetricsAvailable())
             cout << "PMM_RD,PMM_WR,";
 
-        if (m->MCDRAMmemoryTrafficMetricsAvailable())
-                cout << "MCDRAM_READ,MCDRAM_WRITE,";
+        if (m->HBMmemoryTrafficMetricsAvailable())
+                cout << "HBM_READ,HBM_WRITE,";
 
         cout << "INST,ACYC,TIME(ticks),PhysIPC,PhysIPC%,INSTnom,INSTnom%,";
         if (m->getNumSockets() > 1) { // QPI info only for multi socket systems
@@ -801,8 +801,8 @@ void print_csv_header(PCM * m,
                  cout << "LOCAL,";
              if (m->PMMTrafficMetricsAvailable())
                  cout << "PMM_RD,PMM_WR,";
-             if (m->MCDRAMmemoryTrafficMetricsAvailable())
-                 cout << "MCDRAM_READ,MCDRAM_WRITE,";
+             if (m->HBMmemoryTrafficMetricsAvailable())
+                 cout << "HBM_READ,HBM_WRITE,";
              if (m->memoryIOTrafficMetricAvailable())
                  cout << "IO,IA,GT,";
              cout << "TEMP,";
@@ -972,7 +972,7 @@ void print_csv(PCM * m,
             cout << getBytesReadFromPMM(sstate1, sstate2) / double(1e9) <<
             ',' << getBytesWrittenToPMM(sstate1, sstate2) / double(1e9) << ',';
 
-        if (m->MCDRAMmemoryTrafficMetricsAvailable())
+        if (m->HBMmemoryTrafficMetricsAvailable())
                 cout << getBytesReadFromEDC(sstate1, sstate2) / double(1e9) <<
                 ',' << getBytesWrittenToEDC(sstate1, sstate2) / double(1e9) << ',';
 
@@ -1024,7 +1024,7 @@ void print_csv(PCM * m,
             if (m->PMMTrafficMetricsAvailable())
                 cout << ',' << getBytesReadFromPMM(sktstate1[i], sktstate2[i]) / double(1e9) <<
                 ',' << getBytesWrittenToPMM(sktstate1[i], sktstate2[i]) / double(1e9);
-            if (m->MCDRAMmemoryTrafficMetricsAvailable())
+            if (m->HBMmemoryTrafficMetricsAvailable())
                 cout << ',' << getBytesReadFromEDC(sktstate1[i], sktstate2[i]) / double(1e9) <<
                 ',' << getBytesWrittenToEDC(sktstate1[i], sktstate2[i]) / double(1e9);
             if (m->memoryIOTrafficMetricAvailable()) {

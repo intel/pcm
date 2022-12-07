@@ -8,6 +8,7 @@
 #include "bw.h"
 #include "pci.h"
 #include "utils.h"
+#include <assert.h>
 
 namespace pcm {
 
@@ -127,7 +128,7 @@ uint64 ADLClientBW::getImcWrites()
 #define PCM_SERVER_IMC_PMM_DATA_WRITES  (0x22a8)
 #define PCM_SERVER_IMC_MMAP_SIZE        (0x4000)
 
-std::vector<size_t> getServerMemBars(const uint32 numIMC, const uint32 root_segment_ubox0, const uint32 root_bus_ubox0)
+std::vector<size_t> getServerBars(const size_t regBase, const uint32 numIMC, const uint32 root_segment_ubox0, const uint32 root_bus_ubox0)
 {
     std::vector<size_t> result;
     PciHandleType ubox0Handle(root_segment_ubox0, root_bus_ubox0, SERVER_UBOX0_REGISTER_DEV_ADDR, SERVER_UBOX0_REGISTER_FUNC_ADDR);
@@ -137,19 +138,31 @@ std::vector<size_t> getServerMemBars(const uint32 numIMC, const uint32 root_segm
     for (uint32 i = 0; i < numIMC; ++i)
     {
         uint32 memOffset = 0;
-        ubox0Handle.read32(0xd8 + i * 4, &memOffset);
+        ubox0Handle.read32(regBase + i * 4, &memOffset);
         // std::cout << "memOffset for imc "<<i<<" is 0x" << std::hex << memOffset << std::dec << std::endl;
         size_t memBar = ((size_t(mmioBase) & ((1ULL << 29ULL) - 1ULL)) << 23ULL) |
             ((size_t(memOffset) & ((1ULL << 11ULL) - 1ULL)) << 12ULL);
         // std::cout << "membar for imc "<<i<<" is 0x" << std::hex << memBar << std::dec << std::endl;
         if (memBar == 0)
         {
-            std::cerr << "ERROR: memBar " << i << " is zero." << std::endl;
+            std::cerr << "ERROR: bar " << i << " is zero." << std::endl;
             throw std::exception();
         }
         result.push_back(memBar);
     }
     return result;
+}
+
+size_t getServerSCFBar(const uint32 root_segment_ubox0, const uint32 root_bus_ubox0)
+{
+    std::vector<size_t> result = getServerBars(0xd4, 1, root_segment_ubox0, root_bus_ubox0);
+    assert(result.size() == 1);
+    return result[0];
+}
+
+std::vector<size_t> getServerMemBars(const uint32 numIMC, const uint32 root_segment_ubox0, const uint32 root_bus_ubox0)
+{
+    return getServerBars(0xd8, numIMC, root_segment_ubox0, root_bus_ubox0);
 }
 
 ServerBW::ServerBW(const uint32 numIMC, const uint32 root_segment_ubox0, const uint32 root_bus_ubox0)

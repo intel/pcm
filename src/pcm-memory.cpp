@@ -370,40 +370,14 @@ void display_bandwidth(PCM *m, memdata_t *md, const uint32 no_columns, const boo
 
     while (skt < numSockets)
     {
-        auto printRow = [&skt,&show_channel_output,&m,&md,&sysReadDRAM,&sysWriteDRAM, &sysReadPMM, &sysWritePMM](const uint32 no_columns)
+        auto printHBM = [&]()
         {
-            printSocketBWHeader(no_columns, skt, show_channel_output);
-            if (show_channel_output)
-                printSocketChannelBW(m, md, no_columns, skt);
-            printSocketBWFooter(no_columns, skt, md);
-            for (uint32 i = skt; i < (skt + no_columns); i++)
-            {
-                sysReadDRAM += md->iMC_Rd_socket[i];
-                sysWriteDRAM += md->iMC_Wr_socket[i];
-                sysReadPMM += md->iMC_PMM_Rd_socket[i];
-                sysWritePMM += md->iMC_PMM_Wr_socket[i];
-            }
-            skt += no_columns;
-        };
-        // Full row
-        if ((skt + no_columns) <= numSockets)
-        {
-            printRow(no_columns);
-        }
-        else //Display the remaining sockets in this row
-        {
-            if (m->MCDRAMmemoryTrafficMetricsAvailable() == false)
-            {
-                printRow(numSockets - skt);
-            }
-            else
-            {
                 cout << "\
                     \r|---------------------------------------||---------------------------------------|\n\
                     \r|--                              Processor socket "
                      << skt << "                            --|\n\
                     \r|---------------------------------------||---------------------------------------|\n\
-                    \r|--       DDR4 Channel Monitoring     --||--      MCDRAM Channel Monitoring    --|\n\
+                    \r|--       DRAM Channel Monitoring     --||--        HBM Channel Monitoring     --|\n\
                     \r|---------------------------------------||---------------------------------------|\n\
                     \r";
                 const uint32 max_channels = (std::max)(max_edc_channels, max_imc_channels);
@@ -434,22 +408,22 @@ void display_bandwidth(PCM *m, memdata_t *md, const uint32 no_columns, const boo
                         }
 
                         if (iMC_Rd >= 0.0 && iMC_Wr >= 0.0 && EDC_Rd >= 0.0 && EDC_Wr >= 0.0)
-                            cout << "|-- DDR4 Ch " << channel << ": Reads (MB/s):" << setw(9) << iMC_Rd
-                                 << " --||-- EDC Ch " << channel << ": Reads (MB/s):" << setw(10) << EDC_Rd
-                                 << " --|\n|--            Writes(MB/s):" << setw(9) << iMC_Wr
-                                 << " --||--           Writes(MB/s):" << setw(10) << EDC_Wr
+                            cout << "|-- DRAM Ch " << setw(2) << channel << ": Reads (MB/s):" << setw(8) << iMC_Rd
+                                 << " --||-- HBM Ch " << setw(2) << channel << ": Reads (MB/s):" << setw(9) << EDC_Rd
+                                 << " --|\n|--             Writes(MB/s):" << setw(8) << iMC_Wr
+                                 << " --||--            Writes(MB/s):" << setw(9) << EDC_Wr
                                  << " --|\n";
                         else if ((iMC_Rd < 0.0 || iMC_Wr < 0.0) && EDC_Rd >= 0.0 && EDC_Wr >= 0.0)
                             cout << "|--                                  "
-                                 << " --||-- EDC Ch " << channel << ": Reads (MB/s):" << setw(10) << EDC_Rd
+                                 << " --||-- HBM Ch " << setw(2) << channel << ": Reads (MB/s):" << setw(9) << EDC_Rd
                                  << " --|\n|--                                  "
-                                 << " --||--           Writes(MB/s):" << setw(10) << EDC_Wr
+                                 << " --||--            Writes(MB/s):" << setw(9) << EDC_Wr
                                  << " --|\n";
 
                         else if (iMC_Rd >= 0.0 && iMC_Wr >= 0.0 && (EDC_Rd < 0.0 || EDC_Wr < 0.0))
-                            cout << "|-- DDR4 Ch " << channel << ": Reads (MB/s):" << setw(9) << iMC_Rd
+                            cout << "|-- DRAM Ch " << setw(2) << channel << ": Reads (MB/s):" << setw(8) << iMC_Rd
                                  << " --||--                                  "
-                                 << " --|\n|--            Writes(MB/s):" << setw(9) << iMC_Wr
+                                 << " --|\n|--             Writes(MB/s):" << setw(8) << iMC_Wr
                                  << " --||--                                  "
                                  << " --|\n";
                         else
@@ -457,19 +431,45 @@ void display_bandwidth(PCM *m, memdata_t *md, const uint32 no_columns, const boo
                     }
                 }
                 cout << "\
-                    \r|-- DDR4 Mem Read  (MB/s):"
-                     << setw(11) << md->iMC_Rd_socket[skt] << " --||-- MCDRAM Read (MB/s):" << setw(14) << md->EDC_Rd_socket[skt] << " --|\n\
-                    \r|-- DDR4 Mem Write (MB/s):"
-                     << setw(11) << md->iMC_Wr_socket[skt] << " --||-- MCDRAM Write(MB/s):" << setw(14) << md->EDC_Wr_socket[skt] << " --|\n\
-                    \r|-- DDR4 Memory (MB/s)   :"
-                     << setw(11) << md->iMC_Rd_socket[skt] + md->iMC_Wr_socket[skt] << " --||-- MCDRAM (MB/s)     :" << setw(14) << md->EDC_Rd_socket[skt] + md->EDC_Wr_socket[skt] << " --|\n\
+                    \r|-- DRAM Mem Read  (MB/s):"
+                     << setw(11) << md->iMC_Rd_socket[skt] << " --||-- HBM Read (MB/s):" << setw(14+3) << md->EDC_Rd_socket[skt] << " --|\n\
+                    \r|-- DRAM Mem Write (MB/s):"
+                     << setw(11) << md->iMC_Wr_socket[skt] << " --||-- HBM Write(MB/s):" << setw(14+3) << md->EDC_Wr_socket[skt] << " --|\n\
+                    \r|-- DRAM Memory (MB/s)   :"
+                     << setw(11) << md->iMC_Rd_socket[skt] + md->iMC_Wr_socket[skt] << " --||-- HBM (MB/s)     :" << setw(14+3) << md->EDC_Rd_socket[skt] + md->EDC_Wr_socket[skt] << " --|\n\
                     \r|---------------------------------------||---------------------------------------|\n\
                     \r";
 
                 sysReadDRAM += (md->iMC_Rd_socket[skt] + md->EDC_Rd_socket[skt]);
                 sysWriteDRAM += (md->iMC_Wr_socket[skt] + md->EDC_Wr_socket[skt]);
                 skt += 1;
+            };
+        auto printRow = [&skt,&show_channel_output,&m,&md,&sysReadDRAM,&sysWriteDRAM, &sysReadPMM, &sysWritePMM](const uint32 no_columns)
+        {
+            printSocketBWHeader(no_columns, skt, show_channel_output);
+            if (show_channel_output)
+                printSocketChannelBW(m, md, no_columns, skt);
+            printSocketBWFooter(no_columns, skt, md);
+            for (uint32 i = skt; i < (skt + no_columns); i++)
+            {
+                sysReadDRAM += md->iMC_Rd_socket[i];
+                sysWriteDRAM += md->iMC_Wr_socket[i];
+                sysReadPMM += md->iMC_PMM_Rd_socket[i];
+                sysWritePMM += md->iMC_PMM_Wr_socket[i];
             }
+            skt += no_columns;
+        };
+        if (m->HBMmemoryTrafficMetricsAvailable())
+        {
+            printHBM(); // no_columns is ignored, always 1 socket at a time
+        }
+        else if ((skt + no_columns) <= numSockets) // Full row
+        {
+            printRow(no_columns);
+        }
+        else //Display the remaining sockets in this row
+        {
+            printRow(numSockets - skt);
         }
     }
     {
@@ -622,7 +622,7 @@ void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 /*elapsedTime*/, const 
                             << setw(8) << PMM_MM_Ratio(md, skt) << ',';
                    });
         }
-        if (m->MCDRAMmemoryTrafficMetricsAvailable() == false)
+        if (m->HBMmemoryTrafficMetricsAvailable() == false)
         {
             if (md->metrics == PartialWrites)
             {
@@ -655,7 +655,7 @@ void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 /*elapsedTime*/, const 
                    sysWritePMM += md->iMC_PMM_Wr_socket[skt];
                });
 
-        if (m->MCDRAMmemoryTrafficMetricsAvailable())
+        if (m->HBMmemoryTrafficMetricsAvailable())
         {
             if (show_channel_output)
             {
@@ -684,7 +684,7 @@ void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 /*elapsedTime*/, const 
                        printSKT(3);
                    },
                    []() {
-                       cout << "MCDRAM Read (MB/s), MCDRAM Write (MB/s), MCDRAM (MB/s),";
+                       cout << "HBM Read (MB/s), HBM Write (MB/s), HBM (MB/s),";
                    },
                    [&]() {
                        cout << setw(8) << md->EDC_Rd_socket[skt] << ','
@@ -786,8 +786,10 @@ void calculate_bandwidth(PCM *m,
 			return (float)(nEvents * 64 / 1000000.0 / (elapsedTime / 1000.0));
 		};
 
-        if (m->MCDRAMmemoryTrafficMetricsAvailable())
+        if (m->HBMmemoryTrafficMetricsAvailable())
         {
+            const float scalingFactor = ((float) m->getHBMCASTransferSize()) / float(64.);
+
             for (uint32 channel = 0; channel < max_edc_channels; ++channel)
             {
                 if (skipInactiveChannels && getEDCCounter(channel, ServerPCICFGUncore::EventPosition::READ, uncState1[skt], uncState2[skt]) == 0.0 && getEDCCounter(channel, ServerPCICFGUncore::EventPosition::WRITE, uncState1[skt], uncState2[skt]) == 0.0)
@@ -797,8 +799,8 @@ void calculate_bandwidth(PCM *m,
                     continue;
                 }
 
-                md.EDC_Rd_socket_chan[skt][channel] = toBW(getEDCCounter(channel, ServerPCICFGUncore::EventPosition::READ, uncState1[skt], uncState2[skt]));
-                md.EDC_Wr_socket_chan[skt][channel] = toBW(getEDCCounter(channel, ServerPCICFGUncore::EventPosition::WRITE, uncState1[skt], uncState2[skt]));
+                md.EDC_Rd_socket_chan[skt][channel] = scalingFactor * toBW(getEDCCounter(channel, ServerPCICFGUncore::EventPosition::READ, uncState1[skt], uncState2[skt]));
+                md.EDC_Wr_socket_chan[skt][channel] = scalingFactor * toBW(getEDCCounter(channel, ServerPCICFGUncore::EventPosition::WRITE, uncState1[skt], uncState2[skt]));
 
                 md.EDC_Rd_socket[skt] += md.EDC_Rd_socket_chan[skt][channel];
                 md.EDC_Wr_socket[skt] += md.EDC_Wr_socket_chan[skt][channel];
