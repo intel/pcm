@@ -65,6 +65,7 @@ namespace pcm {
     };
 
 std::vector<size_t> getServerMemBars(const uint32 numIMC, const uint32 root_segment_ubox0, const uint32 root_bus_ubox0);
+size_t getServerSCFBar(const uint32 root_segment_ubox0, const uint32 root_bus_ubox0);
 
 class ServerBW
 {

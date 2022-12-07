@@ -5453,7 +5453,7 @@ void PCM::readAndAggregateUncoreMCCounters(const uint32 socket, CounterStateType
                 result.UncPMMReads += server_pcicfg_uncore[socket]->getPMMReads();
                 result.UncPMMWrites += server_pcicfg_uncore[socket]->getPMMWrites();
             }
-            if (MCDRAMmemoryTrafficMetricsAvailable())
+            if (HBMmemoryTrafficMetricsAvailable())
             {
                 result.UncEDCNormalReads += server_pcicfg_uncore[socket]->getEdcReads();
                 result.UncEDCFullWrites += server_pcicfg_uncore[socket]->getEdcWrites();
@@ -5912,8 +5912,8 @@ ServerUncoreCounterState PCM::getServerUncoreCounterState(uint32 socket)
         }
         for (uint32 channel = 0; channel < (uint32)server_pcicfg_uncore[socket]->getNumEDCChannels(); ++channel)
         {
-            assert(channel < result.MCDRAMClocks.size());
-            result.MCDRAMClocks[channel] = server_pcicfg_uncore[socket]->getMCDRAMClocks(channel);
+            assert(channel < result.HBMClocks.size());
+            result.HBMClocks[channel] = server_pcicfg_uncore[socket]->getHBMClocks(channel);
             assert(channel < result.EDCCounter.size());
             for (uint32 cnt = 0; cnt < ServerUncoreCounterState::maxCounters; ++cnt)
                 result.EDCCounter[channel][cnt] = server_pcicfg_uncore[socket]->getEDCCounter(channel, cnt);
@@ -6244,6 +6244,8 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
         getNumMC() << " memory controllers detected with total number of " << getNumMCChannels() << " channels. " <<
         getNumQPIPorts() << " " << pcm->xPI() << " ports detected." <<
         " " << m2mPMUs.size() << " M2M (mesh to memory) blocks detected."
+        " " << hbm_m2mPMUs.size() << " HBM M2M blocks detected."
+        " " << edcPMUs.size() << " EDC/HBM channels detected."
         " " << haPMUs.size()  << " Home Agents detected."
         " " << m3upiPMUs.size() << " M3UPI blocks detected."
         "\n";
@@ -6272,6 +6274,10 @@ void ServerPCICFGUncore::initRegisterLocations(const PCM * pcm)
 #define PCM_PCICFG_M2M_INIT(x, arch) \
     M2MRegisterLocation.resize(x + 1); \
     M2MRegisterLocation[x] = std::make_pair(arch##_M2M_##x##_REGISTER_DEV_ADDR, arch##_M2M_##x##_REGISTER_FUNC_ADDR);
+
+#define PCM_PCICFG_HBM_M2M_INIT(x, arch) \
+    HBM_M2MRegisterLocation.resize(x + 1); \
+    HBM_M2MRegisterLocation[x] = std::make_pair(arch##_HBM_M2M_##x##_REGISTER_DEV_ADDR, arch##_HBM_M2M_##x##_REGISTER_FUNC_ADDR);
 
 #define PCM_PCICFG_HA_INIT(x, arch) \
     HARegisterLocation.resize(x + 1); \
@@ -6380,6 +6386,23 @@ void ServerPCICFGUncore::initRegisterLocations(const PCM * pcm)
         PCM_PCICFG_M2M_INIT(1, SERVER)
         PCM_PCICFG_M2M_INIT(2, SERVER)
         PCM_PCICFG_M2M_INIT(3, SERVER)
+
+        PCM_PCICFG_HBM_M2M_INIT(0, SERVER)
+        PCM_PCICFG_HBM_M2M_INIT(1, SERVER)
+        PCM_PCICFG_HBM_M2M_INIT(2, SERVER)
+        PCM_PCICFG_HBM_M2M_INIT(3, SERVER)
+        PCM_PCICFG_HBM_M2M_INIT(4, SERVER)
+        PCM_PCICFG_HBM_M2M_INIT(5, SERVER)
+        PCM_PCICFG_HBM_M2M_INIT(6, SERVER)
+        PCM_PCICFG_HBM_M2M_INIT(7, SERVER)
+        PCM_PCICFG_HBM_M2M_INIT(8, SERVER)
+        PCM_PCICFG_HBM_M2M_INIT(9, SERVER)
+        PCM_PCICFG_HBM_M2M_INIT(10, SERVER)
+        PCM_PCICFG_HBM_M2M_INIT(11, SERVER)
+        PCM_PCICFG_HBM_M2M_INIT(12, SERVER)
+        PCM_PCICFG_HBM_M2M_INIT(13, SERVER)
+        PCM_PCICFG_HBM_M2M_INIT(14, SERVER)
+        PCM_PCICFG_HBM_M2M_INIT(15, SERVER)
     }
     else if(cpu_model == PCM::KNL)
     {
@@ -6576,6 +6599,7 @@ void ServerPCICFGUncore::initDirect(uint32 socket_, const PCM * pcm)
         }
     }
 
+    auto populateM2MPMUs = [](uint32 groupnr, int32 M2Mbus, int32 cpu_model, const std::vector<std::pair<uint32, uint32> > & M2MRegisterLocation, UncorePMUVector & m2mPMUs)
     {
         std::vector<std::shared_ptr<PciHandleType> > m2mHandles;
 
@@ -6623,7 +6647,9 @@ void ServerPCICFGUncore::initDirect(uint32 socket_, const PCM * pcm)
                 );
             }
         }
-    }
+    };
+    populateM2MPMUs(groupnr, M2Mbus, cpu_model, M2MRegisterLocation, m2mPMUs);
+    populateM2MPMUs(groupnr, M2Mbus, cpu_model, HBM_M2MRegisterLocation, hbm_m2mPMUs);
 
     int numChannels = 0;
     if (cpu_model == PCM::SPR)
@@ -6639,42 +6665,50 @@ void ServerPCICFGUncore::initDirect(uint32 socket_, const PCM * pcm)
         }
     }
 
-    if (numChannels > 0)
+    auto createIMCPMU = [](const size_t addr, const size_t mapSize) -> UncorePMU
+    {
+        const auto alignedAddr = addr & ~4095ULL;
+        const auto alignDelta = addr & 4095ULL;
+        auto handle = std::make_shared<MMIORange>(alignedAddr, mapSize, false);
+        return UncorePMU(
+            std::make_shared<MMIORegister32>(handle, SERVER_MC_CH_PMON_BOX_CTL_OFFSET + alignDelta),
+            std::make_shared<MMIORegister32>(handle, SERVER_MC_CH_PMON_CTL0_OFFSET + alignDelta),
+            std::make_shared<MMIORegister32>(handle, SERVER_MC_CH_PMON_CTL1_OFFSET + alignDelta),
+            std::make_shared<MMIORegister32>(handle, SERVER_MC_CH_PMON_CTL2_OFFSET + alignDelta),
+            std::make_shared<MMIORegister32>(handle, SERVER_MC_CH_PMON_CTL3_OFFSET + alignDelta),
+            std::make_shared<MMIORegister64>(handle, SERVER_MC_CH_PMON_CTR0_OFFSET + alignDelta),
+            std::make_shared<MMIORegister64>(handle, SERVER_MC_CH_PMON_CTR1_OFFSET + alignDelta),
+            std::make_shared<MMIORegister64>(handle, SERVER_MC_CH_PMON_CTR2_OFFSET + alignDelta),
+            std::make_shared<MMIORegister64>(handle, SERVER_MC_CH_PMON_CTR3_OFFSET + alignDelta),
+            std::make_shared<MMIORegister32>(handle, SERVER_MC_CH_PMON_FIXED_CTL_OFFSET + alignDelta),
+            std::make_shared<MMIORegister64>(handle, SERVER_MC_CH_PMON_FIXED_CTR_OFFSET + alignDelta)
+        );
+    };
+
+    auto initAndCheckSocket2Ubox0Bus = [&socket_]() -> bool
     {
         initSocket2Ubox0Bus();
-        if (socket_ < socket2UBOX0bus.size())
+        if (socket_ >= socket2UBOX0bus.size())
+        {
+            std::cerr << "ERROR: socket " << socket_ << " is not found in socket2UBOX0bus. socket2UBOX0bus.size =" << socket2UBOX0bus.size() << std::endl;
+            return false;
+        }
+        return true;
+    };
+
+    if (numChannels > 0)
+    {
+        if (initAndCheckSocket2Ubox0Bus())
         {
             auto memBars = getServerMemBars((uint32)m2mPMUs.size(), socket2UBOX0bus[socket_].first, socket2UBOX0bus[socket_].second);
             for (auto & memBar : memBars)
             {
                 for (int channel = 0; channel < numChannels; ++channel)
                 {
-                    const auto addr = memBar + SERVER_MC_CH_PMON_BASE_ADDR + channel * SERVER_MC_CH_PMON_STEP;
-                    const auto alignedAddr = addr & ~4095ULL;
-                    const auto alignDelta = addr & 4095ULL;
-                    auto handle = std::make_shared<MMIORange>(alignedAddr, SERVER_MC_CH_PMON_SIZE, false);
-                    imcPMUs.push_back(
-                        UncorePMU(
-                            std::make_shared<MMIORegister32>(handle, SERVER_MC_CH_PMON_BOX_CTL_OFFSET + alignDelta),
-                            std::make_shared<MMIORegister32>(handle, SERVER_MC_CH_PMON_CTL0_OFFSET + alignDelta),
-                            std::make_shared<MMIORegister32>(handle, SERVER_MC_CH_PMON_CTL1_OFFSET + alignDelta),
-                            std::make_shared<MMIORegister32>(handle, SERVER_MC_CH_PMON_CTL2_OFFSET + alignDelta),
-                            std::make_shared<MMIORegister32>(handle, SERVER_MC_CH_PMON_CTL3_OFFSET + alignDelta),
-                            std::make_shared<MMIORegister64>(handle, SERVER_MC_CH_PMON_CTR0_OFFSET + alignDelta),
-                            std::make_shared<MMIORegister64>(handle, SERVER_MC_CH_PMON_CTR1_OFFSET + alignDelta),
-                            std::make_shared<MMIORegister64>(handle, SERVER_MC_CH_PMON_CTR2_OFFSET + alignDelta),
-                            std::make_shared<MMIORegister64>(handle, SERVER_MC_CH_PMON_CTR3_OFFSET + alignDelta),
-                            std::make_shared<MMIORegister32>(handle, SERVER_MC_CH_PMON_FIXED_CTL_OFFSET + alignDelta),
-                            std::make_shared<MMIORegister64>(handle, SERVER_MC_CH_PMON_FIXED_CTR_OFFSET + alignDelta)
-                        )
-                    );
+                    imcPMUs.push_back(createIMCPMU(memBar + SERVER_MC_CH_PMON_BASE_ADDR + channel * SERVER_MC_CH_PMON_STEP, SERVER_MC_CH_PMON_SIZE));
                 }
                 num_imc_channels.push_back(numChannels);
             }
-        }
-        else
-        {
-            std::cerr << "ERROR: socket " << socket_ << " is not found in socket2UBOX0bus. socket2UBOX0bus.size =" << socket2UBOX0bus.size() << std::endl;
         }
     }
 
@@ -6710,6 +6744,22 @@ void ServerPCICFGUncore::initDirect(uint32 socket_, const PCM * pcm)
                     std::make_shared<PCICFGRegister32>(handle, KNX_EDC_CH_PCI_PMON_FIXED_CTL_ADDR),
                     std::make_shared<PCICFGRegister64>(handle, KNX_EDC_CH_PCI_PMON_FIXED_CTR_ADDR))
             );
+        }
+    }
+
+    if (hbm_m2mPMUs.empty() == false)
+    {
+        // HBM
+        if (initAndCheckSocket2Ubox0Bus())
+        {
+            const auto bar = getServerSCFBar(socket2UBOX0bus[socket_].first, socket2UBOX0bus[socket_].second);
+            for (size_t box = 0; box < hbm_m2mPMUs.size(); ++box)
+            {
+                for (int channel = 0; channel < 2; ++channel)
+                {
+                    edcPMUs.push_back(createIMCPMU(bar + SERVER_HBM_CH_PMON_BASE_ADDR + box * SERVER_HBM_BOX_PMON_STEP + channel * SERVER_HBM_CH_PMON_STEP, SERVER_HBM_CH_PMON_SIZE));
+                }
+            }
         }
     }
 
@@ -6903,6 +6953,11 @@ void ServerPCICFGUncore::initDirect(uint32 socket_, const PCM * pcm)
             );
         }
     }
+}
+
+bool ServerPCICFGUncore::HBMAvailable() const
+{
+    return edcPMUs.empty() == false;
 }
 
 
@@ -7338,8 +7393,8 @@ void ServerPCICFGUncore::programServerUncoreMemoryMetrics(const ServerUncoreMemo
             break;
         case PCM::SPR:
             {
-                MCCntConfig[EventPosition::READ] = MC_CH_PCI_PMON_CTL_EVENT(0x05) + MC_CH_PCI_PMON_CTL_UMASK(0xcf);  // monitor reads on counter 0: CAS_COUNT.RD
-                MCCntConfig[EventPosition::WRITE] = MC_CH_PCI_PMON_CTL_EVENT(0x05) + MC_CH_PCI_PMON_CTL_UMASK(0xf0); // monitor writes on counter 1: CAS_COUNT.WR
+                EDCCntConfig[EventPosition::READ] = MCCntConfig[EventPosition::READ] = MC_CH_PCI_PMON_CTL_EVENT(0x05) + MC_CH_PCI_PMON_CTL_UMASK(0xcf);  // monitor reads on counter 0: CAS_COUNT.RD
+                EDCCntConfig[EventPosition::WRITE] = MCCntConfig[EventPosition::WRITE] = MC_CH_PCI_PMON_CTL_EVENT(0x05) + MC_CH_PCI_PMON_CTL_UMASK(0xf0); // monitor writes on counter 1: CAS_COUNT.WR
             }
             if (setEvents2_3(MC_CH_PCI_PMON_CTL_EVENT(0x05) + MC_CH_PCI_PMON_CTL_UMASK(0xcc)) == false) // monitor partial writes on counter 2: CAS_COUNT.RD_UNDERFILL
             {
@@ -7384,7 +7439,7 @@ void ServerPCICFGUncore::programServerUncoreMemoryMetrics(const ServerUncoreMemo
         }
     }
     programIMC(MCCntConfig);
-    if(cpu_model == PCM::KNL) programEDC(EDCCntConfig);
+    if (pcm->HBMmemoryTrafficMetricsAvailable()) programEDC(EDCCntConfig);
 
     programM2M();
 
@@ -7411,8 +7466,8 @@ void ServerPCICFGUncore::program()
         MCCntConfig[EventPosition::WRITE] = MC_CH_PCI_PMON_CTL_EVENT(0x04) + MC_CH_PCI_PMON_CTL_UMASK(0x30); // monitor writes on counter 1: CAS_COUNT.WR
         break;
     case PCM::SPR:
-        MCCntConfig[EventPosition::READ] = MC_CH_PCI_PMON_CTL_EVENT(0x05) + MC_CH_PCI_PMON_CTL_UMASK(0xcf);  // monitor reads on counter 0: CAS_COUNT.RD
-        MCCntConfig[EventPosition::WRITE] = MC_CH_PCI_PMON_CTL_EVENT(0x05) + MC_CH_PCI_PMON_CTL_UMASK(0xf0); // monitor writes on counter 1: CAS_COUNT.WR
+        EDCCntConfig[EventPosition::READ] = MCCntConfig[EventPosition::READ] = MC_CH_PCI_PMON_CTL_EVENT(0x05) + MC_CH_PCI_PMON_CTL_UMASK(0xcf);  // monitor reads on counter 0: CAS_COUNT.RD
+        EDCCntConfig[EventPosition::WRITE] = MCCntConfig[EventPosition::WRITE] = MC_CH_PCI_PMON_CTL_EVENT(0x05) + MC_CH_PCI_PMON_CTL_UMASK(0xf0); // monitor writes on counter 1: CAS_COUNT.WR
         break;
     default:
         MCCntConfig[EventPosition::READ] = MC_CH_PCI_PMON_CTL_EVENT(0x04) + MC_CH_PCI_PMON_CTL_UMASK(3);  // monitor reads on counter 0: CAS_COUNT.RD
@@ -7426,7 +7481,7 @@ void ServerPCICFGUncore::program()
     }
 
     programIMC(MCCntConfig);
-    if(cpu_model == PCM::KNL) programEDC(EDCCntConfig);
+    if (pcm->HBMmemoryTrafficMetricsAvailable()) programEDC(EDCCntConfig);
 
     programM2M();
 
@@ -7679,6 +7734,15 @@ void ServerPCICFGUncore::program_power_metrics(int mc_profile)
     programIMC(MCCntConfig);
 }
 
+void enableAndResetMCFixedCounter(UncorePMU& pmu)
+{
+    // enable fixed counter (DRAM clocks)
+    *pmu.fixedCounterControl = MC_CH_PCI_PMON_FIXED_CTL_EN;
+
+    // reset it
+    *pmu.fixedCounterControl = MC_CH_PCI_PMON_FIXED_CTL_EN + MC_CH_PCI_PMON_FIXED_CTL_RST;
+}
+
 void ServerPCICFGUncore::programIMC(const uint32 * MCCntConfig)
 {
     const uint32 extraIMC = (cpu_model == PCM::SKX)?UNC_PMON_UNIT_CTL_RSV:UNC_PMON_UNIT_CTL_FRZ_EN;
@@ -7688,11 +7752,7 @@ void ServerPCICFGUncore::programIMC(const uint32 * MCCntConfig)
         // imc PMU
         imcPMUs[i].initFreeze(extraIMC);
 
-        // enable fixed counter (DRAM clocks)
-        *imcPMUs[i].fixedCounterControl = MC_CH_PCI_PMON_FIXED_CTL_EN;
-
-        // reset it
-        *imcPMUs[i].fixedCounterControl = MC_CH_PCI_PMON_FIXED_CTL_EN + MC_CH_PCI_PMON_FIXED_CTL_RST;
+        enableAndResetMCFixedCounter(imcPMUs[i]);
 
         PCM::program(imcPMUs[i], MCCntConfig, MCCntConfig + 4, extraIMC);
     }
@@ -7704,8 +7764,15 @@ void ServerPCICFGUncore::programEDC(const uint32 * EDCCntConfig)
     {
         edcPMUs[i].initFreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
 
-        // MCDRAM clocks enabled by default
-        *edcPMUs[i].fixedCounterControl = EDC_CH_PCI_PMON_FIXED_CTL_EN;
+        // HBM clocks enabled by default
+        if (cpu_model == PCM::KNL)
+        {
+            *edcPMUs[i].fixedCounterControl = EDC_CH_PCI_PMON_FIXED_CTL_EN;
+        }
+        else
+        {
+            enableAndResetMCFixedCounter(edcPMUs[i]);
+        }
 
         PCM::program(edcPMUs[i], EDCCntConfig, EDCCntConfig + 4, UNC_PMON_UNIT_CTL_FRZ_EN);
     }
@@ -7855,14 +7922,14 @@ uint64 ServerPCICFGUncore::getDRAMClocks(uint32 channel)
     return result;
 }
 
-uint64 ServerPCICFGUncore::getMCDRAMClocks(uint32 channel)
+uint64 ServerPCICFGUncore::getHBMClocks(uint32 channel)
 {
     uint64 result = 0;
 
     if (channel < (uint32)edcPMUs.size())
         result = *edcPMUs[channel].fixedCounterValue;
 
-    // std::cout << "DEBUG: MCDRAMClocks on EDC" << channel << " = " << result << "\n";
+    // std::cout << "DEBUG: HBMClocks on EDC" << channel << " = " << result << "\n";
     return result;
 }
 
