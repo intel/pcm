@@ -8,17 +8,15 @@ Intel&reg; Performance Counter Monitor (Intel&reg; PCM) is an application progra
 
 *Github repository statistics:* ![Custom badge](https://img.shields.io/endpoint?url=https%3A%2F%2Fhetthbszh0.execute-api.us-east-2.amazonaws.com%2Fdefault%2Fpcm-clones) ![Custom badge](https://img.shields.io/endpoint?url=https%3A%2F%2F5urjfrshcd.execute-api.us-east-2.amazonaws.com%2Fdefault%2Fpcm-yesterday-clones) ![Custom badge](https://img.shields.io/endpoint?url=https%3A%2F%2Fcsqqh18g3l.execute-api.us-east-2.amazonaws.com%2Fdefault%2Fpcm-today-clones)
 
-*Code quality:* [![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/opcm/pcm.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/opcm/pcm/context:cpp) [![Language grade: Python](https://img.shields.io/lgtm/grade/python/g/opcm/pcm.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/opcm/pcm/context:python)
-
 --------------------------------------------------------------------------------
 Current Build Status
 --------------------------------------------------------------------------------
 
-- Linux: [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/intel/pcm/Linux%20make/master)](https://github.com/intel/pcm/actions/workflows/linux_make.yml?query=branch%3Amaster)
+- Linux: [![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/intel/pcm/linux_make.yml?branch=master)](https://github.com/intel/pcm/actions/workflows/linux_make.yml?query=branch%3Amaster)
 - Windows: [![Build status](https://ci.appveyor.com/api/projects/status/github/intel/pcm?branch=master&svg=true)](https://ci.appveyor.com/project/opcm/pcm)
-- FreeBSD: [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/intel/pcm/FreeBSD%20build/master)](https://github.com/intel/pcm/actions/workflows/freebsd_build.yml?query=branch%3Amaster)
-- OS X: [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/intel/pcm/Mac%20OS%20X%20build/master)](https://github.com/intel/pcm/actions/workflows/macosx_build.yml?query=branch%3Amaster)
-- Docker container: [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/intel/pcm/Docker%20Build/master)](doc/DOCKER_README.md)
+- FreeBSD: [![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/intel/pcm/freebsd_build.yml?branch=master)](https://github.com/intel/pcm/actions/workflows/freebsd_build.yml?query=branch%3Amaster)
+- OS X: [![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/intel/pcm/macosx_build.yml?branch=master)](https://github.com/intel/pcm/actions/workflows/macosx_build.yml?query=branch%3Amaster)
+- Docker container: [![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/intel/pcm/docker.yml?branch=master)](doc/DOCKER_README.md)
 
 --------------------------------------------------------------------------------
 PCM Tools
@@ -90,6 +88,7 @@ On Windows and MacOs additional drivers are required. Please find instructions h
 
 FreeBSD/DragonFlyBSD-specific details can be found in [FREEBSD_HOWTO.txt](doc/FREEBSD_HOWTO.txt)
 
+![pcm-build-run-2](https://user-images.githubusercontent.com/25432609/205663554-c4fa1724-6286-495a-9dbd-0104de3f535f.gif)
 
 --------------------------------------------------------------------------------
 Downloading Pre-Compiled PCM Tools
