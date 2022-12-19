@@ -8,8 +8,6 @@ Intel&reg; Performance Counter Monitor (Intel&reg; PCM) is an application progra
 
 *Github repository statistics:* ![Custom badge](https://img.shields.io/endpoint?url=https%3A%2F%2Fhetthbszh0.execute-api.us-east-2.amazonaws.com%2Fdefault%2Fpcm-clones) ![Custom badge](https://img.shields.io/endpoint?url=https%3A%2F%2F5urjfrshcd.execute-api.us-east-2.amazonaws.com%2Fdefault%2Fpcm-yesterday-clones) ![Custom badge](https://img.shields.io/endpoint?url=https%3A%2F%2Fcsqqh18g3l.execute-api.us-east-2.amazonaws.com%2Fdefault%2Fpcm-today-clones)
 
-*Code quality:* [![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/opcm/pcm.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/opcm/pcm/context:cpp) [![Language grade: Python](https://img.shields.io/lgtm/grade/python/g/opcm/pcm.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/opcm/pcm/context:python)
-
 --------------------------------------------------------------------------------
 Current Build Status
 --------------------------------------------------------------------------------
