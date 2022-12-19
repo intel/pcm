@@ -25,7 +25,7 @@ Intel(r) Performance Counter Monitor (Intel(r) PCM) is an application programmin
 %build
 mkdir build
 cd build
-cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo ..
+cmake -DCMAKE_INSTALL_PREFIX=/usr/ -DCMAKE_BUILD_TYPE=RelWithDebInfo ..
 make -j 
 
 %install
