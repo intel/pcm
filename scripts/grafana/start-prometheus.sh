@@ -9,7 +9,18 @@ then
   exit 1
 fi
 
-sed "s#PCMSENSORSERVER#$1#g" prometheus.yml.template > prometheus.yml
+# check if argument is file or ip-address:port, create the prometheus.yml accordingly
+if [ -f "$1" ]; then
+  echo "creating prometheus.yml for hosts in targets file";
+  head -n -1 "prometheus.yml.template" > prometheus.yml
+  while read -r line; do
+    echo "    - targets: ['$line']" >> "prometheus.yml"
+  done < "$1"
+
+else
+  echo "creating prometheus.yml for $1 ";
+  sed "s#PCMSENSORSERVER#$1#g" prometheus.yml.template > prometheus.yml
+fi
 
 mkdir -p grafana_volume/dashboards
 mkdir -p prometheus_volume

@@ -413,7 +413,32 @@ public:
   "style": "dark",
   "tags": [],
   "templating": {
-    "list": []
+    "list": [
+      {
+        "current": {
+          "selected": false,
+          "text": "ip addr:port",
+          "value": "ip addr:port"
+        },
+        "datasource": null,
+        "definition": "label_values(Number_of_sockets,instance)",
+        "hide": 0,
+        "includeAll": false,
+        "label": "Host",
+        "multi": false,
+        "name": "node",
+        "options": [],
+        "query": {
+          "query": "label_values(Number_of_sockets,instance)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      }
+    ]
   },
   "time": {
     "from": "now-5m",
@@ -449,19 +474,19 @@ std::string prometheusMetric(const std::string& m)
 
 std::string prometheusSystem()
 {
-    return "{aggregate=\\\"system\\\"}";
+    return "{instance=\\\"$node\\\", aggregate=\\\"system\\\"}";
 }
 
 std::string prometheusSocket(const std::string& S, const bool aggregate = true)
 {
     if (aggregate)
-        return "{aggregate=\\\"socket\\\", socket=\\\"" + S + "\\\"}";
-    return "{socket=\\\"" + S + "\\\"}";
+        return "{instance=\\\"$node\\\", aggregate=\\\"socket\\\", socket=\\\"" + S + "\\\"}";
+    return "{instance=\\\"$node\\\", socket=\\\"" + S + "\\\"}";
 }
 
 std::string prometheusSystem(const std::string& S)
 {
-    return "{aggregate=\\\"system\\\", socket=\\\"" + S + "\\\"}";
+    return "{instance=\\\"$node\\\", aggregate=\\\"system\\\", socket=\\\"" + S + "\\\"}";
 }
 
 std::string influxDB_Counters(const std::string& S, const std::string& m, const char * domain)
@@ -633,8 +658,8 @@ std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int
         auto prometheusCStateExpression = [](const std::string& source, const size_t c) -> std::string
         {
             auto C = std::to_string(c);
-            return std::string("100 * rate(RawCStateResidency{ aggregate = \\\"system\\\", index = \\\"") + C + "\\\", source = \\\"" + source + "\\\" }" + interval +
-                ") / ignoring(source, index) rate(Invariant_TSC{ aggregate = \\\"system\\\" }" + interval + ")";
+            return std::string("100 * rate(RawCStateResidency{ instance=\\\"$node\\\", aggregate = \\\"system\\\", index = \\\"") + C + "\\\", source = \\\"" + source + "\\\" }" + interval +
+                ") / ignoring(source, index) rate(Invariant_TSC{ instance=\\\"$node\\\", aggregate = \\\"system\\\" }" + interval + ")";
         };
         auto prometheusComputedCStateExpression = [&maxCState, &prometheusCStateExpression](const std::string& source, const size_t e) -> std::string
         {
