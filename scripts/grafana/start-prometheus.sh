@@ -31,7 +31,7 @@ mkdir -p provisioning/datasources
 cp automatic_prometheus.yml provisioning/datasources/automatic.yml 
 
 echo Downloading PCM dashboard
-curl -o grafana_volume/dashboards/pcm-dashboard.json $1/dashboard/prometheus
+curl -o grafana_volume/dashboards/pcm-dashboard.json (head -1 $1)/dashboard/prometheus
 
 echo Starting prometheus
 docker run --name prometheus -d -p 9090:9090 -v $PWD/prometheus.yml:/etc/prometheus/prometheus.yml -v $PWD/prometheus_volume:/prometheus prom/prometheus
