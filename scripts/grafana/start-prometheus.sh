@@ -17,6 +17,8 @@ chmod -R 777 *_volume
 mkdir -p provisioning/datasources
 cp automatic_prometheus.yml provisioning/datasources/automatic.yml
 
+echo Downloading PCM dashboard
+
 # check if argument is file, create the prometheus.yml accordingly
 if [ -f "$1" ]; then
   echo "creating prometheus.yml for hosts in targets file";
@@ -31,8 +33,6 @@ else
   sed "s#PCMSENSORSERVER#$1#g" prometheus.yml.template > prometheus.yml
   curl -o grafana_volume/dashboards/pcm-dashboard.json $1/dashboard/prometheus
 fi
-
-echo Downloading PCM dashboard
 
 echo Starting prometheus
 docker run --name prometheus -d -p 9090:9090 -v $PWD/prometheus.yml:/etc/prometheus/prometheus.yml -v $PWD/prometheus_volume:/prometheus prom/prometheus
