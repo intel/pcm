@@ -17,7 +17,7 @@ chmod -R 777 *_volume
 mkdir -p provisioning/datasources
 cp automatic_prometheus.yml provisioning/datasources/automatic.yml
 
-echo Downloading PCM dashboard
+
 
 # check if argument is file, create the prometheus.yml accordingly
 if [ -f "$1" ]; then
@@ -26,11 +26,13 @@ if [ -f "$1" ]; then
   while read -r line; do
     echo "    - targets: ['$line']" >> "prometheus.yml"
   done < "$1"
+  echo Downloading PCM dashboard
   curl -o grafana_volume/dashboards/pcm-dashboard.json $(head -1 $1)/dashboard/prometheus
 
 else
   echo "creating prometheus.yml for $1 ";
   sed "s#PCMSENSORSERVER#$1#g" prometheus.yml.template > prometheus.yml
+  echo Downloading PCM dashboard
   curl -o grafana_volume/dashboards/pcm-dashboard.json $1/dashboard/prometheus
 fi
 
