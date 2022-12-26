@@ -978,7 +978,9 @@ void calculate_bandwidth_rank(PCM *m, const ServerUncoreCounterState uncState1[]
     }
 }
 
-int main(int argc, char * argv[])
+PCM_MAIN_NOTHROW;
+
+int mainThrows(int argc, char * argv[])
 {
     if(print_version(argc, argv))
         exit(EXIT_SUCCESS);

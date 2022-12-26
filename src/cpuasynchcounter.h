@@ -71,7 +71,12 @@ public:
     {
         pthread_cancel(UpdateThread);
         if (pthread_mutex_destroy(&CounterMutex) != 0) std::cerr << "pthread_mutex_destroy failed\n";
-        m->cleanup();
+        try {
+            m->cleanup();
+        } catch (const std::runtime_error & e)
+        {
+            std::cerr << "PCM Error in ~AsynchronCounterState(). Exception " << e.what() << "\n";
+        }
         delete[] cstates1;
         delete[] cstates2;
         delete[] skstates1;

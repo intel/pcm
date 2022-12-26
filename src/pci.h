@@ -126,8 +126,9 @@ class PciHandleMM
     static void readMCFG();
 #endif
 
-    PciHandleMM();             // forbidden
-    PciHandleMM(PciHandleM &); // forbidden
+    PciHandleMM() = delete;             // forbidden
+    PciHandleMM(const PciHandleMM &) = delete; // forbidden
+    PciHandleMM & operator = (const PciHandleMM &) = delete;
 
 public:
     PciHandleMM(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 function_);

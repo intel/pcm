@@ -4,7 +4,9 @@
 
 #include "daemon.h"
 
-int main(int argc, char *argv[])
+PCM_MAIN_NOTHROW;
+
+int mainThrows(int argc, char * argv[])
 {
 	PCMDaemon::Daemon daemon(argc, argv);
 

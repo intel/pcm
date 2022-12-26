@@ -1134,7 +1134,9 @@ void print_csv(PCM * m,
     }
 }
 
-int main(int argc, char * argv[])
+PCM_MAIN_NOTHROW;
+
+int mainThrows(int argc, char * argv[])
 {
     if(print_version(argc, argv))
         exit(EXIT_SUCCESS);

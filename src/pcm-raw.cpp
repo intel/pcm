@@ -1122,6 +1122,7 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
                     continue;
                 printedBlocks.push_back(type);
             } else if (outputType == Data) {
+                assert(printOffsets.empty() || print_idx >= 0);
                 printOffset.start = (printOffsets.empty()) ? 0 : printOffsets[print_idx].start;
                 printOffset.end = (printOffsets.empty()) ? 0 : printOffsets[print_idx].end;
             }
@@ -1855,7 +1856,9 @@ void printAll(const PCM::RawPMUConfigs& curPMUConfigs,
     displayHeader = false;
 }
 
-int main(int argc, char* argv[])
+PCM_MAIN_NOTHROW;
+
+int mainThrows(int argc, char * argv[])
 {
     if(print_version(argc, argv))
         exit(EXIT_SUCCESS);

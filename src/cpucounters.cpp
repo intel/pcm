@@ -2329,6 +2329,7 @@ class CoreTaskQueue
 public:
     CoreTaskQueue(int32 core) :
         worker([=]() {
+        try {
             TemporalThreadAffinity tempThreadAffinity(core, false);
             std::unique_lock<std::mutex> lock(m);
             while (1) {
@@ -2340,6 +2341,12 @@ public:
                     wQueue.pop();
                 }
             }
+        }
+        catch (const std::exception & e)
+        {
+            std::cerr << "PCM Error. Exception in CoreTaskQueue worker function: " << e.what() << "\n";
+        }
+
         })
     {}
     void push(std::packaged_task<void()> & task)
@@ -6210,14 +6217,15 @@ bool PCM::useLinuxPerfForUncore() const
         std::cerr << "INFO: Secure Boot detected. Using Linux perf for uncore PMU programming.\n";
         use = 1;
     }
-    else
-#endif
+#else
+    if (1)
     {
         if (secureBoot)
         {
             std::cerr << "ERROR: Secure Boot detected. Recompile PCM with -DPCM_USE_PERF or disable Secure Boot.\n";
         }
     }
+#endif
     return 1 == use;
 }
 
@@ -6997,6 +7005,8 @@ class PerfVirtualControlRegister : public HWRegister
             fd = -1;
         }
     }
+    PerfVirtualControlRegister(const PerfVirtualControlRegister &) = delete;
+    PerfVirtualControlRegister & operator = (const PerfVirtualControlRegister &) = delete;
 public:
     PerfVirtualControlRegister(int socket_, int pmuID_, bool fixed_ = false) :
         fd(-1),
@@ -8373,9 +8383,9 @@ uint32 PCM::getMaxNumOfCBoxes() const
             {
                 uint32 value;
                 h->read32(0x9c, &value);
-                num = weight32(value);
+                num = (uint32)weight32(value);
                 h->read32(0xa0, &value);
-                num += weight32(value);
+                num += (uint32)weight32(value);
                 delete h;
             }
         }
@@ -8405,7 +8415,8 @@ uint32 PCM::getMaxNumOfCBoxes() const
          */
         num = (uint32)num_phys_cores_per_socket;
     }
-    return num;
+    assert(num >= 0);
+    return (uint32)num;
 }
 
 uint32 PCM::getMaxNumOfIIOStacks() const

@@ -561,7 +561,9 @@ int idx_evt_parse_handler(evt_cb_type cb_type, void *cb_ctx, counter &base_ctr, 
 
 typedef int (*pfn_evt_handler)(evt_cb_type, void *, counter &, std::map<std::string, uint32_t> &, std::string, uint64);
 
-int main(int argc, char * argv[])
+PCM_MAIN_NOTHROW;
+
+int mainThrows(int argc, char * argv[])
 {
     null_stream nullStream;
     check_and_set_silent(argc, argv, nullStream);

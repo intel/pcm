@@ -7,7 +7,7 @@
 #include <iostream>
 #include <iomanip>
 #include <cstdlib>
-
+#include <stdexcept>
 #include "client.h"
 
 void printTitle(std::string title)
@@ -15,13 +15,15 @@ void printTitle(std::string title)
     std::cout << std::setw(26) << std::left << title;
 }
 
-int main(int argc, char* argv[])
+int main(int argc, char * argv[])
 {
     if (argc < 2)
     {
         std::cerr << "Usage: " << argv[0] << " pollMs\n";
         return -1;
     }
+    try {
+
     PCMDaemon::Client client;
     // client.setSharedMemoryIdLocation("/tmp/test-file");
     client.connect();
@@ -415,6 +417,12 @@ int main(int argc, char* argv[])
             std::cout << "\n";
         }
         std::cout << std::flush;
+    }
+
+    } catch (const std::runtime_error & e)
+    {
+        std::cerr << "PCM Error in client. Exception " << e.what() << "\n";
+        return -1;
     }
 
     return 0;

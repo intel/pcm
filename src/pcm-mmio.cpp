@@ -49,7 +49,9 @@ void doOp(const uint64 address, const uint64 offset, const bool write, T value, 
     std::cout << "-bit MMIO register " << address << "\n\n";
 }
 
-int main(int argc, char * argv[])
+PCM_MAIN_NOTHROW;
+
+int mainThrows(int argc, char * argv[])
 {
     if(print_version(argc, argv))
         exit(EXIT_SUCCESS);

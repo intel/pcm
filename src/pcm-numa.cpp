@@ -86,7 +86,9 @@ void print_stats(const StateType & BeforeState, const StateType & AfterState, bo
 }
 
 
-int main(int argc, char * argv[])
+PCM_MAIN_NOTHROW;
+
+int mainThrows(int argc, char * argv[])
 {
     if(print_version(argc, argv))
         exit(EXIT_SUCCESS);

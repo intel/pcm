@@ -353,6 +353,8 @@ void restore_signal_handlers(void)
 #ifndef _MSC_VER
     struct sigaction action;
     action.sa_handler = SIG_DFL;
+    action.sa_flags = 0;
+    sigemptyset(&action.sa_mask);
 
     sigaction(SIGINT, &action, NULL);
     sigaction(SIGQUIT, &action, NULL);

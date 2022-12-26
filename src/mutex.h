@@ -12,6 +12,8 @@
 namespace pcm
 {
     class Mutex {
+        Mutex(const Mutex&) = delete;
+        Mutex& operator = (const Mutex&) = delete;
 #ifdef _MSC_VER
         HANDLE mutex_;
 #else

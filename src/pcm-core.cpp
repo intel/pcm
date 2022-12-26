@@ -261,7 +261,9 @@ void build_event(const char * argv, EventSelectRegister *reg, int idx)
 	events[idx].value = reg->value;
 }
 
-int main(int argc, char * argv[])
+PCM_MAIN_NOTHROW;
+
+int mainThrows(int argc, char * argv[])
 {
 	if(print_version(argc, argv))
 		exit(EXIT_SUCCESS);

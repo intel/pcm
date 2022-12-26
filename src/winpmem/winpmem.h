@@ -12,6 +12,8 @@ static TCHAR version[] = TEXT("1.3. Built ") TEXT(__DATE__);
 #define PAGE_SIZE 0x1000
 
 class WinPmem {
+  WinPmem(const WinPmem&) = delete;
+  WinPmem& operator = (const WinPmem&) = delete;
  public:
   WinPmem();
   virtual ~WinPmem();

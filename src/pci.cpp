@@ -505,7 +505,7 @@ PciHandleM::PciHandleM(uint32 bus_, uint32 device_, uint32 function_) :
 
     // std::cout << "PCI config base addr: "<< std::hex << base_addr<< "\n";
 
-    base_addr += (bus * 1024 * 1024 + device * 32 * 1024 + function * 4 * 1024);
+    base_addr += (bus * 1024ULL * 1024ULL + device * 32ULL * 1024ULL + function * 4ULL * 1024ULL);
 }
 
 
@@ -646,7 +646,7 @@ PciHandleMM::PciHandleMM(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 fu
 
     base_addr = mcfgRecords[segment].baseAddress;
 
-    base_addr += (bus * 1024 * 1024 + device * 32 * 1024 + function * 4 * 1024);
+    base_addr += (bus * 1024ULL * 1024ULL + device * 32ULL * 1024ULL + function * 4ULL * 1024ULL);
 
     mmapAddr = (char *)mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, fd, base_addr);
 

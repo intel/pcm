@@ -28,6 +28,25 @@
 #endif
 #include <map>
 
+#define PCM_MAIN_NOTHROW \
+int mainThrows(int argc, char * argv[]); \
+int main(int argc, char * argv[]) \
+{ \
+    try { \
+        return mainThrows(argc, argv); \
+    } catch(const std::runtime_error & e) \
+    { \
+        std::cerr << "PCM ERROR. Exception " << e.what() << "\n"; \
+    } catch(const std::exception & e) \
+    { \
+        std::cerr << "PCM ERROR. Exception " << e.what() << "\n"; \
+    } catch (...) \
+    { \
+        std::cerr << "PCM ERROR. Exception detected (no further details available).\n"; \
+    } \
+    return -1; \
+}
+
 namespace pcm {
 
 #ifdef _MSC_VER

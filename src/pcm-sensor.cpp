@@ -21,7 +21,9 @@
 using namespace std;
 using namespace pcm;
 
-int main()
+PCM_MAIN_NOTHROW;
+
+int mainThrows(int /* argc */, char * /*argv*/ [])
 {
     set_signal_handlers();
 

@@ -221,6 +221,7 @@ public:
 
     void ignoreSignal( int signum ) {
         struct sigaction sa;
+	sigemptyset(&sa.sa_mask);
         sa.sa_handler = SIG_IGN;
         sa.sa_flags = 0;
         sigaction( signum, &sa, 0 );
@@ -228,6 +229,7 @@ public:
 
     void installHandler( void (*handler)(int), int signum ) {
         struct sigaction sa;
+	sigemptyset(&sa.sa_mask);
         sa.sa_handler = handler;
         sa.sa_flags = 0;
         sigaction( signum, &sa, 0 );
@@ -798,12 +800,20 @@ public:
     void setSocket( int socketFD ) {
         socketFD_ = socketFD;
         // When receiving the socket descriptor, set the timeout
-        setsockopt( socketFD_, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout_, sizeof(struct timeval) );
+        const auto res = setsockopt( socketFD_, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout_, sizeof(struct timeval) );
+        if (res != 0)
+        {
+            std::cerr << "setsockopt failed while setting timeout value, " << strerror( errno ) << "\n";
+        }
     }
 
     void setTimeout( struct timeval t ) {
         timeout_ = t;
-        setsockopt( socketFD_, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout_, sizeof(struct timeval) );
+        const auto res = setsockopt( socketFD_, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout_, sizeof(struct timeval) );
+        if (res != 0)
+        {
+            std::cerr << "setsockopt failed while setting timeout value, " << strerror( errno ) << "\n";
+        }
     }
 
 #if defined (USE_SSL)
@@ -1848,7 +1858,7 @@ public:
         return hh;
     }
 
-    std::string headerName() { return name_; }
+    std::string headerName() const { return name_; }
     // Not sure what I needed it for but leaving it for now
 //     std::string headerValue() const {
 //         std::cout << "Calling headerValue for HeaderName: " << name_ << "\n";
@@ -1973,7 +1983,7 @@ public:
         }
     }
 
-    void addHeader( HTTPHeader hh ) {
+    void addHeader( const HTTPHeader & hh ) {
         if ( headers_.insert( std::make_pair( hh.headerName(), hh ) ).second == false ) {
             throw std::runtime_error( "Header already exists in the headerlist" );
         }
@@ -3103,7 +3113,9 @@ void printHelpText( std::string const & programName ) {
 
 #if not defined( UNIT_TEST )
 /* Main */
-int main( int argc, char* argv[] ) {
+PCM_MAIN_NOTHROW;
+
+int mainThrows(int argc, char * argv[]) {
 
     if(print_version(argc, argv))
         exit(EXIT_SUCCESS);

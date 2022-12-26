@@ -3443,7 +3443,9 @@ double getL2CacheHitRatio(const CounterStateType& before, const CounterStateType
     if (!PCM::getInstance()->isL2CacheHitRatioAvailable()) return 0;
     const auto hits = getL2CacheHits(before, after);
     const auto misses = getL2CacheMisses(before, after);
-    return double(hits) / double(hits + misses);
+    const auto all = double(hits + misses);
+    if (all == 0.0) return 0.;
+    return double(hits) / all;
 }
 
 /*! \brief Computes L3 cache hit ratio
@@ -3459,7 +3461,9 @@ double getL3CacheHitRatio(const CounterStateType& before, const CounterStateType
     if (!PCM::getInstance()->isL3CacheHitRatioAvailable()) return 0;
     const auto hits = getL3CacheHits(before, after);
     const auto misses = getL3CacheMisses(before, after);
-    return double(hits) / double(hits + misses);
+    const auto all = double(hits + misses);
+    if (all == 0.0) return 0.;
+    return double(hits) / all;
 }
 
 /*! \brief Computes number of L3 cache misses
@@ -4091,6 +4095,7 @@ inline double getQPItoMCTrafficRatio(const SystemCounterState & before, const Sy
     {
         memTraffic += getBytesReadFromPMM(before, after) + getBytesWrittenToPMM(before, after);
     }
+    if (memTraffic == 0) return -1.;
     return double(totalQPI) / double(memTraffic);
 }
 

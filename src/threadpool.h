@@ -56,11 +56,17 @@ private:
 
 public:
     ~ThreadPool() {
-        for ( size_t i = 0; i < threads_.size(); ++i )
-            addWork( nullptr );
-        for ( size_t i = 0; i < threads_.size(); ++i )
-            threads_[i].join();
-        threads_.clear();
+        try {
+            for (size_t i = 0; i < threads_.size(); ++i)
+                addWork(nullptr);
+            for (size_t i = 0; i < threads_.size(); ++i)
+                threads_[i].join();
+            threads_.clear();
+        }
+        catch (const std::exception& e)
+        {
+            std::cerr << "PCM Error. Exception in ThreadPool::~ThreadPool: " << e.what() << "\n";
+        }
     }
 
 public:

@@ -1258,11 +1258,12 @@ int iio_evt_parse_handler(evt_cb_type cb_type, void *cb_ctx, counter &base_ctr, 
     return 0;
 }
 
-result_content get_IIO_Samples(PCM *m, const std::vector<struct iio_stacks_on_socket>& iios, struct iio_counter ctr, uint32_t delay_ms)
+result_content get_IIO_Samples(PCM *m, const std::vector<struct iio_stacks_on_socket>& iios, const struct iio_counter & ctr, uint32_t delay_ms)
 {
     IIOCounterState *before, *after;
     uint64 rawEvents[4] = {0};
-    std::unique_ptr<ccr> pccr(get_ccr(m, ctr.ccr));
+    auto ccrCopy = ctr.ccr;
+    std::unique_ptr<ccr> pccr(get_ccr(m, ccrCopy));
     rawEvents[ctr.idx] = pccr->get_ccr_value();
     const int stacks_count = (int)m->getMaxNumOfIIOStacks();
     before = new IIOCounterState[iios.size() * stacks_count];
@@ -1357,7 +1358,9 @@ void print_usage(const string& progname)
     cout << "\n";
 }
 
-int main(int argc, char * argv[])
+PCM_MAIN_NOTHROW;
+
+int mainThrows(int argc, char * argv[])
 {
     if(print_version(argc, argv))
         exit(EXIT_SUCCESS);

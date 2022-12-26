@@ -124,10 +124,12 @@ int WinPmem::install_driver(bool delete_driver) {
                           NULL);
 
   if (GetLastError() == ERROR_SERVICE_EXISTS) {
+    CloseServiceHandle(service);
     service = OpenService(scm, service_name, SERVICE_ALL_ACCESS);
   }
 
   if (!service) {
+    CloseServiceHandle(scm);
     goto error;
   };
   if (!StartService(service, 0, NULL)) {
@@ -183,6 +185,8 @@ int WinPmem::uninstall_driver() {
   DeleteService(service);
   CloseServiceHandle(service);
   Log(TEXT("Driver Unloaded.\n"));
+
+  CloseServiceHandle(scm);
 
   return 1;
 }

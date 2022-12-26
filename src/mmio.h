@@ -98,6 +98,8 @@ class OwnMMIORange : public MMIORangeInterface
 {
     HANDLE hDriver;
     char * mmapAddr;
+    OwnMMIORange(const OwnMMIORange&) = delete;
+    OwnMMIORange& operator = (const OwnMMIORange&) = delete;
 public:
     OwnMMIORange(uint64 baseAddr_, uint64 size_, bool readonly_ = true);
     uint32 read32(uint64 offset);
@@ -110,6 +112,8 @@ public:
 class MMIORange
 {
     std::shared_ptr<MMIORangeInterface> impl;
+    MMIORange(const MMIORange &) = delete;
+    MMIORange & operator = (const MMIORange &) = delete;
 public:
     MMIORange(uint64 baseAddr_, uint64 size_, bool readonly_ = true);
     uint32 read32(uint64 offset)
@@ -142,6 +146,8 @@ class MMIORange
 #ifndef __APPLE__
     const bool readonly;
 #endif
+    MMIORange(const MMIORange &) = delete;
+    MMIORange & operator = (const MMIORange &) = delete;
 public:
     MMIORange(uint64 baseAddr_, uint64 size_, bool readonly_ = true);
     uint32 read32(uint64 offset);
