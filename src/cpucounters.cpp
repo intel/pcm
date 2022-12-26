@@ -1601,56 +1601,63 @@ void initSocket2Ubox0Bus()
         UBOX0_DEV_IDS, (uint32)sizeof(UBOX0_DEV_IDS) / sizeof(UBOX0_DEV_IDS[0]));
 }
 
-static const uint32 IAA_DEV_IDS[] = {
-    0x0CFE
-};
-
-static const uint32 DSA_DEV_IDS[] = {
-    0x0B25
-};
-
-static const uint32 HCx_DEV_IDS[] = {
-    0x4940
-};
-
-
-std::vector<std::pair<uint32, uint32> > socket2IAAbus;
-std::vector<std::pair<uint32, uint32> > socket2DSAbus;
-std::vector<std::pair<uint32, uint32> > socket2HCxbus;
-
-
-void initSocket2IDXAccelBus()
+bool initRootBusMap(std::map<int, int> &rootbus_map)
 {
-    initSocket2Bus(socket2IAAbus, SPR_IDX_IAA_REGISTER_DEV_ADDR, SPR_IDX_IAA_REGISTER_FUNC_ADDR, IAA_DEV_IDS, (uint32)sizeof(IAA_DEV_IDS) / sizeof(IAA_DEV_IDS[0]));
-    initSocket2Bus(socket2DSAbus, SPR_IDX_DSA_REGISTER_DEV_ADDR, SPR_IDX_DSA_REGISTER_FUNC_ADDR, DSA_DEV_IDS, (uint32)sizeof(DSA_DEV_IDS) / sizeof(DSA_DEV_IDS[0]));
-    initSocket2Bus(socket2HCxbus, SPR_IDX_HCx_REGISTER_DEV_ADDR, SPR_IDX_HCx_REGISTER_FUNC_ADDR, HCx_DEV_IDS, (uint32)sizeof(HCx_DEV_IDS) / sizeof(HCx_DEV_IDS[0]));
-#ifndef PCM_SILENT
-    std::cerr << "Info: IDX - " << socket2IAAbus.size() << " IAA device detected, ";
-    std::cerr << socket2DSAbus.size() << " DSA device detected. \n";
-#endif
+    bool mapped = false;
+    static const uint32 MSM_DEV_IDS[] = { SPR_MSM_DEV_ID };
+
+    std::vector<std::pair<uint32, uint32> > socket2MSMbus;
+    initSocket2Bus(socket2MSMbus, SPR_MSM_DEV_ADDR, SPR_MSM_FUNC_ADDR, MSM_DEV_IDS, (uint32)sizeof(MSM_DEV_IDS) / sizeof(MSM_DEV_IDS[0]));
+
+    for (auto & s2bus : socket2MSMbus)
+    {
+        uint32 cpuBusValid = 0x0;
+        int cpuBusPackageId;
+        std::vector<uint32> cpuBusNo;
+
+        if (get_cpu_bus(s2bus.first, s2bus.second, SPR_MSM_DEV_ADDR, SPR_MSM_FUNC_ADDR, cpuBusValid, cpuBusNo, cpuBusPackageId) == false)
+            return false;
+
+        for (int cpuBusId = 0; cpuBusId < SPR_MSM_CPUBUSNO_MAX; ++cpuBusId)
+        {
+            if (!((cpuBusValid >> cpuBusId) & 0x1))
+            {
+                //std::cout << "CPU bus " << cpuBusId << " is disabled on package " << cpuBusPackageId << std::endl;
+                continue;
+            }
+
+            int rootBus = (cpuBusNo[(int)(cpuBusId / 4)] >> ((cpuBusId % 4) * 8)) & 0xff;
+            rootbus_map[((s2bus.first << 8) | rootBus)] = cpuBusPackageId;
+            //std::cout << "Mapped CPU bus #" << std::dec << cpuBusId << std::hex << " (domain=0x" << s2bus.first << " bus=0x" << rootBus << ") to " << std::dec << "package" << cpuBusPackageId << std::endl;
+        }
+
+        mapped = true;
+    }
+
+    return mapped;
 }
 
+struct idx_accel_dev_info {
+    uint64 mem_bar;
+    uint32 numa_node;
+    uint32 socket_id;
+};
 
-std::vector<uint64> getIDXAccelBar0(std::vector<std::pair<uint32, uint32> > & socket2bus, uint32 dev, uint32 func)
+bool getIDXDevBAR(std::vector<std::pair<uint32, uint32> > & socket2bus, uint32 dev, uint32 func, std::map<int, int> &bus2socket, std::vector<struct idx_accel_dev_info> &idx_devs)
 {
-    std::vector<uint64> result;
     uint64 memBar = 0x0;
     uint32 pciCmd = 0x0;
-    
-    for (auto & s2bus : socket2bus)    
+    uint32 numaNode = 0xff;
+    struct idx_accel_dev_info idx_dev;
+
+    for (auto & s2bus : socket2bus)
     {
+        memBar = 0x0;
+        pciCmd = 0x0;
+
         PciHandleType IDXHandle(s2bus.first, s2bus.second, dev, func);
         IDXHandle.read64(SPR_IDX_ACCEL_BAR0_OFFSET, &memBar);
         IDXHandle.read32(SPR_IDX_ACCEL_PCICMD_OFFSET, &pciCmd);
-#if 0 //Debug purpose
-        uint32 value;
-        IDXHandle.read32(0, &value);
-        const uint32 vendor_id = value & 0xffff;
-        const uint32 device_id = (value >> 16) & 0xffff;
-        std::cout << "vendor_id=0x" << std::hex << vendor_id << ",device_id=0x" << std::hex << device_id << std::dec << std::endl;        
-        std::cout << "BAR0 of IDX accel(s:0x" << std::hex << s2bus.first << ",B:0x" << std::hex << s2bus.second << ",D:0x" << std::hex << dev << ",F:0x" << std::hex << func \
-            << ") = 0x" << std::hex << memBar << std::endl;
-#endif
         if (memBar == 0x0 || (pciCmd & 0x02) == 0x0) //Check BAR0 is valid or NOT.
         {
             std::cout << "Warning: IDX - BAR0 of B:0x" << std::hex << s2bus.second << ",D:0x" << std::hex << dev << ",F:0x" << std::hex << func \
@@ -1658,10 +1665,37 @@ std::vector<uint64> getIDXAccelBar0(std::vector<std::pair<uint32, uint32> > & so
             continue;
         }
 
-        result.push_back(memBar);
+        numaNode = 0xff;
+#ifdef __linux__
+        std::ostringstream devNumaNodePath(std::ostringstream::out);
+        devNumaNodePath << std::string("/sys/bus/pci/devices/") <<
+            std::hex << std::setw(4) << std::setfill('0') << s2bus.first << ":" <<
+            std::hex << std::setw(2) << std::setfill('0') << s2bus.second << ":" <<
+            std::hex << std::setw(2) << std::setfill('0') << dev << "." <<
+            std::hex << func << "/numa_node";
+        const std::string devNumaNodeStr = readSysFS(devNumaNodePath.str().c_str(), true);
+        if (devNumaNodeStr.size())
+        {
+            numaNode = std::atoi(devNumaNodeStr.c_str());
+            if (numaNode == (std::numeric_limits<uint32>::max)())
+            {
+                numaNode = 0xff; //translate to special value for numa disable case. 
+            }
+        }
+        //std::cout << "IDX DEBUG: numa node file path=" << devNumaNodePath.str().c_str()  << ", value=" << numaNode << std::endl;
+#endif
+        idx_dev.mem_bar = memBar;
+        idx_dev.numa_node = numaNode;
+        idx_dev.socket_id = 0xff;
+        if (bus2socket.find(((s2bus.first << 8 ) | s2bus.second)) != bus2socket.end())
+        {
+            idx_dev.socket_id = bus2socket.at(s2bus.second);
+        }
+
+        idx_devs.push_back(idx_dev);
     }
 
-    return result;
+    return true;
 }
 
 #define SPR_IDX_ACCEL_COUNTER_MAX_NUM (8)
@@ -1776,11 +1810,6 @@ void PCM::initUncoreObjects()
         {
             std::cerr << "PCM warning: found " << socket2UBOX0bus.size() << " uboxes. Expected " << num_sockets << std::endl;
         }
-    }
-
-    if (cpu_model == SPR)
-    {
-        initSocket2IDXAccelBus();       
     }
 
     if (useLinuxPerfForUncore())
@@ -2061,29 +2090,15 @@ void PCM::initUncorePMUsDirect()
 
 
     //init the IDX accelerator
-    auto createIDXPMU = [](const size_t addr, const size_t mapSize) -> IDX_PMU
+    auto createIDXPMU = [](const size_t addr, const size_t mapSize, const size_t numaNode, const size_t socketId) -> IDX_PMU
     {
         const auto alignedAddr = addr & ~4095ULL;
         auto handle = std::make_shared<MMIORange>(alignedAddr, mapSize, false);
         auto pmon_offset = (handle->read64(SPR_IDX_ACCEL_PMON_BASE_OFFSET) & SPR_IDX_ACCEL_PMON_BASE_MASK)*SPR_IDX_ACCEL_PMON_BASE_RATIO;
 
-#if 0
-        //Debug purpose code start.
-        uint32 dev_ver = 0, dev_status = 0;
-        uint64 perfmon_cap = 0;
-        dev_ver = handle->read32(0x0);
-        dev_status = handle->read32(0x90);
-        perfmon_cap = handle->read64(pmon_offset);
-        
-        std::cout << "bar0=0x" << std::hex << alignedAddr << ", pmon_offset=0x" << std::hex << pmon_offset << "\n";
-        std::cout << "hw_ver=0x" << std::hex << dev_ver << ", dev_status=0x" << std::hex << dev_status << ", perfmon_cap=0x" << std::hex << perfmon_cap<< "\n";
-        //Debug purpose end.
-#endif
-
         const auto n_regs = SPR_IDX_ACCEL_COUNTER_MAX_NUM;
         std::vector<std::shared_ptr<HWRegister> > CounterControlRegs, CounterValueRegs, CounterFilterWQRegs, CounterFilterENGRegs;
-        std::vector<std::shared_ptr<HWRegister> > CounterFilterTCRegs, CounterFilterPGSZRegs, CounterFilterXFERSZRegs;        
-
+        std::vector<std::shared_ptr<HWRegister> > CounterFilterTCRegs, CounterFilterPGSZRegs, CounterFilterXFERSZRegs;
 
         for (size_t r = 0; r < n_regs; ++r)
         {
@@ -2098,6 +2113,8 @@ void PCM::initUncorePMUsDirect()
 
         return IDX_PMU(
             false,
+            numaNode,
+            socketId,
             std::make_shared<MMIORegister32>(handle, SPR_IDX_PMON_RESET_CTL_OFFSET + pmon_offset),
             std::make_shared<MMIORegister32>(handle, SPR_IDX_PMON_FREEZE_CTL_OFFSET + pmon_offset),
             CounterControlRegs,
@@ -2107,33 +2124,45 @@ void PCM::initUncorePMUsDirect()
             CounterFilterTCRegs,
             CounterFilterPGSZRegs,
             CounterFilterXFERSZRegs
-        );    
-
+        );
     };    
 
     if (cpu_model == PCM::SPR)
-    {   
-        idxPMUs.resize(IDX_MAX);
+    {
+        static const uint32 IAA_DEV_IDS[] = { 0x0CFE };
+        static const uint32 DSA_DEV_IDS[] = { 0x0B25 };
+        std::vector<std::pair<uint32, uint32> > socket2IAAbus;
+        std::vector<std::pair<uint32, uint32> > socket2DSAbus;
+        std::map<int, int> rootbusMap;
 
-        //ENUM IAA devices
+        //Enumurate IDX devices by PCIe bus scan
+        initSocket2Bus(socket2IAAbus, SPR_IDX_IAA_REGISTER_DEV_ADDR, SPR_IDX_IAA_REGISTER_FUNC_ADDR, IAA_DEV_IDS, (uint32)sizeof(IAA_DEV_IDS) / sizeof(IAA_DEV_IDS[0]));
+        initSocket2Bus(socket2DSAbus, SPR_IDX_DSA_REGISTER_DEV_ADDR, SPR_IDX_DSA_REGISTER_FUNC_ADDR, DSA_DEV_IDS, (uint32)sizeof(DSA_DEV_IDS) / sizeof(DSA_DEV_IDS[0]));
+#ifndef PCM_SILENT
+        std::cerr << "Info: IDX - " << socket2IAAbus.size() << " IAA device detected, " << socket2DSAbus.size() << " DSA device detected. \n";
+#endif
+        initRootBusMap(rootbusMap);
+
+        idxPMUs.resize(IDX_MAX);
         idxPMUs[IDX_IAA].clear();
         if (socket2IAAbus.size())
         {
-            auto memBars = getIDXAccelBar0(socket2IAAbus, SPR_IDX_IAA_REGISTER_DEV_ADDR, SPR_IDX_IAA_REGISTER_FUNC_ADDR);
-            for (auto & memBar : memBars)
+            std::vector<struct idx_accel_dev_info> devInfos;
+            getIDXDevBAR(socket2IAAbus, SPR_IDX_IAA_REGISTER_DEV_ADDR, SPR_IDX_IAA_REGISTER_FUNC_ADDR, rootbusMap, devInfos);
+            for (auto & devInfo : devInfos)
             {
-                idxPMUs[IDX_IAA].push_back(createIDXPMU(memBar, SPR_IDX_ACCEL_BAR0_SIZE));
+                idxPMUs[IDX_IAA].push_back(createIDXPMU(devInfo.mem_bar, SPR_IDX_ACCEL_BAR0_SIZE, devInfo.numa_node, devInfo.socket_id));
             }
         }
 
-        //ENUM DSA devices
         idxPMUs[IDX_DSA].clear();
         if (socket2DSAbus.size())
         {
-            auto memBars = getIDXAccelBar0(socket2DSAbus, SPR_IDX_DSA_REGISTER_DEV_ADDR, SPR_IDX_DSA_REGISTER_FUNC_ADDR);
-            for (auto & memBar : memBars)
+            std::vector<struct idx_accel_dev_info> devInfos;
+            getIDXDevBAR(socket2DSAbus, SPR_IDX_DSA_REGISTER_DEV_ADDR, SPR_IDX_DSA_REGISTER_FUNC_ADDR, rootbusMap, devInfos);
+            for (auto & devInfo : devInfos)
             {
-                idxPMUs[IDX_DSA].push_back(createIDXPMU(memBar, SPR_IDX_ACCEL_BAR0_SIZE));
+                idxPMUs[IDX_DSA].push_back(createIDXPMU(devInfo.mem_bar, SPR_IDX_ACCEL_BAR0_SIZE, devInfo.numa_node, devInfo.socket_id));
             }
         }
     }
@@ -2234,8 +2263,8 @@ void PCM::initUncorePMUsDirect()
 std::vector<int> enumeratePerfPMUs(const std::string & type, int max_id);
 void populatePerfPMUs(unsigned socket_, const std::vector<int> & ids, std::vector<UncorePMU> & pmus, bool fixed, bool filter0 = false, bool filter1 = false);
 
-std::vector<int> enumerateIDXPerfPMUs(const std::string & type, int max_id);
-void populateIDXPerfPMUs(unsigned socket_, const std::vector<int> & ids, std::vector<IDX_PMU> & pmus);
+std::vector<std::pair<int, uint32> > enumerateIDXPerfPMUs(const std::string & type, int max_id);
+void populateIDXPerfPMUs(unsigned socket_, const std::vector<std::pair<int, uint32> > & ids, std::vector<IDX_PMU> & pmus);
 #endif
 
 void PCM::initUncorePMUsPerf()
@@ -2266,10 +2295,8 @@ void PCM::initUncorePMUsPerf()
     }
 
     idxPMUs.resize(IDX_MAX);
-
     populateIDXPerfPMUs(0, enumerateIDXPerfPMUs("iax", 100), idxPMUs[IDX_IAA]);
-    populateIDXPerfPMUs(0, enumerateIDXPerfPMUs("dsa", 100), idxPMUs[IDX_DSA]);
-    populateIDXPerfPMUs(0, enumerateIDXPerfPMUs("hcx", 100), idxPMUs[IDX_HCx]);
+    populateIDXPerfPMUs(0, enumerateIDXPerfPMUs("dsa", 100), idxPMUs[IDX_DSA]);   
 #endif
 }
 
@@ -7228,9 +7255,9 @@ void populatePerfPMUs(unsigned socket_, const std::vector<int> & ids, std::vecto
     }
 }
 
-
-std::vector<int> enumerateIDXPerfPMUs(const std::string & type, int max_id)
+std::vector<std::pair<int, uint32> > enumerateIDXPerfPMUs(const std::string & type, int max_id)
 {
+    uint32 numaNode=0xff;
     auto getPerfPMUID = [](const std::string & type, int num)
     {
         int id = -1;
@@ -7248,22 +7275,39 @@ std::vector<int> enumerateIDXPerfPMUs(const std::string & type, int max_id)
         }
         return id;
     };
-    std::vector<int> ids;
+
+    //Enumurate IDX devices by linux sysfs scan
+    std::vector<std::pair<int, uint32> > ids;
     for (int i = -1; i < max_id; ++i)
     {
         int pmuID = getPerfPMUID(type, i);
         if (pmuID > 0)
         {
+            numaNode = 0xff;
+            std::ostringstream devNumaNodePath(std::ostringstream::out);
+            devNumaNodePath << std::string("/sys/bus/dsa/devices/") << type << i << "/numa_node";
+            const std::string devNumaNodeStr = readSysFS(devNumaNodePath.str().c_str(), true);
+            if (devNumaNodeStr.size())
+            {
+                numaNode = std::atoi(devNumaNodeStr.c_str());
+                if (numaNode == (std::numeric_limits<uint32>::max)())
+                {
+                    numaNode = 0xff; //translate to special value for numa disable case.
+                }
+            }
             //std::cout << "IDX DEBUG: " << type << " pmu id " << pmuID << " found\n";
-            ids.push_back(pmuID);
+            //std::cout << "IDX DEBUG: numa node file path=" << devNumaNodePath.str().c_str()  << ", value=" << numaNode << std::endl;
+            ids.push_back(std::make_pair(pmuID, numaNode));
         }
     }
-
+    
+#ifndef PCM_SILENT
+    std::cerr << "Info: IDX - " << ids.size() << " " << type << " device detected. \n";
+#endif
     return ids;
 }
 
-
-void populateIDXPerfPMUs(unsigned socket_, const std::vector<int> & ids, std::vector<IDX_PMU> & pmus)
+void populateIDXPerfPMUs(unsigned socket_, const std::vector<std::pair<int, uint32> > & ids, std::vector<IDX_PMU> & pmus)
 {
     for (const auto & id : ids)
     {
@@ -7275,7 +7319,7 @@ void populateIDXPerfPMUs(unsigned socket_, const std::vector<int> & ids, std::ve
 
         for (size_t r = 0; r < n_regs; ++r)
         {
-            auto CounterControlReg = std::make_shared<PerfVirtualControlRegister>(socket_, id);
+            auto CounterControlReg = std::make_shared<PerfVirtualControlRegister>(socket_, id.first);
 
             CounterControlRegs.push_back(CounterControlReg);
             CounterValueRegs.push_back(std::make_shared<PerfVirtualCounterRegister>(CounterControlReg));
@@ -7289,6 +7333,8 @@ void populateIDXPerfPMUs(unsigned socket_, const std::vector<int> & ids, std::ve
         pmus.push_back(
             IDX_PMU(
                 true,
+                id.second,
+                0xff,//No support of socket location in perf driver mode.
                 std::make_shared<PerfVirtualDummyUnitControlRegister>(),
                 std::make_shared<PerfVirtualDummyUnitControlRegister>(),
                 CounterControlRegs,
@@ -8770,6 +8816,28 @@ uint32 PCM::getMaxNumOfIDXAccelCtrs() const
     return 0;
 }
 
+uint32 PCM::getNumaNodeOfIDXAccelDev(uint32 accel, uint32 dev) const
+{
+    uint32 numa_node = 0xff;
+
+    if (accel >= IDX_MAX || dev >= getNumOfIDXAccelDevs(accel))
+        return numa_node;
+
+    numa_node = idxPMUs[accel][dev].getNumaNode();
+    return numa_node;
+}
+
+uint32 PCM::getCPUSocketIdOfIDXAccelDev(uint32 accel, uint32 dev) const
+{
+    uint32 socketid = 0xff;
+
+    if (accel >= IDX_MAX || dev >= getNumOfIDXAccelDevs(accel))
+        return socketid;
+
+    socketid = idxPMUs[accel][dev].getSocketId();
+    return socketid;
+}
+
 uint64 PCM::getCBOCounterState(const uint32 socket_, const uint32 ctr_)
 {
     uint64 result = 0;
@@ -9004,6 +9072,8 @@ void UncorePMU::resetUnfreeze(const uint32 extra)
 }
 
 IDX_PMU::IDX_PMU(const bool perfMode_,
+        const uint32 numaNode_,
+        const uint32 socketId_,
         const HWRegisterPtr& resetControl_,
         const HWRegisterPtr& freezeControl_,
         const std::vector<HWRegisterPtr> & counterControl,
@@ -9016,6 +9086,8 @@ IDX_PMU::IDX_PMU(const bool perfMode_,
     ) : 
     cpu_model_(0),
     perf_mode_(perfMode_),
+    numa_node_(numaNode_),
+    socket_id_(socketId_),
     resetControl(resetControl_),
     freezeControl(freezeControl_),
     counterControl{counterControl},
@@ -9087,6 +9159,16 @@ void IDX_PMU::resetUnfreeze()
 bool IDX_PMU::getPERFMode()
 {
     return perf_mode_;
+}
+
+uint32 IDX_PMU::getNumaNode() const
+{
+    return numa_node_;
+}
+
+uint32 IDX_PMU::getSocketId() const
+{
+    return socket_id_;
 }
 
 IIOCounterState PCM::getIIOCounterState(int socket, int IIOStack, int counter)

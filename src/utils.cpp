@@ -1034,4 +1034,46 @@ int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
     return load_events(fn, ofm, pfn_evtcb, evtcb_ctx, nm);
 }
 
+bool get_cpu_bus(uint32 msmDomain, uint32 msmBus, uint32 msmDev, uint32 msmFunc, uint32 &cpuBusValid, std::vector<uint32> &cpuBusNo, int &cpuPackageId)
+{
+    int cpuBusNo0 = 0x0;
+    uint32 sadControlCfg = 0x0;
+    uint32 busNo = 0x0;
+
+    //std::cout << "get_cpu_bus: d=" << std::hex << msmDomain << ",b=" << msmBus << ",d=" << msmDev << ",f=" << msmFunc <<" \n";
+    PciHandleType h(msmDomain, msmBus, msmDev, msmFunc);
+
+    h.read32(SPR_MSM_REG_CPUBUSNO_VALID_OFFSET, &cpuBusValid);
+    if (cpuBusValid == (std::numeric_limits<uint32>::max)()) {
+        std::cerr << "Failed to read CPUBUSNO_VALID" << std::endl;
+        return false;
+    }
+
+    for (int i = 0; i < 3; ++i)
+    {
+        busNo = 0x00;
+        h.read32(SPR_MSM_REG_CPUBUSNO_OFFSET + i*4, &busNo);
+        if (busNo == (std::numeric_limits<uint32>::max)())
+        {
+            std::cerr << "Failed to read CPUBUSNO" << std::endl;
+            return false;
+        }
+        cpuBusNo.push_back(busNo);
+        //std::cout << std::hex << "get_cpu_bus: busNo=0x" << busNo << "\n";
+    }
+
+    cpuBusNo0 = cpuBusNo[0] & 0xff;
+    PciHandleType sad_cfg_handler(msmDomain, cpuBusNo0, 0, 0);
+
+    sad_cfg_handler.read32(SPR_SAD_REG_CTL_CFG_OFFSET, &sadControlCfg);
+    if (sadControlCfg == (std::numeric_limits<uint32>::max)())
+    {
+        std::cerr << "Failed to read SAD_CONTROL_CFG" << std::endl;
+        return false;
+    }
+    cpuPackageId = sadControlCfg & 0xf;
+
+    return true;
+}
+
 } // namespace pcm

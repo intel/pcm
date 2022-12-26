@@ -589,4 +589,7 @@ int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
 int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
                 int (*pfn_evtcb)(evt_cb_type, void *, counter &, std::map<std::string, uint32_t> &, std::string, uint64),
                 void *evtcb_ctx);
+
+bool get_cpu_bus(uint32 msmDomain, uint32 msmBus, uint32 msmDev, uint32 msmFunc, uint32 &cpuBusValid, std::vector<uint32> &cpuBusNo, int &cpuPackageId);
+
 } // namespace pcm

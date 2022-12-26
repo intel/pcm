@@ -1443,6 +1443,17 @@ struct MCFGHeader
 #define SPR_IDX_PMON_FILTER_XFERSZ_OFFSET(x)       (0x30C + ((x)*32))
 #define SPR_IDX_PMON_FILTER_ENG_OFFSET(x)          (0x310 + ((x)*32))
 
+//MSM device/func number and register offset from SPR register guide.
+constexpr auto SPR_MSM_DEV_ID                       = 0x09a6;
+constexpr auto SPR_MSM_DEV_ADDR                     = 0x03;
+constexpr auto SPR_MSM_FUNC_ADDR                    = 0x00;
+constexpr auto SPR_MSM_REG_CPUBUSNO_VALID_OFFSET    = 0x1a0;
+constexpr auto SPR_MSM_REG_CPUBUSNO_OFFSET          = 0x190;
+constexpr auto SPR_MSM_CPUBUSNO_MAX                 = 12;
+
+//SAD register offset from SPR register guide.
+constexpr auto SPR_SAD_REG_CTL_CFG_OFFSET           = 0x3F4;
+
 } // namespace pcm
 
 #endif

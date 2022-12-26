@@ -107,6 +107,12 @@ enum IDXPerfmonField
     FILTER_XFERSZ
 };
 
+typedef enum
+{
+    SOCKET_MAP,
+    NUMA_MAP,
+} ACCEL_DEV_LOC_MAPPING;
+
 #define ACCEL_IP_DEV_COUNT_MAX (16)
 
 typedef uint32_t h_id;
@@ -263,16 +269,48 @@ std::string getAccelCounterName(ACCEL_IP accel)
     return ret;
 }
 
-std::vector<std::string> build_counter_names(std::string dev_name, std::vector<struct accel_counter>& ctrs)
+bool getAccelDevLocation(PCM *m, const ACCEL_IP accel, uint32_t dev, const ACCEL_DEV_LOC_MAPPING loc_map, uint32_t &location)
+{
+    bool ret = true;
+    
+    switch (loc_map)
+    {
+        case SOCKET_MAP:
+            location = m->getCPUSocketIdOfIDXAccelDev(accel, dev);
+            break;
+        case NUMA_MAP:
+            location = m->getNumaNodeOfIDXAccelDev(accel, dev);
+            break;
+        default:
+            ret = false;
+            break;
+    }
+    
+    return ret;
+}
+
+std::vector<std::string> build_counter_names(std::string dev_name, std::vector<struct accel_counter>& ctrs, const ACCEL_DEV_LOC_MAPPING loc_map)
 {
     std::vector<std::string> v;
     std::map<uint32_t,std::map<uint32_t,struct accel_counter*>> v_sort;
 
     v.push_back(dev_name);
+    
+    switch (loc_map)
+    {
+        case SOCKET_MAP:
+            v.push_back("Socket");
+            break;
+        case NUMA_MAP:
+            v.push_back("NUMA Node");
+            break;
+        default:
+            break;
+    }
+
     //re-organize data collection to be row wise
     for (std::vector<struct accel_counter>::iterator counter = ctrs.begin(); counter != ctrs.end(); ++counter)
     {
-        
         v_sort[counter->h_id][counter->v_id] = &(*counter);
     }
     
@@ -303,6 +341,9 @@ void print_usage(const std::string& progname)
     std::cout << "  -iaa | /iaa                        => print IAA accel device measurements(default)\n";
     std::cout << "  -dsa | /dsa                        => print DSA accel device measurements\n";
     std::cout << "  -evt[=cfg.txt] | /evt[=cfg.txt]    => specify the event cfg file to cfg.txt \n";
+#ifdef __linux__
+    std::cout << "  -numa | /numa                      => print accel device numa node mapping(for linux only)\n";
+#endif
     std::cout << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or\n"
          << "                                        to a file, in case filename is provided\n";
     std::cout << "  -csv-delimiter=<value>  | /csv-delimiter=<value>   => set custom csv delimiter\n";
@@ -315,14 +356,15 @@ void print_usage(const std::string& progname)
     std::cout << "\n";
 }
 
-std::vector<std::string> build_csv(const uint32_t dev_count, const ACCEL_IP accel, std::vector<struct accel_counter>& ctrs,
-    const bool human_readable, const std::string& csv_delimiter, accel_content& sample_data)
+std::vector<std::string> build_csv(PCM *m, const ACCEL_IP accel, std::vector<struct accel_counter>& ctrs,
+    const bool human_readable, const std::string& csv_delimiter, accel_content& sample_data, const ACCEL_DEV_LOC_MAPPING loc_map)
 {
     std::vector<std::string> result;
     std::vector<std::string> current_row;
-    auto header = build_counter_names("Accelerator", ctrs);
+    auto header = build_counter_names("Accelerator", ctrs, loc_map);
     result.push_back(build_csv_row(header, csv_delimiter));
     std::map<uint32_t,std::map<uint32_t,struct accel_counter*>> v_sort;
+    uint32_t dev_count = getNumOfAccelDevs(m, accel);
 
     for (uint32_t dev = 0; dev != dev_count; ++dev) 
     {
@@ -343,17 +385,24 @@ std::vector<std::string> build_csv(const uint32_t dev_count, const ACCEL_IP acce
             uint32_t hh_id = hunit->first;
             std::vector<uint64_t> v_data;
             std::string h_name = v_array[0]->h_event_name + "#" + std::to_string(dev);
-                
+            uint32 location = 0xff;
+
             current_row.clear();
-            current_row.push_back(h_name);
+            current_row.push_back(h_name); //dev name
+			
+            if (getAccelDevLocation(m, accel, dev, loc_map, location) == true)
+            {
+                current_row.push_back(std::to_string(location)); //location info
+            }
+
+            //std::cout << "location mapping=" << loc_map << ", data=" << location << "\n";
             //std::cout << "hunit: hhid=" << hh_id << "\n";
             for (std::map<uint32_t,struct accel_counter*>::const_iterator vunit = v_array.cbegin(); vunit != v_array.cend(); ++vunit)
             {
                 uint32_t vv_id = vunit->first;
                 uint64_t raw_data = sample_data[accel][dev][std::pair<h_id,v_id>(hh_id,vv_id)];
                 //std::cout << "vunit: hhid=" << hh_id << ", vname=" << vunit->second->v_event_name << ", data=" << raw_data << "\n";
-
-                current_row.push_back(human_readable ? unit_format(raw_data) : std::to_string(raw_data));
+                current_row.push_back(human_readable ? unit_format(raw_data) : std::to_string(raw_data)); //counter data
             }
             result.push_back(build_csv_row(current_row, csv_delimiter));
         }
@@ -362,14 +411,15 @@ std::vector<std::string> build_csv(const uint32_t dev_count, const ACCEL_IP acce
     return result;
 }
 
-std::vector<std::string> build_display(const uint32_t dev_count, const ACCEL_IP accel, std::vector<struct accel_counter>& ctrs, accel_content& sample_data)
+std::vector<std::string> build_display(PCM *m, const ACCEL_IP accel, std::vector<struct accel_counter>& ctrs, accel_content& sample_data, const ACCEL_DEV_LOC_MAPPING loc_map)
 {
     std::vector<std::string> buffer;
     std::vector<std::string> headers;
     std::vector<struct data> data;
     std::string row;
+    uint32_t dev_count = getNumOfAccelDevs(m, accel);
 
-    headers = build_counter_names("Accelerator", ctrs);
+    headers = build_counter_names("Accelerator", ctrs, loc_map);
     //Print first row
     row = std::accumulate(headers.begin(), headers.end(), std::string(" "), a_header_footer);
     buffer.push_back(row);
@@ -398,19 +448,28 @@ std::vector<std::string> build_display(const uint32_t dev_count, const ACCEL_IP 
             uint32_t hh_id = hunit->first;
             std::vector<uint64_t> v_data;
             std::string h_name = v_array[0]->h_event_name;
+            uint32 location = 0xff;
+            
+            if (getAccelDevLocation(m, accel, dev, loc_map, location) == true)
+            {
+                v_data.push_back(location); //location info
+            }
+
+            //std::cout << "location mapping=" << loc_map << ", data=" << location << "\n";
             //std::cout << "hunit: hhid=" << hh_id << "\n";
             for (std::map<uint32_t,struct accel_counter*>::const_iterator vunit = v_array.cbegin(); vunit != v_array.cend(); ++vunit)
             {
                 uint32_t vv_id = vunit->first;
                 uint64_t raw_data = sample_data[accel][dev][std::pair<h_id,v_id>(hh_id,vv_id)];
                 //std::cout << "vunit: hhid=" << hh_id << ", vname=" << vunit->second->v_event_name << ", data=" << raw_data << "\n";
-                v_data.push_back(raw_data);
+                v_data.push_back(raw_data); //counter data
             }
             data = prepare_data(v_data, headers);
 
-            row = "| " + h_name + "#" + std::to_string(dev);
+            row = "| " + h_name + "#" + std::to_string(dev); //dev name
             row += std::string(abs(int(headers[0].size() - (row.size() - 1))), ' ');
             row += std::accumulate(data.begin(), data.end(), std::string("|"), a_data);
+
             buffer.push_back(row);
         }
 
@@ -489,7 +548,7 @@ int idx_evt_parse_handler(evt_cb_type cb_type, void *cb_ctx, counter &base_ctr, 
     {
         std::unique_ptr<idx_ccr> pccr(idx_get_ccr(m, context->ctr.ccr));
 
-        //std::cout << "Key:" << key << " Value:" << value << " opcodeFieldMap[key]:" << opcodeFieldMap[key] << "\n";
+        //std::cout << "Key:" << key << " Value:" << value << " opcodeFieldMap[key]:" << ofm[key] << "\n";
         switch (ofm[key]) 
         { 
             case PCM::EVENT_SELECT:
@@ -581,6 +640,7 @@ int mainThrows(int argc, char * argv[])
     ACCEL_IP accel=ACCEL_IAA; //default is IAA
     bool evtfile = false;
     std::string specify_evtfile;
+    ACCEL_DEV_LOC_MAPPING loc_map = SOCKET_MAP; //default is socket mapping
     MainLoop mainLoop;
     PCM * m;
     accel_evt_parse_context evt_ctx;
@@ -633,6 +693,12 @@ int mainThrows(int argc, char * argv[])
             evtfile = true;
             specify_evtfile = std::move(arg_value);
         }
+#ifdef __linux__
+        else if (check_argument_equals(*argv, {"-numa", "/numa"}))
+        {
+            loc_map = NUMA_MAP;
+        }
+#endif
         else if (mainLoop.parseArg(*argv))
         {
             continue;
@@ -763,8 +829,8 @@ int mainThrows(int argc, char * argv[])
     {
         collect_data(m, delay, accel, evt_ctx.ctrs);
         std::vector<std::string> display_buffer = csv ?
-                    build_csv(getNumOfAccelDevs(m, accel), accel, evt_ctx.ctrs, human_readable, csv_delimiter, accel_results) :
-                    build_display(getNumOfAccelDevs(m, accel), accel, evt_ctx.ctrs, accel_results);
+                    build_csv(m, accel, evt_ctx.ctrs, human_readable, csv_delimiter, accel_results, loc_map) :
+                    build_display(m, accel, evt_ctx.ctrs, accel_results, loc_map);
         display(display_buffer, *output);
         return true;
     });

@@ -146,12 +146,6 @@ static const std::map<int, int> snr_sad_to_pmu_id_mapping = {
 #define SPR_DMI_PART_ID                7
 #define SPR_SAD_CONTROL_CFG_OFFSET     SNR_ICX_SAD_CONTROL_CFG_OFFSET
 
-#define SPR_MSM_DID               0x9a6
-#define SPR_CPUBUSNO_VALID_OFFSET 0x1a0
-#define SPR_CPUBUSNO_OFFSET       0x190
-#define SPR_CPUBUSNO1_OFFSET      0x194
-#define SPR_CPUBUSNO2_OFFSET      0x198
-
 #define SPR_DMI_PMON_ID         1
 #define SPR_PCIE_GEN5_0_PMON_ID 2
 #define SPR_PCIE_GEN5_1_PMON_ID 4
@@ -911,40 +905,20 @@ bool EagleStreamPlatformMapping::getRootBuses(std::map<int, std::map<int, struct
                     if (!probe_pci(&pci_dev)) {
                         break;
                     }
-                    if (!((pci_dev.vendor_id == PCM_INTEL_PCI_VENDOR_ID) && (pci_dev.device_id == SPR_MSM_DID))) {
+                    if (!((pci_dev.vendor_id == PCM_INTEL_PCI_VENDOR_ID) && (pci_dev.device_id == SPR_MSM_DEV_ID))) {
                         continue;
                     }
-                    PciHandleType h(domain, b, d, f);
-                    std::uint32_t cpuBusValid;
-                    h.read32(SPR_CPUBUSNO_VALID_OFFSET, &cpuBusValid);
-                    if (cpuBusValid == (std::numeric_limits<uint32_t>::max)()) {
-                        cerr << "Failed to read CPUBUSNO_VALID" << endl;
-                        return false;
-                    }
-                    std::vector<std::uint32_t> cpuBusNo;
-                    for (int i = 0; i < 3; ++i)
-                    {
-                        std::uint32_t busNo;
-                        h.read32(SPR_CPUBUSNO_OFFSET + i*4, &busNo);
-                        if (busNo == (std::numeric_limits<uint32_t>::max)())
-                        {
-                            cerr << "Failed to read CPUBUSNO" << endl;
-                            return false;
-                        }
-                        cpuBusNo.push_back(busNo);
-                    }
-                    int cpuBusNo0 = cpuBusNo[0] & 0xff;
-                    std::uint32_t sadControlCfg;
-                    PciHandleType sad_cfg_handler(domain, cpuBusNo0, 0, 0);
-                    sad_cfg_handler.read32(SPR_SAD_CONTROL_CFG_OFFSET, &sadControlCfg);
-                    if (sadControlCfg == (std::numeric_limits<uint32_t>::max)())
-                    {
-                        cerr << "Failed to read SAD_CONTROL_CFG" << endl;
-                        return false;
-                    }
-                    int package_id = sadControlCfg & 0xf;
 
-                    for (int cpuBusId = 0; cpuBusId < 12; ++cpuBusId) {
+                    std::uint32_t cpuBusValid;
+                    std::vector<std::uint32_t> cpuBusNo;
+                    int package_id;
+
+                    if (get_cpu_bus(domain, b, d, f, cpuBusValid, cpuBusNo, package_id) == false)
+                    {
+                        return false;
+                    }
+
+                    for (int cpuBusId = 0; cpuBusId < SPR_MSM_CPUBUSNO_MAX; ++cpuBusId) {
                         if (!((cpuBusValid >> cpuBusId) & 0x1))
                         {
                             cout << "CPU bus " << cpuBusId << " is disabled on package " << package_id << endl;

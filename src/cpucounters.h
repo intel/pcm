@@ -285,6 +285,8 @@ class IDX_PMU
     uint32 cpu_model_;
     uint32 getCPUModel();
     bool perf_mode_;
+    uint32 numa_node_;
+    uint32 socket_id_;
     HWRegisterPtr resetControl;
     HWRegisterPtr freezeControl;
 public:
@@ -297,6 +299,8 @@ public:
     std::vector<HWRegisterPtr> counterFilterXFERSZ; 
 
     IDX_PMU(const bool perfMode_,
+        const uint32 numaNode_,
+        const uint32 socketId_,
         const HWRegisterPtr& resetControl_,
         const HWRegisterPtr& freezeControl_,
         const std::vector<HWRegisterPtr> & counterControl,
@@ -308,7 +312,7 @@ public:
         const std::vector<HWRegisterPtr> & counterFilterXFERSZ
     );
 
-    IDX_PMU() : cpu_model_(0U), perf_mode_(0U) {}
+    IDX_PMU() : cpu_model_(0U), perf_mode_(false), numa_node_(0), socket_id_(0) {}
     size_t size() const { return counterControl.size(); }
     virtual ~IDX_PMU() {}
     bool valid() const
@@ -321,6 +325,8 @@ public:
     void unfreeze();
     void resetUnfreeze();
     bool getPERFMode();
+    uint32 getNumaNode() const;
+    uint32 getSocketId() const;
 };
 
 enum ServerUncoreMemoryMetrics
@@ -1122,6 +1128,11 @@ public:
     //! \brief Returns the number of IDX counters
     uint32 getMaxNumOfIDXAccelCtrs() const;
 
+    //! \brief Returns the numa node of IDX accel dev
+    uint32 getNumaNodeOfIDXAccelDev(uint32 accel, uint32 dev) const;
+
+    //! \brief Returns the socketid of IDX accel dev
+    uint32 getCPUSocketIdOfIDXAccelDev(uint32 accel, uint32 dev) const;
 
     /*!
             \brief Returns PCM object
@@ -1858,7 +1869,7 @@ public:
     //! \param filters_tc filters(traffic class) of event to program 
     //! \param filters_pgsz filters(page size) of event to program 
     //! \param filters_xfersz filters(transfer size) of event to program 
-    void programIDXAccelCounters(uint32 accel, std::vector<uint64_t> &events, std::vector<uint32_t> &filters_wq, std::vector<uint32_t> &filters_eng, std::vector<uint32_t> &filters_tc, std::vector<uint32_t> &filters_pgsz, std::vector<uint32_t> &filters_xfersz);
+    void programIDXAccelCounters(uint32 accel, std::vector<uint64_t> &events, std::vector<uint32> &filters_wq, std::vector<uint32> &filters_eng, std::vector<uint32> &filters_tc, std::vector<uint32> &filters_pgsz, std::vector<uint32> &filters_xfersz);
 
 
     //! \brief Get the state of IIO counter
