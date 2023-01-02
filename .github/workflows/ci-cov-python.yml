@@ -1,0 +1,21 @@
+name: coverity-python
+
+on:
+  push:
+    branches: [ '**' ]
+  pull_request:
+    branches: [ '**' ]
+
+jobs:
+  build:
+
+    runs-on: ci-kw-linux
+    if: ${{ github.repository != 'intel/pcm' }}
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+    - name: coverity-python
+      run: |
+        ci-cov-python.sh
