@@ -1,0 +1,30 @@
+name: coverity-linux-report
+
+on: [workflow_dispatch, workflow_call]
+
+jobs:
+  build:
+
+    runs-on: ci-kw-linux
+    if: ${{ github.repository != 'intel/pcm' }}
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+    - name: coverity-linux
+      run: |
+        mkdir build
+        cd build
+        cmake ..
+        ci-cov-linux.sh
+
+    - name: coverity-linux-report
+      run: |
+        ci-cov-linux-report.sh PCM.linux
+
+    - name: upload-artifact
+      uses: actions/upload-artifact@v3.1.1
+      with:
+        name: coverity-linux-report-${{ github.sha }}
+        path: "*-Report.pdf"
