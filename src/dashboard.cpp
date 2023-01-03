@@ -632,7 +632,7 @@ std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int
             {
                 const auto L = std::to_string(l);
                 auto t = createTarget(pcm->xPI() + std::to_string(l),
-                    "mean(\\\"" + std::string(pcm->xPI()) + " Links_QPI Counters Socket " + S + "_" + m + " On Link " + L + "\\\")" +  suffix,
+                    "mean(\\\"QPI/UPI Links_QPI Counters Socket " + S + "_" + m + " On Link " + L + "\\\")" +  suffix,
                     "rate(" + prometheusMetric(m) + "_On_Link_" + L + prometheusSystem(S) + interval + ")" + suffix);
                 panel->push(t);
                 panel1->push(t);
