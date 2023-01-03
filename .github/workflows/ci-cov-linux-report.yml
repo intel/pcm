@@ -1,4 +1,4 @@
-name: coverity-linux-report
+name: coverity-linux-and-python-report
 
 on: [workflow_dispatch, workflow_call]
 
@@ -12,6 +12,11 @@ jobs:
     - uses: actions/checkout@v3
       with:
         submodules: recursive
+
+    - name: coverity-python
+      run: |
+        ci-cov-python.sh
+
     - name: coverity-linux
       run: |
         mkdir build
@@ -19,12 +24,12 @@ jobs:
         cmake ..
         ci-cov-linux.sh
 
-    - name: coverity-linux-report
+    - name: coverity-linux-and-python-report
       run: |
-        ci-cov-linux-report.sh PCM.linux
+        ci-cov-linux-report.sh PCM.linux.and.python
 
     - name: upload-artifact
       uses: actions/upload-artifact@v3.1.1
       with:
-        name: coverity-linux-report-${{ github.sha }}
+        name: coverity-linux-and-python-report-${{ github.sha }}
         path: "*-Report.pdf"
