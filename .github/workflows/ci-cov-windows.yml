@@ -1,0 +1,40 @@
+name: coverity-windows
+
+on:
+  push:
+    branches: [ '**' ]
+  pull_request:
+    branches: [ '**' ]
+
+jobs:
+  build:
+
+    runs-on: ci-kw-windows
+    if: ${{ github.repository != 'intel/pcm' }}
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+
+    - name: Add MSBuild to PATH
+      uses: microsoft/setup-msbuild@v1.1.3
+    
+    - name: coverity-windows
+      run: |
+        mkdir build
+        cd build
+        cmake ..
+        c:\pcm\ci-cov-windows.ps1
+
+    - name: coverity-windows-cs
+      run: |
+        mkdir build-cs
+        cd build-cs
+        cmake ..
+        c:\pcm\ci-cov-windows-cs.ps1
+
+    - name: coverity-windows-msr
+      run: |
+        chdir ${{github.workspace}}\src\WinMSRDriver
+        c:\pcm\ci-cov-windows-msr.ps1
