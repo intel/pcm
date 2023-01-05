@@ -20,7 +20,7 @@ Installation of the grafana front-end (can be on any *host* system with connecti
 3.  (Download once and) start docker containers on the *host*: `sudo sh start.sh http://target_system_address:9738`
        - `start.sh` script starts telegraf/influxdb/grafana containers
        - `start-prometheus.sh` is an alternative script which starts prometheus + grafana containers: `sudo sh start-prometheus.sh target_system_address:9738`
-       - `start-prometheus.sh` can also be used to monitor multiple hosts running pcm-sensor-server containers: `sudo sh start-prometheus.sh targets.txt`. Here `targets.txt` should be of the following format:
+       - `start.sh` and `start-prometheus.sh` can also be used to monitor multiple hosts running pcm-sensor-server containers:`sudo sh start.sh targets.txt` or `sudo sh start-prometheus.sh targets.txt`. Here `targets.txt` should be of the following format:
        ```properties
        host1_ipaddress:pcmport
        host2_ipaddress:pcmport

@@ -9,7 +9,30 @@ then
   exit 1
 fi
 
-sed "s#PCMSENSORSERVER#$1#g" telegraf.conf.template > telegraf.conf
+
+# check if argument is file, create the telegraf.conf accordingly
+if [ -f "$1" ]; then
+  echo "creating telegraf.conf for hosts in targets file";
+  head -n -7 "telegraf.conf.template" > telegraf.conf
+  while IFS='' read -r line || [[ -n "$line" ]]; do
+    # Split the line at the : character to get the IP and port
+    ip=$(echo "$line" | cut -d ':' -f 1)
+    port=$(echo "$line" | cut -d ':' -f 2)
+    # Append the transformed line to the output file, separated by a comma
+    echo -n "\"http://$ip:$port/persecond/\"," >> telegraf.conf
+  done < $1
+  sed -i '$ s/,$//' telegraf.conf
+  tail -n -6 "telegraf.conf.template" >> telegraf.conf
+  echo Downloading PCM dashboard
+  curl -o grafana_volume/dashboards/pcm-dashboard.json $(head -1 $1)/dashboard
+
+else
+  echo "creating telegraf.conf for $1 ";
+  sed "s#PCMSENSORSERVER#$1#g" telegraf.conf.template > telegraf.conf
+  echo Downloading PCM dashboard
+  curl -o grafana_volume/dashboards/pcm-dashboard.json $1/dashboard
+fi
+
 
 mkdir -p grafana_volume/dashboards
 mkdir -p influxdb_volume
