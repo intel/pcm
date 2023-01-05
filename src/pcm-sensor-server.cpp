@@ -1951,7 +1951,7 @@ private:
 private:
     std::string name_;
     std::string value_;
-    enum HeaderType type_;
+    enum HeaderType type_{HeaderType::Invalid};
     std::vector<std::string> valueList_;
     std::vector<double> floats_;
     std::vector<long long> integers_;
