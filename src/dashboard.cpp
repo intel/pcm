@@ -536,9 +536,9 @@ std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int
     const size_t NumUPILinksPerSocket = (nu < 0) ? pcm->getQPILinksPerSocket() : nu;
     const size_t maxCState = (nc < 0) ? PCM::MAX_C_STATE : nc;
 
-    const int height = 5;
-    const int width = 15;
-    const int max_width = 24;
+    constexpr int height = 5;
+    constexpr int width = 15;
+    constexpr int max_width = 24;
     int y = 0;
 
     if (type == Prometheus_Default)
