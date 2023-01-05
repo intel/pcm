@@ -12,6 +12,7 @@
 #include <sys/shm.h>
 #include <errno.h>
 #include <time.h>
+#include <assert.h>
 
 #ifndef CLOCK_MONOTONIC_RAW
 #define CLOCK_MONOTONIC_RAW             (4) /* needed for SLES11 */
@@ -41,6 +42,8 @@ namespace PCMDaemon {
         readApplicationArguments(argc, argv);
         setupSharedMemory();
         setupPCM();
+
+        assert(sharedPCMState_);
 
         //Put the poll interval in shared memory so that the client knows
         sharedPCMState_->pollMs = pollIntervalMs_;
