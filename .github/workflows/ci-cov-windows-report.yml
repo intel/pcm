@@ -1,10 +1,6 @@
 name: coverity-windows
 
-on:
-  push:
-    branches: [ '**' ]
-  pull_request:
-    branches: [ '**' ]
+on: [workflow_dispatch, workflow_call]
 
 jobs:
   build:
