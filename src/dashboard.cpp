@@ -378,7 +378,7 @@ public:
     std::string operator () () const
     {
         std::string result;
-		std::string definition,query;
+        std::string definition,query;
         if(type==InfluxDB){
           definition = "\"SHOW TAG VALUES WITH KEY = \\\"url\\\"\"";
           query = "\"SHOW TAG VALUES WITH KEY = \\\"url\\\"\"";
