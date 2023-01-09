@@ -366,7 +366,7 @@ public:
 class Dashboard
 {
     std::string title;
-	PCMDashboardType type;
+    PCMDashboardType type;
     std::vector<std::shared_ptr<Panel>> panels;
     Dashboard() = delete;
 public:
