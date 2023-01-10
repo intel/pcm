@@ -2,7 +2,7 @@ name: stats-cron-job
 
 on:
   schedule:
-    - cron: '30 * * * *'
+    - cron: '30 23 * * 2'
 
 jobs:
   stats:
