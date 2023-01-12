@@ -16,6 +16,9 @@
 #include "utils.h"
 #include "cpucounters.h"
 #include <numeric>
+#ifndef _MSC_VER
+#include <execinfo.h>
+#endif
 
 namespace pcm {
 
@@ -190,6 +193,38 @@ void sigINT_handler(int signum)
 }
 
 /**
+ * \brief handles SIGSEGV signals that lead to termination of the program
+ * this function specifically works when the client application launched
+ * by pcm -- terminates
+ */
+constexpr auto BACKTRACE_MAX_STACK_FRAME = 30;
+void sigSEGV_handler(int signum)
+{
+    void *backtrace_buffer[BACKTRACE_MAX_STACK_FRAME] = {0};
+    char **backtrace_strings = NULL;
+    size_t backtrace_size = 0;
+
+    backtrace_size = backtrace(backtrace_buffer, BACKTRACE_MAX_STACK_FRAME);
+    backtrace_strings = backtrace_symbols(backtrace_buffer, backtrace_size);
+    if (backtrace_strings == NULL)
+    {
+        std::cerr << "Debug: backtrace empty. \n";
+    }
+    else
+    {
+        std::cerr << "Debug: backtrace dump(" << backtrace_size << " stack frames).\n";
+        for (size_t i = 0; i < backtrace_size; i++)
+        {
+            std::cerr << backtrace_strings[i] << "\n";
+        }
+        free(backtrace_strings);
+        backtrace_strings = NULL;
+    }
+
+    sigINT_handler(signum);
+}
+
+/**
  * \brief handles signals that lead to restart the application
  * such as SIGHUP.
  * for example to re-read environment variables controlling PCM execution
@@ -309,10 +344,14 @@ void set_signal_handlers(void)
     sigaction(SIGQUIT, &saINT, NULL);
     sigaction(SIGABRT, &saINT, NULL);
     sigaction(SIGTERM, &saINT, NULL);
-    sigaction(SIGSEGV, &saINT, NULL);
-
+    
     saINT.sa_flags = SA_RESTART | SA_NOCLDSTOP;
     sigaction(SIGCHLD, &saINT, NULL); // get there is our child exits. do nothing if it stopped/continued
+
+    saINT.sa_handler = sigSEGV_handler;
+    sigemptyset(&saINT.sa_mask);
+    saINT.sa_flags = SA_RESTART;
+    sigaction(SIGSEGV, &saINT, NULL);
 
     // install SIGHUP handler to restart
     saHUP.sa_handler = sigHUP_handler;
