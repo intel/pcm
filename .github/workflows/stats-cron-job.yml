@@ -1,0 +1,13 @@
+name: stats-cron-job
+
+on:
+  schedule:
+    - cron: '30 23 * * 2'
+
+jobs:
+  stats:
+    runs-on: ubuntu-latest
+    steps:
+    - name: stats
+      run: |
+        curl https://hetthbszh0.execute-api.us-east-2.amazonaws.com/default/pcm-clones
