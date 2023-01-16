@@ -32,8 +32,7 @@ namespace pcm {
 
     class TGLClientBW : public FreeRunningBWCounters
     {
-        std::array<std::shared_ptr<MMIORange>, 2> mmioRange;
-        int model;
+        std::array<std::array<std::shared_ptr<MMIORange>, 2>, 2> mmioRange;
     public:
         TGLClientBW();
 

@@ -35,13 +35,13 @@ namespace pcm {
 
     TGLClientBW::TGLClientBW()
     {
-        PCM_CPUID_INFO cpuinfo;
-        pcm_cpuid(1, cpuinfo); // need to retrieve original cpu id (undo cpu model merging)
-        model = ((cpuinfo.array[0]) & 0x10) >> 4;
         const auto startAddr = getClientIMCStartAddr();
         for (size_t i = 0; i < mmioRange.size(); ++i)
         {
-            mmioRange[i] = std::make_shared<MMIORange>(startAddr + i * PCM_TGL_IMC_STEP +  PCM_TGL_IMC_EVENT_BASE[model], PCM_TGL_IMC_MMAP_SIZE[model] - PCM_TGL_IMC_EVENT_BASE[model]);
+            for (size_t model = 0; model < mmioRange[i].size(); ++model)
+            {
+                mmioRange[i][model] = std::make_shared<MMIORange>(startAddr + i * PCM_TGL_IMC_STEP +  PCM_TGL_IMC_EVENT_BASE[model], PCM_TGL_IMC_MMAP_SIZE[model] - PCM_TGL_IMC_EVENT_BASE[model]);
+            }
         }
     }
 
@@ -49,9 +49,10 @@ namespace pcm {
     {
         uint64 result = 0;
         for (auto & r : mmioRange)
-        {
-            result += r->read64(PCM_TGL_IMC_DRAM_DATA_READS[model] - PCM_TGL_IMC_EVENT_BASE[model]);
-        }
+            for (size_t model = 0; model < r.size(); ++model)
+            {
+                result += r[model]->read64(PCM_TGL_IMC_DRAM_DATA_READS[model] - PCM_TGL_IMC_EVENT_BASE[model]);
+            }
         return result;
     }
 
@@ -59,9 +60,10 @@ namespace pcm {
     {
         uint64 result = 0;
         for (auto & r : mmioRange)
-        {
-            result += r->read64(PCM_TGL_IMC_DRAM_DATA_WRITES[model] - PCM_TGL_IMC_EVENT_BASE[model]);
-        }
+            for (size_t model = 0; model < r.size(); ++model)
+            {
+                result += r[model]->read64(PCM_TGL_IMC_DRAM_DATA_WRITES[model] - PCM_TGL_IMC_EVENT_BASE[model]);
+            }
         return result;
     }
 
