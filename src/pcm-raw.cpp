@@ -582,6 +582,24 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
         // cout << "Counter: " << CounterStr << "\n";
         int fixedCounter = -1;
         fixed = (pcm_sscanf(CounterStr) >> s_expect("Fixed counter ") >> fixedCounter) ? true : false;
+        if (!fixed){
+            bool counter_match=false;
+            std::stringstream ss(CounterStr);
+            // to get current event position
+            int event_pos = curPMUConfigs[pmuName].programmable.size();
+            // loop through counter string and check if event pos matches any counter values
+            for (int i = 0; ss >> i;) {
+                if(event_pos == i)
+                    counter_match = true;  
+                if (ss.peek() == ',')
+                    ss.ignore();
+            }
+            if(!counter_match)
+            {
+                std::cerr << "ERROR: position of " << fullEventStr << " event in the command is " << event_pos<<" but the supported counters are "<<CounterStr<<"\n";
+                return false;
+            }
+        }
         bool offcore = false;
         if (EventMap::isField(eventStr, "Offcore"))
         {

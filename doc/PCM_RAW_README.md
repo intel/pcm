@@ -121,7 +121,3 @@ Sample csv output (date,time,event_name,milliseconds_between_samples,TSC_cycles_
 2021-09-27,00:07:40.507,UNC_UPI_L1_POWER_CYCLES,1000,2102078418,0,0,1200328715,0,0,1200283803
 ```
 The unit can be logical core, memory channel, CHA, etc, depending on the event type.
-
-Limitations:
-
-Event-to-counter scheduling restrictions are not validated. The events are scheduled in order. The user need to make sure events are ordered correctly using emon or manually inspecting counter event restrictions specified in json files (https://github.com/intel/perfmon/).
