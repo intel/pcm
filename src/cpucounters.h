@@ -1062,6 +1062,12 @@ public:
     //! true if Linux perf for uncore PMU programming should AND can be used internally
     bool useLinuxPerfForUncore() const;
 
+    //! true if the CPU is hybrid
+    bool isHybrid() const
+    {
+        return hybrid;
+    }
+
     /*!
              \brief The system, sockets, uncores, cores and threads are structured like a tree
 
@@ -1241,6 +1247,12 @@ public:
     };
     typedef std::map<std::string, RawPMUConfig> RawPMUConfigs;
     ErrorCode program(const RawPMUConfigs& curPMUConfigs, const bool silent = false, const int pid = -1);
+
+    TopologyEntry::CoreType getCoreType(const unsigned coreID) const
+    {
+        assert(coreID < topology.size());
+        return topology[coreID].core_type;
+    }
 
     std::pair<unsigned, unsigned> getOCREventNr(const int event, const unsigned coreID) const
     {

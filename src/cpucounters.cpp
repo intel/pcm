@@ -5113,30 +5113,29 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool sile
     packageMSRConfig = RawPMUConfig{};
     RawPMUConfigs curPMUConfigs = curPMUConfigs_;
     constexpr auto globalRegPos = 0;
-    if (curPMUConfigs.count("core"))
+    PCM::ExtendedCustomCoreEventDescription conf;
+    auto updateRegs = [this, &conf](const RawPMUConfig& corePMUConfig, EventSelectRegister* regs) -> bool
     {
-        // need to program core PMU first
-        EventSelectRegister regs[PERF_MAX_CUSTOM_COUNTERS];
-        PCM::ExtendedCustomCoreEventDescription conf;
-        conf.OffcoreResponseMsrValue[0] = 0;
-        conf.OffcoreResponseMsrValue[1] = 0;
-        FixedEventControlRegister fixedReg;
-
-        auto corePMUConfig = curPMUConfigs["core"];
         if (corePMUConfig.programmable.size() > (size_t)getMaxCustomCoreEvents())
         {
-            std::cerr << "ERROR: trying to program " << corePMUConfig.programmable.size() << " core PMU counters, which exceeds the max num possible ("<< getMaxCustomCoreEvents() << ").\n";
-            for (const auto & e : corePMUConfig.programmable)
+            std::cerr << "ERROR: trying to program " << corePMUConfig.programmable.size() << " core PMU counters, which exceeds the max num possible (" << getMaxCustomCoreEvents() << ").\n";
+            for (const auto& e : corePMUConfig.programmable)
             {
                 std::cerr << "      Event: " << e.second << "\n";
             }
-            return PCM::UnknownError;
+            return false;
         }
         size_t c = 0;
         for (; c < corePMUConfig.programmable.size() && c < (size_t)getMaxCustomCoreEvents() && c < PERF_MAX_CUSTOM_COUNTERS; ++c)
         {
             regs[c].value = corePMUConfig.programmable[c].first[0];
         }
+        conf.nGPCounters = (std::max)((uint32)c, conf.nGPCounters);
+        return true;
+    };
+    FixedEventControlRegister fixedReg;
+    auto setOtherConf = [&conf, &fixedReg, &globalRegPos](const RawPMUConfig& corePMUConfig)
+    {
         if (globalRegPos < corePMUConfig.programmable.size())
         {
             conf.OffcoreResponseMsrValue[0] = corePMUConfig.programmable[globalRegPos].first[OCR0Pos];
@@ -5144,8 +5143,6 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool sile
             conf.LoadLatencyMsrValue = corePMUConfig.programmable[globalRegPos].first[LoadLatencyPos];
             conf.FrontendMsrValue = corePMUConfig.programmable[globalRegPos].first[FrontendPos];
         }
-        conf.nGPCounters = (uint32)c;
-        conf.gpCounterCfg = regs;
         if (corePMUConfig.fixed.empty())
         {
             conf.fixedCfg = NULL; // default
@@ -5153,20 +5150,63 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool sile
         else
         {
             fixedReg.value = 0;
-            for (const auto & cfg : corePMUConfig.fixed)
+            for (const auto& cfg : corePMUConfig.fixed)
             {
                 fixedReg.value |= uint64(cfg.first[0]);
             }
             conf.fixedCfg = &fixedReg;
         }
+    };
+    EventSelectRegister regs[PERF_MAX_CUSTOM_COUNTERS];
+    EventSelectRegister atomRegs[PERF_MAX_CUSTOM_COUNTERS];
+    conf.OffcoreResponseMsrValue[0] = 0;
+    conf.OffcoreResponseMsrValue[1] = 0;
+    if (curPMUConfigs.count("core") > 0)
+    {
+        // need to program core PMU first
+        const auto & corePMUConfig = curPMUConfigs["core"];
+        if (updateRegs(corePMUConfig, regs) == false)
+        {
+            return PCM::UnknownError;
+        }
+        conf.gpCounterCfg = regs;
+        setOtherConf(corePMUConfig);
         conf.defaultUncoreProgramming = false;
+        curPMUConfigs.erase("core");
+
+        if (curPMUConfigs.count("atom"))
+        {
+            const auto & atomPMUConfig = curPMUConfigs["atom"];
+            if (updateRegs(atomPMUConfig, atomRegs) == false)
+            {
+                return PCM::UnknownError;
+            }
+            conf.gpCounterHybridAtomCfg = atomRegs;
+            curPMUConfigs.erase("atom");
+        }
+        const auto status = program(PCM::EXT_CUSTOM_CORE_EVENTS, &conf, silent, pid);
+        if (status != PCM::Success)
+        {
+            return status;
+        }
+    }
+    else if (curPMUConfigs.count("atom") > 0) // no core, only atom
+    {
+        const auto& atomPMUConfig = curPMUConfigs["atom"];
+        if (updateRegs(atomPMUConfig, atomRegs) == false)
+        {
+            return PCM::UnknownError;
+        }
+        conf.gpCounterHybridAtomCfg = atomRegs;
+        setOtherConf(atomPMUConfig);
+        conf.defaultUncoreProgramming = false;
+        curPMUConfigs.erase("atom");
 
         const auto status = program(PCM::EXT_CUSTOM_CORE_EVENTS, &conf, silent, pid);
         if (status != PCM::Success)
         {
             return status;
         }
-        curPMUConfigs.erase("core");
     }
     for (auto& pmuConfig : curPMUConfigs)
     {
