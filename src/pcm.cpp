@@ -540,13 +540,13 @@ void print_basic_metrics_csv_header(const PCM * m)
         cout << "Frontend_bound(%),Bad_Speculation(%),Backend_Bound(%),Retiring(%),";
 }
 
-void print_csv_header_helper(string header, int count=1){
+void print_csv_header_helper(const string & header, int count=1){
   for(int i = 0; i < count; i++){
     cout << header << ",";
   }
 }
 
-void print_basic_metrics_csv_semicolons(const PCM * m, string header)
+void print_basic_metrics_csv_semicolons(const PCM * m, const string & header)
 {
     print_csv_header_helper(header, 3);    // EXEC;IPC;FREQ;
     if (m->isActiveRelativeFrequencyAvailable())
@@ -564,7 +564,7 @@ void print_basic_metrics_csv_semicolons(const PCM * m, string header)
     if (m->isL2CacheMissesAvailable())
         print_csv_header_helper(header);  // L2MPI;
     if (m->isHWTMAL1Supported())
-        cout << ",,,,"; // Frontend_bound(%),Bad_Speculation(%),Backend_Bound(%),Retiring(%)
+        print_csv_header_helper(header, 4); // Frontend_bound(%),Bad_Speculation(%),Backend_Bound(%),Retiring(%)
 }
 
 void print_csv_header(PCM * m,
@@ -604,14 +604,12 @@ void print_csv_header(PCM * m,
                 print_csv_header_helper(header);
         }
 
-        header = "System Core C-States";
         for (int s = 0; s <= PCM::MAX_C_STATE; ++s)
             if (m->isCoreCStateResidencySupported(s))
-                print_csv_header_helper(header);
-        header = "System Pack C-States";
+                print_csv_header_helper("System Core C-States");
         for (int s = 0; s <= PCM::MAX_C_STATE; ++s)
             if (m->isPackageCStateResidencySupported(s))
-                print_csv_header_helper(header);
+                print_csv_header_helper("System Pack C-States");
         if (m->packageEnergyMetricsAvailable())
             print_csv_header_helper(header);
         if (m->dramEnergyMetricsAvailable())
@@ -627,7 +625,6 @@ void print_csv_header(PCM * m,
         for (uint32 i = 0; i < m->getNumSockets(); ++i)
         {
             header = "Socket " + std::to_string(i);
-            print_csv_header_helper(header);
             print_basic_metrics_csv_semicolons(m,header);
             if (m->L3CacheOccupancyMetricAvailable())
                 print_csv_header_helper(header);
@@ -645,7 +642,7 @@ void print_csv_header(PCM * m,
                 print_csv_header_helper(header,2);
             if (m->memoryIOTrafficMetricAvailable())
                 print_csv_header_helper(header,3);
-            print_csv_header_helper(header,7); //ACYC,TIME(ticks),PhysIPC,PhysIPC%,INSTnom,INSTnom%,
+            print_csv_header_helper(header, 8); //TEMP,INST,ACYC,TIME(ticks),PhysIPC,PhysIPC%,INSTnom,INSTnom%,
         }
 
         if (m->getNumSockets() > 1 && (m->incomingQPITrafficMetricsAvailable())) // QPI info only for multi socket systems
@@ -805,8 +802,7 @@ void print_csv_header(PCM * m,
                  cout << "HBM_READ,HBM_WRITE,";
              if (m->memoryIOTrafficMetricAvailable())
                  cout << "IO,IA,GT,";
-             cout << "TEMP,";
-             cout << "INST,ACYC,TIME(ticks),PhysIPC,PhysIPC%,INSTnom,INSTnom%,";
+             cout << "TEMP,INST,ACYC,TIME(ticks),PhysIPC,PhysIPC%,INSTnom,INSTnom%,";
         }
 
         if (m->getNumSockets() > 1 && (m->incomingQPITrafficMetricsAvailable())) // QPI info only for multi socket systems
