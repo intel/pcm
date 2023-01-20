@@ -623,6 +623,14 @@ std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int
             panel->push(t);
             panel1->push(t);
         }
+        for (std::string m : { "DRAM ", "Persistent Memory " })
+        {
+            auto t = createTarget(m + "Total",
+            "(" + influxDBUncore_Uncore_Counters(S, m + "Writes") + "+" + influxDBUncore_Uncore_Counters(S, m + "Reads") + ")/1048576",
+            "(" + prometheusCounters(S, m + "Writes", false) + "+" + prometheusCounters(S, m + "Reads", false) + ")/1048576");
+            panel->push(t);
+            panel1->push(t);
+        }
         dashboard.push(panel);
         dashboard.push(panel1);
     }
