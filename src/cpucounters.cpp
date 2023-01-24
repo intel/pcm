@@ -8924,6 +8924,7 @@ void PCM::initLLCReadMissLatencyEvents(uint64 * events, uint32 & opCode)
     switch (cpu_model)
     {
         case ICX:
+        case SPR:
         case SNOWRIDGE:
             umask = 1ULL;
             break;
@@ -8937,6 +8938,9 @@ void PCM::initLLCReadMissLatencyEvents(uint64 * events, uint32 & opCode)
     {
         case ICX:
             umask_ext = 0xC817FE;
+            break;
+        case SPR:
+            umask_ext = 0x00C817FE;
             break;
         case SNOWRIDGE:
             umask_ext = 0xC827FE;
