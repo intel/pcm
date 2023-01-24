@@ -2151,6 +2151,7 @@ public:
             || ((SKX == cpu_model) && (num_sockets == 1))
 #endif
             || ICX == cpu_model
+            || SPR == cpu_model
             || SNOWRIDGE == cpu_model
                );
     }
