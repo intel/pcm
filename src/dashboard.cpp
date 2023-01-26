@@ -631,6 +631,21 @@ std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int
             panel->push(t);
             panel1->push(t);
         }
+
+        auto t = createTarget("PMEM / DRAM Bandwidth Ratio",
+		"(" + influxDBUncore_Uncore_Counters(S, "Persistent Memory Writes") +
+		"+" + influxDBUncore_Uncore_Counters(S, "Persistent Memory Reads") +
+		")/" +
+		"(" + influxDBUncore_Uncore_Counters(S, "DRAM Writes") +
+		"+" + influxDBUncore_Uncore_Counters(S, "DRAM Reads") + ")",
+		"(" + prometheusCounters(S, "Persistent Memory Writes", false) +
+		"+" + prometheusCounters(S, "Persistent Memory Reads", false) +
+		")/" +
+		"(" + prometheusCounters(S, "DRAM Writes", false) +
+		"+" + prometheusCounters(S, "DRAM Reads", false) +")");
+		panel->push(t);
+        panel1->push(t);
+
         dashboard.push(panel);
         dashboard.push(panel1);
     }
