@@ -18,8 +18,8 @@ jobs:
     - name: cmake
       run: |
         rm -rf ${{ github.workspace }}/build
-        $(brew --prefix llvm@14)/bin/scan-build cmake -B ${{ github.workspace }}/build -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}
+        $(brew --prefix llvm@15)/bin/scan-build cmake -B ${{ github.workspace }}/build -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}
     - name: make
       run: |
         cd ${{ github.workspace }}/build
-        $(brew --prefix llvm@14)/bin/scan-build --exclude src/simdjson --status-bugs make -j
+        $(brew --prefix llvm@15)/bin/scan-build --exclude src/simdjson --status-bugs make -j
