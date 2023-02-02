@@ -62,6 +62,15 @@ jobs:
         export VERBOSE=1
         make install -j$(nproc)
 
+    - name: CMake Include systemd unit
+      run: |
+        cmake --version
+        rm -rf ${{ github.workspace }}/build
+        cmake -B ${{ github.workspace }}/build -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/build -DLINUX_SYSTEMD=TRUE -DLINUX_SYSTEMD_UNITDIR=${{ github.workspace }}/build/systemd
+        cd ${{ github.workspace }}/build
+        export VERBOSE=1
+        make install -j$(nproc)
+
     - name: CMake User-flags build install
       run: |
         cmake --version

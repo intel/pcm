@@ -49,6 +49,21 @@ if(UNIX)  # APPLE, LINUX, FREE_BSD
 
     if(LINUX)
        set (PCM_COMMON_FLAGS "${PCM_COMMON_FLAGS} -Wextra -DPCM_USE_PERF")
+
+       if(NOT DEFINED LINUX_SYSTEMD)
+         set(LINUX_SYSTEMD FALSE)
+       endif()
+
+       if(NOT DEFINED LINUX_SYSTEMD_UNITDIR)
+           set(LINUX_SYSTEMD_UNITDIR /usr/lib/systemd/system)
+       endif()
+
+       if(LINUX_SYSTEMD)
+         message(STATUS "A systemd unit file will be generated")
+         message(STATUS "LINUX_SYSTEMD_UNITDIR:${LINUX_SYSTEMD_UNITDIR}")
+       else()
+         message(STATUS "Set LINUX_SYSTEMD=TRUE for a systemd unit file.")
+       endif()
     endif(LINUX)
 
     # adding the required PCM common flags
