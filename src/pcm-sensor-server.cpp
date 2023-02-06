@@ -799,6 +799,8 @@ public:
 
     void setSocket( int socketFD ) {
         socketFD_ = socketFD;
+        if(!socketFD)  // avoid work with 0 socket after closure socket and set value to 0
+            return;
         // When receiving the socket descriptor, set the timeout
         const auto res = setsockopt( socketFD_, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout_, sizeof(struct timeval) );
         if (res != 0)
@@ -877,6 +879,8 @@ protected:
     }
 
     int sync() override {
+        if ( socketFD_ == 0 )  // Socket is closed already
+            return 0;
         int_type ret = writeToSocket();
         if ( traits_type::eof() == ret )
             return -1;
@@ -1053,7 +1057,7 @@ public:
 
     void close() {
         const auto s = socketBuffer_.socket();
-        if (s != -1) ::close(s);
+        if (s != 0) ::close(s);
         socketBuffer_.setSocket( 0 );
     }
 
