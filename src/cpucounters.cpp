@@ -798,6 +798,7 @@ void PCM::initCStateSupportTables()
         case BAYTRAIL:
         case CHERRYTRAIL:
         case APOLLO_LAKE:
+        case GEMINI_LAKE:
         case DENVERTON:
         case ADL:
         case RPL:
@@ -867,6 +868,7 @@ void PCM::initCStateSupportTables()
         case AVOTON:
         case CHERRYTRAIL:
         case APOLLO_LAKE:
+        case GEMINI_LAKE:
         case DENVERTON:
         PCM_SKL_PATH_CASES
         case ADL:
@@ -1506,6 +1508,7 @@ bool PCM::detectNominalFrequency()
                || cpu_model == BROADWELL
                || cpu_model == AVOTON
                || cpu_model == APOLLO_LAKE
+               || cpu_model == GEMINI_LAKE
                || cpu_model == DENVERTON
                || useSKLPath()
                || cpu_model == SNOWRIDGE
@@ -4173,6 +4176,8 @@ const char * PCM::getUArchCodename(const int32 cpu_model_param) const
             return "Cherrytrail";
         case APOLLO_LAKE:
             return "Apollo Lake";
+        case GEMINI_LAKE:
+            return "Gemini Lake";
         case DENVERTON:
             return "Denverton";
         case SNOWRIDGE:
