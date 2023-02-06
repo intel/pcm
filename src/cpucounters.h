@@ -1440,6 +1440,7 @@ public:
         AVOTON = 77,
         CHERRYTRAIL = 76,
         APOLLO_LAKE = 92,
+        GEMINI_LAKE = 122,
         DENVERTON = 95,
         SNOWRIDGE = 134,
         CLARKDALE = 37,
@@ -1944,6 +1945,7 @@ public:
             || cpu_model_ == AVOTON
             || cpu_model_ == CHERRYTRAIL
             || cpu_model_ == APOLLO_LAKE
+            || cpu_model_ == GEMINI_LAKE
             || cpu_model_ == DENVERTON
             // || cpu_model_ == SNOWRIDGE do not use Atom code for SNOWRIDGE
             ;
@@ -1967,6 +1969,7 @@ public:
                  || cpu_model == PCM::CHERRYTRAIL
                  || cpu_model == PCM::BAYTRAIL
                  || cpu_model == PCM::APOLLO_LAKE
+                 || cpu_model == PCM::GEMINI_LAKE
                  || cpu_model == PCM::DENVERTON
                  || cpu_model == PCM::SNOWRIDGE
                  || cpu_model == PCM::HASWELLX
