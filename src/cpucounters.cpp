@@ -2913,33 +2913,40 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
     }
     else if (mode != EXT_CUSTOM_CORE_EVENTS)
     {
+        auto LLCArchEventInit = [](CustomCoreEventDescription * evt)
+        {
+            evt[0].event_number = ARCH_LLC_MISS_EVTNR;
+            evt[0].umask_value = ARCH_LLC_MISS_UMASK;
+            evt[1].event_number = ARCH_LLC_REFERENCE_EVTNR;
+            evt[1].umask_value = ARCH_LLC_REFERENCE_UMASK;
+        };
         if (isAtom() || cpu_model == KNL)
         {
-            coreEventDesc[0].event_number = ARCH_LLC_MISS_EVTNR;
-            coreEventDesc[0].umask_value = ARCH_LLC_MISS_UMASK;
-            coreEventDesc[1].event_number = ARCH_LLC_REFERENCE_EVTNR;
-            coreEventDesc[1].umask_value = ARCH_LLC_REFERENCE_UMASK;
+            LLCArchEventInit(coreEventDesc);
             L2CacheHitRatioAvailable = true;
             L2CacheMissesAvailable = true;
             L2CacheHitsAvailable = true;
+            core_gen_counter_num_used = 2;
+        }
+        else if (memoryEventErrata())
+        {
+            LLCArchEventInit(coreEventDesc);
+            L3CacheHitRatioAvailable = true;
+            L3CacheMissesAvailable = true;
+            L2CacheMissesAvailable = true;
+            L3CacheHitsAvailable = true;
             core_gen_counter_num_used = 2;
         }
         else
         switch ( cpu_model ) {
             case ADL:
             case RPL:
-                hybridAtomEventDesc[0].event_number = ARCH_LLC_MISS_EVTNR;
-                hybridAtomEventDesc[0].umask_value = ARCH_LLC_MISS_UMASK;
-                hybridAtomEventDesc[1].event_number = ARCH_LLC_REFERENCE_EVTNR;
-                hybridAtomEventDesc[1].umask_value = ARCH_LLC_REFERENCE_UMASK;
+                LLCArchEventInit(hybridAtomEventDesc);
                 hybridAtomEventDesc[2].event_number = SKL_MEM_LOAD_RETIRED_L2_MISS_EVTNR;
                 hybridAtomEventDesc[2].umask_value = SKL_MEM_LOAD_RETIRED_L2_MISS_UMASK;
                 hybridAtomEventDesc[3].event_number = SKL_MEM_LOAD_RETIRED_L2_HIT_EVTNR;
                 hybridAtomEventDesc[3].umask_value = SKL_MEM_LOAD_RETIRED_L2_HIT_UMASK;
-                coreEventDesc[0].event_number = ARCH_LLC_MISS_EVTNR;
-                coreEventDesc[0].umask_value = ARCH_LLC_MISS_UMASK;
-                coreEventDesc[1].event_number = ARCH_LLC_REFERENCE_EVTNR;
-                coreEventDesc[1].umask_value = ARCH_LLC_REFERENCE_UMASK;
+                LLCArchEventInit(coreEventDesc);
                 coreEventDesc[2].event_number = SKL_MEM_LOAD_RETIRED_L2_MISS_EVTNR;
                 coreEventDesc[2].umask_value = SKL_MEM_LOAD_RETIRED_L2_MISS_UMASK;
                 coreEventDesc[3].event_number = SKL_MEM_LOAD_RETIRED_L2_HIT_EVTNR;
@@ -2954,10 +2961,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
                 core_gen_counter_num_used = 4;
                 break;
             case SNOWRIDGE:
-                coreEventDesc[0].event_number = ARCH_LLC_MISS_EVTNR;
-                coreEventDesc[0].umask_value = ARCH_LLC_MISS_UMASK;
-                coreEventDesc[1].event_number = ARCH_LLC_REFERENCE_EVTNR;
-                coreEventDesc[1].umask_value = ARCH_LLC_REFERENCE_UMASK;
+                LLCArchEventInit(coreEventDesc);
                 coreEventDesc[2].event_number = SKL_MEM_LOAD_RETIRED_L2_MISS_EVTNR;
                 coreEventDesc[2].umask_value = SKL_MEM_LOAD_RETIRED_L2_MISS_UMASK;
                 coreEventDesc[3].event_number = SKL_MEM_LOAD_RETIRED_L2_HIT_EVTNR;
