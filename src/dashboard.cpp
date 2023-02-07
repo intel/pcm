@@ -631,24 +631,33 @@ std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int
             panel->push(t);
             panel1->push(t);
         }
-
-        auto t = createTarget("PMEM / DRAM Bandwidth Ratio",
-		"(" + influxDBUncore_Uncore_Counters(S, "Persistent Memory Writes") +
-		"+" + influxDBUncore_Uncore_Counters(S, "Persistent Memory Reads") +
-		")/" +
-		"(" + influxDBUncore_Uncore_Counters(S, "DRAM Writes") +
-		"+" + influxDBUncore_Uncore_Counters(S, "DRAM Reads") + ")",
-		"(" + prometheusCounters(S, "Persistent Memory Writes", false) +
-		"+" + prometheusCounters(S, "Persistent Memory Reads", false) +
-		")/" +
-		"(" + prometheusCounters(S, "DRAM Writes", false) +
-		"+" + prometheusCounters(S, "DRAM Reads", false) +")");
-		panel->push(t);
-        panel1->push(t);
-
         dashboard.push(panel);
         dashboard.push(panel1);
     }
+
+    auto panel = std::make_shared<GraphPanel>(0, y, width, height, "PMEM/DRAM Bandwidth Ratio", "PMEM/DRAM", false);
+    auto panel1 = std::make_shared<BarGaugePanel>(width, y, max_width - width, height, "PMEM/DRAM Bandwidth Ratio");
+    y += height;
+    for (size_t s = 0; s < NumSockets; ++s)
+    {
+        const auto S = std::to_string(s);
+        auto t = createTarget("Socket" + S,
+            "(" + influxDBUncore_Uncore_Counters(S, "Persistent Memory Writes") +
+            "+" + influxDBUncore_Uncore_Counters(S, "Persistent Memory Reads") +
+            ")/" +
+            "(" + influxDBUncore_Uncore_Counters(S, "DRAM Writes") +
+            "+" + influxDBUncore_Uncore_Counters(S, "DRAM Reads") + ")",
+            "(" + prometheusCounters(S, "Persistent Memory Writes", false) +
+            "+" + prometheusCounters(S, "Persistent Memory Reads", false) +
+            ")/" +
+            "(" + prometheusCounters(S, "DRAM Writes", false) +
+            "+" + prometheusCounters(S, "DRAM Reads", false) +")");
+        panel->push(t);
+        panel1->push(t);
+    }
+    dashboard.push(panel);
+    dashboard.push(panel1);
+
     auto upi = [&](const std::string & m, const bool utilization)
     {
         for (size_t s = 0; s < NumSockets; ++s)
