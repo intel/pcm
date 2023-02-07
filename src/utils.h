@@ -27,6 +27,7 @@
 #include <intrin.h>
 #endif
 #include <map>
+#include <unordered_map>
 
 #define PCM_MAIN_NOTHROW \
 int mainThrows(int argc, char * argv[]); \
@@ -591,5 +592,14 @@ int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
                 void *evtcb_ctx);
 
 bool get_cpu_bus(uint32 msmDomain, uint32 msmBus, uint32 msmDev, uint32 msmFunc, uint32 &cpuBusValid, std::vector<uint32> &cpuBusNo, int &cpuPackageId);
+
+#ifdef __linux__
+FILE * tryOpen(const char * path, const char * mode);
+std::string readSysFS(const char * path, bool silent = false);
+bool writeSysFS(const char * path, const std::string & value, bool silent = false);
+int readMaxFromSysFS(const char * path);
+bool readMapFromSysFS(const char * path, std::unordered_map<std::string, uint32> &result, bool silent = false);
+#endif
+
 
 } // namespace pcm
