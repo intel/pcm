@@ -1957,6 +1957,22 @@ public:
         return isAtom(cpu_model);
     }
 
+    // From commit message: https://github.com/torvalds/linux/commit/e979121b1b1556e184492e6fc149bbe188fc83e6
+    bool memoryEventErrata() const
+    {
+        switch (cpu_model)
+        {
+            case SANDY_BRIDGE:
+            case JAKETOWN:
+            case IVYTOWN:
+            case IVY_BRIDGE:
+            case HASWELL:
+            case HASWELLX:
+                return true;
+        }
+        return false;
+    }
+
     bool packageEnergyMetricsAvailable() const
     {
         return (
@@ -3523,9 +3539,13 @@ uint64 getL2CacheMisses(const CounterStateType & before, const CounterStateType 
     if (pcm->useSkylakeEvents() || cpu_model == PCM::SNOWRIDGE || cpu_model == PCM::ADL || cpu_model == PCM::RPL) {
         return after.Event[BasicCounterState::SKLL2MissPos] - before.Event[BasicCounterState::SKLL2MissPos];
     }
-    if (pcm->isAtom() || cpu_model == PCM::KNL)
+    else if (pcm->isAtom() || cpu_model == PCM::KNL)
     {
         return after.Event[BasicCounterState::ArchLLCMissPos] - before.Event[BasicCounterState::ArchLLCMissPos];
+    }
+    else if (pcm->memoryEventErrata())
+    {
+        return after.Event[BasicCounterState::ArchLLCRefPos] - before.Event[BasicCounterState::ArchLLCRefPos];
     }
     uint64 L3Miss = after.Event[BasicCounterState::L3MissPos] - before.Event[BasicCounterState::L3MissPos];
     uint64 L3UnsharedHit = after.Event[BasicCounterState::L3UnsharedHitPos] - before.Event[BasicCounterState::L3UnsharedHitPos];
@@ -3639,7 +3659,15 @@ uint64 getL3CacheHitsSnoop(const CounterStateType & before, const CounterStateTy
 template <class CounterStateType>
 uint64 getL3CacheHits(const CounterStateType & before, const CounterStateType & after)
 {
-    if (!PCM::getInstance()->isL3CacheHitsAvailable()) return 0;
+    auto * pcm = PCM::getInstance();
+    assert(pcm);
+    if (!pcm->isL3CacheHitsAvailable()) return 0;
+    else if (pcm->memoryEventErrata())
+    {
+        uint64 LLCMiss = after.Event[BasicCounterState::ArchLLCMissPos] - before.Event[BasicCounterState::ArchLLCMissPos];
+        uint64 LLCRef = after.Event[BasicCounterState::ArchLLCRefPos] - before.Event[BasicCounterState::ArchLLCRefPos];
+        return (LLCRef > LLCMiss) ? (LLCRef - LLCMiss) : 0ULL;
+    }
     return getL3CacheHitsSnoop(before, after) + getL3CacheHitsNoSnoop(before, after);
 }
 
