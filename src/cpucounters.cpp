@@ -5121,7 +5121,7 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool sile
     threadMSRConfig = RawPMUConfig{};
     packageMSRConfig = RawPMUConfig{};
     RawPMUConfigs curPMUConfigs = curPMUConfigs_;
-    constexpr auto globalRegPos = 0;
+    constexpr auto globalRegPos = 0ULL;
     PCM::ExtendedCustomCoreEventDescription conf;
     auto updateRegs = [this, &conf](const RawPMUConfig& corePMUConfig, EventSelectRegister* regs) -> bool
     {
