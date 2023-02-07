@@ -1088,10 +1088,17 @@ bool get_cpu_bus(uint32 msmDomain, uint32 msmBus, uint32 msmDev, uint32 msmFunc,
         return false;
     }
 
-    for (int i = 0; i < 3; ++i)
+    for (int i = 0; i < 8; ++i)
     {
         busNo = 0x00;
-        h.read32(SPR_MSM_REG_CPUBUSNO_OFFSET + i*4, &busNo);
+        if (i <= 3)
+        {
+            h.read32(SPR_MSM_REG_CPUBUSNO0_OFFSET + i*4, &busNo);
+        }
+        else
+        {
+            h.read32(SPR_MSM_REG_CPUBUSNO4_OFFSET + (i-4)*4, &busNo);
+        }
         if (busNo == (std::numeric_limits<uint32>::max)())
         {
             std::cerr << "Failed to read CPUBUSNO" << std::endl;
@@ -1114,5 +1121,97 @@ bool get_cpu_bus(uint32 msmDomain, uint32 msmBus, uint32 msmDev, uint32 msmFunc,
 
     return true;
 }
+
+#ifdef __linux__
+FILE * tryOpen(const char * path, const char * mode)
+{
+    FILE * f = fopen(path, mode);
+    if (!f)
+    {
+        f = fopen((std::string("/pcm") + path).c_str(), mode);
+    }
+    return f;
+}
+
+std::string readSysFS(const char * path, bool silent)
+{
+    FILE * f = tryOpen(path, "r");
+    if (!f)
+    {
+        if (silent == false) std::cerr << "ERROR: Can not open " << path << " file.\n";
+        return std::string();
+    }
+    char buffer[1024];
+    if(NULL == fgets(buffer, 1024, f))
+    {
+        if (silent == false) std::cerr << "ERROR: Can not read from " << path << ".\n";
+        fclose(f);
+        return std::string();
+    }
+    fclose(f);
+    
+    return std::string(buffer);
+}
+
+bool writeSysFS(const char * path, const std::string & value, bool silent)
+{
+    FILE * f = tryOpen(path, "w");
+    if (!f)
+    {
+        if (silent == false) std::cerr << "ERROR: Can not open " << path << " file.\n";
+        return false;
+    }
+    if (fputs(value.c_str(), f) < 0)
+    {
+        if (silent == false) std::cerr << "ERROR: Can not write to " << path << ".\n";
+        fclose(f);
+        return false;
+    }
+    fclose(f);
+    return true;
+}
+
+int readMaxFromSysFS(const char * path)
+{
+    std::string content = readSysFS(path);
+    const char * buffer = content.c_str();
+    int result = -1;
+    pcm_sscanf(buffer) >> s_expect("0-") >> result;
+    if(result == -1)
+    {
+       pcm_sscanf(buffer) >> result;
+    }
+    return result;
+}
+
+bool readMapFromSysFS(const char * path, std::unordered_map<std::string, uint32> &result, bool silent)
+{
+    FILE * f = tryOpen(path, "r");
+    if (!f)
+    {
+        if (silent == false) std::cerr << "ERROR: Can not open " << path << " file.\n";
+        return false;
+    }
+    char buffer[1024];
+    while(fgets(buffer, 1024, f) != NULL)
+    {
+        std::string key, value, item;
+        uint32 numValue = 0;
+
+        item = std::string(buffer);
+        key = item.substr(0,item.find(" "));
+        value = item.substr(item.find(" ")+1);
+        if (key.empty() || value.empty())
+            continue; //skip the item if the token invalid
+        std::istringstream iss2(value);
+        iss2 >> std::setbase(0) >> numValue;
+        result.insert(std::pair<std::string, uint32>(key, numValue));
+        //std::cerr << "readMapFromSysFS:" << key << "=" << numValue << ".\n";
+    }
+
+    fclose(f);
+    return true;
+}
+#endif
 
 } // namespace pcm

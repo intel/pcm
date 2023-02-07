@@ -290,6 +290,7 @@ class IDX_PMU
     HWRegisterPtr resetControl;
     HWRegisterPtr freezeControl;
 public:
+    HWRegisterPtr generalControl;
     std::vector<HWRegisterPtr> counterControl;
     std::vector<HWRegisterPtr> counterValue;
     std::vector<HWRegisterPtr> counterFilterWQ;
@@ -303,6 +304,7 @@ public:
         const uint32 socketId_,
         const HWRegisterPtr& resetControl_,
         const HWRegisterPtr& freezeControl_,
+        const HWRegisterPtr& generalControl_,
         const std::vector<HWRegisterPtr> & counterControl,
         const std::vector<HWRegisterPtr> & counterValue,
         const std::vector<HWRegisterPtr> & counterFilterWQ,
@@ -547,6 +549,7 @@ class SimpleCounterState
 public:
     SimpleCounterState() : data(0)
     { }
+    uint64 getRawData() const {return data;}
     virtual ~SimpleCounterState() { }
 };
 
@@ -805,8 +808,16 @@ public:
     {
         IDX_IAA = 0,
         IDX_DSA,
-        IDX_HCx,
+        IDX_QAT,
         IDX_MAX
+    };
+
+    enum IDX_OPERATION
+    {
+        QAT_TLM_STOP = 0,
+        QAT_TLM_START,
+        QAT_TLM_REFRESH,
+        QAT_TLM_MAX
     };
 
     struct SimplePCIeDevInfo
@@ -1132,7 +1143,7 @@ public:
     uint32 getNumOfIDXAccelDevs(int accel) const;
 
     //! \brief Returns the number of IDX counters
-    uint32 getMaxNumOfIDXAccelCtrs() const;
+    uint32 getMaxNumOfIDXAccelCtrs(int accel) const;
 
     //! \brief Returns the numa node of IDX accel dev
     uint32 getNumaNodeOfIDXAccelDev(uint32 accel, uint32 dev) const;
@@ -1874,6 +1885,11 @@ public:
     //! \param rawEvents events to program (raw format)
     //! \param IIOStack id of the IIO stack to program (-1 for all, if parameter omitted)
     void programIRPCounters(uint64 rawEvents[4], int IIOStack = -1);
+
+    //! \brief Control QAT telemetry service
+    //! \param dev device index
+    //! \param operation control code 
+    void controlQATTelemetry(uint32 dev, uint32 operation);
 
     //! \brief Program IDX events
     //! \param events config of event to program

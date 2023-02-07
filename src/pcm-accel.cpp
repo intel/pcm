@@ -84,7 +84,7 @@ idx_ccr* idx_get_ccr(PCM* m, uint64_t& ccr)
         case PCM::SPR:
             return new spr_idx_ccr(ccr);
         default:
-            std::cerr << m->getCPUFamilyModelString() << " is not supported! Program aborted" << endl;
+            std::cerr << m->getCPUFamilyModelString() << " is not supported! Program aborted.\n";
             exit(EXIT_FAILURE);
     }
 }
@@ -93,6 +93,7 @@ typedef enum
 {
     ACCEL_IAA,
     ACCEL_DSA,
+    ACCEL_QAT,
     ACCEL_MAX,
 } ACCEL_IP;
 
@@ -112,6 +113,13 @@ typedef enum
     SOCKET_MAP,
     NUMA_MAP,
 } ACCEL_DEV_LOC_MAPPING;
+
+const std::vector<uint32_t> idx_accel_mapping = 
+{
+    PCM::IDX_IAA,
+    PCM::IDX_DSA,
+    PCM::IDX_QAT
+};
 
 #define ACCEL_IP_DEV_COUNT_MAX (16)
 
@@ -155,6 +163,9 @@ uint32_t getNumOfAccelDevs(PCM *m, ACCEL_IP accel)
         case ACCEL_DSA:
             dev_count = m->getNumOfIDXAccelDevs(PCM::IDX_DSA);
             break;
+        case ACCEL_QAT:
+            dev_count = m->getNumOfIDXAccelDevs(PCM::IDX_QAT);
+            break;
         default:
             dev_count = 0;
             break;
@@ -174,7 +185,8 @@ uint32_t getMaxNumOfAccelCtrs(PCM *m, ACCEL_IP accel)
     {
         case ACCEL_IAA:
         case ACCEL_DSA:
-            ctr_count = m->getMaxNumOfIDXAccelCtrs();
+        case ACCEL_QAT:
+            ctr_count = m->getMaxNumOfIDXAccelCtrs(accel);
             break;
         default:
             ctr_count = 0;
@@ -196,6 +208,7 @@ int32_t programAccelCounters(PCM *m, ACCEL_IP accel, std::vector<struct accel_co
     {
         case ACCEL_IAA:
         case ACCEL_DSA:
+        case ACCEL_QAT:
             for (auto pctr = ctrs.begin(); pctr != ctrs.end(); ++pctr)
             {
                 rawEvents.push_back(pctr->ccr);
@@ -207,7 +220,7 @@ int32_t programAccelCounters(PCM *m, ACCEL_IP accel, std::vector<struct accel_co
                 //std::cout<<"ctr idx=0x" << std::hex << pctr->idx << " hid=0x" << std::hex << pctr->h_id << " vid=0x" << std::hex << pctr->v_id <<" ccr=0x" << std::hex << pctr->ccr << "\n";
                 //std::cout<<"mul=0x" << std::hex << pctr->multiplier << " div=0x" << std::hex << pctr->divider << "\n";
             }
-            m->programIDXAccelCounters((accel == ACCEL_IAA ? PCM::IDX_IAA : PCM::IDX_DSA), rawEvents, filters_wq, filters_eng, filters_tc, filters_pgsz, filters_xfersz);
+            m->programIDXAccelCounters(idx_accel_mapping[accel], rawEvents, filters_wq, filters_eng, filters_tc, filters_pgsz, filters_xfersz);
             break;
         default:
             break;
@@ -227,6 +240,7 @@ SimpleCounterState getAccelCounterState(PCM *m, ACCEL_IP accel, uint32 dev, uint
     {
         case ACCEL_IAA:
         case ACCEL_DSA:
+        case ACCEL_QAT:
             result = m->getIDXAccelCounterState(accel, dev, ctr_index);
             break;
         default:
@@ -260,6 +274,9 @@ std::string getAccelCounterName(ACCEL_IP accel)
             break;
         case ACCEL_DSA:
             ret = "dsa";
+            break;
+        case ACCEL_QAT:
+            ret = "qat";
             break;
         default:
             ret = "id=" + std::to_string(accel) + "(unknown)";
@@ -340,10 +357,11 @@ void print_usage(const std::string& progname)
     std::cout << "  -silent                            => silence information output and print only measurements\n";
     std::cout << "  -iaa | /iaa                        => print IAA accel device measurements(default)\n";
     std::cout << "  -dsa | /dsa                        => print DSA accel device measurements\n";
-    std::cout << "  -evt[=cfg.txt] | /evt[=cfg.txt]    => specify the event cfg file to cfg.txt \n";
 #ifdef __linux__
+    std::cout << "  -qat | /qat                        => print QAT accel device measurements\n";
     std::cout << "  -numa | /numa                      => print accel device numa node mapping(for linux only)\n";
 #endif
+    std::cout << "  -evt[=cfg.txt] | /evt[=cfg.txt]    => specify the event cfg file to cfg.txt \n";
     std::cout << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or\n"
          << "                                        to a file, in case filename is provided\n";
     std::cout << "  -csv-delimiter=<value>  | /csv-delimiter=<value>   => set custom csv delimiter\n";
@@ -492,38 +510,64 @@ void collect_data(PCM *m, const double delay, const ACCEL_IP accel, std::vector<
     const uint32_t dev_count = getNumOfAccelDevs(m, accel);
     const uint32_t counter_nb = ctrs.size();
     uint32_t ctr_index = 0;
-    
+
     before = new SimpleCounterState[dev_count*counter_nb];
     after = new SimpleCounterState[dev_count*counter_nb];
 
     programAccelCounters(m, accel, ctrs);
 
-    for (uint32_t dev = 0; dev != dev_count; ++dev)
+    switch (accel)
     {
-        ctr_index = 0;
-        for (auto pctr = ctrs.begin(); pctr != ctrs.end(); ++pctr)
-        {
-            before[dev*counter_nb + ctr_index] = getAccelCounterState(m, accel, dev, ctr_index);
-            ctr_index++;
-        }
-    }
+        case ACCEL_IAA:
+        case ACCEL_DSA:
+            for (uint32_t dev = 0; dev != dev_count; ++dev)
+            {
+                ctr_index = 0;
+                for (auto pctr = ctrs.begin(); pctr != ctrs.end(); ++pctr)
+                {
+                    before[dev*counter_nb + ctr_index] = getAccelCounterState(m, accel, dev, ctr_index);
+                    ctr_index++;
+                }
+            }
+            MySleepMs(delay_ms);
+            for (uint32_t dev = 0; dev != dev_count; ++dev)
+            {
+                ctr_index = 0;
+                for (auto pctr = ctrs.begin();pctr != ctrs.end(); ++pctr)
+                {
+                    after[dev*counter_nb + ctr_index] = getAccelCounterState(m, accel, dev, ctr_index);
+                    uint64_t raw_result = getNumberOfEvents(before[dev*counter_nb + ctr_index], after[dev*counter_nb + ctr_index]);
+                    uint64_t trans_result = uint64_t (raw_result * pctr->multiplier / (double) pctr->divider * (1000 / (double) delay_ms));
+                    accel_results[accel][dev][std::pair<h_id,v_id>(pctr->h_id,pctr->v_id)] = trans_result;
+                    //std::cout << "collect_data: accel=" << accel << " dev=" << dev << " h_id=" << pctr->h_id << " v_id=" << pctr->v_id << " data=" << std::hex << trans_result << "\n";
+                    ctr_index++;
+                }
+            }
+            break;
 
-    MySleepMs(delay_ms);
+        case ACCEL_QAT:
+            MySleepMs(delay_ms);
 
-    for (uint32_t dev = 0; dev != dev_count; ++dev)
-    {
-        ctr_index = 0;
-        for (auto pctr = ctrs.begin();pctr != ctrs.end(); ++pctr)
-        {
-            after[dev*counter_nb + ctr_index] = getAccelCounterState(m, accel, dev, ctr_index);
+            for (uint32_t dev = 0; dev != dev_count; ++dev)
+            {
+               m->controlQATTelemetry(dev, PCM::QAT_TLM_REFRESH);
+               ctr_index = 0;
+               for (auto pctr = ctrs.begin();pctr != ctrs.end(); ++pctr)
+               {
+                   after[dev*counter_nb + ctr_index] = getAccelCounterState(m, accel, dev, ctr_index);
 
-            uint64_t raw_result = getNumberOfEvents(before[dev*counter_nb + ctr_index], after[dev*counter_nb + ctr_index]);
-            uint64_t trans_result = uint64_t (raw_result * pctr->multiplier / (double) pctr->divider * (1000 / (double) delay_ms));
+                   uint64_t raw_result = after[dev*counter_nb + ctr_index].getRawData();
+                   uint64_t trans_result = uint64_t (raw_result * pctr->multiplier / (double) pctr->divider );
 
-            accel_results[accel][dev][std::pair<h_id,v_id>(pctr->h_id,pctr->v_id)] = trans_result;
-            //std::cout << "collect_data: accel=" << accel << " dev=" << dev << " h_id=" << pctr->h_id << " v_id=" << pctr->v_id << " data=" << std::hex << trans_result << "\n";
-            ctr_index++;
-        }
+                   accel_results[accel][dev][std::pair<h_id,v_id>(pctr->h_id,pctr->v_id)] = trans_result;
+                   //std::cout << "collect_data: accel=" << accel << " dev=" << dev << " h_id=" << pctr->h_id << " v_id=" << pctr->v_id << " data=" << std::hex << trans_result << "\n";
+                   ctr_index++;
+               }
+            }
+            break;
+
+        default:
+            break;
     }
 
     delete[] before;
@@ -593,6 +637,10 @@ int idx_evt_parse_handler(evt_cb_type cb_type, void *cb_ctx, counter &base_ctr, 
         else if(context->accel == ACCEL_DSA && base_ctr.h_event_name != "DSA")
         {
             return 0; //skip non-DSA cfg line
+        }
+        else if(context->accel == ACCEL_QAT && base_ctr.h_event_name != "QAT")
+        {
+            return 0; //skip non-QAT cfg line
         }
 
         //Validate the total number of counter exceed the maximum or not.
@@ -688,17 +736,21 @@ int mainThrows(int argc, char * argv[])
         {
             accel = ACCEL_DSA;
         }
-        else if (extract_argument_value(*argv, {"-evt", "/evt"}, arg_value))
-        {
-            evtfile = true;
-            specify_evtfile = std::move(arg_value);
-        }
 #ifdef __linux__
+        else if (check_argument_equals(*argv, {"-qat", "/qat"}))
+        {
+            accel = ACCEL_QAT;
+        }
         else if (check_argument_equals(*argv, {"-numa", "/numa"}))
         {
             loc_map = NUMA_MAP;
         }
 #endif
+        else if (extract_argument_value(*argv, {"-evt", "/evt"}, arg_value))
+        {
+            evtfile = true;
+            specify_evtfile = std::move(arg_value);
+        }
         else if (mainLoop.parseArg(*argv))
         {
             continue;
@@ -714,7 +766,7 @@ int mainThrows(int argc, char * argv[])
 
 #ifdef __linux__
     // check kernel version for driver dependency.
-    std::cout << "Info: IDX - Please ensure the required driver(idxd for iaa/dsa in linux) correct installed with this system, else the tool may fail to run." << endl;
+    std::cout << "Info: IDX - Please ensure the required driver(e.g idxd driver for iaa/dsa, qat driver and etc) correct enabled with this system, else the tool may fail to run.\n";
     struct utsname sys_info;
     if (!uname(&sys_info))
     {
@@ -733,7 +785,7 @@ int mainThrows(int argc, char * argv[])
             case ACCEL_DSA:
                 if ((krel_major_ver < 5) || (krel_major_ver == 5 && krel_minor_ver < 11))
                 {
-                    std::cout<< "Warning: IDX - current linux kernel version(" << krel_str << ") is too old, please upgrade it to the latest due to required idxd driver integrated to kernel since 5.11" << endl;
+                    std::cout<< "Warning: IDX - current linux kernel version(" << krel_str << ") is too old, please upgrade it to the latest due to required idxd driver integrated to kernel since 5.11.\n";
                 }
                 break;
             default:
@@ -748,8 +800,7 @@ int mainThrows(int argc, char * argv[])
     }
     catch (std::exception & e)
     {
-        std::cerr << "Error:" << e.what() << "\n";
-        std::cerr << "Please double check your platform!\n";
+        std::cerr << "Error: " << e.what() << "\n";
         exit(EXIT_FAILURE);
     }
 
@@ -767,7 +818,7 @@ int mainThrows(int argc, char * argv[])
     }
     else
     {
-        std::cerr << "The accelerator " << getAccelCounterName(accel) << " is NOT supported by this platform! Program aborted\n";
+        std::cerr << "Error: " << getAccelCounterName(accel) << " device is NOT available/ready with this platform! Program aborted\n";
         exit(EXIT_FAILURE);
     }
 
@@ -775,6 +826,7 @@ int mainThrows(int argc, char * argv[])
     {
         case ACCEL_IAA:
         case ACCEL_DSA:
+        case ACCEL_QAT:
             opcodeFieldMap["hname"] = PCM::H_EVENT_NAME;
             opcodeFieldMap["vname"] = PCM::V_EVENT_NAME;
             opcodeFieldMap["multiplier"] = PCM::MULTIPLIER;
@@ -795,7 +847,7 @@ int mainThrows(int argc, char * argv[])
             evt_ctx.ctrs.clear();//fill the ctrs by evt_handler callback func.
             break;
         default:
-            std::cerr << "Accel type=0x" << std::hex << accel << " is not supported! Program aborted\n";
+            std::cerr << "Error: Accel type=0x" << std::hex << accel << " is not supported! Program aborted\n";
             exit(EXIT_FAILURE);
             break;
     }
@@ -806,14 +858,14 @@ int mainThrows(int argc, char * argv[])
     }
     catch (std::exception & e)
     {
-        std::cerr << "Error info:" << e.what() << "\n";
-        std::cerr << "Event configure file have the problem and cause the program exit, please double check it!\n";
+        std::cerr << "Error: " << e.what() << "\n";
+        std::cerr << "Error: event cfg file content have the problem, please double check it! Program aborted\n";
         exit(EXIT_FAILURE);
     }
     
     if (evt_ctx.ctrs.size() ==0 || evt_ctx.ctrs.size() > getMaxNumOfAccelCtrs(m, evt_ctx.accel))
     {
-        std::cerr << "The ctr count have the problem(0 or exceed maximum), please check the event cfg file! Program aborted\n";
+        std::cerr << "Error: event counter size is 0 or exceed maximum, please check the event cfg file! Program aborted\n";
         exit(EXIT_FAILURE);
     }
 
@@ -823,6 +875,15 @@ int mainThrows(int argc, char * argv[])
     {
         file_stream.open(output_file.c_str(), std::ios_base::out);
         output = &file_stream;
+    }
+
+    if (accel == ACCEL_QAT)
+    {
+        const uint32_t dev_count = getNumOfAccelDevs(m, accel);
+        for (uint32_t dev = 0; dev != dev_count; ++dev)
+        {
+            m->controlQATTelemetry(dev, PCM::QAT_TLM_START); //start the QAT telemetry service
+        }
     }
 
     mainLoop([&]()

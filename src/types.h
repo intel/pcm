@@ -1420,8 +1420,8 @@ struct MCFGHeader
 #define SPR_IDX_DSA_REGISTER_DEV_ADDR  (1)
 #define SPR_IDX_DSA_REGISTER_FUNC_ADDR (0)
 
-#define SPR_IDX_HCx_REGISTER_DEV_ADDR  (0)
-#define SPR_IDX_HCx_REGISTER_FUNC_ADDR (0)
+#define SPR_IDX_QAT_REGISTER_DEV_ADDR  (0)
+#define SPR_IDX_QAT_REGISTER_FUNC_ADDR (0)
 
 //IDX accel perfmon register offset
 //The offset of register from DSA external architecture spec(intel-data-streaming-accelerator-preliminary-architecture-specification).
@@ -1448,8 +1448,9 @@ constexpr auto SPR_MSM_DEV_ID                       = 0x09a6;
 constexpr auto SPR_MSM_DEV_ADDR                     = 0x03;
 constexpr auto SPR_MSM_FUNC_ADDR                    = 0x00;
 constexpr auto SPR_MSM_REG_CPUBUSNO_VALID_OFFSET    = 0x1a0;
-constexpr auto SPR_MSM_REG_CPUBUSNO_OFFSET          = 0x190;
-constexpr auto SPR_MSM_CPUBUSNO_MAX                 = 12;
+constexpr auto SPR_MSM_REG_CPUBUSNO0_OFFSET         = 0x190;
+constexpr auto SPR_MSM_REG_CPUBUSNO4_OFFSET         = 0x1c0;
+constexpr auto SPR_MSM_CPUBUSNO_MAX                 = 32;
 
 //SAD register offset from SPR register guide.
 constexpr auto SPR_SAD_REG_CTL_CFG_OFFSET           = 0x3F4;
