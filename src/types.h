@@ -113,6 +113,13 @@ constexpr auto MSR_FRONTEND = 0x3F7;
 #define MEM_LOAD_UOPS_RETIRED_L2_HIT_EVTNR (0xD1)
 #define MEM_LOAD_UOPS_RETIRED_L2_HIT_UMASK (0x02)
 
+// Haswell on-core events
+
+constexpr auto HSX_L2_RQSTS_MISS_EVTNR = 0x24;
+constexpr auto HSX_L2_RQSTS_MISS_UMASK = 0x3f;
+constexpr auto HSX_L2_RQSTS_REFERENCES_EVTNR = 0x24;
+constexpr auto HSX_L2_RQSTS_REFERENCES_UMASK = 0xff;
+
 // Skylake on-core events
 
 #define SKL_MEM_LOAD_RETIRED_L3_MISS_EVTNR (0xD1)

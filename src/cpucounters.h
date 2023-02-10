@@ -2455,7 +2455,9 @@ protected:
              SKLL3HitPos = 1,
                L2HitMPos = 2,
             SKLL2MissPos = 2,
-                L2HitPos = 3
+            HSXL2MissPos = 2,
+                L2HitPos = 3,
+             HSXL2RefPos = 3
     };
     uint64 InvariantTSC; // invariant time stamp counter
     uint64 CStateResidency[PCM::MAX_C_STATE + 1];
@@ -3499,8 +3501,15 @@ double getActiveRelativeFrequency(const CounterStateType & before, const Counter
 template <class CounterStateType>
 double getL2CacheHitRatio(const CounterStateType& before, const CounterStateType& after) // 0.0 - 1.0
 {
-    if (!PCM::getInstance()->isL2CacheHitRatioAvailable()) return 0;
+    auto* pcm = PCM::getInstance();
+    if (!pcm->isL2CacheHitRatioAvailable()) return 0;
     const auto hits = getL2CacheHits(before, after);
+    if (pcm->memoryEventErrata())
+    {
+        const auto all = after.Event[BasicCounterState::HSXL2RefPos] - before.Event[BasicCounterState::HSXL2RefPos];
+        if (all == 0ULL) return 0.;
+        return double(hits) / double(all);
+    }
     const auto misses = getL2CacheMisses(before, after);
     const auto all = double(hits + misses);
     if (all == 0.0) return 0.;
@@ -3586,6 +3595,13 @@ uint64 getL2CacheHits(const CounterStateType & before, const CounterStateType & 
         uint64 L2Miss = after.Event[BasicCounterState::ArchLLCMissPos] - before.Event[BasicCounterState::ArchLLCMissPos];
         uint64 L2Ref = after.Event[BasicCounterState::ArchLLCRefPos] - before.Event[BasicCounterState::ArchLLCRefPos];
         return L2Ref - L2Miss;
+    }
+    else if (pcm->memoryEventErrata())
+    {
+        const auto all = after.Event[BasicCounterState::HSXL2RefPos] - before.Event[BasicCounterState::HSXL2RefPos];
+        const auto misses = after.Event[BasicCounterState::HSXL2MissPos] - before.Event[BasicCounterState::HSXL2MissPos];
+        const auto hits = (all > misses) ? (all - misses) : 0ULL;
+        return hits;
     }
     return after.Event[BasicCounterState::L2HitPos] - before.Event[BasicCounterState::L2HitPos];
 }

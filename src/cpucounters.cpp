@@ -3133,6 +3133,16 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
             L2CacheMissesAvailable = true;
             L3CacheHitsAvailable = true;
             core_gen_counter_num_used = 2;
+            if (HASWELLX == cpu_model || HASWELL == cpu_model)
+            {
+                coreEventDesc[BasicCounterState::HSXL2MissPos].event_number = HSX_L2_RQSTS_MISS_EVTNR;
+                coreEventDesc[BasicCounterState::HSXL2MissPos].umask_value = HSX_L2_RQSTS_MISS_UMASK;
+                coreEventDesc[BasicCounterState::HSXL2RefPos].event_number = HSX_L2_RQSTS_REFERENCES_EVTNR;
+                coreEventDesc[BasicCounterState::HSXL2RefPos].umask_value = HSX_L2_RQSTS_REFERENCES_UMASK;
+                L2CacheHitRatioAvailable = true;
+                L2CacheHitsAvailable = true;
+                core_gen_counter_num_used = 4;
+            }
         }
         else
         switch ( cpu_model ) {
