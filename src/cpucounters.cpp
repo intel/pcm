@@ -4960,7 +4960,9 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
 
     PCM * m = PCM::getInstance();
     assert(m);
-    if (m->canUsePerf == false)
+    const auto core_global_ctrl_value = m->core_global_ctrl_value;
+    const bool freezeUnfreeze = m->canUsePerf == false && core_global_ctrl_value != 0ULL;
+    if (freezeUnfreeze)
     {
         msr->write(IA32_CR_PERF_GLOBAL_CTRL, 0ULL); // freeze
     }
@@ -5103,10 +5105,8 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
     RetiringSlots       += cRetiringSlots;
     AllSlotsRaw         += cAllSlotsRaw;
 
-    if (m->canUsePerf == false)
+    if (freezeUnfreeze)
     {
-        const auto core_global_ctrl_value = m->core_global_ctrl_value;
-        assert(core_global_ctrl_value);
         msr->write(IA32_CR_PERF_GLOBAL_CTRL, core_global_ctrl_value); // unfreeze
     }
 }
