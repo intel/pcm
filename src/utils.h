@@ -338,7 +338,7 @@ std::vector<std::string> split(const std::string & str, const char delim);
 class PCM;
 bool CheckAndForceRTMAbortMode(const char * argv, PCM * m);
 
-void print_help_force_rtm_abort_mode(const int alignment);
+void print_help_force_rtm_abort_mode(const int alignment, const char * separator = "=>");
 
 template <class F>
 void parseParam(int argc, char* argv[], const char* param, F f)

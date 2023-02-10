@@ -604,6 +604,11 @@ bool CheckAndForceRTMAbortMode(const char * arg, PCM * m)
 {
     if (check_argument_equals(arg, {"-force-rtm-abort-mode"}))
     {
+        if (nullptr == m)
+        {
+            m = PCM::getInstance();
+            assert(m);
+        }
         m->enableForceRTMAbortMode();
         return true;
     }
@@ -667,7 +672,7 @@ int calibratedSleep(const double delay, const char* sysCmd, const MainLoop& main
     return delay_ms;
 };
 
-void print_help_force_rtm_abort_mode(const int alignment)
+void print_help_force_rtm_abort_mode(const int alignment, const char * separator)
 {
     const auto m = PCM::getInstance();
     if (m->isForceRTMAbortModeAvailable() && (m->getMaxCustomCoreEvents() < 4))
@@ -677,7 +682,8 @@ void print_help_force_rtm_abort_mode(const int alignment)
         {
             std::cout << " ";
         }
-        std::cout << "=> force RTM transaction abort mode to enable more programmable counters\n";
+        assert(separator);
+        std::cout << separator << " force RTM transaction abort mode to enable more programmable counters\n";
     }
 }
 

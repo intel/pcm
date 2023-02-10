@@ -3113,6 +3113,7 @@ void printHelpText( std::string const & programName ) {
     std::cout << "    -h|--help            : This information\n";
     std::cout << "    -silent              : Silence information output and print only measurements\n";
     std::cout << "    --version            : Print application version\n";
+    print_help_force_rtm_abort_mode(25, ":");
 }
 
 #if not defined( UNIT_TEST )
@@ -3191,6 +3192,10 @@ int mainThrows(int argc, char * argv[]) {
             {
                 printHelpText( argv[0] );
                 exit(0);
+            }
+            else if (CheckAndForceRTMAbortMode( argv[i], nullptr))
+            {
+                continue;
             }
             else if ( check_argument_equals( argv[i], {"-silent", "/silent"} ) )
             {
