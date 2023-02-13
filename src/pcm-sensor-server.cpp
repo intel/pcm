@@ -3132,6 +3132,7 @@ int mainThrows(int argc, char * argv[]) {
 #endif
     bool forcedProgramming = false;
     bool useRealtimePriority = false;
+    bool forceRTMAbortMode = false;
     unsigned short port = 0;
     unsigned short debug_level = 0;
     std::string certificateFile;
@@ -3193,9 +3194,9 @@ int mainThrows(int argc, char * argv[]) {
                 printHelpText( argv[0] );
                 exit(0);
             }
-            else if (CheckAndForceRTMAbortMode( argv[i], nullptr))
+            else if (check_argument_equals( argv[i], { "-force-rtm-abort-mode" }))
             {
-                continue;
+                forceRTMAbortMode = true;
             }
             else if ( check_argument_equals( argv[i], {"-silent", "/silent"} ) )
             {
@@ -3284,6 +3285,11 @@ int mainThrows(int argc, char * argv[]) {
         // A HTTP interface to change the programming is planned
         PCM::ErrorCode status;
         PCM * pcmInstance = PCM::getInstance();
+        assert(pcmInstance);
+        if (forceRTMAbortMode)
+        {
+            pcmInstance->enableForceRTMAbortMode();
+        }
         do {
             status = pcmInstance->program();
             switch ( status ) {
