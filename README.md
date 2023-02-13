@@ -29,10 +29,13 @@ PCM provides a number of command-line utilities for real-time monitoring:
 - **pcm-sensor-server** : pcm collector exposing metrics over http in JSON or Prometheus (exporter text based) format ([how-to](doc/PCM-EXPORTER.md)). Also available as a [docker container](doc/DOCKER_README.md). More info about Global PCM events is [here](doc/PCM-SENSOR-SERVER-README.md).
 - **pcm-memory** : monitor memory bandwidth (per-channel and per-DRAM DIMM rank)
 ![pcm-memory output](https://raw.githubusercontent.com/wiki/opcm/pcm/pcm-memory.x.JPG)
+- **pcm-accel** : monitor Intel® In-Memory Analytics Accelerator (Intel® IAA), Intel® Data Streaming Accelerator (Intel® DSA) and Intel® QuickAssist Technology (Intel® QAT)  accelerators
+![image](https://user-images.githubusercontent.com/25432609/218480696-42ade94f-e0c3-4000-9dd8-39a0e75a210e.png)
+
 - **pcm-latency** : monitor L1 cache miss and DDR/PMM memory latency
 - **pcm-pcie** : monitor PCIe bandwidth per-socket
-- **pcm-accel** : monitor IAA and DSA accelerators
 - **pcm-iio** : monitor PCIe bandwidth per PCIe device
+
 ![pcm-iio output](https://raw.githubusercontent.com/wiki/opcm/pcm/pcm-iio.png)
 - **pcm-numa** : monitor local and remote memory accesses
 - **pcm-power** : monitor sleep and energy states of processor, Intel(r) Quick Path Interconnect, DRAM memory, reasons of CPU frequency throttling and other energy-related metrics
