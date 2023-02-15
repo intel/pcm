@@ -222,18 +222,22 @@ int mainThrows(int argc, char * argv[])
         // for non-CSV mode delay < 1.0 does not make a lot of practical sense:
         // hard to read from the screen, or
         // in case delay is not provided in command line => set default
-        if ( ((delay<1.0) && (delay>0.0)) || (delay<=0.0) ) delay = PCM_DELAY_DEFAULT;
+        if ( ((delay < 1.0) && (delay > 0.0)) || (delay <= 0.0) ) {
+            cerr << "For non-CSV mode delay < 1.0s does not make a lot of practical sense. Default delay 1s is used. Consider to use CSV mode for lower delay values\n";
+            delay = PCM_DELAY_DEFAULT;
+        }
     }
 
     cerr << "Update every " << delay << " seconds\n";
 
+    // Delay in miliseconds
     unique_ptr<IPlatform> platform(IPlatform::getPlatform(m, csv, print_bandwidth,
-                                    print_additional_info, (uint)delay)); // FIXME: do we support only integer delay? ; lgtm [cpp/fixme-comment]
+                                    print_additional_info, (uint)(delay * 1000)));
 
     if (!platform)
     {
         print_cpu_details();
-        cerr << "Jaketown, Ivytown, Haswell, Broadwell-DE Server CPU is required for this tool! Program aborted\n";
+        cerr << "Jaketown, Ivytown, Haswell, Broadwell-DE, Skylake, Icelake, Snowridge and Sapphirerapids Server CPU is required for this tool! Program aborted\n";
         exit(EXIT_FAILURE);
     }
 
