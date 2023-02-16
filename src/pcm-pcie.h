@@ -131,8 +131,8 @@ public:
         int eventsCount = 0;
         for (auto &group : eventGroups) eventsCount += (int)group.size();
 
-        m_delay = uint32(delay * 1000 / (eventGroups.size()) / NUM_SAMPLES);
-        if (m_delay * eventsCount * NUM_SAMPLES < delay * 1000) ++m_delay;
+        // Delay for each multiplexing group. Counters will be scaled.
+        m_delay = uint32(delay / eventGroups.size() / NUM_SAMPLES);
 
         eventSample.resize(m_socketCount);
         for (auto &e: eventSample)
@@ -182,11 +182,12 @@ void LegacyPlatform::getEventGroup(eventGroup_t &eventGroup)
     m_pcm->programPCIeEventGroup(eventGroup);
     uint offset = eventGroupOffset(eventGroup);
 
-    for (auto &run : eventCount) {
-        for(uint skt =0; skt < m_socketCount; ++skt)
+    for (int run = before; run < total; run++) {
+        for (uint skt = 0; skt < m_socketCount; ++skt)
             for (uint ctr = 0; ctr < eventGroup.size(); ++ctr)
-                run[skt][ctr + offset] = m_pcm->getPCIeCounterData(skt, ctr);
-        MySleepMs(m_delay);
+                eventCount[run][skt][ctr + offset] = m_pcm->getPCIeCounterData(skt, ctr);
+        if (run == before)
+            MySleepMs(m_delay);
     }
 
     for(uint skt = 0; skt < m_socketCount; ++skt)
