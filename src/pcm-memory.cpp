@@ -223,21 +223,21 @@ void printSocketChannelBW(uint32 no_columns, uint32 skt, uint32 num_imc_channels
     for (uint32 channel = 0; channel < num_imc_channels; ++channel) {
         if(rankA >= 0) {
           for (uint32 i=skt; i<(skt+no_columns); ++i) {
-              cout << "|-- Mem Ch " << setw(2) << channel << " R " << setw(1) << rankA << ": Reads (MB/s): " << setw(8) << (float) (getMCCounter(channel,ServerPCICFGUncore::EventPosition::READ_RANK_A,uncState1[i],uncState2[i]) * 64 / 1000000.0 / (elapsedTime/1000.0)) << " --|";
+              cout << "|-- Mem Ch " << setw(2) << channel << " R " << setw(1) << rankA << ": Reads (MB/s): " << setw(8) << (float) (getMCCounter(channel,ServerUncorePMUs::EventPosition::READ_RANK_A,uncState1[i],uncState2[i]) * 64 / 1000000.0 / (elapsedTime/1000.0)) << " --|";
           }
           cout << "\n";
           for (uint32 i=skt; i<(skt+no_columns); ++i) {
-              cout << "|--                Writes(MB/s): " << setw(8) << (float) (getMCCounter(channel,ServerPCICFGUncore::EventPosition::WRITE_RANK_A,uncState1[i],uncState2[i]) * 64 / 1000000.0 / (elapsedTime/1000.0)) << " --|";
+              cout << "|--                Writes(MB/s): " << setw(8) << (float) (getMCCounter(channel,ServerUncorePMUs::EventPosition::WRITE_RANK_A,uncState1[i],uncState2[i]) * 64 / 1000000.0 / (elapsedTime/1000.0)) << " --|";
           }
           cout << "\n";
         }
         if(rankB >= 0) {
           for (uint32 i=skt; i<(skt+no_columns); ++i) {
-              cout << "|-- Mem Ch " << setw(2) << channel << " R " << setw(1) << rankB << ": Reads (MB/s): " << setw(8) << (float) (getMCCounter(channel,ServerPCICFGUncore::EventPosition::READ_RANK_B,uncState1[i],uncState2[i]) * 64 / 1000000.0 / (elapsedTime/1000.0)) << " --|";
+              cout << "|-- Mem Ch " << setw(2) << channel << " R " << setw(1) << rankB << ": Reads (MB/s): " << setw(8) << (float) (getMCCounter(channel,ServerUncorePMUs::EventPosition::READ_RANK_B,uncState1[i],uncState2[i]) * 64 / 1000000.0 / (elapsedTime/1000.0)) << " --|";
           }
           cout << "\n";
           for (uint32 i=skt; i<(skt+no_columns); ++i) {
-              cout << "|--                Writes(MB/s): " << setw(8) << (float) (getMCCounter(channel,ServerPCICFGUncore::EventPosition::WRITE_RANK_B,uncState1[i],uncState2[i]) * 64 / 1000000.0 / (elapsedTime/1000.0)) << " --|";
+              cout << "|--                Writes(MB/s): " << setw(8) << (float) (getMCCounter(channel,ServerUncorePMUs::EventPosition::WRITE_RANK_B,uncState1[i],uncState2[i]) * 64 / 1000000.0 / (elapsedTime/1000.0)) << " --|";
           }
           cout << "\n";
         }
@@ -251,12 +251,12 @@ void printSocketChannelBW_cvt(const uint32 numSockets, const uint32 num_imc_chan
     for (uint32 skt = 0 ; skt < numSockets; ++skt) {
         for (uint32 channel = 0 ; channel < num_imc_channels ; ++channel) {
             if(rankA >= 0) {
-                cout << (float) (getMCCounter(channel,ServerPCICFGUncore::EventPosition::READ_RANK_A,uncState1[skt],uncState2[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0))
-                << "," << (float) (getMCCounter(channel,ServerPCICFGUncore::EventPosition::WRITE_RANK_A,uncState1[skt],uncState2[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0)) << ",";
+                cout << (float) (getMCCounter(channel,ServerUncorePMUs::EventPosition::READ_RANK_A,uncState1[skt],uncState2[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0))
+                << "," << (float) (getMCCounter(channel,ServerUncorePMUs::EventPosition::WRITE_RANK_A,uncState1[skt],uncState2[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0)) << ",";
             }
             if(rankB >= 0) {
-                cout << (float) (getMCCounter(channel,ServerPCICFGUncore::EventPosition::READ_RANK_B,uncState1[skt],uncState2[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0))
-                << "," << (float) (getMCCounter(channel,ServerPCICFGUncore::EventPosition::WRITE_RANK_B,uncState1[skt],uncState2[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0)) << ",";
+                cout << (float) (getMCCounter(channel,ServerUncorePMUs::EventPosition::READ_RANK_B,uncState1[skt],uncState2[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0))
+                << "," << (float) (getMCCounter(channel,ServerUncorePMUs::EventPosition::WRITE_RANK_B,uncState1[skt],uncState2[skt]) * 64 / 1000000.0 / (elapsedTime/1000.0)) << ",";
             }
         }
     }
@@ -792,15 +792,15 @@ void calculate_bandwidth(PCM *m,
 
             for (uint32 channel = 0; channel < max_edc_channels; ++channel)
             {
-                if (skipInactiveChannels && getEDCCounter(channel, ServerPCICFGUncore::EventPosition::READ, uncState1[skt], uncState2[skt]) == 0.0 && getEDCCounter(channel, ServerPCICFGUncore::EventPosition::WRITE, uncState1[skt], uncState2[skt]) == 0.0)
+                if (skipInactiveChannels && getEDCCounter(channel, ServerUncorePMUs::EventPosition::READ, uncState1[skt], uncState2[skt]) == 0.0 && getEDCCounter(channel, ServerUncorePMUs::EventPosition::WRITE, uncState1[skt], uncState2[skt]) == 0.0)
                 {
                     md.EDC_Rd_socket_chan[skt][channel] = -1.0;
                     md.EDC_Wr_socket_chan[skt][channel] = -1.0;
                     continue;
                 }
 
-                md.EDC_Rd_socket_chan[skt][channel] = scalingFactor * toBW(getEDCCounter(channel, ServerPCICFGUncore::EventPosition::READ, uncState1[skt], uncState2[skt]));
-                md.EDC_Wr_socket_chan[skt][channel] = scalingFactor * toBW(getEDCCounter(channel, ServerPCICFGUncore::EventPosition::WRITE, uncState1[skt], uncState2[skt]));
+                md.EDC_Rd_socket_chan[skt][channel] = scalingFactor * toBW(getEDCCounter(channel, ServerUncorePMUs::EventPosition::READ, uncState1[skt], uncState2[skt]));
+                md.EDC_Wr_socket_chan[skt][channel] = scalingFactor * toBW(getEDCCounter(channel, ServerUncorePMUs::EventPosition::WRITE, uncState1[skt], uncState2[skt]));
 
                 md.EDC_Rd_socket[skt] += md.EDC_Rd_socket_chan[skt][channel];
                 md.EDC_Wr_socket[skt] += md.EDC_Wr_socket_chan[skt][channel];
@@ -812,21 +812,21 @@ void calculate_bandwidth(PCM *m,
             {
                 uint64 reads = 0, writes = 0, pmmReads = 0, pmmWrites = 0, pmmMemoryModeCleanMisses = 0, pmmMemoryModeDirtyMisses = 0;
                 uint64 pmmMemoryModeHits = 0;
-                reads = getMCCounter(channel, ServerPCICFGUncore::EventPosition::READ, uncState1[skt], uncState2[skt]);
-                writes = getMCCounter(channel, ServerPCICFGUncore::EventPosition::WRITE, uncState1[skt], uncState2[skt]);
+                reads = getMCCounter(channel, ServerUncorePMUs::EventPosition::READ, uncState1[skt], uncState2[skt]);
+                writes = getMCCounter(channel, ServerUncorePMUs::EventPosition::WRITE, uncState1[skt], uncState2[skt]);
                 if (metrics == Pmem)
                 {
-                    pmmReads = getMCCounter(channel, ServerPCICFGUncore::EventPosition::PMM_READ, uncState1[skt], uncState2[skt]);
-                    pmmWrites = getMCCounter(channel, ServerPCICFGUncore::EventPosition::PMM_WRITE, uncState1[skt], uncState2[skt]);
+                    pmmReads = getMCCounter(channel, ServerUncorePMUs::EventPosition::PMM_READ, uncState1[skt], uncState2[skt]);
+                    pmmWrites = getMCCounter(channel, ServerUncorePMUs::EventPosition::PMM_WRITE, uncState1[skt], uncState2[skt]);
                 }
                 else if (metrics == PmemMixedMode || metrics == PmemMemoryMode)
                 {
-                    pmmMemoryModeCleanMisses = getMCCounter(channel, ServerPCICFGUncore::EventPosition::PMM_MM_MISS_CLEAN, uncState1[skt], uncState2[skt]);
-                    pmmMemoryModeDirtyMisses = getMCCounter(channel, ServerPCICFGUncore::EventPosition::PMM_MM_MISS_DIRTY, uncState1[skt], uncState2[skt]);
+                    pmmMemoryModeCleanMisses = getMCCounter(channel, ServerUncorePMUs::EventPosition::PMM_MM_MISS_CLEAN, uncState1[skt], uncState2[skt]);
+                    pmmMemoryModeDirtyMisses = getMCCounter(channel, ServerUncorePMUs::EventPosition::PMM_MM_MISS_DIRTY, uncState1[skt], uncState2[skt]);
                 }
                 if (metrics == PmemMemoryMode)
                 {
-                    pmmMemoryModeHits = getMCCounter(channel, ServerPCICFGUncore::EventPosition::NM_HIT, uncState1[skt], uncState2[skt]);
+                    pmmMemoryModeHits = getMCCounter(channel, ServerUncorePMUs::EventPosition::NM_HIT, uncState1[skt], uncState2[skt]);
                 }
                 if (skipInactiveChannels && (reads + writes == 0))
                 {
@@ -873,7 +873,7 @@ void calculate_bandwidth(PCM *m,
                 }
                 else
                 {
-                    md.partial_write[skt] += (uint64)(getMCCounter(channel, ServerPCICFGUncore::EventPosition::PARTIAL, uncState1[skt], uncState2[skt]) / (elapsedTime / 1000.0));
+                    md.partial_write[skt] += (uint64)(getMCCounter(channel, ServerUncorePMUs::EventPosition::PARTIAL, uncState1[skt], uncState2[skt]) / (elapsedTime / 1000.0));
                 }
             }
         }
@@ -899,7 +899,7 @@ void calculate_bandwidth(PCM *m,
             }
             else for(uint32 c = 0; c < max_imc_controllers; ++c)
             {
-                md.iMC_PMM_Rd_socket[skt] += toBW(getM2MCounter(c, ServerPCICFGUncore::EventPosition::PMM_READ, uncState1[skt],uncState2[skt]));
+                md.iMC_PMM_Rd_socket[skt] += toBW(getM2MCounter(c, ServerUncorePMUs::EventPosition::PMM_READ, uncState1[skt],uncState2[skt]));
             }
 
             const int64 pmmWrites = getFreeRunningCounter(ServerUncoreCounterState::PMMWrites, uncState1[skt], uncState2[skt]);
@@ -909,7 +909,7 @@ void calculate_bandwidth(PCM *m,
             }
             else for(uint32 c = 0; c < max_imc_controllers; ++c)
             {
-                md.iMC_PMM_Wr_socket[skt] += toBW(getM2MCounter(c, ServerPCICFGUncore::EventPosition::PMM_WRITE, uncState1[skt],uncState2[skt]));;
+                md.iMC_PMM_Wr_socket[skt] += toBW(getM2MCounter(c, ServerUncorePMUs::EventPosition::PMM_WRITE, uncState1[skt],uncState2[skt]));;
             }
         }
         if (metrics == Pmem)
@@ -918,7 +918,7 @@ void calculate_bandwidth(PCM *m,
             {
                 if(md.M2M_NM_read_hit_rate[skt][c] != 0.0)
                 {
-                    md.M2M_NM_read_hit_rate[skt][c] = ((float)getM2MCounter(c, ServerPCICFGUncore::EventPosition::NM_HIT, uncState1[skt],uncState2[skt]))/ md.M2M_NM_read_hit_rate[skt][c];
+                    md.M2M_NM_read_hit_rate[skt][c] = ((float)getM2MCounter(c, ServerUncorePMUs::EventPosition::NM_HIT, uncState1[skt],uncState2[skt]))/ md.M2M_NM_read_hit_rate[skt][c];
                 }
             }
         }
