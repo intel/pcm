@@ -1849,7 +1849,7 @@ void PCM::initUncoreObjects()
         {
             for (i = 0; i < (int)num_sockets; ++i)
             {
-                server_pcicfg_uncore.push_back(std::make_shared<ServerUncorePMUs>(i, this));
+                serverUncorePMUs.push_back(std::make_shared<ServerUncorePMUs>(i, this));
             }
         }
         catch (std::runtime_error & e)
@@ -1863,7 +1863,7 @@ void PCM::initUncoreObjects()
         }
         if (failed)
         {
-            server_pcicfg_uncore.clear();
+            serverUncorePMUs.clear();
             std::cerr << "Can not access server uncore PCI configuration space. Access to uncore counters (memory and QPI bandwidth) is disabled.\n";
 #ifdef _MSC_VER
             std::cerr << "You must have signed msr.sys driver in your current directory and have administrator rights to run this program.\n";
@@ -1940,10 +1940,10 @@ void PCM::initUncoreObjects()
     }
     if (cpu_model == ICX || cpu_model == SNOWRIDGE)
     {
-        for (size_t s = 0; s < (size_t)num_sockets && s < socket2UBOX0bus.size() && s < server_pcicfg_uncore.size(); ++s)
+        for (size_t s = 0; s < (size_t)num_sockets && s < socket2UBOX0bus.size() && s < serverUncorePMUs.size(); ++s)
         {
-            serverBW.push_back(std::make_shared<ServerBW>(server_pcicfg_uncore[s]->getNumMC(), socket2UBOX0bus[s].first, socket2UBOX0bus[s].second));
-            // std::cout << " Added serverBW object server_pcicfg_uncore[s]->getNumMC() = " << server_pcicfg_uncore[s]->getNumMC() << std::endl;
+            serverBW.push_back(std::make_shared<ServerBW>(serverUncorePMUs[s]->getNumMC(), socket2UBOX0bus[s].first, socket2UBOX0bus[s].second));
+            // std::cout << " Added serverBW object serverUncorePMUs[s]->getNumMC() = " << serverUncorePMUs[s]->getNumMC() << std::endl;
         }
         if (socket2UBOX0bus.size() != (size_t)num_sockets)
         {
@@ -2824,9 +2824,9 @@ void PCM::enableJKTWorkaround(bool enable)
             MSR[i]->write(0x39C, val64);
         }
     }
-    for (size_t i = 0; i < (size_t)server_pcicfg_uncore.size(); ++i)
+    for (size_t i = 0; i < (size_t)serverUncorePMUs.size(); ++i)
     {
-            if(server_pcicfg_uncore[i].get()) server_pcicfg_uncore[i]->enableJKTWorkaround(enable);
+            if(serverUncorePMUs[i].get()) serverUncorePMUs[i]->enableJKTWorkaround(enable);
     }
 }
 
@@ -3433,13 +3433,13 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
     if (hasPCICFGUncore()) // program uncore counters
     {
         std::vector<std::future<uint64>> qpi_speeds;
-        for (size_t i = 0; i < (size_t)server_pcicfg_uncore.size(); ++i)
+        for (size_t i = 0; i < (size_t)serverUncorePMUs.size(); ++i)
         {
-            server_pcicfg_uncore[i]->program();
+            serverUncorePMUs[i]->program();
             qpi_speeds.push_back(std::async(std::launch::async,
-                &ServerUncorePMUs::computeQPISpeed, server_pcicfg_uncore[i].get(), socketRefCore[i], cpu_model));
+                &ServerUncorePMUs::computeQPISpeed, serverUncorePMUs[i].get(), socketRefCore[i], cpu_model));
         }
-        for (size_t i = 0; i < (size_t)server_pcicfg_uncore.size(); ++i)
+        for (size_t i = 0; i < (size_t)serverUncorePMUs.size(); ++i)
         {
             max_qpi_speed = (std::max)(qpi_speeds[i].get(), max_qpi_speed);
         }
@@ -3842,10 +3842,10 @@ void PCM::reportQPISpeed() const
     if (!max_qpi_speed) return;
 
     if (hasPCICFGUncore()) {
-        for (size_t i = 0; i < (size_t)server_pcicfg_uncore.size(); ++i)
+        for (size_t i = 0; i < (size_t)serverUncorePMUs.size(); ++i)
         {
             std::cerr << "Socket " << i << "\n";
-            if(server_pcicfg_uncore[i].get()) server_pcicfg_uncore[i]->reportQPISpeed();
+            if(serverUncorePMUs[i].get()) serverUncorePMUs[i]->reportQPISpeed();
         }
     } else {
         std::cerr << "Max " << xPI() << " speed: " << max_qpi_speed / (1e9) << " GBytes/second (" << max_qpi_speed / (1e9*getBytesPerLinkTransfer()) << " GT/second)\n";
@@ -4579,7 +4579,7 @@ void PCM::cleanupUncorePMUs(const bool silent)
     {
         pmu.cleanup();
     }
-    for (auto & uncore : server_pcicfg_uncore)
+    for (auto & uncore : serverUncorePMUs)
     {
         uncore->cleanupPMUs();
     }
@@ -5140,9 +5140,9 @@ PCM::ErrorCode PCM::programServerUncoreLatencyMetrics(bool enable_pmm)
 
     if (DDRLatencyMetricsAvailable())
     {
-        for (size_t i = 0; i < (size_t)server_pcicfg_uncore.size(); ++i)
+        for (size_t i = 0; i < (size_t)serverUncorePMUs.size(); ++i)
         {
-            server_pcicfg_uncore[i]->programIMC(DDRConfig);
+            serverUncorePMUs[i]->programIMC(DDRConfig);
         }
     }
     return PCM::Success;
@@ -5150,11 +5150,11 @@ PCM::ErrorCode PCM::programServerUncoreLatencyMetrics(bool enable_pmm)
 
 PCM::ErrorCode PCM::programServerUncoreMemoryMetrics(const ServerUncoreMemoryMetrics & metrics, int rankA, int rankB)
 {
-    if(MSR.empty() || server_pcicfg_uncore.empty())  return PCM::MSRAccessDenied;
+    if(MSR.empty() || serverUncorePMUs.empty())  return PCM::MSRAccessDenied;
 
-    for (int i = 0; (i < (int)server_pcicfg_uncore.size()) && MSR.size(); ++i)
+    for (int i = 0; (i < (int)serverUncorePMUs.size()) && MSR.size(); ++i)
     {
-        server_pcicfg_uncore[i]->programServerUncoreMemoryMetrics(metrics, rankA, rankB);
+        serverUncorePMUs[i]->programServerUncoreMemoryMetrics(metrics, rankA, rankB);
     }
 
     return PCM::Success;
@@ -5162,7 +5162,7 @@ PCM::ErrorCode PCM::programServerUncoreMemoryMetrics(const ServerUncoreMemoryMet
 
 PCM::ErrorCode PCM::programServerUncorePowerMetrics(int mc_profile, int pcu_profile, int * freq_bands)
 {
-    if(MSR.empty() || server_pcicfg_uncore.empty())  return PCM::MSRAccessDenied;
+    if(MSR.empty() || serverUncorePMUs.empty())  return PCM::MSRAccessDenied;
 
     uint32 PCUCntConf[4] = {0,0,0,0};
 
@@ -5275,7 +5275,7 @@ PCM::ErrorCode PCM::programServerUncorePowerMetrics(int mc_profile, int pcu_prof
          std::cerr << "ERROR: unsupported PCU profile " << pcu_profile << "\n";
     }
 
-    for (auto& u : server_pcicfg_uncore)
+    for (auto& u : serverUncorePMUs)
     {
         u->program_power_metrics(mc_profile);
     }
@@ -5301,7 +5301,7 @@ PCM::ErrorCode PCM::programServerUncorePowerMetrics(int mc_profile, int pcu_prof
 
 void PCM::programPCU(uint32* PCUCntConf, const uint64 filter)
 {
-    for (int i = 0; (i < (int)server_pcicfg_uncore.size()) && MSR.size(); ++i)
+    for (int i = 0; (i < (int)serverUncorePMUs.size()) && MSR.size(); ++i)
     {
         if (i >= (int)pcuPMUs.size())
         {
@@ -5446,28 +5446,28 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool sile
         }
         if (type == "m3upi")
         {
-            for (auto& uncore : server_pcicfg_uncore)
+            for (auto& uncore : serverUncorePMUs)
             {
                 uncore->programM3UPI(events32);
             }
         }
         else if (type == "xpi" || type == "upi" || type == "qpi")
         {
-            for (auto& uncore : server_pcicfg_uncore)
+            for (auto& uncore : serverUncorePMUs)
             {
                 uncore->programXPI(events32);
             }
         }
         else if (type == "imc")
         {
-            for (auto& uncore : server_pcicfg_uncore)
+            for (auto& uncore : serverUncorePMUs)
             {
                 uncore->programIMC(events32);
             }
         }
         else if (type == "m2m")
         {
-            for (auto& uncore : server_pcicfg_uncore)
+            for (auto& uncore : serverUncorePMUs)
             {
                 uncore->programM2M(events64);
             }
@@ -5526,9 +5526,9 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool sile
 
 void PCM::freezeServerUncoreCounters()
 {
-    for (int i = 0; (i < (int)server_pcicfg_uncore.size()) && MSR.size(); ++i)
+    for (int i = 0; (i < (int)serverUncorePMUs.size()) && MSR.size(); ++i)
     {
-        server_pcicfg_uncore[i]->freezeCounters();
+        serverUncorePMUs[i]->freezeCounters();
 
         const auto refCore = socketRefCore[i];
         TemporalThreadAffinity tempThreadAffinity(refCore); // speedup trick for Linux
@@ -5570,9 +5570,9 @@ void PCM::freezeServerUncoreCounters()
 }
 void PCM::unfreezeServerUncoreCounters()
 {
-    for (int i = 0; (i < (int)server_pcicfg_uncore.size()) && MSR.size(); ++i)
+    for (int i = 0; (i < (int)serverUncorePMUs.size()) && MSR.size(); ++i)
     {
-        server_pcicfg_uncore[i]->unfreezeCounters();
+        serverUncorePMUs[i]->unfreezeCounters();
 
         const auto refCore = socketRefCore[i];
         TemporalThreadAffinity tempThreadAffinity(refCore); // speedup trick for Linux
@@ -5717,13 +5717,13 @@ void PCM::readAndAggregateUncoreMCCounters(const uint32 socket, CounterStateType
 
     if (hasPCICFGUncore())
     {
-        if (server_pcicfg_uncore.size() && server_pcicfg_uncore[socket].get())
+        if (serverUncorePMUs.size() && serverUncorePMUs[socket].get())
         {
-            server_pcicfg_uncore[socket]->freezeCounters();
+            serverUncorePMUs[socket]->freezeCounters();
 	    if (ReadMCStatsFromServerBW == false)
             {
-                result.UncMCNormalReads += server_pcicfg_uncore[socket]->getImcReads();
-                result.UncMCFullWrites += server_pcicfg_uncore[socket]->getImcWrites();
+                result.UncMCNormalReads += serverUncorePMUs[socket]->getImcReads();
+                result.UncMCFullWrites += serverUncorePMUs[socket]->getImcWrites();
             }
             if (localMemoryRequestRatioMetricAvailable())
             {
@@ -5734,21 +5734,21 @@ void PCM::readAndAggregateUncoreMCCounters(const uint32 socket, CounterStateType
                 }
                 else
                 {
-                    result.UncHARequests += server_pcicfg_uncore[socket]->getHARequests();
-                    result.UncHALocalRequests += server_pcicfg_uncore[socket]->getHALocalRequests();
+                    result.UncHARequests += serverUncorePMUs[socket]->getHARequests();
+                    result.UncHALocalRequests += serverUncorePMUs[socket]->getHALocalRequests();
                 }
             }
             if (PMMTrafficMetricsAvailable() && (ReadMCStatsFromServerBW == false))
             {
-                result.UncPMMReads += server_pcicfg_uncore[socket]->getPMMReads();
-                result.UncPMMWrites += server_pcicfg_uncore[socket]->getPMMWrites();
+                result.UncPMMReads += serverUncorePMUs[socket]->getPMMReads();
+                result.UncPMMWrites += serverUncorePMUs[socket]->getPMMWrites();
             }
             if (HBMmemoryTrafficMetricsAvailable())
             {
-                result.UncEDCNormalReads += server_pcicfg_uncore[socket]->getEdcReads();
-                result.UncEDCFullWrites += server_pcicfg_uncore[socket]->getEdcWrites();
+                result.UncEDCNormalReads += serverUncorePMUs[socket]->getEdcReads();
+                result.UncEDCFullWrites += serverUncorePMUs[socket]->getEdcWrites();
             }
-            server_pcicfg_uncore[socket]->unfreezeCounters();
+            serverUncorePMUs[socket]->unfreezeCounters();
         }
     }
     else if(clientBW.get() && socket == 0)
@@ -5944,16 +5944,16 @@ void PCM::readQPICounters(SystemCounterState & result)
         }
         else if (hasPCICFGUncore())
         {
-                for (int32 s = 0; (s < (int32)server_pcicfg_uncore.size()); ++s)
+                for (int32 s = 0; (s < (int32)serverUncorePMUs.size()); ++s)
                 {
-                    server_pcicfg_uncore[s]->freezeCounters();
+                    serverUncorePMUs[s]->freezeCounters();
                     for (uint32 port = 0; port < (uint32)getQPILinksPerSocket(); ++port)
                     {
-                        result.incomingQPIPackets[s][port] = uint64(double(server_pcicfg_uncore[s]->getIncomingDataFlits(port)) / (64./getDataBytesPerFlit()));
-                        result.outgoingQPIFlits[s][port] = server_pcicfg_uncore[s]->getOutgoingFlits(port);
-                        result.TxL0Cycles[s][port] = server_pcicfg_uncore[s]->getUPIL0TxCycles(port);
+                        result.incomingQPIPackets[s][port] = uint64(double(serverUncorePMUs[s]->getIncomingDataFlits(port)) / (64./getDataBytesPerFlit()));
+                        result.outgoingQPIFlits[s][port] = serverUncorePMUs[s]->getOutgoingFlits(port);
+                        result.TxL0Cycles[s][port] = serverUncorePMUs[s]->getUPIL0TxCycles(port);
                     }
-                    server_pcicfg_uncore[s]->unfreezeCounters();
+                    serverUncorePMUs[s]->unfreezeCounters();
                 }
         }
         // end of reading QPI counters
@@ -6180,41 +6180,41 @@ ServerUncoreCounterState PCM::getServerUncoreCounterState(uint32 socket)
         result.freeRunningCounter[ServerUncoreCounterState::PMMReads] = serverBW[socket]->getPMMReads();
         result.freeRunningCounter[ServerUncoreCounterState::PMMWrites] = serverBW[socket]->getPMMWrites();
     }
-    if(server_pcicfg_uncore.size() && server_pcicfg_uncore[socket].get())
+    if(serverUncorePMUs.size() && serverUncorePMUs[socket].get())
     {
-        server_pcicfg_uncore[socket]->freezeCounters();
-        for(uint32 port=0;port < (uint32)server_pcicfg_uncore[socket]->getNumQPIPorts();++port)
+        serverUncorePMUs[socket]->freezeCounters();
+        for(uint32 port=0;port < (uint32)serverUncorePMUs[socket]->getNumQPIPorts();++port)
         {
             assert(port < result.xPICounter.size());
             for (uint32 cnt = 0; cnt < ServerUncoreCounterState::maxCounters; ++cnt)
-                result.xPICounter[port][cnt] = server_pcicfg_uncore[socket]->getQPILLCounter(port, cnt);
+                result.xPICounter[port][cnt] = serverUncorePMUs[socket]->getQPILLCounter(port, cnt);
             assert(port < result.M3UPICounter.size());
             for (uint32 cnt = 0; cnt < ServerUncoreCounterState::maxCounters; ++cnt)
-                result.M3UPICounter[port][cnt] = server_pcicfg_uncore[socket]->getM3UPICounter(port, cnt);
+                result.M3UPICounter[port][cnt] = serverUncorePMUs[socket]->getM3UPICounter(port, cnt);
         }
-        for (uint32 channel = 0; channel < (uint32)server_pcicfg_uncore[socket]->getNumMCChannels(); ++channel)
+        for (uint32 channel = 0; channel < (uint32)serverUncorePMUs[socket]->getNumMCChannels(); ++channel)
         {
             assert(channel < result.DRAMClocks.size());
-            result.DRAMClocks[channel] = server_pcicfg_uncore[socket]->getDRAMClocks(channel);
+            result.DRAMClocks[channel] = serverUncorePMUs[socket]->getDRAMClocks(channel);
             assert(channel < result.MCCounter.size());
             for (uint32 cnt = 0; cnt < ServerUncoreCounterState::maxCounters; ++cnt)
-                result.MCCounter[channel][cnt] = server_pcicfg_uncore[socket]->getMCCounter(channel, cnt);
+                result.MCCounter[channel][cnt] = serverUncorePMUs[socket]->getMCCounter(channel, cnt);
         }
-        for (uint32 channel = 0; channel < (uint32)server_pcicfg_uncore[socket]->getNumEDCChannels(); ++channel)
+        for (uint32 channel = 0; channel < (uint32)serverUncorePMUs[socket]->getNumEDCChannels(); ++channel)
         {
             assert(channel < result.HBMClocks.size());
-            result.HBMClocks[channel] = server_pcicfg_uncore[socket]->getHBMClocks(channel);
+            result.HBMClocks[channel] = serverUncorePMUs[socket]->getHBMClocks(channel);
             assert(channel < result.EDCCounter.size());
             for (uint32 cnt = 0; cnt < ServerUncoreCounterState::maxCounters; ++cnt)
-                result.EDCCounter[channel][cnt] = server_pcicfg_uncore[socket]->getEDCCounter(channel, cnt);
+                result.EDCCounter[channel][cnt] = serverUncorePMUs[socket]->getEDCCounter(channel, cnt);
         }
-    for (uint32 controller = 0; controller < (uint32)server_pcicfg_uncore[socket]->getNumMC(); ++controller)
+    for (uint32 controller = 0; controller < (uint32)serverUncorePMUs[socket]->getNumMC(); ++controller)
     {
       assert(controller < result.M2MCounter.size());
       for (uint32 cnt = 0; cnt < ServerUncoreCounterState::maxCounters; ++cnt)
-          result.M2MCounter[controller][cnt] = server_pcicfg_uncore[socket]->getM2MCounter(controller, cnt);
+          result.M2MCounter[controller][cnt] = serverUncorePMUs[socket]->getM2MCounter(controller, cnt);
     }
-        server_pcicfg_uncore[socket]->unfreezeCounters();
+        serverUncorePMUs[socket]->unfreezeCounters();
     }
     if (MSR.size())
     {

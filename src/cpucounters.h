@@ -619,7 +619,7 @@ class PCM_API PCM
     static PCM * instance;
     bool programmed_core_pmu{false};
     std::vector<std::shared_ptr<SafeMsrHandle> > MSR;
-    std::vector<std::shared_ptr<ServerUncorePMUs> > server_pcicfg_uncore;
+    std::vector<std::shared_ptr<ServerUncorePMUs> > serverUncorePMUs;
     std::vector<UncorePMU> pcuPMUs;
     std::vector<std::map<int32, UncorePMU> > iioPMUs;
     std::vector<std::map<int32, UncorePMU> > irpPMUs;
@@ -1570,7 +1570,7 @@ public:
         case SKX:
         case ICX:
         case SPR:
-            return (server_pcicfg_uncore.size() && server_pcicfg_uncore[0].get()) ? (server_pcicfg_uncore[0]->getNumQPIPorts()) : 0;
+            return (serverUncorePMUs.size() && serverUncorePMUs[0].get()) ? (serverUncorePMUs[0]->getNumQPIPorts()) : 0;
         }
         return 0;
     }
@@ -1596,7 +1596,7 @@ public:
         case SPR:
         case BDX:
         case KNL:
-            return (server_pcicfg_uncore.size() && server_pcicfg_uncore[0].get()) ? (server_pcicfg_uncore[0]->getNumMC()) : 0;
+            return (serverUncorePMUs.size() && serverUncorePMUs[0].get()) ? (serverUncorePMUs[0]->getNumMC()) : 0;
         }
         return 0;
     }
@@ -1623,7 +1623,7 @@ public:
         case BDX:
         case KNL:
         case SNOWRIDGE:
-            return (server_pcicfg_uncore.size() && server_pcicfg_uncore[0].get()) ? (server_pcicfg_uncore[0]->getNumMCChannels()) : 0;
+            return (serverUncorePMUs.size() && serverUncorePMUs[0].get()) ? (serverUncorePMUs[0]->getNumMCChannels()) : 0;
         }
         return 0;
     }
@@ -1652,7 +1652,7 @@ public:
         case BDX:
         case KNL:
         case SNOWRIDGE:
-            return (socket < server_pcicfg_uncore.size() && server_pcicfg_uncore[socket].get()) ? (server_pcicfg_uncore[socket]->getNumMCChannels(controller)) : 0;
+            return (socket < serverUncorePMUs.size() && serverUncorePMUs[socket].get()) ? (serverUncorePMUs[socket]->getNumMCChannels(controller)) : 0;
         }
         return 0;
     }
@@ -1664,7 +1664,7 @@ public:
         switch (cpu_model)
         {
         case KNL:
-            return (server_pcicfg_uncore.size() && server_pcicfg_uncore[0].get()) ? (server_pcicfg_uncore[0]->getNumEDCChannels()) : 0;
+            return (serverUncorePMUs.size() && serverUncorePMUs[0].get()) ? (serverUncorePMUs[0]->getNumEDCChannels()) : 0;
         }
         return 0;
     }
@@ -1784,7 +1784,7 @@ public:
     //! \return QPI Link Speed in GBytes/second
     uint64 getQPILinkSpeed(uint32 socketNr, uint32 linkNr) const
     {
-        return hasPCICFGUncore() ? server_pcicfg_uncore[socketNr]->getQPILinkSpeed(linkNr) : max_qpi_speed;
+        return hasPCICFGUncore() ? serverUncorePMUs[socketNr]->getQPILinkSpeed(linkNr) : max_qpi_speed;
     }
 
     //! \brief Returns how many joules are in an internal processor energy unit
@@ -2090,7 +2090,7 @@ public:
 
     bool HBMmemoryTrafficMetricsAvailable() const
     {
-        return server_pcicfg_uncore.empty() == false && server_pcicfg_uncore[0].get() != nullptr && server_pcicfg_uncore[0]->HBMAvailable();
+        return serverUncorePMUs.empty() == false && serverUncorePMUs[0].get() != nullptr && serverUncorePMUs[0]->HBMAvailable();
     }
 
     size_t getHBMCASTransferSize() const
