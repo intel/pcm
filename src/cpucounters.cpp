@@ -1849,7 +1849,7 @@ void PCM::initUncoreObjects()
         {
             for (i = 0; i < (int)num_sockets; ++i)
             {
-                server_pcicfg_uncore.push_back(std::make_shared<ServerPCICFGUncore>(i, this));
+                server_pcicfg_uncore.push_back(std::make_shared<ServerUncorePMUs>(i, this));
             }
         }
         catch (std::runtime_error & e)
@@ -3437,7 +3437,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
         {
             server_pcicfg_uncore[i]->program();
             qpi_speeds.push_back(std::async(std::launch::async,
-                &ServerPCICFGUncore::computeQPISpeed, server_pcicfg_uncore[i].get(), socketRefCore[i], cpu_model));
+                &ServerUncorePMUs::computeQPISpeed, server_pcicfg_uncore[i].get(), socketRefCore[i], cpu_model));
         }
         for (size_t i = 0; i < (size_t)server_pcicfg_uncore.size(); ++i)
         {
@@ -6374,9 +6374,9 @@ static const uint32 M2M_DEV_IDS[] = {
 };
 
 Mutex socket2busMutex;
-std::vector<std::pair<uint32,uint32> > ServerPCICFGUncore::socket2iMCbus{};
-std::vector<std::pair<uint32,uint32> > ServerPCICFGUncore::socket2UPIbus{};
-std::vector<std::pair<uint32,uint32> > ServerPCICFGUncore::socket2M2Mbus{};
+std::vector<std::pair<uint32,uint32> > ServerUncorePMUs::socket2iMCbus{};
+std::vector<std::pair<uint32,uint32> > ServerUncorePMUs::socket2UPIbus{};
+std::vector<std::pair<uint32,uint32> > ServerUncorePMUs::socket2M2Mbus{};
 
 void initSocket2Bus(std::vector<std::pair<uint32, uint32> > & socket2bus, uint32 device, uint32 function, const uint32 DEV_IDS[], uint32 devIdsSize)
 {
@@ -6429,7 +6429,7 @@ int getBusFromSocket(const uint32 socket)
     return -1;
 }
 
-PciHandleType * ServerPCICFGUncore::createIntelPerfMonDevice(uint32 groupnr_, int32 bus_, uint32 dev_, uint32 func_, bool checkVendor)
+PciHandleType * ServerUncorePMUs::createIntelPerfMonDevice(uint32 groupnr_, int32 bus_, uint32 dev_, uint32 func_, bool checkVendor)
 {
     if (PciHandleType::exists(groupnr_, (uint32)bus_, dev_, func_))
     {
@@ -6512,7 +6512,7 @@ bool PCM::useLinuxPerfForUncore() const
     return 1 == use;
 }
 
-ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
+ServerUncorePMUs::ServerUncorePMUs(uint32 socket_, const PCM * pcm) :
      iMCbus(-1)
    , UPIbus(-1)
    , M2Mbus(-1)
@@ -6542,7 +6542,7 @@ ServerPCICFGUncore::ServerPCICFGUncore(uint32 socket_, const PCM * pcm) :
         "\n";
 }
 
-void ServerPCICFGUncore::initRegisterLocations(const PCM * pcm)
+void ServerUncorePMUs::initRegisterLocations(const PCM * pcm)
 {
 #define PCM_PCICFG_MC_INIT(controller, channel, arch) \
     MCRegisterLocation.resize(controller + 1); \
@@ -6736,7 +6736,7 @@ void ServerPCICFGUncore::initRegisterLocations(const PCM * pcm)
 #undef PCM_PCICFG_HA_INIT
 }
 
-void ServerPCICFGUncore::initBuses(uint32 socket_, const PCM * pcm)
+void ServerUncorePMUs::initBuses(uint32 socket_, const PCM * pcm)
 {
     const uint32 total_sockets_ = pcm->getNumSockets();
 
@@ -6833,7 +6833,7 @@ void ServerPCICFGUncore::initBuses(uint32 socket_, const PCM * pcm)
     // std::cerr << "DEBUG: UPIbus: " << UPIbus << "\n";
 }
 
-void ServerPCICFGUncore::initDirect(uint32 socket_, const PCM * pcm)
+void ServerUncorePMUs::initDirect(uint32 socket_, const PCM * pcm)
 {
     {
         std::vector<std::shared_ptr<PciHandleType> > imcHandles;
@@ -7246,7 +7246,7 @@ void ServerPCICFGUncore::initDirect(uint32 socket_, const PCM * pcm)
     }
 }
 
-bool ServerPCICFGUncore::HBMAvailable() const
+bool ServerUncorePMUs::HBMAvailable() const
 {
     return edcPMUs.empty() == false;
 }
@@ -7588,7 +7588,7 @@ void populateIDXPerfPMUs(unsigned socket_, const std::vector<std::pair<int, uint
 }
 #endif
 
-void ServerPCICFGUncore::initPerf(uint32 socket_, const PCM * /*pcm*/)
+void ServerUncorePMUs::initPerf(uint32 socket_, const PCM * /*pcm*/)
 {
 #ifdef PCM_USE_PERF
     auto imcIDs = enumeratePerfPMUs("imc", 100);
@@ -7609,7 +7609,7 @@ void ServerPCICFGUncore::initPerf(uint32 socket_, const PCM * /*pcm*/)
 #endif
 }
 
-size_t ServerPCICFGUncore::getNumMCChannels(const uint32 controller) const
+size_t ServerUncorePMUs::getNumMCChannels(const uint32 controller) const
 {
     if (controller < num_imc_channels.size())
     {
@@ -7618,12 +7618,12 @@ size_t ServerPCICFGUncore::getNumMCChannels(const uint32 controller) const
     return 0;
 }
 
-ServerPCICFGUncore::~ServerPCICFGUncore()
+ServerUncorePMUs::~ServerUncorePMUs()
 {
 }
 
 
-void ServerPCICFGUncore::programServerUncoreMemoryMetrics(const ServerUncoreMemoryMetrics & metrics, const int rankA, const int rankB)
+void ServerUncorePMUs::programServerUncoreMemoryMetrics(const ServerUncoreMemoryMetrics & metrics, const int rankA, const int rankB)
 {
     PCM * pcm = PCM::getInstance();
     uint32 MCCntConfig[4] = {0,0,0,0};
@@ -7742,7 +7742,7 @@ void ServerPCICFGUncore::programServerUncoreMemoryMetrics(const ServerUncoreMemo
     return;
 }
 
-void ServerPCICFGUncore::program()
+void ServerUncorePMUs::program()
 {
     PCM * pcm = PCM::getInstance();
     uint32 MCCntConfig[4] = {0, 0, 0, 0};
@@ -7807,7 +7807,7 @@ void ServerPCICFGUncore::program()
     programHA();
 }
 
-void ServerPCICFGUncore::programXPI(const uint32 * event)
+void ServerUncorePMUs::programXPI(const uint32 * event)
 {
     const uint32 extra = PCM::hasUPI(cpu_model) ? UNC_PMON_UNIT_CTL_RSV : UNC_PMON_UNIT_CTL_FRZ_EN;
     for (uint32 i = 0; i < (uint32)xpiPMUs.size(); ++i)
@@ -7827,7 +7827,7 @@ void ServerPCICFGUncore::programXPI(const uint32 * event)
     cleanupQPIHandles();
 }
 
-void ServerPCICFGUncore::cleanupQPIHandles()
+void ServerUncorePMUs::cleanupQPIHandles()
 {
     for(auto i = xpiPMUs.begin(); i != xpiPMUs.end(); ++i)
     {
@@ -7840,7 +7840,7 @@ void ServerPCICFGUncore::cleanupQPIHandles()
     }
 }
 
-void ServerPCICFGUncore::cleanupPMUs()
+void ServerUncorePMUs::cleanupPMUs()
 {
     for (auto & pmu : xpiPMUs)
     {
@@ -7864,12 +7864,12 @@ void ServerPCICFGUncore::cleanupPMUs()
     }
 }
 
-uint64 ServerPCICFGUncore::getImcReads()
+uint64 ServerUncorePMUs::getImcReads()
 {
     return getImcReadsForChannels((uint32)0, (uint32)imcPMUs.size());
 }
 
-uint64 ServerPCICFGUncore::getImcReadsForController(uint32 controller)
+uint64 ServerUncorePMUs::getImcReadsForController(uint32 controller)
 {
     assert(controller < num_imc_channels.size());
     uint32 beginChannel = 0;
@@ -7881,7 +7881,7 @@ uint64 ServerPCICFGUncore::getImcReadsForController(uint32 controller)
     return getImcReadsForChannels(beginChannel, endChannel);
 }
 
-uint64 ServerPCICFGUncore::getImcReadsForChannels(uint32 beginChannel, uint32 endChannel)
+uint64 ServerUncorePMUs::getImcReadsForChannels(uint32 beginChannel, uint32 endChannel)
 {
     uint64 result = 0;
     for (uint32 i = beginChannel; i < endChannel && i < imcPMUs.size(); ++i)
@@ -7891,7 +7891,7 @@ uint64 ServerPCICFGUncore::getImcReadsForChannels(uint32 beginChannel, uint32 en
     return result;
 }
 
-uint64 ServerPCICFGUncore::getImcWrites()
+uint64 ServerUncorePMUs::getImcWrites()
 {
     uint64 result = 0;
     for (uint32 i = 0; i < (uint32)imcPMUs.size(); ++i)
@@ -7902,7 +7902,7 @@ uint64 ServerPCICFGUncore::getImcWrites()
     return result;
 }
 
-uint64 ServerPCICFGUncore::getPMMReads()
+uint64 ServerUncorePMUs::getPMMReads()
 {
     uint64 result = 0;
     for (uint32 i = 0; i < (uint32)m2mPMUs.size(); ++i)
@@ -7912,7 +7912,7 @@ uint64 ServerPCICFGUncore::getPMMReads()
     return result;
 }
 
-uint64 ServerPCICFGUncore::getPMMWrites()
+uint64 ServerUncorePMUs::getPMMWrites()
 {
     uint64 result = 0;
     for (uint32 i = 0; i < (uint32)m2mPMUs.size(); ++i)
@@ -7922,7 +7922,7 @@ uint64 ServerPCICFGUncore::getPMMWrites()
     return result;
 }
 
-uint64 ServerPCICFGUncore::getEdcReads()
+uint64 ServerUncorePMUs::getEdcReads()
 {
     uint64 result = 0;
 
@@ -7934,7 +7934,7 @@ uint64 ServerPCICFGUncore::getEdcReads()
     return result;
 }
 
-uint64 ServerPCICFGUncore::getEdcWrites()
+uint64 ServerUncorePMUs::getEdcWrites()
 {
     uint64 result = 0;
 
@@ -7946,7 +7946,7 @@ uint64 ServerPCICFGUncore::getEdcWrites()
     return result;
 }
 
-uint64 ServerPCICFGUncore::getIncomingDataFlits(uint32 port)
+uint64 ServerUncorePMUs::getIncomingDataFlits(uint32 port)
 {
     uint64 drs = 0, ncb = 0;
 
@@ -7962,19 +7962,19 @@ uint64 ServerPCICFGUncore::getIncomingDataFlits(uint32 port)
     return drs + ncb;
 }
 
-uint64 ServerPCICFGUncore::getOutgoingFlits(uint32 port)
+uint64 ServerUncorePMUs::getOutgoingFlits(uint32 port)
 {
     return getQPILLCounter(port,2);
 }
 
-uint64 ServerPCICFGUncore::getUPIL0TxCycles(uint32 port)
+uint64 ServerUncorePMUs::getUPIL0TxCycles(uint32 port)
 {
     if (PCM::hasUPI(cpu_model))
         return getQPILLCounter(port,0);
     return 0;
 }
 
-void ServerPCICFGUncore::program_power_metrics(int mc_profile)
+void ServerUncorePMUs::program_power_metrics(int mc_profile)
 {
     uint32 xPIEvents[4] = { 0,0,0,0 };
     xPIEvents[ServerUncoreCounterState::EventPosition::xPI_TxL0P_POWER_CYCLES] = (uint32)Q_P_PCI_PMON_CTL_EVENT((PCM::hasUPI(cpu_model) ? 0x27 : 0x0D)); // L0p Tx Cycles (TxL0P_POWER_CYCLES)
@@ -8038,7 +8038,7 @@ void enableAndResetMCFixedCounter(UncorePMU& pmu)
     *pmu.fixedCounterControl = MC_CH_PCI_PMON_FIXED_CTL_EN + MC_CH_PCI_PMON_FIXED_CTL_RST;
 }
 
-void ServerPCICFGUncore::programIMC(const uint32 * MCCntConfig)
+void ServerUncorePMUs::programIMC(const uint32 * MCCntConfig)
 {
     const uint32 extraIMC = (cpu_model == PCM::SKX)?UNC_PMON_UNIT_CTL_RSV:UNC_PMON_UNIT_CTL_FRZ_EN;
 
@@ -8053,7 +8053,7 @@ void ServerPCICFGUncore::programIMC(const uint32 * MCCntConfig)
     }
 }
 
-void ServerPCICFGUncore::programEDC(const uint32 * EDCCntConfig)
+void ServerUncorePMUs::programEDC(const uint32 * EDCCntConfig)
 {
     for (uint32 i = 0; i < (uint32)edcPMUs.size(); ++i)
     {
@@ -8073,7 +8073,7 @@ void ServerPCICFGUncore::programEDC(const uint32 * EDCCntConfig)
     }
 }
 
-void ServerPCICFGUncore::programM2M()
+void ServerUncorePMUs::programM2M()
 {
     uint64 cfg[4] = {0, 0, 0, 0};
     switch (cpu_model)
@@ -8098,7 +8098,7 @@ void ServerPCICFGUncore::programM2M()
     programM2M(cfg);
 }
 
-void ServerPCICFGUncore::programM2M(const uint64* M2MCntConfig)
+void ServerUncorePMUs::programM2M(const uint64* M2MCntConfig)
 {
     {
         for (auto & pmu : m2mPMUs)
@@ -8110,7 +8110,7 @@ void ServerPCICFGUncore::programM2M(const uint64* M2MCntConfig)
     }
 }
 
-void ServerPCICFGUncore::programM3UPI(const uint32* M3UPICntConfig)
+void ServerUncorePMUs::programM3UPI(const uint32* M3UPICntConfig)
 {
     {
         for (auto& pmu : m3upiPMUs)
@@ -8121,7 +8121,7 @@ void ServerPCICFGUncore::programM3UPI(const uint32* M3UPICntConfig)
     }
 }
 
-void ServerPCICFGUncore::programHA(const uint32 * config)
+void ServerUncorePMUs::programHA(const uint32 * config)
 {
     for (auto & pmu : haPMUs)
     {
@@ -8130,7 +8130,7 @@ void ServerPCICFGUncore::programHA(const uint32 * config)
     }
 }
 
-uint64 ServerPCICFGUncore::getHARequests()
+uint64 ServerUncorePMUs::getHARequests()
 {
     uint64 result = 0;
     for (auto & pmu: haPMUs)
@@ -8140,7 +8140,7 @@ uint64 ServerPCICFGUncore::getHARequests()
     return result;
 }
 
-uint64 ServerPCICFGUncore::getHALocalRequests()
+uint64 ServerUncorePMUs::getHALocalRequests()
 {
     uint64 result = 0;
     for (auto & pmu: haPMUs)
@@ -8150,7 +8150,7 @@ uint64 ServerPCICFGUncore::getHALocalRequests()
     return result;
 }
 
-void ServerPCICFGUncore::programHA()
+void ServerUncorePMUs::programHA()
 {
 	uint32 config[4];
 	config[0] = 0;
@@ -8169,7 +8169,7 @@ void ServerPCICFGUncore::programHA()
 	programHA(config);
 }
 
-void ServerPCICFGUncore::freezeCounters()
+void ServerUncorePMUs::freezeCounters()
 {
     for (auto& pmuVector : allPMUs)
     {
@@ -8180,7 +8180,7 @@ void ServerPCICFGUncore::freezeCounters()
     }
 }
 
-void ServerPCICFGUncore::unfreezeCounters()
+void ServerUncorePMUs::unfreezeCounters()
 {
     for (auto& pmuVector : allPMUs)
     {
@@ -8191,22 +8191,22 @@ void ServerPCICFGUncore::unfreezeCounters()
     }
 }
 
-uint64 ServerPCICFGUncore::getQPIClocks(uint32 port)
+uint64 ServerUncorePMUs::getQPIClocks(uint32 port)
 {
     return getQPILLCounter(port, ServerUncoreCounterState::EventPosition::xPI_CLOCKTICKS);
 }
 
-uint64 ServerPCICFGUncore::getQPIL0pTxCycles(uint32 port)
+uint64 ServerUncorePMUs::getQPIL0pTxCycles(uint32 port)
 {
     return getQPILLCounter(port, ServerUncoreCounterState::EventPosition::xPI_TxL0P_POWER_CYCLES);
 }
 
-uint64 ServerPCICFGUncore::getQPIL1Cycles(uint32 port)
+uint64 ServerUncorePMUs::getQPIL1Cycles(uint32 port)
 {
     return getQPILLCounter(port, ServerUncoreCounterState::EventPosition::xPI_L1_POWER_CYCLES);
 }
 
-uint64 ServerPCICFGUncore::getDRAMClocks(uint32 channel)
+uint64 ServerUncorePMUs::getDRAMClocks(uint32 channel)
 {
     uint64 result = 0;
 
@@ -8217,7 +8217,7 @@ uint64 ServerPCICFGUncore::getDRAMClocks(uint32 channel)
     return result;
 }
 
-uint64 ServerPCICFGUncore::getHBMClocks(uint32 channel)
+uint64 ServerUncorePMUs::getHBMClocks(uint32 channel)
 {
     uint64 result = 0;
 
@@ -8228,7 +8228,7 @@ uint64 ServerPCICFGUncore::getHBMClocks(uint32 channel)
     return result;
 }
 
-uint64 ServerPCICFGUncore::getPMUCounter(std::vector<UncorePMU> & pmu, const uint32 id, const uint32 counter)
+uint64 ServerUncorePMUs::getPMUCounter(std::vector<UncorePMU> & pmu, const uint32 id, const uint32 counter)
 {
     uint64 result = 0;
 
@@ -8238,39 +8238,39 @@ uint64 ServerPCICFGUncore::getPMUCounter(std::vector<UncorePMU> & pmu, const uin
     }
     else
     {
-        //std::cout << "DEBUG: Invalid ServerPCICFGUncore::getPMUCounter(" << id << ", " << counter << ") \n";
+        //std::cout << "DEBUG: Invalid ServerUncorePMUs::getPMUCounter(" << id << ", " << counter << ") \n";
     }
-    // std::cout << "DEBUG: ServerPCICFGUncore::getPMUCounter(" << id << ", " << counter << ") = " << result << "\n";
+    // std::cout << "DEBUG: ServerUncorePMUs::getPMUCounter(" << id << ", " << counter << ") = " << result << "\n";
     return result;
 }
 
-uint64 ServerPCICFGUncore::getMCCounter(uint32 channel, uint32 counter)
+uint64 ServerUncorePMUs::getMCCounter(uint32 channel, uint32 counter)
 {
     return getPMUCounter(imcPMUs, channel, counter);
 }
 
-uint64 ServerPCICFGUncore::getEDCCounter(uint32 channel, uint32 counter)
+uint64 ServerUncorePMUs::getEDCCounter(uint32 channel, uint32 counter)
 {
     return getPMUCounter(edcPMUs, channel, counter);
 }
 
-uint64 ServerPCICFGUncore::getM2MCounter(uint32 box, uint32 counter)
+uint64 ServerUncorePMUs::getM2MCounter(uint32 box, uint32 counter)
 {
     return getPMUCounter(m2mPMUs, box, counter);
 }
 
-uint64 ServerPCICFGUncore::getQPILLCounter(uint32 port, uint32 counter)
+uint64 ServerUncorePMUs::getQPILLCounter(uint32 port, uint32 counter)
 {
     return getPMUCounter(xpiPMUs, port, counter);
 }
 
-uint64 ServerPCICFGUncore::getM3UPICounter(uint32 port, uint32 counter)
+uint64 ServerUncorePMUs::getM3UPICounter(uint32 port, uint32 counter)
 {
-    // std::cout << "DEBUG: ServerPCICFGUncore::getM3UPICounter(" << port << ", " << counter << ") = " << getPMUCounter(m3upiPMUs, port, counter) << "\n";
+    // std::cout << "DEBUG: ServerUncorePMUs::getM3UPICounter(" << port << ", " << counter << ") = " << getPMUCounter(m3upiPMUs, port, counter) << "\n";
     return getPMUCounter(m3upiPMUs, port, counter);
 }
 
-void ServerPCICFGUncore::enableJKTWorkaround(bool enable)
+void ServerUncorePMUs::enableJKTWorkaround(bool enable)
 {
     {
         PciHandleType reg(groupnr,iMCbus,14,0);
@@ -8306,7 +8306,7 @@ void ServerPCICFGUncore::enableJKTWorkaround(bool enable)
 
 #define PCM_MEM_CAPACITY (1024ULL*1024ULL*64ULL) // 64 MByte
 
-void ServerPCICFGUncore::initMemTest(ServerPCICFGUncore::MemTestParam & param)
+void ServerUncorePMUs::initMemTest(ServerUncorePMUs::MemTestParam & param)
 {
     auto & memBufferBlockSize = param.first;
     auto & memBuffers = param.second;
@@ -8376,7 +8376,7 @@ void ServerPCICFGUncore::initMemTest(ServerPCICFGUncore::MemTestParam & param)
         std::fill(b, b + (memBufferBlockSize / sizeof(uint64)), 0ULL);
 }
 
-void ServerPCICFGUncore::doMemTest(const ServerPCICFGUncore::MemTestParam & param)
+void ServerUncorePMUs::doMemTest(const ServerUncorePMUs::MemTestParam & param)
 {
     const auto & memBufferBlockSize = param.first;
     const auto & memBuffers = param.second;
@@ -8388,7 +8388,7 @@ void ServerPCICFGUncore::doMemTest(const ServerPCICFGUncore::MemTestParam & para
         }
 }
 
-void ServerPCICFGUncore::cleanupMemTest(const ServerPCICFGUncore::MemTestParam & param)
+void ServerUncorePMUs::cleanupMemTest(const ServerUncorePMUs::MemTestParam & param)
 {
     const auto & memBufferBlockSize = param.first;
     const auto & memBuffers = param.second;
@@ -8406,7 +8406,7 @@ void ServerPCICFGUncore::cleanupMemTest(const ServerPCICFGUncore::MemTestParam &
     }
 }
 
-uint64 ServerPCICFGUncore::computeQPISpeed(const uint32 core_nr, const int cpumodel)
+uint64 ServerUncorePMUs::computeQPISpeed(const uint32 core_nr, const int cpumodel)
 {
     if(qpi_speed.empty())
     {
@@ -8482,7 +8482,7 @@ uint64 ServerPCICFGUncore::computeQPISpeed(const uint32 core_nr, const int cpumo
     }
 }
 
-void ServerPCICFGUncore::reportQPISpeed() const
+void ServerUncorePMUs::reportQPISpeed() const
 {
     PCM * m = PCM::getInstance();
     std::cerr.precision(1);
