@@ -820,6 +820,12 @@ public:
         QAT_TLM_MAX
     };
 
+    enum IDX_STATE
+    {
+        IDX_STATE_OFF = 0,
+        IDX_STATE_ON,
+    };
+
     struct SimplePCIeDevInfo
     {
         enum PCIeWidthMode width;
