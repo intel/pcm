@@ -1,0 +1,15 @@
+name: windows-ip
+
+on: [workflow_dispatch, workflow_call]
+
+jobs:
+  build:
+
+    runs-on: ci-kw-windows
+    if: ${{ github.repository != 'intel/pcm' }}
+
+    steps:
+    
+    - name: windows-ip
+      run: |
+        ipconfig
