@@ -991,7 +991,8 @@ class QATTelemetryVirtualGeneralConfigRegister : public HWRegister
 {
     friend class QATTelemetryVirtualCounterRegister;
     int domain, b, d, f;
-    uint64 operation;
+    PCM::IDX_OPERATION operation;
+    PCM::IDX_STATE state;
     std::unordered_map<std::string, uint32> data_cache; //data cache
 public:
     QATTelemetryVirtualGeneralConfigRegister(int domain_, int b_, int d_, int f_) :
@@ -999,39 +1000,49 @@ public:
         b(b_),
         d(d_),
         f(f_),
-        operation(0x0)
+        operation(PCM::QAT_TLM_STOP),
+        state(PCM::IDX_STATE_OFF)
     {
     }
     void operator = (uint64 val) override
     {
-        operation = val;
+        operation = PCM::IDX_OPERATION(val);
 #ifdef __linux__
         std::ostringstream sysfs_path(std::ostringstream::out);
-
         switch (operation)
         {
-            case PCM::QAT_TLM_STOP: //disable
             case PCM::QAT_TLM_START: //enable
-                sysfs_path << std::string("/sys/bus/pci/devices/") <<
-                    std::hex << std::setw(4) << std::setfill('0') << domain << ":" <<
-                    std::hex << std::setw(2) << std::setfill('0') << b << ":" <<
-                    std::hex << std::setw(2) << std::setfill('0') << d << "." <<
-                    std::hex << f << "/telemetry/control";
-
-                if (writeSysFS(sysfs_path.str().c_str(), (operation == PCM::QAT_TLM_START  ? "1" : "0")) == false)
+                state = PCM::IDX_STATE_ON; 
+                // falls through
+            case PCM::QAT_TLM_STOP: //disable
+                if (state == PCM::IDX_STATE_ON)
                 {
-                    std::cerr << "Linux sysfs: Error on control QAT telemetry operation = " << operation << ".\n";
+                    std::cerr << "QAT telemetry operation = " << operation << ".\n";
+                    sysfs_path << std::string("/sys/bus/pci/devices/") <<
+                        std::hex << std::setw(4) << std::setfill('0') << domain << ":" <<
+                        std::hex << std::setw(2) << std::setfill('0') << b << ":" <<
+                        std::hex << std::setw(2) << std::setfill('0') << d << "." <<
+                        std::hex << f << "/telemetry/control";
+
+                    if (writeSysFS(sysfs_path.str().c_str(), (operation == PCM::QAT_TLM_START  ? "1" : "0")) == false)
+                    {
+                        std::cerr << "Linux sysfs: Error on control QAT telemetry operation = " << operation << ".\n";
+                    }
                 }
                 break;
             case PCM::QAT_TLM_REFRESH: //refresh data
-                sysfs_path << std::string("/sys/bus/pci/devices/") <<
-                    std::hex << std::setw(4) << std::setfill('0') << domain << ":" <<
-                    std::hex << std::setw(2) << std::setfill('0') << b << ":" <<
-                    std::hex << std::setw(2) << std::setfill('0') << d << "." <<
-                    std::hex << f << "/telemetry/device_data";
+                if (state == PCM::IDX_STATE_ON)
+                {
+                    std::cerr << "QAT telemetry operation = " << operation << ".\n";
+                    sysfs_path << std::string("/sys/bus/pci/devices/") <<
+                        std::hex << std::setw(4) << std::setfill('0') << domain << ":" <<
+                        std::hex << std::setw(2) << std::setfill('0') << b << ":" <<
+                        std::hex << std::setw(2) << std::setfill('0') << d << "." <<
+                        std::hex << f << "/telemetry/device_data";
 
-                data_cache.clear();
-                readMapFromSysFS(sysfs_path.str().c_str(), data_cache);
+                    data_cache.clear();
+                    readMapFromSysFS(sysfs_path.str().c_str(), data_cache);
+                }
                 break;
             default:
                 break;
@@ -9408,7 +9419,7 @@ void IDX_PMU::cleanup()
 
     if (generalControl.get())
     {
-        *generalControl = 0x0; //disable the entire service e.g QAT telemetry.
+        *generalControl = 0x0;
     }
     //std::cout << "IDX_PMU::cleanup \n";
 }
