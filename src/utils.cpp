@@ -525,13 +525,13 @@ void MySystem(char * sysCmd, char ** sysArgv)
         if (PCM::getInstance()->isBlocked()) {
             int res;
             waitpid(child_pid, &res, 0);
-            std::cerr << "Program " << sysCmd << " launched with PID: " << child_pid << "\n";
+            std::cerr << "Program " << sysCmd << " launched with PID: " << std::dec << child_pid << "\n";
 
             if (WIFEXITED(res)) {
                 std::cerr << "Program exited with status " << WEXITSTATUS(res) << "\n";
             }
             else if (WIFSIGNALED(res)) {
-                std::cerr << "Process " << child_pid << " was terminated with status " << WTERMSIG(res);
+                std::cerr << "Process " << child_pid << " was terminated with status " << WTERMSIG(res) << "\n";
             }
         }
     }
