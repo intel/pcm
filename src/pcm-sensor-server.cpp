@@ -982,7 +982,13 @@ public:
 #else
     basic_socketstream( int socketFD ) : stream_type( &socketBuffer_ ) {
 #endif
+        DBG( 3,"socketFD = ", socketFD );
+        if ( 0 == socketFD ) {
+            DBG( 3,"Trying to set socketFD to 0 which is not allowed!" );
+            throw std::runtime_error( "Trying to set socketFD to 0 on basic_socketstream level which is not allowed." );
+        }
         socketBuffer_.setSocket( socketFD );
+
 #if defined (USE_SSL)
         if ( nullptr != ssl )
             socketBuffer_.setSSL( ssl );
@@ -2239,13 +2245,14 @@ private:
     };
 };
 
+// Compress linear white space and remove carriage return, not new line, this one is gone already
 std::string& compressLWSAndRemoveCR( std::string& line ) {
     std::string::size_type pos = 0, end = line.size(), start = 0;
 
     for ( pos = 0; pos < end; ++pos ) {
         start = pos;
         if ( ::isspace( line[pos] ) ) {
-            while ( pos < line.size() && ::isspace( line[++pos] ) ) {
+            while ( (pos+1) < line.size() && ::isspace( line[++pos] ) ) {
             }
             if ( (pos - start) > 1 ) {
                 line.erase( start+1,  pos-start-1 );
