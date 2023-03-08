@@ -201,7 +201,7 @@ int32_t programAccelCounters(PCM *m, ACCEL_IP accel, std::vector<struct accel_co
     vector<uint64_t> rawEvents;
     vector<uint32_t> filters_wq, filters_tc, filters_pgsz, filters_xfersz, filters_eng;
 
-    if (m == NULL || accel >= ACCEL_MAX || ctrs.size() == 0 || ctrs.size()  >= getMaxNumOfAccelCtrs(m, accel))
+    if (m == NULL || accel >= ACCEL_MAX || ctrs.size() == 0 || ctrs.size()  > getMaxNumOfAccelCtrs(m, accel))
         return -1;
 
     switch (accel)
