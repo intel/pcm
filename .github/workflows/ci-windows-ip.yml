@@ -5,7 +5,7 @@ on: [workflow_dispatch, workflow_call]
 jobs:
   build:
 
-    runs-on: ci-kw-windows
+    runs-on: ci-windows
     if: ${{ github.repository != 'intel/pcm' }}
 
     steps:
