@@ -80,8 +80,8 @@ Specific indicators related to IAA/DSA: 
 - ShareWQ_ReqNb = The number of request submitted to share work queue of accelerator.
 - DedicateWQ_ReqNb = The number of request submitted to dedicate work queue of accelerator.
 
-  ![image2023-3-3_13-12-2](https://github.com/intel-innersource/applications.analyzers.pcm/assets/90303019/43c4cc7b-3a06-43e2-9381-5f3924c14860)
-![image2023-3-3_13-12-56](https://github.com/intel-innersource/applications.analyzers.pcm/assets/90303019/7d51de9d-9511-4e67-8818-c901602f5e59)
+![image](https://user-images.githubusercontent.com/25432609/224027332-8846dff6-f71e-4daa-a189-730e68c7e1b2.png)
+![image](https://user-images.githubusercontent.com/25432609/224027445-2b08e89c-4653-4f39-971b-a7dc76bd7349.png)
 
 Specific indicators related to QAT:
 
@@ -95,7 +95,9 @@ Specific indicators related to QAT:
 
 - util_xlt0 = same as above for translation engine 0.
 
-  ![image2023-3-3_13-14-22](https://github.com/intel-innersource/applications.analyzers.pcm/assets/90303019/676f747b-dcba-4bf3-b95e-68d4244ca7a0)
+ 
+  ![image](https://user-images.githubusercontent.com/25432609/224027570-e433aeef-c2ed-418d-aa42-18eef0f1b645.png)
+
 
 ## Event config file:
 
@@ -117,6 +119,5 @@ Please refer to the spec or code to learn more about the event mapping if you wa
 
 Here is the content of the event cfg file(opCode-143-accel.txt as example)
 
-![image2023-3-3_13-55-58](https://github.com/intel-innersource/applications.analyzers.pcm/assets/90303019/cf7d2203-a488-403d-a2ab-deda8a3178dc)
-
+![image](https://user-images.githubusercontent.com/25432609/224027717-1dcdae9e-6701-4b6f-90a0-8108c4ea4550.png)
 
