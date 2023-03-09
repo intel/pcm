@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v3
     - name: cmake
@@ -20,7 +20,7 @@ jobs:
         cd ${{ github.workspace }}/build
         make install -j
   build-systemd-unit:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v3
     - name: cmake
@@ -32,7 +32,7 @@ jobs:
         cd ${{ github.workspace }}/build
         make install -j
   build-system-simdjson:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     container: ubuntu:22.04
     steps:
     - uses: actions/checkout@v3
@@ -49,7 +49,7 @@ jobs:
         cd ${{ github.workspace }}/build
         make install -j
   build-source-simdjson:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v3
       with:
