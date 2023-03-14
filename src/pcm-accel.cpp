@@ -218,7 +218,7 @@ int32_t programAccelCounters(PCM *m, ACCEL_IP accel, std::vector<struct accel_co
                 filters_xfersz.push_back(pctr->cfr_xfersz);
                 filters_eng.push_back(pctr->cfr_eng);
                 //std::cout<<"ctr idx=0x" << std::hex << pctr->idx << " hid=0x" << std::hex << pctr->h_id << " vid=0x" << std::hex << pctr->v_id <<" ccr=0x" << std::hex << pctr->ccr << "\n";
-                //std::cout<<"mul=0x" << std::hex << pctr->multiplier << " div=0x" << std::hex << pctr->divider << "\n";
+                //std::cout<<"mul=0x" << std::hex << pctr->multiplier << " div=0x" << std::hex << pctr->divider << "\n" << std::dec;
             }
             m->programIDXAccelCounters(idx_accel_mapping[accel], rawEvents, filters_wq, filters_eng, filters_tc, filters_pgsz, filters_xfersz);
             break;
@@ -393,7 +393,7 @@ std::vector<std::string> build_csv(PCM *m, const ACCEL_IP accel, std::vector<str
         {
             max_name_width = (std::max)(max_name_width, counter->v_event_name.size());
             v_sort[counter->h_id][counter->v_id] = &(*counter);
-            //std::cout << "v_sort: h_id=" << std::hex << counter->h_id << ", v_id=" << std::hex << counter->v_id << "\n";
+            //std::cout << "v_sort: h_id=" << std::hex << counter->h_id << ", v_id=" << std::hex << counter->v_id << "\n" << std::dec;
         }
 
         //Print data
@@ -457,7 +457,7 @@ std::vector<std::string> build_display(PCM *m, const ACCEL_IP accel, std::vector
         for (std::vector<struct accel_counter>::iterator counter = ctrs.begin(); counter != ctrs.end(); ++counter)
         {
             v_sort[counter->h_id][counter->v_id] = &(*counter);
-            //std::cout << "v_sort: h_id=" << std::hex << counter->h_id << ", v_id=" << std::hex << counter->v_id << "\n";
+            //std::cout << "v_sort: h_id=" << std::hex << counter->h_id << ", v_id=" << std::hex << counter->v_id << "\n" << std::dec;
         }
         
         for (std::map<uint32_t,std::map<uint32_t,struct accel_counter*>>::const_iterator hunit = v_sort.cbegin(); hunit != v_sort.cend(); ++hunit)
@@ -539,7 +539,7 @@ void collect_data(PCM *m, const double delay, const ACCEL_IP accel, std::vector<
                     uint64_t raw_result = getNumberOfEvents(before[dev*counter_nb + ctr_index], after[dev*counter_nb + ctr_index]);
                     uint64_t trans_result = uint64_t (raw_result * pctr->multiplier / (double) pctr->divider * (1000 / (double) delay_ms));
                     accel_results[accel][dev][std::pair<h_id,v_id>(pctr->h_id,pctr->v_id)] = trans_result;
-                    //std::cout << "collect_data: accel=" << accel << " dev=" << dev << " h_id=" << pctr->h_id << " v_id=" << pctr->v_id << " data=" << std::hex << trans_result << "\n";
+                    //std::cout << "collect_data: accel=" << accel << " dev=" << dev << " h_id=" << pctr->h_id << " v_id=" << pctr->v_id << " data=" << std::hex << trans_result << "\n" << std::dec;
                     ctr_index++;
                 }
             }
@@ -560,7 +560,7 @@ void collect_data(PCM *m, const double delay, const ACCEL_IP accel, std::vector<
                    uint64_t trans_result = uint64_t (raw_result * pctr->multiplier / (double) pctr->divider );
 
                    accel_results[accel][dev][std::pair<h_id,v_id>(pctr->h_id,pctr->v_id)] = trans_result;
-                   //std::cout << "collect_data: accel=" << accel << " dev=" << dev << " h_id=" << pctr->h_id << " v_id=" << pctr->v_id << " data=" << std::hex << trans_result << "\n";
+                   //std::cout << "collect_data: accel=" << accel << " dev=" << dev << " h_id=" << pctr->h_id << " v_id=" << pctr->v_id << " data=" << std::hex << trans_result << "\n" << std::dec;
                    ctr_index++;
                }
             }
@@ -597,15 +597,15 @@ int idx_evt_parse_handler(evt_cb_type cb_type, void *cb_ctx, counter &base_ctr, 
         { 
             case PCM::EVENT_SELECT:
                 pccr->set_event_select(numValue);
-                //std::cout << "pccr value:" << std::hex << pccr->get_ccr_value() <<"\n";
+                //std::cout << "pccr value:" << std::hex << pccr->get_ccr_value() <<"\n" << std::dec;
                 break;
             case PCM::ENABLE:
                 pccr->set_enable(numValue);
-                //std::cout << "pccr value:" << std::hex << pccr->get_ccr_value() <<"\n";
+                //std::cout << "pccr value:" << std::hex << pccr->get_ccr_value() <<"\n" << std::dec;
                 break;
             case EVENT_CATEGORY:
                 pccr->set_event_category(numValue);
-                //std::cout << "pccr value:" << std::hex << pccr->get_ccr_value() <<"\n";
+                //std::cout << "pccr value:" << std::hex << pccr->get_ccr_value() <<"\n" << std::dec;
                 break;
             case FILTER_WQ:
                 context->ctr.cfr_wq = (uint32_t)numValue;
@@ -847,7 +847,7 @@ int mainThrows(int argc, char * argv[])
             evt_ctx.ctrs.clear();//fill the ctrs by evt_handler callback func.
             break;
         default:
-            std::cerr << "Error: Accel type=0x" << std::hex << accel << " is not supported! Program aborted\n";
+            std::cerr << "Error: Accel type=0x" << std::hex << accel << " is not supported! Program aborted\n" << std::dec;
             exit(EXIT_FAILURE);
             break;
     }

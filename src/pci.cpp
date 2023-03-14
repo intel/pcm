@@ -503,7 +503,7 @@ PciHandleM::PciHandleM(uint32 bus_, uint32 device_, uint32 function_) :
         throw std::exception();
     }
 
-    // std::cout << "PCI config base addr: "<< std::hex << base_addr<< "\n";
+    // std::cout << "PCI config base addr: "<< std::hex << base_addr<< "\n" << std::dec;
 
     base_addr += (bus * 1024ULL * 1024ULL + device * 32ULL * 1024ULL + function * 4ULL * 1024ULL);
 }
