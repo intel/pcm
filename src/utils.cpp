@@ -50,7 +50,7 @@ void print_cpu_details()
     const auto ucode_level = m->getCPUMicrocodeLevel();
     if (ucode_level >= 0)
     {
-        std::cerr << " microcode level 0x" << std::hex << ucode_level;
+        std::cerr << " microcode level 0x" << std::hex << ucode_level << std::dec;
     }
     std::cerr << "\n";
 }
@@ -1085,7 +1085,7 @@ bool get_cpu_bus(uint32 msmDomain, uint32 msmBus, uint32 msmDev, uint32 msmFunc,
     uint32 sadControlCfg = 0x0;
     uint32 busNo = 0x0;
 
-    //std::cout << "get_cpu_bus: d=" << std::hex << msmDomain << ",b=" << msmBus << ",d=" << msmDev << ",f=" << msmFunc <<" \n";
+    //std::cout << "get_cpu_bus: d=" << std::hex << msmDomain << ",b=" << msmBus << ",d=" << msmDev << ",f=" << msmFunc << std::dec << " \n";
     PciHandleType h(msmDomain, msmBus, msmDev, msmFunc);
 
     h.read32(SPR_MSM_REG_CPUBUSNO_VALID_OFFSET, &cpuBusValid);
@@ -1111,7 +1111,7 @@ bool get_cpu_bus(uint32 msmDomain, uint32 msmBus, uint32 msmDev, uint32 msmFunc,
             return false;
         }
         cpuBusNo.push_back(busNo);
-        //std::cout << std::hex << "get_cpu_bus: busNo=0x" << busNo << "\n";
+        //std::cout << std::hex << "get_cpu_bus: busNo=0x" << busNo << std::dec <<  "\n";
     }
 
     cpuBusNo0 = cpuBusNo[0] & 0xff;

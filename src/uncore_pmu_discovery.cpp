@@ -36,7 +36,7 @@ UncorePMUDiscovery::UncorePMUDiscovery()
                 table[i] = range.read64(pos);
                 if (table[i] == ~0ULL)
                 {
-                    std::cerr << "Failed to read memory at 0x" << std::hex << bar << " + 0x" << pos << "\n";
+                    std::cerr << "Failed to read memory at 0x" << std::hex << bar << " + 0x" << pos << std::dec << "\n";
                     throw std::exception();
                 }
             }
@@ -73,7 +73,7 @@ UncorePMUDiscovery::UncorePMUDiscovery()
             h.read32(6, &status); // read status
             if (status & 0x10) // has capability list
             {
-                // std::cout << "Intel device scan. found "<< std::hex << group << ":" << bus << ":" << device << ":" << function << " " << device_id << " with capability list\n";
+                // std::cout << "Intel device scan. found "<< std::hex << group << ":" << bus << ":" << device << ":" << function << " " << device_id << " with capability list\n" << std::dec;
                 union {
                     struct {
                         uint32 id:16;
