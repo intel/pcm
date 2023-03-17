@@ -122,6 +122,26 @@ void lowerCase(std::string & str)
     });
 }
 
+enum AddEventStatus
+{
+    OK,
+    Failed,
+    FailedTooManyEvents
+};
+
+bool tooManyEvents(const std::string & pmuName, const int event_pos, const std::string& fullEventStr)
+{
+    PCM* m = PCM::getInstance();
+    assert(m);
+    const int maxCounters = (pmuName == "core" || pmuName == "atom") ? m->getMaxCustomCoreEvents() : ServerUncoreCounterState::maxCounters;
+    if (event_pos >= maxCounters)
+    {
+        std::cerr << "ERROR: trying to add event " << fullEventStr << " at position " << event_pos << " of an event group, which exceeds the max num possible (" << maxCounters << ").\n";
+        return true;
+    }
+    return false;
+}
+
 #ifdef PCM_SIMDJSON_AVAILABLE
 using namespace simdjson;
 
@@ -413,12 +433,12 @@ public:
     }
 };
 
-bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
+AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
 {
     if (initPMUEventMap() == false)
     {
         cerr << "ERROR: PMU Event map can not be initialized\n";
-        return false;
+        return AddEventStatus::Failed;
     }
     // cerr << "Parsing event " << fullEventStr << "\n";
     // cerr << "size: " << fullEventStr.size() << "\n";
@@ -432,7 +452,7 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
     }
     if (fullEventStr.empty())
     {
-        return true;
+        return AddEventStatus::OK;
     }
     const auto EventTokens = split(fullEventStr, ':');
     assert(!EventTokens.empty());
@@ -475,7 +495,7 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
                 else
                 {
                     unsupported();
-                    return false;
+                    return AddEventStatus::Failed;
                 }
             }
             else if (assignment.size() == 2 && assignment[0] == "scope")
@@ -491,31 +511,31 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
                 else
                 {
                     unsupported();
-                    return false;
+                    return AddEventStatus::Failed;
                 }
             }
             else
             {
                 unsupported();
-                return false;
+                return AddEventStatus::Failed;
             }
             ++mod;
         }
         if (pmuName.empty())
         {
             cerr << "ERROR: scope is not defined in event " << fullEventStr << ". Possible values: package, thread\n";
-            return false;
+            return AddEventStatus::Failed;
         }
 
         config.second = fullEventStr;
         curPMUConfigs[pmuName].fixed.push_back(config);
-        return true;
+        return AddEventStatus::OK;
     }
 
     if (!EventMap::isEvent(eventStr))
     {
         cerr << "ERROR: event " << eventStr << " could not be found in event database. Ignoring the event.\n";
-        return true;
+        return AddEventStatus::OK;
     }
 
     bool fixed = false;
@@ -548,7 +568,7 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
         catch (std::exception& e)
         {
             cerr << "Error while opening and/or parsing " << path << " : " << e.what() << "\n";
-            return false;
+            return AddEventStatus::Failed;
         }
     }
 
@@ -597,7 +617,11 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
             if(!counter_match)
             {
                 std::cerr << "ERROR: position of " << fullEventStr << " event in the command is " << event_pos<<" but the supported counters are "<<CounterStr<<"\n";
-                return false;
+                return AddEventStatus::Failed;
+            }
+            if (tooManyEvents(pmuName, event_pos, fullEventStr))
+            {
+                return AddEventStatus::FailedTooManyEvents;
             }
         }
         bool offcore = false;
@@ -627,7 +651,7 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
             if (PMUObj.error() == NO_SUCH_FIELD)
             {
                 cerr << "ERROR: PMU \"" << pmuName << "\" not found for event " << fullEventStr << " in " << path << ", ignoring the event.\n";
-                return true;
+                return AddEventStatus::OK;
             }
             simdjson::dom::object PMUDeclObj;
             if (fixed)
@@ -672,7 +696,7 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
                         if (offcoreEventIndex >= MSRIndexes.size())
                         {
                             std::cerr << "ERROR: too many offcore events specified (max is " << MSRIndexes.size() << "). Ignoring " << fullEventStr << " event\n";
-                            return true;
+                            return AddEventStatus::OK;
                         }
                         MSRIndexStr = MSRIndexes[offcoreEventIndex];
                     }
@@ -693,7 +717,7 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
                     if (fieldDescriptionObj["DefaultValue"].error() == NO_SUCH_FIELD)
                     {
                         cerr << "ERROR: DefaultValue not provided for field \"" << fieldNameStr << "\" in " << path << "\n";
-                        return false;
+                        return AddEventStatus::Failed;
                     }
                     else
                     {
@@ -713,7 +737,7 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
                         if (offcoreEventIndex >= offcoreCodes.size())
                         {
                             std::cerr << "ERROR: too many offcore events specified (max is " << offcoreCodes.size() << "). Ignoring " << fullEventStr << " event\n";
-                            return true;
+                            return AddEventStatus::OK;
                         }
                         fieldValueStr = offcoreCodes[offcoreEventIndex];
                     }
@@ -755,7 +779,7 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
                 else if (*mod == "percore")
                 {
                     unsupported();
-                    return true;
+                    return AddEventStatus::OK;
                 }
                 else if (*mod == "perf_metrics")
                 {
@@ -782,12 +806,12 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
                 else if (assignment.size() == 2 && assignment[0] == "request")
                 {
                     unsupported();
-                    return true;
+                    return AddEventStatus::OK;
                 }
                 else if (assignment.size() == 2 && assignment[0] == "response")
                 {
                     unsupported();
-                    return true;
+                    return AddEventStatus::OK;
                 }
                 else if (assignment.size() == 2 && assignment[0] == "filter0")
                 {
@@ -817,7 +841,7 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
                 else
                 {
                     unsupported();
-                    return false;
+                    return AddEventStatus::Failed;
                 }
                 ++mod;
             }
@@ -831,7 +855,7 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
         {
             cerr << "Error while setting a register field for event " << fullEventStr << " : " << e.what() << "\n";
             EventMap::print_event(eventStr);
-            return false;
+            return AddEventStatus::Failed;
         }
     }
 
@@ -844,16 +868,16 @@ bool addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
 
     printEvent(pmuName, fixed, config);
 
-    return true;
+    return AddEventStatus::OK;
 }
 
 #endif
 
-bool addEvent(PCM::RawPMUConfigs & curPMUConfigs, string eventStr)
+AddEventStatus addEvent(PCM::RawPMUConfigs & curPMUConfigs, string eventStr)
 {
     if (eventStr.empty())
     {
-        return true;
+        return AddEventStatus::OK;
     }
 #ifdef PCM_SIMDJSON_AVAILABLE
     if (eventStr.find('/') == string::npos)
@@ -866,7 +890,7 @@ bool addEvent(PCM::RawPMUConfigs & curPMUConfigs, string eventStr)
     if (typeConfig.size() < 2)
     {
         cerr << "ERROR: wrong syntax in event description \"" << eventStr << "\"\n";
-        return false;
+        return AddEventStatus::Failed;
     }
     auto pmuName = typeConfig[0];
     if (pmuName.empty())
@@ -877,7 +901,7 @@ bool addEvent(PCM::RawPMUConfigs & curPMUConfigs, string eventStr)
     if (configStr.empty())
     {
         cerr << "ERROR: empty config description in event description \"" << eventStr << "\"\n";
-        return false;
+        return AddEventStatus::Failed;
     }
     if (pmuName == "core" || pmuName == "atom")
     {
@@ -911,7 +935,7 @@ bool addEvent(PCM::RawPMUConfigs & curPMUConfigs, string eventStr)
         {
             // matched and initialized name
             if (check_for_injections(config.second))
-                return false;
+                return AddEventStatus::Failed;
         }
         else if (item == "fixed")
         {
@@ -920,15 +944,19 @@ bool addEvent(PCM::RawPMUConfigs & curPMUConfigs, string eventStr)
         else
         {
             cerr << "ERROR: unknown token " << item << " in event description \"" << eventStr << "\"\n";
-            return false;
+            return AddEventStatus::Failed;
         }
     }
     printEvent(pmuName, fixed, config);
+    if (fixed == false && tooManyEvents(pmuName, curPMUConfigs[pmuName].programmable.size(), eventStr))
+    {
+        return AddEventStatus::FailedTooManyEvents;
+    }
     if (fixed)
         curPMUConfigs[pmuName].fixed.push_back(config);
     else
         curPMUConfigs[pmuName].programmable.push_back(config);
-    return true;
+    return AddEventStatus::OK;
 }
 
 bool addEvents(std::vector<PCM::RawPMUConfigs>& PMUConfigs, string fn)
@@ -968,9 +996,22 @@ bool addEvents(std::vector<PCM::RawPMUConfigs>& PMUConfigs, string fn)
             line.resize(line.size() - 1);
             finishGroup = true;
         }
-        if (addEvent(curConfig, line) == false)
+        const auto status = addEvent(curConfig, line);
+        switch (status)
         {
+        case AddEventStatus::Failed:
             return false;
+        case AddEventStatus::FailedTooManyEvents:
+            cerr << "Failed to add event due to a too large group. Trying to split the event group.\n";
+            doFinishGroup();
+            if (addEvent(curConfig, line) != AddEventStatus::OK)
+            {
+                return false;
+            }
+            break;
+        case AddEventStatus::OK:
+            // all is fine
+            break;
         }
         if (finishGroup)
         {
@@ -2113,7 +2154,7 @@ int mainThrows(int argc, char * argv[])
             {
                 cerr << "ERROR: no parameter value provided for 'e' option\n";
                 exit(EXIT_FAILURE);
-            } else if (addEvent(PMUConfigs[0], p) == false)
+            } else if (addEvent(PMUConfigs[0], p) != AddEventStatus::OK)
             {
                 exit(EXIT_FAILURE);
             }
