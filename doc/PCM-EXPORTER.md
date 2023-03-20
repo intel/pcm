@@ -26,6 +26,11 @@ Valid Options:
     -h|--help            : This information
 ```
 
+The default output of pcm-sensor-server endpoint in a browser:
+
+![image](https://user-images.githubusercontent.com/25432609/226344012-8783e154-998e-48a7-a2ca-f2c42af9c843.png)
+
+
 The PCM exporter can be used together with Grafana to obtain these Intel processor metrics (see [how-to](../scripts/grafana/README.md)):
 
 ![pcm grafana output](https://raw.githubusercontent.com/wiki/opcm/pcm/pcm-dashboard-full.png)
