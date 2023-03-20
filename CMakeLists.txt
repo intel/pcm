@@ -48,7 +48,7 @@ if(UNIX)  # APPLE, LINUX, FREE_BSD
     set (PCM_COMMON_FLAGS "-Wno-unknown-pragmas -fPIC")
 
     if(LINUX)
-       set (PCM_COMMON_FLAGS "${PCM_COMMON_FLAGS} -Wextra -DPCM_USE_PERF")
+       set (PCM_COMMON_FLAGS "${PCM_COMMON_FLAGS} -Wextra -DPCM_USE_PERF -DUSE_SSL -lssl")
 
        if(NOT DEFINED LINUX_SYSTEMD)
          set(LINUX_SYSTEMD FALSE)
