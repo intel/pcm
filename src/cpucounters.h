@@ -1157,6 +1157,9 @@ public:
     //! \brief Returns the socketid of IDX accel dev
     uint32 getCPUSocketIdOfIDXAccelDev(uint32 accel, uint32 dev) const;
 
+    //! \brief Returns the platform support IDX accel dev or NOT
+    bool supportIDXAccelDev() const;
+
     /*!
             \brief Returns PCM object
 

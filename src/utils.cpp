@@ -950,7 +950,7 @@ int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
         if (!in.is_open())
         {
             in.close();
-            const auto err_msg = std::string("event file ") + fn + " or " + alt_fn + " is not available. Copy it from PCM build directory.";
+            const auto err_msg = std::string("event config file ") + fn + " or " + alt_fn + " is not available, you can try to manually copy it from PCM source package.";
             throw std::invalid_argument(err_msg);
         }
     }
