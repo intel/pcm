@@ -25,7 +25,7 @@ if [ $dram_only -gt 0 ]
 then
                 echo PMM support is not present
 else
-                echo PMM supoprt is present
+                echo PMM support is present
 fi
 
 
