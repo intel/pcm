@@ -2285,11 +2285,13 @@ int mainThrows(int argc, char * argv[])
             m->enableForceRTMAbortMode(true);
         }
         programPMUs(group);
+        m->globalFreezeUncoreCounters();
         m->getAllCounterStates(SysBeforeState, BeforeSocketState, BeforeState);
         for (uint32 s = 0; s < m->getNumSockets(); ++s)
         {
             BeforeUncoreState[s] = m->getServerUncoreCounterState(s);
         }
+        m->globalUnfreezeUncoreCounters();
     };
 
     if (nGroups == 1)
@@ -2311,11 +2313,13 @@ int mainThrows(int argc, char * argv[])
 
                 calibratedSleep(delay, sysCmd, mainLoop, m);
 
+                m->globalFreezeUncoreCounters();
                 m->getAllCounterStates(SysAfterState, AfterSocketState, AfterState);
                 for (uint32 s = 0; s < m->getNumSockets(); ++s)
                 {
                     AfterUncoreState[s] = m->getServerUncoreCounterState(s);
                 }
+                m->globalUnfreezeUncoreCounters();
 
                 //cout << "Time elapsed: " << dec << fixed << AfterTime - BeforeTime << " ms\n";
                 //cout << "Called sleep function for " << dec << fixed << delay_ms << " ms\n";
