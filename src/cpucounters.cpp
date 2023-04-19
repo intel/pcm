@@ -1972,29 +1972,52 @@ void PCM::initUncoreObjects()
     }
 }
 
+void PCM::globalFreezeUncoreCounters()
+{
+    globalFreezeUncoreCountersInternal(1ULL);
+}
+
+void PCM::globalUnfreezeUncoreCounters()
+{
+    globalFreezeUncoreCountersInternal(0ULL);
+}
+
+// 1 : freeze
+// 0 : unfreeze
+void PCM::globalFreezeUncoreCountersInternal(const unsigned long long int freeze)
+{
+    for (uint32 s = 0; s < (uint32)num_sockets; ++s)
+    {
+        auto& handle = MSR[socketRefCore[s]];
+        switch (cpu_model)
+        {
+        case SPR:
+            handle->write(SPR_MSR_UNCORE_PMON_GLOBAL_CTL, freeze);
+            break;
+        case SKX:
+        case ICX:
+            handle->write(MSR_UNCORE_PMON_GLOBAL_CTL, (1ULL - freeze) << 61ULL);
+            break;
+        case HASWELLX:
+        case BDX:
+            handle->write(MSR_UNCORE_PMON_GLOBAL_CTL, (1ULL - freeze) << 29ULL);
+            break;
+        case IVYTOWN:
+            handle->write(IVT_MSR_UNCORE_PMON_GLOBAL_CTL, (1ULL - freeze) << 29ULL);
+            break;
+        }
+    }
+}
+
+
 void PCM::initUncorePMUsDirect()
 {
     for (uint32 s = 0; s < (uint32)num_sockets; ++s)
     {
         auto & handle = MSR[socketRefCore[s]];
         // unfreeze uncore PMUs
-        switch (cpu_model)
-        {
-        case SPR:
-            handle->write(SPR_MSR_UNCORE_PMON_GLOBAL_CTL, 0);
-            break;
-        case SKX:
-        case ICX:
-            handle->write(MSR_UNCORE_PMON_GLOBAL_CTL, 1ULL << 61ULL);
-            break;
-        case HASWELLX:
-        case BDX:
-            handle->write(MSR_UNCORE_PMON_GLOBAL_CTL, 1ULL << 29ULL);
-            break;
-        case IVYTOWN:
-            handle->write(IVT_MSR_UNCORE_PMON_GLOBAL_CTL, 1ULL << 29ULL);
-            break;
-        }
+        globalUnfreezeUncoreCounters();
+
         if (IVYTOWN == cpu_model || JAKETOWN == cpu_model)
         {
             uboxPMUs.push_back(

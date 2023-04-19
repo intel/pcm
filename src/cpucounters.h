@@ -1000,6 +1000,7 @@ private:
     void reportQPISpeed() const;
     void readCoreCounterConfig(const bool complainAboutMSR = false);
     void readCPUMicrocodeLevel();
+    void globalFreezeUncoreCountersInternal(const unsigned long long int freeze);
 
     uint64 CX_MSR_PMON_CTRY(uint32 Cbo, uint32 Ctr) const;
     uint64 CX_MSR_PMON_BOX_FILTER(uint32 Cbo) const;
@@ -1310,10 +1311,16 @@ public:
        return std::make_pair(0U, 0U);
     }
 
-    //! \brief Freezes uncore event counting (works only on microarchitecture codename SandyBridge-EP and IvyTown)
+    //! \brief Freezes uncore event counting using global control MSR
+    void globalFreezeUncoreCounters();
+
+    //! \brief Unfreezes uncore event counting using global control MSR
+    void globalUnfreezeUncoreCounters();
+
+    //! \brief Freezes uncore event counting
     void freezeServerUncoreCounters();
 
-    //! \brief Unfreezes uncore event counting (works only on microarchitecture codename SandyBridge-EP and IvyTown)
+    //! \brief Unfreezes uncore event counting
     void unfreezeServerUncoreCounters();
 
     /*! \brief Reads the power/energy counter state of a socket (works only on microarchitecture codename SandyBridge-EP)
