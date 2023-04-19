@@ -1064,6 +1064,8 @@ private:
     bool isRDTDisabled() const;
 
 public:
+    static bool isInitialized() { return instance != nullptr; }
+
     //! check if TMA level 1 metrics are supported
     bool isHWTMAL1Supported() const;
 
