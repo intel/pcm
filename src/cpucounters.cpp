@@ -2565,7 +2565,7 @@ void disableNMIWatchdog(const bool silent)
 {
     if (!silent)
     {
-        std::cerr << " Disabling NMI watchdog since it consumes one hw-PMU counter. To keep NMU watchdog set environment variable "
+        std::cerr << " Disabling NMI watchdog since it consumes one hw-PMU counter. To keep NMI watchdog set environment variable "
                   << keepNMIWatchdogEnabledEnvStr << "=1 (this reduces the core metrics set)\n";
     }
     writeSysFS(PCM_NMI_WATCHDOG_PATH, "0");
