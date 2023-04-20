@@ -1017,7 +1017,7 @@ public:
             case PCM::QAT_TLM_STOP: //disable
                 if (state == PCM::IDX_STATE_ON)
                 {
-                    std::cerr << "QAT telemetry operation = " << operation << ".\n";
+                    //std::cerr << "QAT telemetry operation = " << operation << ".\n";
                     sysfs_path << std::string("/sys/bus/pci/devices/") <<
                         std::hex << std::setw(4) << std::setfill('0') << domain << ":" <<
                         std::hex << std::setw(2) << std::setfill('0') << b << ":" <<
@@ -1033,7 +1033,7 @@ public:
             case PCM::QAT_TLM_REFRESH: //refresh data
                 if (state == PCM::IDX_STATE_ON)
                 {
-                    std::cerr << "QAT telemetry operation = " << operation << ".\n";
+                    //std::cerr << "QAT telemetry operation = " << operation << ".\n";
                     sysfs_path << std::string("/sys/bus/pci/devices/") <<
                         std::hex << std::setw(4) << std::setfill('0') << domain << ":" <<
                         std::hex << std::setw(2) << std::setfill('0') << b << ":" <<
@@ -1972,29 +1972,52 @@ void PCM::initUncoreObjects()
     }
 }
 
+void PCM::globalFreezeUncoreCounters()
+{
+    globalFreezeUncoreCountersInternal(1ULL);
+}
+
+void PCM::globalUnfreezeUncoreCounters()
+{
+    globalFreezeUncoreCountersInternal(0ULL);
+}
+
+// 1 : freeze
+// 0 : unfreeze
+void PCM::globalFreezeUncoreCountersInternal(const unsigned long long int freeze)
+{
+    for (uint32 s = 0; s < (uint32)num_sockets; ++s)
+    {
+        auto& handle = MSR[socketRefCore[s]];
+        switch (cpu_model)
+        {
+        case SPR:
+            handle->write(SPR_MSR_UNCORE_PMON_GLOBAL_CTL, freeze);
+            break;
+        case SKX:
+        case ICX:
+            handle->write(MSR_UNCORE_PMON_GLOBAL_CTL, (1ULL - freeze) << 61ULL);
+            break;
+        case HASWELLX:
+        case BDX:
+            handle->write(MSR_UNCORE_PMON_GLOBAL_CTL, (1ULL - freeze) << 29ULL);
+            break;
+        case IVYTOWN:
+            handle->write(IVT_MSR_UNCORE_PMON_GLOBAL_CTL, (1ULL - freeze) << 29ULL);
+            break;
+        }
+    }
+}
+
+
 void PCM::initUncorePMUsDirect()
 {
     for (uint32 s = 0; s < (uint32)num_sockets; ++s)
     {
         auto & handle = MSR[socketRefCore[s]];
         // unfreeze uncore PMUs
-        switch (cpu_model)
-        {
-        case SPR:
-            handle->write(SPR_MSR_UNCORE_PMON_GLOBAL_CTL, 0);
-            break;
-        case SKX:
-        case ICX:
-            handle->write(MSR_UNCORE_PMON_GLOBAL_CTL, 1ULL << 61ULL);
-            break;
-        case HASWELLX:
-        case BDX:
-            handle->write(MSR_UNCORE_PMON_GLOBAL_CTL, 1ULL << 29ULL);
-            break;
-        case IVYTOWN:
-            handle->write(IVT_MSR_UNCORE_PMON_GLOBAL_CTL, 1ULL << 29ULL);
-            break;
-        }
+        globalUnfreezeUncoreCounters();
+
         if (IVYTOWN == cpu_model || JAKETOWN == cpu_model)
         {
             uboxPMUs.push_back(
@@ -2314,7 +2337,7 @@ void PCM::initUncorePMUsDirect()
         );
     };
 
-    if (cpu_model == PCM::SPR)
+    if (supportIDXAccelDev() == true)
     {
         static const uint32 IAA_DEV_IDS[] = { 0x0CFE };
         static const uint32 DSA_DEV_IDS[] = { 0x0B25 };
@@ -2495,7 +2518,7 @@ void PCM::initUncorePMUsPerf()
         populateMapPMUs("irp", irpPMUs);
     }
 
-    if (cpu_model == PCM::SPR)
+    if (supportIDXAccelDev() == true)
     {
         idxPMUs.resize(IDX_MAX);
         idxPMUs[IDX_IAA].clear();
@@ -9082,23 +9105,21 @@ uint32 PCM::getNumOfIDXAccelDevs(int accel) const
 
 uint32 PCM::getMaxNumOfIDXAccelCtrs(int accel) const
 {
-    switch (this->getCPUModel())
-    {
-        case PCM::SPR:
-            if (accel == IDX_IAA || accel == IDX_DSA)
-            {
-                return SPR_IDX_ACCEL_COUNTER_MAX_NUM;
-            }
-            else if(accel == IDX_QAT)
-            {
-                return SPR_QAT_ACCEL_COUNTER_MAX_NUM;
-            }
+    uint32 retval = 0;
 
-        default:
-            break;
+    if (supportIDXAccelDev() == true)
+    {
+        if (accel == IDX_IAA || accel == IDX_DSA)
+        {
+            retval = SPR_IDX_ACCEL_COUNTER_MAX_NUM;
+        }
+        else if(accel == IDX_QAT)
+        {
+            retval = SPR_QAT_ACCEL_COUNTER_MAX_NUM;
+        }
     }
 
-    return 0;
+    return retval;
 }
 
 uint32 PCM::getNumaNodeOfIDXAccelDev(uint32 accel, uint32 dev) const
@@ -9121,6 +9142,24 @@ uint32 PCM::getCPUSocketIdOfIDXAccelDev(uint32 accel, uint32 dev) const
 
     socketid = idxPMUs[accel][dev].getSocketId();
     return socketid;
+}
+
+bool PCM::supportIDXAccelDev() const
+{
+    bool retval = false;
+
+    switch (this->getCPUModel())
+    {
+        case PCM::SPR:
+            retval = true;
+            break;
+
+        default:
+            retval = false;
+            break;
+    }
+
+    return retval;
 }
 
 uint64 PCM::getCBOCounterState(const uint32 socket_, const uint32 ctr_)

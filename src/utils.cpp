@@ -32,7 +32,7 @@ void exit_cleanup(void)
     restore_signal_handlers();
 
     // this replaces same call in cleanup() from util.h
-    PCM::getInstance()->cleanup(); // this replaces same call in cleanup() from util.h
+    if (PCM::isInitialized()) PCM::getInstance()->cleanup(); // this replaces same call in cleanup() from util.h
 
 //TODO: delete other shared objects.... if any.
 
@@ -141,7 +141,7 @@ BOOL sigINT_handler(DWORD fdwCtrlType)
 
     // in case PCM is blocked just return and summary will be dumped in
     // calling function, if needed
-    if (PCM::getInstance()->isBlocked()) {
+    if (PCM::isInitialized() && PCM::getInstance()->isBlocked()) {
         return FALSE;
     } else {
         exit_cleanup();
@@ -177,7 +177,7 @@ void sigINT_handler(int signum)
 
     // in case PCM is blocked just return and summary will be dumped in
     // calling function, if needed
-    if (PCM::getInstance()->isBlocked()) {
+    if (PCM::isInitialized() && PCM::getInstance()->isBlocked()) {
         return;
     } else {
         exit_cleanup();
@@ -950,7 +950,7 @@ int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
         if (!in.is_open())
         {
             in.close();
-            const auto err_msg = std::string("event file ") + fn + " or " + alt_fn + " is not available. Copy it from PCM build directory.";
+            const auto err_msg = std::string("event config file ") + fn + " or " + alt_fn + " is not available, you can try to manually copy it from PCM source package.";
             throw std::invalid_argument(err_msg);
         }
     }

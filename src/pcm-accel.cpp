@@ -77,16 +77,9 @@ class spr_idx_ccr: public idx_ccr {
         uint64_t* ccr_value = NULL;
 };
 
-idx_ccr* idx_get_ccr(PCM* m, uint64_t& ccr)
+idx_ccr* idx_get_ccr(uint64_t& ccr)
 {
-    switch (m->getCPUModel())
-    {
-        case PCM::SPR:
-            return new spr_idx_ccr(ccr);
-        default:
-            std::cerr << m->getCPUFamilyModelString() << " is not supported! Program aborted.\n";
-            exit(EXIT_FAILURE);
-    }
+    return new spr_idx_ccr(ccr);
 }
 
 typedef enum
@@ -590,7 +583,7 @@ int idx_evt_parse_handler(evt_cb_type cb_type, void *cb_ctx, counter &base_ctr, 
     }
     else if (cb_type == EVT_LINE_FIELD) //this event will be called per field of line
     {
-        std::unique_ptr<idx_ccr> pccr(idx_get_ccr(m, context->ctr.ccr));
+        std::unique_ptr<idx_ccr> pccr(idx_get_ccr(context->ctr.ccr));
 
         //std::cout << "Key:" << key << " Value:" << value << " opcodeFieldMap[key]:" << ofm[key] << "\n";
         switch (ofm[key]) 
@@ -804,11 +797,17 @@ int mainThrows(int argc, char * argv[])
         exit(EXIT_FAILURE);
     }
 
+    if (m->supportIDXAccelDev() == false)
+    {
+        std::cerr << "Error: IDX accelerator is NOT supported with this platform! Program aborted\n";
+        exit(EXIT_FAILURE);
+    }
+
     if (isAccelCounterAvailable(m, accel) == true)
     {
-        if (evtfile == false)
+        if (evtfile == false) //All platform use the spr config file by default.
         {
-            ev_file_name = "opCode-" + std::to_string(m->getCPUModel()) + "-accel.txt";
+            ev_file_name = "opCode-143-accel.txt";
         }
         else
         {
@@ -859,7 +858,7 @@ int mainThrows(int argc, char * argv[])
     catch (std::exception & e)
     {
         std::cerr << "Error: " << e.what() << "\n";
-        std::cerr << "Error: event cfg file content have the problem, please double check it! Program aborted\n";
+        std::cerr << "Error: event cfg file have the problem, please double check it! Program aborted\n";
         exit(EXIT_FAILURE);
     }
     

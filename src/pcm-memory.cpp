@@ -101,7 +101,7 @@ void print_help(const string & prog_name)
     cout << " Examples:\n";
     cout << "  " << prog_name << " 1                  => print counters every second without core and socket output\n";
     cout << "  " << prog_name << " 0.5 -csv=test.log  => twice a second save counter values to test.log in CSV format\n";
-    cout << "  " << prog_name << " /csv 5 2>/dev/null => one sampe every 5 seconds, and discard all diagnostic output\n";
+    cout << "  " << prog_name << " /csv 5 2>/dev/null => one sample every 5 seconds, and discard all diagnostic output\n";
     cout << "\n";
 }
 
