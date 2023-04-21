@@ -799,7 +799,7 @@ public:
 
     void setSocket( int socketFD ) {
         socketFD_ = socketFD;
-        if( 0 != socketFD )  // avoid work with 0 socket after closure socket and set value to 0
+        if( 0 == socketFD )  // avoid work with 0 socket after closure socket and set value to 0
             return;
         // When receiving the socket descriptor, set the timeout
         const auto res = setsockopt( socketFD_, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout_, sizeof(struct timeval) );
