@@ -58,7 +58,7 @@ Known limitations:
 Running PCM.exe under Cygwin shell is possible, but due to incompatibilities of signals/events handling between Windows and Cygwin, the PCM may not cleanup PMU configuration after Ctrl+C or Ctrl+Break pressed. The subsequent run of PCM will require to do PMU configuration reset, so adding -r command line option to PCM will be required.
 
 PCM-Service FAQ:
-Q: Help my service wont start, what can I do to diagnose the problem?
+Q: Help my service won't start, what can I do to diagnose the problem?
 A: Please check in the Windows Application "Event Viewer" under "Windows Logs" and then under "Application". PCM-Service writes its messages here, just look for errors. If you can't figure it out how to fix it, create a bug report and make sure to paste the text from the Event Viewer in the bug report so we can diagnose the issue.
 
 Q: I see a message in the Events Viewer that PCM-Service does not start because the "custom counter file view is out of memory", how do I fix this?
