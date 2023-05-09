@@ -958,7 +958,7 @@ int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
     while (std::getline(in, line))
     {
         //TODO: substring until #, if len == 0, skip, else parse normally
-        //Set default value if the item is NOT availalbe in cfg file.
+        //Set default value if the item is NOT available in cfg file.
         ctr.h_event_name = "INVALID";
         ctr.v_event_name = "INVALID";
         ctr.ccr = 0;

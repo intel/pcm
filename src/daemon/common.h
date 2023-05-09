@@ -175,7 +175,7 @@ namespace PCMDaemon {
     typedef struct PCMMemory PCMMemory;
 
     struct PCMQPILinkCounter {
-        uint64 bytes;  // bytes of certain traffic class transfered over QPI or UPI link
+        uint64 bytes;  // bytes of certain traffic class transferred over QPI or UPI link
         double utilization; // utilization of the link caused by the certain traffic class
 
     public:
@@ -189,7 +189,7 @@ namespace PCMDaemon {
     struct PCMQPISocketCounter {
         uint64 socketId = 0; // socket ID
         PCMQPILinkCounter links[QPI_MAX_LINKS];
-        uint64 total; // total number of transfered bytes of a certain traffic class
+        uint64 total; // total number of transferred bytes of a certain traffic class
 
     public:
         PCMQPISocketCounter() :
