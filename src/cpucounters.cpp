@@ -2455,6 +2455,7 @@ void PCM::initUncorePMUsDirect()
             auto & handle = MSR[socketRefCore[s]];
             for (uint32 cbo = 0; cbo < getMaxNumOfCBoxes(); ++cbo)
             {
+                assert(CX_MSR_PMON_BOX_CTL(cbo));
                 const auto filter1MSR = CX_MSR_PMON_BOX_FILTER1(cbo);
                 std::shared_ptr<HWRegister> filter1MSRHandle = filter1MSR ? std::make_shared<MSRRegister>(handle, filter1MSR) : std::shared_ptr<HWRegister>();
                 cboPMUs[s].push_back(
