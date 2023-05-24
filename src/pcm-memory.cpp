@@ -278,11 +278,11 @@ float PMM_MM_Ratio(const memdata_t *md, const uint32 skt)
 void printSocketBWFooter(uint32 no_columns, uint32 skt, const memdata_t *md)
 {
     for (uint32 i=skt; i<(skt+no_columns); ++i) {
-        cout << "|-- NODE" << setw(2) << i << " Mem Read (MB/s) : " << setw(8) << md->iMC_Rd_socket[i] << " --|";
+        cout << "|-- NODE" << setw(2) << i << " Mem Read (MB/s) :" << setw(9) << md->iMC_Rd_socket[i] << " --|";
     }
     cout << "\n";
     for (uint32 i=skt; i<(skt+no_columns); ++i) {
-        cout << "|-- NODE" << setw(2) << i << " Mem Write(MB/s) : " << setw(8) << md->iMC_Wr_socket[i] << " --|";
+        cout << "|-- NODE" << setw(2) << i << " Mem Write(MB/s) :" << setw(9) << md->iMC_Wr_socket[i] << " --|";
     }
     cout << "\n";
     if (anyPmem(md->metrics))
