@@ -184,9 +184,9 @@ fi
 
 echo Testing urltest
 ./tests/urltest
-# We have 2 expected errors, anything else is a bug
-if [ "$?" != 2 ]; then
-    echo "Error in urltest, 2 expected errors but found $?!"
+# We have 12 expected errors, anything else is a bug
+if [ "$?" != 12 ]; then
+    echo "Error in urltest, 12 expected errors but found $?!"
     exit 1
 fi
 
