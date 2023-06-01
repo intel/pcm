@@ -1553,7 +1553,7 @@ public:
         } else {
             // If first character is not a / then the first colon is end of scheme
             size_t schemeColonPos = fullURL.find( ':' );
-            if ( std::string::npos != schemeColonPos ) {
+            if ( std::string::npos != schemeColonPos && 0 != schemeColonPos ) {
                 std::string scheme;
                 scheme = fullURL.substr( 0, schemeColonPos );
                 std::string validSchemeChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-.";
@@ -1602,11 +1602,16 @@ public:
                     DBG( 3, "3 userEndPos '", userEndPos, "'" );
                     std::string user = authority.substr( 0, userEndPos );
                     DBG( 3, "user: '", user, "'" );
-                    // user is possibly percent encoded FIXME
-                    url.user_ = url.percentDecode( user );
-                    url.hasUser_ = true;
-                    // delete user/pass including the at
-                    authority.erase( 0, atPos+1 );
+                    if ( !user.empty() ) {
+                        // user is possibly percent encoded FIXME
+                        url.user_ = url.percentDecode( user );
+                        url.hasUser_ = true;
+                        // delete user/pass including the at
+                        authority.erase( 0, atPos+1 );
+                    }
+                    else {
+                        throw std::runtime_error( "User not found before @ sign" );
+                    }
                 }
 
                 // Instead of all the logic it is easier to work on substrings
@@ -1670,37 +1675,50 @@ public:
                     }
                 } else if ( !url.hasHost_ )
                     throw std::runtime_error( "No hostname found" );
+            } else {
+                throw std::runtime_error( "// not found" );
             }
         }
 
         pathEndPos = std::min( {questionMarkPos, numberPos} );
-        url.path_ = fullURL.substr( pathBeginPos, pathEndPos - pathBeginPos );
+        if ( std::string::npos != pathBeginPos ) {
+            url.path_ = fullURL.substr( pathBeginPos, pathEndPos - pathBeginPos );
+        } else {
+            url.path_ = "";
+        }
         DBG( 3, "path: '", url.path_, "'" );
 
         if ( std::string::npos != questionMarkPos ) {
-            url.hasQuery_ = true;
-	    // Why am i not checking numberPos for validity?
+            // Why am i not checking numberPos for validity?
             std::string queryString = fullURL.substr( questionMarkPos+1, numberPos-(questionMarkPos+1) );
             DBG( 3, "queryString: '", queryString, "'" );
-            size_t ampPos = 0;
-            while ( !queryString.empty() ) {
-                ampPos = queryString.find( '&' );
-                std::string query = queryString.substr( 0, ampPos );
-                DBG( 3, "query: '", query, "'" );
-                size_t equalsPos = query.find( '=' );
-                if ( std::string::npos == equalsPos )
-                    throw std::runtime_error( "Did not find a '=' in the query" );
-                std::string one, two;
-                one = url.percentDecode( query.substr( 0, equalsPos ) );
-                DBG( 3, "one: '", one, "'" );
-                two = url.percentDecode( query.substr( equalsPos+1 ) );
-                DBG( 3, "two: '", two, "'" );
-                url.arguments_.push_back( std::make_pair( one ,two ) );
-                // npos + 1 == 0... ouch
-                if ( std::string::npos == ampPos )
-                    queryString.erase( 0, ampPos );
-                else
-                    queryString.erase( 0, ampPos+1 );
+
+            if ( queryString.empty() ) {
+                url.hasQuery_ = false;
+                throw std::runtime_error( "Invalid URL: query not found after question mark" );
+            }
+            else {
+                url.hasQuery_ = true;
+                size_t ampPos = 0;
+                while ( !queryString.empty() ) {
+                    ampPos = queryString.find( '&' );
+                    std::string query = queryString.substr( 0, ampPos );
+                    DBG( 3, "query: '", query, "'" );
+                    size_t equalsPos = query.find( '=' );
+                    if ( std::string::npos == equalsPos )
+                        throw std::runtime_error( "Did not find a '=' in the query" );
+                    std::string one, two;
+                    one = url.percentDecode( query.substr( 0, equalsPos ) );
+                    DBG( 3, "one: '", one, "'" );
+                    two = url.percentDecode( query.substr( equalsPos+1 ) );
+                    DBG( 3, "two: '", two, "'" );
+                    url.arguments_.push_back( std::make_pair( one ,two ) );
+                    // npos + 1 == 0... ouch
+                    if ( std::string::npos == ampPos )
+                        queryString.erase( 0, ampPos );
+                    else
+                        queryString.erase( 0, ampPos+1 );
+                }
             }
         }
 

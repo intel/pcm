@@ -13,7 +13,19 @@ std::vector<std::string> urls{
 //    "",
     "http://www.blah.org/file.html#firstmark",
     "http://www.blah.org/file.html#firstmark%21%23",
-    "localhost"
+    "localhost",
+    "https://www.intel.com",
+    "://google.com/",
+    "https://intc.com/request?",
+    "htt:ps//www.intel.com",
+    "http://www.intel.com:66666/",
+    "http:///",
+    "http://[1234🔢1234/",
+    "http://@www.intel.com",
+    "http://otto@:www.intel.com",
+    "https://:@www.intel.com",
+    "https://user:@www.intel.com",
+    "http:www.intel.com/"
 };
 
 int main( int, char** ) {
