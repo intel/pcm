@@ -10,6 +10,11 @@
 
 #define PCM_API
 
+// kIOMainPortDefault is not supported before macOS Monterey
+#if (MAC_OS_X_VERSION_MAX_ALLOWED < 120000)
+    #define kIOMainPortDefault kIOMasterPortDefault
+#endif
+
 #include <stdint.h>
 #include "../../topologyentry.h"
 
