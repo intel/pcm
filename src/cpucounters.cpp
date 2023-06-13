@@ -1794,7 +1794,7 @@ struct idx_accel_dev_info {
 bool getIDXDevBAR(std::vector<std::pair<uint32, uint32> > & socket2bus, uint32 dev, uint32 func, std::map<int, int> &bus2socket, std::vector<struct idx_accel_dev_info> &idx_devs)
 {
     uint64 memBar = 0x0;
-    uint32 pciCmd = 0x0;
+    uint32 pciCmd = 0x0, pmCsr= 0x0;
     uint32 numaNode = 0xff;
     struct idx_accel_dev_info idx_dev;
 
@@ -1806,10 +1806,18 @@ bool getIDXDevBAR(std::vector<std::pair<uint32, uint32> > & socket2bus, uint32 d
         PciHandleType IDXHandle(s2bus.first, s2bus.second, dev, func);
         IDXHandle.read64(SPR_IDX_ACCEL_BAR0_OFFSET, &memBar);
         IDXHandle.read32(SPR_IDX_ACCEL_PCICMD_OFFSET, &pciCmd);
+        IDXHandle.read32(SPR_IDX_ACCEL_PMCSR_OFFSET, &pmCsr);      
         if (memBar == 0x0 || (pciCmd & 0x02) == 0x0) //Check BAR0 is valid or NOT.
         {
             std::cerr << "Warning: IDX - BAR0 of B:0x" << std::hex << s2bus.second << ",D:0x" << std::hex << dev << ",F:0x" << std::hex << func
                 << " is invalid(memBar=0x" << std::hex << memBar << ", pciCmd=0x" << std::hex << pciCmd <<"), skipped." << std::dec << std::endl;
+            continue;
+        }
+
+        if ((pmCsr & 0x03) == 0x3) //Check power state
+        {
+            std::cout << "Warning: IDX - Power state of B:0x" << std::hex << s2bus.second << ",D:0x" << std::hex << dev << ",F:0x" << std::hex << func \
+                << " is off, skipped." << std::endl;
             continue;
         }
 
@@ -2380,15 +2388,30 @@ void PCM::initUncorePMUsDirect()
         }
 
         idxPMUs[IDX_QAT].clear();
+#ifdef __linux__
         if (socket2QATbus.size())
         {
             std::vector<struct idx_accel_dev_info> devInfos;
             getIDXDevBAR(socket2QATbus, SPR_IDX_QAT_REGISTER_DEV_ADDR, SPR_IDX_QAT_REGISTER_FUNC_ADDR, rootbusMap, devInfos);
             for (auto & devInfo : devInfos)
             {
+                std::ostringstream qat_TLMCTL_sysfs_path(std::ostringstream::out);
+                qat_TLMCTL_sysfs_path << std::string("/sys/bus/pci/devices/") <<
+                    std::hex << std::setw(4) << std::setfill('0') << devInfo.domain << ":" <<
+                    std::hex << std::setw(2) << std::setfill('0') << devInfo.bus << ":" <<
+                    std::hex << std::setw(2) << std::setfill('0') << devInfo.dev << "." <<
+                    std::hex << devInfo.func << "/telemetry/control";
+                const std::string qatTLMCTLStr = readSysFS(qat_TLMCTL_sysfs_path.str().c_str(), true);
+                if (!qatTLMCTLStr.size()) //check TLM feature available or NOT.
+                {
+                    std::cout << "Warning: IDX - QAT telemetry feature of B:0x" << std::hex << devInfo.bus << ",D:0x" << devInfo.dev << ",F:0x" << devInfo.func \
+                        << " is NOT available, skipped." << std::dec << std::endl;
+                    continue;
+                }
                 idxPMUs[IDX_QAT].push_back(createQATPMU(devInfo.numa_node, devInfo.socket_id, devInfo.domain , devInfo.bus, devInfo.dev , devInfo.func));
             }
         }
+#endif
     }
 
     // init IRP PMU
@@ -2455,6 +2478,7 @@ void PCM::initUncorePMUsDirect()
             auto & handle = MSR[socketRefCore[s]];
             for (uint32 cbo = 0; cbo < getMaxNumOfCBoxes(); ++cbo)
             {
+                assert(CX_MSR_PMON_BOX_CTL(cbo));
                 const auto filter1MSR = CX_MSR_PMON_BOX_FILTER1(cbo);
                 std::shared_ptr<HWRegister> filter1MSRHandle = filter1MSR ? std::make_shared<MSRRegister>(handle, filter1MSR) : std::shared_ptr<HWRegister>();
                 cboPMUs[s].push_back(

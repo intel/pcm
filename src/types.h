@@ -1439,6 +1439,7 @@ struct MCFGHeader
 #define SPR_IDX_ACCEL_PMON_BASE_OFFSET     (0x68)
 #define SPR_IDX_ACCEL_PMON_BASE_MASK       (0xFFFF)
 #define SPR_IDX_ACCEL_PMON_BASE_RATIO      (0x100)
+#define SPR_IDX_ACCEL_PMCSR_OFFSET         (0x94)
 
 #define SPR_IDX_PMON_RESET_CTL_OFFSET              (0x10)
 #define SPR_IDX_PMON_FREEZE_CTL_OFFSET             (0x20)
