@@ -984,7 +984,7 @@ bool EagleStreamPlatformMapping::eagleStreamPciStackProbe(int unit, const struct
     stack.stack_name = spr_iio_stack_names[unit];
     for (int slot = 1; slot < 9; ++slot)
     {
-        // Check if port is enbaled
+        // Check if port is enabled
         struct pci root_pci_dev;
         root_pci_dev.bdf = bdf(address.domainno, address.busno, slot, 0x0);
         if (probe_pci(&root_pci_dev))

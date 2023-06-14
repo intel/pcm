@@ -230,7 +230,7 @@ int mainThrows(int argc, char * argv[])
 
     cerr << "Update every " << delay << " seconds\n";
 
-    // Delay in miliseconds
+    // Delay in milliseconds
     unique_ptr<IPlatform> platform(IPlatform::getPlatform(m, csv, print_bandwidth,
                                     print_additional_info, (uint)(delay * 1000)));
 

@@ -1169,7 +1169,7 @@ bool PCM::discoverSystemTopology()
         return false;
     }
 
-    (void) coreMaskWidth; // to supress warnings on MacOS (unused vars)
+    (void) coreMaskWidth; // to suppress warnings on MacOS (unused vars)
 
     uint32 l2CacheMaskShift = 0;
 #ifdef PCM_DEBUG_TOPOLOGY

@@ -1935,7 +1935,7 @@ public:
     //! \brief Get the state of IDX accel counter
     //! \param accel ip index
     //! \param dev device index
-    //! \param counter_id perf couter index 
+    //! \param counter_id perf counter index
     //! \return State of IDX counter
     IDXCounterState getIDXAccelCounterState(uint32 accel, uint32 dev, uint32 counter_id);
 
