@@ -16,4 +16,4 @@ target_link_libraries(PcmMsr PRIVATE ${IOKIT_LIBRARY})
 add_subdirectory(PcmMsr)
 
 # Installation
-install(TARGETS PcmMsr DESTINATION "local/lib")
+install(TARGETS PcmMsr DESTINATION "lib")
