@@ -1117,6 +1117,8 @@ constexpr auto SPR_CHA_MSR_STEP = 0x10;
 #define CBO_MSR_PMON_CTL_INVERT (1 << 23)
 #define CBO_MSR_PMON_CTL_THRESH(x) (x << 24UL)
 #define UNC_PMON_CTL_UMASK_EXT(x) (uint64(x) << 32ULL)
+#define UNC_PMON_CTL_EVENT(x) (x << 0)
+#define UNC_PMON_CTL_UMASK(x) (x << 8)
 
 #define JKT_CBO_MSR_PMON_BOX_FILTER_OPC(x) (x << 23UL)
 #define IVTHSX_CBO_MSR_PMON_BOX_FILTER1_OPC(x) (x << 20UL)
@@ -1231,6 +1233,8 @@ constexpr auto SPR_M2IOSF_IIO_CTR0     = 0x3008;
 constexpr auto SPR_M2IOSF_IIO_CTL0     = 0x3002;
 constexpr auto SPR_M2IOSF_REG_STEP = 0x10;
 constexpr auto SPR_M2IOSF_NUM      = 12;
+
+constexpr auto CXL_PMON_SIZE = 0x1000;
 
 #define IIO_MSR_PMON_CTL_EVENT(x)   ((x) << 0)
 #define IIO_MSR_PMON_CTL_UMASK(x)   ((x) << 8)
