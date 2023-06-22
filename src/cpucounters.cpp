@@ -6124,6 +6124,7 @@ template void PCM::readAndAggregatePackageCStateResidencies(std::shared_ptr<Safe
 template void PCM::readAndAggregateUncoreMCCounters<UncoreCounterState>(const uint32, UncoreCounterState&);
 template void PCM::readAndAggregateEnergyCounters<UncoreCounterState>(const uint32, UncoreCounterState&);
 template void PCM::readPackageThermalHeadroom<SocketCounterState>(const uint32, SocketCounterState &);
+template void PCM::readAndAggregateCXLCMCounters<SystemCounterState>(SystemCounterState &);
 
 SocketCounterState PCM::getSocketCounterState(uint32 socket)
 {
