@@ -623,6 +623,11 @@ std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int
             panel->push(t);
             panel1->push(t);
         }
+        for (auto& m : {"CXL Write Mem","CXL Write Cache" }){
+            auto t = createTarget(m, "mean(\\\"QPI/UPI Links_QPI Counters Socket " + S + "_" + m + "\\\")/1048576", prometheusCounters(S, m, false) + "/1048576");
+            panel->push(t);
+            panel1->push(t);
+         }
         for (std::string m : { "DRAM ", "Persistent Memory " })
         {
             auto t = createTarget(m + "Total",

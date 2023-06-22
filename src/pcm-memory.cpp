@@ -38,6 +38,7 @@ constexpr uint32 max_sockets = 256;
 uint32 max_imc_channels = ServerUncoreCounterState::maxChannels;
 const uint32 max_edc_channels = ServerUncoreCounterState::maxChannels;
 const uint32 max_imc_controllers = ServerUncoreCounterState::maxControllers;
+bool SPR_CXL = false;
 
 typedef struct memdata {
     float iMC_Rd_socket_chan[max_sockets][ServerUncoreCounterState::maxChannels]{};
@@ -49,6 +50,10 @@ typedef struct memdata {
     float iMC_Wr_socket[max_sockets]{};
     float iMC_PMM_Rd_socket[max_sockets]{};
     float iMC_PMM_Wr_socket[max_sockets]{};
+    float CXLMEM_Rd_socket_port[max_sockets][ServerUncoreCounterState::maxCXLPorts]{};
+    float CXLMEM_Wr_socket_port[max_sockets][ServerUncoreCounterState::maxCXLPorts]{};
+    float CXLCACHE_Rd_socket_port[max_sockets][ServerUncoreCounterState::maxCXLPorts]{};
+    float CXLCACHE_Wr_socket_port[max_sockets][ServerUncoreCounterState::maxCXLPorts]{};
     float iMC_PMM_MemoryMode_Miss_socket[max_sockets]{};
     bool iMC_NM_hit_rate_supported{};
     float iMC_PMM_MemoryMode_Hit_socket[max_sockets]{};
@@ -184,7 +189,7 @@ void printSocketRankBWHeader_cvt(const uint32 numSockets, const uint32 num_imc_c
     cout << endl;
 }
 
-void printSocketChannelBW(PCM * /*m*/, memdata_t *md, uint32 no_columns, uint32 skt)
+void printSocketChannelBW(PCM *, memdata_t *md, uint32 no_columns, uint32 skt)
 {
     for (uint32 channel = 0; channel < max_imc_channels; ++channel) {
         // check all the sockets for bad channel "channel"
@@ -218,7 +223,7 @@ void printSocketChannelBW(PCM * /*m*/, memdata_t *md, uint32 no_columns, uint32 
     }
 }
 
-void printSocketChannelBW(uint32 no_columns, uint32 skt, uint32 num_imc_channels, const ServerUncoreCounterState * uncState1, const ServerUncoreCounterState * uncState2, uint64 elapsedTime, int rankA, int rankB)
+void printSocketChannelBW(uint32 no_columns, uint32 skt, uint32 num_imc_channels, const std::vector<ServerUncoreCounterState>& uncState1, const std::vector<ServerUncoreCounterState>& uncState2, uint64 elapsedTime, int rankA, int rankB)
 {
     for (uint32 channel = 0; channel < num_imc_channels; ++channel) {
         if(rankA >= 0) {
@@ -244,8 +249,8 @@ void printSocketChannelBW(uint32 no_columns, uint32 skt, uint32 num_imc_channels
     }
 }
 
-void printSocketChannelBW_cvt(const uint32 numSockets, const uint32 num_imc_channels, const ServerUncoreCounterState * uncState1,
-        const ServerUncoreCounterState * uncState2, const uint64 elapsedTime, const int rankA, const int rankB)
+void printSocketChannelBW_cvt(const uint32 numSockets, const uint32 num_imc_channels, const std::vector<ServerUncoreCounterState>& uncState1,
+    const std::vector<ServerUncoreCounterState>& uncState2, const uint64 elapsedTime, const int rankA, const int rankB)
 {
     printDateForCSV(Data);
     for (uint32 skt = 0 ; skt < numSockets; ++skt) {
@@ -261,6 +266,58 @@ void printSocketChannelBW_cvt(const uint32 numSockets, const uint32 num_imc_chan
         }
     }
     cout << endl;
+}
+
+uint32 getNumCXLPorts(PCM* m)
+{
+    static int numPorts = -1;
+    if (numPorts < 0)
+    {
+        for (uint32 s = 0; s < m->getNumSockets(); ++s)
+        {
+            numPorts = (std::max)(numPorts, (int)m->getNumCXLPorts(s));
+        }
+        assert(numPorts >= 0);
+    }
+    return (uint32)numPorts;
+}
+
+void printSocketCXLBW(PCM* m, memdata_t* md, uint32 no_columns, uint32 skt)
+{
+    uint32 numPorts = getNumCXLPorts(m);
+    if (numPorts > 0)
+    {
+        for (uint32 i = skt; i < (no_columns + skt); ++i) {
+            cout << "|---------------------------------------|";
+        }
+        cout << "\n";
+        for (uint32 i = skt; i < (no_columns + skt); ++i) {
+            cout << "|--        CXL Port Monitoring        --|";
+        }
+        cout << "\n";
+        for (uint32 i = skt; i < (no_columns + skt); ++i) {
+            cout << "|---------------------------------------|";
+        }
+        cout << "\n";
+    }
+    for (uint32 port = 0; port < numPorts; ++port) {
+        for (uint32 i = skt; i < (skt + no_columns); ++i) {
+            cout << "|-- .mem                              --|";
+        }
+        cout << "\n";
+        for (uint32 i = skt; i < (skt + no_columns); ++i) {
+            cout << "|--            Writes(MB/s): " << setw(8) << md->CXLMEM_Wr_socket_port[i][port] << " --|";
+        }
+        cout << "\n";
+        for (uint32 i = skt; i < (skt + no_columns); ++i) {
+            cout << "|-- .cache                            --|";
+        }
+        cout << "\n";
+        for (uint32 i = skt; i < (skt + no_columns); ++i) {
+            cout << "|--           hst->dv(MB/s): " << setw(8) << md->CXLCACHE_Wr_socket_port[i][port] << " --|";
+        }
+        cout << "\n";
+    }
 }
 
 float AD_BW(const memdata_t *md, const uint32 skt)
@@ -357,7 +414,7 @@ void printSocketBWFooter(uint32 no_columns, uint32 skt, const memdata_t *md)
     cout << "\n";
 }
 
-void display_bandwidth(PCM *m, memdata_t *md, const uint32 no_columns, const bool show_channel_output, const bool print_update)
+void display_bandwidth(PCM *m, memdata_t *md, const uint32 no_columns, const bool show_channel_output, const bool print_update, const float CXL_Read_BW)
 {
     float sysReadDRAM = 0.0, sysWriteDRAM = 0.0, sysReadPMM = 0.0, sysWritePMM = 0.0;
     uint32 numSockets = m->getNumSockets();
@@ -450,6 +507,7 @@ void display_bandwidth(PCM *m, memdata_t *md, const uint32 no_columns, const boo
             if (show_channel_output)
                 printSocketChannelBW(m, md, no_columns, skt);
             printSocketBWFooter(no_columns, skt, md);
+            printSocketCXLBW(m, md, no_columns, skt);
             for (uint32 i = skt; i < (skt + no_columns); i++)
             {
                 sysReadDRAM += md->iMC_Rd_socket[i];
@@ -483,6 +541,11 @@ void display_bandwidth(PCM *m, memdata_t *md, const uint32 no_columns, const boo
             \r|--             System PMM Read Throughput(MB/s):" << setw(14) << sysReadPMM <<                                      "                --|\n\
             \r|--            System PMM Write Throughput(MB/s):" << setw(14) << sysWritePMM <<                                     "                --|\n";
         }
+        if (SPR_CXL)
+        {
+            cout << "\
+            \r|--             System CXL Read Throughput(MB/s):" << setw(14) << CXL_Read_BW << "                --|\n";
+        }
         cout << "\
             \r|--                 System Read Throughput(MB/s):" << setw(14) << sysReadDRAM+sysReadPMM <<                          "                --|\n\
             \r|--                System Write Throughput(MB/s):" << setw(14) << sysWriteDRAM+sysWritePMM <<                        "                --|\n\
@@ -491,7 +554,9 @@ void display_bandwidth(PCM *m, memdata_t *md, const uint32 no_columns, const boo
     }
 }
 
-void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 /*elapsedTime*/, const bool show_channel_output, const CsvOutputType outputType)
+constexpr float CXLBWWrScalingFactor = 0.5;
+
+void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 /*elapsedTime*/, const bool show_channel_output, const CsvOutputType outputType, const float CXL_Read_BW)
 {
     const uint32 numSockets = m->getNumSockets();
     printDateForCSV(outputType);
@@ -695,6 +760,22 @@ void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 /*elapsedTime*/, const 
                        sysWriteDRAM += md->EDC_Wr_socket[skt];
                    });
         }
+        for (uint64 port = 0; port < m->getNumCXLPorts(skt); ++port)
+        {
+            choose(outputType,
+                [printSKT]() {
+                    printSKT(2);
+                },
+                [&port]() {
+                    cout 
+                         << "CXL.mem_P" << port << "Write,"
+                         << "CXL.cache_P" << port << "hst->dv,";
+                },
+                    [&md, &skt, &port]() {
+                    cout << setw(8) << md->CXLMEM_Wr_socket_port[skt][port] << ','
+                         << setw(8) << md->CXLCACHE_Wr_socket_port[skt][port] << ',';
+                });
+        }
     }
 
     if (anyPmem(md->metrics))
@@ -714,6 +795,20 @@ void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 /*elapsedTime*/, const 
                });
     }
 
+    if (SPR_CXL)
+    {
+        choose(outputType,
+            []() {
+                cout << "System,";
+            },
+            []() {
+                cout << "CXLRead,";
+            },
+                [&]() {
+                cout << setw(10) << CXL_Read_BW << ',';
+            });
+    }
+
     choose(outputType,
            []() {
                cout << "System,System,System\n";
@@ -729,15 +824,16 @@ void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 /*elapsedTime*/, const 
 }
 
 void calculate_bandwidth(PCM *m,
-    const ServerUncoreCounterState uncState1[],
-    const ServerUncoreCounterState uncState2[],
+    const std::vector<ServerUncoreCounterState>& uncState1,
+    const std::vector<ServerUncoreCounterState>& uncState2,
     const uint64 elapsedTime,
     const bool csv,
     bool & csvheader,
     uint32 no_columns,
     const ServerUncoreMemoryMetrics & metrics,
     const bool show_channel_output,
-    const bool print_update)
+    const bool print_update,
+    const uint64 SPR_CHA_CXL_Count)
 {
     //const uint32 num_imc_channels = m->getMCChannelsPerSocket();
     //const uint32 num_edc_channels = m->getEDCChannelsPerSocket();
@@ -775,16 +871,23 @@ void calculate_bandwidth(PCM *m,
 		{
 			md.M2M_NM_read_hit_rate[skt][i] = 0.;
 		}
+        for (size_t p = 0; p < ServerUncoreCounterState::maxCXLPorts; ++p)
+        {
+            md.CXLMEM_Rd_socket_port[skt][p] = 0.0;
+            md.CXLMEM_Wr_socket_port[skt][p] = 0.0;
+            md.CXLCACHE_Rd_socket_port[skt][p] = 0.0;
+            md.CXLCACHE_Wr_socket_port[skt][p] = 0.0;
+        }
     }
+
+    auto toBW = [&elapsedTime](const uint64 nEvents)
+    {
+        return (float)(nEvents * 64 / 1000000.0 / (elapsedTime / 1000.0));
+    };
 
     for(uint32 skt = 0; skt < m->getNumSockets(); ++skt)
     {
 		const uint32 numChannels1 = (uint32)m->getMCChannels(skt, 0); // number of channels in the first controller
-
-		auto toBW = [&elapsedTime](const uint64 nEvents)
-		{
-			return (float)(nEvents * 64 / 1000000.0 / (elapsedTime / 1000.0));
-		};
 
         if (m->HBMmemoryTrafficMetricsAvailable())
         {
@@ -927,25 +1030,33 @@ void calculate_bandwidth(PCM *m,
         {
             md.iMC_NM_hit_rate[skt] = md.iMC_PMM_MemoryMode_Hit_socket[skt] / all;
         }
+
+        for (size_t p = 0; p < m->getNumCXLPorts(skt); ++p)
+        {
+            md.CXLMEM_Wr_socket_port[skt][p] = CXLBWWrScalingFactor * toBW(getCXLCMCounter((uint32)p, PCM::EventPosition::CXL_TxC_MEM, uncState1[skt], uncState2[skt]));
+            md.CXLCACHE_Wr_socket_port[skt][p] = CXLBWWrScalingFactor * toBW(getCXLCMCounter((uint32)p, PCM::EventPosition::CXL_TxC_CACHE, uncState1[skt], uncState2[skt]));
+        }
     }
+
+    const auto CXL_Read_BW = toBW(SPR_CHA_CXL_Count);
 
     if (csv)
     {
         if (csvheader)
         {
-            display_bandwidth_csv(m, &md, elapsedTime, show_channel_output, Header1);
-            display_bandwidth_csv(m, &md, elapsedTime, show_channel_output, Header2);
+            display_bandwidth_csv(m, &md, elapsedTime, show_channel_output, Header1, CXL_Read_BW);
+            display_bandwidth_csv(m, &md, elapsedTime, show_channel_output, Header2, CXL_Read_BW);
             csvheader = false;
         }
-        display_bandwidth_csv(m, &md, elapsedTime, show_channel_output, Data);
+        display_bandwidth_csv(m, &md, elapsedTime, show_channel_output, Data, CXL_Read_BW);
     }
     else
     {
-        display_bandwidth(m, &md, no_columns, show_channel_output, print_update);
+        display_bandwidth(m, &md, no_columns, show_channel_output, print_update, CXL_Read_BW);
     }
 }
 
-void calculate_bandwidth_rank(PCM *m, const ServerUncoreCounterState uncState1[], const ServerUncoreCounterState uncState2[],
+void calculate_bandwidth_rank(PCM *m, const std::vector<ServerUncoreCounterState> & uncState1, const std::vector<ServerUncoreCounterState>& uncState2,
 		const uint64 elapsedTime, const bool csv, bool &csvheader, const uint32 no_columns, const int rankA, const int rankB)
 {
     uint32 skt = 0;
@@ -977,6 +1088,123 @@ void calculate_bandwidth_rank(PCM *m, const ServerUncoreCounterState uncState1[]
         }
     }
 }
+
+void readState(std::vector<ServerUncoreCounterState>& state)
+{
+    auto* pcm = PCM::getInstance();
+    assert(pcm);
+    for (uint32 i = 0; i < pcm->getNumSockets(); ++i)
+        state[i] = pcm->getServerUncoreCounterState(i);
+};
+
+class CHAEventCollector
+{
+    std::vector<eventGroup_t> eventGroups;
+    double delay;
+    const char* sysCmd;
+    const MainLoop& mainLoop;
+    PCM* pcm;
+    std::vector<std::vector<ServerUncoreCounterState> > MidStates;
+    size_t curGroup = 0ULL;
+    uint64 totalCount = 0ULL;
+    CHAEventCollector() = delete;
+    CHAEventCollector(const CHAEventCollector&) = delete;
+    CHAEventCollector & operator = (const CHAEventCollector &) = delete;
+
+    uint64 extractCHATotalCount(const std::vector<ServerUncoreCounterState>& before, const std::vector<ServerUncoreCounterState>& after)
+    {
+        uint64 result = 0;
+        for (uint32 i = 0; i < pcm->getNumSockets(); ++i)
+        {
+            for (uint32 cbo = 0; cbo < pcm->getMaxNumOfCBoxes(); ++cbo)
+            {
+                for (uint32 ctr = 0; ctr < 4 && ctr < eventGroups[curGroup].size(); ++ctr)
+                {
+                    result += getCBOCounter(cbo, ctr, before[i], after[i]);
+                }
+            }
+        }
+        return result;
+    }
+    void programGroup(const size_t group)
+    {
+        uint64 events[4] = { 0, 0, 0, 0 };
+        assert(group < eventGroups.size());
+        for (size_t i = 0; i < 4 && i < eventGroups[group].size(); ++i)
+        {
+            events[i] = eventGroups[group][i];
+        }
+        pcm->programCboRaw(events, 0, 0);
+    }
+
+public:
+    CHAEventCollector(const double delay_, const char* sysCmd_, const MainLoop& mainLoop_, PCM* m) :
+        sysCmd(sysCmd_),
+        mainLoop(mainLoop_),
+        pcm(m)
+    {
+        assert(pcm);
+        switch (pcm->getCPUModel())
+        {
+            case PCM::SPR:
+                eventGroups = {
+                    {
+                        UNC_PMON_CTL_EVENT(0x35) + UNC_PMON_CTL_UMASK(0x01) + UNC_PMON_CTL_UMASK_EXT(0x10C80B82) , // UNC_CHA_TOR_INSERTS.IA_MISS_CRDMORPH_CXL_ACC
+                        UNC_PMON_CTL_EVENT(0x35) + UNC_PMON_CTL_UMASK(0x01) + UNC_PMON_CTL_UMASK_EXT(0x10c80782) , // UNC_CHA_TOR_INSERTS.IA_MISS_RFO_CXL_ACC
+                        UNC_PMON_CTL_EVENT(0x35) + UNC_PMON_CTL_UMASK(0x01) + UNC_PMON_CTL_UMASK_EXT(0x10c81782) , // UNC_CHA_TOR_INSERTS.IA_MISS_DRD_CXL_ACC
+                        UNC_PMON_CTL_EVENT(0x35) + UNC_PMON_CTL_UMASK(0x01) + UNC_PMON_CTL_UMASK_EXT(0x10C88782)   // UNC_CHA_TOR_INSERTS.IA_MISS_LLCPREFRFO_CXL_ACC
+                    },
+                    {
+                        UNC_PMON_CTL_EVENT(0x35) + UNC_PMON_CTL_UMASK(0x01) + UNC_PMON_CTL_UMASK_EXT(0x10CCC782) , // UNC_CHA_TOR_INSERTS.IA_MISS_RFO_PREF_CXL_ACC
+                        UNC_PMON_CTL_EVENT(0x35) + UNC_PMON_CTL_UMASK(0x01) + UNC_PMON_CTL_UMASK_EXT(0x10C89782) , // UNC_CHA_TOR_INSERTS.IA_MISS_DRD_PREF_CXL_ACC
+                        UNC_PMON_CTL_EVENT(0x35) + UNC_PMON_CTL_UMASK(0x01) + UNC_PMON_CTL_UMASK_EXT(0x10CCD782) , // UNC_CHA_TOR_INSERTS.IA_MISS_LLCPREFDATA_CXL_ACC
+                        UNC_PMON_CTL_EVENT(0x35) + UNC_PMON_CTL_UMASK(0x01) + UNC_PMON_CTL_UMASK_EXT(0x10CCCF82)   // UNC_CHA_TOR_INSERTS.IA_MISS_LLCPREFCODE_CXL_ACC
+                    }
+                };
+                break;
+        }
+
+        assert(eventGroups.size() > 1);
+
+        delay = delay_ / double(eventGroups.size());
+        MidStates.resize(eventGroups.size() - 1);
+        for (auto& e : MidStates)
+        {
+            e.resize(pcm->getNumSockets());
+        }
+    }
+
+    void programFirstGroup()
+    {
+        programGroup(0);
+    }
+
+    void multiplexEvents(const std::vector<ServerUncoreCounterState>& BeforeState)
+    {
+        for (curGroup = 0; curGroup < eventGroups.size() - 1; ++curGroup)
+        {
+            assert(curGroup < MidStates.size());
+            calibratedSleep(delay, sysCmd, mainLoop, pcm);
+            readState(MidStates[curGroup]);  // TODO: read only CHA counters (performance optmization)
+            totalCount += extractCHATotalCount((curGroup > 0) ? MidStates[curGroup - 1] : BeforeState, MidStates[curGroup]);
+            programGroup(curGroup + 1);
+            readState(MidStates[curGroup]);  // TODO: read only CHA counters (performance optmization)
+        }
+
+        calibratedSleep(delay, sysCmd, mainLoop, pcm);
+    }
+
+    uint64 getTotalCount(const std::vector<ServerUncoreCounterState>& AfterState)
+    {
+        return eventGroups.size() * (totalCount + extractCHATotalCount(MidStates.back(), AfterState));
+    }
+
+    void reset()
+    {
+        totalCount = 0;
+    }
+};
+
 
 PCM_MAIN_NOTHROW;
 
@@ -1014,6 +1242,12 @@ int mainThrows(int argc, char * argv[])
     string program = string(argv[0]);
 
     PCM * m = PCM::getInstance();
+    assert(m);
+    if (m->getNumSockets() > max_sockets)
+    {
+        cerr << "Only systems with up to " << max_sockets << " sockets are supported! Program aborted\n";
+        exit(EXIT_FAILURE);
+    }
     ServerUncoreMemoryMetrics metrics;
     metrics = m->PMMTrafficMetricsAvailable() ? Pmem : PartialWrites;
 
@@ -1191,16 +1425,10 @@ int mainThrows(int argc, char * argv[])
     PCM::ErrorCode status = m->programServerUncoreMemoryMetrics(metrics, rankA, rankB);
     m->checkError(status);
 
-    if(m->getNumSockets() > max_sockets)
-    {
-        cerr << "Only systems with up to " << max_sockets << " sockets are supported! Program aborted\n";
-        exit(EXIT_FAILURE);
-    }
-
     max_imc_channels = (pcm::uint32)m->getMCChannelsPerSocket();
 
-    ServerUncoreCounterState * BeforeState = new ServerUncoreCounterState[m->getNumSockets()];
-    ServerUncoreCounterState * AfterState = new ServerUncoreCounterState[m->getNumSockets()];
+    std::vector<ServerUncoreCounterState> BeforeState(m->getNumSockets());
+    std::vector<ServerUncoreCounterState> AfterState(m->getNumSockets());
     uint64 BeforeTime = 0, AfterTime = 0;
 
     if ( (sysCmd != NULL) && (delay<=0.0) ) {
@@ -1220,13 +1448,24 @@ int mainThrows(int argc, char * argv[])
         if( ((delay<1.0) && (delay>0.0)) || (delay<=0.0) ) delay = PCM_DELAY_DEFAULT;
     }
 
+    shared_ptr<CHAEventCollector> chaEventCollector;
+
+    SPR_CXL = (PCM::SPR == m->getCPUModel()) && (getNumCXLPorts(m) > 0);
+    if (SPR_CXL)
+    {
+         chaEventCollector = std::make_shared<CHAEventCollector>(delay, sysCmd, mainLoop, m);
+         assert(chaEventCollector.get());
+         chaEventCollector->programFirstGroup();
+    }
+
     cerr << "Update every " << delay << " seconds\n";
 
     if (csv)
         cerr << "Read/Write values expressed in (MB/s)" << endl;
 
-    for(uint32 i=0; i<m->getNumSockets(); ++i)
-        BeforeState[i] = m->getServerUncoreCounterState(i);
+    readState(BeforeState);
+
+    uint64 SPR_CHA_CXL_Event_Count = 0;
 
     BeforeTime = m->getTickCount();
 
@@ -1238,11 +1477,24 @@ int mainThrows(int argc, char * argv[])
     {
         if (enforceFlush || !csv) cout << flush;
 
-        calibratedSleep(delay, sysCmd, mainLoop, m);
+        if (chaEventCollector.get())
+        {
+            chaEventCollector->multiplexEvents(BeforeState);
+        }
+        else
+        {
+            calibratedSleep(delay, sysCmd, mainLoop, m);
+        }
 
         AfterTime = m->getTickCount();
-        for(uint32 i=0; i<m->getNumSockets(); ++i)
-            AfterState[i] = m->getServerUncoreCounterState(i);
+        readState(AfterState);
+        if (chaEventCollector.get())
+        {
+            SPR_CHA_CXL_Event_Count = chaEventCollector->getTotalCount(AfterState);
+            chaEventCollector->reset();
+            chaEventCollector->programFirstGroup();
+            readState(AfterState); // TODO: re-read only CHA counters (performance optmization)
+        }
 
         if (!csv) {
           //cout << "Time elapsed: " << dec << fixed << AfterTime-BeforeTime << " ms\n";
@@ -1250,10 +1502,10 @@ int mainThrows(int argc, char * argv[])
         }
 
         if(rankA >= 0 || rankB >= 0)
-          calculate_bandwidth_rank(m,BeforeState,AfterState,AfterTime-BeforeTime,csv,csvheader, no_columns, rankA, rankB);
+          calculate_bandwidth_rank(m,BeforeState, AfterState, AfterTime - BeforeTime, csv, csvheader, no_columns, rankA, rankB);
         else
           calculate_bandwidth(m,BeforeState,AfterState,AfterTime-BeforeTime,csv,csvheader, no_columns, metrics,
-                show_channel_output, print_update);
+                show_channel_output, print_update, SPR_CHA_CXL_Event_Count);
 
         swap(BeforeTime, AfterTime);
         swap(BeforeState, AfterState);
@@ -1264,9 +1516,6 @@ int mainThrows(int argc, char * argv[])
         }
         return true;
     });
-
-    delete[] BeforeState;
-    delete[] AfterState;
 
     exit(EXIT_SUCCESS);
 }

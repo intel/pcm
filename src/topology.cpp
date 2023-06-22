@@ -86,6 +86,7 @@ void Aggregator::dispatch( SystemRoot const& syp ) {
     }
     PCM* pcm = PCM::getInstance();
     pcm->readQPICounters( sycs_ );
+    pcm->readAndAggregateCXLCMCounters( sycs_ );
 }
 
 Aggregator::Aggregator()

@@ -246,8 +246,8 @@ class UncorePMU
     uint32 getCPUModel();
     HWRegisterPtr unitControl;
 public:
-    HWRegisterPtr counterControl[4];
-    HWRegisterPtr counterValue[4];
+    std::vector<HWRegisterPtr> counterControl;
+    std::vector<HWRegisterPtr> counterValue;
     HWRegisterPtr fixedCounterControl;
     HWRegisterPtr fixedCounterValue;
     HWRegisterPtr filter[2];
@@ -266,7 +266,16 @@ public:
         const HWRegisterPtr& filter0 = HWRegisterPtr(),
         const HWRegisterPtr& filter1 = HWRegisterPtr()
     );
+    UncorePMU(const HWRegisterPtr& unitControl_,
+        const std::vector<HWRegisterPtr> & counterControl_,
+        const std::vector<HWRegisterPtr> & counterValue_,
+        const HWRegisterPtr& fixedCounterControl_ = HWRegisterPtr(),
+        const HWRegisterPtr& fixedCounterValue_ = HWRegisterPtr(),
+        const HWRegisterPtr& filter0 = HWRegisterPtr(),
+        const HWRegisterPtr& filter1 = HWRegisterPtr()
+    );
     UncorePMU() : cpu_model_(0U) {}
+    size_t size() const { return counterControl.size(); }
     virtual ~UncorePMU() {}
     bool valid() const
     {
@@ -631,6 +640,7 @@ class PCM_API PCM
     std::vector<std::shared_ptr<CounterWidthExtender> > dram_energy_status;
     std::vector<std::vector<UncorePMU> > cboPMUs;
     std::vector<std::vector<UncorePMU> > mdfPMUs;
+    std::vector<std::vector<std::pair<UncorePMU, UncorePMU>>> cxlPMUs; // socket X CXL ports X UNIT {0,1}
 
     std::vector<std::shared_ptr<CounterWidthExtender> > memory_bw_local;
     std::vector<std::shared_ptr<CounterWidthExtender> > memory_bw_total;
@@ -993,6 +1003,10 @@ private:
     void readAndAggregatePackageCStateResidencies(std::shared_ptr<SafeMsrHandle> msr, CounterStateType & result);
 public:
     struct RawPMUConfig;
+    void programCXLCM();
+    template <class CounterStateType>
+    void readAndAggregateCXLCMCounters(CounterStateType & counterState);
+
 private:
     template <class CounterStateType>
     void readMSRs(std::shared_ptr<SafeMsrHandle> msr, const RawPMUConfig & msrConfig, CounterStateType & result);
@@ -1018,7 +1032,7 @@ private:
         if (!eventsBegin) return;
         Iterator curEvent = eventsBegin;
         const auto cpu_model = PCM::getInstance()->getCPUModel();
-        for (int c = 0; curEvent != eventsEnd; ++c, ++curEvent)
+        for (int c = 0; curEvent != eventsEnd && size_t(c) < pmu.size(); ++c, ++curEvent)
         {
             auto ctrl = pmu.counterControl[c];
             if (ctrl.get() != nullptr)
@@ -1041,7 +1055,8 @@ private:
     }
     void programPCU(uint32 * events, const uint64 filter);
     void programUBOX(const uint64* events);
-
+    void programCXLDP(const uint64* events);
+    void programCXLCM(const uint64* events);
     void cleanupUncorePMUs(const bool silent = false);
 
     bool isCLX() const // Cascade Lake-SP
@@ -1074,7 +1089,9 @@ public:
         TOR_OCCUPANCY = 0,
         TOR_INSERTS = 1,
         REQUESTS_ALL = 2,
-        REQUESTS_LOCAL = 3
+        REQUESTS_LOCAL = 3,
+        CXL_TxC_MEM = 0,   // works only on counters 0-3
+        CXL_TxC_CACHE = 1  // works only on counters 0-3
     };
     //! check if in secure boot mode
     bool isSecureBoot() const;
@@ -1563,6 +1580,16 @@ public:
     //! \param core_id core identifier
     //! \return socket identifier
     int32 getSocketId(uint32 core_id) const { return (int32)topology[core_id].socket; }
+
+
+    size_t getNumCXLPorts(uint32 socket) const
+    {
+        if (socket < cxlPMUs.size())
+        {
+            return cxlPMUs[socket].size();
+        }
+        return 0;
+    }
 
     //! \brief Returns the number of Intel(r) Quick Path Interconnect(tm) links per socket
     //! \return number of QPI links per socket
@@ -2659,6 +2686,30 @@ uint64 getMCCounter(uint32 channel, uint32 counter, const CounterStateType & bef
     return after.MCCounter[channel][counter] - before.MCCounter[channel][counter];
 }
 
+/*! \brief Direct read of CXLCM PMU counter (counter meaning depends on the programming: power/performance/etc)
+    \param counter counter number
+    \param port port number
+    \param before CPU counter state before the experiment
+    \param after CPU counter state after the experiment
+*/
+template <class CounterStateType>
+uint64 getCXLCMCounter(uint32 port, uint32 counter, const CounterStateType& before, const CounterStateType& after)
+{
+    return after.CXLCMCounter[port][counter] - before.CXLCMCounter[port][counter];
+}
+
+/*! \brief Direct read of CXLDP PMU counter (counter meaning depends on the programming: power/performance/etc)
+    \param counter counter number
+    \param port port number
+    \param before CPU counter state before the experiment
+    \param after CPU counter state after the experiment
+*/
+template <class CounterStateType>
+uint64 getCXLDPCounter(uint32 port, uint32 counter, const CounterStateType& before, const CounterStateType& after)
+{
+    return after.CXLDPCounter[port][counter] - before.CXLDPCounter[port][counter];
+}
+
 /*! \brief Direct read of M3UPI PMU counter (counter meaning depends on the programming: power/performance/etc)
     \param counter counter number
     \param port UPI port number
@@ -3015,7 +3066,8 @@ public:
         maxCBOs = 128,
         maxMDFs = 128,
         maxIIOStacks = 16,
-        maxCounters = 4
+        maxCXLPorts = 6,
+        maxCounters = 8
     };
     enum EventPosition
     {
@@ -3037,6 +3089,8 @@ private:
     std::array<std::array<uint64, maxCounters>, maxMDFs> MDFCounter;
     std::array<std::array<uint64, maxCounters>, maxIIOStacks> IIOCounter;
     std::array<std::array<uint64, maxCounters>, maxIIOStacks> IRPCounter;
+    std::array<std::array<uint64, maxCounters>, maxCXLPorts> CXLCMCounter;
+    std::array<std::array<uint64, maxCounters>, maxCXLPorts> CXLDPCounter;
     std::array<uint64, maxCounters> UBOXCounter;
     std::array<uint64, maxChannels> DRAMClocks;
     std::array<uint64, maxChannels> HBMClocks;
@@ -3054,6 +3108,10 @@ private:
     friend uint64 getHBMClocks(uint32 channel, const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
     friend uint64 getMCCounter(uint32 channel, uint32 counter, const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
+    friend uint64 getCXLCMCounter(uint32 port, uint32 counter, const CounterStateType& before, const CounterStateType& after);
+    template <class CounterStateType>
+    friend uint64 getCXLDPCounter(uint32 port, uint32 counter, const CounterStateType& before, const CounterStateType& after);
     template <class CounterStateType>
     friend uint64 getM3UPICounter(uint32 port, uint32 counter, const CounterStateType& before, const CounterStateType& after);
     template <class CounterStateType>
@@ -3095,6 +3153,8 @@ public:
         MDFCounter{{}},
         IIOCounter{{}},
         IRPCounter{{}},
+        CXLCMCounter{{}},
+        CXLDPCounter{{}},
         UBOXCounter{{}},
         DRAMClocks{{}},
         HBMClocks{{}},
@@ -3212,6 +3272,7 @@ protected:
     }
 
 public:
+    std::vector<uint64> CXLWriteMem,CXLWriteCache;
     friend uint64 getIncomingQPILinkBytes(uint32 socketNr, uint32 linkNr, const SystemCounterState & before, const SystemCounterState & after);
     friend uint64 getIncomingQPILinkBytes(uint32 socketNr, uint32 linkNr, const SystemCounterState & now);
     friend double getOutgoingQPILinkUtilization(uint32 socketNr, uint32 linkNr, const SystemCounterState & before, const SystemCounterState & after);
@@ -3222,6 +3283,8 @@ public:
         uncoreTSC(0)
     {
         PCM * m = PCM::getInstance();
+        CXLWriteMem.resize(m->getNumSockets(),0);
+        CXLWriteCache.resize(m->getNumSockets(),0);
         incomingQPIPackets.resize(m->getNumSockets(),
                                   std::vector<uint64>((uint32)m->getQPILinksPerSocket(), 0));
         outgoingQPIFlits.resize(m->getNumSockets(),
@@ -3973,6 +4036,32 @@ template <class CounterStateType>
 uint64 getNumberOfCustomEvents(int32 eventCounterNr, const CounterStateType & before, const CounterStateType & after)
 {
     return after.Event[eventCounterNr] - before.Event[eventCounterNr];
+}
+
+
+/*! \brief Computes number of bytes Writen from CXL Cache
+
+    \param before CPU counter state before the experiment
+    \param after CPU counter state after the experiment
+    \return Number of bytes
+*/
+//template <class CounterStateType>
+inline uint64 getCXLWriteCacheBytes(uint32 socket,const SystemCounterState & before,const SystemCounterState & after)
+{
+        return (after.CXLWriteCache[socket] - before.CXLWriteCache[socket]) * 64;
+}
+
+/*! \brief Computes number of bytes Writen from CXL Memory
+
+    \param before CPU counter state before the experiment
+    \param after CPU counter state after the experiment
+    \return Number of bytes
+*/
+//template <class CounterStateType>
+inline uint64 getCXLWriteMemBytes(uint32 socket, const SystemCounterState & before,const SystemCounterState & after)
+{
+
+        return (after.CXLWriteMem[socket] - before.CXLWriteMem[socket]) * 64;
 }
 
 /*! \brief Get estimation of QPI data traffic per incoming QPI link

@@ -1536,6 +1536,22 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
                     [&]() { printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getIIOCounter(u, i, before, after); }, (uint32)m->getMaxNumOfIIOStacks(), "IIO");
                     });
             }
+            else if (type == "cxlcm")
+            {
+                choose(outputType,
+                    [&]() { printUncoreRows(nullptr, (uint32) ServerUncoreCounterState::maxCXLPorts, "CXLCM"); },
+                    [&]() { printUncoreRows(nullptr, (uint32) ServerUncoreCounterState::maxCXLPorts, type); },
+                    [&]() { printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getCXLCMCounter(u, i, before, after); }, ServerUncoreCounterState::maxCXLPorts, "CXLCM");
+                    });
+            }
+            else if (type == "cxldp")
+            {
+                choose(outputType,
+                    [&]() { printUncoreRows(nullptr, (uint32) ServerUncoreCounterState::maxCXLPorts, "CXLDP"); },
+                    [&]() { printUncoreRows(nullptr, (uint32) ServerUncoreCounterState::maxCXLPorts, type); },
+                    [&]() { printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getCXLDPCounter(u, i, before, after); }, ServerUncoreCounterState::maxCXLPorts, "CXLDP");
+                    });
+            }
             else
             {
                 std::cerr << "ERROR: unrecognized PMU type \"" << type << "\"\n";
@@ -1870,6 +1886,42 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs,
                             [s, stack]() { cout << "SKT" << s << "IIO" << stack << separator; },
                             [&event, &i]() { if (event.second.empty()) cout << "IIOEvent" << i << separator;  else cout << event.second << separator; },
                             [&]() { cout << getIIOCounter(stack, i, BeforeUncoreState[s], AfterUncoreState[s]) << separator; });
+                        ++i;
+                    }
+                }
+            }
+        }
+        else if (type == "cxlcm")
+        {
+            for (uint32 s = 0; s < m->getNumSockets(); ++s)
+            {
+                for (uint32 p = 0; p < ServerUncoreCounterState::maxCXLPorts; ++p)
+                {
+                    int i = 0;
+                    for (auto& event : events)
+                    {
+                        choose(outputType,
+                            [s, p]() { cout << "SKT" << s << "CXLCM" << p << separator; },
+                            [&event, &i]() { if (event.second.empty()) cout << "CXLCMEvent" << i << separator;  else cout << event.second << separator; },
+                            [&]() { cout << getCXLCMCounter(p, i, BeforeUncoreState[s], AfterUncoreState[s]) << separator; });
+                        ++i;
+                    }
+                }
+            }
+        }
+        else if (type == "cxldp")
+        {
+            for (uint32 s = 0; s < m->getNumSockets(); ++s)
+            {
+                for (uint32 p = 0; p < ServerUncoreCounterState::maxCXLPorts; ++p)
+                {
+                    int i = 0;
+                    for (auto& event : events)
+                    {
+                        choose(outputType,
+                            [s, p]() { cout << "SKT" << s << "CXLDP" << p << separator; },
+                            [&event, &i]() { if (event.second.empty()) cout << "CXLDPEvent" << i << separator;  else cout << event.second << separator; },
+                            [&]() { cout << getCXLDPCounter(p, i, BeforeUncoreState[s], AfterUncoreState[s]) << separator; });
                         ++i;
                     }
                 }

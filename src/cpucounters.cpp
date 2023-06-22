@@ -2505,6 +2505,40 @@ void PCM::initUncorePMUsDirect()
             }
         }
     }
+
+    if (1)
+    {
+        cxlPMUs.resize(num_sockets);
+        for (uint32 s = 0; s < (uint32)num_sockets; ++s)
+        {
+            if (uncorePMUDiscovery.get())
+            {
+                auto createCXLPMU = [this](const uint32 s, const unsigned BoxType, const size_t pos) -> UncorePMU
+                {
+                    std::vector<std::shared_ptr<HWRegister> > CounterControlRegs, CounterValueRegs;
+                    const auto n_regs = uncorePMUDiscovery->getBoxNumRegs(BoxType, s, pos);
+                    const auto unitControlAddr = uncorePMUDiscovery->getBoxCtlAddr(BoxType, s, pos);
+                    const auto unitControlAddrAligned = unitControlAddr & ~4095ULL;
+                    auto handle = std::make_shared<MMIORange>(unitControlAddrAligned, CXL_PMON_SIZE, false);
+                    for (size_t r = 0; r < n_regs; ++r)
+                    {
+                        CounterControlRegs.push_back(std::make_shared<MMIORegister64>(handle, uncorePMUDiscovery->getBoxCtlAddr(BoxType, s, pos, r) - unitControlAddrAligned));
+                        CounterValueRegs.push_back(std::make_shared<MMIORegister64>(handle, uncorePMUDiscovery->getBoxCtrAddr(BoxType, s, pos, r) - unitControlAddrAligned));
+                    }
+                    return UncorePMU(std::make_shared<MMIORegister64>(handle, unitControlAddr - unitControlAddrAligned), CounterControlRegs, CounterValueRegs);
+                };
+                if (getCPUModel() == PCM::SPR)
+                {
+                    const auto n_units = (std::min)(uncorePMUDiscovery->getNumBoxes(SPR_CXLCM_BOX_TYPE, s),
+                        uncorePMUDiscovery->getNumBoxes(SPR_CXLDP_BOX_TYPE, s));
+                    for (size_t pos = 0; pos < n_units; ++pos)
+                    {
+                        cxlPMUs[s].push_back(std::make_pair(createCXLPMU(s, SPR_CXLCM_BOX_TYPE, pos), createCXLPMU(s, SPR_CXLDP_BOX_TYPE, pos)));
+                    }
+                }
+            }
+        }
+    }
 }
 
 #ifdef PCM_USE_PERF
@@ -4637,6 +4671,14 @@ void PCM::cleanupUncorePMUs(const bool silent)
     {
         pmu.cleanup();
     }
+    for (auto& sPMUs : cxlPMUs)
+    {
+        for (auto& pmus : sPMUs)
+        {
+            pmus.first.cleanup();
+            pmus.second.cleanup();
+        }
+    }
     for (auto & uncore : serverUncorePMUs)
     {
         uncore->cleanupPMUs();
@@ -5208,12 +5250,13 @@ PCM::ErrorCode PCM::programServerUncoreLatencyMetrics(bool enable_pmm)
 
 PCM::ErrorCode PCM::programServerUncoreMemoryMetrics(const ServerUncoreMemoryMetrics & metrics, int rankA, int rankB)
 {
-    if(MSR.empty() || serverUncorePMUs.empty())  return PCM::MSRAccessDenied;
+    if (MSR.empty() || serverUncorePMUs.empty())  return PCM::MSRAccessDenied;
 
     for (int i = 0; (i < (int)serverUncorePMUs.size()) && MSR.size(); ++i)
     {
-        serverUncorePMUs[i]->programServerUncoreMemoryMetrics(metrics, rankA, rankB);
+         serverUncorePMUs[i]->programServerUncoreMemoryMetrics(metrics, rankA, rankB);
     }
+    programCXLCM();
 
     return PCM::Success;
 }
@@ -5495,8 +5538,8 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool sile
             std::cerr << "ERROR: trying to program " << events.programmable.size() << " core PMU counters, which exceeds the max num possible (" << ServerUncoreCounterState::maxCounters << ").";
             return PCM::UnknownError;
         }
-        uint32 events32[ServerUncoreCounterState::maxCounters] = { 0,0,0,0 };
-        uint64 events64[ServerUncoreCounterState::maxCounters] = { 0,0,0,0 };
+        uint32 events32[ServerUncoreCounterState::maxCounters] = { 0,0,0,0,0,0,0,0 };
+        uint64 events64[ServerUncoreCounterState::maxCounters] = { 0,0,0,0,0,0,0,0 };
         for (size_t c = 0; c < events.programmable.size() && c < ServerUncoreCounterState::maxCounters; ++c)
         {
             events32[c] = (uint32)events.programmable[c].first[0];
@@ -5573,6 +5616,14 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool sile
         {
             threadMSRConfig = pmuConfig.second;
         }
+        else if (type == "cxlcm")
+        {
+            programCXLCM(events64);
+        }
+        else if (type == "cxldp")
+        {
+            programCXLDP(events64);
+        }
         else
         {
             std::cerr << "ERROR: unrecognized PMU type \"" << type << "\"\n";
@@ -5625,6 +5676,14 @@ void PCM::freezeServerUncoreCounters()
             }
         }
     }
+    for (auto& sPMUs : cxlPMUs)
+    {
+        for (auto& pmus : sPMUs)
+        {
+            pmus.first.freeze(UNC_PMON_UNIT_CTL_FRZ_EN);
+            pmus.second.freeze(UNC_PMON_UNIT_CTL_FRZ_EN);
+        }
+    }
 }
 void PCM::unfreezeServerUncoreCounters()
 {
@@ -5669,6 +5728,14 @@ void PCM::unfreezeServerUncoreCounters()
             }
         }
     }
+    for (auto& sPMUs : cxlPMUs)
+    {
+        for (auto& pmus : sPMUs)
+        {
+            pmus.first.unfreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
+            pmus.second.unfreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
+        }
+    }
 }
 void UncoreCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
 {
@@ -5697,6 +5764,7 @@ SystemCounterState PCM::getSystemCounterState()
             }
         }
 
+        readAndAggregateCXLCMCounters(result);
         readQPICounters(result);
 
         result.ThermalHeadroom = static_cast<int32>(PCM_INVALID_THERMAL_HEADROOM); // not available for system
@@ -5746,6 +5814,26 @@ void PCM::readAndAggregateMemoryBWCounters(const uint32 core, CounterStateType &
      }
      //std::cout << std::flush;
 }
+
+
+template <class CounterStateType>
+void PCM::readAndAggregateCXLCMCounters( CounterStateType & result)
+{
+
+    for (size_t socket = 0; socket < getNumSockets(); ++socket)
+    {
+        uint64 CXLWriteMem = 0;
+        uint64 CXLWriteCache = 0;
+        for (size_t p = 0; p < getNumCXLPorts(socket); ++p)
+        {
+            CXLWriteMem += *cxlPMUs[socket][p].first.counterValue[0];
+            CXLWriteCache += *cxlPMUs[socket][p].first.counterValue[1];
+        }
+        result.CXLWriteMem[socket] = CXLWriteMem;
+        result.CXLWriteCache[socket] = CXLWriteCache;
+    }
+}
+
 
 template <class CounterStateType>
 void PCM::readAndAggregateUncoreMCCounters(const uint32 socket, CounterStateType & result)
@@ -6036,6 +6124,7 @@ template void PCM::readAndAggregatePackageCStateResidencies(std::shared_ptr<Safe
 template void PCM::readAndAggregateUncoreMCCounters<UncoreCounterState>(const uint32, UncoreCounterState&);
 template void PCM::readAndAggregateEnergyCounters<UncoreCounterState>(const uint32, UncoreCounterState&);
 template void PCM::readPackageThermalHeadroom<SocketCounterState>(const uint32, SocketCounterState &);
+template void PCM::readAndAggregateCXLCMCounters<SystemCounterState>(SystemCounterState &);
 
 SocketCounterState PCM::getSocketCounterState(uint32 socket)
 {
@@ -6280,14 +6369,14 @@ ServerUncoreCounterState PCM::getServerUncoreCounterState(uint32 socket)
         TemporalThreadAffinity tempThreadAffinity(refCore);
         for (uint32 cbo = 0; socket < cboPMUs.size() && cbo < cboPMUs[socket].size() && cbo < ServerUncoreCounterState::maxCBOs; ++cbo)
         {
-            for (int i = 0; i < ServerUncoreCounterState::maxCounters; ++i)
+            for (int i = 0; i < ServerUncoreCounterState::maxCounters && size_t(i) < cboPMUs[socket][cbo].size(); ++i)
             {
                 result.CBOCounter[cbo][i] = *(cboPMUs[socket][cbo].counterValue[i]);
             }
         }
         for (uint32 mdf = 0; socket < mdfPMUs.size() && mdf < mdfPMUs[socket].size() && mdf < ServerUncoreCounterState::maxMDFs; ++mdf)
         {
-            for (int i = 0; i < ServerUncoreCounterState::maxCounters; ++i)
+            for (int i = 0; i < ServerUncoreCounterState::maxCounters && size_t(i) < mdfPMUs[socket][mdf].size(); ++i)
             {
                 if (mdfPMUs[socket][mdf].counterValue[i].get())
                 {
@@ -6297,14 +6386,14 @@ ServerUncoreCounterState PCM::getServerUncoreCounterState(uint32 socket)
         }
         for (uint32 stack = 0; socket < iioPMUs.size() && stack < iioPMUs[socket].size() && stack < ServerUncoreCounterState::maxIIOStacks; ++stack)
         {
-            for (int i = 0; i < ServerUncoreCounterState::maxCounters; ++i)
+            for (int i = 0; i < ServerUncoreCounterState::maxCounters && size_t(i) < iioPMUs[socket][stack].size(); ++i)
             {
                 result.IIOCounter[stack][i] = *(iioPMUs[socket][stack].counterValue[i]);
             }
         }
         for (uint32 stack = 0; socket < irpPMUs.size() && stack < irpPMUs[socket].size() && stack < ServerUncoreCounterState::maxIIOStacks; ++stack)
         {
-            for (int i = 0; i < ServerUncoreCounterState::maxCounters; ++i)
+            for (int i = 0; i < ServerUncoreCounterState::maxCounters && size_t(i) < irpPMUs[socket][stack].size(); ++i)
             {
                 if (irpPMUs[socket][stack].counterValue[i].get())
                 {
@@ -6317,8 +6406,21 @@ ServerUncoreCounterState PCM::getServerUncoreCounterState(uint32 socket)
             result.UBOXCounter[i] = *(uboxPMUs[socket].counterValue[i]);
             result.UncClocks = getUncoreClocks(socket);
         }
-        for (int i = 0; i < ServerUncoreCounterState::maxCounters && socket < pcuPMUs.size(); ++i)
+        for (int i = 0; i < ServerUncoreCounterState::maxCounters && socket < pcuPMUs.size() && size_t(i) < pcuPMUs[socket].size(); ++i)
+        {
             result.PCUCounter[i] = *pcuPMUs[socket].counterValue[i];
+        }
+        for (size_t p = 0; p < getNumCXLPorts(socket); ++p)
+        {
+            for (int i = 0; i < ServerUncoreCounterState::maxCounters && socket < cxlPMUs.size() && size_t(i) < cxlPMUs[socket][p].first.size(); ++i)
+            {
+                result.CXLCMCounter[p][i] = *cxlPMUs[socket][p].first.counterValue[i];
+            }
+            for (int i = 0; i < ServerUncoreCounterState::maxCounters && socket < cxlPMUs.size() && size_t(i) < cxlPMUs[socket][p].second.size(); ++i)
+            {
+                result.CXLDPCounter[p][i] = *cxlPMUs[socket][p].second.counterValue[i];
+            }
+        }
         // std::cout << "values read: " << result.PCUCounter[0] << " " << result.PCUCounter[1] << " " << result.PCUCounter[2] << " " << result.PCUCounter[3] << "\n";
         uint64 val=0;
         //MSR[refCore]->read(MSR_PKG_ENERGY_STATUS,&val);
@@ -8958,7 +9060,7 @@ void PCM::programCbo(const uint64 * events, const uint32 opCode, const uint32 nc
 
             PCM::program(cboPMUs[i][cbo], events, events + ServerUncoreCounterState::maxCounters, UNC_PMON_UNIT_CTL_FRZ_EN);
 
-            for (int c = 0; c < ServerUncoreCounterState::maxCounters; ++c)
+            for (int c = 0; c < ServerUncoreCounterState::maxCounters && size_t(c) < cboPMUs[i][cbo].size(); ++c)
             {
                 *cboPMUs[i][cbo].counterValue[c] = 0;
             }
@@ -9048,6 +9150,40 @@ void PCM::controlQATTelemetry(uint32 dev, uint32 operation)
     }
 }
 
+void PCM::programCXLCM(const uint64* events)
+{
+    for (auto & sPMUs : cxlPMUs)
+    {
+        for (auto& pmus : sPMUs)
+        {
+            pmus.first.initFreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
+            assert(pmus.first.size() == 8);
+            PCM::program(pmus.first, events, events + 8, UNC_PMON_UNIT_CTL_FRZ_EN);
+        }
+    }
+}
+
+void PCM::programCXLDP(const uint64* events)
+{
+    for (auto& sPMUs : cxlPMUs)
+    {
+        for (auto& pmus : sPMUs)
+        {
+            pmus.second.initFreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
+            assert(pmus.second.size() == 4);
+            PCM::program(pmus.second, events, events + 4, UNC_PMON_UNIT_CTL_FRZ_EN);
+        }
+    }
+}
+void PCM::programCXLCM()
+{
+    uint64 CXLCMevents[8] = { 0,0,0,0,0,0,0,0 };
+
+    CXLCMevents[EventPosition::CXL_TxC_MEM] = UNC_PMON_CTL_EVENT(0x02) + UNC_PMON_CTL_UMASK(0x10); // CXLCM_TxC_PACK_BUF_INSERTS.MEM_DATA
+    CXLCMevents[EventPosition::CXL_TxC_CACHE] = UNC_PMON_CTL_EVENT(0x02) + UNC_PMON_CTL_UMASK(0x04);// CXLCM_TxC_PACK_BUF_INSERTS.CACHE_DATA
+
+    programCXLCM(CXLCMevents);
+}
 void PCM::programIDXAccelCounters(uint32 accel, std::vector<uint64_t> &events, std::vector<uint32_t> &filters_wq, std::vector<uint32_t> &filters_eng, std::vector<uint32_t> &filters_tc, std::vector<uint32_t> &filters_pgsz, std::vector<uint32_t> &filters_xfersz)
 {
     uint32 maxCTR = getMaxNumOfIDXAccelCtrs(accel); //limit the number of physical counter to use
@@ -9338,6 +9474,26 @@ UncorePMU::UncorePMU(const HWRegisterPtr& unitControl_,
     fixedCounterValue(fixedCounterValue_),
     filter{ filter0 , filter1 }
 {
+    assert(counterControl.size() == counterValue.size());
+}
+
+UncorePMU::UncorePMU(const HWRegisterPtr& unitControl_,
+    const std::vector<HWRegisterPtr>& counterControl_,
+    const std::vector<HWRegisterPtr>& counterValue_,
+    const HWRegisterPtr& fixedCounterControl_,
+    const HWRegisterPtr& fixedCounterValue_,
+    const HWRegisterPtr& filter0,
+    const HWRegisterPtr& filter1
+):
+    cpu_model_(0),
+    unitControl(unitControl_),
+    counterControl{counterControl_},
+    counterValue{counterValue_},
+    fixedCounterControl(fixedCounterControl_),
+    fixedCounterValue(fixedCounterValue_),
+    filter{ filter0 , filter1 }
+{
+    assert(counterControl.size() == counterValue.size());
 }
 
 uint32 UncorePMU::getCPUModel()
@@ -9351,9 +9507,9 @@ uint32 UncorePMU::getCPUModel()
 
 void UncorePMU::cleanup()
 {
-    for (int i = 0; i < 4; ++i)
+    for (auto& cc: counterControl)
     {
-        if (counterControl[i].get()) *counterControl[i] = 0;
+        if (cc.get()) *cc = 0;
     }
     if (unitControl.get()) *unitControl = 0;
     if (fixedCounterControl.get()) *fixedCounterControl = 0;
