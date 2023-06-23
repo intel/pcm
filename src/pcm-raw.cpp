@@ -889,6 +889,9 @@ AddEventStatus addEvent(PCM::RawPMUConfigs & curPMUConfigs, string eventStr)
     const auto typeConfig = split(eventStr, '/');
     if (typeConfig.size() < 2)
     {
+#ifndef PCM_SIMDJSON_AVAILABLE
+        cerr << "WARNING: pcm-raw is compiled without simdjson library (check cmake output). Collecting events by names from json event lists is not supported.\n";
+#endif
         cerr << "ERROR: wrong syntax in event description \"" << eventStr << "\"\n";
         return AddEventStatus::Failed;
     }
