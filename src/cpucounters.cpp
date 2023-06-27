@@ -8932,6 +8932,16 @@ uint32 PCM::getMaxNumOfCBoxes() const
          */
         num = (uint32)num_phys_cores_per_socket;
     }
+#ifdef PCM_USE_PERF
+    if (num == 0)
+    {
+        num = (uint32)enumeratePerfPMUs("cbox", 100).size();
+    }
+    if (num == 0)
+    {
+        num = (uint32)enumeratePerfPMUs("cha", 100).size();
+    }
+#endif
     assert(num >= 0);
     return (uint32)num;
 }
