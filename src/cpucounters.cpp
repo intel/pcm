@@ -5428,6 +5428,7 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool sile
     if (MSR.empty())  return PCM::MSRAccessDenied;
     threadMSRConfig = RawPMUConfig{};
     packageMSRConfig = RawPMUConfig{};
+    pcicfgConfig = RawPMUConfig{};
     RawPMUConfigs curPMUConfigs = curPMUConfigs_;
     constexpr auto globalRegPos = 0ULL;
     PCM::ExtendedCustomCoreEventDescription conf;
@@ -5616,6 +5617,33 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool sile
         {
             threadMSRConfig = pmuConfig.second;
         }
+        else if (type == "pcicfg")
+        {
+            pcicfgConfig = pmuConfig.second;
+            auto addLocations = [this](const std::vector<RawEventConfig>& configs) {
+                for (const auto& c : configs)
+                {
+                    if (PCICFGRegisterLocations.find(c.first) == PCICFGRegisterLocations.end())
+                    {
+                        // add locations
+                        std::vector<PCICFGRegisterEncoding> locations;
+                        const auto deviceID = c.first[PCICFGEventPosition::deviceID];
+                        forAllIntelDevices([&locations, &deviceID, &c](const uint32 group, const uint32 bus, const uint32 device, const uint32 function, const uint32 device_id)
+                            {
+                                if (deviceID == device_id)
+                                {
+                                    // group, bus, device, function, offset
+                                    PCICFGRegisterEncoding item = { group, bus, device, function, (uint32)c.first[PCICFGEventPosition::offset] };
+                                    locations.push_back(item);
+                                }
+                            });
+                        PCICFGRegisterLocations[c.first] = locations;
+                    }
+                }
+            };
+            addLocations(pcicfgConfig.programmable);
+            addLocations(pcicfgConfig.fixed);
+        }
         else if (type == "cxlcm")
         {
             programCXLCM(events64);
@@ -5626,7 +5654,7 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool sile
         }
         else
         {
-            std::cerr << "ERROR: unrecognized PMU type \"" << type << "\"\n";
+            std::cerr << "ERROR: unrecognized PMU type \"" << type << "\" when trying to program PMUs.\n";
             return PCM::UnknownError;
         }
     }
@@ -5993,6 +6021,49 @@ void PCM::readAndAggregatePackageCStateResidencies(std::shared_ptr<SafeMsrHandle
     }
 }
 
+void PCM::readPCICFGRegisters(SystemCounterState& systemState)
+{
+    auto read = [this, &systemState](const RawEventConfig& cfg) {
+        const RawEventEncoding& reEnc = cfg.first;
+        systemState.PCICFGValues[reEnc].clear();
+        for (auto& regAddr : PCICFGRegisterLocations[reEnc])
+        {
+            const auto width = reEnc[PCICFGEventPosition::width];
+            if (PciHandleType::exists(regAddr[0], regAddr[1], regAddr[2], regAddr[3]))
+            {
+                PciHandleType h(regAddr[0], regAddr[1], regAddr[2], regAddr[3]);
+                uint64 value = ~0ULL;
+                uint32 value32 = 0;
+                switch (width)
+                {
+                case 16:
+                    h.read32(regAddr[4], &value32);
+                    value = (uint64)extract_bits_ui(value32, 0, 15);
+                    break;
+                case 32:
+                    h.read32(regAddr[4], &value32);
+                    value = (uint64)value32;
+                    break;
+                case 64:
+                    h.read64(regAddr[4], &value);
+                    break;
+                default:
+                    std::cerr << "ERROR: Unsupported width " << width << " for pcicfg register " << cfg.second << "\n";
+                }
+                systemState.PCICFGValues[reEnc].push_back(value);
+            }
+        }
+    };
+    for (const auto& cfg : pcicfgConfig.programmable)
+    {
+        read(cfg);
+    }
+    for (const auto& cfg : pcicfgConfig.fixed)
+    {
+        read(cfg);
+    }
+}
+
 void PCM::readQPICounters(SystemCounterState & result)
 {
         // read QPI counters
@@ -6196,6 +6267,7 @@ void PCM::getAllCounterStates(SystemCounterState & systemState, std::vector<Sock
     if (readAndAggregateSocketUncoreCounters)
     {
         readQPICounters(systemState);
+        readPCICFGRegisters(systemState);
     }
 
     for (auto & ar : asyncCoreResults)

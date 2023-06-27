@@ -300,6 +300,10 @@ MSR_EVENT:msr=0x34:type=static:scope=PACKAGE
 package_msr/config=0x34,config1=0
 thread_msr/config=0x10,config1=1,name=TSC_DELTA
 thread_msr/config=0x10,config1=0,name=TSC
+pcicfg/config=0x208d,config1=0,config2=0,width=64,name=first_8_bytes_of_208d_device
+pcicfg/config=0x2021,config1=0,config2=0,width=32
+pcicfg/config=0x2021,config1=0,config2=0,width=64
+pcicfg/config=0x2058,config1=0x318,config2=1,width=64,name=UPI_reg
 ;
 # group 2
 OFFCORE_REQUESTS_BUFFER.SQ_FULL
@@ -317,6 +321,8 @@ UNC_UPI_RxL_FLITS.ALL_DATA
 UNC_UPI_RxL_FLITS.NON_DATA
 MSR_EVENT:msr=0x10:type=FREERUN:scope=thread
 MSR_EVENT:msr=0x10:type=static:scope=thread
+pcicfg/config=0x2021,config1=4,config2=0,width=32
+pcicfg/config=0x208d,config1=0,config2=1,width=64,name=first_8_bytes_of_208d_device_diff
 ;
 EOF
 

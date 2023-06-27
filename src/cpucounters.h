@@ -892,10 +892,13 @@ public:
         int divider[4]; //We usually like to have some kind of divider (i.e. /10e6 )
     };
 
-    enum MSREventPosition
+    struct MSREventPosition
     {
-        index = 0,
-        type = 1
+        enum constants
+        {
+            index = 0,
+            type = 1
+        };
     };
     enum MSRType
     {
@@ -1011,6 +1014,7 @@ private:
     template <class CounterStateType>
     void readMSRs(std::shared_ptr<SafeMsrHandle> msr, const RawPMUConfig & msrConfig, CounterStateType & result);
     void readQPICounters(SystemCounterState & counterState);
+    void readPCICFGRegisters(SystemCounterState& result);
     void reportQPISpeed() const;
     void readCoreCounterConfig(const bool complainAboutMSR = false);
     void readCPUMicrocodeLevel();
@@ -1273,7 +1277,8 @@ public:
     // vector of IDs. E.g. for core {raw event} or {raw event, offcore response1 msr value, } or {raw event, offcore response1 msr value, offcore response2}
     // or for cha/cbo {raw event, filter value}, etc
     // + user-supplied name
-    typedef std::pair<std::array<uint64, 5>, std::string> RawEventConfig;
+    typedef std::array<uint64, 6> RawEventEncoding;
+    typedef std::pair<RawEventEncoding, std::string> RawEventConfig;
     struct RawPMUConfig
     {
         std::vector<RawEventConfig> programmable;
@@ -1287,6 +1292,40 @@ public:
     };
     typedef std::map<std::string, RawPMUConfig> RawPMUConfigs;
     ErrorCode program(const RawPMUConfigs& curPMUConfigs, const bool silent = false, const int pid = -1);
+
+    struct PCICFGEventPosition
+    {
+        enum constants
+        {
+            deviceID = 0,
+            offset = 1,
+            type = 2,
+            width = 5
+        };
+    };
+    typedef std::array<uint32, 5> PCICFGRegisterEncoding; // group, bus, device, function, offset
+    struct PCICFGRegisterEncodingHash
+    {
+        std::size_t operator()(const RawEventEncoding & e) const
+        {
+            std::size_t h1 = std::hash<uint64>{}(e[PCICFGEventPosition::deviceID]);
+            std::size_t h2 = std::hash<uint64>{}(e[PCICFGEventPosition::offset]);
+            std::size_t h3 = std::hash<uint64>{}(e[PCICFGEventPosition::width]);
+            return h1 ^ (h2 << 1ULL) ^ (h3 << 2ULL);
+        }
+    };
+    struct PCICFGRegisterEncodingCmp
+    {
+        bool operator ()(const RawEventEncoding& a, const RawEventEncoding& b) const
+        {
+            return a[PCICFGEventPosition::deviceID] == b[PCICFGEventPosition::deviceID]
+                && a[PCICFGEventPosition::offset] == b[PCICFGEventPosition::offset]
+                && a[PCICFGEventPosition::width] == b[PCICFGEventPosition::width];
+        }
+    };
+private:
+    std::unordered_map<RawEventEncoding, std::vector<PCICFGRegisterEncoding>, PCICFGRegisterEncodingHash, PCICFGRegisterEncodingCmp> PCICFGRegisterLocations{};
+public:
 
     TopologyEntry::CoreType getCoreType(const unsigned coreID) const
     {
@@ -1550,7 +1589,7 @@ private:
         }
         return false;
     }
-    RawPMUConfig threadMSRConfig{}, packageMSRConfig{};
+    RawPMUConfig threadMSRConfig{}, packageMSRConfig{}, pcicfgConfig{};
 public:
 
     //! \brief Reads CPU model id
@@ -3258,11 +3297,13 @@ public:
 class SystemCounterState : public SocketCounterState
 {
     friend class PCM;
+    friend std::vector<uint64> getPCICFGEvent(const PCM::RawEventEncoding& eventEnc, const SystemCounterState& before, const SystemCounterState& after);
 
     std::vector<std::vector<uint64> > incomingQPIPackets; // each 64 byte
     std::vector<std::vector<uint64> > outgoingQPIFlits; // idle or data/non-data flits depending on the architecture
     std::vector<std::vector<uint64> > TxL0Cycles;
     uint64 uncoreTSC;
+    std::unordered_map<PCM::RawEventEncoding, std::vector<uint64> , PCM::PCICFGRegisterEncodingHash, PCM::PCICFGRegisterEncodingCmp> PCICFGValues{};
 
 protected:
     void readAndAggregate(std::shared_ptr<SafeMsrHandle> handle)
@@ -4391,6 +4432,34 @@ inline double getRetiring(const CounterStateType & before, const CounterStateTyp
     if (PCM::getInstance()->isHWTMAL1Supported())
         return double(after.RetiringSlots - before.RetiringSlots)/double(getAllSlots(before, after));
     return 0.;
+}
+
+inline std::vector<uint64> getPCICFGEvent(const PCM::RawEventEncoding & eventEnc, const SystemCounterState& before, const SystemCounterState& after)
+{
+    std::vector<uint64> result{};
+    auto beforeIter = before.PCICFGValues.find(eventEnc);
+    auto afterIter = after.PCICFGValues.find(eventEnc);
+    if (beforeIter != before.PCICFGValues.end() &&
+        afterIter != after.PCICFGValues.end())
+    {
+        const auto& beforeValues = beforeIter->second;
+        const auto& afterValues = afterIter->second;
+        assert(beforeValues.size() == afterValues.size());
+        const size_t sz = beforeValues.size();
+        for (size_t i = 0; i < sz; ++i)
+        {
+            switch (eventEnc[PCM::PCICFGEventPosition::type])
+            {
+            case PCM::MSRType::Freerun:
+                result.push_back(afterValues[i] - beforeValues[i]);
+                break;
+            case PCM::MSRType::Static:
+                result.push_back(afterValues[i]);
+                break;
+            }
+        }
+    }
+    return result;
 }
 
 template <class CounterStateType>
