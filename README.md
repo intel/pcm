@@ -136,6 +136,8 @@ or (to run the pcm sensor server as non-root):
 PCM_NO_MSR=1 PCM_KEEP_NMI_WATCHDOG=1 pcm-sensor-server
 ```
 
+Please keep in mind that when executing PCM tools under an unprivileged user on Linux, certain PCM metrics may be unavailable. This limitation specifically affects metrics that rely solely on direct MSR (Model-Specific Register) register access. Due to the restricted privileges of the user, accessing these registers is not permitted, resulting in the absence of corresponding metrics.
+
 --------------------------------------------------------------------------------
 Frequently Asked Questions (FAQ)
 --------------------------------------------------------------------------------
