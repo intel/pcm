@@ -1327,19 +1327,25 @@ bool PCM::discoverSystemTopology()
         {
             pcm_sscanf(buffer) >> s_expect("processor\t: ") >> entry.os_id;
             //std::cout << "os_core_id: " << entry.os_id << "\n";
-            TemporalThreadAffinity _(entry.os_id);
-            pcm_cpuid(0xb, 0x0, cpuid_args);
-            int apic_id = cpuid_args.array[3];
+            try {
+                TemporalThreadAffinity _(entry.os_id);
+                pcm_cpuid(0xb, 0x0, cpuid_args);
+                int apic_id = cpuid_args.array[3];
 
-            populateEntry(entry, apic_id);
-            if (populateHybridEntry(entry, entry.os_id) == false)
-            {
-                return false;
+                populateEntry(entry, apic_id);
+                if (populateHybridEntry(entry, entry.os_id) == false)
+                {
+                    return false;
+                }
+
+                topology[entry.os_id] = entry;
+                socketIdMap[entry.socket] = 0;
+                ++num_online_cores;
             }
-
-            topology[entry.os_id] = entry;
-            socketIdMap[entry.socket] = 0;
-            ++num_online_cores;
+            catch (std::exception &)
+            {
+                std::cerr << "Marking core " << entry.os_id << " offline\n";
+            }
         }
     }
     //std::cout << std::flush;
