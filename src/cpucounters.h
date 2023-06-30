@@ -1303,7 +1303,7 @@ public:
             width = 5
         };
     };
-    typedef std::array<uint32, 5> PCICFGRegisterEncoding; // group, bus, device, function, offset
+    typedef std::pair<std::shared_ptr<PciHandleType>, uint32> PCICFGRegisterEncoding; // PciHandleType shared ptr, offset
     struct PCICFGRegisterEncodingHash
     {
         std::size_t operator()(const RawEventEncoding & e) const

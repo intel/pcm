@@ -5630,11 +5630,10 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool sile
                         const auto deviceID = c.first[PCICFGEventPosition::deviceID];
                         forAllIntelDevices([&locations, &deviceID, &c](const uint32 group, const uint32 bus, const uint32 device, const uint32 function, const uint32 device_id)
                             {
-                                if (deviceID == device_id)
+                                if (deviceID == device_id && PciHandleType::exists(group, bus, device, function))
                                 {
-                                    // group, bus, device, function, offset
-                                    PCICFGRegisterEncoding item = { group, bus, device, function, (uint32)c.first[PCICFGEventPosition::offset] };
-                                    locations.push_back(item);
+                                    // PciHandleType shared ptr, offset
+                                    locations.push_back(PCICFGRegisterEncoding{ std::make_shared<PciHandleType>(group, bus, device, function), (uint32)c.first[PCICFGEventPosition::offset] });
                                 }
                             });
                         PCICFGRegisterLocations[c.first] = locations;
@@ -6026,26 +6025,27 @@ void PCM::readPCICFGRegisters(SystemCounterState& systemState)
     auto read = [this, &systemState](const RawEventConfig& cfg) {
         const RawEventEncoding& reEnc = cfg.first;
         systemState.PCICFGValues[reEnc].clear();
-        for (auto& regAddr : PCICFGRegisterLocations[reEnc])
+        for (auto& reg : PCICFGRegisterLocations[reEnc])
         {
             const auto width = reEnc[PCICFGEventPosition::width];
-            if (PciHandleType::exists(regAddr[0], regAddr[1], regAddr[2], regAddr[3]))
+            auto& h = reg.first;
+            const auto& offset = reg.second;
+            if (h.get())
             {
-                PciHandleType h(regAddr[0], regAddr[1], regAddr[2], regAddr[3]);
                 uint64 value = ~0ULL;
                 uint32 value32 = 0;
                 switch (width)
                 {
                 case 16:
-                    h.read32(regAddr[4], &value32);
+                    h->read32(offset, &value32);
                     value = (uint64)extract_bits_ui(value32, 0, 15);
                     break;
                 case 32:
-                    h.read32(regAddr[4], &value32);
+                    h->read32(offset, &value32);
                     value = (uint64)value32;
                     break;
                 case 64:
-                    h.read64(regAddr[4], &value);
+                    h->read64(offset, &value);
                     break;
                 default:
                     std::cerr << "ERROR: Unsupported width " << width << " for pcicfg register " << cfg.second << "\n";
