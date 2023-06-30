@@ -98,6 +98,7 @@ Downloading Pre-Compiled PCM Tools
 --------------------------------------------------------------------------------
 
 - Linux:
+  * Ubuntu: `sudo apt install pcm`
   * openSUSE: `sudo zypper install pcm`
   * RHEL8.5 or later: `sudo dnf install pcm` 
   * Fedora: `sudo yum install pcm`
