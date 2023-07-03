@@ -107,6 +107,39 @@ Downloading Pre-Compiled PCM Tools
 - Docker: see [instructions on how to use pcm-sensor-server pre-compiled container from docker hub](doc/DOCKER_README.md).
 
 --------------------------------------------------------------------------------
+Executing PCM tools under non-root user on Linux
+--------------------------------------------------------------------------------
+
+Executing PCM tools under an unprivileged user on a Linux operating system is feasible. However, there are certain prerequisites that need to be met, such as having Linux perf_event support for your processor in the Linux kernel version you are currently running. To successfully run the PCM tools, you need to set the `/proc/sys/kernel/perf_event_paranoid` setting to -1 as root once:
+
+```
+echo -1 > /proc/sys/kernel/perf_event_paranoid
+```
+
+and configure two specific environment variables when running the tools under a non-root user:
+
+```
+export PCM_NO_MSR=1
+export PCM_KEEP_NMI_WATCHDOG=1
+```
+
+For instance, you can execute the following commands to set the environment variables and run pcm:
+
+```
+export PCM_NO_MSR=1
+export PCM_KEEP_NMI_WATCHDOG=1
+pcm
+```
+
+or (to run the pcm sensor server as non-root):
+
+```
+PCM_NO_MSR=1 PCM_KEEP_NMI_WATCHDOG=1 pcm-sensor-server
+```
+
+Please keep in mind that when executing PCM tools under an unprivileged user on Linux, certain PCM metrics may be unavailable. This limitation specifically affects metrics that rely solely on direct MSR (Model-Specific Register) register access. Due to the restricted privileges of the user, accessing these registers is not permitted, resulting in the absence of corresponding metrics.
+
+--------------------------------------------------------------------------------
 Frequently Asked Questions (FAQ)
 --------------------------------------------------------------------------------
 
@@ -142,4 +175,3 @@ This creates package:
 - "pcm-VERSION-Linux.deb" on Debian family systems;
 - "pcm-VERSION-Linux.rpm" on Redhat/SUSE-family systems.
 Packages contain pcm-\* binaries and required for usage opCode-\* files.
-

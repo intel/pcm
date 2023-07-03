@@ -5,7 +5,7 @@ pcm-sensor-server is a collector exposing Intel processor metrics over http in J
 
 Installation on target system to be analyzed:
 1.  [Build](https://github.com/opcm/pcm#building-pcm-tools) or [download](https://github.com/opcm/pcm#downloading-pre-compiled-pcm-tools) pcm tools
-2.  As root, start pcm-sensor-server: `sudo ./pcm-sensor-server`
+2.  As root, start pcm-sensor-server: `sudo ./pcm-sensor-server` or as non-root https://github.com/intel-innersource/applications.analyzers.pcm#executing-pcm-tools-under-non-root-user-on-linux 
 
 Alternatively one can start [pcm-sensor-server as a container from docker hub](DOCKER_README.md).
 

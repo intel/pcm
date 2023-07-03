@@ -95,7 +95,7 @@ double defaultDelay = 1.0; // in seconds
 PCM::RawEventConfig initCoreConfig()
 {
     return PCM::RawEventConfig{ {0,0,0,
-        PCM::ExtendedCustomCoreEventDescription::invalidMsrValue(),PCM::ExtendedCustomCoreEventDescription::invalidMsrValue()
+        PCM::ExtendedCustomCoreEventDescription::invalidMsrValue(),PCM::ExtendedCustomCoreEventDescription::invalidMsrValue(), 0
         },
         "" };
 }
@@ -108,6 +108,7 @@ void printEvent(const std::string & pmuName, const bool fixed, const PCM::RawEve
         ", 0x" << config.first[2] <<
         ", 0x" << config.first[3] <<
         ", 0x" << config.first[4] <<
+        ", 0x" << config.first[5] <<
         "}\n" << dec;
 }
 
@@ -889,6 +890,9 @@ AddEventStatus addEvent(PCM::RawPMUConfigs & curPMUConfigs, string eventStr)
     const auto typeConfig = split(eventStr, '/');
     if (typeConfig.size() < 2)
     {
+#ifndef PCM_SIMDJSON_AVAILABLE
+        cerr << "WARNING: pcm-raw is compiled without simdjson library (check cmake output). Collecting events by names from json event lists is not supported.\n";
+#endif
         cerr << "ERROR: wrong syntax in event description \"" << eventStr << "\"\n";
         return AddEventStatus::Failed;
     }
@@ -930,6 +934,14 @@ AddEventStatus addEvent(PCM::RawPMUConfigs & curPMUConfigs, string eventStr)
         else if (match(item, "config4=", &config.first[4]))
         {
             // matched and initialized config 4
+        }
+        else if (match(item, "config5=", &config.first[5]))
+        {
+            // matched and initialized config 5
+        }
+        else if (match(item, "width=", &config.first[PCM::PCICFGEventPosition::width]))
+        {
+            // matched and initialized config 5 (width)
         }
         else if (pcm_sscanf(item) >> s_expect("name=") >> setw(255) >> config.second)
         {
@@ -1140,19 +1152,30 @@ constexpr uint32 PerfMetricsConfig = 2;
 constexpr uint64 PerfMetricsMask = 1ULL;
 constexpr uint64 maxPerfMetricsValue = 255ULL;
 
+const char * getTypeString(uint64 typeID)
+{
+    switch (typeID)
+    {
+    case PCM::MSRType::Freerun:
+        return "freerun";
+    case PCM::MSRType::Static:
+        return "static";
+    }
+    return "unknownType";
+}
+
 std::string getMSREventString(const uint64 & index, const std::string & type, const PCM::MSRType & msrType)
 {
     std::stringstream c;
-    c << type << ":0x" << std::hex << index << ":";
-    switch (msrType)
-    {
-        case PCM::MSRType::Freerun:
-            c << "freerun";
-            break;
-        case PCM::MSRType::Static:
-            c << "static";
-            break;
-    }
+    c << type << ":0x" << std::hex << index << ":" << getTypeString(msrType);
+    return c.str();
+}
+
+std::string getPCICFGEventString(const PCM::RawEventEncoding & eventEnc, const std::string& type)
+{
+    std::stringstream c;
+    c << type << ":0x" << std::hex << eventEnc[PCM::PCICFGEventPosition::deviceID] << ":0x" << eventEnc[PCM::PCICFGEventPosition::offset] << ":0x" << eventEnc[PCM::PCICFGEventPosition::width] << ":"
+        << getTypeString(eventEnc[PCM::PCICFGEventPosition::type]);
     return c.str();
 }
 
@@ -1164,6 +1187,7 @@ enum MSRScope
 
 void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
     PCM* m,
+    SystemCounterState& SysBeforeState, SystemCounterState& SysAfterState,
     vector<CoreCounterState>& BeforeState, vector<CoreCounterState>& AfterState,
     vector<ServerUncoreCounterState>& BeforeUncoreState, vector<ServerUncoreCounterState>& AfterUncoreState,
     vector<SocketCounterState>& BeforeSocketState, vector<SocketCounterState>& AfterSocketState,
@@ -1454,6 +1478,70 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
             {
                 printMSRRows(MSRScope::Package);
             }
+            else if (type == "pcicfg")
+            {
+                auto printRegister = [&](const PCM::RawEventConfig& event) -> bool
+                {
+                    const std::string name = (event.second.empty()) ? getPCICFGEventString(event.first, type) : event.second;
+                    const auto values = getPCICFGEvent(event.first, SysBeforeState, SysAfterState);
+
+                    if (is_header && is_header_printed)
+                        return false;
+
+                    printRowBegin(name, BeforeState[0], AfterState[0], m, outputType, printOffset);
+
+                    for (size_t r = 0; r < values.size(); ++r)
+                    {
+                        if (outputType == Header1)
+                        {
+                            cout << separator << "SYSTEM_" << r;
+                            printOffset.end++;
+                        }
+                        else if (outputType == Header2)
+                        {
+                            cout << separator << type;
+                        }
+                        else if (outputType == Data)
+                        {
+                            cout << separator << values[r];
+                        }
+                        else if (outputType == Header21)
+                        {
+                            cout << separator << type << "_SYSTEM_" << r;
+                            printOffset.end++;
+                        }
+                        else if (outputType == Json) {
+                            cout << separator << type << "_SYSTEM_" << r
+                                << jsonSeparator << values[r];
+                        }
+                        else
+                        {
+                            assert(!"unknown output type");
+                        }
+                    }
+
+                    if (is_header)
+                        is_header_printed = true;
+
+                    printNewLine(outputType);
+
+                    return true;
+                };
+                for (const auto& event : events)
+                {
+                    if (!printRegister(event))
+                    {
+                        break;
+                    }
+                }
+                for (const auto& event : fixedEvents)
+                {
+                    if (!printRegister(event))
+                    {
+                        break;
+                    }
+                }
+            }
             else if (type == "m3upi")
             {
                 choose(outputType,
@@ -1572,6 +1660,7 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
 
 void print(const PCM::RawPMUConfigs& curPMUConfigs,
             PCM* m,
+            SystemCounterState& SysBeforeState, SystemCounterState& SysAfterState,
             vector<CoreCounterState>& BeforeState, vector<CoreCounterState>& AfterState,
             vector<ServerUncoreCounterState>& BeforeUncoreState, vector<ServerUncoreCounterState>& AfterUncoreState,
             vector<SocketCounterState>& BeforeSocketState, vector<SocketCounterState>& AfterSocketState,
@@ -1797,6 +1886,28 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs,
                 }
             }
         }
+        else if (type == "pcicfg")
+        {
+            auto printPCICFG = [&](const PCM::RawEventConfig& event)
+            {
+                const auto values = getPCICFGEvent(event.first, SysBeforeState, SysAfterState);
+                for (size_t r = 0; r < values.size(); ++r)
+                {
+                    choose(outputType,
+                        [&r]() { cout << "SYSTEM_" << r << separator; },
+                        [&]() { if (event.second.empty()) cout << getPCICFGEventString(event.first, type) << separator;  else cout << event.second << separator; },
+                        [&]() { cout << values[r] << separator; });
+                }
+            };
+            for (const auto& event : events)
+            {
+                printPCICFG(event);
+            }
+            for (const auto& event : fixedEvents)
+            {
+                printPCICFG(event);
+            }
+        }
         else if (type == "ubox")
         {
             for (uint32 s = 0; s < m->getNumSockets(); ++s)
@@ -1944,6 +2055,7 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs,
 
 void printAll(const PCM::RawPMUConfigs& curPMUConfigs,
                 PCM * m,
+                SystemCounterState & SysBeforeState, SystemCounterState& SysAfterState,
                 vector<CoreCounterState>& BeforeState, vector<CoreCounterState>& AfterState,
                 vector<ServerUncoreCounterState>& BeforeUncoreState, vector<ServerUncoreCounterState>& AfterUncoreState,
                 vector<SocketCounterState>& BeforeSocketState, vector<SocketCounterState>& AfterSocketState,
@@ -1951,7 +2063,7 @@ void printAll(const PCM::RawPMUConfigs& curPMUConfigs,
                 const bool & isLastGroup)
 {
     if (outputToJson) {
-        printTransposed(curPMUConfigs, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, Json, isLastGroup);
+        printTransposed(curPMUConfigs, m, SysBeforeState, SysAfterState, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, Json, isLastGroup);
         return;
     }
 
@@ -1968,7 +2080,7 @@ void printAll(const PCM::RawPMUConfigs& curPMUConfigs,
                 cout << "Date" << separator << "Time" << separator << "Event" << separator;
                 cout << "ms" << separator << "InvariantTSC";
                 for (auto &config : PMUConfigs)
-                    printTransposed(config, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, Header21, isLastGroup);
+                    printTransposed(config, m, SysBeforeState, SysAfterState, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, Header21, isLastGroup);
             } else {
                 // print 2 headers in 2 rows
                 for (int i = 0 ; i < 4 ; i++)
@@ -1976,7 +2088,7 @@ void printAll(const PCM::RawPMUConfigs& curPMUConfigs,
 
                 // print header_1 and get all offsets
                 for (auto &config : PMUConfigs)
-                    printTransposed(config, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, Header1, isLastGroup);
+                    printTransposed(config, m, SysBeforeState, SysAfterState, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, Header1, isLastGroup);
 
                 cout << endl;
 
@@ -1984,17 +2096,17 @@ void printAll(const PCM::RawPMUConfigs& curPMUConfigs,
                 cout << "Date" << separator << "Time" << separator << "Event" << separator;
                 cout << "ms" << separator << "InvariantTSC";
                 for (auto &config : PMUConfigs)
-                    printTransposed(config, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, Header2, isLastGroup);
+                    printTransposed(config, m, SysBeforeState, SysAfterState, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, Header2, isLastGroup);
             }
             cout << endl;
         }
-        printTransposed(curPMUConfigs, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, Data, isLastGroup);
+        printTransposed(curPMUConfigs, m, SysBeforeState, SysAfterState, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, Data, isLastGroup);
     } else {
         if (displayHeader) {
-            print(curPMUConfigs, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, Header1);
-            print(curPMUConfigs, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, Header2);
+            print(curPMUConfigs, m, SysBeforeState, SysAfterState, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, Header1);
+            print(curPMUConfigs, m, SysBeforeState, SysAfterState, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, Header2);
         }
-        print(curPMUConfigs, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, Data);
+        print(curPMUConfigs, m, SysBeforeState, SysAfterState, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, Data);
     }
 
     displayHeader = false;
@@ -2376,12 +2488,13 @@ int mainThrows(int argc, char * argv[])
                 //cout << "Time elapsed: " << dec << fixed << AfterTime - BeforeTime << " ms\n";
                 //cout << "Called sleep function for " << dec << fixed << delay_ms << " ms\n";
 
-                printAll(group, m, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, PMUConfigs, groupNr == nGroups);
+                printAll(group, m, SysBeforeState, SysAfterState, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, PMUConfigs, groupNr == nGroups);
                 if (nGroups == 1)
                 {
                     std::swap(BeforeState, AfterState);
                     std::swap(BeforeSocketState, AfterSocketState);
                     std::swap(BeforeUncoreState, AfterUncoreState);
+                    std::swap(SysBeforeState, SysAfterState);
                 }
          }
          if (m->isBlocked()) {
