@@ -1327,19 +1327,25 @@ bool PCM::discoverSystemTopology()
         {
             pcm_sscanf(buffer) >> s_expect("processor\t: ") >> entry.os_id;
             //std::cout << "os_core_id: " << entry.os_id << "\n";
-            TemporalThreadAffinity _(entry.os_id);
-            pcm_cpuid(0xb, 0x0, cpuid_args);
-            int apic_id = cpuid_args.array[3];
+            try {
+                TemporalThreadAffinity _(entry.os_id);
+                pcm_cpuid(0xb, 0x0, cpuid_args);
+                int apic_id = cpuid_args.array[3];
 
-            populateEntry(entry, apic_id);
-            if (populateHybridEntry(entry, entry.os_id) == false)
-            {
-                return false;
+                populateEntry(entry, apic_id);
+                if (populateHybridEntry(entry, entry.os_id) == false)
+                {
+                    return false;
+                }
+
+                topology[entry.os_id] = entry;
+                socketIdMap[entry.socket] = 0;
+                ++num_online_cores;
             }
-
-            topology[entry.os_id] = entry;
-            socketIdMap[entry.socket] = 0;
-            ++num_online_cores;
+            catch (std::exception &)
+            {
+                std::cerr << "Marking core " << entry.os_id << " offline\n";
+            }
         }
     }
     //std::cout << std::flush;
@@ -5428,6 +5434,7 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool sile
     if (MSR.empty())  return PCM::MSRAccessDenied;
     threadMSRConfig = RawPMUConfig{};
     packageMSRConfig = RawPMUConfig{};
+    pcicfgConfig = RawPMUConfig{};
     RawPMUConfigs curPMUConfigs = curPMUConfigs_;
     constexpr auto globalRegPos = 0ULL;
     PCM::ExtendedCustomCoreEventDescription conf;
@@ -5616,6 +5623,32 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool sile
         {
             threadMSRConfig = pmuConfig.second;
         }
+        else if (type == "pcicfg")
+        {
+            pcicfgConfig = pmuConfig.second;
+            auto addLocations = [this](const std::vector<RawEventConfig>& configs) {
+                for (const auto& c : configs)
+                {
+                    if (PCICFGRegisterLocations.find(c.first) == PCICFGRegisterLocations.end())
+                    {
+                        // add locations
+                        std::vector<PCICFGRegisterEncoding> locations;
+                        const auto deviceID = c.first[PCICFGEventPosition::deviceID];
+                        forAllIntelDevices([&locations, &deviceID, &c](const uint32 group, const uint32 bus, const uint32 device, const uint32 function, const uint32 device_id)
+                            {
+                                if (deviceID == device_id && PciHandleType::exists(group, bus, device, function))
+                                {
+                                    // PciHandleType shared ptr, offset
+                                    locations.push_back(PCICFGRegisterEncoding{ std::make_shared<PciHandleType>(group, bus, device, function), (uint32)c.first[PCICFGEventPosition::offset] });
+                                }
+                            });
+                        PCICFGRegisterLocations[c.first] = locations;
+                    }
+                }
+            };
+            addLocations(pcicfgConfig.programmable);
+            addLocations(pcicfgConfig.fixed);
+        }
         else if (type == "cxlcm")
         {
             programCXLCM(events64);
@@ -5626,7 +5659,7 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool sile
         }
         else
         {
-            std::cerr << "ERROR: unrecognized PMU type \"" << type << "\"\n";
+            std::cerr << "ERROR: unrecognized PMU type \"" << type << "\" when trying to program PMUs.\n";
             return PCM::UnknownError;
         }
     }
@@ -5993,6 +6026,50 @@ void PCM::readAndAggregatePackageCStateResidencies(std::shared_ptr<SafeMsrHandle
     }
 }
 
+void PCM::readPCICFGRegisters(SystemCounterState& systemState)
+{
+    auto read = [this, &systemState](const RawEventConfig& cfg) {
+        const RawEventEncoding& reEnc = cfg.first;
+        systemState.PCICFGValues[reEnc].clear();
+        for (auto& reg : PCICFGRegisterLocations[reEnc])
+        {
+            const auto width = reEnc[PCICFGEventPosition::width];
+            auto& h = reg.first;
+            const auto& offset = reg.second;
+            if (h.get())
+            {
+                uint64 value = ~0ULL;
+                uint32 value32 = 0;
+                switch (width)
+                {
+                case 16:
+                    h->read32(offset, &value32);
+                    value = (uint64)extract_bits_ui(value32, 0, 15);
+                    break;
+                case 32:
+                    h->read32(offset, &value32);
+                    value = (uint64)value32;
+                    break;
+                case 64:
+                    h->read64(offset, &value);
+                    break;
+                default:
+                    std::cerr << "ERROR: Unsupported width " << width << " for pcicfg register " << cfg.second << "\n";
+                }
+                systemState.PCICFGValues[reEnc].push_back(value);
+            }
+        }
+    };
+    for (const auto& cfg : pcicfgConfig.programmable)
+    {
+        read(cfg);
+    }
+    for (const auto& cfg : pcicfgConfig.fixed)
+    {
+        read(cfg);
+    }
+}
+
 void PCM::readQPICounters(SystemCounterState & result)
 {
         // read QPI counters
@@ -6196,6 +6273,7 @@ void PCM::getAllCounterStates(SystemCounterState & systemState, std::vector<Sock
     if (readAndAggregateSocketUncoreCounters)
     {
         readQPICounters(systemState);
+        readPCICFGRegisters(systemState);
     }
 
     for (auto & ar : asyncCoreResults)
@@ -8860,6 +8938,16 @@ uint32 PCM::getMaxNumOfCBoxes() const
          */
         num = (uint32)num_phys_cores_per_socket;
     }
+#ifdef PCM_USE_PERF
+    if (num == 0)
+    {
+        num = (uint32)enumeratePerfPMUs("cbox", 100).size();
+    }
+    if (num == 0)
+    {
+        num = (uint32)enumeratePerfPMUs("cha", 100).size();
+    }
+#endif
     assert(num >= 0);
     return (uint32)num;
 }

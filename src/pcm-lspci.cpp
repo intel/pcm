@@ -104,11 +104,33 @@ int mainThrows(int /*argc*/, char * /*argv*/[])
 
     if (!m->isSkxCompatible())
     {
-        cerr << "Unsupported processor model (" << m->getCPUModel() << ").\n";
-        exit(EXIT_FAILURE);
+        cerr << "PCI tree display is currently not supported for processor model " << m->getCPUModel() << "\n";
     }
-    std::cout << "\n Display PCI tree information\n\n";
-    for(int bus=0; bus < 256; ++bus)
-        scanBus(bus, pciDB);
+    else
+    {
+        std::cout << "\n Display PCI tree information\n\n";
+        for (int bus = 0; bus < 256; ++bus)
+            scanBus(bus, pciDB);
+    }
+
+    cerr << "Scanning all devices in group 0\n";
+    for (uint32 bus = 0; bus < 256; ++bus)
+    {
+        for (uint32 device = 0; device < 32; ++device)
+        {
+            for (uint32 function = 0; function < 8; ++function)
+            {
+                if (PciHandleType::exists(0, bus, device, function))
+                {
+                    PciHandleType h(0, bus, device, function);
+                    uint32 value = 0;
+                    h.read32(0, &value);
+                    const uint32 vendor = extract_bits_ui(value, 0, 15);
+                    const uint32 deviceID = extract_bits_ui(value, 16, 31);
+                    std::cout << "0:" << bus << ":" << device << ":" << function << " vendor 0x" << std::hex << vendor << " device 0x" << deviceID << std::dec << "\n";
+                }
+            }
+        }
+    }
     return 0;
 }
