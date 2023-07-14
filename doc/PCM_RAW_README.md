@@ -35,6 +35,49 @@ pcm-raw -e core/config=0x00000000004300c5,name=BR_MISP_RETIRED.ALL_BRANCHES -e c
 4. View/process the csv file using your favorite method. For example just open it in Excel.
 
 --------------------------------------------------------------------------------
+Collecting Register Values
+--------------------------------------------------------------------------------
+
+pcm-raw supports collecting raw MSR and PCICFG (CSR) register values. The syntax is described below:
+
+Model Specific Registers (MSRs):
+
+```
+package_msr/config=<msr_address>,config1=<static_or_freerun>[,name=<name>]
+```
+
+static_or_freerun encoding:
+* 0 : static (last value reported in csv)
+* 1 : freerun (delta to last value reported in csv)
+
+Examples:
+```
+package_msr/config=0x34,config1=0,name=SMI_COUNT
+thread_msr/config=0x10,config1=1,name=TSC_DELTA
+thread_msr/config=0x10,config1=0,name=TSC
+```
+
+If the name is not specified the first event will show up as package_msr:0x34:static, with the name it will show up as SMI_COUNT in csv.
+
+PCI Configuration Registers - PCICFG (CSR):
+
+```
+pcicfg<width>/config=<dev_id>,config1=<offset>,config2=<static_or_freerun>[,name=<name>]
+```
+
+* width: register width in bits (16,32,64) 
+* dev_id: Intel PCI device id where the register is located
+* offset: offset of the register
+* static_or_freerun: same syntax as for MSR registers
+
+Example:
+
+```
+pcicfg32/config=0xe20,config1=0x180,config2=0x0,name=CHANERR_INT
+```
+From: https://www.intel.la/content/dam/www/public/us/en/documents/datasheets/xeon-e7-v2-datasheet-vol-2.pdf
+
+--------------------------------------------------------------------------------
 Collecting Events By Names From Event Lists (https://github.com/intel/perfmon/)
 --------------------------------------------------------------------------------
 
