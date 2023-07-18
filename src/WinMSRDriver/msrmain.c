@@ -256,8 +256,11 @@ NTSTATUS deviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
                 slot.u.AsULONG = 0;
                 slot.u.bits.DeviceNumber = input_pcicfg_req->dev;
                 slot.u.bits.FunctionNumber = input_pcicfg_req->func;
+#pragma warning(push)
+#pragma warning(disable: 4996)
                 size = HalSetBusDataByOffset(PCIConfiguration, input_pcicfg_req->bus, slot.u.AsULONG,
                                              &(input_pcicfg_req->write_value), input_pcicfg_req->reg, input_pcicfg_req->bytes);
+#pragma warning(pop)
                 if (size != input_pcicfg_req->bytes)
                 {
                     status = STATUS_INVALID_PARAMETER;
@@ -274,8 +277,11 @@ NTSTATUS deviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
                 slot.u.AsULONG = 0;
                 slot.u.bits.DeviceNumber = input_pcicfg_req->dev;
                 slot.u.bits.FunctionNumber = input_pcicfg_req->func;
+#pragma warning(push)
+#pragma warning(disable: 4996)
                 size = HalGetBusDataByOffset(PCIConfiguration, input_pcicfg_req->bus, slot.u.AsULONG,
                                              output, input_pcicfg_req->reg, input_pcicfg_req->bytes);
+#pragma warning(pop)
                 if (size != input_pcicfg_req->bytes)
                 {
                     status = STATUS_INVALID_PARAMETER;
