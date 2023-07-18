@@ -281,7 +281,7 @@ NTSTATUS deviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
                     status = STATUS_INVALID_PARAMETER;
                     break;
                 }
-                Irp->IoStatus.Information = sizeof(ULONG64);                                         // result size
+                Irp->IoStatus.Information = size;                                         // result size
                 break;
 
             default:
