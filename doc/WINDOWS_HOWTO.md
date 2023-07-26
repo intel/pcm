@@ -2,9 +2,9 @@
 
 _For support of systems with more than _**_64_**_ logical cores you need to compile all binaries below in “_**_x64_**_” platform mode (not the default “_**_Win32_**_” mode)._
 
-Command-line utility:
+## Command-line utility
 
-1. Compile the windows MSR driver (msr.sys) with Windows DDK Kit (see the sources in the WinMSRDriver directory). For Windows 7 and later versions you have to sign the msr.sys driver additionally ([http://msdn.microsoft.com/en-us/library/ms537361(VS.85).aspx](http://msdn.microsoft.com/en-us/library/ms537361(VS.85).aspx)). To enable loading test signed drivers on the system: in administrator cmd console run `bcdedit /set testsigning on` and reboot).
+1. Follow [Compile the windows MSR driver](#compile-the-windows-msr-driver) to compile the windows MSR driver (msr.sys). For Windows 7 and later versions you have to sign the msr.sys driver additionally ([http://msdn.microsoft.com/en-us/library/ms537361(VS.85).aspx](http://msdn.microsoft.com/en-us/library/ms537361(VS.85).aspx)). To enable loading test signed drivers on the system: in administrator cmd console run `bcdedit /set testsigning on` and reboot.
 
 2. Build the *pcm.exe* utility:
    ```
@@ -25,9 +25,9 @@ Alternatively you can achieve the same using the “Properties” Windows menu o
 
 If you are getting the error `Starting MSR service failed with error 3 The system cannot find the path specified.` try to uninstall the driver by running `pcm --uninstallDriver` and optionally reboot the system.
 
-Graphical Perfmon front end:
+## Graphical Perfmon front end
 
-1. Compile the windows MSR driver (msr.sys) with Windows DDK Kit (see the sources in the WinMSRDriver directory). For Windows 7 and later versions you have to sign the msr.sys driver additionally ([http://msdn.microsoft.com/en-us/library/ms537361(VS.85).aspx](http://msdn.microsoft.com/en-us/library/ms537361(VS.85).aspx)).
+1. Follow [Compile the windows MSR driver](#compile-the-windows-msr-driver) to compile the windows MSR driver (msr.sys). For Windows 7 and later versions you have to sign the msr.sys driver additionally ([http://msdn.microsoft.com/en-us/library/ms537361(VS.85).aspx](http://msdn.microsoft.com/en-us/library/ms537361(VS.85).aspx)).
 
 2. Copy msr.sys into the c:\windows\system32 directory
 
@@ -53,7 +53,25 @@ If you do not want or cannot compile the msr.sys driver you might use a third-pa
 2. Copy WinRing0.dll, WinRing0.sys, WinRing0x64.dll, WinRing0x64.sys files from there into the PCM.exe binary location, into the PCM-Service.exe location and into c:\windows\system32
 3. Run the PCM.exe tool and/or go to step 6 (perfmon utility).
 
-Known limitations:
+## Compile the windows MSR driver
+
+1. Download Visual Studio ([Visual Studio download](https://visualstudio.microsoft.com/downloads/)).
+When you install Visual Studio, also install related packages:
+   - under `Workloads`, select `Desktop development with C++` 
+(select `C++ CMake tools for Windows` in this workload) and `.NET desktop development`.
+   - under `Individual components`, search `Libs for Spectre` and select `MSVC v143 - VS 
+2022 C++ x64/x86 Spectre-mitigated libs(Latest)`.
+
+2. Download and install SDK ([windows-sdk](https://developer.microsoft.com/en-us/windows/downloads/windows-sdk/))
+
+3. Download and install WDK ([windows-wdk](https://learn.microsoft.com/en-us/windows-hardware/drivers/download-the-wdk)). Please select `Install Windows Driver Kit Visual Studio extension` when you install WDK.
+
+4. Open **a terminal in Visual Studio**, then go to `src\WinMSRDriver`, and run the following command to compile the driver. Then you will see `MSR.sys` in `src\WinMSRDriver\x64\Release`.
+    ```
+    MSBuild.exe MSR.vcxproj -property:Configuration=Release -property:Platform=x64
+    ```
+
+## Known limitations
 
 Running PCM.exe under Cygwin shell is possible, but due to incompatibilities of signals/events handling between Windows and Cygwin, the PCM may not cleanup PMU configuration after Ctrl+C or Ctrl+Break pressed. The subsequent run of PCM will require to do PMU configuration reset, so adding -r command line option to PCM will be required.
 
