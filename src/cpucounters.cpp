@@ -6911,6 +6911,11 @@ void ServerUncorePMUs::initRegisterLocations(const PCM * pcm)
         PCM_PCICFG_QPI_INIT(2, SPR);
         PCM_PCICFG_QPI_INIT(3, SPR);
 
+        PCM_PCICFG_M3UPI_INIT(0, SPR);
+        PCM_PCICFG_M3UPI_INIT(1, SPR);
+        PCM_PCICFG_M3UPI_INIT(2, SPR);
+        PCM_PCICFG_M3UPI_INIT(3, SPR);
+
         PCM_PCICFG_M2M_INIT(0, SERVER)
         PCM_PCICFG_M2M_INIT(1, SERVER)
         PCM_PCICFG_M2M_INIT(2, SERVER)
@@ -7303,8 +7308,10 @@ void ServerUncorePMUs::initDirect(uint32 socket_, const PCM * pcm)
     }
     for (auto& handle : m3upiHandles)
     {
-        if (cpu_model == PCM::ICX)
+        switch (cpu_model)
         {
+        case PCM::ICX:
+        case PCM::SPR:
             m3upiPMUs.push_back(
                 UncorePMU(
                     std::make_shared<PCICFGRegister32>(handle, ICX_M3UPI_PCI_PMON_BOX_CTL_ADDR),
@@ -7318,9 +7325,9 @@ void ServerUncorePMUs::initDirect(uint32 socket_, const PCM * pcm)
                     std::make_shared<PCICFGRegister64>(handle, ICX_M3UPI_PCI_PMON_CTR3_ADDR)
                 )
             );
-        }
-        else
-        {
+            break;
+
+        default:
             m3upiPMUs.push_back(
                 UncorePMU(
                     std::make_shared<PCICFGRegister32>(handle, M3UPI_PCI_PMON_BOX_CTL_ADDR),
