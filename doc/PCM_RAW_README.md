@@ -65,15 +65,15 @@ PCI Configuration Registers - PCICFG (CSR):
 pcicfg/config=<dev_id>,config1=<offset>,config2=<static_or_freerun>,width=<width>[,name=<name>]
 ```
 
-* width: register width in bits (16,32,64) 
 * dev_id: Intel PCI device id where the register is located
 * offset: offset of the register
 * static_or_freerun: same syntax as for MSR registers
+* width: register width in bits (16,32,64) 
 
 Example:
 
 ```
-pcicfg32/config=0xe20,config1=0x180,config2=0x0,name=CHANERR_INT
+pcicfg/config=0xe20,config1=0x180,config2=0x0,width=32,name=CHANERR_INT
 ```
 From: https://www.intel.la/content/dam/www/public/us/en/documents/datasheets/xeon-e7-v2-datasheet-vol-2.pdf
 
