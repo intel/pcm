@@ -4356,6 +4356,12 @@ inline double getLocalMemoryRequestRatio(const CounterStateType & before, const 
 template <class CounterType>
 inline uint64 getNumberOfEvents(const CounterType & before, const CounterType & after)
 {
+    // prevent overflows due to counter dissynchronisation
+    if (after.data < before.data)
+    {
+        return 0;
+    }
+
     return after.data - before.data;
 }
 //! \brief Returns average last level cache read+prefetch miss latency in ns
