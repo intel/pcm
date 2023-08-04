@@ -62,7 +62,7 @@ If the name is not specified the first event will show up as package_msr:0x34:st
 PCI Configuration Registers - PCICFG (CSR):
 
 ```
-pcicfg<width>/config=<dev_id>,config1=<offset>,config2=<static_or_freerun>[,name=<name>]
+pcicfg/config=<dev_id>,config1=<offset>,config2=<static_or_freerun>,width=<width>[,name=<name>]
 ```
 
 * width: register width in bits (16,32,64) 
