@@ -1323,6 +1323,18 @@ public:
                 && a[PCICFGEventPosition::width] == b[PCICFGEventPosition::width];
         }
     };
+    struct MMIOEventPosition
+    {
+        enum constants
+        {
+            deviceID = PCICFGEventPosition::deviceID,
+            offset = PCICFGEventPosition::offset,
+            type = PCICFGEventPosition::type,
+            membar_bits1 = 3,
+            membar_bits2 = 4,
+            width = PCICFGEventPosition::width
+        };
+    };
 private:
     std::unordered_map<RawEventEncoding, std::vector<PCICFGRegisterEncoding>, PCICFGRegisterEncodingHash, PCICFGRegisterEncodingCmp> PCICFGRegisterLocations{};
 public:
