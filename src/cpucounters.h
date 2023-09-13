@@ -1015,6 +1015,7 @@ private:
     void readMSRs(std::shared_ptr<SafeMsrHandle> msr, const RawPMUConfig & msrConfig, CounterStateType & result);
     void readQPICounters(SystemCounterState & counterState);
     void readPCICFGRegisters(SystemCounterState& result);
+    void readMMIORegisters(SystemCounterState& result);
     void reportQPISpeed() const;
     void readCoreCounterConfig(const bool complainAboutMSR = false);
     void readCPUMicrocodeLevel();
@@ -1335,8 +1336,28 @@ public:
             width = PCICFGEventPosition::width
         };
     };
+    typedef std::pair<std::shared_ptr<MMIORange>, uint32> MMIORegisterEncoding; // MMIORange shared ptr, offset
+    struct MMIORegisterEncodingHash : public PCICFGRegisterEncodingHash
+    {
+        std::size_t operator()(const RawEventEncoding& e) const
+        {
+            std::size_t h4 = std::hash<uint64>{}(e[MMIOEventPosition::membar_bits1]);
+            std::size_t h5 = std::hash<uint64>{}(e[MMIOEventPosition::membar_bits2]);
+            return PCICFGRegisterEncodingHash::operator()(e) ^ (h4 << 3ULL) ^ (h5 << 4ULL);
+        }
+    };
+    struct MMIORegisterEncodingCmp : public PCICFGRegisterEncodingCmp
+    {
+        bool operator ()(const RawEventEncoding& a, const RawEventEncoding& b) const
+        {
+            return PCICFGRegisterEncodingCmp::operator()(a,b)
+                && a[MMIOEventPosition::membar_bits1] == b[MMIOEventPosition::membar_bits1]
+                && a[MMIOEventPosition::membar_bits2] == b[MMIOEventPosition::membar_bits2];
+        }
+    };
 private:
     std::unordered_map<RawEventEncoding, std::vector<PCICFGRegisterEncoding>, PCICFGRegisterEncodingHash, PCICFGRegisterEncodingCmp> PCICFGRegisterLocations{};
+    std::unordered_map<RawEventEncoding, std::vector<MMIORegisterEncoding>, MMIORegisterEncodingHash, MMIORegisterEncodingCmp> MMIORegisterLocations{};
 public:
 
     TopologyEntry::CoreType getCoreType(const unsigned coreID) const
@@ -1601,7 +1622,7 @@ private:
         }
         return false;
     }
-    RawPMUConfig threadMSRConfig{}, packageMSRConfig{}, pcicfgConfig{};
+    RawPMUConfig threadMSRConfig{}, packageMSRConfig{}, pcicfgConfig{}, mmioConfig{};
 public:
 
     //! \brief Reads CPU model id
@@ -3310,12 +3331,14 @@ class SystemCounterState : public SocketCounterState
 {
     friend class PCM;
     friend std::vector<uint64> getPCICFGEvent(const PCM::RawEventEncoding& eventEnc, const SystemCounterState& before, const SystemCounterState& after);
+    friend std::vector<uint64> getMMIOEvent(const PCM::RawEventEncoding& eventEnc, const SystemCounterState& before, const SystemCounterState& after);
 
     std::vector<std::vector<uint64> > incomingQPIPackets; // each 64 byte
     std::vector<std::vector<uint64> > outgoingQPIFlits; // idle or data/non-data flits depending on the architecture
     std::vector<std::vector<uint64> > TxL0Cycles;
     uint64 uncoreTSC;
     std::unordered_map<PCM::RawEventEncoding, std::vector<uint64> , PCM::PCICFGRegisterEncodingHash, PCM::PCICFGRegisterEncodingCmp> PCICFGValues{};
+    std::unordered_map<PCM::RawEventEncoding, std::vector<uint64>, PCM::MMIORegisterEncodingHash, PCM::MMIORegisterEncodingCmp> MMIOValues{};
 
 protected:
     void readAndAggregate(std::shared_ptr<SafeMsrHandle> handle)
@@ -4452,13 +4475,14 @@ inline double getRetiring(const CounterStateType & before, const CounterStateTyp
     return 0.;
 }
 
-inline std::vector<uint64> getPCICFGEvent(const PCM::RawEventEncoding & eventEnc, const SystemCounterState& before, const SystemCounterState& after)
+template <class ValuesType>
+inline std::vector<uint64> getRegisterEvent(const PCM::RawEventEncoding& eventEnc, const ValuesType& beforeValues, const ValuesType& afterValues)
 {
     std::vector<uint64> result{};
-    auto beforeIter = before.PCICFGValues.find(eventEnc);
-    auto afterIter = after.PCICFGValues.find(eventEnc);
-    if (beforeIter != before.PCICFGValues.end() &&
-        afterIter != after.PCICFGValues.end())
+    auto beforeIter = beforeValues.find(eventEnc);
+    auto afterIter = afterValues.find(eventEnc);
+    if (beforeIter != beforeValues.end() &&
+        afterIter != afterValues.end())
     {
         const auto& beforeValues = beforeIter->second;
         const auto& afterValues = afterIter->second;
@@ -4478,6 +4502,16 @@ inline std::vector<uint64> getPCICFGEvent(const PCM::RawEventEncoding & eventEnc
         }
     }
     return result;
+}
+
+inline std::vector<uint64> getPCICFGEvent(const PCM::RawEventEncoding & eventEnc, const SystemCounterState& before, const SystemCounterState& after)
+{
+    return getRegisterEvent(eventEnc, before.PCICFGValues, after.PCICFGValues);
+}
+
+inline std::vector<uint64> getMMIOEvent(const PCM::RawEventEncoding& eventEnc, const SystemCounterState& before, const SystemCounterState& after)
+{
+    return getRegisterEvent(eventEnc, before.MMIOValues, after.MMIOValues);
 }
 
 template <class CounterStateType>
