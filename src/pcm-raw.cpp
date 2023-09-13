@@ -1179,6 +1179,22 @@ std::string getPCICFGEventString(const PCM::RawEventEncoding & eventEnc, const s
     return c.str();
 }
 
+std::string getMMIOEventString(const PCM::RawEventEncoding& eventEnc, const std::string& type)
+{
+    std::stringstream c;
+    c << type << ":0x" << std::hex <<
+                          eventEnc[PCM::MMIOEventPosition::deviceID] <<
+                 ":0x" << eventEnc[PCM::MMIOEventPosition::offset] <<
+                 ":0x" << eventEnc[PCM::MMIOEventPosition::membar_bits1] <<
+                 ":0x" << eventEnc[PCM::MMIOEventPosition::membar_bits2] <<
+                 ":0x" << eventEnc[PCM::MMIOEventPosition::width] <<
+                 ":" << getTypeString(eventEnc[PCM::MMIOEventPosition::type]);
+    return c.str();
+}
+
+typedef std::string(*getEventStringFunc)(const PCM::RawEventEncoding& eventEnc, const std::string& type);
+typedef std::vector<uint64>(getEventFunc)(const PCM::RawEventEncoding& eventEnc, const SystemCounterState& before, const SystemCounterState& after);
+
 enum MSRScope
 {
     Thread,
@@ -1462,28 +1478,12 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
                         is_header_printed = true;
                 }
             };
-            if (type == "core")
-            {
-                printCores(pcm::TopologyEntry::Core);
-            }
-            else if (type == "atom")
-            {
-                printCores(pcm::TopologyEntry::Atom);
-            }
-            else if (type == "thread_msr")
-            {
-                printMSRRows(MSRScope::Thread);
-            }
-            else if (type == "package_msr")
-            {
-                printMSRRows(MSRScope::Package);
-            }
-            else if (type == "pcicfg")
+            auto printRegisterRows = [&](getEventStringFunc getEventString, getEventFunc getEvent)
             {
                 auto printRegister = [&](const PCM::RawEventConfig& event) -> bool
                 {
-                    const std::string name = (event.second.empty()) ? getPCICFGEventString(event.first, type) : event.second;
-                    const auto values = getPCICFGEvent(event.first, SysBeforeState, SysAfterState);
+                    const std::string name = (event.second.empty()) ? getEventString(event.first, type) : event.second;
+                    const auto values = getEvent(event.first, SysBeforeState, SysAfterState);
 
                     if (is_header && is_header_printed)
                         return false;
@@ -1541,6 +1541,30 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
                         break;
                     }
                 }
+            };
+            if (type == "core")
+            {
+                printCores(pcm::TopologyEntry::Core);
+            }
+            else if (type == "atom")
+            {
+                printCores(pcm::TopologyEntry::Atom);
+            }
+            else if (type == "thread_msr")
+            {
+                printMSRRows(MSRScope::Thread);
+            }
+            else if (type == "package_msr")
+            {
+                printMSRRows(MSRScope::Package);
+            }
+            else if (type == "pcicfg")
+            {
+                printRegisterRows(getPCICFGEventString, getPCICFGEvent);
+            }
+            else if (type == "mmio")
+            {
+                printRegisterRows(getMMIOEventString, getMMIOEvent);
             }
             else if (type == "m3upi")
             {
@@ -1738,6 +1762,28 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs,
                 }
             }
         };
+        auto printRegisters = [&](getEventStringFunc getEventString, getEventFunc getEvent)
+        {
+            auto printOneRegister = [&](const PCM::RawEventConfig& event)
+            {
+                const auto values = getEvent(event.first, SysBeforeState, SysAfterState);
+                for (size_t r = 0; r < values.size(); ++r)
+                {
+                    choose(outputType,
+                        [&r]() { cout << "SYSTEM_" << r << separator; },
+                        [&]() { if (event.second.empty()) cout << getEventString(event.first, type) << separator;  else cout << event.second << separator; },
+                        [&]() { cout << values[r] << separator; });
+                }
+            };
+            for (const auto& event : events)
+            {
+                printOneRegister(event);
+            }
+            for (const auto& event : fixedEvents)
+            {
+                printOneRegister(event);
+            }
+        };
         if (type == "core")
         {
             printCores(pcm::TopologyEntry::Core);
@@ -1888,25 +1934,11 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs,
         }
         else if (type == "pcicfg")
         {
-            auto printPCICFG = [&](const PCM::RawEventConfig& event)
-            {
-                const auto values = getPCICFGEvent(event.first, SysBeforeState, SysAfterState);
-                for (size_t r = 0; r < values.size(); ++r)
-                {
-                    choose(outputType,
-                        [&r]() { cout << "SYSTEM_" << r << separator; },
-                        [&]() { if (event.second.empty()) cout << getPCICFGEventString(event.first, type) << separator;  else cout << event.second << separator; },
-                        [&]() { cout << values[r] << separator; });
-                }
-            };
-            for (const auto& event : events)
-            {
-                printPCICFG(event);
-            }
-            for (const auto& event : fixedEvents)
-            {
-                printPCICFG(event);
-            }
+            printRegisters(getPCICFGEventString, getPCICFGEvent);
+        }
+        else if (type == "mmio")
+        {
+            printRegisters(getMMIOEventString, getMMIOEvent);
         }
         else if (type == "ubox")
         {
