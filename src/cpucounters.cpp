@@ -6119,6 +6119,50 @@ void PCM::readPCICFGRegisters(SystemCounterState& systemState)
     }
 }
 
+void PCM::readMMIORegisters(SystemCounterState& systemState)
+{
+    auto read = [this, &systemState](const RawEventConfig& cfg) {
+        const RawEventEncoding& reEnc = cfg.first;
+        systemState.MMIOValues[reEnc].clear();
+        for (auto& reg : MMIORegisterLocations[reEnc])
+        {
+            const auto width = reEnc[MMIOEventPosition::width];
+            auto& h = reg.first;
+            const auto& offset = reg.second;
+            if (h.get())
+            {
+                uint64 value = ~0ULL;
+                uint32 value32 = 0;
+                switch (width)
+                {
+                case 16:
+                    value32 = h->read32(offset);
+                    value = (uint64)extract_bits_ui(value32, 0, 15);
+                    break;
+                case 32:
+                    value32 = h->read32(offset);
+                    value = (uint64)value32;
+                    break;
+                case 64:
+                    value = h->read64(offset);
+                    break;
+                default:
+                    std::cerr << "ERROR: Unsupported width " << width << " for mmio register " << cfg.second << "\n";
+                }
+                systemState.MMIOValues[reEnc].push_back(value);
+            }
+        }
+    };
+    for (const auto& cfg : mmioConfig.programmable)
+    {
+        read(cfg);
+    }
+    for (const auto& cfg : mmioConfig.fixed)
+    {
+        read(cfg);
+    }
+}
+
 void PCM::readQPICounters(SystemCounterState & result)
 {
         // read QPI counters
@@ -6323,6 +6367,7 @@ void PCM::getAllCounterStates(SystemCounterState & systemState, std::vector<Sock
     {
         readQPICounters(systemState);
         readPCICFGRegisters(systemState);
+        readMMIORegisters(systemState);
     }
 
     for (auto & ar : asyncCoreResults)
