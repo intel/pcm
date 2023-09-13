@@ -5435,6 +5435,7 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool sile
     threadMSRConfig = RawPMUConfig{};
     packageMSRConfig = RawPMUConfig{};
     pcicfgConfig = RawPMUConfig{};
+    mmioConfig = RawPMUConfig{};
     RawPMUConfigs curPMUConfigs = curPMUConfigs_;
     constexpr auto globalRegPos = 0ULL;
     PCM::ExtendedCustomCoreEventDescription conf;
@@ -5648,6 +5649,54 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool sile
             };
             addLocations(pcicfgConfig.programmable);
             addLocations(pcicfgConfig.fixed);
+        }
+        else if (type == "mmio")
+        {
+            mmioConfig = pmuConfig.second;
+            auto addLocations = [this](const std::vector<RawEventConfig>& configs) {
+                for (const auto& c : configs)
+                {
+                    if (MMIORegisterLocations.find(c.first) == MMIORegisterLocations.end())
+                    {
+                        // add locations
+                        std::vector<MMIORegisterEncoding> locations;
+                        const auto deviceID = c.first[MMIOEventPosition::deviceID];
+                        forAllIntelDevices([&locations, &deviceID, &c](const uint32 group, const uint32 bus, const uint32 device, const uint32 function, const uint32 device_id)
+                            {
+                                if (deviceID == device_id && PciHandleType::exists(group, bus, device, function))
+                                {
+                                    PciHandleType pciHandle(group, bus, device, function);
+                                    auto computeBarOffset = [&pciHandle](uint64 membarBits) -> size_t
+                                    {
+                                        if (membarBits)
+                                        {
+                                            const auto destPos = extract_bits(membarBits, 32, 39);
+                                            const auto numBits = extract_bits(membarBits, 24, 31);
+                                            const auto srcPos = extract_bits(membarBits, 16, 23);
+                                            const auto pcicfgOffset = extract_bits(membarBits, 0, 15);
+                                            uint32 memBarOffset = 0;
+                                            pciHandle.read32(pcicfgOffset, &memBarOffset);
+                                            return size_t(extract_bits_ui(memBarOffset, srcPos, srcPos + numBits - 1)) << destPos;
+                                        }
+                                        return 0;
+                                    };
+
+                                    size_t memBar = computeBarOffset(c.first[MMIOEventPosition::membar_bits1])
+                                        | computeBarOffset(c.first[MMIOEventPosition::membar_bits2]);
+
+                                    assert(memBar);
+
+                                    const size_t addr = memBar + c.first[MMIOEventPosition::offset];
+                                    // MMIORange shared ptr (handle), offset
+                                    locations.push_back(MMIORegisterEncoding{ std::make_shared<MMIORange>(addr & ~4095ULL, 4096), (uint32) (addr & 4095ULL) });
+                                }
+                            });
+                        MMIORegisterLocations[c.first] = locations;
+                    }
+                }
+            };
+            addLocations(mmioConfig.programmable);
+            addLocations(mmioConfig.fixed);
         }
         else if (type == "cxlcm")
         {
