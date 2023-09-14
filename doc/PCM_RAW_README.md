@@ -77,6 +77,35 @@ pcicfg/config=0xe20,config1=0x180,config2=0x0,width=32,name=CHANERR_INT
 ```
 From: https://www.intel.la/content/dam/www/public/us/en/documents/datasheets/xeon-e7-v2-datasheet-vol-2.pdf
 
+MMIO Registers:
+
+```
+mmio/config=<device_id>,config1=<offset>,config2=<static_or_freerun>,config3=<membar_bits1>[,config4=<membar_bits2>],width=<width>[,name=<NAME>]
+```
+
+The MEMBAR is computed by logically ORing the result of membar_bits1 and membar_bits1 computation described below (PCICFG read + bit extraction and shift). The final MMIO register address = MEMBAR + offset.
+
+* width: register width in bits (16,32,64) 
+* dev_id: Intel PCI device id where the membar address registers are located
+* membar_bits1: mmioBase register bits to compute membar (base address)
+  - bits 0-15 : PCICFG register offset to read membar1 bits
+  - bits 16-23: source position of membar bits in the PCICFG register 
+  - bits 24-31: number of bits
+  - bits 32-39: destination bit position in the membar
+* membar_bits2: mmioBase register bits to compute membar (base address), can be zero if only membar_bits1 is sufficient for locating the register.
+  - bits 0-15 : PCICFG register offset to read membar2 bits
+  - bits 16-23: source position of membar bits in the PCICFG register 
+  - bits 24-31: number of bits
+  - bits 32-39: destination bit position in the membar
+* offset: offset of the MMIO register relative to the membar
+* static_or_freerun: same syntax as for MSR registers
+
+Example (Icelake server iMC PMON MMIO register read):
+
+```
+mmio/config=0x3451,config1=0x22808,config2=1,config3=0x171D0000D0,config4=0x0c0b0000d8,width=64
+```
+
 --------------------------------------------------------------------------------
 Collecting Events By Names From Event Lists (https://github.com/intel/perfmon/)
 --------------------------------------------------------------------------------
