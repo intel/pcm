@@ -826,6 +826,10 @@ AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEven
                 {
                     setField("OPC", read_number(assignment[1].c_str()));
                 }
+                else if (assignment.size() == 2 && assignment[0] == "state")
+                {
+                    setField("State", read_number(assignment[1].c_str()));
+                }
                 else if (assignment.size() == 2 && assignment[0] == "t")
                 {
                     setField("Threshold", read_number(assignment[1].c_str()));
