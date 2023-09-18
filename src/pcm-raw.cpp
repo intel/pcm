@@ -756,6 +756,8 @@ AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEven
             std::regex CounterMaskRegex("c(0x[0-9a-fA-F]+|[[:digit:]]+)");
             std::regex UmaskRegex("u(0x[0-9a-fA-F]+|[[:digit:]]+)");
             std::regex EdgeDetectRegex("e(0x[0-9a-fA-F]+|[[:digit:]]+)");
+            std::regex AnyThreadRegex("amt(0x[0-9a-fA-F]+|[[:digit:]]+)");
+            std::regex InvertRegex("i(0x[0-9a-fA-F]+|[[:digit:]]+)");
             while (mod != EventTokens.end())
             {
                 const auto assignment = split(*mod, '=');
@@ -797,6 +799,18 @@ AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEven
                     // Edge Detect modifier
                     const std::string Str{ mod->begin() + 1, mod->end() };
                     setField("EdgeDetect", read_number(Str.c_str()));
+                }
+                else if (std::regex_match(mod->c_str(), AnyThreadRegex))
+                {
+                    // AnyThread modifier
+                    const std::string Str{ mod->begin() + 1, mod->end() };
+                    setField("AnyThread", read_number(Str.c_str()));
+                }
+                else if (std::regex_match(mod->c_str(), InvertRegex))
+                {
+                    // Invert modifier
+                    const std::string Str{ mod->begin() + 1, mod->end() };
+                    setField("Invert", read_number(Str.c_str()));
                 }
                 else if (std::regex_match(mod->c_str(), UmaskRegex))
                 {
