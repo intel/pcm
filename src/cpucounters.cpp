@@ -5574,6 +5574,13 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool sile
                 uncore->programIMC(events32);
             }
         }
+        else if (type == "ha")
+        {
+            for (auto& uncore : serverUncorePMUs)
+            {
+                uncore->programHA(events32);
+            }
+        }
         else if (type == "m2m")
         {
             for (auto& uncore : serverUncorePMUs)
@@ -6532,6 +6539,9 @@ ServerUncoreCounterState PCM::getServerUncoreCounterState(uint32 socket)
       assert(controller < result.M2MCounter.size());
       for (uint32 cnt = 0; cnt < ServerUncoreCounterState::maxCounters; ++cnt)
           result.M2MCounter[controller][cnt] = serverUncorePMUs[socket]->getM2MCounter(controller, cnt);
+      assert(controller < result.HACounter.size());
+      for (uint32 cnt = 0; cnt < ServerUncoreCounterState::maxCounters; ++cnt)
+          result.HACounter[controller][cnt] = serverUncorePMUs[socket]->getHACounter(controller, cnt);
     }
         serverUncorePMUs[socket]->unfreezeCounters();
     }
@@ -8581,6 +8591,11 @@ uint64 ServerUncorePMUs::getPMUCounter(std::vector<UncorePMU> & pmu, const uint3
     }
     // std::cout << "DEBUG: ServerUncorePMUs::getPMUCounter(" << id << ", " << counter << ") = " << result << "\n";
     return result;
+}
+
+uint64 ServerUncorePMUs::getHACounter(uint32 id, uint32 counter)
+{
+    return getPMUCounter(haPMUs, id, counter);
 }
 
 uint64 ServerUncorePMUs::getMCCounter(uint32 channel, uint32 counter)

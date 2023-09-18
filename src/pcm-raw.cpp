@@ -1629,6 +1629,14 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
                     [&]() { printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getM2MCounter(u, i, before, after); }, (uint32)m->getMCPerSocket(), "MC");
                     });
             }
+            else if (type == "ha")
+            {
+                choose(outputType,
+                    [&]() { printUncoreRows(nullptr, (uint32) m->getMCPerSocket(), "HA"); },
+                    [&]() { printUncoreRows(nullptr, (uint32) m->getMCPerSocket(), type); },
+                    [&]() { printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getHACounter(u, i, before, after); }, (uint32)m->getMCPerSocket(), "HA");
+                    });
+            }
             else if (type == "pcu")
             {
                 choose(outputType,
@@ -1896,6 +1904,24 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs,
                             [s, mc]() { cout << "SKT" << s << "MC" << mc << separator; },
                             [&event, &i]() { if (event.second.empty()) cout << "M2MEvent" << i << separator;  else cout << event.second << separator; },
                             [&]() { cout << getM2MCounter(mc, i, BeforeUncoreState[s], AfterUncoreState[s]) << separator; });
+                        ++i;
+                    }
+                }
+            }
+        }
+        else if (type == "ha")
+        {
+            for (uint32 s = 0; s < m->getNumSockets(); ++s)
+            {
+                for (uint32 mc = 0; mc < m->getMCPerSocket(); ++mc)
+                {
+                    int i = 0;
+                    for (auto& event : events)
+                    {
+                        choose(outputType,
+                            [s, mc]() { cout << "SKT" << s << "HA" << mc << separator; },
+                            [&event, &i]() { if (event.second.empty()) cout << "HAEvent" << i << separator;  else cout << event.second << separator; },
+                            [&]() { cout << getHACounter(mc, i, BeforeUncoreState[s], AfterUncoreState[s]) << separator; });
                         ++i;
                     }
                 }

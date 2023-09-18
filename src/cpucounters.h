@@ -510,6 +510,10 @@ public:
     //! \param box box ID/number
     //! \param counter counter number
     uint64 getM2MCounter(uint32 box, uint32 counter);
+    //! \brief Direct read of HA counter
+    //! \param box box ID/number
+    //! \param counter counter number
+    uint64 getHACounter(uint32 box, uint32 counter);
 
     //! \brief Freezes event counting
     void freezeCounters();
@@ -2877,6 +2881,17 @@ uint64 getM2MCounter(uint32 controller, uint32 counter, const CounterStateType &
     return after.M2MCounter[controller][counter] - before.M2MCounter[controller][counter];
 }
 
+/*! \brief Direct read of HA controller PMU counter (counter meaning depends on the programming: power/performance/etc)
+    \param counter counter number
+    \param controller controller number
+    \param before CPU counter state before the experiment
+    \param after CPU counter state after the experiment
+*/
+template <class CounterStateType>
+uint64 getHACounter(uint32 controller, uint32 counter, const CounterStateType & before, const CounterStateType & after)
+{
+    return after.HACounter[controller][counter] - before.HACounter[controller][counter];
+}
 
 /*! \brief Direct read of embedded DRAM memory controller counter (counter meaning depends on the programming: power/performance/etc)
     \param counter counter number
@@ -3168,6 +3183,7 @@ private:
     std::array<uint64, maxChannels> HBMClocks;
     std::array<std::array<uint64, maxCounters>, maxChannels> MCCounter; // channel X counter
     std::array<std::array<uint64, maxCounters>, maxControllers> M2MCounter; // M2M/iMC boxes x counter
+    std::array<std::array<uint64, maxCounters>, maxControllers> HACounter; // HA boxes x counter
     std::array<std::array<uint64, maxCounters>, maxChannels> EDCCounter; // EDC controller X counter
     std::array<uint64, maxCounters> PCUCounter;
     std::unordered_map<int, uint64> freeRunningCounter;
@@ -3201,6 +3217,8 @@ private:
     template <class CounterStateType>
     friend uint64 getM2MCounter(uint32 controller, uint32 counter, const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
+    friend uint64 getHACounter(uint32 controller, uint32 counter, const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
     friend uint64 getEDCCounter(uint32 channel, uint32 counter, const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
     friend uint64 getPCUCounter(uint32 counter, const CounterStateType & before, const CounterStateType & after);
@@ -3232,6 +3250,7 @@ public:
         HBMClocks{{}},
         MCCounter{{}},
         M2MCounter{{}},
+        HACounter{{}},
         EDCCounter{{}},
         PCUCounter{{}},
         PackageThermalHeadroom(0),
