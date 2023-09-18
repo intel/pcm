@@ -1614,11 +1614,12 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
             }
             else if (type == "imc")
             {
+                const std::string fixedEventName = (fixedEvents.empty() == false && fixedEvents[0].second.empty() == false) ? fixedEvents[0].second : "DRAMClocks";
                 choose(outputType,
                     [&]() { printUncoreRows(nullptr, (uint32) m->getMCChannelsPerSocket(), "CHAN"); },
                     [&]() { printUncoreRows(nullptr, (uint32) m->getMCChannelsPerSocket(), type); },
                     [&]() { printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getMCCounter(u, i, before, after); }, (uint32)m->getMCChannelsPerSocket(),
-                            "DRAMClocks", [](const uint32 u, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getDRAMClocks(u, before, after); });
+                        fixedEventName, [](const uint32 u, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getDRAMClocks(u, before, after); });
                     });
             }
             else if (type == "m2m")
