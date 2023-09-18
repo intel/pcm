@@ -66,7 +66,9 @@
             "TID":         {"Config": 1, "Position": 0,  "Width": 6, "DefaultValue": 0},
             "State":       {"Config": 1, "Position": 17, "Width": 7, "DefaultValue": 0},
             "Filter1":     {"Config": 2, "Position": 0, "Width": 64, "DefaultValue": 59},
-            "OPC":         {"Config": 2, "Position": 20, "Width": 9, "DefaultValue": 0}
+            "OPC":         {"Config": 2, "Position": 20, "Width": 9, "DefaultValue": 0},
+            "NC":          {"Config": 2, "Position": 30, "Width": 1, "DefaultValue": 0},
+            "ISOC":        {"Config": 2, "Position": 31, "Width": 1, "DefaultValue": 0}
         }
     },
     "imc" : {

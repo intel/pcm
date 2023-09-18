@@ -826,6 +826,14 @@ AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEven
                 {
                     setField("OPC", read_number(assignment[1].c_str()));
                 }
+                else if (assignment.size() == 2 && assignment[0] == "nc")
+                {
+                    setField("NC", read_number(assignment[1].c_str()));
+                }
+                else if (assignment.size() == 2 && assignment[0] == "isoc")
+                {
+                    setField("ISOC", read_number(assignment[1].c_str()));
+                }
                 else if (assignment.size() == 2 && assignment[0] == "state")
                 {
                     setField("State", read_number(assignment[1].c_str()));
