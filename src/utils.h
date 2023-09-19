@@ -29,10 +29,16 @@
 #include <map>
 #include <unordered_map>
 
+
+namespace pcm {
+    std::string safe_getenv(const char* env);
+}
+
 #define PCM_MAIN_NOTHROW \
 int mainThrows(int argc, char * argv[]); \
 int main(int argc, char * argv[]) \
 { \
+    if (pcm::safe_getenv("PCM_NO_MAIN_EXCEPTION_HANDLER") == std::string("1")) return mainThrows(argc, argv); \
     try { \
         return mainThrows(argc, argv); \
     } catch(const std::runtime_error & e) \
@@ -520,8 +526,6 @@ inline uint64 extract_bits(uint64 myin, uint32 beg, uint32 end)
     myll = myll & build_bit(beg1, end1);
     return myll;
 }
-
-std::string safe_getenv(const char* env);
 
 #ifdef _MSC_VER
 inline HANDLE openMSRDriver()
