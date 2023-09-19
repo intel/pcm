@@ -838,6 +838,18 @@ std::string dos2unix(std::string in)
     return in;
 }
 
+bool isRegisterEvent(const std::string & pmu)
+{
+    if (pmu == "mmio"
+       || pmu == "pcicfg"
+       || pmu == "package_msr"
+       || pmu == "thread_msr")
+    {
+        return true;
+    }
+    return false;
+}
+
 std::string a_title(const std::string &init, const std::string &name) {
     char begin = init[0];
     std::string row = init;

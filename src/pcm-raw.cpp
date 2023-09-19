@@ -132,6 +132,10 @@ enum AddEventStatus
 
 bool tooManyEvents(const std::string & pmuName, const int event_pos, const std::string& fullEventStr)
 {
+    if (isRegisterEvent(pmuName))
+    {
+        return false;
+    }
     PCM* m = PCM::getInstance();
     assert(m);
     const int maxCounters = (pmuName == "core" || pmuName == "atom") ? m->getMaxCustomCoreEvents() : ServerUncoreCounterState::maxCounters;
