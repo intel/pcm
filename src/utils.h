@@ -574,7 +574,7 @@ typedef enum{
 }evt_cb_type;
 
 std::string dos2unix(std::string in);
-
+bool isRegisterEvent(const std::string & pmu);
 std::string a_title (const std::string &init, const std::string &name);
 std::string a_data (std::string init, struct data d);
 std::string a_header_footer(std::string init, std::string name);

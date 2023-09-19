@@ -5541,9 +5541,9 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool sile
         {
             continue;
         }
-        if (events.programmable.size() > ServerUncoreCounterState::maxCounters)
+        if (events.programmable.size() > ServerUncoreCounterState::maxCounters && isRegisterEvent(type) == false)
         {
-            std::cerr << "ERROR: trying to program " << events.programmable.size() << " core PMU counters, which exceeds the max num possible (" << ServerUncoreCounterState::maxCounters << ").";
+            std::cerr << "ERROR: trying to program " << events.programmable.size() << " uncore PMU counters, which exceeds the max num possible (" << ServerUncoreCounterState::maxCounters << ").";
             return PCM::UnknownError;
         }
         uint32 events32[ServerUncoreCounterState::maxCounters] = { 0,0,0,0,0,0,0,0 };
