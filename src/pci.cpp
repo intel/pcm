@@ -580,8 +580,10 @@ void PciHandleMM::readMCFG()
     if (read_bytes == 0)
     {
         ::close(mcfg_handle);
-        std::cerr << "PCM Error: Cannot read MCFG-table\n";
-        throw std::exception();
+        const auto msg = "PCM Error: Cannot read MCFG-table";
+        std::cerr << msg;
+        std::cerr << "\n";
+        throw std::runtime_error(msg);
     }
 
     const unsigned segments = mcfgHeader.nrecords();
@@ -597,8 +599,10 @@ void PciHandleMM::readMCFG()
         if (read_bytes == 0)
         {
             ::close(mcfg_handle);
-            std::cerr << "PCM Error: Cannot read MCFG-table (2)\n";
-            throw std::exception();
+            const auto msg = "PCM Error: Cannot read MCFG-table (2)";
+            std::cerr << msg;
+            std::cerr << "\n";
+            throw std::runtime_error(msg);
         }
 #ifdef PCM_DEBUG
         std::cout << "PCM Debug: segment " << std::dec << i << " ";
