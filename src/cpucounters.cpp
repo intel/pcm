@@ -9016,7 +9016,7 @@ uint32 PCM::getMaxNumOfCBoxes() const
     switch (cpu_model)
     {
     case SPR:
-        {
+        try {
             PciHandleType * h = getDeviceHandle(PCM_INTEL_PCI_VENDOR_ID, 0x325b);
             if (h)
             {
@@ -9027,6 +9027,10 @@ uint32 PCM::getMaxNumOfCBoxes() const
                 num += (uint32)weight32(value);
                 delete h;
             }
+        }
+        catch (std::exception& e)
+        {
+            std::cerr << "Warning: reading the number of CHA from PCICFG register has failed: " << e.what() << "\n";
         }
         break;
     case KNL:
