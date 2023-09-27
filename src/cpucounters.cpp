@@ -2200,9 +2200,10 @@ void PCM::initUncorePMUsDirect()
     }
 
     // init IIO addresses
-    if (getCPUModel() == PCM::SKX)
+    iioPMUs.resize(num_sockets);
+    switch (getCPUModel())
     {
-        iioPMUs.resize(num_sockets);
+    case PCM::SKX:
         for (uint32 s = 0; s < (uint32)num_sockets; ++s)
         {
             auto & handle = MSR[socketRefCore[s]];
@@ -2221,10 +2222,8 @@ void PCM::initUncorePMUsDirect()
                 );
             }
         }
-    }
-    else if (getCPUModel() == PCM::ICX)
-    {
-        iioPMUs.resize(num_sockets);
+        break;
+    case PCM::ICX:
         for (uint32 s = 0; s < (uint32)num_sockets; ++s)
         {
             auto & handle = MSR[socketRefCore[s]];
@@ -2243,10 +2242,8 @@ void PCM::initUncorePMUsDirect()
                 );
             }
         }
-    }
-    else if (getCPUModel() == PCM::SNOWRIDGE)
-    {
-        iioPMUs.resize(num_sockets);
+        break;
+    case PCM::SNOWRIDGE:
         for (uint32 s = 0; s < (uint32)num_sockets; ++s)
         {
             auto & handle = MSR[socketRefCore[s]];
@@ -2265,11 +2262,8 @@ void PCM::initUncorePMUsDirect()
                 );
             }
         }
-    }
-
-    if (getCPUModel() == PCM::SPR)
-    {
-        iioPMUs.resize(num_sockets);
+        break;
+    case PCM::SPR:
         for (uint32 s = 0; s < (uint32)num_sockets; ++s)
         {
             auto & handle = MSR[socketRefCore[s]];
@@ -2288,8 +2282,8 @@ void PCM::initUncorePMUsDirect()
                 );
             }
         }
+        break;
     }
-
 
     //init the IDX accelerator
     auto createIDXPMU = [](const size_t addr, const size_t mapSize, const size_t numaNode, const size_t socketId) -> IDX_PMU
