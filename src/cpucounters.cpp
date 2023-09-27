@@ -1984,6 +1984,19 @@ void PCM::initUncoreObjects()
     {
         initUncorePMUsDirect();
     }
+
+    std::cerr << "Info: " << uboxPMUs.size() << " UBOX units detected.\n";
+    for (uint32 s = 0; s < (uint32)num_sockets; ++s)
+    {
+        std::cerr << "Socket " << s << ":" <<
+            " " << ((s < pcuPMUs.size()) ? pcuPMUs[s].size() : 0) << " PCU units detected."
+            " " << ((s < iioPMUs.size()) ? iioPMUs[s].size() : 0) << " IIO units detected."
+            " " << ((s < irpPMUs.size()) ? irpPMUs[s].size() : 0) << " IRP units detected."
+            " " << ((s < cboPMUs.size()) ? cboPMUs[s].size() : 0) << " CHA/CBO units detected."
+            " " << ((s < mdfPMUs.size()) ? mdfPMUs[s].size() : 0) << " MDF units detected."
+            " " << ((s < cxlPMUs.size()) ? cxlPMUs[s].size() : 0) << " CXL units detected."
+            "\n";
+    }
 }
 
 void PCM::globalFreezeUncoreCounters()
