@@ -76,56 +76,58 @@ UncorePMUDiscovery::UncorePMUDiscovery()
                 // std::cout << "Intel device scan. found "<< std::hex << group << ":" << bus << ":" << device << ":" << function << " " << device_id << " with capability list\n" << std::dec;
                 union {
                     struct {
-                        uint32 id:16;
-                        uint32 version:4;
-                        uint32 next:12;
+                        uint64 cap_id:16;
+                        uint64 cap_version:4;
+                        uint64 cap_next:12;
+                        uint64 vsec_id:16;
+                        uint64 vsec_version:4;
+                        uint64 vsec_length:12;
+                        uint64 entryID:16;
+                        uint64 NumEntries:8;
+                        uint64 EntrySize:8;
+                        uint64 tBIR:3;
+                        uint64 Address:29;
                     } fields;
-                    uint32 value;
+                    uint64 raw_value64[2];
+                    uint32 raw_value32[4];
                 } header;
+
                 uint64 offset = 0x100;
                 do
                 {
-                    if (offset == 0 || h.read32(offset, &header.value) != sizeof(uint32) || header.value == 0)
+                    if (offset == 0 || h.read32(offset, &header.raw_value32[0]) != sizeof(uint32) || header.raw_value32[0] == 0)
                     {
                         return;
                     }
-                    // std::cout << "offset " << offset << "\n";
-                    if (header.fields.id == 0x23) // UNCORE_EXT_CAP_ID_DISCOVERY
+                    if (h.read64(offset, &header.raw_value64[0]) != sizeof(uint64) || h.read64(offset + sizeof(uint64), &header.raw_value64[1]) != sizeof(uint64))
                     {
-                        // std::cout << "found UNCORE_EXT_CAP_ID_DISCOVERY\n";
-                        uint32 entryID = 0;
-                        constexpr auto UNCORE_DISCOVERY_DVSEC_OFFSET = 8;
-                        if (h.read32(offset + UNCORE_DISCOVERY_DVSEC_OFFSET, &entryID) == sizeof(uint32)) // read at UNCORE_DISCOVERY_DVSEC_OFFSET
+                        return;
+                    }
+                    // std::cout << "offset 0x" << std::hex << offset << " header.fields.cap_id: 0x" << header.fields.cap_id << std::dec << "\n";
+                    if (header.fields.cap_id == 0xb) // Vendor Specific Information
+                    {
+                        // std::cout << ".. found Vendor Specific Information ID 0x" << std::hex << header.fields.vsec_id << " " << std::dec << " len:" << header.fields.vsec_length << "\n";
+                    }
+                    else if (header.fields.cap_id == 0x23) // UNCORE_EXT_CAP_ID_DISCOVERY
+                    {
+                        // std::cout << ".. found UNCORE_EXT_CAP_ID_DISCOVERY entryID: 0x" << std::hex << header.fields.entryID << std::dec << "\n";
+                        if (header.fields.entryID == 1) // UNCORE_DISCOVERY_DVSEC_ID_PMON
                         {
-                            entryID &= 0xffff; // apply UNCORE_DISCOVERY_DVSEC_ID_MASK
-                            if (entryID == 1) // UNCORE_DISCOVERY_DVSEC_ID_PMON
+                            // std::cout << ".... found UNCORE_DISCOVERY_DVSEC_ID_PMON\n";
+                            auto barOffset = 0x10 + header.fields.tBIR * 4;
+                            uint32 bar = 0;
+                            if (h.read32(barOffset, &bar) == sizeof(uint32) && bar != 0) // read bar
                             {
-                                // std::cout << "found UNCORE_DISCOVERY_DVSEC_ID_PMON\n";
-                                uint32 bir = 0;
-                                if (h.read32(offset + UNCORE_DISCOVERY_DVSEC_OFFSET + 4, &bir) == sizeof(uint32)) // read "bir" value (2:0)
-                                {
-                                    bir &= 7;
-                                    auto barOffset = 0x10 + bir * 4;
-                                    uint32 bar = 0;
-                                    if (h.read32(barOffset, &bar) == sizeof(uint32) && bar != 0) // read bar
-                                    {
-                                        bar &= ~4095;
-                                        processTables(bar);
-                                        return;
-                                    }
-                                    else
-                                    {
-                                        std::cerr << "Error: can't read bar from offset " << barOffset << " \n";
-                                    }
-                                }
-                                else
-                                {
-                                    std::cerr << "Error: can't read bir\n";
-                                }
+                                bar &= ~4095;
+                                processTables(bar);
+                            }
+                            else
+                            {
+                                std::cerr << "Error: can't read bar from offset " << barOffset << " \n";
                             }
                         }
                     }
-                    offset = header.fields.next & ~3;
+                    offset = header.fields.cap_next & ~3;
                 } while (1);
             }
         });
