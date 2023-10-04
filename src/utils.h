@@ -605,5 +605,12 @@ int readMaxFromSysFS(const char * path);
 bool readMapFromSysFS(const char * path, std::unordered_map<std::string, uint32> &result, bool silent = false);
 #endif
 
+inline uint64 insertBits(uint64 input, const uint64 value, const int64_t position, const uint64 width)
+{
+    const uint64 mask = (width == 64) ? (~0ULL) : ((1ULL << width) - 1ULL); // 1 -> 1b, 2 -> 11b, 3 -> 111b
+    input &= ~(mask << position); // clear
+    input |= (value & mask) << position;
+    return input;
+}
 
 } // namespace pcm

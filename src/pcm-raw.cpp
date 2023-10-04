@@ -648,9 +648,7 @@ AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEven
                 if (cfg >= config.first.size()) throw std::runtime_error("Config field value is out of bounds");
                 const auto width = uint64_t(fieldDescriptionObj["Width"]);
                 assert(width <= 64);
-                const uint64 mask = (width == 64) ? (~0ULL) : ((1ULL << width) - 1ULL); // 1 -> 1b, 2 -> 11b, 3 -> 111b
-                config.first[cfg] &= ~(mask << position); // clear
-                config.first[cfg] |= (value & mask) << position;
+                config.first[cfg] = insertBits(config.first[cfg], value, position, width);
             };
             auto PMUObj = (*PMURegisterDeclarations)[pmuName];
             if (PMUObj.error() == NO_SUCH_FIELD)
