@@ -494,6 +494,10 @@ inline uint32 extract_bits_ui(uint32 myin, uint32 beg, uint32 end)
 inline uint64 build_bit(uint32 beg, uint32 end)
 {
     uint64 myll = 0;
+    if (end > 63)
+    {
+        end = 63;
+    }
     if (end == 63)
     {
         myll = static_cast<uint64>(-1);
