@@ -43,6 +43,7 @@ int mainThrows(int argc, char * argv[])
     std::cout << "\n Intel(r) Performance Counter Monitor " << PCM_VERSION << "\n";
 
     std::cout << "\n TPMI (Topology Aware Register and PM Capsule Interface) read/write utility\n\n";
+    // register documentation: https://github.com/intel/tpmi_power_management
 
     uint64 value = 0;
     bool write = false;
