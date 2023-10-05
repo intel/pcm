@@ -284,7 +284,7 @@ void processDVSEC(MatchFunc matchFunc, ProcessFunc processFunc)
                     if (h.read32(barOffset, &bar) == sizeof(uint32) && bar != 0) // read bar
                     {
                         bar &= ~4095;
-                        processFunc(bar);
+                        processFunc(bar, header);
                     }
                     else
                     {

@@ -18,30 +18,15 @@ UncorePMUDiscovery::UncorePMUDiscovery()
         return;
     }
     unsigned socket = 0;
-    auto processTables = [&socket,this](const uint64 bar)
+    auto processTables = [&socket,this](const uint64 bar, const VSEC &)
     {
         constexpr size_t UncoreDiscoverySize = 3UL;
         union UncoreGlobalDiscovery {
             GlobalPMU pmu;
             uint64 table[UncoreDiscoverySize];
         };
-        MMIORange range(bar, UNCORE_DISCOVERY_MAP_SIZE); // mmio range with UNCORE_DISCOVERY_MAP_SIZE bytes
         UncoreGlobalDiscovery global;
-        auto copyTable = [&range,&UncoreDiscoverySize,&bar](uint64 * table, const size_t offset)
-        {
-            for (size_t i = 0; i < UncoreDiscoverySize; ++i)
-            {
-                const auto pos = offset + i * sizeof(uint64);
-                assert(pos < UNCORE_DISCOVERY_MAP_SIZE);
-                table[i] = range.read64(pos);
-                if (table[i] == ~0ULL)
-                {
-                    std::cerr << "Failed to read memory at 0x" << std::hex << bar << " + 0x" << pos << std::dec << "\n";
-                    throw std::exception();
-                }
-            }
-        };
-        copyTable(global.table, 0);
+        mmio_memcpy(global.table, bar, UncoreDiscoverySize * sizeof(uint64), true);
         globalPMUs.push_back(global.pmu);
         union UncoreUnitDiscovery {
             BoxPMU pmu;
@@ -52,7 +37,7 @@ UncorePMUDiscovery::UncorePMUDiscovery()
         BoxPMUMap boxPMUMap;
         for (size_t u = 0; u < global.pmu.maxUnits; ++u)
         {
-            copyTable(unit.table, (u+1) * step);
+            mmio_memcpy(unit.table, bar + (u+1) * step, UncoreDiscoverySize * sizeof(uint64), true);
             if (unit.table[0] == 0 && unit.table[1] == 0)
             {
                 // invalid entry

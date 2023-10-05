@@ -613,4 +613,18 @@ inline uint64 insertBits(uint64 input, const uint64 value, const int64_t positio
     return input;
 }
 
+inline uint64 roundDownTo4K(uint64 number) {
+    return number & ~0xFFFULL; // Mask the lower 12 bits to round down to 4K
+}
+
+inline uint64 roundUpTo4K(uint64 number) {
+    if (number % 4096ULL == 0ULL) {
+        // Already a multiple of 4K
+        return number;
+    } else {
+        // Round up to the next multiple of 4K
+        return ((number / 4096ULL) + 1ULL) * 4096ULL;
+    }
+}
+
 } // namespace pcm

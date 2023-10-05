@@ -158,4 +158,6 @@ public:
 };
 #endif
 
+void mmio_memcpy(void * dest, const uint64 src, const size_t n, const bool checkFailures);
+
 } // namespace pcm
