@@ -1098,6 +1098,7 @@ bool get_cpu_bus(uint32 msmDomain, uint32 msmBus, uint32 msmDev, uint32 msmFunc,
     uint32 busNo = 0x0;
 
     //std::cout << "get_cpu_bus: d=" << std::hex << msmDomain << ",b=" << msmBus << ",d=" << msmDev << ",f=" << msmFunc << std::dec << " \n";
+    try {
     PciHandleType h(msmDomain, msmBus, msmDev, msmFunc);
 
     h.read32(SPR_MSM_REG_CPUBUSNO_VALID_OFFSET, &cpuBusValid);
@@ -1138,6 +1139,11 @@ bool get_cpu_bus(uint32 msmDomain, uint32 msmBus, uint32 msmDev, uint32 msmFunc,
     cpuPackageId = sadControlCfg & 0xf;
 
     return true;
+    } catch (...)
+    {
+        std::cerr << "Warning: unable to enumerate CPU Buses" << std::endl;
+        return false;
+    }
 }
 
 #ifdef __linux__
