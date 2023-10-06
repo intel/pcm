@@ -67,20 +67,7 @@ int mainThrows(int argc, char * argv[])
             verbose = true;
             break;
         case 'b':
-            {
-                const auto bitsArray = pcm::split(std::string(optarg),':');
-                assert(bitsArray.size() == 2);
-                bits.first = (int64)read_number(bitsArray[0].c_str());
-                bits.second = (int64)read_number(bitsArray[1].c_str());
-                assert(bits.first >= 0);
-                assert(bits.second >= 0);
-                assert(bits.first < 64);
-                assert(bits.second < 64);
-                if (bits.first > bits.second)
-                {
-                    std::swap(bits.first, bits.second);
-                }
-            }
+            bits = parseBitsParameter(optarg);
             break;
         default:
             print_usage(argv[0]);
@@ -174,26 +161,15 @@ int mainThrows(int argc, char * argv[])
                             const auto baseOffset = requestedAddr - baseAddr;
                             MMIORange range(baseAddr, 4096ULL, !write);
                             if (!dec) std::cout << std::hex << std::showbase;
-                            if (bits.first >= 0 && write)
-                            {
-                                // to write bits need to read the old value first
-                                uint64 old_value = range.read64(baseOffset);
-                                value = insertBits(old_value, value, bits.first, bits.second - bits.first + 1);
-                            }
+                            readOldValueHelper(bits, value, write, [&range, &baseOffset](uint64 & old_value){ old_value = range.read64(baseOffset); return true; });
                             if (write)
                             {
                                 std::cout << " Writing " << value << " to TPMI ID " << requestedID << "@" << requestedRelativeOffset << " for entry " << p << "\n";
                                 range.write64(baseOffset, value);
                             }
                             value = range.read64(baseOffset);
-                            std::cout << " Read ";
-                            if (bits.first >= 0)
-                            {
-                                std::cout << "bits "<< std::dec << bits.first << ":" << bits.second << " ";
-                                if (!dec) std::cout << std::hex << std::showbase;
-                                value = extract_bits(value, bits.first, bits.second);
-                            }
-                            std::cout << "value " << value << " from TPMI ID " << requestedID << "@" << requestedRelativeOffset << " for entry " << p << "\n\n";
+                            extractBitsPrintHelper(bits, value, dec);
+                            std::cout << " from TPMI ID " << requestedID << "@" << requestedRelativeOffset << " for entry " << p << "\n\n";
                         }
                         catch (std::exception& e)
                         {

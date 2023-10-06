@@ -631,4 +631,34 @@ inline uint64 roundUpTo4K(uint64 number) {
     }
 }
 
+std::pair<int64,int64> parseBitsParameter(const char * param);
+template <class T, class R>
+inline bool readOldValueHelper(const std::pair<int64,int64> & bits, T & value, const bool & write, R readValue)
+{
+    if (bits.first >= 0 && write)
+    {
+        // to write bits need to read the old value first
+        T old_value = 0;
+        if (!readValue(old_value))
+        {
+            return false;
+        }
+        value = insertBits(old_value, value, bits.first, bits.second - bits.first + 1);
+    }
+    return true;
+}
+
+template <class T>
+inline void extractBitsPrintHelper(const std::pair<int64,int64> & bits, T & value, const bool & dec)
+{
+    std::cout << " Read ";
+    if (bits.first >= 0)
+    {
+        std::cout << "bits "<< std::dec << bits.first << ":" << bits.second << " ";
+        if (!dec) std::cout << std::hex << std::showbase;
+        value = extract_bits(value, bits.first, bits.second);
+    }
+    std::cout << "value " << value;
+}
+
 } // namespace pcm
