@@ -668,4 +668,8 @@ inline void extractBitsPrintHelper(const std::pair<int64,int64> & bits, T & valu
     std::cout << "value " << value;
 }
 
+#ifdef _MSC_VER
+void restrictDriverAccessNative(LPCTSTR path);
+#endif;
+
 } // namespace pcm

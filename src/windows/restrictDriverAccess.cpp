@@ -14,7 +14,7 @@ namespace pcm {
 #endif // _MSC_VER
 
 //! restrict usage of driver to system (SY) and builtin admins (BA)
-void restrictDriverAccess(LPCTSTR path)
+void restrictDriverAccessCls(LPCTSTR path)
 {
     try {
         System::Security::AccessControl::FileSecurity^ fSecurity = System::IO::File::GetAccessControl(gcnew System::String(path));

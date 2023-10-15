@@ -89,6 +89,11 @@ int convertUnknownToInt(size_t size, char* value);
 
 #ifdef _MSC_VER
 
+void PCM_API restrictDriverAccess(LPCTSTR path)
+{
+    restrictDriverAccessNative(path);
+}
+
 HMODULE hOpenLibSys = NULL;
 
 #ifndef NO_WINRING

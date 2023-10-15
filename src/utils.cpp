@@ -7,6 +7,10 @@
 #include <climits>
 #include <algorithm>
 #ifdef _MSC_VER
+#include <windows.h>
+#include <accctrl.h>
+#include <aclapi.h>
+#include <sddl.h>
 #include <process.h>
 #include <comdef.h>
 #else
@@ -1253,6 +1257,35 @@ bool readMapFromSysFS(const char * path, std::unordered_map<std::string, uint32>
 
     fclose(f);
     return true;
+}
+#endif
+
+#ifdef _MSC_VER
+
+void restrictDriverAccessNative(LPCTSTR path)
+{
+    PSECURITY_DESCRIPTOR pSD = nullptr;
+
+    if (!ConvertStringSecurityDescriptorToSecurityDescriptor(
+        _T("O:BAG:SYD:(A;;FA;;;SY)(A;;FA;;;BA)"),
+        SDDL_REVISION_1,
+        &pSD,
+        nullptr))
+    {
+        _tprintf(TEXT("Error in ConvertStringSecurityDescriptorToSecurityDescriptor: %d\n"), GetLastError());
+        return;
+    }
+
+    if (SetFileSecurity(path, DACL_SECURITY_INFORMATION, pSD))
+    {
+        _tprintf(TEXT("Successfully restricted access for %s\n"), path);
+    }
+    else
+    {
+        _tprintf(TEXT("Error in SetFileSecurity for %s. Error %d\n"), path, GetLastError());
+    }
+
+    LocalFree(pSD);
 }
 #endif
 
