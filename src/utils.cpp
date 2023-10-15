@@ -1262,6 +1262,7 @@ bool readMapFromSysFS(const char * path, std::unordered_map<std::string, uint32>
 
 #ifdef _MSC_VER
 
+//! restrict usage of driver to system (SY) and builtin admins (BA)
 void restrictDriverAccessNative(LPCTSTR path)
 {
     PSECURITY_DESCRIPTOR pSD = nullptr;
