@@ -34,10 +34,17 @@ namespace pcm {
     std::string safe_getenv(const char* env);
 }
 
+#ifdef _MSC_VER
+#define PCM_SET_DLL_DIR SetDllDirectory(_T(""));
+#else
+#define PCM_SET_DLL_DIR
+#endif
+
 #define PCM_MAIN_NOTHROW \
 int mainThrows(int argc, char * argv[]); \
 int main(int argc, char * argv[]) \
 { \
+    PCM_SET_DLL_DIR \
     if (pcm::safe_getenv("PCM_NO_MAIN_EXCEPTION_HANDLER") == std::string("1")) return mainThrows(argc, argv); \
     try { \
         return mainThrows(argc, argv); \
