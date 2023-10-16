@@ -1279,7 +1279,7 @@ void restrictDriverAccessNative(LPCTSTR path)
 
     if (SetFileSecurity(path, DACL_SECURITY_INFORMATION, pSD))
     {
-        _tprintf(TEXT("Successfully restricted access for %s\n"), path);
+        // _tprintf(TEXT("Successfully restricted access for %s\n"), path);
     }
     else
     {
