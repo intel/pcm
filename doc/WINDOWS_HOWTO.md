@@ -13,11 +13,11 @@ _For support of systems with more than _**_64_**_ logical cores you need to comp
    ```
    alternatively you can perform `cmake -B build`, open *PCM.sln* form *build* folder in and build required project in Visual Studio.
    .exe and .dll files will be located in *build\bin\Release* folder
-3. Copy the msr.sys driver and pcm.exe into a single directory
+3. As Administrator create PCM directory in Windows "Program Files" directory (e.g. `C:\Program Files (x86)\PCM\`)
+4. As Administrator copy the msr.sys driver and pcm.exe into the PCM directory
+5. Run pcm.exe utility from the PCM directory as Administrator
 
-4. Run pcm.exe utility from this directory
-
-For Windows 7 and Windows Server 2008 R2 the PCM utilities need to be run as administrator:
+For Windows 7+ and Windows Server 2008+ R2 the PCM utilities need to be run as administrator:
 
 Alternatively you can achieve the same using the “Properties” Windows menu of the executable (“Privilege level” setting in the “Compatibility” tab): Right mouse click -&gt; Properties -&gt; Compatibility -&gt; Privilege level -&gt; Set “Run this program as an administrator”.
 
@@ -35,7 +35,7 @@ If you are getting the error `Starting MSR service failed with error 3 The syste
 
 4. Build 'PCM-Service.exe' using Microsoft Visual Studio or cmake
 
-5. Copy PCM-Service.exe, PCM-Service.exe.config, and pcm-lib.dll files into a single directory
+5. Copy PCM-Service.exe, PCM-Service.exe.config, and pcm-lib.dll files into the PCM sub-directory in Windows "Program Files" directory (see above)
 
 The config file enables support for legacy security policy. Without this configuration switch, you will get an exception like this:
 
