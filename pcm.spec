@@ -65,6 +65,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_sbindir}/pcm-memory
 %{_sbindir}/pcm-msr
 %{_sbindir}/pcm-mmio
+%{_sbindir}/pcm-tpmi
 %{_sbindir}/pcm-numa
 %{_sbindir}/pcm-pcicfg
 %{_sbindir}/pcm-accel
