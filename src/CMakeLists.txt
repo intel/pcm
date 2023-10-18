@@ -3,7 +3,7 @@
 
 
 # All pcm-* executables
-set(PROJECT_NAMES pcm pcm-numa pcm-latency pcm-power pcm-msr pcm-memory pcm-tsx pcm-pcie pcm-core pcm-iio pcm-lspci pcm-pcicfg pcm-mmio pcm-raw pcm-accel)
+set(PROJECT_NAMES pcm pcm-numa pcm-latency pcm-power pcm-msr pcm-memory pcm-tsx pcm-pcie pcm-core pcm-iio pcm-lspci pcm-pcicfg pcm-mmio pcm-tpmi pcm-raw pcm-accel)
 
 file(GLOB COMMON_SOURCES msr.cpp cpucounters.cpp pci.cpp mmio.cpp bw.cpp utils.cpp topology.cpp debug.cpp threadpool.cpp uncore_pmu_discovery.cpp)
 
@@ -54,26 +54,22 @@ if(MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /O2 /wd4251 /wd4273 /EHa /Zi")
     add_definitions(/W3)
 
-    # https://cmake.org/cmake/help/latest/prop_tgt/MSVC_RUNTIME_LIBRARY.html
-    # windows/restrictDriverAccess.cpp is building separately
-    add_library(restrictDriverAccess OBJECT windows/restrictDriverAccess.cpp)
-    set_target_properties(restrictDriverAccess PROPERTIES COMMON_LANGUAGE_RUNTIME "")
-    target_compile_definitions(restrictDriverAccess PRIVATE _CONSOLE _UNICODE UNICODE)
-        
-    # Rest of windows/* files + restrictDriverAccess.cpp -> PCM_STATIC
+    # windows/* files -> PCM_STATIC
     file(GLOB WINDOWS_SOURCES winpmem/winpmem.cpp windows/stdafx.cpp freegetopt/getopt.cpp)
-    add_library(PCM_STATIC STATIC $<TARGET_OBJECTS:restrictDriverAccess> ${COMMON_SOURCES} ${WINDOWS_SOURCES})
+    add_library(PCM_STATIC STATIC ${COMMON_SOURCES} ${WINDOWS_SOURCES})
     target_compile_definitions(PCM_STATIC PRIVATE UNICODE _UNICODE _CONSOLE)
+    target_compile_options(PCM_STATIC PRIVATE "/MT$<$<CONFIG:Debug>:d>")
 
     # Graphical perfmon front-end: pcm-lib, pcm-service
     # Files: COMMON_FILES() + pcm-lib.cpp winpmem\winpmem.cpp dllmain.cpp
     file(GLOB PCM_LIB_SOURCES winpmem/winpmem.cpp dllmain.cpp pcm-lib.cpp )
-    add_library(pcm-lib SHARED $<TARGET_OBJECTS:restrictDriverAccess> ${COMMON_SOURCES} ${PCM_LIB_SOURCES})
+    add_library(pcm-lib SHARED ${COMMON_SOURCES} ${PCM_LIB_SOURCES})
     target_compile_definitions(pcm-lib PRIVATE _WINDOWS _USRDLL PCM_EXPORTS _WINDLL _UNICODE UNICODE)
+    target_compile_options(pcm-lib PRIVATE "/MT$<$<CONFIG:Debug>:d>")
 
     # Pcm-service files: PCM_SHARED + AssemblyInfo.cpp PCMInstaller.cpp PCMService.cpp
     file(GLOB PCM_SERVICE_SOURCES windows/PCMInstaller.cpp  windows/PCMService.cpp windows/AssemblyInfo.cpp winddows/utils.cpp)
-    add_executable(pcm-service $<TARGET_OBJECTS:restrictDriverAccess> ${PCM_SERVICE_SOURCES})
+    add_executable(pcm-service ${PCM_SERVICE_SOURCES})
     target_compile_definitions(pcm-service PRIVATE _UNICODE UNICODE _CONSOLE)
     set_target_properties(pcm-service PROPERTIES LINK_FLAGS "/INCREMENTAL:NO" COMMON_LANGUAGE_RUNTIME "")
     set_property(TARGET pcm-service PROPERTY VS_DOTNET_REFERENCES "System;System.Configuration.Install;System.Data;System.Management;System.ServiceProcess;System.Xml")
@@ -133,6 +129,10 @@ foreach(PROJECT_NAME ${PROJECT_NAMES})
     set(LIBS PCM_STATIC)
 
     add_executable(${PROJECT_NAME} ${PROJECT_FILE})
+
+    if(MSVC)
+        target_compile_options(${PROJECT_NAME} PRIVATE "/MT$<$<CONFIG:Debug>:d>")
+    endif(MSVC)
 
     # specific file for pcm-raw project
     if(${PROJECT_NAME} STREQUAL pcm-raw)

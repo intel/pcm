@@ -7,6 +7,10 @@
 #include <climits>
 #include <algorithm>
 #ifdef _MSC_VER
+#include <windows.h>
+#include <accctrl.h>
+#include <aclapi.h>
+#include <sddl.h>
 #include <process.h>
 #include <comdef.h>
 #else
@@ -1146,6 +1150,24 @@ bool get_cpu_bus(uint32 msmDomain, uint32 msmBus, uint32 msmDev, uint32 msmFunc,
     }
 }
 
+std::pair<int64,int64> parseBitsParameter(const char * param)
+{
+    std::pair<int64,int64> bits{-1, -1};
+    const auto bitsArray = pcm::split(std::string(param),':');
+    assert(bitsArray.size() == 2);
+    bits.first = (int64)read_number(bitsArray[0].c_str());
+    bits.second = (int64)read_number(bitsArray[1].c_str());
+    assert(bits.first >= 0);
+    assert(bits.second >= 0);
+    assert(bits.first < 64);
+    assert(bits.second < 64);
+    if (bits.first > bits.second)
+    {
+        std::swap(bits.first, bits.second);
+    }
+    return bits;
+}
+
 #ifdef __linux__
 FILE * tryOpen(const char * path, const char * mode)
 {
@@ -1235,6 +1257,36 @@ bool readMapFromSysFS(const char * path, std::unordered_map<std::string, uint32>
 
     fclose(f);
     return true;
+}
+#endif
+
+#ifdef _MSC_VER
+
+//! restrict usage of driver to system (SY) and builtin admins (BA)
+void restrictDriverAccessNative(LPCTSTR path)
+{
+    PSECURITY_DESCRIPTOR pSD = nullptr;
+
+    if (!ConvertStringSecurityDescriptorToSecurityDescriptor(
+        _T("O:BAG:SYD:(A;;FA;;;SY)(A;;FA;;;BA)"),
+        SDDL_REVISION_1,
+        &pSD,
+        nullptr))
+    {
+        _tprintf(TEXT("Error in ConvertStringSecurityDescriptorToSecurityDescriptor: %d\n"), GetLastError());
+        return;
+    }
+
+    if (SetFileSecurity(path, DACL_SECURITY_INFORMATION, pSD))
+    {
+        // _tprintf(TEXT("Successfully restricted access for %s\n"), path);
+    }
+    else
+    {
+        _tprintf(TEXT("Error in SetFileSecurity for %s. Error %d\n"), path, GetLastError());
+    }
+
+    LocalFree(pSD);
 }
 #endif
 

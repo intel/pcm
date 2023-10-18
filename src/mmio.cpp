@@ -21,9 +21,10 @@
 
 #ifdef _MSC_VER
 #include <windows.h>
-#include "utils.h"
 #endif
 
+#include "utils.h"
+#include <exception>
 #include <assert.h>
 
 namespace pcm {
@@ -265,5 +266,31 @@ MMIORange::~MMIORange()
 }
 
 #endif
+
+void mmio_memcpy(void * dest_, const uint64 src, const size_t n, const bool checkFailures)
+{
+    assert((src % sizeof(uint32)) == 0);
+    assert((n % sizeof(uint32)) == 0);
+
+    const uint64 end = src + n;
+    const uint64 mapBegin = roundDownTo4K(src);
+    const uint64 mapSize = roundUpTo4K(end) - mapBegin;
+    uint32 * dest = (uint32 *)dest_;
+    MMIORange range(mapBegin, mapSize);
+
+    for (uint64 i = src; i < end; i += sizeof(uint32), ++dest)
+    {
+        const auto value = range.read32(i - mapBegin);
+        if (checkFailures && value == ~uint32(0))
+        {
+            // a bad read
+            std::ostringstream strstr;
+            strstr << "Failed to read memory at 0x" << std::hex << i << std::dec << "\n";
+            std::cerr << strstr.str();
+            throw std::runtime_error(strstr.str());
+        }
+        *dest = value;
+    }
+}
 
 } // namespace pcm

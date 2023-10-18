@@ -648,9 +648,7 @@ AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEven
                 if (cfg >= config.first.size()) throw std::runtime_error("Config field value is out of bounds");
                 const auto width = uint64_t(fieldDescriptionObj["Width"]);
                 assert(width <= 64);
-                const uint64 mask = (width == 64) ? (~0ULL) : ((1ULL << width) - 1ULL); // 1 -> 1b, 2 -> 11b, 3 -> 111b
-                config.first[cfg] &= ~(mask << position); // clear
-                config.first[cfg] |= (value & mask) << position;
+                config.first[cfg] = insertBits(config.first[cfg], value, position, width);
             };
             auto PMUObj = (*PMURegisterDeclarations)[pmuName];
             if (PMUObj.error() == NO_SUCH_FIELD)
@@ -1645,9 +1643,9 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
             else if (type == "pcu")
             {
                 choose(outputType,
-                    [&]() { printUncoreRows(nullptr, 1U, ""); },
-                    [&]() { printUncoreRows(nullptr, 1U, type); },
-                    [&]() { printUncoreRows([](const uint32, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getPCUCounter(i, before, after); }, 1U, "");
+                    [&]() { printUncoreRows(nullptr, (uint32) m->getPUnitsPerSocket(), "P"); },
+                    [&]() { printUncoreRows(nullptr, (uint32) m->getPUnitsPerSocket(), type); },
+                    [&]() { printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getPCUCounter(u, i, before, after); }, 1U, "");
                     });
             }
             else if (type == "ubox")
@@ -1936,14 +1934,17 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs,
         {
             for (uint32 s = 0; s < m->getNumSockets(); ++s)
             {
-                int i = 0;
-                for (auto& event : events)
+                for (uint32 u = 0; u < m->getPUnitsPerSocket(); ++u)
                 {
-                    choose(outputType,
-                        [s]() { cout << "SKT" << s << separator; },
-                        [&event, &i]() { if (event.second.empty()) cout << "PCUEvent" << i << separator;  else cout << event.second << separator; },
-                        [&]() { cout << getPCUCounter(i, BeforeUncoreState[s], AfterUncoreState[s]) << separator; });
-                    ++i;
+                    int i = 0;
+                    for (auto& event : events)
+                    {
+                        choose(outputType,
+                            [s, u]() { cout << "SKT" << s << "P" << u << separator; },
+                            [&event, &i]() { if (event.second.empty()) cout << "PCUEvent" << i << separator;  else cout << event.second << separator; },
+                            [&]() { cout << getPCUCounter(u, i, BeforeUncoreState[s], AfterUncoreState[s]) << separator; });
+                        ++i;
+                    }
                 }
             }
         }

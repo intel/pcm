@@ -34,10 +34,17 @@ namespace pcm {
     std::string safe_getenv(const char* env);
 }
 
+#ifdef _MSC_VER
+#define PCM_SET_DLL_DIR SetDllDirectory(_T(""));
+#else
+#define PCM_SET_DLL_DIR
+#endif
+
 #define PCM_MAIN_NOTHROW \
 int mainThrows(int argc, char * argv[]); \
 int main(int argc, char * argv[]) \
 { \
+    PCM_SET_DLL_DIR \
     if (pcm::safe_getenv("PCM_NO_MAIN_EXCEPTION_HANDLER") == std::string("1")) return mainThrows(argc, argv); \
     try { \
         return mainThrows(argc, argv); \
@@ -494,6 +501,10 @@ inline uint32 extract_bits_ui(uint32 myin, uint32 beg, uint32 end)
 inline uint64 build_bit(uint32 beg, uint32 end)
 {
     uint64 myll = 0;
+    if (end > 63)
+    {
+        end = 63;
+    }
     if (end == 63)
     {
         myll = static_cast<uint64>(-1);
@@ -605,5 +616,60 @@ int readMaxFromSysFS(const char * path);
 bool readMapFromSysFS(const char * path, std::unordered_map<std::string, uint32> &result, bool silent = false);
 #endif
 
+inline uint64 insertBits(uint64 input, const uint64 value, const int64_t position, const uint64 width)
+{
+    const uint64 mask = (width == 64) ? (~0ULL) : ((1ULL << width) - 1ULL); // 1 -> 1b, 2 -> 11b, 3 -> 111b
+    input &= ~(mask << position); // clear
+    input |= (value & mask) << position;
+    return input;
+}
+
+inline uint64 roundDownTo4K(uint64 number) {
+    return number & ~0xFFFULL; // Mask the lower 12 bits to round down to 4K
+}
+
+inline uint64 roundUpTo4K(uint64 number) {
+    if (number % 4096ULL == 0ULL) {
+        // Already a multiple of 4K
+        return number;
+    } else {
+        // Round up to the next multiple of 4K
+        return ((number / 4096ULL) + 1ULL) * 4096ULL;
+    }
+}
+
+std::pair<int64,int64> parseBitsParameter(const char * param);
+template <class T, class R>
+inline bool readOldValueHelper(const std::pair<int64,int64> & bits, T & value, const bool & write, R readValue)
+{
+    if (bits.first >= 0 && write)
+    {
+        // to write bits need to read the old value first
+        T old_value = 0;
+        if (!readValue(old_value))
+        {
+            return false;
+        }
+        value = insertBits(old_value, value, bits.first, bits.second - bits.first + 1);
+    }
+    return true;
+}
+
+template <class T>
+inline void extractBitsPrintHelper(const std::pair<int64,int64> & bits, T & value, const bool & dec)
+{
+    std::cout << " Read ";
+    if (bits.first >= 0)
+    {
+        std::cout << "bits "<< std::dec << bits.first << ":" << bits.second << " ";
+        if (!dec) std::cout << std::hex << std::showbase;
+        value = extract_bits(value, bits.first, bits.second);
+    }
+    std::cout << "value " << value;
+}
+
+#ifdef _MSC_VER
+void restrictDriverAccessNative(LPCTSTR path);
+#endif;
 
 } // namespace pcm

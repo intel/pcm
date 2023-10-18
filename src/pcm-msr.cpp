@@ -23,11 +23,12 @@ void print_usage(const char * progname)
 {
     std::cout << "Usage " << progname << " [-w value] [-c core] [-a] [-d] msr\n\n";
     std::cout << "  Reads/writes specified msr (model specific register) \n";
-    std::cout << "   -w value  : write the value before reading \n";
-    std::cout << "   -c core   : perform msr read/write on specified core (default is 0)\n";
-    std::cout << "   -d        : output all numbers in dec (default is hex)\n";
-    std::cout << "   -a        : perform msr read/write operations on all cores\n";
-    std::cout << "   --version : print application version\n";
+    std::cout << "   -w value    : write the value before reading \n";
+    std::cout << "   -c core     : perform msr read/write on specified core (default is 0)\n";
+    std::cout << "   -b low:high : read or write only low..high bits of the register\n";
+    std::cout << "   -d          : output all numbers in dec (default is hex)\n";
+    std::cout << "   -a          : perform msr read/write operations on all cores\n";
+    std::cout << "   --version   : print application version\n";
     std::cout << "\n";
 }
 
@@ -47,9 +48,10 @@ int mainThrows(int argc, char * argv[])
     int core = 0;
     int msr = -1;
     bool dec = false;
+    std::pair<int64,int64> bits{-1, -1};
 
     int my_opt = -1;
-    while ((my_opt = getopt(argc, argv, "w:c:da")) != -1)
+    while ((my_opt = getopt(argc, argv, "w:c:dab:")) != -1)
     {
         switch (my_opt)
         {
@@ -65,6 +67,9 @@ int mainThrows(int argc, char * argv[])
             break;
         case 'a':
             core = -1;
+            break;
+        case 'b':
+            bits = parseBitsParameter(optarg);
             break;
         default:
             print_usage(argv[0]);
@@ -94,11 +99,16 @@ int mainThrows(int argc, char * argv[])
         return -1;
     }
     #endif
-    auto doOne = [&dec, &write, &msr](int core, uint64 value)
+    auto doOne = [&dec, &write, &msr, &bits](int core, uint64 value)
     {
         try {
             MsrHandle h(core);
             if (!dec) std::cout << std::hex << std::showbase;
+            if (!readOldValueHelper(bits, value, write, [&h, &msr](uint64 & old_value){ return h.read(msr, &old_value) == 8; }))
+            {
+                std::cout << " Read error!\n";
+                return;
+            }
             if (write)
             {
                 std::cout << " Writing " << value << " to MSR " << msr << " on core " << core << "\n";
@@ -110,7 +120,8 @@ int mainThrows(int argc, char * argv[])
             value = 0;
             if (h.read(msr, &value) == 8)
             {
-                std::cout << " Read value " << value << " from MSR " << msr << " on core " << core << "\n\n";
+                extractBitsPrintHelper(bits, value, dec);
+                std::cout << " from MSR " << msr << " on core " << core << "\n\n";
             }
             else
             {

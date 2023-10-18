@@ -233,6 +233,70 @@ inline void forAllIntelDevices(F f, int requestedDevice = -1, int requestedFunct
     }
 }
 
+union VSEC {
+    struct {
+        uint64 cap_id:16;
+        uint64 cap_version:4;
+        uint64 cap_next:12;
+        uint64 vsec_id:16;
+        uint64 vsec_version:4;
+        uint64 vsec_length:12;
+        uint64 entryID:16;
+        uint64 NumEntries:8;
+        uint64 EntrySize:8;
+        uint64 tBIR:3;
+        uint64 Address:29;
+    } fields;
+    uint64 raw_value64[2];
+    uint32 raw_value32[4];
+};
+
+template <class MatchFunc, class ProcessFunc>
+void processDVSEC(MatchFunc matchFunc, ProcessFunc processFunc)
+{
+    forAllIntelDevices([&](const uint32 group, const uint32 bus, const uint32 device, const uint32 function, const uint32 /* device_id */)
+    {
+        uint32 status{0};
+        PciHandleType h(group, bus, device, function);
+        h.read32(6, &status); // read status
+        if (status & 0x10) // has capability list
+        {
+            // std::cout << "Intel device scan. found "<< std::hex << group << ":" << bus << ":" << device << ":" << function << " " << device_id << " with capability list\n" << std::dec;
+            VSEC header;
+            uint64 offset = 0x100;
+            do
+            {
+                if (offset == 0 || h.read32(offset, &header.raw_value32[0]) != sizeof(uint32) || header.raw_value32[0] == 0)
+                {
+                    return;
+                }
+                if (h.read64(offset, &header.raw_value64[0]) != sizeof(uint64) || h.read64(offset + sizeof(uint64), &header.raw_value64[1]) != sizeof(uint64))
+                {
+                    return;
+                }
+                // std::cout << "offset 0x" << std::hex << offset << " header.fields.cap_id: 0x" << header.fields.cap_id << std::dec << "\n";
+                // std::cout << ".. found entryID: 0x" << std::hex << header.fields.entryID << std::dec << "\n";
+                if (matchFunc(header)) // UNCORE_DISCOVERY_DVSEC_ID_PMON
+                {
+                    // std::cout << ".... found UNCORE_DISCOVERY_DVSEC_ID_PMON\n";
+                    auto barOffset = 0x10 + header.fields.tBIR * 4;
+                    uint32 bar = 0;
+                    if (h.read32(barOffset, &bar) == sizeof(uint32) && bar != 0) // read bar
+                    {
+                        bar &= ~4095;
+                        processFunc(bar, header);
+                    }
+                    else
+                    {
+                        std::cerr << "Error: can't read bar from offset " << barOffset << " \n";
+                    }
+                }
+                offset = header.fields.cap_next & ~3;
+            } while (1);
+        }
+    });
+}
+
 } // namespace pcm
 
 #endif

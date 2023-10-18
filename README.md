@@ -50,7 +50,7 @@ Graphical front ends:
 - **pcm-sensor** :  front-end for KDE KSysGuard
 - **pcm-service** :  front-end for Windows perfmon
 
-There are also utilities for reading/writing model specific registers (**pcm-msr**), PCI configuration registers (**pcm-pcicfg**) and memory mapped registers (**pcm-mmio**) supported on Linux, Windows, Mac OS X and FreeBSD.
+There are also utilities for reading/writing model specific registers (**pcm-msr**), PCI configuration registers (**pcm-pcicfg**), memory mapped registers (**pcm-mmio**) and TPMI registers (**pcm-tpmi**) supported on Linux, Windows, Mac OS X and FreeBSD.
 
 And finally a daemon that stores core, memory and QPI counters in shared memory that can be be accessed by non-root users.
 
@@ -87,7 +87,7 @@ Debug is default on Windows. Specify config to build Release:
 ```
 cmake --build . --config Release
 ```
-On Windows and MacOs additional drivers are required. Please find instructions here: [WINDOWS_HOWTO.md](doc/WINDOWS_HOWTO.md) and [MAC_HOWTO.txt](doc/MAC_HOWTO.txt).
+On Windows and MacOs additional drivers and steps are required. Please find instructions here: [WINDOWS_HOWTO.md](doc/WINDOWS_HOWTO.md) and [MAC_HOWTO.txt](doc/MAC_HOWTO.txt).
 
 FreeBSD/DragonFlyBSD-specific details can be found in [FREEBSD_HOWTO.txt](doc/FREEBSD_HOWTO.txt)
 
@@ -103,7 +103,7 @@ Downloading Pre-Compiled PCM Tools
   * RHEL8.5 or later: `sudo dnf install pcm` 
   * Fedora: `sudo yum install pcm`
   * RPMs and DEBs with the *latest* PCM version for RHEL/SLE/Ubuntu/Debian/openSUSE/etc distributions (binary and source) are available [here](https://software.opensuse.org/download/package?package=pcm&project=home%3Aopcm)
-- Windows: download PCM binaries as [appveyor build service](https://ci.appveyor.com/project/opcm/pcm/history) artifacts and required Visual C++ Redistributable from [www.microsoft.com](https://www.microsoft.com/en-us/download/details.aspx?id=48145). Additional drivers are needed, see [WINDOWS_HOWTO.md](doc/WINDOWS_HOWTO.md).
+- Windows: download PCM binaries as [appveyor build service](https://ci.appveyor.com/project/opcm/pcm/history) artifacts and required Visual C++ Redistributable from [www.microsoft.com](https://www.microsoft.com/en-us/download/details.aspx?id=48145). Additional steps and drivers are required, see [WINDOWS_HOWTO.md](doc/WINDOWS_HOWTO.md).
 - Docker: see [instructions on how to use pcm-sensor-server pre-compiled container from docker hub](doc/DOCKER_README.md).
 
 --------------------------------------------------------------------------------
