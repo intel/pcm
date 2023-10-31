@@ -6,7 +6,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/tests)
 if(UNIX)
 
     # daemon_alignment_test on Linux and Unix
-    file(GLOB TEST_FILE daemon_alignment_test.cpp)
+    file(GLOB TEST_FILE daemon_alignment_test.cpp pcm-accel-common.cpp)
     add_executable(daemon_alignment_test ${TEST_FILE})
     target_link_libraries(daemon_alignment_test)
 
