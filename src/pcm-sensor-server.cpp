@@ -5,11 +5,14 @@
 // https://github.com/prometheus/prometheus/wiki/Default-port-allocations
 constexpr unsigned int DEFAULT_HTTP_PORT = 9738;
 constexpr unsigned int DEFAULT_HTTPS_PORT = DEFAULT_HTTP_PORT;
+#include "pcm-accel-common.h"
 
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include<string>
+
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -338,6 +341,12 @@ public:
         endObject( JSONPrinter::LineEndAction::DelimiterAndNewLine, END_LIST );
         SystemCounterState before = getSystemCounter( aggPair_.first );
         SystemCounterState after  = getSystemCounter( aggPair_.second  );
+        PCM * pcm = PCM::getInstance();
+        if (pcm->getAccel()!=ACCEL_NOCONFIG){
+            startObject ("Accelerators",BEGIN_OBJECT);
+            printAccelCounterState(before,after);
+            endObject( JSONPrinter::LineEndAction::DelimiterAndNewLine, END_OBJECT );
+        }
         startObject( "QPI/UPI Links", BEGIN_OBJECT );
         printSystemCounterState( before, after );
         endObject( JSONPrinter::LineEndAction::DelimiterAndNewLine, END_OBJECT );
@@ -347,6 +356,7 @@ public:
         startObject( "Uncore Aggregate", BEGIN_OBJECT );
         printUncoreCounterState( before, after );
         endObject( JSONPrinter::LineEndAction::NewLineOnly, END_OBJECT );
+
         endObject( JSONPrinter::LineEndAction::NewLineOnly, END_OBJECT );
     }
 
@@ -431,6 +441,23 @@ private:
         s << "CStateResidency[" << i << "]";
         printCounter( s.str(), getPackageCStateResidency( i, before, after ) );
         endObject( JSONPrinter::NewLineOnly, END_OBJECT );
+    }
+
+    void printAccelCounterState( SystemCounterState const& before, SystemCounterState const& after ) {
+        AcceleratorCounterState* accs_ = AcceleratorCounterState::getInstance();
+        uint32 devs = accs_->getNumOfAccelDevs();
+        for ( uint32 i=0; i < devs; ++i ) {
+            startObject( std::string( accs_->getAccelCounterName() + " Counters Device " ) + std::to_string( i ), BEGIN_OBJECT );
+            for(int j=0;j<accs_->getNumberOfCounters();j++){
+                printCounter( accs_->getAccelIndexCounterName(j), accs_->getAccelIndexCounter(i,  before, after,j) );
+            }
+            // debug prints 
+            //for(uint32 j=0;j<accs_->getNumberOfCounters();j++){
+            //     std::cout<<accs_->getAccelIndexCounterName(j) << " "<<accs_->getAccelIndexCounter(i,  before, after,j)<<std::endl;
+            // }
+            // std::cout <<i << " Influxdb "<<accs_->getAccelIndexCounterName()<< accs_->getAccelInboundBW   (i,  before, after ) << " "<< accs_->getAccelOutboundBW   (i,  before, after ) << " "<<accs_->getAccelShareWQ_ReqNb   (i,  before, after ) << " "<<accs_->getAccelDedicateWQ_ReqNb   (i,  before, after ) << std::endl;
+            endObject( JSONPrinter::DelimiterAndNewLine, END_OBJECT );
+        }
     }
 
     void printSystemCounterState( SystemCounterState const& before, SystemCounterState const& after ) {
@@ -596,6 +623,10 @@ public:
         SystemCounterState after  = getSystemCounter( aggPair_.second );
         addToHierarchy( "aggregate=\"system\"" );
         PCM* pcm = PCM::getInstance();
+        if (pcm->getAccel()!=ACCEL_NOCONFIG){
+            printComment( "Accelerator Counters" );
+            printAccelCounterState(before,after);
+        }
         if ( pcm->isServerCPU() && pcm->getNumSockets() >= 2 ) {
             printComment( "UPI/QPI Counters" );
             printSystemCounterState( before, after );
@@ -686,6 +717,23 @@ private:
         removeFromHierarchy();
     }
 
+    void printAccelCounterState( SystemCounterState const& before, SystemCounterState const& after )
+    {
+        addToHierarchy( "source=\"accel\"" );
+        AcceleratorCounterState* accs_ = AcceleratorCounterState::getInstance();
+        uint32 devs = accs_->getNumOfAccelDevs();
+        
+        for ( uint32 i=0; i < devs; ++i ) 
+        {
+            addToHierarchy( std::string( accs_->getAccelCounterName() + "device=\"" ) + std::to_string( i ) + "\"" );
+            for(int j=0;j<accs_->getNumberOfCounters();j++)
+            {        
+                printCounter( accs_->remove_string_inside_use(accs_->getAccelIndexCounterName(j)), accs_->getAccelIndexCounter(i,  before, after,j) );
+            }
+            removeFromHierarchy();
+        }
+        removeFromHierarchy();
+    }
     void printSystemCounterState( SystemCounterState const& before, SystemCounterState const& after ) {
         addToHierarchy( "source=\"uncore\"" );
         PCM* pcm = PCM::getInstance();
@@ -3167,9 +3215,16 @@ int mainThrows(int argc, char * argv[]) {
     unsigned short debug_level = 0;
     std::string certificateFile;
     std::string privateKeyFile;
-
+    AcceleratorCounterState *accs_;
+    accs_ = AcceleratorCounterState::getInstance();
     null_stream nullStream;
     check_and_set_silent(argc, argv, nullStream);
+    ACCEL_IP accel=ACCEL_NOCONFIG; //default is IAA
+    bool evtfile = false;
+    std::string specify_evtfile;
+    // ACCEL_DEV_LOC_MAPPING loc_map = SOCKET_MAP; //default is socket mapping
+    MainLoop mainLoop;
+    std::string ev_file_name;
 
     if ( argc > 1 ) {
         std::string arg_value;
@@ -3228,11 +3283,69 @@ int mainThrows(int argc, char * argv[]) {
             {
                 forceRTMAbortMode = true;
             }
+            else if (check_argument_equals(argv[i], {"-iaa", "/iaa"}))
+            {
+                accel = ACCEL_IAA;  
+            }
+            else if (check_argument_equals(argv[i], {"-dsa", "/dsa"}))
+            {
+                accel = ACCEL_DSA;
+                std::cout << "Aggregator firstest : " << accs_->getAccelCounterName() << accel; 
+            }
+#ifdef __linux__
+            else if (check_argument_equals(argv[i], {"-qat", "/qat"}))
+            {
+                accel = ACCEL_QAT;
+            }
+            // else if (check_argument_equals(argv[i], {"-numa", "/numa"}))
+            // {
+            //     loc_map = NUMA_MAP;
+            // }
+#endif
+            else if (extract_argument_value(argv[i], {"-evt", "/evt"}, arg_value))
+            {
+                evtfile = true;
+                specify_evtfile = std::move(arg_value);
+            }
             else if ( check_argument_equals( argv[i], {"-silent", "/silent"} ) )
             {
                 // handled in check_and_set_silent
                 continue;
             }
+
+#ifdef __linux__
+            // check kernel version for driver dependency.
+            if (accel != ACCEL_NOCONFIG)
+            {
+                std::cout << "Info: IDX - Please ensure the required driver(e.g idxd driver for iaa/dsa, qat driver and etc) correct enabled with this system, else the tool may fail to run.\n";
+                struct utsname sys_info;
+                if (!uname(&sys_info))
+                {
+                    std::string krel_str;
+                    uint32 krel_major_ver=0, krel_minor_ver=0;
+                    krel_str = sys_info.release;
+                    std::vector<std::string> krel_info = split(krel_str, '.');
+                    std::istringstream iss_krel_major(krel_info[0]);
+                    std::istringstream iss_krel_minor(krel_info[1]);
+                    iss_krel_major >> std::setbase(0) >> krel_major_ver;
+                    iss_krel_minor >> std::setbase(0) >> krel_minor_ver;
+
+                    switch (accel)
+                    {
+                        case ACCEL_IAA:
+                        case ACCEL_DSA:
+                            if ((krel_major_ver < 5) || (krel_major_ver == 5 && krel_minor_ver < 11))
+                            {
+                                std::cout<< "Warning: IDX - current linux kernel version(" << krel_str << ") is too old, please upgrade it to the latest due to required idxd driver integrated to kernel since 5.11.\n";
+                            }
+                            break;
+                        default:
+                            std::cout<< "Info: Chosen "<< accel<<" IDX - current linux kernel version(" << krel_str << ")";
+
+                    }
+                }
+            }
+#endif
 #if defined (USE_SSL)
             else if ( check_argument_equals( argv[i], {"-C", "--certificateFile"} ) ) {
 
@@ -3315,6 +3428,7 @@ int mainThrows(int argc, char * argv[]) {
         // A HTTP interface to change the programming is planned
         PCM::ErrorCode status;
         PCM * pcmInstance = PCM::getInstance();
+        pcmInstance->setAccel(accel);
         assert(pcmInstance);
         if (forceRTMAbortMode)
         {
@@ -3326,7 +3440,8 @@ int mainThrows(int argc, char * argv[]) {
             switch ( status ) {
                 case PCM::PMUBusy:
                 {
-                    if ( forcedProgramming == false ) {
+                    if ( forcedProgramming == false ) 
+                    {
                         std::cout << "Warning: PMU appears to be busy, do you want to reset it? (y/n)\n";
                         char answer;
                         std::cin >> answer;
@@ -3356,7 +3471,18 @@ int mainThrows(int argc, char * argv[]) {
 
         //TODO: check return value when its implemented  
         pcmInstance->programCXLCM();
+        if (pcmInstance->getAccel()!=ACCEL_NOCONFIG)
+        {
+            if (pcmInstance->supportIDXAccelDev() == false)
+            {
+                std::cerr << "Error: IDX accelerator is NOT supported with this platform! Program aborted\n";
+                exit(EXIT_FAILURE);
+            }
 
+            accs_->setEvents(pcmInstance,accel,specify_evtfile,evtfile);
+
+            accs_->programAccelCounters();
+        }
 #if defined (USE_SSL)
         if ( useSSL ) {
             if ( port == 0 )

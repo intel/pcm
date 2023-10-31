@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2016-2022, Intel Corporation
 
-#include "cpucounters.h"
 #include "topology.h"
+#include "pcm-accel-common.h"
 
 namespace pcm {
 
@@ -87,6 +87,7 @@ void Aggregator::dispatch( SystemRoot const& syp ) {
     PCM* pcm = PCM::getInstance();
     pcm->readQPICounters( sycs_ );
     pcm->readAndAggregateCXLCMCounters( sycs_ );
+    readAccelCounters(sycs_);
 }
 
 Aggregator::Aggregator()

@@ -4,7 +4,8 @@
 #include <vector>
 #include <memory>
 #include <unistd.h>
-#include "cpucounters.h"
+
+#include "pcm-accel-common.h"
 #include "dashboard.h"
 
 namespace pcm {
@@ -515,6 +516,12 @@ std::string influxDBCore_Aggregate_Core_Counters(const std::string& S, const std
     return influxDB_Counters(S, m, "Core Aggregate_Core Counters");
 }
 
+std::string influxDBAccel_Counters(const std::string& S, const std::string& m)
+{
+    AcceleratorCounterState * accs = AcceleratorCounterState::getInstance();
+    return std::string("mean(\\\"Sockets_") + S + "_Accelerators_" +accs->getAccelCounterName()+" Counters Device_"  + m + "\\\")";
+}
+
 std::string influxDBCore_Aggregate_Core_Counters(const std::string& m)
 {
     return influxDB_Counters(m, "Core Aggregate_Core Counters");
@@ -542,6 +549,7 @@ std::mutex dashboardGenMutex;
 std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int nc)
 {
     auto pcm = PCM::getInstance();
+    auto accs = AcceleratorCounterState::getInstance();
     std::lock_guard<std::mutex> dashboardGenGuard(dashboardGenMutex);
     const size_t NumSockets = (ns < 0) ? pcm->getNumSockets() : ns;
     const size_t NumUPILinksPerSocket = (nu < 0) ? pcm->getQPILinksPerSocket() : nu;
@@ -782,6 +790,32 @@ std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int
         panel1->push(t);
         dashboard.push(panel);
         dashboard.push(panel1);
+    }
+    if (pcm->getAccel() != ACCEL_NOCONFIG){
+        auto accelCounters = [&](const std::string & m)
+        {
+            auto panel = std::make_shared<GraphPanel>(0, y, width, height, accs->getAccelCounterName() + " " + m,"Byte/sec", false);
+            std::shared_ptr<Panel> panel1;
+            panel1 = std::make_shared<BarGaugePanel>(width, y, max_width - width, height, std::string("Current ") +accs->getAccelCounterName() + " (Byte/sec)");
+            y += height;
+            for (size_t s = 0; s < accs->getNumOfAccelDevs(); ++s)
+            {
+                const auto S = std::to_string(s);         
+                const auto suffix = "/1";
+                auto t = createTarget("Device "+S,
+                    "mean(\\\"Accelerators_"+accs->getAccelCounterName()+" Counters Device " + S + "_" + m + "\\\")" +  suffix,
+                    "rate(" + prometheusMetric(accs->remove_string_inside_use(m))  + "{instance=\\\"$node\\\", aggregate=\\\"system\\\", source=\\\"accel\\\" ,"+accs->getAccelCounterName()+"device=\\\"" + S + "\\\"}" + interval + ")" + suffix);
+                panel->push(t);
+                panel1->push(t);
+
+            }
+            dashboard.push(panel);
+            dashboard.push(panel1);
+        };
+        for (int j =0;j<accs->getNumberOfCounters();j++)
+        {
+            accelCounters(accs->getAccelIndexCounterName(j));
+        }
     }
     for (size_t s = 0; s < NumSockets; ++s)
     {
