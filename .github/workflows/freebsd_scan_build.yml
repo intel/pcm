@@ -17,13 +17,14 @@ jobs:
         submodules: recursive
     - name: clang scan build in FreeBSD VM
       id: clang-scan-build
-      uses: vmactions/freebsd-vm@v0
+      uses: cross-platform-actions/action@v0.21.0
       with:
-        usesh: true
-        prepare: |
-          pkg install -y curl gmake cmake devel/llvm llvm
-
+        memory: 2048
+        shell: sh
+        operating_system: freebsd
+        version: '13.2'
         run: |
+          sudo pkg install -y curl gmake cmake devel/llvm llvm
           pwd
           ls -lah
           whoami

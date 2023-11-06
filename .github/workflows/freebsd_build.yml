@@ -17,14 +17,14 @@ jobs:
         submodules: recursive
     - name: build in FreeBSD VM
       id: build
-      uses: vmactions/freebsd-vm@v0
+      uses: cross-platform-actions/action@v0.21.0
       with:
-        usesh: true
-        sync: sshfs
-        prepare: |
-          pkg install -y curl gmake cmake
-
+        memory: 2048
+        shell: sh
+        operating_system: freebsd
+        version: '13.2'
         run: |
+          sudo pkg install -y curl gmake cmake
           pwd
           ls -lah
           whoami
