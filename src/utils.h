@@ -539,9 +539,12 @@ inline uint64 extract_bits(uint64 myin, uint32 beg, uint32 end)
 }
 
 #ifdef _MSC_VER
+
+#define PCM_MSR_DRV_NAME TEXT("\\\\.\\RDMSR")
+
 inline HANDLE openMSRDriver()
 {
-    return CreateFile(TEXT("\\\\.\\RDMSR"), GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+    return CreateFile(PCM_MSR_DRV_NAME, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
 }
 #endif
 
