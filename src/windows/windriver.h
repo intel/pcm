@@ -100,9 +100,7 @@ public:
             {
                 if (0 != StartService(hService, 0, NULL))
                 {
-                    tstring convDriverName(&driverName_[0]);
-                    tstring driverPath = TEXT("\\\\.\\") + convDriverName;
-                    restrictDriverAccess(driverPath.c_str());
+                    restrictDriverAccess(PCM_MSR_DRV_NAME);
                     return true;
                 }
                 DWORD err = GetLastError();
