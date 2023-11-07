@@ -3504,6 +3504,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
     lastProgrammedCustomCounters.clear();
     lastProgrammedCustomCounters.resize(num_cores);
     core_global_ctrl_value = 0ULL;
+    isHWTMAL1Supported(); // ínit value to prevent MT races
 
     std::vector<std::future<void> > asyncCoreResults;
     std::vector<PCM::ErrorCode> programmingStatuses(num_cores, PCM::Success);
