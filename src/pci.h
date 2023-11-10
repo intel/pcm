@@ -178,6 +178,7 @@ inline void forAllIntelDevices(F f, int requestedDevice = -1, int requestedFunct
 
     auto probe = [&f](const uint32 group, const uint32 bus, const uint32 device, const uint32 function)
     {
+        // std::cerr << "Probing " << std::hex << group << ":" << bus << ":" << device << ":" << function << " " << std::dec << "\n";
         uint32 value = 0;
         try
         {
@@ -191,6 +192,7 @@ inline void forAllIntelDevices(F f, int requestedDevice = -1, int requestedFunct
         }
         const uint32 vendor_id = value & 0xffff;
         const uint32 device_id = (value >> 16) & 0xffff;
+        // std::cerr << "Found dev " << std::hex << vendor_id << ":" << device_id << std::dec << "\n";
         if (vendor_id != PCM_INTEL_PCI_VENDOR_ID)
         {
             return;
@@ -256,12 +258,13 @@ void processDVSEC(MatchFunc matchFunc, ProcessFunc processFunc)
 {
     forAllIntelDevices([&](const uint32 group, const uint32 bus, const uint32 device, const uint32 function, const uint32 /* device_id */)
     {
+        // std::cerr << "Intel device scan. found " << std::hex << group << ":" << bus << ":" << device << ":" << function << " " << device_id << std::dec;
         uint32 status{0};
         PciHandleType h(group, bus, device, function);
         h.read32(6, &status); // read status
         if (status & 0x10) // has capability list
         {
-            // std::cout << "Intel device scan. found "<< std::hex << group << ":" << bus << ":" << device << ":" << function << " " << device_id << " with capability list\n" << std::dec;
+            // std::cerr << "Intel device scan. found "<< std::hex << group << ":" << bus << ":" << device << ":" << function << " " << device_id << " with capability list\n" << std::dec;
             VSEC header;
             uint64 offset = 0x100;
             do
@@ -274,11 +277,11 @@ void processDVSEC(MatchFunc matchFunc, ProcessFunc processFunc)
                 {
                     return;
                 }
-                // std::cout << "offset 0x" << std::hex << offset << " header.fields.cap_id: 0x" << header.fields.cap_id << std::dec << "\n";
-                // std::cout << ".. found entryID: 0x" << std::hex << header.fields.entryID << std::dec << "\n";
-                if (matchFunc(header)) // UNCORE_DISCOVERY_DVSEC_ID_PMON
+                // std::cerr << "offset 0x" << std::hex << offset << " header.fields.cap_id: 0x" << header.fields.cap_id << std::dec << "\n";
+                // std::cerr << ".. found entryID: 0x" << std::hex << header.fields.entryID << std::dec << "\n";
+                if (matchFunc(header))
                 {
-                    // std::cout << ".... found UNCORE_DISCOVERY_DVSEC_ID_PMON\n";
+                    // std::cerr << ".... found match\n";
                     auto barOffset = 0x10 + header.fields.tBIR * 4;
                     uint32 bar = 0;
                     if (h.read32(barOffset, &bar) == sizeof(uint32) && bar != 0) // read bar
@@ -291,7 +294,12 @@ void processDVSEC(MatchFunc matchFunc, ProcessFunc processFunc)
                         std::cerr << "Error: can't read bar from offset " << barOffset << " \n";
                     }
                 }
+                const uint64 lastOffset = offset;
                 offset = header.fields.cap_next & ~3;
+                if (lastOffset == offset) // the offset did not change
+                {
+                    return; // deadlock protection
+                }
             } while (1);
         }
     });

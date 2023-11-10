@@ -5,7 +5,7 @@
 # All pcm-* executables
 set(PROJECT_NAMES pcm pcm-numa pcm-latency pcm-power pcm-msr pcm-memory pcm-tsx pcm-pcie pcm-core pcm-iio pcm-lspci pcm-pcicfg pcm-mmio pcm-tpmi pcm-raw pcm-accel)
 
-file(GLOB COMMON_SOURCES msr.cpp cpucounters.cpp pci.cpp mmio.cpp bw.cpp utils.cpp topology.cpp debug.cpp threadpool.cpp uncore_pmu_discovery.cpp)
+file(GLOB COMMON_SOURCES pcm-accel-common.cpp msr.cpp cpucounters.cpp pci.cpp mmio.cpp bw.cpp utils.cpp topology.cpp debug.cpp threadpool.cpp uncore_pmu_discovery.cpp)
 
 if (APPLE)
   file(GLOB UNUX_SOURCES dashboard.cpp)
@@ -143,6 +143,8 @@ foreach(PROJECT_NAME ${PROJECT_NAMES})
       file(READ pcm-sensor-server.service.in SENSOR_SERVICE_IN)
       string(REPLACE "@@CMAKE_INSTALL_SBINDIR@@" "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_SBINDIR}" SENSOR_SERVICE "${SENSOR_SERVICE_IN}")
       file(WRITE "${CMAKE_BINARY_DIR}/pcm-sensor-server.service" "${SENSOR_SERVICE}")
+      file(GLOB PROJECT_FILE ${PROJECT_NAME}.cpp pcm-accel-common.h pcm-accel-common.cpp)
+      target_include_directories(pcm-sensor-server PUBLIC ${CMAKE_SOURCE_DIR})
       if(LINUX_SYSTEMD)
         install(FILES "${CMAKE_BINARY_DIR}/pcm-sensor-server.service" DESTINATION "${LINUX_SYSTEMD_UNITDIR}")
       endif(LINUX_SYSTEMD)

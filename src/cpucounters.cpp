@@ -2737,6 +2737,8 @@ PCM::PCM() :
     num_phys_cores_per_socket(0),
     num_online_cores(0),
     num_online_sockets(0),
+    accel(0),
+    accel_counters_num_max(0),
     core_gen_counter_num_max(0),
     core_gen_counter_num_used(0), // 0 means no core gen counters used
     core_gen_counter_width(0),
@@ -3502,6 +3504,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
     lastProgrammedCustomCounters.clear();
     lastProgrammedCustomCounters.resize(num_cores);
     core_global_ctrl_value = 0ULL;
+    isHWTMAL1Supported(); // ínit value to prevent MT races
 
     std::vector<std::future<void> > asyncCoreResults;
     std::vector<PCM::ErrorCode> programmingStatuses(num_cores, PCM::Success);
@@ -6478,6 +6481,26 @@ uint32 PCM::getNumOnlineCores() const
 uint32 PCM::getNumSockets() const
 {
     return (uint32)num_sockets;
+}
+
+uint32 PCM::getAccel() const
+{
+    return accel;
+}
+
+void PCM::setAccel(uint32 input)
+{
+    accel = input;
+}
+
+uint32 PCM::getNumberofAccelCounters() const
+{
+    return accel_counters_num_max;
+}
+
+void PCM::setNumberofAccelCounters(uint32 input)
+{
+    accel_counters_num_max = input;
 }
 
 uint32 PCM::getNumOnlineSockets() const

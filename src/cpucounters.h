@@ -605,6 +605,8 @@ class PCM_API PCM
     int32 num_phys_cores_per_socket;
     int32 num_online_cores;
     int32 num_online_sockets;
+    uint32 accel;
+    uint32 accel_counters_num_max;
     uint32 core_gen_counter_num_max;
     uint32 core_gen_counter_num_used;
     uint32 core_gen_counter_width;
@@ -1506,9 +1508,29 @@ public:
             \return Number of sockets in the system
     */
     uint32 getNumSockets() const;
+    
+    /*! \brief Reads  the accel type in the system
+        \return acceltype
+    */
+    uint32 getAccel() const;
+
+    /*! \brief Sets  the accel type in the system
+        \return acceltype
+    */
+    void setAccel(uint32 input);
+
+    /*! \brief Reads the Number of AccelCounters in the system
+        \return None
+    */
+    uint32 getNumberofAccelCounters() const;
+
+    /*! \brief Sets the Number of AccelCounters in the system
+        \return number of counters
+    */          
+    void setNumberofAccelCounters(uint32 input);
 
     /*! \brief Reads number of online sockets (CPUs) in the system
-            \return Number of online sockets in the system
+        \return Number of online sockets in the system
     */
     uint32 getNumOnlineSockets() const;
 
@@ -3374,6 +3396,11 @@ protected:
     }
 
 public:
+    typedef uint32_t h_id;
+    typedef uint32_t v_id;
+    typedef std::map<std::pair<h_id,v_id>,uint64_t> ctr_data;
+    typedef std::vector<ctr_data> dev_content;
+    std::vector<SimpleCounterState> accel_counters;
     std::vector<uint64> CXLWriteMem,CXLWriteCache;
     friend uint64 getIncomingQPILinkBytes(uint32 socketNr, uint32 linkNr, const SystemCounterState & before, const SystemCounterState & after);
     friend uint64 getIncomingQPILinkBytes(uint32 socketNr, uint32 linkNr, const SystemCounterState & now);
@@ -3385,6 +3412,7 @@ public:
         uncoreTSC(0)
     {
         PCM * m = PCM::getInstance();
+        accel_counters.resize(m->getNumberofAccelCounters());
         CXLWriteMem.resize(m->getNumSockets(),0);
         CXLWriteCache.resize(m->getNumSockets(),0);
         incomingQPIPackets.resize(m->getNumSockets(),
