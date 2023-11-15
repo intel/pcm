@@ -1353,6 +1353,8 @@ struct ICX_IIOPMUCNTCTLRegister
 #define MSR_IA32_BIOS_SIGN_ID   (0x8B)
 
 #define MSR_DRAM_ENERGY_STATUS (0x0619)
+constexpr auto MSR_PP0_ENERGY_STATUS = 0x639;
+constexpr auto MSR_PP1_ENERGY_STATUS = 0x641;
 
 #define MSR_PKG_C2_RESIDENCY    (0x60D)
 #define MSR_PKG_C3_RESIDENCY    (0x3F8)

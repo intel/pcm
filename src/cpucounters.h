@@ -644,6 +644,7 @@ class PCM_API PCM
     double joulesPerEnergyUnit;
     std::vector<std::shared_ptr<CounterWidthExtender> > energy_status;
     std::vector<std::shared_ptr<CounterWidthExtender> > dram_energy_status;
+    std::vector<std::shared_ptr<CounterWidthExtender> > pp_energy_status;
     std::vector<std::vector<UncorePMU> > cboPMUs;
     std::vector<std::vector<UncorePMU> > mdfPMUs;
     std::vector<std::vector<std::pair<UncorePMU, UncorePMU>>> cxlPMUs; // socket X CXL ports X UNIT {0,1}
@@ -691,6 +692,7 @@ class PCM_API PCM
     bool linux_arch_perfmon = false;
 
 public:
+    enum { MAX_PP = 1 }; // max power plane number on Intel architecture (client)
     enum { MAX_C_STATE = 10 }; // max C-state on Intel architecture
 
     //! \brief Returns true if the specified core C-state residency metric is supported
@@ -2426,6 +2428,11 @@ public:
             ;
     }
 
+    bool ppEnergyMetricsAvailable() const
+    {
+        return packageEnergyMetricsAvailable() && hasClientMCCounters() && num_sockets == 1;
+    }
+
     static double getBytesPerFlit(int32 cpu_model_)
     {
         if (hasUPI(cpu_model_))
@@ -2966,6 +2973,18 @@ uint64 getConsumedEnergy(const CounterStateType & before, const CounterStateType
     return after.PackageEnergyStatus - before.PackageEnergyStatus;
 }
 
+/*!  \brief Returns energy consumed by processor, excluding DRAM (measured in internal units)
+    \param powerPlane power plane ID
+    \param before CPU counter state before the experiment
+    \param after CPU counter state after the experiment
+*/
+template <class CounterStateType>
+uint64 getConsumedEnergy(const int powerPlane, const CounterStateType& before, const CounterStateType& after)
+{
+    assert(powerPlane <= PCM::MAX_PP);
+    return after.PPEnergyStatus[powerPlane] - before.PPEnergyStatus[powerPlane];
+}
+
 /*!  \brief Returns energy consumed by DRAM (measured in internal units)
     \param before CPU counter state before the experiment
     \param after CPU counter state after the experiment
@@ -3017,6 +3036,20 @@ double getConsumedJoules(const CounterStateType & before, const CounterStateType
     if (!m) return -1.;
 
     return double(getConsumedEnergy(before, after)) * m->getJoulesPerEnergyUnit();
+}
+
+/*!  \brief Returns Joules consumed by processor (excluding DRAM)
+    \param powePlane power plane
+    \param before CPU counter state before the experiment
+    \param after CPU counter state after the experiment
+*/
+template <class CounterStateType>
+double getConsumedJoules(const int powerPlane, const CounterStateType& before, const CounterStateType& after)
+{
+    PCM* m = PCM::getInstance();
+    if (!m) return -1.;
+
+    return double(getConsumedEnergy(powerPlane, before, after)) * m->getJoulesPerEnergyUnit();
 }
 
 /*!  \brief Returns Joules consumed by DRAM
@@ -3081,6 +3114,8 @@ class UncoreCounterState
     template <class CounterStateType>
     friend uint64 getConsumedEnergy(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
+    friend uint64 getConsumedEnergy(const int pp, const CounterStateType& before, const CounterStateType& after);
+    template <class CounterStateType>
     friend uint64 getDRAMConsumedEnergy(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
     friend uint64 getUncoreClocks(const CounterStateType& before, const CounterStateType& after);
@@ -3110,6 +3145,7 @@ protected:
     uint64 UncMCIARequests;
     uint64 UncMCIORequests;
     uint64 PackageEnergyStatus;
+    uint64 PPEnergyStatus[PCM::MAX_PP + 1];
     uint64 DRAMEnergyStatus;
     uint64 TOROccupancyIAMiss;
     uint64 TORInsertsIAMiss;
@@ -3137,6 +3173,7 @@ public:
         UncClocks(0)
     {
         std::fill(CStateResidency, CStateResidency + PCM::MAX_C_STATE + 1, 0);
+        std::fill(PPEnergyStatus, PPEnergyStatus + PCM::MAX_PP + 1, 0);
     }
     virtual ~UncoreCounterState() { }
 
