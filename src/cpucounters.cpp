@@ -1736,6 +1736,14 @@ void PCM::initEnergyMonitoring()
                     std::make_shared<CounterWidthExtender>(
                     new CounterWidthExtender::MsrHandleCounter(MSR[socketRefCore[i]], MSR_DRAM_ENERGY_STATUS), 32, 10000));
     }
+
+    if (ppEnergyMetricsAvailable() && MSR.size() && num_sockets == 1 && pp_energy_status.empty())
+    {
+        pp_energy_status.push_back(std::make_shared<CounterWidthExtender>(
+            new CounterWidthExtender::MsrHandleCounter(MSR[socketRefCore[0]], MSR_PP0_ENERGY_STATUS), 32, 10000));
+        pp_energy_status.push_back(std::make_shared<CounterWidthExtender>(
+            new CounterWidthExtender::MsrHandleCounter(MSR[socketRefCore[0]], MSR_PP1_ENERGY_STATUS), 32, 10000));
+    }
 }
 
 static const uint32 UBOX0_DEV_IDS[] = {
@@ -6071,6 +6079,14 @@ void PCM::readAndAggregateEnergyCounters(const uint32 socket, CounterStateType &
 
     if (socket < (uint32)dram_energy_status.size())
         result.DRAMEnergyStatus += dram_energy_status[socket]->read();
+
+    if (socket == 0)
+    {
+        for (size_t pp = 0; pp < pp_energy_status.size(); ++pp)
+        {
+            result.PPEnergyStatus[pp] += pp_energy_status[pp]->read();
+        }
+    }
 }
 
 template <class CounterStateType>

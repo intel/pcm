@@ -438,6 +438,11 @@ void print_output(PCM * m,
             cout << "   GT   |";
         if (m->packageEnergyMetricsAvailable())
             cout << " CPU energy |";
+        if (m->ppEnergyMetricsAvailable())
+        {
+            cout << " PP0 energy |";
+            cout << " PP1 energy |";
+        }
         if (m->dramEnergyMetricsAvailable())
             cout << " DIMM energy |";
         if (m->LLCReadMissLatencyMetricsAvailable())
@@ -469,6 +474,12 @@ void print_output(PCM * m,
                     cout << "     ";
                     cout << setw(6) << getConsumedJoules(sktstate1[i], sktstate2[i]);
                 }
+                if (m->ppEnergyMetricsAvailable()) {
+                    cout << "     ";
+                    cout << setw(6) << getConsumedJoules(0, sktstate1[i], sktstate2[i]);
+                    cout << "     ";
+                    cout << setw(6) << getConsumedJoules(1, sktstate1[i], sktstate2[i]);
+                }
                 if(m->dramEnergyMetricsAvailable()) {
                     cout << "     ";
                     cout << setw(6) << getDRAMConsumedJoules(sktstate1[i], sktstate2[i]);
@@ -499,6 +510,12 @@ void print_output(PCM * m,
             if (m->packageEnergyMetricsAvailable()) {
                 cout << "     ";
                 cout << setw(6) << getConsumedJoules(sstate1, sstate2);
+            }
+            if (m->ppEnergyMetricsAvailable()) {
+                cout << "     ";
+                cout << setw(6) << getConsumedJoules(0, sstate1, sstate2);
+                cout << "     ";
+                cout << setw(6) << getConsumedJoules(1, sstate1, sstate2);
             }
             if (m->dramEnergyMetricsAvailable()) {
                 cout << "     ";
@@ -612,6 +629,8 @@ void print_csv_header(PCM * m,
                 print_csv_header_helper("System Pack C-States");
         if (m->packageEnergyMetricsAvailable())
             print_csv_header_helper(header);
+        if (m->ppEnergyMetricsAvailable())
+            print_csv_header_helper(header, 2);
         if (m->dramEnergyMetricsAvailable())
             print_csv_header_helper(header);
         if (m->LLCReadMissLatencyMetricsAvailable())
@@ -691,6 +710,13 @@ void print_csv_header(PCM * m,
         {
             header = "Proc Energy (Joules)";
             print_csv_header_helper(header,m->getNumSockets());
+        }
+        if (m->ppEnergyMetricsAvailable())
+        {
+            header = "Power Plane 0 Energy (Joules)";
+            print_csv_header_helper(header, m->getNumSockets());
+            header = "Power Plane 1 Energy (Joules)";
+            print_csv_header_helper(header, m->getNumSockets());
         }
         if (m->dramEnergyMetricsAvailable())
         {
@@ -772,6 +798,11 @@ void print_csv_header(PCM * m,
 
         if (m->packageEnergyMetricsAvailable())
             cout << "Proc Energy (Joules),";
+        if (m->ppEnergyMetricsAvailable())
+        {
+            cout << "Power Plane 0 Energy (Joules),";
+            cout << "Power Plane 1 Energy (Joules),";
+        }
         if (m->dramEnergyMetricsAvailable())
             cout << "DRAM Energy (Joules),";
         if (m->LLCReadMissLatencyMetricsAvailable())
@@ -847,6 +878,11 @@ void print_csv_header(PCM * m,
         {
             for (uint32 i = 0; i < m->getNumSockets(); ++i)
                 cout << "SKT" << i << ",";
+        }
+        if (m->ppEnergyMetricsAvailable())
+        {
+            for (uint32 i = 0; i < m->getNumSockets(); ++i)
+                cout << "SKT" << i << "," << "SKT" << i << ",";
         }
         if (m->dramEnergyMetricsAvailable())
         {
@@ -998,6 +1034,8 @@ void print_csv(PCM * m,
 
         if (m->packageEnergyMetricsAvailable())
             cout << getConsumedJoules(sstate1, sstate2) << ",";
+        if (m->ppEnergyMetricsAvailable())
+            cout << getConsumedJoules(0, sstate1, sstate2) << "," << getConsumedJoules(1, sstate1, sstate2) << ",";
         if (m->dramEnergyMetricsAvailable())
             cout << getDRAMConsumedJoules(sstate1, sstate2) << ",";
         if (m->LLCReadMissLatencyMetricsAvailable())
@@ -1084,6 +1122,11 @@ void print_csv(PCM * m,
         {
             for (uint32 i = 0; i < m->getNumSockets(); ++i)
                 cout << getConsumedJoules(sktstate1[i], sktstate2[i]) << ",";
+        }
+        if (m->ppEnergyMetricsAvailable())
+        {
+            for (uint32 i = 0; i < m->getNumSockets(); ++i)
+                cout << getConsumedJoules(0, sktstate1[i], sktstate2[i]) << "," << getConsumedJoules(1, sktstate1[i], sktstate2[i]) << ",";
         }
         if (m->dramEnergyMetricsAvailable())
         {
