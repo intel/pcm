@@ -1158,6 +1158,41 @@ bool PCM::discoverSystemTopology()
             }
             subleaf++;
         } while (1);
+
+        struct domain
+        {
+            unsigned type, levelShift, nextLevelShift, width;
+        };
+        std::vector<domain> topologyDomains;
+        if (max_cpuid >= 0x1F)
+        {
+            subleaf = 0;
+            do
+            {
+                pcm_cpuid(0x1F, subleaf, cpuid_args);
+                domain d;
+                d.type = extract_bits_ui(cpuid_args.reg.ecx, 8, 15);
+                if (d.type == TopologyEntry::DomainTypeID::InvalidDomainTypeID)
+                {
+                    break;
+                }
+                d.nextLevelShift = extract_bits_ui(cpuid_args.reg.eax, 0, 4);
+                d.levelShift = topologyDomains.empty() ? 0 : topologyDomains.back().nextLevelShift;
+                d.width = d.nextLevelShift - d.levelShift;
+                topologyDomains.push_back(d);
+                ++subleaf;
+            } while (true);
+#if 0
+            for (size_t l = 0; l < topologyDomains.size(); ++l)
+            {
+                std::cerr << "Topology level " << l <<
+                                      " type " << topologyDomains[l].type <<
+                                      " width " << topologyDomains[l].width <<
+                                      " levelShift " << topologyDomains[l].levelShift <<
+                                      " nextLevelShift " << topologyDomains[l].nextLevelShift << "\n";
+            }
+#endif
+        }
     }
 
     if (wasThreadReported && wasCoreReported)
