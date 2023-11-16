@@ -13,9 +13,22 @@ struct PCM_API TopologyEntry // describes a core
     int32 os_id;
     int32 thread_id;
     int32 core_id;
-    int32 tile_id; // tile is a constalation of 1 or more cores sharing salem L2 cache. Unique for entire system
+    int32 module_id;
+    int32 tile_id; // tile is a constalation of 1 or more cores sharing same L2 cache. Unique for entire system
+    int32 die_id;
+    int32 die_grp_id;
     int32 socket;
     int32 native_cpu_model = -1;
+    enum DomainTypeID
+    {
+        InvalidDomainTypeID       = 0,
+        LogicalProcessorDomain    = 1,
+        CoreDomain                = 2,
+        ModuleDomain              = 3,
+        TileDomain                = 4,
+        DieDomain                 = 5,
+        DieGrpDomain              = 6
+    };
     enum CoreType
     {
         Atom = 0x20,
@@ -24,7 +37,7 @@ struct PCM_API TopologyEntry // describes a core
     };
     CoreType core_type = Invalid;
 
-    TopologyEntry() : os_id(-1), thread_id (-1), core_id(-1), tile_id(-1), socket(-1) { }
+    TopologyEntry() : os_id(-1), thread_id (-1), core_id(-1), module_id(-1), tile_id(-1), die_id(-1), die_grp_id(-1), socket(-1) { }
     const char* getCoreTypeStr()
     {
         switch (core_type)
