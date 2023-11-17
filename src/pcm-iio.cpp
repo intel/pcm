@@ -1556,6 +1556,9 @@ void print_usage(const string& progname)
          << "                                        to a file, in case filename is provided\n";
     cout << "  -csv-delimiter=<value>  | /csv-delimiter=<value>   => set custom csv delimiter\n";
     cout << "  -human-readable | /human-readable  => use human readable format for output (for csv only)\n";
+    cout << "  -iommu | /iommu                      => collect VT-d IOMMU data";
+    cout << "  -p2p | /p2p                      => measure Peer to Peer traffic";
+    cout << "  -list | /list                     => print the topology information";
     cout << "  -root-port | /root-port            => add root port devices to output (for csv only)\n";
     cout << "  -list | --list                     => provide platform topology info\n";
     cout << "  -i[=number] | /i[=number]          => allow to determine number of iterations\n";
@@ -1585,6 +1588,8 @@ int mainThrows(int argc, char * argv[])
     bool csv = false;
     bool human_readable = false;
     bool show_root_port = false;
+    bool iommu = false;
+    bool p2p = false;
     std::string csv_delimiter = ",";
     std::string output_file;
     double delay = PCM_DELAY_DEFAULT;
@@ -1619,7 +1624,13 @@ int mainThrows(int argc, char * argv[])
         else if (check_argument_equals(*argv, {"-human-readable", "/human-readable"})) {
             human_readable = true;
         }
-        else if (check_argument_equals(*argv, {"-list", "--list"})) {
+        else if (check_argument_equals(*argv, {"-iommu", "/iommu"})) {
+            iommu = true;
+        }
+        else if (check_argument_equals(*argv, {"-p2p", "/p2p"})) {
+            p2p = true;
+        }
+        else if (check_argument_equals(*argv, {"-list", "/list"})) {
             list = true;
         }
         else if (check_argument_equals(*argv, {"-root-port", "/root-port"})) {
@@ -1702,6 +1713,16 @@ int mainThrows(int argc, char * argv[])
     try
     {
         load_events(ev_file_name, opcodeFieldMap, iio_evt_parse_handler, (void *)&evt_ctx, nameMap);
+
+        if (p2p) {
+            ev_file_name = "opCode-" + std::to_string(m->getCPUModel()) + "-p2p.txt";
+            load_events(ev_file_name, opcodeFieldMap, iio_evt_parse_handler, (void *)&evt_ctx, nameMap);
+        }
+
+        if (iommu) {
+            ev_file_name = "opCode-" + std::to_string(m->getCPUModel()) + "-iommu.txt";
+            load_events(ev_file_name, opcodeFieldMap, iio_evt_parse_handler, (void *)&evt_ctx, nameMap);
+        }
     }
     catch (std::exception & e)
     {
