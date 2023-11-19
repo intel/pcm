@@ -4,7 +4,7 @@ add_executable(
         PcmMsrDriver
         MACOSX_BUNDLE
         PcmMsr.cpp
-        PcmMSrClient.cpp
+        PcmMsrClient.cpp
         PcmMsrDriver_info.c
         PcmMsr-Info.plist
 )
