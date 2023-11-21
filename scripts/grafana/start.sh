@@ -9,6 +9,7 @@ then
   exit 1
 fi
 
+CTR_RUN=${CTR_RUN:-docker}
 
 # check if argument is file, create the telegraf.conf accordingly
 if [ -f "$1" ]; then
@@ -45,12 +46,14 @@ cp automatic_influxdb.yml provisioning/datasources/automatic.yml
 echo Downloading PCM dashboard
 curl -o grafana_volume/dashboards/pcm-dashboard.json $1/dashboard
 
+echo "Creating influxdb network"
+${CTR_RUN} network create influxdb-network
 echo Starting influxdb
-docker run -d --name influxdb -p 8083:8083 -p 8086:8086 -v $PWD/influxdb_volume:/var/lib/influxdb influxdb:1.8.0-alpine
+${CTR_RUN} run -d --name influxdb -p 8083:8083 -p 8086:8086 -v $PWD/influxdb_volume:/var/lib/influxdb influxdb:1.8.0-alpine --network influxdb-network
 echo Starting telegraf
-docker run -d --name telegraf --link=influxdb -v $PWD/telegraf.conf:/etc/telegraf/telegraf.conf:ro telegraf
+${CTR_RUN} run -d --name telegraf --network=influxdb-network -v $PWD/telegraf.conf:/etc/telegraf/telegraf.conf:ro telegraf
 echo Starting grafana
-docker run -d --link=influxdb --name grafana -p 3000:3000 -v $PWD/provisioning:/etc/grafana/provisioning -v $PWD/grafana_volume:/var/lib/grafana grafana/grafana
+${CTR_RUN} run -d --network=influxdb-network --name grafana -p 3000:3000 -v $PWD/provisioning:/etc/grafana/provisioning -v $PWD/grafana_volume:/var/lib/grafana grafana/grafana
 
 echo Start browser at http://localhost:3000/ and login with admin user, password admin
 
