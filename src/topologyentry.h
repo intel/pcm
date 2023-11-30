@@ -51,6 +51,20 @@ struct PCM_API TopologyEntry // describes a core
         }
         return "unknown";
     }
+    static const char* getDomainTypeStr(const DomainTypeID & id)
+    {
+        switch (id)
+        {
+            case InvalidDomainTypeID: return "invalid";
+            case LogicalProcessorDomain: return "LogicalProcessor";
+            case CoreDomain: return "Core";
+            case ModuleDomain: return "Module";
+            case TileDomain: return "Tile";
+            case DieDomain: return "Die";
+            case DieGrpDomain: return "DieGroup";
+        }
+        return "unknown";
+    }
 };
 
 }
