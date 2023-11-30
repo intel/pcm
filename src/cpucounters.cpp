@@ -1232,8 +1232,15 @@ bool PCM::discoverSystemTopology()
 #endif
 
 #ifndef __APPLE__
-    auto populateEntry = [&smtMaskWidth, &coreMaskWidth, &l2CacheMaskShift](TopologyEntry & entry, const int apic_id)
+    auto populateEntry = [&smtMaskWidth, &coreMaskWidth, &l2CacheMaskShift](TopologyEntry & entry)
     {
+        PCM_CPUID_INFO cpuid_args;
+#if defined(__FreeBSD__) || defined(__DragonFly__)
+        pcm_cpuid_bsd(0xb, cpuid_args, entry.os_id);
+#else
+        pcm_cpuid(0xb, 0x0, cpuid_args);
+#endif
+        const int apic_id = cpuid_args.array[3];
         entry.thread_id = smtMaskWidth ? extract_bits_ui(apic_id, 0, smtMaskWidth - 1) : 0;
         entry.core_id = (smtMaskWidth + coreMaskWidth) ? extract_bits_ui(apic_id, smtMaskWidth, smtMaskWidth + coreMaskWidth - 1) : 0;
         entry.socket = extract_bits_ui(apic_id, smtMaskWidth + coreMaskWidth, 31);
@@ -1315,14 +1322,10 @@ bool PCM::discoverSystemTopology()
     {
         ThreadGroupTempAffinity affinity(i);
 
-        pcm_cpuid(0xb, 0x0, cpuid_args);
-
-        int apic_id = cpuid_args.array[3];
-
         TopologyEntry entry;
         entry.os_id = i;
 
-        populateEntry(entry, apic_id);
+        populateEntry(entry);
         if (populateHybridEntry(entry, i) == false)
         {
             return false;
@@ -1369,10 +1372,8 @@ bool PCM::discoverSystemTopology()
             //std::cout << "os_core_id: " << entry.os_id << "\n";
             try {
                 TemporalThreadAffinity _(entry.os_id);
-                pcm_cpuid(0xb, 0x0, cpuid_args);
-                int apic_id = cpuid_args.array[3];
 
-                populateEntry(entry, apic_id);
+                populateEntry(entry);
                 if (populateHybridEntry(entry, entry.os_id) == false)
                 {
                     return false;
@@ -1410,13 +1411,9 @@ bool PCM::discoverSystemTopology()
 
     for (int i = 0; i < num_cores; i++)
     {
-        pcm_cpuid_bsd(0xb, cpuid_args, i);
-
-        int apic_id = cpuid_args.array[3];
-
         entry.os_id = i;
 
-        populateEntry(entry, apic_id);
+        populateEntry(entry);
         if (populateHybridEntry(entry, i) == false)
         {
             return false;
