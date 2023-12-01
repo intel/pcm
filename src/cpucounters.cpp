@@ -1161,7 +1161,7 @@ bool PCM::discoverSystemTopology()
 
         struct domain
         {
-            unsigned type, levelShift, nextLevelShift, width;
+            unsigned type = 0, levelShift = 0, nextLevelShift = 0, width = 0;
         };
         std::vector<domain> topologyDomains;
         if (max_cpuid >= 0x1F)
@@ -1182,6 +1182,16 @@ bool PCM::discoverSystemTopology()
                 topologyDomains.push_back(d);
                 ++subleaf;
             } while (true);
+
+            if (topologyDomains.size())
+            {
+                domain d;
+                d.type = TopologyEntry::DomainTypeID::SocketPackageDomain;
+                d.levelShift = topologyDomains.back().nextLevelShift;
+                d.nextLevelShift = 32;
+                d.width = d.nextLevelShift - d.levelShift;
+                topologyDomains.push_back(d);
+            }
 #if 0
             for (size_t l = 0; l < topologyDomains.size(); ++l)
             {

@@ -27,7 +27,8 @@ struct PCM_API TopologyEntry // describes a core
         ModuleDomain              = 3,
         TileDomain                = 4,
         DieDomain                 = 5,
-        DieGrpDomain              = 6
+        DieGrpDomain              = 6,
+        SocketPackageDomain       = 0xffff
     };
     enum CoreType
     {
@@ -62,6 +63,7 @@ struct PCM_API TopologyEntry // describes a core
             case TileDomain: return "Tile";
             case DieDomain: return "Die";
             case DieGrpDomain: return "DieGroup";
+            case SocketPackageDomain: return "Socket/Package";
         }
         return "unknown";
     }
