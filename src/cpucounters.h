@@ -1128,7 +1128,7 @@ public:
     }
 
     //! prints detailed system topology
-    void printDetailedSystemTopology();
+    void printDetailedSystemTopology(const int detailLevel = 0);
 
     /*!
              \brief checks if QOS monitoring support present
