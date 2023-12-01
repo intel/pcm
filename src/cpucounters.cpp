@@ -1132,6 +1132,12 @@ bool PCM::discoverSystemTopology()
     uint32 corePlusSMTMaskWidth = 0;
     uint32 coreMaskWidth = 0;
 
+    struct domain
+    {
+        TopologyEntry::DomainTypeID type = TopologyEntry::DomainTypeID::InvalidDomainTypeID;
+        unsigned levelShift = 0, nextLevelShift = 0, width = 0;
+    };
+    std::unordered_map<int, domain> topologyDomainMap;
     {
         TemporalThreadAffinity aff0(0);
         do
@@ -1159,10 +1165,6 @@ bool PCM::discoverSystemTopology()
             subleaf++;
         } while (1);
 
-        struct domain
-        {
-            unsigned type = 0, levelShift = 0, nextLevelShift = 0, width = 0;
-        };
         std::vector<domain> topologyDomains;
         if (max_cpuid >= 0x1F)
         {
@@ -1171,7 +1173,7 @@ bool PCM::discoverSystemTopology()
             {
                 pcm_cpuid(0x1F, subleaf, cpuid_args);
                 domain d;
-                d.type = extract_bits_ui(cpuid_args.reg.ecx, 8, 15);
+                d.type = (TopologyEntry::DomainTypeID)extract_bits_ui(cpuid_args.reg.ecx, 8, 15);
                 if (d.type == TopologyEntry::DomainTypeID::InvalidDomainTypeID)
                 {
                     break;
@@ -1192,16 +1194,18 @@ bool PCM::discoverSystemTopology()
                 d.width = d.nextLevelShift - d.levelShift;
                 topologyDomains.push_back(d);
             }
-#if 0
             for (size_t l = 0; l < topologyDomains.size(); ++l)
             {
-                std::cerr << "Topology level " << l <<
-                                      " type " << topologyDomains[l].type <<
-                                      " width " << topologyDomains[l].width <<
-                                      " levelShift " << topologyDomains[l].levelShift <<
-                                      " nextLevelShift " << topologyDomains[l].nextLevelShift << "\n";
-            }
+                topologyDomainMap[topologyDomains[l].type] = topologyDomains[l];
+#if 0
+                std::cerr << "Topology level: " << l <<
+                                      " type: " << topologyDomains[l].type <<
+                                      " (" << TopologyEntry::getDomainTypeStr(topologyDomains[l].type) << ")" <<
+                                      " width: " << topologyDomains[l].width <<
+                                      " levelShift: " << topologyDomains[l].levelShift <<
+                                      " nextLevelShift: " << topologyDomains[l].nextLevelShift << "\n";
 #endif
+            }
         }
     }
 
@@ -1242,19 +1246,51 @@ bool PCM::discoverSystemTopology()
 #endif
 
 #ifndef __APPLE__
-    auto populateEntry = [&smtMaskWidth, &coreMaskWidth, &l2CacheMaskShift](TopologyEntry & entry)
+    auto populateEntry = [&topologyDomainMap,&smtMaskWidth, &coreMaskWidth, &l2CacheMaskShift](TopologyEntry& entry)
     {
-        PCM_CPUID_INFO cpuid_args;
+        auto getAPICID = [&](const uint32 leaf)
+        {
+            PCM_CPUID_INFO cpuid_args;
 #if defined(__FreeBSD__) || defined(__DragonFly__)
-        pcm_cpuid_bsd(0xb, cpuid_args, entry.os_id);
+            pcm_cpuid_bsd(leaf, cpuid_args, entry.os_id);
 #else
-        pcm_cpuid(0xb, 0x0, cpuid_args);
+            pcm_cpuid(leaf, 0x0, cpuid_args);
 #endif
-        const int apic_id = cpuid_args.array[3];
-        entry.thread_id = smtMaskWidth ? extract_bits_ui(apic_id, 0, smtMaskWidth - 1) : 0;
-        entry.core_id = (smtMaskWidth + coreMaskWidth) ? extract_bits_ui(apic_id, smtMaskWidth, smtMaskWidth + coreMaskWidth - 1) : 0;
-        entry.socket = extract_bits_ui(apic_id, smtMaskWidth + coreMaskWidth, 31);
-        entry.tile_id = extract_bits_ui(apic_id, l2CacheMaskShift, 31);
+            return cpuid_args.array[3];
+        };
+        if (topologyDomainMap.size())
+        {
+            auto getID = [&topologyDomainMap](const int apic_id, const TopologyEntry::DomainTypeID t)
+            {
+                const auto di = topologyDomainMap.find(t);
+                if (di != topologyDomainMap.end())
+                {
+                    const auto & d = di->second;
+                    return extract_bits_ui(apic_id, d.levelShift, d.nextLevelShift - 1);
+                }
+                return 0U;
+            };
+            entry.tile_id = extract_bits_ui(getAPICID(0xb), l2CacheMaskShift, 31);
+            const int apic_id = getAPICID(0x1F);
+            entry.thread_id = getID(apic_id, TopologyEntry::DomainTypeID::LogicalProcessorDomain);
+            entry.core_id = getID(apic_id, TopologyEntry::DomainTypeID::CoreDomain);
+            entry.module_id = getID(apic_id, TopologyEntry::DomainTypeID::ModuleDomain);
+            if (entry.tile_id == 0)
+            {
+                entry.tile_id = getID(apic_id, TopologyEntry::DomainTypeID::TileDomain);
+            }
+            entry.die_id = getID(apic_id, TopologyEntry::DomainTypeID::DieDomain);
+            entry.die_grp_id = getID(apic_id, TopologyEntry::DomainTypeID::DieGrpDomain);
+            entry.socket = getID(apic_id, TopologyEntry::DomainTypeID::SocketPackageDomain);
+        }
+        else
+        {
+            const int apic_id = getAPICID(0xb);
+            entry.thread_id = smtMaskWidth ? extract_bits_ui(apic_id, 0, smtMaskWidth - 1) : 0;
+            entry.core_id = (smtMaskWidth + coreMaskWidth) ? extract_bits_ui(apic_id, smtMaskWidth, smtMaskWidth + coreMaskWidth - 1) : 0;
+            entry.socket = extract_bits_ui(apic_id, smtMaskWidth + coreMaskWidth, 31);
+            entry.tile_id = extract_bits_ui(apic_id, l2CacheMaskShift, 31);
+        }
     };
 #endif
 
@@ -2873,7 +2909,7 @@ PCM::PCM() :
     if (safe_getenv("PCM_PRINT_TOPOLOGY") == "1")
 #endif
     {
-        printDetailedSystemTopology();
+        printDetailedSystemTopology(1);
     }
 
     initEnergyMonitoring();
@@ -2905,13 +2941,17 @@ PCM::PCM() :
 #endif
 }
 
-void PCM::printDetailedSystemTopology()
+void PCM::printDetailedSystemTopology(const int detailLevel)
 {
     // produce debug output similar to Intel MPI cpuinfo
     if (true)
     {
         std::cerr << "\n=====  Processor topology  =====\n";
-        std::cerr << "OS_Processor    Thread_Id       Core_Id         Tile_Id         Package_Id      Core_Type   Native_CPU_Model\n";
+        std::cerr << "OS_Processor    Thread_Id       Core_Id         ";
+        if (detailLevel > 0) std::cerr << "Module_Id       ";
+        std::cerr << "Tile_Id         ";
+        if (detailLevel > 0) std::cerr << "Die_Id          Die_Group_Id    ";
+        std::cerr << "Package_Id      Core_Type       Native_CPU_Model\n";
         std::map<uint32, std::vector<uint32> > os_id_by_core, os_id_by_tile, core_id_by_socket;
         size_t counter = 0;
         for (auto it = topology.begin(); it != topology.end(); ++it)
@@ -2919,9 +2959,11 @@ void PCM::printDetailedSystemTopology()
             std::cerr << std::left << std::setfill(' ')
                 << std::setw(16) << ((it->os_id >= 0) ? it->os_id : counter)
                 << std::setw(16) << it->thread_id
-                << std::setw(16) << it->core_id
-                << std::setw(16) << it->tile_id
-                << std::setw(16) << it->socket
+                << std::setw(16) << it->core_id;
+            if (detailLevel > 0) std::cerr << std::setw(16) << it->module_id;
+            std::cerr << std::setw(16) << it->tile_id;
+            if (detailLevel > 0) std::cerr << std::setw(16) << it->die_id << std::setw(16) << it->die_grp_id;
+            std::cerr << std::setw(16) << it->socket
                 << std::setw(16) << it->getCoreTypeStr()
                 << std::setw(16) << it->native_cpu_model
                 << "\n";
