@@ -3397,6 +3397,7 @@ int mainThrows(int argc, char * argv[]) {
     }
 #endif
 
+#ifndef __APPLE__
     if ( useRealtimePriority ) {
         int priority = sched_get_priority_min( SCHED_RR );
         if ( priority == -1 ) {
@@ -3414,6 +3415,7 @@ int mainThrows(int argc, char * argv[]) {
             }
         }
     }
+#endif
 
     pid_t pid;
     if ( daemonMode )
