@@ -16,8 +16,8 @@ endif()
 if(UNIX)  # LINUX, FREE_BSD, APPLE
     if (NOT APPLE)
       set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS} -s")  # --strip-unneeded for packaging
-      list(APPEND PROJECT_NAMES pcm-sensor-server)
     endif()
+    list(APPEND PROJECT_NAMES pcm-sensor-server)
     list(APPEND PROJECT_NAMES pcm-sensor)
 
     # libpcm.a
