@@ -1509,6 +1509,7 @@ bool PCM::discoverSystemTopology()
         MSR.push_back(std::make_shared<SafeMsrHandle>(i));
     }
 
+    assert(num_cores > 0);
     TopologyEntry entries[num_cores];
     if (MSR[0]->buildTopology(num_cores, entries) != 0) {
       std::cerr << "Unable to build CPU topology" << std::endl;
