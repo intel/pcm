@@ -27,7 +27,8 @@ struct PCM_API TopologyEntry // describes a core
         ModuleDomain              = 3,
         TileDomain                = 4,
         DieDomain                 = 5,
-        DieGrpDomain              = 6
+        DieGrpDomain              = 6,
+        SocketPackageDomain       = 0xffff
     };
     enum CoreType
     {
@@ -48,6 +49,21 @@ struct PCM_API TopologyEntry // describes a core
                 return "Core";
             case Invalid:
                 return "invalid";
+        }
+        return "unknown";
+    }
+    static const char* getDomainTypeStr(const DomainTypeID & id)
+    {
+        switch (id)
+        {
+            case InvalidDomainTypeID: return "invalid";
+            case LogicalProcessorDomain: return "LogicalProcessor";
+            case CoreDomain: return "Core";
+            case ModuleDomain: return "Module";
+            case TileDomain: return "Tile";
+            case DieDomain: return "Die";
+            case DieGrpDomain: return "DieGroup";
+            case SocketPackageDomain: return "Socket/Package";
         }
         return "unknown";
     }
