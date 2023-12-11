@@ -1458,11 +1458,11 @@ int mainThrows(int argc, char * argv[])
     if (print_version(argc, argv))
         exit(EXIT_SUCCESS);
 
-    std::cout << "\n Intel(r) Performance Counter Monitor " << PCM_VERSION << "\n";
-    std::cout << "\n This utility measures IIO information\n\n";
-
     null_stream nullStream;
     check_and_set_silent(argc, argv, nullStream);
+
+    std::cout << "\n Intel(r) Performance Counter Monitor " << PCM_VERSION << "\n";
+    std::cout << "\n This utility measures IIO information\n\n";
 
     string program = string(argv[0]);
 
