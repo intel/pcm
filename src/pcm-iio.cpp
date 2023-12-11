@@ -1528,11 +1528,6 @@ int mainThrows(int argc, char * argv[])
     PCIDB pciDB;
     load_PCIDB(pciDB);
 
-    PCM * m = PCM::getInstance();
-
-    PCIDB pciDB;
-    load_PCIDB(pciDB);
-
     auto mapping = IPlatformMapping::getPlatformMapping(m->getCPUModel(), m->getNumSockets());
     if (!mapping) {
         cerr << "Failed to discover pci tree: unknown platform" << endl;
