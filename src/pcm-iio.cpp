@@ -1445,6 +1445,7 @@ void print_usage(const string& progname)
     cout << "  -csv-delimiter=<value>  | /csv-delimiter=<value>   => set custom csv delimiter\n";
     cout << "  -human-readable | /human-readable  => use human readable format for output (for csv only)\n";
     cout << "  -root-port | /root-port            => add root port devices to output (for csv only)\n";
+    cout << "  -list                              => provide platform topology info\n";
     cout << "  -i[=number] | /i[=number]          => allow to determine number of iterations\n";
     cout << " Examples:\n";
     cout << "  " << progname << " 1.0 -i=10             => print counters every second 10 times and exit\n";
@@ -1509,7 +1510,7 @@ int mainThrows(int argc, char * argv[])
         else if (check_argument_equals(*argv, {"-human-readable", "/human-readable"})) {
             human_readable = true;
         }
-        else if (check_argument_equals(*argv, {"--list"})) {
+        else if (check_argument_equals(*argv, {"-list"})) {
             list = true;
         }
         else if (check_argument_equals(*argv, {"-root-port", "/root-port"})) {
