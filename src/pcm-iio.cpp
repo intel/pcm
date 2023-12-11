@@ -1597,8 +1597,9 @@ int mainThrows(int argc, char * argv[])
         exit(EXIT_FAILURE);
     }
 
-    //print_nameMap(nameMap);
-    //TODO: Taking from cli
+#ifdef PCM_DEBUG
+    print_nameMap(nameMap);
+#endif
 
     results.resize(m->getNumSockets(), stack_content(m->getMaxNumOfIIOStacks(), ctr_data()));
 
