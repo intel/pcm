@@ -1429,9 +1429,6 @@ void print_PCIeMapping(const std::vector<struct iio_stacks_on_socket>& iios, con
 
 void print_usage(const string& progname)
 {
-    std::cout << "\n Intel(r) Performance Counter Monitor " << PCM_VERSION << "\n";
-    std::cout << "\n This utility measures IIO information\n\n";
-
     cout << "\n Usage: \n " << progname << " --help | [interval] [options] \n";
     cout << "   <interval>                           => time interval in seconds (floating point number is accepted)\n";
     cout << "                                        to sample performance counters.\n";
@@ -1460,6 +1457,9 @@ int mainThrows(int argc, char * argv[])
 {
     if (print_version(argc, argv))
         exit(EXIT_SUCCESS);
+
+    std::cout << "\n Intel(r) Performance Counter Monitor " << PCM_VERSION << "\n";
+    std::cout << "\n This utility measures IIO information\n\n";
 
     null_stream nullStream;
     check_and_set_silent(argc, argv, nullStream);
