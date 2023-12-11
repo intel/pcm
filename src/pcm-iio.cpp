@@ -46,7 +46,6 @@ using namespace pcm;
 #define SKX_UNC_SOCKETID_UBOX_LNID_OFFSET 0xC0
 #define SKX_UNC_SOCKETID_UBOX_GID_OFFSET  0xD4
 
-const uint8_t max_sockets = 4;
 static const std::string iio_stack_names[6] = {
     "IIO Stack 0 - CBDMA/DMI      ",
     "IIO Stack 1 - PCIe0          ",
@@ -239,8 +238,7 @@ struct iio_counter : public counter {
   std::vector<result_content> data;
 };
 
-//TODO: remove binding to stacks amount
-result_content results(max_sockets, stack_content(12, ctr_data()));
+result_content results;
 
 typedef struct
 {
@@ -1528,11 +1526,10 @@ int mainThrows(int argc, char * argv[])
 
     print_cpu_details();
 
-    //TODO: remove binding to max sockets count.
-    if (m->getNumSockets() > max_sockets) {
-        cerr << "Only systems with up to " << max_sockets << " sockets are supported! Program aborted\n";
-        exit(EXIT_FAILURE);
-    }
+    PCM * m = PCM::getInstance();
+
+    PCIDB pciDB;
+    load_PCIDB(pciDB);
 
     auto mapping = IPlatformMapping::getPlatformMapping(m->getCPUModel(), m->getNumSockets());
     if (!mapping) {
@@ -1602,6 +1599,8 @@ int mainThrows(int argc, char * argv[])
 
     //print_nameMap(nameMap);
     //TODO: Taking from cli
+
+    results.resize(m->getNumSockets(), stack_content(m->getMaxNumOfIIOStacks(), ctr_data()));
 
     mainLoop([&]()
     {
