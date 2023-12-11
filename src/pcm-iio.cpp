@@ -1464,13 +1464,9 @@ int mainThrows(int argc, char * argv[])
     null_stream nullStream;
     check_and_set_silent(argc, argv, nullStream);
 
-    set_signal_handlers();
-
     string program = string(argv[0]);
 
     vector<struct iio_counter> counters;
-    PCIDB pciDB;
-    load_PCIDB(pciDB);
     bool csv = false;
     bool human_readable = false;
     bool show_root_port = false;
@@ -1479,11 +1475,9 @@ int mainThrows(int argc, char * argv[])
     double delay = PCM_DELAY_DEFAULT;
     bool list = false;
     MainLoop mainLoop;
-    PCM * m = PCM::getInstance();
     iio_evt_parse_context evt_ctx;
     // Map with metrics names.
     map<string,std::pair<h_id,std::map<string,v_id>>> nameMap;
-    map<string,uint32_t> opcodeFieldMap;
 
     while (argc > 1) {
         argv++;
@@ -1525,7 +1519,14 @@ int mainThrows(int argc, char * argv[])
         }
     }
 
+    set_signal_handlers();
+
     print_cpu_details();
+
+    PCM * m = PCM::getInstance();
+
+    PCIDB pciDB;
+    load_PCIDB(pciDB);
 
     PCM * m = PCM::getInstance();
 
@@ -1566,6 +1567,7 @@ int mainThrows(int argc, char * argv[])
         exit(EXIT_FAILURE);
     }
 
+    map<string,uint32_t> opcodeFieldMap;
     opcodeFieldMap["opcode"] = PCM::OPCODE;
     opcodeFieldMap["ev_sel"] = PCM::EVENT_SELECT;
     opcodeFieldMap["umask"] = PCM::UMASK;
