@@ -56,7 +56,7 @@ void cpuWriteMSR(void* pIDatas){
 
 void cpuGetTopoData(void* pTopos){
     TopologyEntry* entries = (TopologyEntry*)pTopos;
-    int cpu = cpu_number();
+    const int cpu = cpu_number();
 
     TopologyEntry & entry = entries[cpu];
     entry.os_id = cpu;
@@ -190,8 +190,10 @@ IOReturn PcmMsrDriverClassName::buildTopology(TopologyEntry* odata, uint32_t inp
 
     for(uint32_t i = 0; i < num_cores && i < input_num_cores; i++)
     {
-        odata[i].core_id = topologies[i].core_id;
         odata[i].os_id = topologies[i].os_id;
+        odata[i].thread_id = topologies[i].thread_id;
+        odata[i].core_id = topologies[i].core_id;
+        odata[i].tile_id = topologies[i].tile_id;
         odata[i].socket = topologies[i].socket;
     }
 
