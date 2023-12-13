@@ -123,7 +123,6 @@ inline bool initCoreMasks(uint32 & smtMaskWidth, uint32 & coreMaskWidth, uint32 
         }
         else
         {
-            std::cerr << "ERROR: Major problem? No leaf 0 under cpuid function 11.\n";
             return false;
         }
 
