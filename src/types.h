@@ -1445,6 +1445,10 @@ inline uint32 build_bit_ui(uint32 beg, uint32 end)
     {
         end = 31;
     }
+    if (beg > 31)
+    {
+        return 0;
+    }
     if (end == 31)
     {
         myll = (uint32)(-1);
