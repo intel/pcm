@@ -46,7 +46,6 @@ using namespace pcm;
 #define SKX_UNC_SOCKETID_UBOX_LNID_OFFSET 0xC0
 #define SKX_UNC_SOCKETID_UBOX_GID_OFFSET  0xD4
 
-const uint8_t max_sockets = 4;
 static const std::string iio_stack_names[6] = {
     "IIO Stack 0 - CBDMA/DMI      ",
     "IIO Stack 1 - PCIe0          ",
@@ -239,8 +238,7 @@ struct iio_counter : public counter {
   std::vector<result_content> data;
 };
 
-//TODO: remove binding to stacks amount
-result_content results(max_sockets, stack_content(12, ctr_data()));
+result_content results;
 
 typedef struct
 {
@@ -1444,6 +1442,7 @@ void print_usage(const string& progname)
     cout << "  -csv-delimiter=<value>  | /csv-delimiter=<value>   => set custom csv delimiter\n";
     cout << "  -human-readable | /human-readable  => use human readable format for output (for csv only)\n";
     cout << "  -root-port | /root-port            => add root port devices to output (for csv only)\n";
+    cout << "  -list | --list                     => provide platform topology info\n";
     cout << "  -i[=number] | /i[=number]          => allow to determine number of iterations\n";
     cout << " Examples:\n";
     cout << "  " << progname << " 1.0 -i=10             => print counters every second 10 times and exit\n";
@@ -1456,13 +1455,11 @@ PCM_MAIN_NOTHROW;
 
 int mainThrows(int argc, char * argv[])
 {
-    if(print_version(argc, argv))
+    if (print_version(argc, argv))
         exit(EXIT_SUCCESS);
 
     null_stream nullStream;
     check_and_set_silent(argc, argv, nullStream);
-
-    set_signal_handlers();
 
     std::cout << "\n Intel(r) Performance Counter Monitor " << PCM_VERSION << "\n";
     std::cout << "\n This utility measures IIO information\n\n";
@@ -1470,8 +1467,6 @@ int mainThrows(int argc, char * argv[])
     string program = string(argv[0]);
 
     vector<struct iio_counter> counters;
-    PCIDB pciDB;
-    load_PCIDB(pciDB);
     bool csv = false;
     bool human_readable = false;
     bool show_root_port = false;
@@ -1480,11 +1475,9 @@ int mainThrows(int argc, char * argv[])
     double delay = PCM_DELAY_DEFAULT;
     bool list = false;
     MainLoop mainLoop;
-    PCM * m = PCM::getInstance();
     iio_evt_parse_context evt_ctx;
     // Map with metrics names.
     map<string,std::pair<h_id,std::map<string,v_id>>> nameMap;
-    map<string,uint32_t> opcodeFieldMap;
 
     while (argc > 1) {
         argv++;
@@ -1511,7 +1504,7 @@ int mainThrows(int argc, char * argv[])
         else if (check_argument_equals(*argv, {"-human-readable", "/human-readable"})) {
             human_readable = true;
         }
-        else if (check_argument_equals(*argv, {"--list"})) {
+        else if (check_argument_equals(*argv, {"-list", "--list"})) {
             list = true;
         }
         else if (check_argument_equals(*argv, {"-root-port", "/root-port"})) {
@@ -1526,13 +1519,14 @@ int mainThrows(int argc, char * argv[])
         }
     }
 
+    set_signal_handlers();
+
     print_cpu_details();
 
-    //TODO: remove binding to max sockets count.
-    if (m->getNumSockets() > max_sockets) {
-        cerr << "Only systems with up to " << max_sockets << " sockets are supported! Program aborted\n";
-        exit(EXIT_FAILURE);
-    }
+    PCM * m = PCM::getInstance();
+
+    PCIDB pciDB;
+    load_PCIDB(pciDB);
 
     auto mapping = IPlatformMapping::getPlatformMapping(m->getCPUModel(), m->getNumSockets());
     if (!mapping) {
@@ -1568,6 +1562,7 @@ int mainThrows(int argc, char * argv[])
         exit(EXIT_FAILURE);
     }
 
+    map<string,uint32_t> opcodeFieldMap;
     opcodeFieldMap["opcode"] = PCM::OPCODE;
     opcodeFieldMap["ev_sel"] = PCM::EVENT_SELECT;
     opcodeFieldMap["umask"] = PCM::UMASK;
@@ -1600,8 +1595,11 @@ int mainThrows(int argc, char * argv[])
         exit(EXIT_FAILURE);
     }
 
-    //print_nameMap(nameMap);
-    //TODO: Taking from cli
+#ifdef PCM_DEBUG
+    print_nameMap(nameMap);
+#endif
+
+    results.resize(m->getNumSockets(), stack_content(m->getMaxNumOfIIOStacks(), ctr_data()));
 
     mainLoop([&]()
     {

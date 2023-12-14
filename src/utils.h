@@ -436,106 +436,12 @@ bool match(const std::string& subtoken, const std::string& sname, uint64* result
 
 uint64 read_number(const char* str);
 
-union PCM_CPUID_INFO
-{
-    int array[4];
-    struct { unsigned int eax, ebx, ecx, edx; } reg;
-};
-
-inline void pcm_cpuid(int leaf, PCM_CPUID_INFO& info)
-{
-#ifdef _MSC_VER
-    // version for Windows
-    __cpuid(info.array, leaf);
-#else
-    __asm__ __volatile__("cpuid" : \
-        "=a" (info.reg.eax), "=b" (info.reg.ebx), "=c" (info.reg.ecx), "=d" (info.reg.edx) : "a" (leaf));
-#endif
-}
-
 inline void clear_screen() {
 #ifdef _MSC_VER
     system("cls");
 #else
     std::cout << "\033[2J\033[0;0H";
 #endif
-}
-
-inline uint32 build_bit_ui(uint32 beg, uint32 end)
-{
-    assert(end <= 31);
-    uint32 myll = 0;
-    if (end == 31)
-    {
-        myll = (uint32)(-1);
-    }
-    else
-    {
-        myll = (1 << (end + 1)) - 1;
-    }
-    myll = myll >> beg;
-    return myll;
-}
-
-inline uint32 extract_bits_ui(uint32 myin, uint32 beg, uint32 end)
-{
-    uint32 myll = 0;
-    uint32 beg1, end1;
-
-    // Let the user reverse the order of beg & end.
-    if (beg <= end)
-    {
-        beg1 = beg;
-        end1 = end;
-    }
-    else
-    {
-        beg1 = end;
-        end1 = beg;
-    }
-    myll = myin >> beg1;
-    myll = myll & build_bit_ui(beg1, end1);
-    return myll;
-}
-
-inline uint64 build_bit(uint32 beg, uint32 end)
-{
-    uint64 myll = 0;
-    if (end > 63)
-    {
-        end = 63;
-    }
-    if (end == 63)
-    {
-        myll = static_cast<uint64>(-1);
-    }
-    else
-    {
-        myll = (1LL << (end + 1)) - 1;
-    }
-    myll = myll >> beg;
-    return myll;
-}
-
-inline uint64 extract_bits(uint64 myin, uint32 beg, uint32 end)
-{
-    uint64 myll = 0;
-    uint32 beg1, end1;
-
-    // Let the user reverse the order of beg & end.
-    if (beg <= end)
-    {
-        beg1 = beg;
-        end1 = end;
-    }
-    else
-    {
-        beg1 = end;
-        end1 = beg;
-    }
-    myll = myin >> beg1;
-    myll = myll & build_bit(beg1, end1);
-    return myll;
 }
 
 #ifdef _MSC_VER

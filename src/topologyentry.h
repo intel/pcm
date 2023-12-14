@@ -69,5 +69,86 @@ struct PCM_API TopologyEntry // describes a core
     }
 };
 
+inline void fillEntry(TopologyEntry & entry, const uint32 & smtMaskWidth, const uint32 & coreMaskWidth, const uint32 & l2CacheMaskShift, const int apic_id)
+{
+    entry.thread_id = smtMaskWidth ? extract_bits_ui(apic_id, 0, smtMaskWidth - 1) : 0;
+    entry.core_id = (smtMaskWidth + coreMaskWidth) ? extract_bits_ui(apic_id, smtMaskWidth, smtMaskWidth + coreMaskWidth - 1) : 0;
+    entry.socket = extract_bits_ui(apic_id, smtMaskWidth + coreMaskWidth, 31);
+    entry.tile_id = extract_bits_ui(apic_id, l2CacheMaskShift, 31);
+}
+
+inline bool initCoreMasks(uint32 & smtMaskWidth, uint32 & coreMaskWidth, uint32 & l2CacheMaskShift)
+{
+    // init constants for CPU topology leaf 0xB
+    // adapted from Topology Enumeration Reference code for Intel 64 Architecture
+    // https://software.intel.com/en-us/articles/intel-64-architecture-processor-topology-enumeration
+    int wasCoreReported = 0, wasThreadReported = 0;
+    PCM_CPUID_INFO cpuid_args;
+    if (true)
+    {
+        uint32 corePlusSMTMaskWidth = 0;
+        int subleaf = 0, levelType, levelShift;
+        do
+        {
+            pcm_cpuid(0xb, subleaf, cpuid_args);
+            if (cpuid_args.array[1] == 0)
+            { // if EBX ==0 then this subleaf is not valid, we can exit the loop
+                break;
+            }
+            levelType = extract_bits_ui(cpuid_args.array[2], 8, 15);
+            levelShift = extract_bits_ui(cpuid_args.array[0], 0, 4);
+            switch (levelType)
+            {
+            case 1: //level type is SMT, so levelShift is the SMT_Mask_Width
+                smtMaskWidth = levelShift;
+                wasThreadReported = 1;
+                break;
+            case 2: //level type is Core, so levelShift is the CorePlusSMT_Mask_Width
+                corePlusSMTMaskWidth = levelShift;
+                wasCoreReported = 1;
+                break;
+            default:
+                break;
+            }
+            subleaf++;
+        } while (1);
+
+        if (wasThreadReported && wasCoreReported)
+        {
+            coreMaskWidth = corePlusSMTMaskWidth - smtMaskWidth;
+        }
+        else if (!wasCoreReported && wasThreadReported)
+        {
+            coreMaskWidth = smtMaskWidth;
+        }
+        else
+        {
+            return false;
+        }
+
+        (void) coreMaskWidth; // to suppress warnings on MacOS (unused vars)
+
+    #ifdef PCM_DEBUG_TOPOLOGY
+        uint32 threadsSharingL2;
+    #endif
+        uint32 l2CacheMaskWidth;
+
+        pcm_cpuid(0x4, 2, cpuid_args); // get ID for L2 cache
+        l2CacheMaskWidth = 1 + extract_bits_ui(cpuid_args.array[0],14,25); // number of APIC IDs sharing L2 cache
+    #ifdef PCM_DEBUG_TOPOLOGY
+        threadsSharingL2 = l2CacheMaskWidth;
+    #endif
+        for( ; l2CacheMaskWidth > 1; l2CacheMaskWidth >>= 1)
+        {
+            l2CacheMaskShift++;
+        }
+    #ifdef PCM_DEBUG_TOPOLOGY
+        std::cerr << "DEBUG: Number of threads sharing L2 cache = " << threadsSharingL2
+                << " [the most significant bit = " << l2CacheMaskShift << "]\n";
+    #endif
+    }
+    return true;
+}
+
 }
 
