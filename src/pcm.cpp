@@ -317,13 +317,26 @@ void print_output(PCM * m,
             cout << "\n PHYSICAL CORE IPC                 : " << getCoreIPC(sstate1, sstate2) << " => corresponds to " << 100. * (getCoreIPC(sstate1, sstate2) / double(m->getMaxIPC())) << " % utilization for cores in active state";
             cout << "\n Instructions per nominal CPU cycle: " << getTotalExecUsage(sstate1, sstate2) << " => corresponds to " << 100. * (getTotalExecUsage(sstate1, sstate2) / double(m->getMaxIPC())) << " % core utilization over time interval\n";
         }
-        if (m->isHWTMAL1Supported())
+        if (m->isHWTMAL2Supported())
+        {
+            cout << " Pipeline stalls: Frontend (fetch latency: " << int(100. * getFetchLatencyBound(sstate1, sstate2)) <<" %, fetch bandwidth: " << int(100. * getFetchBandwidthBound(sstate1, sstate2)) <<
+                " %)\n                  bad Speculation (branch misprediction: " << int(100. * getBranchMispredictionBound(sstate1, sstate2)) <<
+                " %, machine clears: " << int(100. * getMachineClearsBound(sstate1, sstate2)) <<
+                " %)\n                  Backend (buffer/cache/memory: " << int(100. * getMemoryBound(sstate1, sstate2)) <<
+                " %, core: " << int(100. * getCoreBound(sstate1, sstate2)) <<
+                " %)\n                  Retiring (heavy operations: " << int(100. * getHeavyOperationsBound(sstate1, sstate2)) <<
+                " %, light operations: " << int(100. * getLightOperationsBound(sstate1, sstate2)) << " %)\n";
+        }
+        else if (m->isHWTMAL1Supported())
         {
             cout << " Pipeline stalls: Frontend bound: " << int(100. * getFrontendBound(sstate1, sstate2)) <<
                 " %, bad Speculation: " << int(100. * getBadSpeculation(sstate1, sstate2)) <<
                 " %, Backend bound: " << int(100. * getBackendBound(sstate1, sstate2)) <<
                 " %, Retiring: " << int(100. * getRetiring(sstate1, sstate2)) << " %\n";
+        }
 
+        if (m->isHWTMAL1Supported())
+        {
             std::vector<StackedBarItem> TMAStackedBar;
             TMAStackedBar.push_back(StackedBarItem(getFrontendBound(sstate1, sstate2), "", 'F'));
             TMAStackedBar.push_back(StackedBarItem(getBadSpeculation(sstate1, sstate2), "", 'S'));
@@ -332,6 +345,7 @@ void print_output(PCM * m,
             drawStackedBar(" Pipeline stall distribution ", TMAStackedBar, 80);
             cout << "\n";
         }
+
         cout << " SMI count: " << getSMICount(sstate1, sstate2) << "\n";
     }
 
@@ -555,6 +569,11 @@ void print_basic_metrics_csv_header(const PCM * m)
         cout << "L2MPI,";
     if (m->isHWTMAL1Supported())
         cout << "Frontend_bound(%),Bad_Speculation(%),Backend_Bound(%),Retiring(%),";
+    if (m->isHWTMAL2Supported())
+    {
+        cout << "Fetch_latency_bound(%),Fetch_bandwidth_bound(%),Branch_misprediction_bound(%),Machine_clears_bound(%),"
+             << "Buffer_Cache_Memory_bound(%),Core_bound(%),Heavy_operations_bound(%),Light_operations_bound(%),";
+    }
 }
 
 void print_csv_header_helper(const string & header, int count=1){
@@ -582,6 +601,8 @@ void print_basic_metrics_csv_semicolons(const PCM * m, const string & header)
         print_csv_header_helper(header);  // L2MPI;
     if (m->isHWTMAL1Supported())
         print_csv_header_helper(header, 4); // Frontend_bound(%),Bad_Speculation(%),Backend_Bound(%),Retiring(%)
+    if (m->isHWTMAL2Supported())
+        print_csv_header_helper(header, 8);
 }
 
 void print_csv_header(PCM * m,
@@ -955,6 +976,17 @@ void print_basic_metrics_csv(const PCM * m, const State & state1, const State & 
         cout << ',' << int(100. * getBadSpeculation(state1, state2));
         cout << ',' << int(100. * getBackendBound(state1, state2));
         cout << ',' << int(100. * getRetiring(state1, state2));
+    }
+    if (m->isHWTMAL2Supported())
+    {
+        cout << ',' << int(100. * getFetchLatencyBound(state1, state2));
+        cout << ',' << int(100. * getFetchBandwidthBound(state1, state2));
+        cout << ',' << int(100. * getBranchMispredictionBound(state1, state2));
+        cout << ',' << int(100. * getMachineClearsBound(state1, state2));
+        cout << ',' << int(100. * getMemoryBound(state1, state2));
+        cout << ',' << int(100. * getCoreBound(state1, state2));
+        cout << ',' << int(100. * getHeavyOperationsBound(state1, state2));
+        cout << ',' << int(100. * getLightOperationsBound(state1, state2));
     }
     if (print_last_semicolon)
         cout << ",";
