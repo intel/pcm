@@ -20,9 +20,11 @@
 #include <sstream>
 #include <iomanip>
 #include <string.h>
+#include <assert.h>
 
 #ifdef _MSC_VER
 #include <windows.h>
+#include <intrin.h>
 #endif
 
 #endif // #ifndef KERNEL
@@ -1433,6 +1435,120 @@ struct MCFGHeader
 };
 
 #endif // #ifndef KERNEL
+
+
+inline uint32 build_bit_ui(uint32 beg, uint32 end)
+{
+    assert(end <= 31);
+    uint32 myll = 0;
+    if (end > 31)
+    {
+        end = 31;
+    }
+    if (beg > 31)
+    {
+        return 0;
+    }
+    if (end == 31)
+    {
+        myll = (uint32)(-1);
+    }
+    else
+    {
+        myll = (1 << (end + 1)) - 1;
+    }
+    myll = myll >> beg;
+    return myll;
+}
+
+inline uint32 extract_bits_ui(uint32 myin, uint32 beg, uint32 end)
+{
+    uint32 myll = 0;
+    uint32 beg1, end1;
+
+    // Let the user reverse the order of beg & end.
+    if (beg <= end)
+    {
+        beg1 = beg;
+        end1 = end;
+    }
+    else
+    {
+        beg1 = end;
+        end1 = beg;
+    }
+    myll = myin >> beg1;
+    myll = myll & build_bit_ui(beg1, end1);
+    return myll;
+}
+
+inline uint64 build_bit(uint32 beg, uint32 end)
+{
+    uint64 myll = 0;
+    if (end > 63)
+    {
+        end = 63;
+    }
+    if (end == 63)
+    {
+        myll = static_cast<uint64>(-1);
+    }
+    else
+    {
+        myll = (1LL << (end + 1)) - 1;
+    }
+    myll = myll >> beg;
+    return myll;
+}
+
+inline uint64 extract_bits(uint64 myin, uint32 beg, uint32 end)
+{
+    uint64 myll = 0;
+    uint32 beg1, end1;
+
+    // Let the user reverse the order of beg & end.
+    if (beg <= end)
+    {
+        beg1 = beg;
+        end1 = end;
+    }
+    else
+    {
+        beg1 = end;
+        end1 = beg;
+    }
+    myll = myin >> beg1;
+    myll = myll & build_bit(beg1, end1);
+    return myll;
+}
+
+union PCM_CPUID_INFO
+{
+    int array[4];
+    struct { unsigned int eax, ebx, ecx, edx; } reg;
+};
+
+inline void pcm_cpuid(int leaf, PCM_CPUID_INFO& info)
+{
+#ifdef _MSC_VER
+    // version for Windows
+    __cpuid(info.array, leaf);
+#else
+    __asm__ __volatile__("cpuid" : \
+        "=a" (info.reg.eax), "=b" (info.reg.ebx), "=c" (info.reg.ecx), "=d" (info.reg.edx) : "a" (leaf));
+#endif
+}
+
+/* Adding the new version of cpuid with leaf and subleaf as an input */
+inline void pcm_cpuid(const unsigned leaf, const unsigned subleaf, PCM_CPUID_INFO & info)
+{
+    #ifdef _MSC_VER
+    __cpuidex(info.array, leaf, subleaf);
+    #else
+    __asm__ __volatile__ ("cpuid" : \
+                          "=a" (info.reg.eax), "=b" (info.reg.ebx), "=c" (info.reg.ecx), "=d" (info.reg.edx) : "a" (leaf), "c" (subleaf));
+    #endif
+}
 
 //IDX accel device/func number(PCIe).
 //The device/function number from SPR register guide.
