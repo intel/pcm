@@ -5115,6 +5115,7 @@ void BasicCounterState::readAndAggregateTSC(std::shared_ptr<SafeMsrHandle> msr)
 
 void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
 {
+    assert(msr.get());
     uint64 cInstRetiredAny = 0, cCpuClkUnhaltedThread = 0, cCpuClkUnhaltedRef = 0;
     uint64 cL3Occupancy = 0;
     uint64 cCustomEvents[PERF_MAX_CUSTOM_COUNTERS] = {0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL };
