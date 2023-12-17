@@ -1602,7 +1602,12 @@ void PCM::printSystemTopology() const
 
 bool PCM::initMSR()
 {
-#ifndef __APPLE__
+#ifdef __APPLE__
+    for (size_t i=0; i < MSR.size(); ++i)
+    {
+        systemTopology->addMSRHandleToOSThread(MSR[i], (uint32)i);
+    }
+#else
     try
     {
         for (int i = 0; i < (int)num_cores; ++i)
