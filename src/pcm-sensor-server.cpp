@@ -3181,7 +3181,9 @@ void printHelpText( std::string const & programName ) {
     std::cout << "    -p portnumber        : Run on port <portnumber> (default port is " << DEFAULT_HTTP_PORT << ")\n";
     std::cout << "    -r|--reset           : Reset programming of the performance counters.\n";
     std::cout << "    -D|--debug level     : level = 0: no debug info, > 0 increase verbosity.\n";
+#ifndef __APPLE__
     std::cout << "    -R|--real-time       : If possible the daemon will run with real time\n";
+#endif
     std::cout << "                           priority, could be useful under heavy load to \n";
     std::cout << "                           stabilize the async counter fetching.\n";
 #if defined (USE_SSL)
@@ -3209,7 +3211,9 @@ int mainThrows(int argc, char * argv[]) {
     bool useSSL = false;
 #endif
     bool forcedProgramming = false;
+#ifndef __APPLE__
     bool useRealtimePriority = false;
+#endif
     bool forceRTMAbortMode = false;
     unsigned short port = 0;
     unsigned short debug_level = 0;
@@ -3270,10 +3274,12 @@ int mainThrows(int argc, char * argv[]) {
                     throw std::runtime_error( "main: Error no debug level argument given" );
                 }
             }
+#ifndef __APPLE__
             else if ( check_argument_equals( argv[i], {"-R", "--real-time"} ) )
             {
                 useRealtimePriority = true;
             }
+#endif
             else if ( check_argument_equals( argv[i], {"--help", "-h", "/h"} ) )
             {
                 printHelpText( argv[0] );
@@ -3397,6 +3403,7 @@ int mainThrows(int argc, char * argv[]) {
     }
 #endif
 
+#ifndef __APPLE__
     if ( useRealtimePriority ) {
         int priority = sched_get_priority_min( SCHED_RR );
         if ( priority == -1 ) {
@@ -3414,6 +3421,7 @@ int mainThrows(int argc, char * argv[]) {
             }
         }
     }
+#endif
 
     pid_t pid;
     if ( daemonMode )

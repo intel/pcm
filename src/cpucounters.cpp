@@ -889,8 +889,13 @@ constexpr auto perfBadSpecPath = "/sys/bus/event_source/devices/cpu/events/topdo
 constexpr auto perfBackEndPath = "/sys/bus/event_source/devices/cpu/events/topdown-be-bound";
 constexpr auto perfFrontEndPath = "/sys/bus/event_source/devices/cpu/events/topdown-fe-bound";
 constexpr auto perfRetiringPath = "/sys/bus/event_source/devices/cpu/events/topdown-retiring";
+// L2 extensions:
+constexpr auto perfBrMispred = "/sys/bus/event_source/devices/cpu/events/topdown-br-mispredict";
+constexpr auto perfFetchLat = "/sys/bus/event_source/devices/cpu/events/topdown-fetch-lat";
+constexpr auto perfHeavyOps = "/sys/bus/event_source/devices/cpu/events/topdown-heavy-ops";
+constexpr auto perfMemBound = "/sys/bus/event_source/devices/cpu/events/topdown-mem-bound";
 
-bool perfSupportsTopDown()
+bool PCM::perfSupportsTopDown()
 {
     static int yes = -1;
     if (-1 == yes)
@@ -900,7 +905,16 @@ bool perfSupportsTopDown()
         const auto be = readSysFS(perfBackEndPath, true);
         const auto fe = readSysFS(perfFrontEndPath, true);
         const auto ret = readSysFS(perfRetiringPath, true);
-        yes = (slots.size() && bad.size() && be.size() && fe.size() && ret.size()) ? 1 : 0;
+        bool supported = slots.size() && bad.size() && be.size() && fe.size() && ret.size();
+        if (isHWTMAL2Supported())
+        {
+            supported = supported &&
+                readSysFS("/sys/bus/event_source/devices/cpu/events/topdown-br-mispredict", true).size() &&
+                readSysFS("/sys/bus/event_source/devices/cpu/events/topdown-fetch-lat", true).size() &&
+                readSysFS("/sys/bus/event_source/devices/cpu/events/topdown-heavy-ops", true).size() &&
+                readSysFS("/sys/bus/event_source/devices/cpu/events/topdown-mem-bound", true).size();
+        }
+        yes = supported ? 1 : 0;
     }
     return 1 == yes;
 }
@@ -1535,6 +1549,10 @@ bool PCM::discoverSystemTopology()
     BackendBoundSlots.resize(num_cores, 0);
     RetiringSlots.resize(num_cores, 0);
     AllSlotsRaw.resize(num_cores, 0);
+    MemBoundSlots.resize(num_cores, 0);
+    FetchLatSlots.resize(num_cores, 0);
+    BrMispredSlots.resize(num_cores, 0);
+    HeavyOpsSlots.resize(num_cores, 0);
 
 #if 0
     std::cerr << "Socket reference cores:\n";
@@ -1602,7 +1620,12 @@ void PCM::printSystemTopology() const
 
 bool PCM::initMSR()
 {
-#ifndef __APPLE__
+#ifdef __APPLE__
+    for (size_t i=0; i < MSR.size(); ++i)
+    {
+        systemTopology->addMSRHandleToOSThread(MSR[i], (uint32)i);
+    }
+#else
     try
     {
         for (int i = 0; i < (int)num_cores; ++i)
@@ -3918,11 +3941,18 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
     {
 	    if (isFixedCounterSupported(3) && isHWTMAL1Supported() && perfSupportsTopDown())
         {
-            const auto topDownEvents = {  std::make_pair(perfSlotsPath, PERF_TOPDOWN_SLOTS_POS),
+            std::vector<std::pair<const char*, int> > topDownEvents = {  std::make_pair(perfSlotsPath, PERF_TOPDOWN_SLOTS_POS),
                                           std::make_pair(perfBadSpecPath, PERF_TOPDOWN_BADSPEC_POS),
                                           std::make_pair(perfBackEndPath, PERF_TOPDOWN_BACKEND_POS),
                                           std::make_pair(perfFrontEndPath, PERF_TOPDOWN_FRONTEND_POS),
                                           std::make_pair(perfRetiringPath, PERF_TOPDOWN_RETIRING_POS)};
+            if (isHWTMAL2Supported())
+            {
+                topDownEvents.push_back(std::make_pair(perfMemBound, PERF_TOPDOWN_MEM_BOUND_POS));
+                topDownEvents.push_back(std::make_pair(perfFetchLat, PERF_TOPDOWN_FETCH_LAT_POS));
+                topDownEvents.push_back(std::make_pair(perfBrMispred, PERF_TOPDOWN_BR_MISPRED_POS));
+                topDownEvents.push_back(std::make_pair(perfHeavyOps, PERF_TOPDOWN_HEAVY_OPS_POS));
+            }
             int readPos = core_fixed_counter_num_used + core_gen_counter_num_used;
             leader_counter = -1;
             for (const auto & event : topDownEvents)
@@ -5058,8 +5088,9 @@ void PCM::readPerfData(uint32 core, std::vector<uint64> & outData)
     if (isHWTMAL1Supported() && perfSupportsTopDown())
     {
         std::vector<uint64> outTopDownData(outData.size(), 0);
-        readPerfDataHelper(core, outTopDownData, PERF_TOPDOWN_GROUP_LEADER_COUNTER, PERF_TOPDOWN_COUNTERS);
-        std::copy(outTopDownData.begin(), outTopDownData.begin() + PERF_TOPDOWN_COUNTERS, outData.begin() + core_fixed_counter_num_used + core_gen_counter_num_used);
+        const auto topdownCtrNum = isHWTMAL2Supported() ? PERF_TOPDOWN_COUNTERS : PERF_TOPDOWN_COUNTERS_L1;
+        readPerfDataHelper(core, outTopDownData, PERF_TOPDOWN_GROUP_LEADER_COUNTER, topdownCtrNum);
+        std::copy(outTopDownData.begin(), outTopDownData.begin() + topdownCtrNum, outData.begin() + core_fixed_counter_num_used + core_gen_counter_num_used);
     }
 }
 #endif
@@ -5089,6 +5120,7 @@ void BasicCounterState::readAndAggregateTSC(std::shared_ptr<SafeMsrHandle> msr)
 
 void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
 {
+    assert(msr.get());
     uint64 cInstRetiredAny = 0, cCpuClkUnhaltedThread = 0, cCpuClkUnhaltedRef = 0;
     uint64 cL3Occupancy = 0;
     uint64 cCustomEvents[PERF_MAX_CUSTOM_COUNTERS] = {0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL };
@@ -5101,6 +5133,10 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
     uint64 cBackendBoundSlots = 0;
     uint64 cRetiringSlots = 0;
     uint64 cAllSlotsRaw = 0;
+    uint64 cMemBoundSlots = 0;
+    uint64 cFetchLatSlots = 0;
+    uint64 cBrMispredSlots = 0;
+    uint64 cHeavyOpsSlots = 0;
     const int32 core_id = msr->getCoreId();
     TemporalThreadAffinity tempThreadAffinity(core_id); // speedup trick for Linux
 
@@ -5130,7 +5166,7 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
         {
             cCustomEvents[i] = perfData[PCM::PERF_GEN_EVENT_0_POS + i];
         }
-        if (m->isHWTMAL1Supported() && perfSupportsTopDown())
+        if (m->isHWTMAL1Supported() && m->perfSupportsTopDown())
         {
             cFrontendBoundSlots =   perfData[m->perfTopDownPos[PCM::PERF_TOPDOWN_FRONTEND_POS]];
             cBadSpeculationSlots =  perfData[m->perfTopDownPos[PCM::PERF_TOPDOWN_BADSPEC_POS]];
@@ -5138,6 +5174,13 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
             cRetiringSlots =        perfData[m->perfTopDownPos[PCM::PERF_TOPDOWN_RETIRING_POS]];
             cAllSlotsRaw =          perfData[m->perfTopDownPos[PCM::PERF_TOPDOWN_SLOTS_POS]];
 //          if (core_id == 0) std::cout << "DEBUG: All: "<< cAllSlotsRaw << " FE: " << cFrontendBoundSlots << " BAD-SP: " << cBadSpeculationSlots << " BE: " << cBackendBoundSlots << " RET: " << cRetiringSlots << std::endl;
+            if (m->isHWTMAL2Supported())
+            {
+                cMemBoundSlots = perfData[m->perfTopDownPos[PCM::PERF_TOPDOWN_MEM_BOUND_POS]];
+                cFetchLatSlots = perfData[m->perfTopDownPos[PCM::PERF_TOPDOWN_FETCH_LAT_POS]];
+                cBrMispredSlots = perfData[m->perfTopDownPos[PCM::PERF_TOPDOWN_BR_MISPRED_POS]];;
+                cHeavyOpsSlots = perfData[m->perfTopDownPos[PCM::PERF_TOPDOWN_HEAVY_OPS_POS]];
+            }
         }
     }
     else
@@ -5170,6 +5213,13 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
             cBadSpeculationSlots = extract_bits(perfMetrics, 8, 15);
             cBackendBoundSlots = extract_bits(perfMetrics, 24, 31);
             cRetiringSlots = extract_bits(perfMetrics, 0, 7);
+            if (m->isHWTMAL2Supported())
+            {
+                cMemBoundSlots = extract_bits(perfMetrics,  32 + 3*8, 32 + 3*8 + 7);
+                cFetchLatSlots = extract_bits(perfMetrics,  32 + 2*8, 32 + 2*8 + 7);
+                cBrMispredSlots = extract_bits(perfMetrics, 32 + 1*8, 32 + 1*8 + 7);
+                cHeavyOpsSlots = extract_bits(perfMetrics,    32 + 0*8, 32 + 0*8 + 7);
+            }
             const double total = double(cFrontendBoundSlots + cBadSpeculationSlots + cBackendBoundSlots + cRetiringSlots);
             if (total != 0)
             {
@@ -5177,6 +5227,13 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
                 cBadSpeculationSlots = m->BadSpeculationSlots[core_id] += uint64((double(cBadSpeculationSlots) / total) * double(slots));
                 cBackendBoundSlots = m->BackendBoundSlots[core_id] += uint64((double(cBackendBoundSlots) / total) * double(slots));
                 cRetiringSlots = m->RetiringSlots[core_id] += uint64((double(cRetiringSlots) / total) * double(slots));
+                if (m->isHWTMAL2Supported())
+                {
+                    cMemBoundSlots = m->MemBoundSlots[core_id] += uint64((double(cMemBoundSlots) / total) * double(slots));
+                    cFetchLatSlots = m->FetchLatSlots[core_id] += uint64((double(cFetchLatSlots) / total) * double(slots));
+                    cBrMispredSlots = m->BrMispredSlots[core_id] += uint64((double(cBrMispredSlots) / total) * double(slots));
+                    cHeavyOpsSlots = m->HeavyOpsSlots[core_id] += uint64((double(cHeavyOpsSlots) / total) * double(slots));
+                }
             }
             cAllSlotsRaw = m->AllSlotsRaw[core_id] += slots;
             // std::cout << "DEBUG: "<< slots << " " << cFrontendBoundSlots << " " << cBadSpeculationSlots << " " << cBackendBoundSlots << " " << cRetiringSlots << std::endl;
@@ -5250,6 +5307,10 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
     BackendBoundSlots   += cBackendBoundSlots;
     RetiringSlots       += cRetiringSlots;
     AllSlotsRaw         += cAllSlotsRaw;
+    MemBoundSlots       += cMemBoundSlots;
+    FetchLatSlots       += cFetchLatSlots;
+    BrMispredSlots      += cBrMispredSlots;
+    HeavyOpsSlots       += cHeavyOpsSlots;
 
     if (freezeUnfreeze)
     {

@@ -687,6 +687,7 @@ class PCM_API PCM
     bool forceRTMAbortMode;
 
     std::vector<uint64> FrontendBoundSlots, BadSpeculationSlots, BackendBoundSlots, RetiringSlots, AllSlotsRaw;
+    std::vector<uint64> MemBoundSlots, FetchLatSlots, BrMispredSlots, HeavyOpsSlots;
     bool isFixedCounterSupported(unsigned c);
     bool vm = false;
     bool linux_arch_perfmon = false;
@@ -941,10 +942,14 @@ private:
         PERF_TOPDOWN_FRONTEND_POS = PERF_TOPDOWN_SLOTS_POS + 1,
         PERF_TOPDOWN_BADSPEC_POS = PERF_TOPDOWN_SLOTS_POS + 2,
         PERF_TOPDOWN_BACKEND_POS = PERF_TOPDOWN_SLOTS_POS + 3,
-        PERF_TOPDOWN_RETIRING_POS = PERF_TOPDOWN_SLOTS_POS + 4
+        PERF_TOPDOWN_RETIRING_POS = PERF_TOPDOWN_SLOTS_POS + 4,
+        PERF_TOPDOWN_MEM_BOUND_POS = PERF_TOPDOWN_SLOTS_POS + 5,
+        PERF_TOPDOWN_FETCH_LAT_POS = PERF_TOPDOWN_SLOTS_POS + 6,
+        PERF_TOPDOWN_BR_MISPRED_POS = PERF_TOPDOWN_SLOTS_POS + 7,
+        PERF_TOPDOWN_HEAVY_OPS_POS = PERF_TOPDOWN_SLOTS_POS + 8
     };
 
-    std::array<int, (PERF_TOPDOWN_RETIRING_POS + 1)> perfTopDownPos;
+    std::array<int, (PERF_TOPDOWN_HEAVY_OPS_POS + 1)> perfTopDownPos;
 
     enum {
         PERF_GROUP_LEADER_COUNTER = PERF_INST_RETIRED_POS,
@@ -1091,11 +1096,24 @@ private:
     void initUncorePMUsPerf();
     bool isRDTDisabled() const;
 
+#ifdef __linux__
+    bool perfSupportsTopDown();
+#endif
+
 public:
     static bool isInitialized() { return instance != nullptr; }
 
     //! check if TMA level 1 metrics are supported
     bool isHWTMAL1Supported() const;
+
+    //! check if TMA level 2 metrics are supported
+    bool isHWTMAL2Supported() const
+    {
+        return isHWTMAL1Supported() &&
+                (
+                    SPR == cpu_model
+                );
+    }
 
     enum EventPosition
     {
@@ -2596,6 +2614,22 @@ class BasicCounterState
     template <class CounterStateType>
     friend double getRetiring(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
+    friend double getFetchLatencyBound(const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
+    friend double getFetchBandwidthBound(const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
+    friend double getBranchMispredictionBound(const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
+    friend double getMachineClearsBound(const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
+    friend double getMemoryBound(const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
+    friend double getCoreBound(const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
+    friend double getHeavyOperationsBound(const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
+    friend double getLightOperationsBound(const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
     friend uint64 getMSREvent(const uint64 & index, const PCM::MSRType & type, const CounterStateType& before, const CounterStateType& after);
 protected:
     checked_uint64 InstRetiredAny{};
@@ -2623,6 +2657,7 @@ protected:
     uint64 MemoryBWTotal;
     uint64 SMICount;
     uint64 FrontendBoundSlots, BadSpeculationSlots, BackendBoundSlots, RetiringSlots, AllSlotsRaw;
+    uint64 MemBoundSlots, FetchLatSlots, BrMispredSlots, HeavyOpsSlots;
     std::unordered_map<uint64, uint64> MSRValues;
 
 public:
@@ -2637,7 +2672,11 @@ public:
     BadSpeculationSlots(0),
     BackendBoundSlots(0),
     RetiringSlots(0),
-    AllSlotsRaw(0)
+    AllSlotsRaw(0),
+    MemBoundSlots(0),
+    FetchLatSlots(0),
+    BrMispredSlots(0),
+    HeavyOpsSlots(0)
     {
         std::fill(CStateResidency, CStateResidency + PCM::MAX_C_STATE + 1, 0);
     }
@@ -2671,11 +2710,19 @@ public:
         BackendBoundSlots += o.BackendBoundSlots;
         RetiringSlots += o.RetiringSlots;
         AllSlotsRaw += o.AllSlotsRaw;
+        MemBoundSlots += o.MemBoundSlots;
+        FetchLatSlots += o.FetchLatSlots;
+        BrMispredSlots += o.BrMispredSlots;
+        HeavyOpsSlots += o.HeavyOpsSlots;
         //std::cout << "after PCM debug aggregate "<< FrontendBoundSlots << " " << BadSpeculationSlots << " " << BackendBoundSlots << " " <<RetiringSlots << std::endl;
         assert(FrontendBoundSlots >= old.FrontendBoundSlots);
         assert(BadSpeculationSlots >= old.BadSpeculationSlots);
         assert(BackendBoundSlots >= old.BackendBoundSlots);
         assert(RetiringSlots >= old.RetiringSlots);
+        assert(MemBoundSlots >= old.MemBoundSlots);
+        assert(FetchLatSlots >= old.FetchLatSlots);
+        assert(BrMispredSlots >= old.BrMispredSlots);
+        assert(HeavyOpsSlots >= old.HeavyOpsSlots);
         return *this;
     }
 
@@ -4536,6 +4583,24 @@ inline double getBackendBound(const CounterStateType & before, const CounterStat
     return 0.;
 }
 
+//! \brief Returns unutilized pipeline slots where no uop was delivered due to stalls on buffer, cache or memory resources as range 0..1
+template <class CounterStateType>
+inline double getMemoryBound(const CounterStateType & before, const CounterStateType & after)
+{
+    if (PCM::getInstance()->isHWTMAL2Supported())
+        return double(after.MemBoundSlots - before.MemBoundSlots)/double(getAllSlots(before, after));
+    return 0.;
+}
+
+//! \brief Returns unutilized pipeline slots where no uop was delivered due to lack of core resources as range 0..1
+template <class CounterStateType>
+inline double getCoreBound(const CounterStateType & before, const CounterStateType & after)
+{
+    if (PCM::getInstance()->isHWTMAL2Supported())
+        return getBackendBound(before, after) - getMemoryBound(before, after);
+    return 0.;
+}
+
 //! \brief Returns unutilized pipeline slots where Front-end did not deliver a uop while back-end is ready as range 0..1
 template <class CounterStateType>
 inline double getFrontendBound(const CounterStateType & before, const CounterStateType & after)
@@ -4543,6 +4608,24 @@ inline double getFrontendBound(const CounterStateType & before, const CounterSta
 //    std::cout << "DEBUG: "<< after.FrontendBoundSlots - before.FrontendBoundSlots << " " << getAllSlots(before, after) << std::endl;
     if (PCM::getInstance()->isHWTMAL1Supported())
         return double(after.FrontendBoundSlots - before.FrontendBoundSlots)/double(getAllSlots(before, after));
+    return 0.;
+}
+
+//! \brief Returns unutilized pipeline slots where Front-end due to fetch latency constraints did not deliver a uop while back-end is ready as range 0..1
+template <class CounterStateType>
+inline double getFetchLatencyBound(const CounterStateType & before, const CounterStateType & after)
+{
+    if (PCM::getInstance()->isHWTMAL2Supported())
+        return double(after.FetchLatSlots - before.FetchLatSlots)/double(getAllSlots(before, after));
+    return 0.;
+}
+
+//! \brief Returns unutilized pipeline slots where Front-end due to fetch bandwidth constraints did not deliver a uop while back-end is ready as range 0..1
+template <class CounterStateType>
+inline double getFetchBandwidthBound(const CounterStateType & before, const CounterStateType & after)
+{
+    if (PCM::getInstance()->isHWTMAL2Supported())
+        return getFrontendBound(before, after) - getFetchLatencyBound(before, after);
     return 0.;
 }
 
@@ -4556,6 +4639,24 @@ inline double getBadSpeculation(const CounterStateType & before, const CounterSt
     return 0.;
 }
 
+//! \brief Returns wasted pipeline slots due to incorrect speculation (branch misprediction), covering whole penalty: Utilized by uops that do not retire, or Recovery Bubbles (unutilized slots) as range 0..1
+template <class CounterStateType>
+inline double getBranchMispredictionBound(const CounterStateType & before, const CounterStateType & after)
+{
+    if (PCM::getInstance()->isHWTMAL2Supported())
+        return double(after.BrMispredSlots - before.BrMispredSlots)/double(getAllSlots(before, after));
+    return 0.;
+}
+
+//! \brief Returns wasted pipeline slots due to incorrect speculation (machine clears), covering whole penalty: Utilized by uops that do not retire, or Recovery Bubbles (unutilized slots) as range 0..1
+template <class CounterStateType>
+inline double getMachineClearsBound(const CounterStateType & before, const CounterStateType & after)
+{
+    if (PCM::getInstance()->isHWTMAL2Supported())
+        return getBadSpeculation(before, after) - getBranchMispredictionBound(before, after);
+    return 0.;
+}
+
 //! \brief Returns pipeline slots utilized by uops that eventually retire (commit)
 template <class CounterStateType>
 inline double getRetiring(const CounterStateType & before, const CounterStateType & after)
@@ -4563,6 +4664,24 @@ inline double getRetiring(const CounterStateType & before, const CounterStateTyp
 //    std::cout << "DEBUG: "<< after.RetiringSlots - before.RetiringSlots << " " << getAllSlots(before, after) << std::endl;
     if (PCM::getInstance()->isHWTMAL1Supported())
         return double(after.RetiringSlots - before.RetiringSlots)/double(getAllSlots(before, after));
+    return 0.;
+}
+
+//! \brief Returns pipeline slots utilized by uops that eventually retire (commit) - heavy operations
+template <class CounterStateType>
+inline double getHeavyOperationsBound(const CounterStateType & before, const CounterStateType & after)
+{
+    if (PCM::getInstance()->isHWTMAL2Supported())
+        return double(after.HeavyOpsSlots - before.HeavyOpsSlots)/double(getAllSlots(before, after));
+    return 0.;
+}
+
+//! \brief Returns pipeline slots utilized by uops that eventually retire (commit) - light operations
+template <class CounterStateType>
+inline double getLightOperationsBound(const CounterStateType & before, const CounterStateType & after)
+{
+    if (PCM::getInstance()->isHWTMAL2Supported())
+        return getRetiring(before, after) - getHeavyOperationsBound(before, after);
     return 0.;
 }
 
