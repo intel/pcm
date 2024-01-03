@@ -2,6 +2,9 @@ name: windows-ip
 
 on: [workflow_dispatch, workflow_call]
 
+permissions:
+  contents: read
+
 jobs:
   build:
 
@@ -10,6 +13,11 @@ jobs:
 
     steps:
     
+    - name: Harden Runner
+      uses: step-security/harden-runner@eb238b55efaa70779f274895e782ed17c84f2895 # v2.6.1
+      with:
+        egress-policy: audit
+
     - name: windows-ip
       run: |
         ipconfig
