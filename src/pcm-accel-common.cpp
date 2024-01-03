@@ -305,7 +305,7 @@ void readAccelCounters(SystemCounterState& sycs_)
     pcm->setNumberofAccelCounters(dev_count*counter_nb);
     uint32_t ctr_index = 0;
     // accel_content accel_results(ACCEL_MAX, dev_content(ACCEL_IP_DEV_COUNT_MAX, ctr_data()));
-    sycs_.accel_counters.resize(dev_count*counter_nb);
+    sycs_.accel_counters.resize(size_t(dev_count) * size_t(counter_nb));
     SimpleCounterState *currState = new SimpleCounterState[dev_count*counter_nb];
     // programAccelCounters(m, accel, ctrs);
 
