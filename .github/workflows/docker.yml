@@ -12,6 +12,7 @@ jobs:
   build:
     permissions:
       contents: write
+      packages: write
     runs-on: ubuntu-20.04
     steps:
       - name: Harden Runner
