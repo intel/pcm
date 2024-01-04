@@ -37,7 +37,7 @@ jobs:
         ci-cov-linux-report.sh PCM.linux.and.python
 
     - name: upload-artifact
-      uses: actions/upload-artifact@c7d193f32edcb7bfad88892161225aeda64e9392 # v4.0.0
+      uses: actions/upload-artifact@83fd05a356d7e2593de66fc9913b3002723633cb # v3.1.1
       with:
         name: coverity-linux-and-python-report-${{ github.sha }}
         path: "*-Report.pdf"
