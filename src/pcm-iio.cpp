@@ -1227,7 +1227,7 @@ bool EagleStreamPlatformMapping::pciTreeDiscover(std::vector<struct iio_stacks_o
 
 void IPlatformMapping::probeDeviceRange(std::vector<struct pci> &pci_devs, int domain, int secondary, int subordinate)
 {
-    for (uint8_t bus = secondary; bus <= subordinate; bus++) {
+    for (uint8_t bus = secondary; int(bus) <= subordinate; bus++) {
         for (uint8_t device = 0; device < 32; device++) {
             for (uint8_t function = 0; function < 8; function++) {
                 struct pci child_dev;

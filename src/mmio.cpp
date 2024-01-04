@@ -226,6 +226,10 @@ MMIORange::MMIORange(uint64 baseAddr_, uint64 size_, bool readonly_) :
     if (mmapAddr == MAP_FAILED)
     {
         std::cerr << "mmap failed: errno is " << errno << " (" << strerror(errno) << ")\n";
+        if (1 == errno)
+        {
+            std::cerr << "Try to add 'iomem=relaxed' parameter to the kernel boot command line and reboot.\n";
+        }
         throw std::exception();
     }
 }
