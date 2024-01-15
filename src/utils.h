@@ -15,6 +15,7 @@
 #include <time.h>
 #include "types.h"
 #include <vector>
+#include <list>
 #include <chrono>
 #include <math.h>
 #include <assert.h>
@@ -73,6 +74,7 @@ namespace pcm {
 #endif // _MSC_VER
 
 typedef void (* print_usage_func)(const std::string & progname);
+std::list<int> extract_integer_list(const char *optarg);
 double parse_delay(const char * arg, const std::string & progname, print_usage_func print_usage_func);
 bool extract_argument_value(const char * arg, std::initializer_list<const char*> arg_names, std::string & value);
 bool check_argument_equals(const char * arg, std::initializer_list<const char*> arg_names);
