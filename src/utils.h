@@ -583,4 +583,105 @@ inline void extractBitsPrintHelper(const std::pair<int64,int64> & bits, T & valu
 void restrictDriverAccessNative(LPCTSTR path);
 #endif
 
+
+class TemporalThreadAffinity  // speedup trick for Linux, FreeBSD, DragonFlyBSD, Windows
+{
+    TemporalThreadAffinity(); // forbidden
+#if defined(__FreeBSD__) || (defined(__DragonFly__) && __DragonFly_version >= 400707)
+    cpu_set_t old_affinity;
+    bool restore;
+
+public:
+    TemporalThreadAffinity(uint32 core_id, bool checkStatus = true, const bool restore_ = true)
+        : restore(restore_)
+    {
+        assert(core_id < 1024);
+        auto res = pthread_getaffinity_np(pthread_self(), sizeof(cpu_set_t), &old_affinity);
+        if (res != 0)
+        {
+            std::cerr << "ERROR: pthread_getaffinity_np for core " << core_id << " failed with code " << res << "\n";
+            throw std::exception();
+        }
+        cpu_set_t new_affinity;
+        CPU_ZERO(&new_affinity);
+        CPU_SET(core_id, &new_affinity);
+        // CPU_CMP() returns true if old_affinity is NOT equal to new_affinity
+        if (!(CPU_CMP(&old_affinity, &new_affinity)))
+        {
+            restore = false;
+            return; // the same affinity => return
+        }
+        res = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &new_affinity);
+        if (res != 0 && checkStatus)
+        {
+            std::cerr << "ERROR: pthread_setaffinity_np for core " << core_id << " failed with code " << res << "\n";
+            throw std::exception();
+        }
+    }
+    ~TemporalThreadAffinity()
+    {
+        if (restore) pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &old_affinity);
+    }
+    bool supported() const { return true; }
+
+#elif defined(__linux__)
+    cpu_set_t* old_affinity;
+    static constexpr auto maxCPUs = 8192;
+    const size_t set_size;
+    bool restore;
+
+public:
+    TemporalThreadAffinity(const uint32 core_id, bool checkStatus = true, const bool restore_ = true)
+        : set_size(CPU_ALLOC_SIZE(maxCPUs)), restore(restore_)
+    {
+        assert(core_id < maxCPUs);
+        old_affinity = CPU_ALLOC(maxCPUs);
+        assert(old_affinity);
+        auto res = pthread_getaffinity_np(pthread_self(), set_size, old_affinity);
+        if (res != 0)
+        {
+            std::cerr << "ERROR: pthread_getaffinity_np for core " << core_id << " failed with code " << res << "\n";
+            throw std::exception();
+        }
+        cpu_set_t* new_affinity = CPU_ALLOC(maxCPUs);
+        assert(new_affinity);
+        CPU_ZERO_S(set_size, new_affinity);
+        CPU_SET_S(core_id, set_size, new_affinity);
+        if (CPU_EQUAL_S(set_size, old_affinity, new_affinity))
+        {
+            CPU_FREE(new_affinity);
+            restore = false;
+            return;
+        }
+        res = pthread_setaffinity_np(pthread_self(), set_size, new_affinity);
+        CPU_FREE(new_affinity);
+        if (res != 0 && checkStatus)
+        {
+            std::cerr << "ERROR: pthread_setaffinity_np for core " << core_id << " failed with code " << res << "\n";
+            throw std::exception();
+        }
+    }
+    ~TemporalThreadAffinity()
+    {
+        if (restore) pthread_setaffinity_np(pthread_self(), set_size, old_affinity);
+        CPU_FREE(old_affinity);
+    }
+    bool supported() const { return true; }
+#elif defined(_MSC_VER)
+    ThreadGroupTempAffinity affinity;
+public:
+    TemporalThreadAffinity(uint32 core, bool checkStatus = true, const bool restore = true)
+        : affinity(core, checkStatus, restore)
+    {
+    }
+    bool supported() const { return true; }
+#else // not implemented for os x
+public:
+    TemporalThreadAffinity(uint32) { }
+    TemporalThreadAffinity(uint32, bool) {}
+    bool supported() const { return false; }
+#endif
+};
+
+
 } // namespace pcm

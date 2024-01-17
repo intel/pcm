@@ -1116,11 +1116,11 @@ class CHAEventCollector
         uint64 result = 0;
         for (uint32 i = 0; i < pcm->getNumSockets(); ++i)
         {
-            for (uint32 cbo = 0; cbo < pcm->getMaxNumOfCBoxes(); ++cbo)
+            for (uint32 cbo = 0; cbo < pcm->getMaxNumOfUncorePMUs(PCM::CBO_PMU_ID); ++cbo)
             {
                 for (uint32 ctr = 0; ctr < 4 && ctr < eventGroups[curGroup].size(); ++ctr)
                 {
-                    result += getCBOCounter(cbo, ctr, before[i], after[i]);
+                    result += getUncoreCounter(PCM::CBO_PMU_ID, cbo, ctr, before[i], after[i]);
                 }
             }
         }

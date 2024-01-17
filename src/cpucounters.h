@@ -251,6 +251,9 @@ public:
     HWRegisterPtr fixedCounterControl;
     HWRegisterPtr fixedCounterValue;
     HWRegisterPtr filter[2];
+    enum {
+        maxCounters = 8
+    };
 
     UncorePMU(const HWRegisterPtr& unitControl_,
         const HWRegisterPtr& counterControl0,
@@ -287,6 +290,8 @@ public:
     void unfreeze(const uint32 extra);
     void resetUnfreeze(const uint32 extra);
 };
+
+typedef std::shared_ptr<UncorePMU> UncorePMURef;
 
 class IDX_PMU
 {
@@ -635,6 +640,129 @@ class PCM_API PCM
     bool programmed_core_pmu{false};
     std::vector<std::shared_ptr<SafeMsrHandle> > MSR;
     std::vector<std::shared_ptr<ServerUncorePMUs> > serverUncorePMUs;
+
+    typedef std::vector<UncorePMURef> UncorePMUArrayType;
+public:
+    enum UncorePMUIDs
+    {
+        CBO_PMU_ID,
+        INVALID_PMU_ID
+    };
+private:
+    typedef std::unordered_map<int, UncorePMUArrayType> UncorePMUMapType;
+    // socket -> die -> pmu map -> pmu ref array
+    std::vector< std::vector<UncorePMUMapType> > uncorePMUs;
+
+    template <class F>
+    void forAllUncorePMUs(F f)
+    {
+        for (auto& s : uncorePMUs)
+        {
+            for (auto& d : s)
+            {
+                for (auto& p : d)
+                {
+                    for (auto& e : p.second)
+                    {
+                        if (e.get())
+                        {
+                            f(*e);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    template <class F>
+    void forAllUncorePMUs(const int pmu_id, F f)
+    {
+        for (auto& s : uncorePMUs)
+        {
+            for (auto& d : s)
+            {
+                for (auto& e : d[pmu_id])
+                {
+                    if (e.get())
+                    {
+                        f(*e);
+                    }
+                }
+            }
+        }
+    }
+
+    template <class F>
+    void forAllUncorePMUs(const size_t socket_id, const int pmu_id, F f)
+    {
+        if (socket_id < uncorePMUs.size())
+        {
+            for (auto& d : uncorePMUs[socket_id])
+            {
+                for (auto& e : d[pmu_id])
+                {
+                    if (e.get())
+                    {
+                        f(*e);
+                    }
+                }
+            }
+        }
+    }
+
+    template <class T>
+    void readUncoreCounterValues(T& result, const size_t socket, const int pmu_id) const
+    {
+        if (socket < uncorePMUs.size())
+        {
+            result.Counters.resize(uncorePMUs[socket].size());
+            for (size_t die = 0; die < uncorePMUs[socket].size(); ++die)
+            {
+                TemporalThreadAffinity tempThreadAffinity(socketRefCore[socket]); // speedup trick for Linux
+
+                const auto& pmuIter = uncorePMUs[socket][die].find(pmu_id);
+                if (pmuIter != uncorePMUs[socket][die].end())
+                {
+                    result.Counters[die][pmu_id].resize(pmuIter->second.size());
+                    for (size_t unit = 0; unit < pmuIter->second.size(); ++unit)
+                    {
+                        auto& pmu = pmuIter->second[unit];
+                        for (size_t i = 0; pmu.get() != nullptr && i < pmu->size(); ++i)
+                        {
+                            // std::cerr << "s " << socket << " d " << die << " pmu " << pmu_id << " unit " << unit << " ctr " << i << "\n";
+                            result.Counters[die][pmu_id][unit][i] = *(pmu->counterValue[i]);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    uint64 getUncoreCounterState(const int pmu_id, const size_t socket, const uint32 ctr) const;
+
+    template <class F>
+    void programUncorePMUs(const int pmu_id, F pmuFunc)
+    {
+        if (MSR.empty()) return;
+
+        for (size_t socket = 0; socket < uncorePMUs.size(); ++socket)
+        {
+            for (size_t die = 0; die < uncorePMUs[socket].size(); ++die)
+            {
+                TemporalThreadAffinity tempThreadAffinity(socketRefCore[socket]); // speedup trick for Linux
+
+                for (size_t unit = 0; unit < uncorePMUs[socket][die][pmu_id].size(); ++unit)
+                {
+                    auto& pmu = uncorePMUs[socket][die][pmu_id][unit];
+                    if (pmu.get())
+                    {
+                        pmuFunc(*pmu);
+                    }
+                }
+            }
+        }
+    }
+
     std::vector<std::vector<UncorePMU> > pcuPMUs;
     std::vector<std::map<int32, UncorePMU> > iioPMUs;
     std::vector<std::map<int32, UncorePMU> > irpPMUs;
@@ -645,7 +773,6 @@ class PCM_API PCM
     std::vector<std::shared_ptr<CounterWidthExtender> > energy_status;
     std::vector<std::shared_ptr<CounterWidthExtender> > dram_energy_status;
     std::vector<std::shared_ptr<CounterWidthExtender> > pp_energy_status;
-    std::vector<std::vector<UncorePMU> > cboPMUs;
     std::vector<std::vector<UncorePMU> > mdfPMUs;
     std::vector<std::vector<std::pair<UncorePMU, UncorePMU>>> cxlPMUs; // socket X CXL ports X UNIT {0,1}
 
@@ -693,6 +820,23 @@ class PCM_API PCM
     bool linux_arch_perfmon = false;
 
 public:
+
+    size_t getMaxNumOfUncorePMUs(const int pmu_id) const
+    {
+        size_t count = 0ULL;
+        for (auto& s : uncorePMUs)
+        {
+            for (auto& d : s)
+            {
+                const auto iter = d.find(pmu_id);
+                if (iter != d.end())
+                {
+                    count += iter->second.size();
+                }
+            }
+        }
+        return count;
+    }
     enum { MAX_PP = 1 }; // max power plane number on Intel architecture (client)
     enum { MAX_C_STATE = 10 }; // max C-state on Intel architecture
 
@@ -1039,11 +1183,11 @@ private:
     uint64 CX_MSR_PMON_BOX_FILTER1(uint32 Cbo) const;
     uint64 CX_MSR_PMON_CTLY(uint32 Cbo, uint32 Ctl) const;
     uint64 CX_MSR_PMON_BOX_CTL(uint32 Cbo) const;
+    uint32 getMaxNumOfCBoxesInternal() const;
     void programCboOpcodeFilter(const uint32 opc0, UncorePMU & pmu, const uint32 nc_, const uint32 opc1, const uint32 loc, const uint32 rem);
     void initLLCReadMissLatencyEvents(uint64 * events, uint32 & opCode);
     void initCHARequestEvents(uint64 * events);
     void programCbo();
-    uint64 getCBOCounterState(const uint32 socket, const uint32 ctr_);
     template <class Iterator>
     static void program(UncorePMU& pmu, const Iterator& eventsBegin, const Iterator& eventsEnd, const uint32 extra)
     {
@@ -1184,9 +1328,6 @@ public:
      *      \returns maximum number of RMID supported by socket
      */
     unsigned getMaxRMID() const;
-
-    //! \brief Returns the number of CBO or CHA units per socket
-    uint32 getMaxNumOfCBoxes() const;
 
     //! \brief Returns the number of IIO stacks per socket
     uint32 getMaxNumOfIIOStacks() const;
@@ -2880,16 +3021,32 @@ uint64 getM3UPICounter(uint32 port, uint32 counter, const CounterStateType& befo
     return after.M3UPICounter[port][counter] - before.M3UPICounter[port][counter];
 }
 
-/*! \brief Direct read of CHA or CBO PMU counter (counter meaning depends on the programming: power/performance/etc)
+/*! \brief Direct read of uncore PMU counter (counter meaning depends on the programming: power/performance/etc)
     \param counter counter number
-    \param cbo cbo or cha number
+    \param pmu_id ID of PMU (unit type: CBO, etc)
+    \param unit uncore unit ID
     \param before CPU counter state before the experiment
     \param after CPU counter state after the experiment
 */
 template <class CounterStateType>
-uint64 getCBOCounter(uint32 cbo, uint32 counter, const CounterStateType& before, const CounterStateType& after)
+uint64 getUncoreCounter(const int pmu_id, uint32 unit, uint32 counter, const CounterStateType& before, const CounterStateType& after)
 {
-    return after.CBOCounter[cbo][counter] - before.CBOCounter[cbo][counter];
+    for (size_t die = 0; counter < UncorePMU::maxCounters && die < after.Counters.size(); ++die)
+    {
+        assert(die < before.Counters.size());
+        const auto afterIter = after.Counters[die].find(pmu_id);
+        const auto beforeIter = before.Counters[die].find(pmu_id);
+        if (afterIter != after.Counters[die].end() && beforeIter != before.Counters[die].end())
+        {
+            assert(afterIter->second.size() == beforeIter->second.size());
+            if (unit < afterIter->second.size())
+            {
+                return afterIter->second[unit][counter] - beforeIter->second[unit][counter];
+            }
+            unit -= afterIter->second.size();
+        }
+    }
+    return 0ULL;
 }
 
 /*! \brief Direct read of MDF PMU counter (counter meaning depends on the programming: power/performance/etc)
@@ -3253,7 +3410,7 @@ public:
 };
 
 
-//! \brief Server uncore power counter state
+//! \brief Server uncore counter state
 //!
 class ServerUncoreCounterState : public UncoreCounterState
 {
@@ -3262,12 +3419,11 @@ public:
         maxControllers = 4,
         maxChannels = 32,
         maxXPILinks = 6,
-        maxCBOs = 128,
         maxMDFs = 128,
         maxIIOStacks = 16,
         maxCXLPorts = 6,
         maxPUnits = 5,
-        maxCounters = 8
+        maxCounters = UncorePMU::maxCounters
     };
     enum EventPosition
     {
@@ -3282,10 +3438,32 @@ public:
         PMMReads,
         PMMWrites
     };
-private:
+
+    // typedef std::array<uint64, maxCounters> CounterArrayType;
+    class CounterArrayType
+    {
+        std::array<uint64, maxCounters> data;
+    public:
+        CounterArrayType() : data{{}}
+        {
+            std::fill(data.begin(), data.end(), 0ULL);
+        }
+        const uint64& operator [] (size_t i) const
+        {
+            return data[i];
+        }
+        uint64& operator [] (size_t i)
+        {
+            return data[i];
+        }
+    };
+    typedef std::vector<CounterArrayType> PMUCounterArrayType;
+    typedef std::unordered_map<int, PMUCounterArrayType> PMUMapCounterArrayType;
+    // die -> pmu map -> PMUs -> counters
+    std::vector<PMUMapCounterArrayType>  Counters;
+
     std::array<std::array<uint64, maxCounters>, maxXPILinks> xPICounter;
     std::array<std::array<uint64, maxCounters>, maxXPILinks> M3UPICounter;
-    std::array<std::array<uint64, maxCounters>, maxCBOs> CBOCounter;
     std::array<std::array<uint64, maxCounters>, maxMDFs> MDFCounter;
     std::array<std::array<uint64, maxCounters>, maxIIOStacks> IIOCounter;
     std::array<std::array<uint64, maxCounters>, maxIIOStacks> IRPCounter;
@@ -3316,7 +3494,7 @@ private:
     template <class CounterStateType>
     friend uint64 getM3UPICounter(uint32 port, uint32 counter, const CounterStateType& before, const CounterStateType& after);
     template <class CounterStateType>
-    friend uint64 getCBOCounter(uint32 cbo, uint32 counter, const CounterStateType& before, const CounterStateType& after);
+    friend uint64 getUncoreCounter(const int pmu_id, uint32 unit, uint32 counter, const CounterStateType& before, const CounterStateType& after);
     template <class CounterStateType>
     friend uint64 getMDFCounter(uint32 mdf, uint32 counter, const CounterStateType& before, const CounterStateType& after);
     template <class CounterStateType>
@@ -3352,7 +3530,6 @@ public:
     ServerUncoreCounterState() :
         xPICounter{{}},
         M3UPICounter{{}},
-        CBOCounter{{}},
         MDFCounter{{}},
         IIOCounter{{}},
         IRPCounter{{}},
