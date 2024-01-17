@@ -1941,7 +1941,7 @@ void PCM::initUncoreObjects()
             " " << ((s < iioPMUs.size()) ? iioPMUs[s].size() : 0) << " IIO units detected."
             " " << ((s < irpPMUs.size()) ? irpPMUs[s].size() : 0) << " IRP units detected."
             " " << countPMUs(s, CBO_PMU_ID) << " CHA/CBO units detected."
-            " " << ((s < mdfPMUs.size()) ? mdfPMUs[s].size() : 0) << " MDF units detected."
+            " " << countPMUs(s, MDF_PMU_ID) << " MDF units detected."
             " " << ((s < cxlPMUs.size()) ? cxlPMUs[s].size() : 0) << " CXL units detected."
             "\n";
     }
@@ -2080,6 +2080,36 @@ void PCM::initUncorePMUsDirect()
             }
         };
 
+        auto addPMUsFromDiscoveryRef = [this, &handle, &s](std::vector<UncorePMURef>& out, const unsigned int pmuType, const int filter0 = -1)
+        {
+            if (uncorePMUDiscovery.get())
+            {
+                for (size_t box = 0; box < uncorePMUDiscovery->getNumBoxes(pmuType, s); ++box)
+                {
+                    if (uncorePMUDiscovery->getBoxAccessType(pmuType, s, box) == UncorePMUDiscovery::accessTypeEnum::MSR
+                        && uncorePMUDiscovery->getBoxNumRegs(pmuType, s, box) >= 4)
+                    {
+                        out.push_back(
+                            std::make_shared<UncorePMU>(
+                                std::make_shared<MSRRegister>(handle, uncorePMUDiscovery->getBoxCtlAddr(pmuType, s, box)),
+                                std::make_shared<MSRRegister>(handle, uncorePMUDiscovery->getBoxCtlAddr(pmuType, s, box, 0)),
+                                std::make_shared<MSRRegister>(handle, uncorePMUDiscovery->getBoxCtlAddr(pmuType, s, box, 1)),
+                                std::make_shared<MSRRegister>(handle, uncorePMUDiscovery->getBoxCtlAddr(pmuType, s, box, 2)),
+                                std::make_shared<MSRRegister>(handle, uncorePMUDiscovery->getBoxCtlAddr(pmuType, s, box, 3)),
+                                std::make_shared<MSRRegister>(handle, uncorePMUDiscovery->getBoxCtrAddr(pmuType, s, box, 0)),
+                                std::make_shared<MSRRegister>(handle, uncorePMUDiscovery->getBoxCtrAddr(pmuType, s, box, 1)),
+                                std::make_shared<MSRRegister>(handle, uncorePMUDiscovery->getBoxCtrAddr(pmuType, s, box, 2)),
+                                std::make_shared<MSRRegister>(handle, uncorePMUDiscovery->getBoxCtrAddr(pmuType, s, box, 3)),
+                                std::shared_ptr<MSRRegister>(),
+                                std::shared_ptr<MSRRegister>(),
+                                (filter0 < 0) ? std::shared_ptr<MSRRegister>() : std::make_shared<MSRRegister>(handle, uncorePMUDiscovery->getBoxCtlAddr(pmuType, s, box) + filter0) // filters not supported by discovery
+                            )
+                        );
+                    }
+                }
+            }
+        };
+
         switch (cpu_model)
         {
         case IVYTOWN:
@@ -2138,9 +2168,9 @@ void PCM::initUncorePMUsDirect()
         switch (cpu_model)
         {
         case SPR:
-            mdfPMUs.resize(num_sockets);
-            addPMUsFromDiscovery(mdfPMUs[s], SPR_MDF_BOX_TYPE);
-            if (mdfPMUs[s].empty())
+            uncorePMUs[s].resize(1);
+            addPMUsFromDiscoveryRef(uncorePMUs[s][0][MDF_PMU_ID], SPR_MDF_BOX_TYPE);
+            if (uncorePMUs[s][0][MDF_PMU_ID].empty())
             {
                 std::cerr << "ERROR: MDF PMU not found\n";
             }
@@ -2519,7 +2549,6 @@ void PCM::initUncorePMUsPerf()
     uncorePMUs.resize(num_sockets);
     iioPMUs.resize(num_sockets);
     irpPMUs.resize(num_sockets);
-    mdfPMUs.resize(num_sockets);
     pcuPMUs.resize(num_sockets);
     for (uint32 s = 0; s < (uint32)num_sockets; ++s)
     {
@@ -2528,7 +2557,7 @@ void PCM::initUncorePMUsPerf()
         populatePerfPMUs(s, enumeratePerfPMUs("ubox", 100), uboxPMUs, true);
         populatePerfPMUs(s, enumeratePerfPMUs("cbox", 100), uncorePMUs[s][0][CBO_PMU_ID], false, true, true);
         populatePerfPMUs(s, enumeratePerfPMUs("cha", 200), uncorePMUs[s][0][CBO_PMU_ID], false, true, true);
-        populatePerfPMUs(s, enumeratePerfPMUs("mdf", 200), mdfPMUs[s], false, true, true);
+        populatePerfPMUs(s, enumeratePerfPMUs("mdf", 200), uncorePMUs[s][0][MDF_PMU_ID], false, true, true);
         auto populateMapPMUs = [&s](const std::string& type, std::vector<std::map<int32, UncorePMU> > & out)
         {
             std::vector<UncorePMU> PMUVector;
@@ -4638,13 +4667,6 @@ void PCM::cleanupUncorePMUs(const bool silent)
 
     forAllUncorePMUs([](UncorePMU & p) { p.cleanup(); });
 
-    for (auto& sMDFPMUs : mdfPMUs)
-    {
-        for (auto& pmu : sMDFPMUs)
-        {
-            pmu.cleanup();
-        }
-    }
     for (auto& spcuPMUs : pcuPMUs)
     {
         for (auto& pmu : spcuPMUs)
@@ -5763,13 +5785,8 @@ void PCM::freezeServerUncoreCounters()
 
         forAllUncorePMUs(i, CBO_PMU_ID, [](UncorePMU& pmu) { pmu.freeze(UNC_PMON_UNIT_CTL_FRZ_EN); });
 
-        if (size_t(i) < mdfPMUs.size())
-        {
-            for (auto& pmu : mdfPMUs[i])
-            {
-                pmu.freeze(UNC_PMON_UNIT_CTL_FRZ_EN);
-            }
-        }
+        forAllUncorePMUs(i, MDF_PMU_ID, [](UncorePMU& pmu) { pmu.freeze(UNC_PMON_UNIT_CTL_FRZ_EN); });
+
     }
     for (auto& sPMUs : cxlPMUs)
     {
@@ -5812,13 +5829,8 @@ void PCM::unfreezeServerUncoreCounters()
 
         forAllUncorePMUs(i, CBO_PMU_ID, [](UncorePMU& pmu) { pmu.unfreeze(UNC_PMON_UNIT_CTL_FRZ_EN); });
 
-        if (size_t(i) < mdfPMUs.size())
-        {
-            for (auto& pmu : mdfPMUs[i])
-            {
-                pmu.unfreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
-            }
-        }
+        forAllUncorePMUs(i, MDF_PMU_ID, [](UncorePMU& pmu) { pmu.unfreeze(UNC_PMON_UNIT_CTL_FRZ_EN); });
+
     }
     for (auto& sPMUs : cxlPMUs)
     {
@@ -6583,16 +6595,8 @@ ServerUncoreCounterState PCM::getServerUncoreCounterState(uint32 socket)
 
         readUncoreCounterValues(result, socket, CBO_PMU_ID);
 
-        for (uint32 mdf = 0; socket < mdfPMUs.size() && mdf < mdfPMUs[socket].size() && mdf < ServerUncoreCounterState::maxMDFs; ++mdf)
-        {
-            for (int i = 0; i < ServerUncoreCounterState::maxCounters && size_t(i) < mdfPMUs[socket][mdf].size(); ++i)
-            {
-                if (mdfPMUs[socket][mdf].counterValue[i].get())
-                {
-                    result.MDFCounter[mdf][i] = *(mdfPMUs[socket][mdf].counterValue[i]);
-                }
-            }
-        }
+        readUncoreCounterValues(result, socket, MDF_PMU_ID);
+
         for (uint32 stack = 0; socket < iioPMUs.size() && stack < iioPMUs[socket].size() && stack < ServerUncoreCounterState::maxIIOStacks; ++stack)
         {
             for (int i = 0; i < ServerUncoreCounterState::maxCounters && size_t(i) < iioPMUs[socket][stack].size(); ++i)
@@ -9155,15 +9159,6 @@ uint32 PCM::getMaxNumOfIIOStacks() const
     return 0;
 }
 
-uint32 PCM::getMaxNumOfMDFs() const
-{
-    if (mdfPMUs.size() > 0)
-    {
-        return (uint32)mdfPMUs[0].size();
-    }
-    return 0;
-}
-
 void PCM::programCboOpcodeFilter(const uint32 opc0, UncorePMU & pmu, const uint32 nc_, const uint32 opc1, const uint32 loc, const uint32 rem)
 {
     if(JAKETOWN == cpu_model)
@@ -9372,18 +9367,12 @@ void PCM::programCboRaw(const uint64* events, const uint64 filter0, const uint64
 
 void PCM::programMDF(const uint64* events)
 {
-    for (size_t i = 0; (i < mdfPMUs.size()) && MSR.size(); ++i)
+    programUncorePMUs(MDF_PMU_ID, [&](UncorePMU& pmu)
     {
-        uint32 refCore = socketRefCore[i];
-        TemporalThreadAffinity tempThreadAffinity(refCore); // speedup trick for Linux
+        pmu.initFreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
 
-        for (auto & pmu : mdfPMUs[i])
-        {
-            pmu.initFreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
-
-            PCM::program(pmu, events, events + 4, UNC_PMON_UNIT_CTL_FRZ_EN);
-        }
-    }
+        PCM::program(pmu, events, events + 4, UNC_PMON_UNIT_CTL_FRZ_EN);
+    });
 }
 
 void PCM::programUBOX(const uint64* events)

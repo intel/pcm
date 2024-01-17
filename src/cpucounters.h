@@ -646,6 +646,7 @@ public:
     enum UncorePMUIDs
     {
         CBO_PMU_ID,
+        MDF_PMU_ID,
         INVALID_PMU_ID
     };
 private:
@@ -773,7 +774,6 @@ private:
     std::vector<std::shared_ptr<CounterWidthExtender> > energy_status;
     std::vector<std::shared_ptr<CounterWidthExtender> > dram_energy_status;
     std::vector<std::shared_ptr<CounterWidthExtender> > pp_energy_status;
-    std::vector<std::vector<UncorePMU> > mdfPMUs;
     std::vector<std::vector<std::pair<UncorePMU, UncorePMU>>> cxlPMUs; // socket X CXL ports X UNIT {0,1}
 
     std::vector<std::shared_ptr<CounterWidthExtender> > memory_bw_local;
@@ -1331,9 +1331,6 @@ public:
 
     //! \brief Returns the number of IIO stacks per socket
     uint32 getMaxNumOfIIOStacks() const;
-
-    //! \brief Returns the number of MDFs boxes per socket
-    uint32 getMaxNumOfMDFs() const;
 
     /*! \brief Returns the number of IDX accel devs
         \param accel index of IDX accel
@@ -3049,18 +3046,6 @@ uint64 getUncoreCounter(const int pmu_id, uint32 unit, uint32 counter, const Cou
     return 0ULL;
 }
 
-/*! \brief Direct read of MDF PMU counter (counter meaning depends on the programming: power/performance/etc)
-    \param counter counter number
-    \param mdf mdf number
-    \param before CPU counter state before the experiment
-    \param after CPU counter state after the experiment
-*/
-template <class CounterStateType>
-uint64 getMDFCounter(uint32 mdf, uint32 counter, const CounterStateType& before, const CounterStateType& after)
-{
-    return after.MDFCounter[mdf][counter] - before.MDFCounter[mdf][counter];
-}
-
 /*! \brief Direct read of UBOX PMU counter (counter meaning depends on the programming: power/performance/etc)
     \param counter counter number
     \param before CPU counter state before the experiment
@@ -3419,7 +3404,6 @@ public:
         maxControllers = 4,
         maxChannels = 32,
         maxXPILinks = 6,
-        maxMDFs = 128,
         maxIIOStacks = 16,
         maxCXLPorts = 6,
         maxPUnits = 5,
@@ -3464,7 +3448,6 @@ public:
 
     std::array<std::array<uint64, maxCounters>, maxXPILinks> xPICounter;
     std::array<std::array<uint64, maxCounters>, maxXPILinks> M3UPICounter;
-    std::array<std::array<uint64, maxCounters>, maxMDFs> MDFCounter;
     std::array<std::array<uint64, maxCounters>, maxIIOStacks> IIOCounter;
     std::array<std::array<uint64, maxCounters>, maxIIOStacks> IRPCounter;
     std::array<std::array<uint64, maxCounters>, maxCXLPorts> CXLCMCounter;
@@ -3495,8 +3478,6 @@ public:
     friend uint64 getM3UPICounter(uint32 port, uint32 counter, const CounterStateType& before, const CounterStateType& after);
     template <class CounterStateType>
     friend uint64 getUncoreCounter(const int pmu_id, uint32 unit, uint32 counter, const CounterStateType& before, const CounterStateType& after);
-    template <class CounterStateType>
-    friend uint64 getMDFCounter(uint32 mdf, uint32 counter, const CounterStateType& before, const CounterStateType& after);
     template <class CounterStateType>
     friend uint64 getUBOXCounter(uint32 counter, const CounterStateType& before, const CounterStateType& after);
     template <class CounterStateType>
@@ -3530,7 +3511,6 @@ public:
     ServerUncoreCounterState() :
         xPICounter{{}},
         M3UPICounter{{}},
-        MDFCounter{{}},
         IIOCounter{{}},
         IRPCounter{{}},
         CXLCMCounter{{}},
