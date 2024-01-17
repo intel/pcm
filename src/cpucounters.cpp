@@ -125,106 +125,6 @@ bool PCM::initWinRing0Lib()
 #define cpu_set_t cpuset_t
 #endif
 
-class TemporalThreadAffinity  // speedup trick for Linux, FreeBSD, DragonFlyBSD, Windows
-{
-    TemporalThreadAffinity(); // forbidden
-#if defined(__FreeBSD__) || (defined(__DragonFly__) && __DragonFly_version >= 400707)
-    cpu_set_t old_affinity;
-    bool restore;
-
-public:
-    TemporalThreadAffinity(uint32 core_id, bool checkStatus = true, const bool restore_ = true)
-       : restore(restore_)
-    {
-        assert(core_id < 1024);
-        auto res = pthread_getaffinity_np(pthread_self(), sizeof(cpu_set_t), &old_affinity);
-        if (res != 0)
-        {
-            std::cerr << "ERROR: pthread_getaffinity_np for core " << core_id << " failed with code " << res << "\n";
-            throw std::exception();
-        }
-        cpu_set_t new_affinity;
-        CPU_ZERO(&new_affinity);
-        CPU_SET(core_id, &new_affinity);
-        // CPU_CMP() returns true if old_affinity is NOT equal to new_affinity
-        if (!(CPU_CMP(&old_affinity, &new_affinity)))
-        {
-            restore = false;
-            return; // the same affinity => return
-        }
-        res = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &new_affinity);
-        if (res != 0 && checkStatus)
-        {
-            std::cerr << "ERROR: pthread_setaffinity_np for core " << core_id << " failed with code " << res << "\n";
-            throw std::exception();
-        }
-    }
-    ~TemporalThreadAffinity()
-    {
-        if (restore) pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &old_affinity);
-    }
-    bool supported() const { return true; }
-
-#elif defined(__linux__)
-    cpu_set_t * old_affinity;
-    static constexpr auto maxCPUs = 8192;
-    const size_t set_size;
-    bool restore;
-
-public:
-    TemporalThreadAffinity(const uint32 core_id, bool checkStatus = true, const bool restore_ = true)
-        : set_size(CPU_ALLOC_SIZE(maxCPUs)), restore(restore_)
-    {
-        assert(core_id < maxCPUs);
-        old_affinity = CPU_ALLOC(maxCPUs);
-        assert(old_affinity);
-        auto res = pthread_getaffinity_np(pthread_self(), set_size, old_affinity);
-        if (res != 0)
-        {
-            std::cerr << "ERROR: pthread_getaffinity_np for core " << core_id << " failed with code " << res << "\n";
-            throw std::exception();
-        }
-        cpu_set_t * new_affinity = CPU_ALLOC(maxCPUs);
-        assert(new_affinity);
-        CPU_ZERO_S(set_size, new_affinity);
-        CPU_SET_S(core_id, set_size, new_affinity);
-        if (CPU_EQUAL_S(set_size, old_affinity, new_affinity))
-        {
-            CPU_FREE(new_affinity);
-            restore = false;
-            return;
-        }
-        res = pthread_setaffinity_np(pthread_self(), set_size, new_affinity);
-        CPU_FREE(new_affinity);
-        if (res != 0 && checkStatus)
-        {
-            std::cerr << "ERROR: pthread_setaffinity_np for core " << core_id << " failed with code " << res << "\n";
-            throw std::exception();
-        }
-    }
-    ~TemporalThreadAffinity()
-    {
-        if (restore) pthread_setaffinity_np(pthread_self(), set_size, old_affinity);
-        CPU_FREE(old_affinity);
-    }
-    bool supported() const { return true; }
-#elif defined(_MSC_VER)
-    ThreadGroupTempAffinity affinity;
-public:
-    TemporalThreadAffinity(uint32 core, bool checkStatus = true, const bool restore = true)
-       : affinity(core, checkStatus, restore)
-    {
-    }
-    bool supported() const { return true; }
-#else // not implemented for os x
-public:
-    TemporalThreadAffinity(uint32) { }
-    TemporalThreadAffinity(uint32, bool) {}
-    bool supported() const { return false;  }
-#endif
-};
-
-
 PCM * PCM::instance = NULL;
 
 /*
@@ -1602,7 +1502,7 @@ void PCM::printSystemTopology() const
 
     if (hybrid == false)
     {
-        std::cerr << "Last level cache slices per socket: " << getMaxNumOfCBoxes() << "\n";
+        std::cerr << "Last level cache slices per socket: " << getMaxNumOfUncorePMUs(CBO_PMU_ID) << "\n";
     }
     std::cerr << "Core PMU (perfmon) version: " << perfmon_version << "\n";
     std::cerr << "Number of core PMU generic (programmable) counters: " << core_gen_counter_num_max << "\n";
@@ -2026,6 +1926,13 @@ void PCM::initUncoreObjects()
         initUncorePMUsDirect();
     }
 
+    auto countPMUs = [&](const uint32 s, const int pmu_id)
+    {
+        size_t count = 0;
+        forAllUncorePMUs(s, pmu_id, [&count](UncorePMU&) { ++count; });
+        return count;
+    };
+
     std::cerr << "Info: " << uboxPMUs.size() << " UBOX units detected.\n";
     for (uint32 s = 0; s < (uint32)num_sockets; ++s)
     {
@@ -2033,7 +1940,7 @@ void PCM::initUncoreObjects()
             " " << ((s < pcuPMUs.size()) ? pcuPMUs[s].size() : 0) << " PCU units detected."
             " " << ((s < iioPMUs.size()) ? iioPMUs[s].size() : 0) << " IIO units detected."
             " " << ((s < irpPMUs.size()) ? irpPMUs[s].size() : 0) << " IRP units detected."
-            " " << ((s < cboPMUs.size()) ? cboPMUs[s].size() : 0) << " CHA/CBO units detected."
+            " " << countPMUs(s, CBO_PMU_ID) << " CHA/CBO units detected."
             " " << ((s < mdfPMUs.size()) ? mdfPMUs[s].size() : 0) << " MDF units detected."
             " " << ((s < cxlPMUs.size()) ? cxlPMUs[s].size() : 0) << " CXL units detected."
             "\n";
@@ -2080,6 +1987,7 @@ void PCM::globalFreezeUncoreCountersInternal(const unsigned long long int freeze
 
 void PCM::initUncorePMUsDirect()
 {
+    uncorePMUs.resize(num_sockets);
     pcuPMUs.resize(num_sockets);
     for (uint32 s = 0; s < (uint32)num_sockets; ++s)
     {
@@ -2528,17 +2436,16 @@ void PCM::initUncorePMUsDirect()
 
     if (hasPCICFGUncore() && MSR.size())
     {
-        cboPMUs.resize(num_sockets);
         for (uint32 s = 0; s < (uint32)num_sockets; ++s)
         {
+            uncorePMUs[s].resize(1);
             auto & handle = MSR[socketRefCore[s]];
-            for (uint32 cbo = 0; cbo < getMaxNumOfCBoxes(); ++cbo)
+            for (uint32 cbo = 0; cbo < getMaxNumOfCBoxesInternal(); ++cbo)
             {
                 assert(CX_MSR_PMON_BOX_CTL(cbo));
                 const auto filter1MSR = CX_MSR_PMON_BOX_FILTER1(cbo);
                 std::shared_ptr<HWRegister> filter1MSRHandle = filter1MSR ? std::make_shared<MSRRegister>(handle, filter1MSR) : std::shared_ptr<HWRegister>();
-                cboPMUs[s].push_back(
-                    UncorePMU(
+                uncorePMUs[s][0][CBO_PMU_ID].push_back(std::make_shared<UncorePMU>(
                         std::make_shared<MSRRegister>(handle, CX_MSR_PMON_BOX_CTL(cbo)),
                         std::make_shared<MSRRegister>(handle, CX_MSR_PMON_CTLY(cbo, 0)),
                         std::make_shared<MSRRegister>(handle, CX_MSR_PMON_CTLY(cbo, 1)),
@@ -2600,6 +2507,7 @@ void PCM::initUncorePMUsDirect()
 #ifdef PCM_USE_PERF
 std::vector<int> enumeratePerfPMUs(const std::string & type, int max_id);
 void populatePerfPMUs(unsigned socket_, const std::vector<int> & ids, std::vector<UncorePMU> & pmus, bool fixed, bool filter0 = false, bool filter1 = false);
+void populatePerfPMUs(unsigned socket_, const std::vector<int>& ids, std::vector<UncorePMURef>& pmus, bool fixed, bool filter0 = false, bool filter1 = false);
 
 std::vector<std::pair<int, uint32> > enumerateIDXPerfPMUs(const std::string & type, int max_id);
 void populateIDXPerfPMUs(unsigned socket_, const std::vector<std::pair<int, uint32> > & ids, std::vector<IDX_PMU> & pmus);
@@ -2608,17 +2516,18 @@ void populateIDXPerfPMUs(unsigned socket_, const std::vector<std::pair<int, uint
 void PCM::initUncorePMUsPerf()
 {
 #ifdef PCM_USE_PERF
+    uncorePMUs.resize(num_sockets);
     iioPMUs.resize(num_sockets);
     irpPMUs.resize(num_sockets);
-    cboPMUs.resize(num_sockets);
     mdfPMUs.resize(num_sockets);
     pcuPMUs.resize(num_sockets);
     for (uint32 s = 0; s < (uint32)num_sockets; ++s)
     {
+        uncorePMUs[s].resize(1);
         populatePerfPMUs(s, enumeratePerfPMUs("pcu", 100), pcuPMUs[s], false, true);
         populatePerfPMUs(s, enumeratePerfPMUs("ubox", 100), uboxPMUs, true);
-        populatePerfPMUs(s, enumeratePerfPMUs("cbox", 100), cboPMUs[s], false, true, true);
-        populatePerfPMUs(s, enumeratePerfPMUs("cha", 200), cboPMUs[s], false, true, true);
+        populatePerfPMUs(s, enumeratePerfPMUs("cbox", 100), uncorePMUs[s][0][CBO_PMU_ID], false, true, true);
+        populatePerfPMUs(s, enumeratePerfPMUs("cha", 200), uncorePMUs[s][0][CBO_PMU_ID], false, true, true);
         populatePerfPMUs(s, enumeratePerfPMUs("mdf", 200), mdfPMUs[s], false, true, true);
         auto populateMapPMUs = [&s](const std::string& type, std::vector<std::map<int32, UncorePMU> > & out)
         {
@@ -4726,13 +4635,9 @@ void PCM::cleanupUncorePMUs(const bool silent)
             pmu.second.cleanup();
         }
     }
-    for (auto & sCBOPMUs : cboPMUs)
-    {
-        for (auto & pmu : sCBOPMUs)
-        {
-            pmu.cleanup();
-        }
-    }
+
+    forAllUncorePMUs([](UncorePMU & p) { p.cleanup(); });
+
     for (auto& sMDFPMUs : mdfPMUs)
     {
         for (auto& pmu : sMDFPMUs)
@@ -5856,13 +5761,7 @@ void PCM::freezeServerUncoreCounters()
             }
         }
 
-        if (size_t(i) < cboPMUs.size())
-        {
-            for (auto& pmu : cboPMUs[i])
-            {
-                pmu.freeze(UNC_PMON_UNIT_CTL_FRZ_EN);
-            }
-        }
+        forAllUncorePMUs(i, CBO_PMU_ID, [](UncorePMU& pmu) { pmu.freeze(UNC_PMON_UNIT_CTL_FRZ_EN); });
 
         if (size_t(i) < mdfPMUs.size())
         {
@@ -5911,13 +5810,7 @@ void PCM::unfreezeServerUncoreCounters()
             }
         }
 
-        if (size_t(i) < cboPMUs.size())
-        {
-            for (auto& pmu : cboPMUs[i])
-            {
-                pmu.unfreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
-            }
-        }
+        forAllUncorePMUs(i, CBO_PMU_ID, [](UncorePMU& pmu) { pmu.unfreeze(UNC_PMON_UNIT_CTL_FRZ_EN); });
 
         if (size_t(i) < mdfPMUs.size())
         {
@@ -6039,8 +5932,8 @@ void PCM::readAndAggregateUncoreMCCounters(const uint32 socket, CounterStateType
 {
     if (LLCReadMissLatencyMetricsAvailable())
     {
-        result.TOROccupancyIAMiss += getCBOCounterState(socket, EventPosition::TOR_OCCUPANCY);
-        result.TORInsertsIAMiss += getCBOCounterState(socket, EventPosition::TOR_INSERTS);
+        result.TOROccupancyIAMiss += getUncoreCounterState(CBO_PMU_ID, socket, EventPosition::TOR_OCCUPANCY);
+        result.TORInsertsIAMiss += getUncoreCounterState(CBO_PMU_ID, socket, EventPosition::TOR_INSERTS);
     }
 
     if (LLCReadMissLatencyMetricsAvailable() || uncoreFrequencyMetricAvailable())
@@ -6074,8 +5967,8 @@ void PCM::readAndAggregateUncoreMCCounters(const uint32 socket, CounterStateType
             {
                 if (hasCHA())
                 {
-                    result.UncHARequests += getCBOCounterState(socket, EventPosition::REQUESTS_ALL);
-                    result.UncHALocalRequests += getCBOCounterState(socket, EventPosition::REQUESTS_LOCAL);
+                    result.UncHARequests += getUncoreCounterState(CBO_PMU_ID, socket, EventPosition::REQUESTS_ALL);
+                    result.UncHALocalRequests += getUncoreCounterState(CBO_PMU_ID, socket, EventPosition::REQUESTS_LOCAL);
                 }
                 else
                 {
@@ -6687,13 +6580,9 @@ ServerUncoreCounterState PCM::getServerUncoreCounterState(uint32 socket)
     {
         uint32 refCore = socketRefCore[socket];
         TemporalThreadAffinity tempThreadAffinity(refCore);
-        for (uint32 cbo = 0; socket < cboPMUs.size() && cbo < cboPMUs[socket].size() && cbo < ServerUncoreCounterState::maxCBOs; ++cbo)
-        {
-            for (int i = 0; i < ServerUncoreCounterState::maxCounters && size_t(i) < cboPMUs[socket][cbo].size(); ++i)
-            {
-                result.CBOCounter[cbo][i] = *(cboPMUs[socket][cbo].counterValue[i]);
-            }
-        }
+
+        readUncoreCounterValues(result, socket, CBO_PMU_ID);
+
         for (uint32 mdf = 0; socket < mdfPMUs.size() && mdf < mdfPMUs[socket].size() && mdf < ServerUncoreCounterState::maxMDFs; ++mdf)
         {
             for (int i = 0; i < ServerUncoreCounterState::maxCounters && size_t(i) < mdfPMUs[socket][mdf].size(); ++i)
@@ -7987,6 +7876,44 @@ void populatePerfPMUs(unsigned socket_, const std::vector<int> & ids, std::vecto
     }
 }
 
+void populatePerfPMUs(unsigned socket_, const std::vector<int>& ids, std::vector<UncorePMURef>& pmus, bool fixed, bool filter0, bool filter1)
+{
+    for (const auto& id : ids)
+    {
+        std::array<std::shared_ptr<PerfVirtualControlRegister>, 4> controlRegs = {
+            std::make_shared<PerfVirtualControlRegister>(socket_, id),
+                    std::make_shared<PerfVirtualControlRegister>(socket_, id),
+                    std::make_shared<PerfVirtualControlRegister>(socket_, id),
+                    std::make_shared<PerfVirtualControlRegister>(socket_, id)
+        };
+        std::shared_ptr<PerfVirtualCounterRegister> counterReg0 = std::make_shared<PerfVirtualCounterRegister>(controlRegs[0]);
+        std::shared_ptr<PerfVirtualCounterRegister> counterReg1 = std::make_shared<PerfVirtualCounterRegister>(controlRegs[1]);
+        std::shared_ptr<PerfVirtualCounterRegister> counterReg2 = std::make_shared<PerfVirtualCounterRegister>(controlRegs[2]);
+        std::shared_ptr<PerfVirtualCounterRegister> counterReg3 = std::make_shared<PerfVirtualCounterRegister>(controlRegs[3]);
+        std::shared_ptr<PerfVirtualControlRegister> fixedControlReg = std::make_shared<PerfVirtualControlRegister>(socket_, id, true);
+        std::shared_ptr<PerfVirtualCounterRegister> fixedCounterReg = std::make_shared<PerfVirtualCounterRegister>(fixedControlReg);
+        std::shared_ptr<PerfVirtualFilterRegister> filterReg0 = std::make_shared<PerfVirtualFilterRegister>(controlRegs, 0);
+        std::shared_ptr<PerfVirtualFilterRegister> filterReg1 = std::make_shared<PerfVirtualFilterRegister>(controlRegs, 1);
+        pmus.push_back(
+            std::make_shared<UncorePMU>(
+                std::make_shared<VirtualDummyRegister>(),
+                controlRegs[0],
+                controlRegs[1],
+                controlRegs[2],
+                controlRegs[3],
+                counterReg0,
+                counterReg1,
+                counterReg2,
+                counterReg3,
+                fixed ? fixedControlReg : std::shared_ptr<HWRegister>(),
+                fixed ? fixedCounterReg : std::shared_ptr<HWRegister>(),
+                filter0 ? filterReg0 : std::shared_ptr<HWRegister>(),
+                filter1 ? filterReg1 : std::shared_ptr<HWRegister>()
+            )
+        );
+    }
+}
+
 std::vector<std::pair<int, uint32> > enumerateIDXPerfPMUs(const std::string & type, int max_id)
 {
     uint32 numaNode=0xff;
@@ -9146,7 +9073,7 @@ inline uint32 weight32(uint32 n)
     return count;
 }
 
-uint32 PCM::getMaxNumOfCBoxes() const
+uint32 PCM::getMaxNumOfCBoxesInternal() const
 {
     static int num = -1;
     if (num >= 0)
@@ -9397,60 +9324,50 @@ void PCM::programPCIeEventGroup(eventGroup_t &eventGroup)
 
 void PCM::programCbo(const uint64 * events, const uint32 opCode, const uint32 nc_, const uint32 llc_lookup_tid_filter, const uint32 loc, const uint32 rem)
 {
-    for (size_t i = 0; (i < cboPMUs.size()) && MSR.size(); ++i)
-    {
-        uint32 refCore = socketRefCore[i];
-        TemporalThreadAffinity tempThreadAffinity(refCore); // speedup trick for Linux
-
-        for(uint32 cbo = 0; cbo < getMaxNumOfCBoxes() && cbo < cboPMUs[i].size(); ++cbo)
+    programUncorePMUs(CBO_PMU_ID, [&](UncorePMU & pmu)
         {
-            cboPMUs[i][cbo].initFreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
+            pmu.initFreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
 
             if (ICX != cpu_model && SNOWRIDGE != cpu_model && SPR != cpu_model)
-                programCboOpcodeFilter(opCode, cboPMUs[i][cbo], nc_, 0, loc, rem);
+                programCboOpcodeFilter(opCode, pmu, nc_, 0, loc, rem);
 
-            if((HASWELLX == cpu_model || BDX_DE == cpu_model || BDX == cpu_model || SKX == cpu_model) && llc_lookup_tid_filter != 0)
-                *cboPMUs[i][cbo].filter[0] = llc_lookup_tid_filter;
+            if ((HASWELLX == cpu_model || BDX_DE == cpu_model || BDX == cpu_model || SKX == cpu_model) && llc_lookup_tid_filter != 0)
+                *pmu.filter[0] = llc_lookup_tid_filter;
 
-            PCM::program(cboPMUs[i][cbo], events, events + ServerUncoreCounterState::maxCounters, UNC_PMON_UNIT_CTL_FRZ_EN);
+            PCM::program(pmu, events, events + ServerUncoreCounterState::maxCounters, UNC_PMON_UNIT_CTL_FRZ_EN);
 
-            for (int c = 0; c < ServerUncoreCounterState::maxCounters && size_t(c) < cboPMUs[i][cbo].size(); ++c)
+            for (int c = 0; c < ServerUncoreCounterState::maxCounters && size_t(c) < pmu.size(); ++c)
             {
-                *cboPMUs[i][cbo].counterValue[c] = 0;
+                *pmu.counterValue[c] = 0;
             }
         }
-    }
+    );
 }
 
 void PCM::programCboRaw(const uint64* events, const uint64 filter0, const uint64 filter1)
 {
-    for (size_t i = 0; (i < cboPMUs.size()) && MSR.size(); ++i)
-    {
-        uint32 refCore = socketRefCore[i];
-        TemporalThreadAffinity tempThreadAffinity(refCore); // speedup trick for Linux
-
-        for (uint32 cbo = 0; cbo < getMaxNumOfCBoxes(); ++cbo)
+    programUncorePMUs(CBO_PMU_ID, [&](UncorePMU& pmu)
         {
-            cboPMUs[i][cbo].initFreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
+            pmu.initFreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
 
-            if (cboPMUs[i][cbo].filter[0].get())
+            if (pmu.filter[0].get())
             {
-                *cboPMUs[i][cbo].filter[0] = filter0;
+                *pmu.filter[0] = filter0;
             }
 
-            if (cboPMUs[i][cbo].filter[1].get())
+            if (pmu.filter[1].get())
             {
-                *cboPMUs[i][cbo].filter[1] = filter1;
+                *pmu.filter[1] = filter1;
             }
 
-            PCM::program(cboPMUs[i][cbo], events, events + 4, UNC_PMON_UNIT_CTL_FRZ_EN);
+            PCM::program(pmu, events, events + 4, UNC_PMON_UNIT_CTL_FRZ_EN);
 
-            for (int c = 0; c < 4; ++c)
+            for (int c = 0; c < ServerUncoreCounterState::maxCounters && size_t(c) < pmu.size(); ++c)
             {
-                *cboPMUs[i][cbo].counterValue[c] = 0;
+                *pmu.counterValue[c] = 0;
             }
         }
-    }
+    );
 }
 
 void PCM::programMDF(const uint64* events)
@@ -9676,16 +9593,27 @@ bool PCM::supportIDXAccelDev() const
     return retval;
 }
 
-uint64 PCM::getCBOCounterState(const uint32 socket_, const uint32 ctr_)
+uint64 PCM::getUncoreCounterState(const int pmu_id, const size_t socket, const uint32 ctr) const
 {
     uint64 result = 0;
 
-    const uint32 refCore = socketRefCore[socket_];
-    TemporalThreadAffinity tempThreadAffinity(refCore); // speedup trick for Linux
-
-    for(auto & pmu: cboPMUs[socket_])
+    if (socket < uncorePMUs.size() && ctr < ServerUncoreCounterState::maxCounters)
     {
-        result += *pmu.counterValue[ctr_];
+        for (size_t die = 0; die < uncorePMUs[socket].size(); ++die)
+        {
+            TemporalThreadAffinity tempThreadAffinity(socketRefCore[socket]); // speedup trick for Linux
+            const auto pmusIter = uncorePMUs[socket][die].find(pmu_id);
+            if (pmusIter != uncorePMUs[socket][die].end())
+            {
+                for (const auto& pmu : pmusIter->second)
+                {
+                    if (pmu.get())
+                    {
+                        result += *(pmu->counterValue[ctr]);
+                    }
+                }
+            }
+        }
     }
     return result;
 }
@@ -9703,13 +9631,13 @@ uint64 PCM::getUncoreClocks(const uint32 socket_)
 PCIeCounterState PCM::getPCIeCounterState(const uint32 socket_, const uint32 ctr_)
 {
     PCIeCounterState result;
-    result.data = getCBOCounterState(socket_, ctr_);
+    result.data = getUncoreCounterState(CBO_PMU_ID, socket_, ctr_);
     return result;
 }
 
 uint64 PCM::getPCIeCounterData(const uint32 socket_, const uint32 ctr_)
 {
-    return getCBOCounterState(socket_, ctr_);
+    return getUncoreCounterState(CBO_PMU_ID, socket_, ctr_);
 }
 
 void PCM::initLLCReadMissLatencyEvents(uint64 * events, uint32 & opCode)

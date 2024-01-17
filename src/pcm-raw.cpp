@@ -1674,9 +1674,9 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
             else if (type == "cbo" || type == "cha")
             {
                 choose(outputType,
-                    [&]() { printUncoreRows(nullptr, (uint32) m->getMaxNumOfCBoxes(), "C"); },
-                    [&]() { printUncoreRows(nullptr, (uint32) m->getMaxNumOfCBoxes(), type); },
-                    [&]() { printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getCBOCounter(u, i, before, after); }, (uint32)m->getMaxNumOfCBoxes(), "C");
+                    [&]() { printUncoreRows(nullptr, (uint32) m->getMaxNumOfUncorePMUs(PCM::CBO_PMU_ID), "C"); },
+                    [&]() { printUncoreRows(nullptr, (uint32) m->getMaxNumOfUncorePMUs(PCM::CBO_PMU_ID), type); },
+                    [&]() { printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getUncoreCounter(PCM::CBO_PMU_ID, u, i, before, after); }, (uint32)m->getMaxNumOfUncorePMUs(PCM::CBO_PMU_ID), "C");
                     });
             }
             else if (type == "mdf")
@@ -2046,7 +2046,7 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs,
         {
             for (uint32 s = 0; s < m->getNumSockets(); ++s)
             {
-                for (uint32 cbo = 0; cbo < m->getMaxNumOfCBoxes(); ++cbo)
+                for (uint32 cbo = 0; cbo < m->getMaxNumOfUncorePMUs(PCM::CBO_PMU_ID); ++cbo)
                 {
                     int i = 0;
                     for (auto& event : events)
@@ -2054,7 +2054,7 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs,
                         choose(outputType,
                             [s, cbo]() { cout << "SKT" << s << "C" << cbo << separator; },
                             [&event, &i]() { if (event.second.empty()) cout << "CBOEvent" << i << separator;  else cout << event.second << separator; },
-                            [&]() { cout << getCBOCounter(cbo, i, BeforeUncoreState[s], AfterUncoreState[s]) << separator; });
+                            [&]() { cout << getUncoreCounter(PCM::CBO_PMU_ID, cbo, i, BeforeUncoreState[s], AfterUncoreState[s]) << separator; });
                         ++i;
                     }
                 }
