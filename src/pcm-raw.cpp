@@ -1682,9 +1682,9 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
             else if (type == "mdf")
             {
                 choose(outputType,
-                    [&]() { printUncoreRows(nullptr, (uint32) m->getMaxNumOfMDFs(), "MDF"); },
-                    [&]() { printUncoreRows(nullptr, (uint32) m->getMaxNumOfMDFs(), type); },
-                    [&]() { printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getMDFCounter(u, i, before, after); }, (uint32)m->getMaxNumOfMDFs(), "MDF");
+                    [&]() { printUncoreRows(nullptr, (uint32) m->getMaxNumOfUncorePMUs(PCM::MDF_PMU_ID), "MDF"); },
+                    [&]() { printUncoreRows(nullptr, (uint32) m->getMaxNumOfUncorePMUs(PCM::MDF_PMU_ID), type); },
+                    [&]() { printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getUncoreCounter(PCM::MDF_PMU_ID, u, i, before, after); }, (uint32)m->getMaxNumOfUncorePMUs(PCM::MDF_PMU_ID), "MDF");
                     });
             }
             else if (type == "irp")
@@ -2064,7 +2064,7 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs,
         {
             for (uint32 s = 0; s < m->getNumSockets(); ++s)
             {
-                for (uint32 mdf = 0; mdf < m->getMaxNumOfMDFs(); ++mdf)
+                for (uint32 mdf = 0; mdf < m->getMaxNumOfUncorePMUs(PCM::MDF_PMU_ID); ++mdf)
                 {
                     int i = 0;
                     for (auto& event : events)
@@ -2072,7 +2072,7 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs,
                         choose(outputType,
                             [s, mdf]() { cout << "SKT" << s << "MDF" << mdf << separator; },
                             [&event, &i]() { if (event.second.empty()) cout << "MDFEvent" << i << separator;  else cout << event.second << separator; },
-                            [&]() { cout << getMDFCounter(mdf, i, BeforeUncoreState[s], AfterUncoreState[s]) << separator; });
+                            [&]() { cout << getUncoreCounter(PCM::MDF_PMU_ID, mdf, i, BeforeUncoreState[s], AfterUncoreState[s]) << separator; });
                         ++i;
                     }
                 }
