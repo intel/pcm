@@ -1657,9 +1657,9 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
             else if (type == "pcu")
             {
                 choose(outputType,
-                    [&]() { printUncoreRows(nullptr, (uint32) m->getPUnitsPerSocket(), "P"); },
-                    [&]() { printUncoreRows(nullptr, (uint32) m->getPUnitsPerSocket(), type); },
-                    [&]() { printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getPCUCounter(u, i, before, after); }, 1U, "");
+                    [&]() { printUncoreRows(nullptr, (uint32) m->getMaxNumOfUncorePMUs(PCM::PCU_PMU_ID), "P"); },
+                    [&]() { printUncoreRows(nullptr, (uint32) m->getMaxNumOfUncorePMUs(PCM::PCU_PMU_ID), type); },
+                    [&]() { printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getUncoreCounter(PCM::PCU_PMU_ID, u, i, before, after); }, 1U, "");
                     });
             }
             else if (type == "ubox")
@@ -1952,7 +1952,7 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs,
         {
             for (uint32 s = 0; s < m->getNumSockets(); ++s)
             {
-                for (uint32 u = 0; u < m->getPUnitsPerSocket(); ++u)
+                for (uint32 u = 0; u < m->getMaxNumOfUncorePMUs(PCM::PCU_PMU_ID); ++u)
                 {
                     int i = 0;
                     for (auto& event : events)
@@ -1960,7 +1960,7 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs,
                         choose(outputType,
                             [s, u]() { cout << "SKT" << s << "P" << u << separator; },
                             [&event, &i]() { if (event.second.empty()) cout << "PCUEvent" << i << separator;  else cout << event.second << separator; },
-                            [&]() { cout << getPCUCounter(u, i, BeforeUncoreState[s], AfterUncoreState[s]) << separator; });
+                            [&]() { cout << getUncoreCounter(PCM::PCU_PMU_ID, u, i, BeforeUncoreState[s], AfterUncoreState[s]) << separator; });
                         ++i;
                     }
                 }

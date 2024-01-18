@@ -647,6 +647,7 @@ public:
     {
         CBO_PMU_ID,
         MDF_PMU_ID,
+        PCU_PMU_ID,
         INVALID_PMU_ID
     };
 private:
@@ -764,7 +765,7 @@ private:
         }
     }
 
-    std::vector<std::vector<UncorePMU> > pcuPMUs;
+    // TODO: gradually move other PMUs to the uncorePMUs structure
     std::vector<std::map<int32, UncorePMU> > iioPMUs;
     std::vector<std::map<int32, UncorePMU> > irpPMUs;
     std::vector<UncorePMU> uboxPMUs;
@@ -1874,12 +1875,6 @@ public:
             return (serverUncorePMUs.size() && serverUncorePMUs[0].get()) ? (serverUncorePMUs[0]->getNumQPIPorts()) : 0;
         }
         return 0;
-    }
-    //! \brief Returns the number of PUnits per socket
-    //! \return number of PUnits per socket
-    uint64 getPUnitsPerSocket() const
-    {
-        return (pcuPMUs.empty() == false) ? pcuPMUs[0].size() : 0;
     }
 
     //! \brief Returns the number of detected integrated memory controllers per socket
@@ -3131,17 +3126,6 @@ uint64 getEDCCounter(uint32 channel, uint32 counter, const CounterStateType & be
     return 0ULL;
 }
 
-/*! \brief Direct read of power control unit PMU counter (counter meaning depends on the programming: power/performance/etc)
-    \param counter counter number
-    \param before CPU counter state before the experiment
-    \param after CPU counter state after the experiment
-*/
-template <class CounterStateType>
-uint64 getPCUCounter(uint32 unit, uint32 counter, const CounterStateType & before, const CounterStateType & after)
-{
-    return after.PCUCounter[unit][counter] - before.PCUCounter[unit][counter];
-}
-
 /*!  \brief Returns clock ticks of power control unit
     \param before CPU counter state before the experiment
     \param after CPU counter state after the experiment
@@ -3149,7 +3133,7 @@ uint64 getPCUCounter(uint32 unit, uint32 counter, const CounterStateType & befor
 template <class CounterStateType>
 uint64 getPCUClocks(uint32 unit, const CounterStateType & before, const CounterStateType & after)
 {
-    return getPCUCounter(unit, 0, before, after);
+    return getUncoreCounter(PCM::PCU_PMU_ID, unit, 0, before, after);
 }
 
 /*!  \brief Returns energy consumed by processor, excluding DRAM (measured in internal units)
@@ -3406,7 +3390,6 @@ public:
         maxXPILinks = 6,
         maxIIOStacks = 16,
         maxCXLPorts = 6,
-        maxPUnits = 5,
         maxCounters = UncorePMU::maxCounters
     };
     enum EventPosition
@@ -3459,7 +3442,6 @@ public:
     std::array<std::array<uint64, maxCounters>, maxControllers> M2MCounter; // M2M/iMC boxes x counter
     std::array<std::array<uint64, maxCounters>, maxControllers> HACounter; // HA boxes x counter
     std::array<std::array<uint64, maxCounters>, maxChannels> EDCCounter; // EDC controller X counter
-    std::array<std::array<uint64, maxCounters>, maxPUnits> PCUCounter;
     std::unordered_map<int, uint64> freeRunningCounter;
     int32 PackageThermalHeadroom;
     uint64 InvariantTSC;    // invariant time stamp counter
@@ -3493,8 +3475,6 @@ public:
     template <class CounterStateType>
     friend uint64 getEDCCounter(uint32 channel, uint32 counter, const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
-    friend uint64 getPCUCounter(uint32 unit, uint32 counter, const CounterStateType & before, const CounterStateType & after);
-    template <class CounterStateType>
     friend uint64 getConsumedEnergy(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
     friend uint64 getDRAMConsumedEnergy(const CounterStateType & before, const CounterStateType & after);
@@ -3522,7 +3502,6 @@ public:
         M2MCounter{{}},
         HACounter{{}},
         EDCCounter{{}},
-        PCUCounter{{}},
         PackageThermalHeadroom(0),
         InvariantTSC(0)
     {

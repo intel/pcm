@@ -1937,7 +1937,7 @@ void PCM::initUncoreObjects()
     for (uint32 s = 0; s < (uint32)num_sockets; ++s)
     {
         std::cerr << "Socket " << s << ":" <<
-            " " << ((s < pcuPMUs.size()) ? pcuPMUs[s].size() : 0) << " PCU units detected."
+            " " << countPMUs(s, PCU_PMU_ID) << " PCU units detected."
             " " << ((s < iioPMUs.size()) ? iioPMUs[s].size() : 0) << " IIO units detected."
             " " << ((s < irpPMUs.size()) ? irpPMUs[s].size() : 0) << " IRP units detected."
             " " << countPMUs(s, CBO_PMU_ID) << " CHA/CBO units detected."
@@ -1988,7 +1988,6 @@ void PCM::globalFreezeUncoreCountersInternal(const unsigned long long int freeze
 void PCM::initUncorePMUsDirect()
 {
     uncorePMUs.resize(num_sockets);
-    pcuPMUs.resize(num_sockets);
     for (uint32 s = 0; s < (uint32)num_sockets; ++s)
     {
         auto & handle = MSR[socketRefCore[s]];
@@ -2114,8 +2113,9 @@ void PCM::initUncorePMUsDirect()
         {
         case IVYTOWN:
         case JAKETOWN:
-            pcuPMUs[s].push_back(
-                UncorePMU(
+            uncorePMUs[s].resize(1);
+            uncorePMUs[s][0][PCU_PMU_ID].push_back(
+                std::make_shared<UncorePMU>(
                     std::make_shared<MSRRegister>(handle, JKTIVT_PCU_MSR_PMON_BOX_CTL_ADDR),
                     std::make_shared<MSRRegister>(handle, JKTIVT_PCU_MSR_PMON_CTL0_ADDR),
                     std::make_shared<MSRRegister>(handle, JKTIVT_PCU_MSR_PMON_CTL1_ADDR),
@@ -2137,8 +2137,9 @@ void PCM::initUncorePMUsDirect()
         case HASWELLX:
         case SKX:
         case ICX:
-            pcuPMUs[s].push_back(
-                UncorePMU(
+            uncorePMUs[s].resize(1);
+            uncorePMUs[s][0][PCU_PMU_ID].push_back(
+                std::make_shared<UncorePMU>(
                     std::make_shared<MSRRegister>(handle, HSX_PCU_MSR_PMON_BOX_CTL_ADDR),
                     std::make_shared<MSRRegister>(handle, HSX_PCU_MSR_PMON_CTL0_ADDR),
                     std::make_shared<MSRRegister>(handle, HSX_PCU_MSR_PMON_CTL1_ADDR),
@@ -2155,14 +2156,14 @@ void PCM::initUncorePMUsDirect()
             );
             break;
         case SPR:
-            addPMUsFromDiscovery(pcuPMUs[s], SPR_PCU_BOX_TYPE, 0xE);
-            if (pcuPMUs[s].empty())
+            uncorePMUs[s].resize(1);
+            addPMUsFromDiscoveryRef(uncorePMUs[s][0][PCU_PMU_ID], SPR_PCU_BOX_TYPE, 0xE);
+            if (uncorePMUs[s][0][PCU_PMU_ID].empty())
             {
                 std::cerr << "ERROR: PCU PMU not found\n";
             }
             break;
         }
-        assert(pcuPMUs[s].size() <= ServerUncoreCounterState::maxPUnits);
 
         // add MDF PMUs
         switch (cpu_model)
@@ -2549,11 +2550,10 @@ void PCM::initUncorePMUsPerf()
     uncorePMUs.resize(num_sockets);
     iioPMUs.resize(num_sockets);
     irpPMUs.resize(num_sockets);
-    pcuPMUs.resize(num_sockets);
     for (uint32 s = 0; s < (uint32)num_sockets; ++s)
     {
         uncorePMUs[s].resize(1);
-        populatePerfPMUs(s, enumeratePerfPMUs("pcu", 100), pcuPMUs[s], false, true);
+        populatePerfPMUs(s, enumeratePerfPMUs("pcu", 100), uncorePMUs[s][0][PCU_PMU_ID], false, true);
         populatePerfPMUs(s, enumeratePerfPMUs("ubox", 100), uboxPMUs, true);
         populatePerfPMUs(s, enumeratePerfPMUs("cbox", 100), uncorePMUs[s][0][CBO_PMU_ID], false, true, true);
         populatePerfPMUs(s, enumeratePerfPMUs("cha", 200), uncorePMUs[s][0][CBO_PMU_ID], false, true, true);
@@ -4667,13 +4667,6 @@ void PCM::cleanupUncorePMUs(const bool silent)
 
     forAllUncorePMUs([](UncorePMU & p) { p.cleanup(); });
 
-    for (auto& spcuPMUs : pcuPMUs)
-    {
-        for (auto& pmu : spcuPMUs)
-        {
-            pmu.cleanup();
-        }
-    }
     for (auto& sPMUs : cxlPMUs)
     {
         for (auto& pmus : sPMUs)
@@ -5436,28 +5429,17 @@ PCM::ErrorCode PCM::programServerUncorePowerMetrics(int mc_profile, int pcu_prof
 
 void PCM::programPCU(uint32* PCUCntConf, const uint64 filter)
 {
-    for (int i = 0; (i < (int)serverUncorePMUs.size()) && MSR.size(); ++i)
+    programUncorePMUs(PCU_PMU_ID, [&PCUCntConf, &filter](UncorePMU& pmu)
     {
-        if (i >= (int)pcuPMUs.size())
+        pmu.initFreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
+
+        if (pmu.filter[0].get())
         {
-            continue;
+            *pmu.filter[0] = filter;
         }
 
-        uint32 refCore = socketRefCore[i];
-        TemporalThreadAffinity tempThreadAffinity(refCore); // speedup trick for Linux
-
-        for (auto& pmu : pcuPMUs[i])
-        {
-            pmu.initFreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
-
-            if (pmu.filter[0].get())
-            {
-                *pmu.filter[0] = filter;
-            }
-
-            program(pmu, &PCUCntConf[0], &PCUCntConf[4], UNC_PMON_UNIT_CTL_FRZ_EN);
-        }
-    }
+        program(pmu, &PCUCntConf[0], &PCUCntConf[4], UNC_PMON_UNIT_CTL_FRZ_EN);
+    });
 }
 
 PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool silent, const int pid)
@@ -5762,10 +5744,7 @@ void PCM::freezeServerUncoreCounters()
         const auto refCore = socketRefCore[i];
         TemporalThreadAffinity tempThreadAffinity(refCore); // speedup trick for Linux
 
-        for (auto& pmu : pcuPMUs[i])
-        {
-            pmu.freeze(UNC_PMON_UNIT_CTL_FRZ_EN);
-        }
+        forAllUncorePMUs(i, PCU_PMU_ID, [](UncorePMU& pmu) { pmu.freeze(UNC_PMON_UNIT_CTL_FRZ_EN); });
 
         if (IIOEventsAvailable())
         {
@@ -5806,10 +5785,7 @@ void PCM::unfreezeServerUncoreCounters()
         const auto refCore = socketRefCore[i];
         TemporalThreadAffinity tempThreadAffinity(refCore); // speedup trick for Linux
 
-        for (auto& pmu : pcuPMUs[i])
-        {
-            pmu.unfreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
-        }
+        forAllUncorePMUs(i, PCU_PMU_ID, [](UncorePMU& pmu) { pmu.unfreeze(UNC_PMON_UNIT_CTL_FRZ_EN); });
 
         if (IIOEventsAvailable())
         {
@@ -6619,14 +6595,9 @@ ServerUncoreCounterState PCM::getServerUncoreCounterState(uint32 socket)
             result.UBOXCounter[i] = *(uboxPMUs[socket].counterValue[i]);
             result.UncClocks = getUncoreClocks(socket);
         }
-        for (size_t u = 0; socket < pcuPMUs.size() && u < pcuPMUs[socket].size(); ++u)
-        {
-            for (int i = 0; i < ServerUncoreCounterState::maxCounters && size_t(i) < pcuPMUs[socket][u].size(); ++i)
-            {
-                assert(u < ServerUncoreCounterState::maxPUnits);
-                result.PCUCounter[u][i] = *pcuPMUs[socket][u].counterValue[i];
-            }
-        }
+
+        readUncoreCounterValues(result, socket, PCU_PMU_ID);
+
         for (size_t p = 0; p < getNumCXLPorts(socket); ++p)
         {
             for (int i = 0; i < ServerUncoreCounterState::maxCounters && socket < cxlPMUs.size() && size_t(i) < cxlPMUs[socket][p].first.size(); ++i)
@@ -6638,7 +6609,6 @@ ServerUncoreCounterState PCM::getServerUncoreCounterState(uint32 socket)
                 result.CXLDPCounter[p][i] = *cxlPMUs[socket][p].second.counterValue[i];
             }
         }
-        // std::cout << "values read: " << result.PCUCounter[0] << " " << result.PCUCounter[1] << " " << result.PCUCounter[2] << " " << result.PCUCounter[3] << "\n";
         uint64 val=0;
         //MSR[refCore]->read(MSR_PKG_ENERGY_STATUS,&val);
         //std::cout << "Energy status: " << val << "\n";
