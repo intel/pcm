@@ -822,11 +822,12 @@ private:
 
 public:
 
-    size_t getMaxNumOfUncorePMUs(const int pmu_id) const
+    size_t getMaxNumOfUncorePMUs(const int pmu_id, const size_t socket = 0) const
     {
         size_t count = 0ULL;
-        for (auto& s : uncorePMUs)
+        if (socket < uncorePMUs.size())
         {
+            const auto & s = uncorePMUs[socket];
             for (auto& d : s)
             {
                 const auto iter = d.find(pmu_id);
