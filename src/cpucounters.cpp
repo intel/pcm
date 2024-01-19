@@ -1502,7 +1502,8 @@ void PCM::printSystemTopology() const
 
     if (hybrid == false)
     {
-        std::cerr << "Last level cache slices per socket: " << getMaxNumOfUncorePMUs(CBO_PMU_ID) << "\n";
+        // TODO: deprecate this output and move it to uncore PMU section (use getMaxNumOfUncorePMUs(CBO_PMU_ID) )
+        std::cerr << "Last level cache slices per socket: " << getMaxNumOfCBoxesInternal() << "\n";
     }
     std::cerr << "Core PMU (perfmon) version: " << perfmon_version << "\n";
     std::cerr << "Number of core PMU generic (programmable) counters: " << core_gen_counter_num_max << "\n";
