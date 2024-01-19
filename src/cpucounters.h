@@ -648,6 +648,7 @@ public:
         CBO_PMU_ID,
         MDF_PMU_ID,
         PCU_PMU_ID,
+        UBOX_PMU_ID,
         INVALID_PMU_ID
     };
 private:
@@ -768,7 +769,6 @@ private:
     // TODO: gradually move other PMUs to the uncorePMUs structure
     std::vector<std::map<int32, UncorePMU> > iioPMUs;
     std::vector<std::map<int32, UncorePMU> > irpPMUs;
-    std::vector<UncorePMU> uboxPMUs;
     std::vector<std::vector<IDX_PMU> > idxPMUs;
 
     double joulesPerEnergyUnit;
@@ -2425,7 +2425,7 @@ public:
 
     bool uncoreFrequencyMetricAvailable() const
     {
-        return MSR.empty() == false && uboxPMUs.size() == getNumSockets() && getNumCores() == getNumOnlineCores();
+        return MSR.empty() == false && getMaxNumOfUncorePMUs(UBOX_PMU_ID) > 0ULL && getNumCores() == getNumOnlineCores();
     }
 
     bool LatencyMetricsAvailable() const
@@ -3042,17 +3042,6 @@ uint64 getUncoreCounter(const int pmu_id, uint32 unit, uint32 counter, const Cou
     return 0ULL;
 }
 
-/*! \brief Direct read of UBOX PMU counter (counter meaning depends on the programming: power/performance/etc)
-    \param counter counter number
-    \param before CPU counter state before the experiment
-    \param after CPU counter state after the experiment
-*/
-template <class CounterStateType>
-uint64 getUBOXCounter(uint32 counter, const CounterStateType& before, const CounterStateType& after)
-{
-    return after.UBOXCounter[counter] - before.UBOXCounter[counter];
-}
-
 /*! \brief Direct read of IIO PMU counter (counter meaning depends on the programming: power/performance/etc)
     \param counter counter number
     \param stack IIO stack number
@@ -3436,7 +3425,6 @@ public:
     std::array<std::array<uint64, maxCounters>, maxIIOStacks> IRPCounter;
     std::array<std::array<uint64, maxCounters>, maxCXLPorts> CXLCMCounter;
     std::array<std::array<uint64, maxCounters>, maxCXLPorts> CXLDPCounter;
-    std::array<uint64, maxCounters> UBOXCounter;
     std::array<uint64, maxChannels> DRAMClocks;
     std::array<uint64, maxChannels> HBMClocks;
     std::array<std::array<uint64, maxCounters>, maxChannels> MCCounter; // channel X counter
@@ -3461,8 +3449,6 @@ public:
     friend uint64 getM3UPICounter(uint32 port, uint32 counter, const CounterStateType& before, const CounterStateType& after);
     template <class CounterStateType>
     friend uint64 getUncoreCounter(const int pmu_id, uint32 unit, uint32 counter, const CounterStateType& before, const CounterStateType& after);
-    template <class CounterStateType>
-    friend uint64 getUBOXCounter(uint32 counter, const CounterStateType& before, const CounterStateType& after);
     template <class CounterStateType>
     friend uint64 getIIOCounter(uint32 stack, uint32 counter, const CounterStateType& before, const CounterStateType& after);
     template <class CounterStateType>
@@ -3496,7 +3482,6 @@ public:
         IRPCounter{{}},
         CXLCMCounter{{}},
         CXLDPCounter{{}},
-        UBOXCounter{{}},
         DRAMClocks{{}},
         HBMClocks{{}},
         MCCounter{{}},
