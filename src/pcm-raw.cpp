@@ -1667,7 +1667,7 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
                 choose(outputType,
                     [&]() { printUncoreRows(nullptr, 1U, ""); },
                     [&]() { printUncoreRows(nullptr, 1U, type); },
-                    [&]() { printUncoreRows([](const uint32, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getUBOXCounter(i, before, after); }, 1U,
+                    [&]() { printUncoreRows([](const uint32, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getUncoreCounter(PCM::UBOX_PMU_ID, 0, i, before, after); }, 1U,
                             "UncoreClocks", [](const uint32, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getUncoreClocks(before, after); });
                     });
             }
@@ -2037,7 +2037,7 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs,
                     choose(outputType,
                         [s]() { cout << "SKT" << s << separator; },
                         [&event, &i]() { if (event.second.empty()) cout << "UBOXEvent" << i << separator;  else cout << event.second << separator; },
-                        [&]() { cout << getUBOXCounter(i, BeforeUncoreState[s], AfterUncoreState[s]) << separator; });
+                        [&]() { cout << getUncoreCounter(PCM::UBOX_PMU_ID, 0, i, BeforeUncoreState[s], AfterUncoreState[s]) << separator; });
                     ++i;
                 }
             }

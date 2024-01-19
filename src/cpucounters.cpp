@@ -1926,22 +1926,15 @@ void PCM::initUncoreObjects()
         initUncorePMUsDirect();
     }
 
-    auto countPMUs = [&](const uint32 s, const int pmu_id)
-    {
-        size_t count = 0;
-        forAllUncorePMUs(s, pmu_id, [&count](UncorePMU&) { ++count; });
-        return count;
-    };
-
-    std::cerr << "Info: " << uboxPMUs.size() << " UBOX units detected.\n";
     for (uint32 s = 0; s < (uint32)num_sockets; ++s)
     {
         std::cerr << "Socket " << s << ":" <<
-            " " << countPMUs(s, PCU_PMU_ID) << " PCU units detected."
+            " " << getMaxNumOfUncorePMUs(PCU_PMU_ID, s) << " PCU units detected."
             " " << ((s < iioPMUs.size()) ? iioPMUs[s].size() : 0) << " IIO units detected."
             " " << ((s < irpPMUs.size()) ? irpPMUs[s].size() : 0) << " IRP units detected."
-            " " << countPMUs(s, CBO_PMU_ID) << " CHA/CBO units detected."
-            " " << countPMUs(s, MDF_PMU_ID) << " MDF units detected."
+            " " << getMaxNumOfUncorePMUs(CBO_PMU_ID, s) << " CHA/CBO units detected."
+            " " << getMaxNumOfUncorePMUs(MDF_PMU_ID, s) << " MDF units detected."
+            " " << getMaxNumOfUncorePMUs(UBOX_PMU_ID, s) << " UBOX units detected."
             " " << ((s < cxlPMUs.size()) ? cxlPMUs[s].size() : 0) << " CXL units detected."
             "\n";
     }
@@ -1996,17 +1989,20 @@ void PCM::initUncorePMUsDirect()
 
         if (IVYTOWN == cpu_model || JAKETOWN == cpu_model)
         {
-            uboxPMUs.push_back(
-                UncorePMU(
-                    std::shared_ptr<MSRRegister>(),
+            uncorePMUs[s].resize(1);
+            std::vector<std::shared_ptr<HWRegister> >   CounterControlRegs{
                     std::make_shared<MSRRegister>(handle, JKTIVT_UBOX_MSR_PMON_CTL0_ADDR),
-                    std::make_shared<MSRRegister>(handle, JKTIVT_UBOX_MSR_PMON_CTL1_ADDR),
-                    std::shared_ptr<MSRRegister>(),
-                    std::shared_ptr<MSRRegister>(),
+                    std::make_shared<MSRRegister>(handle, JKTIVT_UBOX_MSR_PMON_CTL1_ADDR)
+                },
+                                                        CounterValueRegs{
                     std::make_shared<MSRRegister>(handle, JKTIVT_UBOX_MSR_PMON_CTR0_ADDR),
-                    std::make_shared<MSRRegister>(handle, JKTIVT_UBOX_MSR_PMON_CTR1_ADDR),
+                    std::make_shared<MSRRegister>(handle, JKTIVT_UBOX_MSR_PMON_CTR1_ADDR)
+                };
+            uncorePMUs[s][0][UBOX_PMU_ID].push_back(
+                std::make_shared<UncorePMU>(
                     std::shared_ptr<MSRRegister>(),
-                    std::shared_ptr<MSRRegister>(),
+                    CounterControlRegs,
+                    CounterValueRegs,
                     std::make_shared<MSRRegister>(handle, JKTIVT_UCLK_FIXED_CTL_ADDR),
                     std::make_shared<MSRRegister>(handle, JKTIVT_UCLK_FIXED_CTR_ADDR)
                 )
@@ -2014,17 +2010,20 @@ void PCM::initUncorePMUsDirect()
         }
         else if (SPR == cpu_model)
         {
-            uboxPMUs.push_back(
-                UncorePMU(
-                    std::make_shared<MSRRegister>(handle, SPR_UBOX_MSR_PMON_BOX_CTL_ADDR),
+            uncorePMUs[s].resize(1);
+            std::vector<std::shared_ptr<HWRegister> >   CounterControlRegs{
                     std::make_shared<MSRRegister>(handle, SPR_UBOX_MSR_PMON_CTL0_ADDR),
-                    std::make_shared<MSRRegister>(handle, SPR_UBOX_MSR_PMON_CTL1_ADDR),
-                    std::shared_ptr<MSRRegister>(),
-                    std::shared_ptr<MSRRegister>(),
+                    std::make_shared<MSRRegister>(handle, SPR_UBOX_MSR_PMON_CTL1_ADDR)
+            },
+                CounterValueRegs{
                     std::make_shared<MSRRegister>(handle, SPR_UBOX_MSR_PMON_CTR0_ADDR),
-                    std::make_shared<MSRRegister>(handle, SPR_UBOX_MSR_PMON_CTR1_ADDR),
-                    std::shared_ptr<MSRRegister>(),
-                    std::shared_ptr<MSRRegister>(),
+                    std::make_shared<MSRRegister>(handle, SPR_UBOX_MSR_PMON_CTR1_ADDR)
+            };
+            uncorePMUs[s][0][UBOX_PMU_ID].push_back(
+                std::make_shared<UncorePMU>(
+                    std::make_shared<MSRRegister>(handle, SPR_UBOX_MSR_PMON_BOX_CTL_ADDR),
+                    CounterControlRegs,
+                    CounterValueRegs,
                     std::make_shared<MSRRegister>(handle, SPR_UCLK_FIXED_CTL_ADDR),
                     std::make_shared<MSRRegister>(handle, SPR_UCLK_FIXED_CTR_ADDR)
                 )
@@ -2032,17 +2031,20 @@ void PCM::initUncorePMUsDirect()
         }
         else if (isServerCPU() && hasPCICFGUncore())
         {
-            uboxPMUs.push_back(
-                UncorePMU(
-                    std::shared_ptr<MSRRegister>(),
+            uncorePMUs[s].resize(1);
+            std::vector<std::shared_ptr<HWRegister> >   CounterControlRegs{
                     std::make_shared<MSRRegister>(handle, UBOX_MSR_PMON_CTL0_ADDR),
                     std::make_shared<MSRRegister>(handle, UBOX_MSR_PMON_CTL1_ADDR),
-                    std::shared_ptr<MSRRegister>(),
-                    std::shared_ptr<MSRRegister>(),
+            },
+                CounterValueRegs{
                     std::make_shared<MSRRegister>(handle, UBOX_MSR_PMON_CTR0_ADDR),
                     std::make_shared<MSRRegister>(handle, UBOX_MSR_PMON_CTR1_ADDR),
+            };
+            uncorePMUs[s][0][UBOX_PMU_ID].push_back(
+                std::make_shared<UncorePMU>(
                     std::shared_ptr<MSRRegister>(),
-                    std::shared_ptr<MSRRegister>(),
+                    CounterControlRegs,
+                    CounterValueRegs,
                     std::make_shared<MSRRegister>(handle, UCLK_FIXED_CTL_ADDR),
                     std::make_shared<MSRRegister>(handle, UCLK_FIXED_CTR_ADDR)
                 )
@@ -2554,7 +2556,7 @@ void PCM::initUncorePMUsPerf()
     {
         uncorePMUs[s].resize(1);
         populatePerfPMUs(s, enumeratePerfPMUs("pcu", 100), uncorePMUs[s][0][PCU_PMU_ID], false, true);
-        populatePerfPMUs(s, enumeratePerfPMUs("ubox", 100), uboxPMUs, true);
+        populatePerfPMUs(s, enumeratePerfPMUs("ubox", 100), uncorePMUs[s][0][UBOX_PMU_ID], true);
         populatePerfPMUs(s, enumeratePerfPMUs("cbox", 100), uncorePMUs[s][0][CBO_PMU_ID], false, true, true);
         populatePerfPMUs(s, enumeratePerfPMUs("cha", 200), uncorePMUs[s][0][CBO_PMU_ID], false, true, true);
         populatePerfPMUs(s, enumeratePerfPMUs("mdf", 200), uncorePMUs[s][0][MDF_PMU_ID], false, true, true);
@@ -6590,11 +6592,9 @@ ServerUncoreCounterState PCM::getServerUncoreCounterState(uint32 socket)
                 }
             }
         }
-        for (int i = 0; i < 2 && socket < uboxPMUs.size(); ++i)
-        {
-            result.UBOXCounter[i] = *(uboxPMUs[socket].counterValue[i]);
-            result.UncClocks = getUncoreClocks(socket);
-        }
+
+        readUncoreCounterValues(result, socket, UBOX_PMU_ID);
+        result.UncClocks = getUncoreClocks(socket);
 
         readUncoreCounterValues(result, socket, PCU_PMU_ID);
 
@@ -9347,19 +9347,17 @@ void PCM::programMDF(const uint64* events)
 
 void PCM::programUBOX(const uint64* events)
 {
-    for (size_t s = 0; (s < uboxPMUs.size()) && MSR.size(); ++s)
+    programUncorePMUs(UBOX_PMU_ID, [&events](UncorePMU& pmu)
     {
-        uint32 refCore = socketRefCore[s];
-        TemporalThreadAffinity tempThreadAffinity(refCore); // speedup trick for Linux
-        uboxPMUs[s].initFreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
+        pmu.initFreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
 
-        *uboxPMUs[s].fixedCounterControl = UCLK_FIXED_CTL_EN;
+        *pmu.fixedCounterControl = UCLK_FIXED_CTL_EN;
 
         if (events)
         {
-            PCM::program(uboxPMUs[s], events, events + 2, 0);
+            PCM::program(pmu, events, events + 2, 0);
         }
-    }
+    });
 }
 
 void PCM::controlQATTelemetry(uint32 dev, uint32 operation)
@@ -9577,12 +9575,25 @@ uint64 PCM::getUncoreCounterState(const int pmu_id, const size_t socket, const u
     return result;
 }
 
-uint64 PCM::getUncoreClocks(const uint32 socket_)
+uint64 PCM::getUncoreClocks(const uint32 socket_id)
 {
     uint64 result = 0;
-    if (socket_ < uboxPMUs.size())
+    if (socket_id < uncorePMUs.size())
     {
-        result = *uboxPMUs[socket_].fixedCounterValue;
+        for (auto& d : uncorePMUs[socket_id])
+        {
+            const auto iter = d.find(UBOX_PMU_ID);
+            if (iter != d.end())
+            {
+                for (auto& pmu : iter->second)
+                {
+                    if (pmu.get())
+                    {
+                        result += *pmu->fixedCounterValue;
+                    }
+                }
+            }
+        }
     }
     return result;
 }
