@@ -1991,6 +1991,7 @@ void PCM::initUncorePMUsDirect()
         if (IVYTOWN == cpu_model || JAKETOWN == cpu_model)
         {
             uncorePMUs[s].resize(1);
+            {
             std::vector<std::shared_ptr<HWRegister> >   CounterControlRegs{
                     std::make_shared<MSRRegister>(handle, JKTIVT_UBOX_MSR_PMON_CTL0_ADDR),
                     std::make_shared<MSRRegister>(handle, JKTIVT_UBOX_MSR_PMON_CTL1_ADDR)
@@ -2008,10 +2009,12 @@ void PCM::initUncorePMUsDirect()
                     std::make_shared<MSRRegister>(handle, JKTIVT_UCLK_FIXED_CTR_ADDR)
                 )
             );
+            }
         }
         else if (SPR == cpu_model)
         {
             uncorePMUs[s].resize(1);
+            {
             std::vector<std::shared_ptr<HWRegister> >   CounterControlRegs{
                     std::make_shared<MSRRegister>(handle, SPR_UBOX_MSR_PMON_CTL0_ADDR),
                     std::make_shared<MSRRegister>(handle, SPR_UBOX_MSR_PMON_CTL1_ADDR)
@@ -2029,10 +2032,12 @@ void PCM::initUncorePMUsDirect()
                     std::make_shared<MSRRegister>(handle, SPR_UCLK_FIXED_CTR_ADDR)
                 )
             );
+            }
         }
         else if (isServerCPU() && hasPCICFGUncore())
         {
             uncorePMUs[s].resize(1);
+            {
             std::vector<std::shared_ptr<HWRegister> >   CounterControlRegs{
                     std::make_shared<MSRRegister>(handle, UBOX_MSR_PMON_CTL0_ADDR),
                     std::make_shared<MSRRegister>(handle, UBOX_MSR_PMON_CTL1_ADDR),
@@ -2050,6 +2055,7 @@ void PCM::initUncorePMUsDirect()
                     std::make_shared<MSRRegister>(handle, UCLK_FIXED_CTR_ADDR)
                 )
             );
+            }
         }
 
         auto addPMUsFromDiscoveryRef = [this, &handle, &s](std::vector<UncorePMURef>& out, const unsigned int pmuType, const int filter0 = -1)
