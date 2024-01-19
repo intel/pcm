@@ -2051,36 +2051,6 @@ void PCM::initUncorePMUsDirect()
             );
         }
 
-        auto addPMUsFromDiscovery = [this, &handle, &s](std::vector<UncorePMU> & out, const unsigned int pmuType, const int filter0 = -1)
-        {
-            if (uncorePMUDiscovery.get())
-            {
-                for (size_t box = 0; box < uncorePMUDiscovery->getNumBoxes(pmuType, s); ++box)
-                {
-                    if (uncorePMUDiscovery->getBoxAccessType(pmuType, s, box) == UncorePMUDiscovery::accessTypeEnum::MSR
-                        && uncorePMUDiscovery->getBoxNumRegs(pmuType, s, box) >= 4)
-                    {
-                        out.push_back(
-                            UncorePMU(
-                                std::make_shared<MSRRegister>(handle, uncorePMUDiscovery->getBoxCtlAddr(pmuType, s, box)),
-                                std::make_shared<MSRRegister>(handle, uncorePMUDiscovery->getBoxCtlAddr(pmuType, s, box, 0)),
-                                std::make_shared<MSRRegister>(handle, uncorePMUDiscovery->getBoxCtlAddr(pmuType, s, box, 1)),
-                                std::make_shared<MSRRegister>(handle, uncorePMUDiscovery->getBoxCtlAddr(pmuType, s, box, 2)),
-                                std::make_shared<MSRRegister>(handle, uncorePMUDiscovery->getBoxCtlAddr(pmuType, s, box, 3)),
-                                std::make_shared<MSRRegister>(handle, uncorePMUDiscovery->getBoxCtrAddr(pmuType, s, box, 0)),
-                                std::make_shared<MSRRegister>(handle, uncorePMUDiscovery->getBoxCtrAddr(pmuType, s, box, 1)),
-                                std::make_shared<MSRRegister>(handle, uncorePMUDiscovery->getBoxCtrAddr(pmuType, s, box, 2)),
-                                std::make_shared<MSRRegister>(handle, uncorePMUDiscovery->getBoxCtrAddr(pmuType, s, box, 3)),
-                                std::shared_ptr<MSRRegister>(),
-                                std::shared_ptr<MSRRegister>(),
-                                (filter0 < 0) ? std::shared_ptr<MSRRegister>() : std::make_shared<MSRRegister>(handle, uncorePMUDiscovery->getBoxCtlAddr(pmuType, s, box) + filter0) // filters not supported by discovery
-                            )
-                        );
-                    }
-                }
-            }
-        };
-
         auto addPMUsFromDiscoveryRef = [this, &handle, &s](std::vector<UncorePMURef>& out, const unsigned int pmuType, const int filter0 = -1)
         {
             if (uncorePMUDiscovery.get())
