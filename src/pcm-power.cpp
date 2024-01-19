@@ -76,7 +76,12 @@ uint64 getPPDCycles(uint32 channel, const ServerUncoreCounterState & before, con
 
 double getNormalizedPCUCounter(uint32 unit, uint32 counter, const ServerUncoreCounterState & before, const ServerUncoreCounterState & after)
 {
-    return double(getUncoreCounter(PCM::PCU_PMU_ID, unit, counter, before, after)) / double(getPCUClocks(unit, before, after));
+    const auto clk = getPCUClocks(unit, before, after);
+    if (clk)
+    {
+        return double(getUncoreCounter(PCM::PCU_PMU_ID, unit, counter, before, after)) / double(clk);
+    }
+    return -1.0;
 }
 
 double getNormalizedPCUCounter(uint32 unit, uint32 counter, const ServerUncoreCounterState & before, const ServerUncoreCounterState & after, PCM * m)
