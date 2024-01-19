@@ -1201,7 +1201,7 @@ private:
             auto ctrl = pmu.counterControl[c];
             if (ctrl.get() != nullptr)
             {
-                if (PCM::SPR == cpu_model)
+                if (PCM::SPR == cpu_model || PCM::EMR == cpu_model)
                 {
                     *ctrl = *curEvent;
                 }
@@ -1258,6 +1258,7 @@ public:
         return isHWTMAL1Supported() &&
                 (
                     SPR == cpu_model
+                ||  EMR == cpu_model
                 );
     }
 
@@ -1552,6 +1553,7 @@ public:
        switch (cpu_model)
        {
        case SPR:
+       case EMR:
        case ADL: // ADL big core (GLC)
        case RPL:
            useGLCOCREvent = true;
@@ -1785,6 +1787,7 @@ public:
         ICX_D = 108,
         ICX = 106,
         SPR = 143,
+        EMR = 207,
         END_OF_MODEL_LIST = 0x0ffff
     };
 
@@ -1873,6 +1876,7 @@ public:
         case SKX:
         case ICX:
         case SPR:
+        case EMR:
             return (serverUncorePMUs.size() && serverUncorePMUs[0].get()) ? (serverUncorePMUs[0]->getNumQPIPorts()) : 0;
         }
         return 0;
@@ -1897,6 +1901,7 @@ public:
         case SKX:
         case ICX:
         case SPR:
+        case EMR:
         case BDX:
         case KNL:
             return (serverUncorePMUs.size() && serverUncorePMUs[0].get()) ? (serverUncorePMUs[0]->getNumMC()) : 0;
@@ -1923,6 +1928,7 @@ public:
         case SKX:
         case ICX:
         case SPR:
+        case EMR:
         case BDX:
         case KNL:
         case SNOWRIDGE:
@@ -1952,6 +1958,7 @@ public:
         case SKX:
         case ICX:
         case SPR:
+        case EMR:
         case BDX:
         case KNL:
         case SNOWRIDGE:
@@ -2009,6 +2016,7 @@ public:
         case ICX:
             return 5;
         case SPR:
+        case EMR:
             return 6;
         }
         if (isAtom())
@@ -2059,6 +2067,7 @@ public:
         case ICX:
         case SNOWRIDGE:
         case SPR:
+        case EMR:
         case KNL:
             return true;
         default:
@@ -2318,6 +2327,7 @@ public:
                  || cpu_model == PCM::ADL
                  || cpu_model == PCM::RPL
                  || cpu_model == PCM::SPR
+                 || cpu_model == PCM::EMR
                );
     }
 
@@ -2333,6 +2343,7 @@ public:
           || cpu_model == PCM::SKX
           || cpu_model == PCM::ICX
           || cpu_model == PCM::SPR
+          || cpu_model == PCM::EMR
           );
     }
 
@@ -2353,7 +2364,8 @@ public:
             ||  cpu_model == PCM::BDX
             ||  cpu_model == PCM::SKX
             ||  cpu_model == PCM::ICX
-           ||  cpu_model == PCM::SPR
+            ||  cpu_model == PCM::SPR
+            ||  cpu_model == PCM::EMR
             );
     }
 
@@ -2367,7 +2379,8 @@ public:
             ||  cpu_model == PCM::IVYTOWN
             || (cpu_model == PCM::SKX && cpu_stepping > 1)
             ||  cpu_model == PCM::ICX
-           ||  cpu_model == PCM::SPR
+            ||  cpu_model == PCM::SPR
+            ||  cpu_model == PCM::EMR
                );
     }
 
@@ -2420,6 +2433,7 @@ public:
             || cpu_model == PCM::ICX
 	        || cpu_model  == PCM::SNOWRIDGE
             || cpu_model == PCM::SPR
+            || cpu_model == PCM::EMR
         );
     }
 
@@ -2436,6 +2450,7 @@ public:
             || cpu_model == PCM::SKX
             || cpu_model == PCM::ICX
             || cpu_model == PCM::SPR
+            || cpu_model == PCM::EMR
             || useSKLPath()
             );
     }
@@ -2446,6 +2461,7 @@ public:
             cpu_model == PCM::SKX
             || cpu_model == PCM::ICX
             || cpu_model == PCM::SPR
+            || cpu_model == PCM::EMR
             );
     }
 
@@ -2457,6 +2473,7 @@ public:
                      || cpu_model == PCM::ICX
                      || cpu_model == PCM::SNOWRIDGE
                      || cpu_model == SPR
+                     || cpu_model == EMR
         );
     }
 
@@ -2512,6 +2529,7 @@ public:
             || cpu_model == PCM::SKX
             || cpu_model == PCM::ICX
             || cpu_model == PCM::SPR
+            || cpu_model == PCM::EMR
             || cpu_model == PCM::BDX
             || cpu_model == PCM::KNL
             );
@@ -2530,6 +2548,7 @@ public:
             cpu_model_ == PCM::SKX
          || cpu_model_ == PCM::ICX
          || cpu_model_ == PCM::SPR
+         || cpu_model_ == PCM::EMR
                );
     }
 
@@ -2552,6 +2571,7 @@ public:
             cpu_model == PCM::SKX
          || cpu_model == PCM::ICX
          || cpu_model == PCM::SPR
+         || cpu_model == PCM::EMR
                );
     }
 
@@ -2565,6 +2585,7 @@ public:
                || PCM::SKX == cpu_model
                || PCM::ICX == cpu_model
                || PCM::SPR == cpu_model
+               || PCM::EMR == cpu_model
                ;
     }
 
