@@ -1,0 +1,164 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: intel-pcm
+  labels: # uses host features by design privileges required
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/audit: privileged
+    pod-security.kubernetes.io/audit-version: latest
+    pod-security.kubernetes.io/warn: privileged
+    pod-security.kubernetes.io/warn-version: latest
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  labels:
+    app.kubernetes.io/instance: pcm
+    app.kubernetes.io/name: intel-pcm
+    app.kubernetes.io/part-of: intel-pcm
+  name: intel-pcm
+  namespace: intel-pcm
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: pcm-sensor-server
+      app.kubernetes.io/instance: pcm
+      app.kubernetes.io/name: intel-pcm
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: pcm-sensor-server
+        app.kubernetes.io/instance: pcm
+        app.kubernetes.io/name: intel-pcm
+        app.kubernetes.io/part-of: intel-pcm
+        jobLabel: pcm
+    spec:
+      automountServiceAccountToken: false
+      containers:
+      - image: ghcr.io/opcm/pcm:latest
+        env:
+        - name: PCM_NO_MSR
+          value: "1"
+        - name: PCM_IGNORE_ARCH_PERFMON
+          value: "0"
+        - name: PCM_NO_PERF
+          value: "0"
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /
+            port: 9738
+            scheme: HTTP
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        name: intel-pcm
+        ports:
+        - containerPort: 9738
+          hostPort: 9738
+          name: pcm-metrics
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /
+            port: 9738
+            scheme: HTTP
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        securityContext:
+          privileged: false
+          runAsNonRoot: false
+          runAsUser: 0
+          readOnlyRootFilesystem: true
+          capabilities:
+            add:
+            - SYS_ADMIN
+            - SYS_RAWIO
+          seccompProfile:
+            type: RuntimeDefault
+        volumeMounts:
+        - mountPath: /dev/cpu
+          name: dev-cpu
+          readOnly: true
+        - mountPath: /dev/mem
+          name: dev-mem
+          readOnly: true
+        - mountPath: /pcm/proc/bus/pci
+          name: proc-pci
+          readOnly: true
+        - mountPath: /pcm/sys/firmware/acpi/tables/MCFG
+          name: sys-acpi
+          readOnly: true
+        - mountPath: /pcm/proc/sys/kernel/nmi_watchdog
+          name: nmi-watchdog
+          readOnly: true
+        - mountPath: /sys
+          name: sysfs
+          readOnly: false
+      nodeSelector:
+        kubernetes.io/os: linux
+        feature.node.kubernetes.io/cpu-model.vendor_id: Intel # node feature discovery populates this
+      volumes:
+      - hostPath:
+          path: /dev/cpu
+        name: dev-cpu
+      - hostPath:
+          path: /dev/mem
+        name: dev-mem
+      - hostPath:
+          path: /sys
+        name: sysfs
+      - hostPath:
+          path: /sys/firmware/acpi/tables/MCFG
+        name: sys-acpi
+      - hostPath:
+          path: /proc/bus/pci
+        name: proc-pci
+      - hostPath:
+          path: /proc/sys/kernel/nmi_watchdog
+        name: nmi-watchdog
+---
+# prometheus operator defines this CRD
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  labels:
+    app.kubernetes.io/instance: pcm
+    app.kubernetes.io/name: intel-pcm
+    app.kubernetes.io/part-of: intel-pcm
+    app.kubernetes.io/component: metrics
+    jobLabel: pcm
+    prometheus.io/podmonitor: system-metrics
+    release: prometheus
+  name: pcm
+  namespace: intel-pcm
+spec:
+  attachMetadata:
+    node: true
+  jobLabel: jobLabel
+  namespaceSelector:
+    matchNames:
+    - intel-pcm
+  podMetricsEndpoints:
+  - enableHttp2: false
+    filterRunning: true
+    followRedirects: false
+    honorLabels: true
+    honorTimestamps: true
+    path: /metrics
+    port: pcm-metrics
+    interval: 1s
+    relabelings:
+    - sourceLabels:
+      - __meta_kubernetes_pod_node_name
+      targetLabel: nodename
+    scheme: http
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: pcm-sensor-server
+      app.kubernetes.io/instance: pcm
+      app.kubernetes.io/name: intel-pcm
