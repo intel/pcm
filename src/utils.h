@@ -20,6 +20,12 @@
 #include <math.h>
 #include <assert.h>
 
+#if defined(__FreeBSD__) || (defined(__DragonFly__) && __DragonFly_version >= 400707)
+#include <pthread_np.h>
+#include <sys/_cpuset.h>
+#include <sys/cpuset.h>
+#endif
+
 #ifndef _MSC_VER
 #include <csignal>
 #include <ctime>
