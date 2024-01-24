@@ -251,6 +251,9 @@ public:
     HWRegisterPtr fixedCounterControl;
     HWRegisterPtr fixedCounterValue;
     HWRegisterPtr filter[2];
+    enum {
+        maxCounters = 8
+    };
 
     UncorePMU(const HWRegisterPtr& unitControl_,
         const HWRegisterPtr& counterControl0,
@@ -287,6 +290,8 @@ public:
     void unfreeze(const uint32 extra);
     void resetUnfreeze(const uint32 extra);
 };
+
+typedef std::shared_ptr<UncorePMU> UncorePMURef;
 
 class IDX_PMU
 {
@@ -635,18 +640,141 @@ class PCM_API PCM
     bool programmed_core_pmu{false};
     std::vector<std::shared_ptr<SafeMsrHandle> > MSR;
     std::vector<std::shared_ptr<ServerUncorePMUs> > serverUncorePMUs;
-    std::vector<std::vector<UncorePMU> > pcuPMUs;
+
+    typedef std::vector<UncorePMURef> UncorePMUArrayType;
+public:
+    enum UncorePMUIDs
+    {
+        CBO_PMU_ID,
+        MDF_PMU_ID,
+        PCU_PMU_ID,
+        UBOX_PMU_ID,
+        INVALID_PMU_ID
+    };
+private:
+    typedef std::unordered_map<int, UncorePMUArrayType> UncorePMUMapType;
+    // socket -> die -> pmu map -> pmu ref array
+    std::vector< std::vector<UncorePMUMapType> > uncorePMUs;
+
+    template <class F>
+    void forAllUncorePMUs(F f)
+    {
+        for (auto& s : uncorePMUs)
+        {
+            for (auto& d : s)
+            {
+                for (auto& p : d)
+                {
+                    for (auto& e : p.second)
+                    {
+                        if (e.get())
+                        {
+                            f(*e);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    template <class F>
+    void forAllUncorePMUs(const int pmu_id, F f)
+    {
+        for (auto& s : uncorePMUs)
+        {
+            for (auto& d : s)
+            {
+                for (auto& e : d[pmu_id])
+                {
+                    if (e.get())
+                    {
+                        f(*e);
+                    }
+                }
+            }
+        }
+    }
+
+    template <class F>
+    void forAllUncorePMUs(const size_t socket_id, const int pmu_id, F f)
+    {
+        if (socket_id < uncorePMUs.size())
+        {
+            for (auto& d : uncorePMUs[socket_id])
+            {
+                for (auto& e : d[pmu_id])
+                {
+                    if (e.get())
+                    {
+                        f(*e);
+                    }
+                }
+            }
+        }
+    }
+
+    template <class T>
+    void readUncoreCounterValues(T& result, const size_t socket, const int pmu_id) const
+    {
+        if (socket < uncorePMUs.size())
+        {
+            result.Counters.resize(uncorePMUs[socket].size());
+            for (size_t die = 0; die < uncorePMUs[socket].size(); ++die)
+            {
+                TemporalThreadAffinity tempThreadAffinity(socketRefCore[socket]); // speedup trick for Linux
+
+                const auto& pmuIter = uncorePMUs[socket][die].find(pmu_id);
+                if (pmuIter != uncorePMUs[socket][die].end())
+                {
+                    result.Counters[die][pmu_id].resize(pmuIter->second.size());
+                    for (size_t unit = 0; unit < pmuIter->second.size(); ++unit)
+                    {
+                        auto& pmu = pmuIter->second[unit];
+                        for (size_t i = 0; pmu.get() != nullptr && i < pmu->size(); ++i)
+                        {
+                            // std::cerr << "s " << socket << " d " << die << " pmu " << pmu_id << " unit " << unit << " ctr " << i << "\n";
+                            result.Counters[die][pmu_id][unit][i] = *(pmu->counterValue[i]);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    uint64 getUncoreCounterState(const int pmu_id, const size_t socket, const uint32 ctr) const;
+
+    template <class F>
+    void programUncorePMUs(const int pmu_id, F pmuFunc)
+    {
+        if (MSR.empty()) return;
+
+        for (size_t socket = 0; socket < uncorePMUs.size(); ++socket)
+        {
+            for (size_t die = 0; die < uncorePMUs[socket].size(); ++die)
+            {
+                TemporalThreadAffinity tempThreadAffinity(socketRefCore[socket]); // speedup trick for Linux
+
+                for (size_t unit = 0; unit < uncorePMUs[socket][die][pmu_id].size(); ++unit)
+                {
+                    auto& pmu = uncorePMUs[socket][die][pmu_id][unit];
+                    if (pmu.get())
+                    {
+                        pmuFunc(*pmu);
+                    }
+                }
+            }
+        }
+    }
+
+    // TODO: gradually move other PMUs to the uncorePMUs structure
     std::vector<std::map<int32, UncorePMU> > iioPMUs;
     std::vector<std::map<int32, UncorePMU> > irpPMUs;
-    std::vector<UncorePMU> uboxPMUs;
     std::vector<std::vector<IDX_PMU> > idxPMUs;
 
     double joulesPerEnergyUnit;
     std::vector<std::shared_ptr<CounterWidthExtender> > energy_status;
     std::vector<std::shared_ptr<CounterWidthExtender> > dram_energy_status;
     std::vector<std::shared_ptr<CounterWidthExtender> > pp_energy_status;
-    std::vector<std::vector<UncorePMU> > cboPMUs;
-    std::vector<std::vector<UncorePMU> > mdfPMUs;
     std::vector<std::vector<std::pair<UncorePMU, UncorePMU>>> cxlPMUs; // socket X CXL ports X UNIT {0,1}
 
     std::vector<std::shared_ptr<CounterWidthExtender> > memory_bw_local;
@@ -693,6 +821,24 @@ class PCM_API PCM
     bool linux_arch_perfmon = false;
 
 public:
+
+    size_t getMaxNumOfUncorePMUs(const int pmu_id, const size_t socket = 0) const
+    {
+        size_t count = 0ULL;
+        if (socket < uncorePMUs.size())
+        {
+            const auto & s = uncorePMUs[socket];
+            for (auto& d : s)
+            {
+                const auto iter = d.find(pmu_id);
+                if (iter != d.end())
+                {
+                    count += iter->second.size();
+                }
+            }
+        }
+        return count;
+    }
     enum { MAX_PP = 1 }; // max power plane number on Intel architecture (client)
     enum { MAX_C_STATE = 10 }; // max C-state on Intel architecture
 
@@ -1039,11 +1185,11 @@ private:
     uint64 CX_MSR_PMON_BOX_FILTER1(uint32 Cbo) const;
     uint64 CX_MSR_PMON_CTLY(uint32 Cbo, uint32 Ctl) const;
     uint64 CX_MSR_PMON_BOX_CTL(uint32 Cbo) const;
+    uint32 getMaxNumOfCBoxesInternal() const;
     void programCboOpcodeFilter(const uint32 opc0, UncorePMU & pmu, const uint32 nc_, const uint32 opc1, const uint32 loc, const uint32 rem);
     void initLLCReadMissLatencyEvents(uint64 * events, uint32 & opCode);
     void initCHARequestEvents(uint64 * events);
     void programCbo();
-    uint64 getCBOCounterState(const uint32 socket, const uint32 ctr_);
     template <class Iterator>
     static void program(UncorePMU& pmu, const Iterator& eventsBegin, const Iterator& eventsEnd, const uint32 extra)
     {
@@ -1055,7 +1201,7 @@ private:
             auto ctrl = pmu.counterControl[c];
             if (ctrl.get() != nullptr)
             {
-                if (PCM::SPR == cpu_model)
+                if (PCM::SPR == cpu_model || PCM::EMR == cpu_model)
                 {
                     *ctrl = *curEvent;
                 }
@@ -1112,6 +1258,7 @@ public:
         return isHWTMAL1Supported() &&
                 (
                     SPR == cpu_model
+                ||  EMR == cpu_model
                 );
     }
 
@@ -1185,14 +1332,8 @@ public:
      */
     unsigned getMaxRMID() const;
 
-    //! \brief Returns the number of CBO or CHA units per socket
-    uint32 getMaxNumOfCBoxes() const;
-
     //! \brief Returns the number of IIO stacks per socket
     uint32 getMaxNumOfIIOStacks() const;
-
-    //! \brief Returns the number of MDFs boxes per socket
-    uint32 getMaxNumOfMDFs() const;
 
     /*! \brief Returns the number of IDX accel devs
         \param accel index of IDX accel
@@ -1412,6 +1553,7 @@ public:
        switch (cpu_model)
        {
        case SPR:
+       case EMR:
        case ADL: // ADL big core (GLC)
        case RPL:
            useGLCOCREvent = true;
@@ -1645,6 +1787,7 @@ public:
         ICX_D = 108,
         ICX = 106,
         SPR = 143,
+        EMR = 207,
         END_OF_MODEL_LIST = 0x0ffff
     };
 
@@ -1733,15 +1876,10 @@ public:
         case SKX:
         case ICX:
         case SPR:
+        case EMR:
             return (serverUncorePMUs.size() && serverUncorePMUs[0].get()) ? (serverUncorePMUs[0]->getNumQPIPorts()) : 0;
         }
         return 0;
-    }
-    //! \brief Returns the number of PUnits per socket
-    //! \return number of PUnits per socket
-    uint64 getPUnitsPerSocket() const
-    {
-        return (pcuPMUs.empty() == false) ? pcuPMUs[0].size() : 0;
     }
 
     //! \brief Returns the number of detected integrated memory controllers per socket
@@ -1763,6 +1901,7 @@ public:
         case SKX:
         case ICX:
         case SPR:
+        case EMR:
         case BDX:
         case KNL:
             return (serverUncorePMUs.size() && serverUncorePMUs[0].get()) ? (serverUncorePMUs[0]->getNumMC()) : 0;
@@ -1789,6 +1928,7 @@ public:
         case SKX:
         case ICX:
         case SPR:
+        case EMR:
         case BDX:
         case KNL:
         case SNOWRIDGE:
@@ -1818,6 +1958,7 @@ public:
         case SKX:
         case ICX:
         case SPR:
+        case EMR:
         case BDX:
         case KNL:
         case SNOWRIDGE:
@@ -1875,6 +2016,7 @@ public:
         case ICX:
             return 5;
         case SPR:
+        case EMR:
             return 6;
         }
         if (isAtom())
@@ -1925,6 +2067,7 @@ public:
         case ICX:
         case SNOWRIDGE:
         case SPR:
+        case EMR:
         case KNL:
             return true;
         default:
@@ -2184,6 +2327,7 @@ public:
                  || cpu_model == PCM::ADL
                  || cpu_model == PCM::RPL
                  || cpu_model == PCM::SPR
+                 || cpu_model == PCM::EMR
                );
     }
 
@@ -2199,6 +2343,7 @@ public:
           || cpu_model == PCM::SKX
           || cpu_model == PCM::ICX
           || cpu_model == PCM::SPR
+          || cpu_model == PCM::EMR
           );
     }
 
@@ -2219,7 +2364,8 @@ public:
             ||  cpu_model == PCM::BDX
             ||  cpu_model == PCM::SKX
             ||  cpu_model == PCM::ICX
-           ||  cpu_model == PCM::SPR
+            ||  cpu_model == PCM::SPR
+            ||  cpu_model == PCM::EMR
             );
     }
 
@@ -2233,7 +2379,8 @@ public:
             ||  cpu_model == PCM::IVYTOWN
             || (cpu_model == PCM::SKX && cpu_stepping > 1)
             ||  cpu_model == PCM::ICX
-           ||  cpu_model == PCM::SPR
+            ||  cpu_model == PCM::SPR
+            ||  cpu_model == PCM::EMR
                );
     }
 
@@ -2286,12 +2433,13 @@ public:
             || cpu_model == PCM::ICX
 	        || cpu_model  == PCM::SNOWRIDGE
             || cpu_model == PCM::SPR
+            || cpu_model == PCM::EMR
         );
     }
 
     bool uncoreFrequencyMetricAvailable() const
     {
-        return MSR.empty() == false && uboxPMUs.size() == getNumSockets() && getNumCores() == getNumOnlineCores();
+        return MSR.empty() == false && getMaxNumOfUncorePMUs(UBOX_PMU_ID) > 0ULL && getNumCores() == getNumOnlineCores();
     }
 
     bool LatencyMetricsAvailable() const
@@ -2302,6 +2450,7 @@ public:
             || cpu_model == PCM::SKX
             || cpu_model == PCM::ICX
             || cpu_model == PCM::SPR
+            || cpu_model == PCM::EMR
             || useSKLPath()
             );
     }
@@ -2312,6 +2461,7 @@ public:
             cpu_model == PCM::SKX
             || cpu_model == PCM::ICX
             || cpu_model == PCM::SPR
+            || cpu_model == PCM::EMR
             );
     }
 
@@ -2323,6 +2473,7 @@ public:
                      || cpu_model == PCM::ICX
                      || cpu_model == PCM::SNOWRIDGE
                      || cpu_model == SPR
+                     || cpu_model == EMR
         );
     }
 
@@ -2378,6 +2529,7 @@ public:
             || cpu_model == PCM::SKX
             || cpu_model == PCM::ICX
             || cpu_model == PCM::SPR
+            || cpu_model == PCM::EMR
             || cpu_model == PCM::BDX
             || cpu_model == PCM::KNL
             );
@@ -2396,6 +2548,7 @@ public:
             cpu_model_ == PCM::SKX
          || cpu_model_ == PCM::ICX
          || cpu_model_ == PCM::SPR
+         || cpu_model_ == PCM::EMR
                );
     }
 
@@ -2418,6 +2571,7 @@ public:
             cpu_model == PCM::SKX
          || cpu_model == PCM::ICX
          || cpu_model == PCM::SPR
+         || cpu_model == PCM::EMR
                );
     }
 
@@ -2431,6 +2585,7 @@ public:
                || PCM::SKX == cpu_model
                || PCM::ICX == cpu_model
                || PCM::SPR == cpu_model
+               || PCM::EMR == cpu_model
                ;
     }
 
@@ -2880,39 +3035,32 @@ uint64 getM3UPICounter(uint32 port, uint32 counter, const CounterStateType& befo
     return after.M3UPICounter[port][counter] - before.M3UPICounter[port][counter];
 }
 
-/*! \brief Direct read of CHA or CBO PMU counter (counter meaning depends on the programming: power/performance/etc)
+/*! \brief Direct read of uncore PMU counter (counter meaning depends on the programming: power/performance/etc)
     \param counter counter number
-    \param cbo cbo or cha number
+    \param pmu_id ID of PMU (unit type: CBO, etc)
+    \param unit uncore unit ID
     \param before CPU counter state before the experiment
     \param after CPU counter state after the experiment
 */
 template <class CounterStateType>
-uint64 getCBOCounter(uint32 cbo, uint32 counter, const CounterStateType& before, const CounterStateType& after)
+uint64 getUncoreCounter(const int pmu_id, uint32 unit, uint32 counter, const CounterStateType& before, const CounterStateType& after)
 {
-    return after.CBOCounter[cbo][counter] - before.CBOCounter[cbo][counter];
-}
-
-/*! \brief Direct read of MDF PMU counter (counter meaning depends on the programming: power/performance/etc)
-    \param counter counter number
-    \param mdf mdf number
-    \param before CPU counter state before the experiment
-    \param after CPU counter state after the experiment
-*/
-template <class CounterStateType>
-uint64 getMDFCounter(uint32 mdf, uint32 counter, const CounterStateType& before, const CounterStateType& after)
-{
-    return after.MDFCounter[mdf][counter] - before.MDFCounter[mdf][counter];
-}
-
-/*! \brief Direct read of UBOX PMU counter (counter meaning depends on the programming: power/performance/etc)
-    \param counter counter number
-    \param before CPU counter state before the experiment
-    \param after CPU counter state after the experiment
-*/
-template <class CounterStateType>
-uint64 getUBOXCounter(uint32 counter, const CounterStateType& before, const CounterStateType& after)
-{
-    return after.UBOXCounter[counter] - before.UBOXCounter[counter];
+    for (size_t die = 0; counter < UncorePMU::maxCounters && die < after.Counters.size(); ++die)
+    {
+        assert(die < before.Counters.size());
+        const auto afterIter = after.Counters[die].find(pmu_id);
+        const auto beforeIter = before.Counters[die].find(pmu_id);
+        if (afterIter != after.Counters[die].end() && beforeIter != before.Counters[die].end())
+        {
+            assert(afterIter->second.size() == beforeIter->second.size());
+            if (unit < afterIter->second.size())
+            {
+                return afterIter->second[unit][counter] - beforeIter->second[unit][counter];
+            }
+            unit -= afterIter->second.size();
+        }
+    }
+    return 0ULL;
 }
 
 /*! \brief Direct read of IIO PMU counter (counter meaning depends on the programming: power/performance/etc)
@@ -2989,17 +3137,6 @@ uint64 getEDCCounter(uint32 channel, uint32 counter, const CounterStateType & be
     return 0ULL;
 }
 
-/*! \brief Direct read of power control unit PMU counter (counter meaning depends on the programming: power/performance/etc)
-    \param counter counter number
-    \param before CPU counter state before the experiment
-    \param after CPU counter state after the experiment
-*/
-template <class CounterStateType>
-uint64 getPCUCounter(uint32 unit, uint32 counter, const CounterStateType & before, const CounterStateType & after)
-{
-    return after.PCUCounter[unit][counter] - before.PCUCounter[unit][counter];
-}
-
 /*!  \brief Returns clock ticks of power control unit
     \param before CPU counter state before the experiment
     \param after CPU counter state after the experiment
@@ -3007,7 +3144,7 @@ uint64 getPCUCounter(uint32 unit, uint32 counter, const CounterStateType & befor
 template <class CounterStateType>
 uint64 getPCUClocks(uint32 unit, const CounterStateType & before, const CounterStateType & after)
 {
-    return getPCUCounter(unit, 0, before, after);
+    return getUncoreCounter(PCM::PCU_PMU_ID, unit, 0, before, after);
 }
 
 /*!  \brief Returns energy consumed by processor, excluding DRAM (measured in internal units)
@@ -3253,7 +3390,7 @@ public:
 };
 
 
-//! \brief Server uncore power counter state
+//! \brief Server uncore counter state
 //!
 class ServerUncoreCounterState : public UncoreCounterState
 {
@@ -3262,12 +3399,9 @@ public:
         maxControllers = 4,
         maxChannels = 32,
         maxXPILinks = 6,
-        maxCBOs = 128,
-        maxMDFs = 128,
         maxIIOStacks = 16,
         maxCXLPorts = 6,
-        maxPUnits = 5,
-        maxCounters = 8
+        maxCounters = UncorePMU::maxCounters
     };
     enum EventPosition
     {
@@ -3282,23 +3416,42 @@ public:
         PMMReads,
         PMMWrites
     };
-private:
+
+    // typedef std::array<uint64, maxCounters> CounterArrayType;
+    class CounterArrayType
+    {
+        std::array<uint64, maxCounters> data;
+    public:
+        CounterArrayType() : data{{}}
+        {
+            std::fill(data.begin(), data.end(), 0ULL);
+        }
+        const uint64& operator [] (size_t i) const
+        {
+            return data[i];
+        }
+        uint64& operator [] (size_t i)
+        {
+            return data[i];
+        }
+    };
+    typedef std::vector<CounterArrayType> PMUCounterArrayType;
+    typedef std::unordered_map<int, PMUCounterArrayType> PMUMapCounterArrayType;
+    // die -> pmu map -> PMUs -> counters
+    std::vector<PMUMapCounterArrayType>  Counters;
+
     std::array<std::array<uint64, maxCounters>, maxXPILinks> xPICounter;
     std::array<std::array<uint64, maxCounters>, maxXPILinks> M3UPICounter;
-    std::array<std::array<uint64, maxCounters>, maxCBOs> CBOCounter;
-    std::array<std::array<uint64, maxCounters>, maxMDFs> MDFCounter;
     std::array<std::array<uint64, maxCounters>, maxIIOStacks> IIOCounter;
     std::array<std::array<uint64, maxCounters>, maxIIOStacks> IRPCounter;
     std::array<std::array<uint64, maxCounters>, maxCXLPorts> CXLCMCounter;
     std::array<std::array<uint64, maxCounters>, maxCXLPorts> CXLDPCounter;
-    std::array<uint64, maxCounters> UBOXCounter;
     std::array<uint64, maxChannels> DRAMClocks;
     std::array<uint64, maxChannels> HBMClocks;
     std::array<std::array<uint64, maxCounters>, maxChannels> MCCounter; // channel X counter
     std::array<std::array<uint64, maxCounters>, maxControllers> M2MCounter; // M2M/iMC boxes x counter
     std::array<std::array<uint64, maxCounters>, maxControllers> HACounter; // HA boxes x counter
     std::array<std::array<uint64, maxCounters>, maxChannels> EDCCounter; // EDC controller X counter
-    std::array<std::array<uint64, maxCounters>, maxPUnits> PCUCounter;
     std::unordered_map<int, uint64> freeRunningCounter;
     int32 PackageThermalHeadroom;
     uint64 InvariantTSC;    // invariant time stamp counter
@@ -3316,11 +3469,7 @@ private:
     template <class CounterStateType>
     friend uint64 getM3UPICounter(uint32 port, uint32 counter, const CounterStateType& before, const CounterStateType& after);
     template <class CounterStateType>
-    friend uint64 getCBOCounter(uint32 cbo, uint32 counter, const CounterStateType& before, const CounterStateType& after);
-    template <class CounterStateType>
-    friend uint64 getMDFCounter(uint32 mdf, uint32 counter, const CounterStateType& before, const CounterStateType& after);
-    template <class CounterStateType>
-    friend uint64 getUBOXCounter(uint32 counter, const CounterStateType& before, const CounterStateType& after);
+    friend uint64 getUncoreCounter(const int pmu_id, uint32 unit, uint32 counter, const CounterStateType& before, const CounterStateType& after);
     template <class CounterStateType>
     friend uint64 getIIOCounter(uint32 stack, uint32 counter, const CounterStateType& before, const CounterStateType& after);
     template <class CounterStateType>
@@ -3333,8 +3482,6 @@ private:
     friend uint64 getHACounter(uint32 controller, uint32 counter, const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
     friend uint64 getEDCCounter(uint32 channel, uint32 counter, const CounterStateType & before, const CounterStateType & after);
-    template <class CounterStateType>
-    friend uint64 getPCUCounter(uint32 unit, uint32 counter, const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
     friend uint64 getConsumedEnergy(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
@@ -3352,20 +3499,16 @@ public:
     ServerUncoreCounterState() :
         xPICounter{{}},
         M3UPICounter{{}},
-        CBOCounter{{}},
-        MDFCounter{{}},
         IIOCounter{{}},
         IRPCounter{{}},
         CXLCMCounter{{}},
         CXLDPCounter{{}},
-        UBOXCounter{{}},
         DRAMClocks{{}},
         HBMClocks{{}},
         MCCounter{{}},
         M2MCounter{{}},
         HACounter{{}},
         EDCCounter{{}},
-        PCUCounter{{}},
         PackageThermalHeadroom(0),
         InvariantTSC(0)
     {

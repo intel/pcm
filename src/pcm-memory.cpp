@@ -38,7 +38,7 @@ constexpr uint32 max_sockets = 256;
 uint32 max_imc_channels = ServerUncoreCounterState::maxChannels;
 const uint32 max_edc_channels = ServerUncoreCounterState::maxChannels;
 const uint32 max_imc_controllers = ServerUncoreCounterState::maxControllers;
-bool SPR_CXL = false;
+bool SPR_CXL = false; // use SPR CXL monitoring implementation
 
 typedef struct memdata {
     float iMC_Rd_socket_chan[max_sockets][ServerUncoreCounterState::maxChannels]{};
@@ -1116,11 +1116,11 @@ class CHAEventCollector
         uint64 result = 0;
         for (uint32 i = 0; i < pcm->getNumSockets(); ++i)
         {
-            for (uint32 cbo = 0; cbo < pcm->getMaxNumOfCBoxes(); ++cbo)
+            for (uint32 cbo = 0; cbo < pcm->getMaxNumOfUncorePMUs(PCM::CBO_PMU_ID); ++cbo)
             {
                 for (uint32 ctr = 0; ctr < 4 && ctr < eventGroups[curGroup].size(); ++ctr)
                 {
-                    result += getCBOCounter(cbo, ctr, before[i], after[i]);
+                    result += getUncoreCounter(PCM::CBO_PMU_ID, cbo, ctr, before[i], after[i]);
                 }
             }
         }
@@ -1159,6 +1159,27 @@ public:
                         UNC_PMON_CTL_EVENT(0x35) + UNC_PMON_CTL_UMASK(0x01) + UNC_PMON_CTL_UMASK_EXT(0x10C89782) , // UNC_CHA_TOR_INSERTS.IA_MISS_DRD_PREF_CXL_ACC
                         UNC_PMON_CTL_EVENT(0x35) + UNC_PMON_CTL_UMASK(0x01) + UNC_PMON_CTL_UMASK_EXT(0x10CCD782) , // UNC_CHA_TOR_INSERTS.IA_MISS_LLCPREFDATA_CXL_ACC
                         UNC_PMON_CTL_EVENT(0x35) + UNC_PMON_CTL_UMASK(0x01) + UNC_PMON_CTL_UMASK_EXT(0x10CCCF82)   // UNC_CHA_TOR_INSERTS.IA_MISS_LLCPREFCODE_CXL_ACC
+                    }
+                };
+                break;
+            case PCM::EMR:
+                eventGroups = {
+                    {
+                        UNC_PMON_CTL_EVENT(0x35) + UNC_PMON_CTL_UMASK(0x01) + UNC_PMON_CTL_UMASK_EXT(0x20C80682) , // UNC_CHA_TOR_INSERTS.IA_MISS_RFO_CXL_EXP_LOCAL
+                        UNC_PMON_CTL_EVENT(0x35) + UNC_PMON_CTL_UMASK(0x01) + UNC_PMON_CTL_UMASK_EXT(0x20C81682) , // UNC_CHA_TOR_INSERTS.IA_MISS_DRD_CXL_EXP_LOCAL
+                        UNC_PMON_CTL_EVENT(0x35) + UNC_PMON_CTL_UMASK(0x01) + UNC_PMON_CTL_UMASK_EXT(0x20C88682)   // UNC_CHA_TOR_INSERTS.IA_MISS_LLCPREFRFO_CXL_EXP_LOCAL
+                    },
+                    {
+                        UNC_PMON_CTL_EVENT(0x35) + UNC_PMON_CTL_UMASK(0x01) + UNC_PMON_CTL_UMASK_EXT(0x20CCC682) , // UNC_CHA_TOR_INSERTS.IA_MISS_RFO_PREF_CXL_EXP_LOCAL
+                        UNC_PMON_CTL_EVENT(0x35) + UNC_PMON_CTL_UMASK(0x01) + UNC_PMON_CTL_UMASK_EXT(0x20C89682) , // UNC_CHA_TOR_INSERTS.IA_MISS_DRD_PREF_CXL_EXP_LOCAL
+                        UNC_PMON_CTL_EVENT(0x35) + UNC_PMON_CTL_UMASK(0x01) + UNC_PMON_CTL_UMASK_EXT(0x20CCD682) , // UNC_CHA_TOR_INSERTS.IA_MISS_LLCPREFDATA_CXL_EXP_LOCAL
+                        UNC_PMON_CTL_EVENT(0x35) + UNC_PMON_CTL_UMASK(0x40) + UNC_PMON_CTL_UMASK_EXT(0x20E87E82) , // UNC_CHA_TOR_INSERTS.RRQ_MISS_INVXTOM_CXL_EXP_LOCAL
+                    },
+                    {
+                        UNC_PMON_CTL_EVENT(0x35) + UNC_PMON_CTL_UMASK(0x40) + UNC_PMON_CTL_UMASK_EXT(0x20E80682) , // UNC_CHA_TOR_INSERTS.RRQ_MISS_RDCUR_CXL_EXP_LOCAL
+                        UNC_PMON_CTL_EVENT(0x35) + UNC_PMON_CTL_UMASK(0x40) + UNC_PMON_CTL_UMASK_EXT(0x20E80E82) , // UNC_CHA_TOR_INSERTS.RRQ_MISS_RDCODE_CXL_EXP_LOCAL
+                        UNC_PMON_CTL_EVENT(0x35) + UNC_PMON_CTL_UMASK(0x40) + UNC_PMON_CTL_UMASK_EXT(0x20E81682) , // UNC_CHA_TOR_INSERTS.RRQ_MISS_RDDATA_CXL_EXP_LOCAL
+                        UNC_PMON_CTL_EVENT(0x35) + UNC_PMON_CTL_UMASK(0x40) + UNC_PMON_CTL_UMASK_EXT(0x20E82682) , // UNC_CHA_TOR_INSERTS.RRQ_MISS_RDINVOWN_OPT_CXL_EXP_LOCAL
                     }
                 };
                 break;
@@ -1390,9 +1411,10 @@ int mainThrows(int argc, char * argv[])
 
     m->disableJKTWorkaround();
     print_cpu_details();
+    const auto cpu_model = m->getCPUModel();
     if (!m->hasPCICFGUncore())
     {
-        cerr << "Unsupported processor model (" << m->getCPUModel() << ").\n";
+        cerr << "Unsupported processor model (" << cpu_model << ").\n";
         if (m->memoryTrafficMetricsAvailable())
             cerr << "For processor-level memory bandwidth statistics please use 'pcm' utility\n";
         exit(EXIT_FAILURE);
@@ -1450,7 +1472,7 @@ int mainThrows(int argc, char * argv[])
 
     shared_ptr<CHAEventCollector> chaEventCollector;
 
-    SPR_CXL = (PCM::SPR == m->getCPUModel()) && (getNumCXLPorts(m) > 0);
+    SPR_CXL = (PCM::SPR == cpu_model || PCM::EMR == cpu_model) && (getNumCXLPorts(m) > 0);
     if (SPR_CXL)
     {
          chaEventCollector = std::make_shared<CHAEventCollector>(delay, sysCmd, mainLoop, m);

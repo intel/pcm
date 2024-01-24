@@ -750,6 +750,43 @@ double parse_delay(const char *arg, const std::string& progname, print_usage_fun
     }
 }
 
+std::list<int> extract_integer_list(const char *optarg){
+    const char *pstr = optarg;
+    std::list<int> corelist;
+    std::string snum1, snum2;
+    std::string *pnow = &snum1;
+    char nchar = ',';
+    while(*pstr != '\0' || nchar != ','){
+        nchar = ',';
+        if (*pstr != '\0'){
+            nchar = *pstr;
+            pstr++;
+        } 
+        //printf("c=%c\n",nchar);
+        if (nchar=='-' && pnow == &snum1 && snum1.size()>0){
+            pnow = &snum2;
+        }else if (nchar == ','){
+            if (!snum1.empty() && !snum2.empty()){
+                int num1 = atoi(snum1.c_str()), num2 =atoi(snum2.c_str());
+                if (num2 < num1) std::swap(num1,num2);
+                if (num1 < 0) num1 = 0;
+                for (int ix=num1; ix <= num2; ix++){
+                    corelist.push_back(ix);
+                }
+            }else if (!snum1.empty()){
+                int num1 = atoi(snum1.c_str());
+                corelist.push_back(num1);
+            }
+            snum1.clear();
+            snum2.clear();
+            pnow = &snum1;
+        }else if (nchar != ' '){
+            pnow->push_back(nchar);
+        }
+    }
+    return(corelist);
+}
+
 bool extract_argument_value(const char* arg, std::initializer_list<const char*> arg_names, std::string& value)
 {
     const auto arg_len = strlen(arg);

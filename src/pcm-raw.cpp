@@ -1657,9 +1657,9 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
             else if (type == "pcu")
             {
                 choose(outputType,
-                    [&]() { printUncoreRows(nullptr, (uint32) m->getPUnitsPerSocket(), "P"); },
-                    [&]() { printUncoreRows(nullptr, (uint32) m->getPUnitsPerSocket(), type); },
-                    [&]() { printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getPCUCounter(u, i, before, after); }, 1U, "");
+                    [&]() { printUncoreRows(nullptr, (uint32) m->getMaxNumOfUncorePMUs(PCM::PCU_PMU_ID), "P"); },
+                    [&]() { printUncoreRows(nullptr, (uint32) m->getMaxNumOfUncorePMUs(PCM::PCU_PMU_ID), type); },
+                    [&]() { printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getUncoreCounter(PCM::PCU_PMU_ID, u, i, before, after); }, 1U, "");
                     });
             }
             else if (type == "ubox")
@@ -1667,24 +1667,24 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
                 choose(outputType,
                     [&]() { printUncoreRows(nullptr, 1U, ""); },
                     [&]() { printUncoreRows(nullptr, 1U, type); },
-                    [&]() { printUncoreRows([](const uint32, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getUBOXCounter(i, before, after); }, 1U,
+                    [&]() { printUncoreRows([](const uint32, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getUncoreCounter(PCM::UBOX_PMU_ID, 0, i, before, after); }, 1U,
                             "UncoreClocks", [](const uint32, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getUncoreClocks(before, after); });
                     });
             }
             else if (type == "cbo" || type == "cha")
             {
                 choose(outputType,
-                    [&]() { printUncoreRows(nullptr, (uint32) m->getMaxNumOfCBoxes(), "C"); },
-                    [&]() { printUncoreRows(nullptr, (uint32) m->getMaxNumOfCBoxes(), type); },
-                    [&]() { printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getCBOCounter(u, i, before, after); }, (uint32)m->getMaxNumOfCBoxes(), "C");
+                    [&]() { printUncoreRows(nullptr, (uint32) m->getMaxNumOfUncorePMUs(PCM::CBO_PMU_ID), "C"); },
+                    [&]() { printUncoreRows(nullptr, (uint32) m->getMaxNumOfUncorePMUs(PCM::CBO_PMU_ID), type); },
+                    [&]() { printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getUncoreCounter(PCM::CBO_PMU_ID, u, i, before, after); }, (uint32)m->getMaxNumOfUncorePMUs(PCM::CBO_PMU_ID), "C");
                     });
             }
             else if (type == "mdf")
             {
                 choose(outputType,
-                    [&]() { printUncoreRows(nullptr, (uint32) m->getMaxNumOfMDFs(), "MDF"); },
-                    [&]() { printUncoreRows(nullptr, (uint32) m->getMaxNumOfMDFs(), type); },
-                    [&]() { printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getMDFCounter(u, i, before, after); }, (uint32)m->getMaxNumOfMDFs(), "MDF");
+                    [&]() { printUncoreRows(nullptr, (uint32) m->getMaxNumOfUncorePMUs(PCM::MDF_PMU_ID), "MDF"); },
+                    [&]() { printUncoreRows(nullptr, (uint32) m->getMaxNumOfUncorePMUs(PCM::MDF_PMU_ID), type); },
+                    [&]() { printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getUncoreCounter(PCM::MDF_PMU_ID, u, i, before, after); }, (uint32)m->getMaxNumOfUncorePMUs(PCM::MDF_PMU_ID), "MDF");
                     });
             }
             else if (type == "irp")
@@ -1952,7 +1952,7 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs,
         {
             for (uint32 s = 0; s < m->getNumSockets(); ++s)
             {
-                for (uint32 u = 0; u < m->getPUnitsPerSocket(); ++u)
+                for (uint32 u = 0; u < m->getMaxNumOfUncorePMUs(PCM::PCU_PMU_ID); ++u)
                 {
                     int i = 0;
                     for (auto& event : events)
@@ -1960,7 +1960,7 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs,
                         choose(outputType,
                             [s, u]() { cout << "SKT" << s << "P" << u << separator; },
                             [&event, &i]() { if (event.second.empty()) cout << "PCUEvent" << i << separator;  else cout << event.second << separator; },
-                            [&]() { cout << getPCUCounter(u, i, BeforeUncoreState[s], AfterUncoreState[s]) << separator; });
+                            [&]() { cout << getUncoreCounter(PCM::PCU_PMU_ID, u, i, BeforeUncoreState[s], AfterUncoreState[s]) << separator; });
                         ++i;
                     }
                 }
@@ -2037,7 +2037,7 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs,
                     choose(outputType,
                         [s]() { cout << "SKT" << s << separator; },
                         [&event, &i]() { if (event.second.empty()) cout << "UBOXEvent" << i << separator;  else cout << event.second << separator; },
-                        [&]() { cout << getUBOXCounter(i, BeforeUncoreState[s], AfterUncoreState[s]) << separator; });
+                        [&]() { cout << getUncoreCounter(PCM::UBOX_PMU_ID, 0, i, BeforeUncoreState[s], AfterUncoreState[s]) << separator; });
                     ++i;
                 }
             }
@@ -2046,7 +2046,7 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs,
         {
             for (uint32 s = 0; s < m->getNumSockets(); ++s)
             {
-                for (uint32 cbo = 0; cbo < m->getMaxNumOfCBoxes(); ++cbo)
+                for (uint32 cbo = 0; cbo < m->getMaxNumOfUncorePMUs(PCM::CBO_PMU_ID); ++cbo)
                 {
                     int i = 0;
                     for (auto& event : events)
@@ -2054,7 +2054,7 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs,
                         choose(outputType,
                             [s, cbo]() { cout << "SKT" << s << "C" << cbo << separator; },
                             [&event, &i]() { if (event.second.empty()) cout << "CBOEvent" << i << separator;  else cout << event.second << separator; },
-                            [&]() { cout << getCBOCounter(cbo, i, BeforeUncoreState[s], AfterUncoreState[s]) << separator; });
+                            [&]() { cout << getUncoreCounter(PCM::CBO_PMU_ID, cbo, i, BeforeUncoreState[s], AfterUncoreState[s]) << separator; });
                         ++i;
                     }
                 }
@@ -2064,7 +2064,7 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs,
         {
             for (uint32 s = 0; s < m->getNumSockets(); ++s)
             {
-                for (uint32 mdf = 0; mdf < m->getMaxNumOfMDFs(); ++mdf)
+                for (uint32 mdf = 0; mdf < m->getMaxNumOfUncorePMUs(PCM::MDF_PMU_ID); ++mdf)
                 {
                     int i = 0;
                     for (auto& event : events)
@@ -2072,7 +2072,7 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs,
                         choose(outputType,
                             [s, mdf]() { cout << "SKT" << s << "MDF" << mdf << separator; },
                             [&event, &i]() { if (event.second.empty()) cout << "MDFEvent" << i << separator;  else cout << event.second << separator; },
-                            [&]() { cout << getMDFCounter(mdf, i, BeforeUncoreState[s], AfterUncoreState[s]) << separator; });
+                            [&]() { cout << getUncoreCounter(PCM::MDF_PMU_ID, mdf, i, BeforeUncoreState[s], AfterUncoreState[s]) << separator; });
                         ++i;
                     }
                 }

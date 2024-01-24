@@ -22,6 +22,7 @@
 #include <string.h>
 #include <string>
 #include <assert.h>
+#include <list>
 #include "cpucounters.h"
 #include "utils.h"
 #ifdef _MSC_VER
@@ -45,6 +46,8 @@ void print_usage(const string & progname)
     cout << " Supported <options> are: \n";
     cout << "  -h    | --help  | /h               => print this help and exit\n";
     cout << "  -silent                            => silence information output and print only measurements\n";
+    cout << "  -c=corelist                        => check specified cores (default all cores)\n";
+    cout << "                                        (examples: -c=10  -c=10-11 -c=4,6,12-20,6)\n";
     cout << "  --version                          => print application version\n";
     cout << "  -pid PID | /pid PID                => collect core metrics only for specified process ID\n";
     cout << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or\n"
@@ -120,6 +123,8 @@ int mainThrows(int argc, char * argv[])
 
     parsePID(argc, argv, pid);
 
+    std::list<int> corelist;
+    
     if (argc > 1) do
         {
             argv++;
@@ -129,6 +134,11 @@ int mainThrows(int argc, char * argv[])
             if (*argv == nullptr)
             {
                 continue;
+            }
+            else if (extract_argument_value(*argv, {"-c"}, arg_value))
+            {
+                const char *pstr = arg_value.c_str();
+                corelist = extract_integer_list(pstr);
             }
             else if (check_argument_equals(*argv, {"--help", "-h", "/h"}))
             {
@@ -213,6 +223,9 @@ int mainThrows(int argc, char * argv[])
     uint64 BeforeTime = 0, AfterTime = 0;
     SystemCounterState SysBeforeState, SysAfterState;
     const uint32 ncores = m->getNumCores();
+    if (corelist.size()==0){
+      for (int ii = 0; ii < (int)ncores; ++ii) corelist.push_back(ii);
+    }
     vector<CoreCounterState> BeforeState, AfterState;
     vector<SocketCounterState> DummySocketStates;
 
@@ -262,8 +275,9 @@ int mainThrows(int argc, char * argv[])
         else
             cout << "Core | IPC  | Instructions | Cycles  |  Local DRAM accesses | Remote DRAM Accesses \n";
 
-        for (uint32 i = 0; i < ncores; ++i)
+    for (int ix : corelist)
         {
+            uint32 i = ix;
             if (csv)
                 cout << i << ",";
             else

@@ -76,14 +76,19 @@ uint64 getPPDCycles(uint32 channel, const ServerUncoreCounterState & before, con
 
 double getNormalizedPCUCounter(uint32 unit, uint32 counter, const ServerUncoreCounterState & before, const ServerUncoreCounterState & after)
 {
-    return double(getPCUCounter(unit, counter, before, after)) / double(getPCUClocks(unit, before, after));
+    const auto clk = getPCUClocks(unit, before, after);
+    if (clk)
+    {
+        return double(getUncoreCounter(PCM::PCU_PMU_ID, unit, counter, before, after)) / double(clk);
+    }
+    return -1.0;
 }
 
 double getNormalizedPCUCounter(uint32 unit, uint32 counter, const ServerUncoreCounterState & before, const ServerUncoreCounterState & after, PCM * m)
 {
     const uint64 PCUClocks = (m->getPCUFrequency() * getInvariantTSC(before, after)) / m->getNominalFrequency();
     // cout << "PCM Debug: PCU clocks " << PCUClocks << " PCU frequency: " << m->getPCUFrequency() << "\n";
-    return double(getPCUCounter(unit, counter, before, after)) / double(PCUClocks);
+    return double(getUncoreCounter(PCM::PCU_PMU_ID, unit, counter, before, after)) / double(PCUClocks);
 }
 
 int default_freq_band[3] = { 12, 20, 40 };
@@ -422,12 +427,12 @@ int mainThrows(int argc, char * argv[])
                 }
             }
 
-            for (uint32 u = 0; u < m->getPUnitsPerSocket(); ++u)
+            for (uint32 u = 0; u < m->getMaxNumOfUncorePMUs(PCM::PCU_PMU_ID); ++u)
             {
                 auto printHeader = [&socket,&m,&u, &BeforeState, &AfterState] (const bool printPCUClocks)
                 {
                     cout << "S" << socket;
-                    if (m->getPUnitsPerSocket() > 1)
+                    if (m->getMaxNumOfUncorePMUs(PCM::PCU_PMU_ID) > 1)
                     {
                         cout << "U" << u;
                     }
@@ -469,13 +474,13 @@ int mainThrows(int argc, char * argv[])
                     printHeader(true);
                     cout << "; Thermal freq limit cycles: " << getNormalizedPCUCounter(u, 1, BeforeState[socket], AfterState[socket]) * 100. << " %"
                         << "; Power freq limit cycles:" << getNormalizedPCUCounter(u, 2, BeforeState[socket], AfterState[socket]) * 100. << " %";
-                    if (cpu_model != PCM::SKX && cpu_model != PCM::ICX && cpu_model != PCM::SNOWRIDGE && cpu_model != PCM::SPR)
+                    if(cpu_model != PCM::SKX && cpu_model != PCM::ICX && cpu_model != PCM::SNOWRIDGE && cpu_model != PCM::SPR && cpu_model != PCM::EMR)
                         cout << "; Clipped freq limit cycles:" << getNormalizedPCUCounter(u, 3, BeforeState[socket], AfterState[socket]) * 100. << " %";
                     cout << "\n";
                     break;
 
                 case 4:
-                    if (cpu_model == PCM::SKX || cpu_model == PCM::ICX || cpu_model == PCM::SNOWRIDGE || cpu_model == PCM::SPR)
+                    if (cpu_model == PCM::SKX || cpu_model == PCM::ICX || cpu_model == PCM::SNOWRIDGE || cpu_model == PCM::SPR || cpu_model == PCM::EMR)
                     {
                         cout << "This PCU profile is not supported on your processor\n";
                         break;
@@ -488,10 +493,10 @@ int mainThrows(int argc, char * argv[])
                     break;
                 case 5:
                     printHeader(true);
-                    cout << "; Frequency transition count: " << getPCUCounter(u, 1, BeforeState[socket], AfterState[socket]) << " "
+                    cout << "; Frequency transition count: " << getUncoreCounter(PCM::PCU_PMU_ID, u, 1, BeforeState[socket], AfterState[socket]) << " "
                         << "; Cycles spent changing frequency: " << getNormalizedPCUCounter(u, 2, BeforeState[socket], AfterState[socket], m) * 100. << " %";
                     if (PCM::HASWELLX == cpu_model) {
-                        cout << "; UFS transition count: " << getPCUCounter(u, 3, BeforeState[socket], AfterState[socket]) << " ";
+                        cout << "; UFS transition count: " << getUncoreCounter(PCM::PCU_PMU_ID, u, 3, BeforeState[socket], AfterState[socket]) << " ";
                         cout << "; UFS transition cycles: " << getNormalizedPCUCounter(u, 0, BeforeState[socket], AfterState[socket], m) * 100. << " %";
                     }
                     cout << "\n";
@@ -500,7 +505,7 @@ int mainThrows(int argc, char * argv[])
                     printHeader(false);
                     if (cpu_model == PCM::HASWELLX || PCM::BDX_DE == cpu_model)
                         cout << "; PC1e+ residency: " << getNormalizedPCUCounter(u, 0, BeforeState[socket], AfterState[socket], m) * 100. << " %"
-                        "; PC1e+ transition count: " << getPCUCounter(u, 1, BeforeState[socket], AfterState[socket]) << " ";
+                        "; PC1e+ transition count: " << getUncoreCounter(PCM::PCU_PMU_ID, u, 1, BeforeState[socket], AfterState[socket]) << " ";
 
                     switch (cpu_model)
                     {
@@ -511,11 +516,12 @@ int mainThrows(int argc, char * argv[])
                     case PCM::ICX:
                     case PCM::SNOWRIDGE:
                     case PCM::SPR:
+                    case PCM::EMR:
                         cout << "; PC2 residency: " << getPackageCStateResidency(2, BeforeState[socket], AfterState[socket]) * 100. << " %";
-                        cout << "; PC2 transitions: " << getPCUCounter(u, 2, BeforeState[socket], AfterState[socket]) << " ";
+                        cout << "; PC2 transitions: " << getUncoreCounter(PCM::PCU_PMU_ID, u, 2, BeforeState[socket], AfterState[socket]) << " ";
                         cout << "; PC3 residency: " << getPackageCStateResidency(3, BeforeState[socket], AfterState[socket]) * 100. << " %";
                         cout << "; PC6 residency: " << getPackageCStateResidency(6, BeforeState[socket], AfterState[socket]) * 100. << " %";
-                        cout << "; PC6 transitions: " << getPCUCounter(u, 3, BeforeState[socket], AfterState[socket]) << " ";
+                        cout << "; PC6 transitions: " << getUncoreCounter(PCM::PCU_PMU_ID, u, 3, BeforeState[socket], AfterState[socket]) << " ";
                         break;
                     }
 
