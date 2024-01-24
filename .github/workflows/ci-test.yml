@@ -40,55 +40,55 @@ jobs:
         sh ${{ github.workspace }}/tests/test.sh 2>&1 | tee test-log.txt
 
     - name: upload-artifact
-      uses: actions/upload-artifact@83fd05a356d7e2593de66fc9913b3002723633cb # v3.1.1
+      uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v3.1.3
       with:
         name: test-log-${{ github.sha }}
         path: test-log.txt
 
     - name: upload-artifact
-      uses: actions/upload-artifact@83fd05a356d7e2593de66fc9913b3002723633cb # v3.1.1
+      uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v3.1.3
       with:
         name: test-log-raw-tr-wo_ext-${{ github.sha }}
         path: build/bin/raw_tr_wo_ext.csv
 
     - name: upload-artifact
-      uses: actions/upload-artifact@83fd05a356d7e2593de66fc9913b3002723633cb # v3.1.1
+      uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v3.1.3
       with:
         name: test-log-raw-tr-wi_ext-${{ github.sha }}
         path: build/bin/raw_tr_wi_ext.csv
 
     - name: upload-artifact
-      uses: actions/upload-artifact@83fd05a356d7e2593de66fc9913b3002723633cb # v3.1.1
+      uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v3.1.3
       with:
         name: pcm-csv-${{ github.sha }}
         path: build/bin/pcm.csv
 
     - name: upload-artifact
-      uses: actions/upload-artifact@83fd05a356d7e2593de66fc9913b3002723633cb # v3.1.1
+      uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v3.1.3
       with:
         name: pcm-memory-csv-${{ github.sha }}
         path: build/bin/pcm-memory.csv
 
     - name: upload-artifact
-      uses: actions/upload-artifact@83fd05a356d7e2593de66fc9913b3002723633cb # v3.1.1
+      uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v3.1.3
       with:
         name: test-log-raw-tr-wi_ext-single_header-${{ github.sha }}
         path: build/bin/raw_tr_wi_ext_single_header.csv
 
     - name: upload-artifact
-      uses: actions/upload-artifact@83fd05a356d7e2593de66fc9913b3002723633cb # v3.1.1
+      uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v3.1.3
       with:
         name: test-log-raw-edp-${{ github.sha }}
         path: build/bin/raw_edp.txt
 
     - name: upload-artifact
-      uses: actions/upload-artifact@83fd05a356d7e2593de66fc9913b3002723633cb # v3.1.1
+      uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v3.1.3
       with:
         name: test-log-raw-json-${{ github.sha }}
         path: build/bin/raw_json.json
 
     - name: upload-artifact
-      uses: actions/upload-artifact@83fd05a356d7e2593de66fc9913b3002723633cb # v3.1.1
+      uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v3.1.3
       with:
         name: test-log-raw-edp-offlined-cores-${{ github.sha }}
         path: build/bin/raw_edp_offlined_cores.txt
