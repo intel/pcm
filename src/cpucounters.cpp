@@ -6564,9 +6564,7 @@ ServerUncoreCounterState PCM::getServerUncoreCounterState(uint32 socket)
         uint32 refCore = socketRefCore[socket];
         TemporalThreadAffinity tempThreadAffinity(refCore);
 
-        readUncoreCounterValues(result, socket, CBO_PMU_ID);
-
-        readUncoreCounterValues(result, socket, MDF_PMU_ID);
+        readUncoreCounterValues(result, socket);
 
         for (uint32 stack = 0; socket < iioPMUs.size() && stack < iioPMUs[socket].size() && stack < ServerUncoreCounterState::maxIIOStacks; ++stack)
         {
@@ -6586,10 +6584,7 @@ ServerUncoreCounterState PCM::getServerUncoreCounterState(uint32 socket)
             }
         }
 
-        readUncoreCounterValues(result, socket, UBOX_PMU_ID);
         result.UncClocks = getUncoreClocks(socket);
-
-        readUncoreCounterValues(result, socket, PCU_PMU_ID);
 
         for (size_t p = 0; p < getNumCXLPorts(socket); ++p)
         {

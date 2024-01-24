@@ -714,7 +714,7 @@ private:
     }
 
     template <class T>
-    void readUncoreCounterValues(T& result, const size_t socket, const int pmu_id) const
+    void readUncoreCounterValues(T& result, const size_t socket) const
     {
         if (socket < uncorePMUs.size())
         {
@@ -723,9 +723,9 @@ private:
             {
                 TemporalThreadAffinity tempThreadAffinity(socketRefCore[socket]); // speedup trick for Linux
 
-                const auto& pmuIter = uncorePMUs[socket][die].find(pmu_id);
-                if (pmuIter != uncorePMUs[socket][die].end())
+                for (auto pmuIter = uncorePMUs[socket][die].begin(); pmuIter != uncorePMUs[socket][die].end(); ++pmuIter)
                 {
+                    const auto & pmu_id = pmuIter->first;
                     result.Counters[die][pmu_id].resize(pmuIter->second.size());
                     for (size_t unit = 0; unit < pmuIter->second.size(); ++unit)
                     {
