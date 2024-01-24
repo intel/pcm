@@ -652,6 +652,15 @@ public:
         INVALID_PMU_ID
     };
 private:
+    std::unordered_map<std::string, int> strToUncorePMUID_ {
+    };
+public:
+    UncorePMUIDs strToUncorePMUID(const std::string & type) const
+    {
+        const auto iter = strToUncorePMUID_.find(type);
+        return (iter == strToUncorePMUID_.end()) ? INVALID_PMU_ID : (UncorePMUIDs)iter->second;
+    }
+private:
     typedef std::unordered_map<int, UncorePMUArrayType> UncorePMUMapType;
     // socket -> die -> pmu map -> pmu ref array
     std::vector< std::vector<UncorePMUMapType> > uncorePMUs;

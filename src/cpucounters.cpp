@@ -5721,6 +5721,16 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool sile
         {
             programCXLDP(events64);
         }
+        else if (strToUncorePMUID(type) != INVALID_PMU_ID)
+        {
+            const auto pmu_id = strToUncorePMUID(type);
+            programUncorePMUs(pmu_id, [&events64, &events, &pmu_id](UncorePMU& pmu)
+            {
+                uint64 * eventsIter = (uint64 *)events64;
+                pmu.initFreeze(UNC_PMON_UNIT_CTL_FRZ_EN);
+                PCM::program(pmu, eventsIter, eventsIter + (std::min)(events.programmable.size(), (size_t)ServerUncoreCounterState::maxCounters), UNC_PMON_UNIT_CTL_FRZ_EN);
+            });
+        }
         else
         {
             std::cerr << "ERROR: unrecognized PMU type \"" << type << "\" when trying to program PMUs.\n";
