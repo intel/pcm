@@ -37,6 +37,37 @@ public:
         }
         return "unknown";
     };
+    union PCICFGAddress
+    {
+        uint64 raw;
+        struct {
+            uint64 offset:12;
+            uint64 function:3;
+            uint64 device:5;
+            uint64 bus:8;
+        } fields;
+        std::string getStr() const
+        {
+            std::ostringstream out(std::ostringstream::out);
+            out << std::hex << fields.bus << ":" << fields.device << "." << fields.function << "@" << fields.offset;
+            out << std::dec;
+            return out.str();
+        }
+    };
+    static void printHelper(const accessTypeEnum accessType, const uint64 addr)
+    {
+        if (accessType == PCICFG)
+        {
+            PCICFGAddress Addr;
+            Addr.raw = addr;
+            std::cout << " (" << Addr.getStr() << ")";
+        }
+        else
+        {
+            std::cout << " (-)";
+        }
+        std::cout << " with access type " << std::dec << accessTypeStr(accessType);
+    }
 protected:
     struct GlobalPMU
     {
@@ -53,9 +84,9 @@ protected:
         {
             std::cout << "global PMU " <<
             " of type " << std::dec << type <<
-            " globalCtrl: 0x" << std::hex << globalCtrlAddr <<
-            " with access type " << std::dec << accessTypeStr(accessType) <<
-            " stride: " << std::dec <<  stride
+            " globalCtrl: 0x" << std::hex << globalCtrlAddr;
+            UncorePMUDiscovery::printHelper((accessTypeEnum)accessType, globalCtrlAddr);
+            std::cout << " stride: " << std::dec <<  stride
             << "\n";
         }
     };
@@ -77,9 +108,10 @@ protected:
            std::cout << "unit PMU " <<
                 " of type " << std::dec <<  boxType <<
                 " ID " << boxID <<
-                " box ctrl: 0x" << std::hex << boxCtrlAddr <<
-                " width " <<  std::dec << bitWidth <<
-                " with access type " << accessTypeStr(accessType) <<
+                " box ctrl: 0x" << std::hex << boxCtrlAddr;
+            UncorePMUDiscovery::printHelper((accessTypeEnum)accessType, boxCtrlAddr);
+            std::cout <<
+                " width " << bitWidth <<
                 " numRegs " << numRegs <<
                 " ctrlOffset " << ctrlOffset <<
                 " ctrOffset " << ctrOffset <<

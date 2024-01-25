@@ -1239,6 +1239,8 @@ uint32 numTMAEvents(PCM* m)
     return (m->isHWTMAL2Supported() ? 8 : 4);
 }
 
+uint32 pmu_type = PCM::INVALID_PMU_ID;
+
 void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
     PCM* m,
     SystemCounterState& SysBeforeState, SystemCounterState& SysAfterState,
@@ -1719,6 +1721,14 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
                     [&]() { printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getCXLDPCounter(u, i, before, after); }, ServerUncoreCounterState::maxCXLPorts, "CXLDP");
                     });
             }
+            else if ((pmu_type = m->strToUncorePMUID(type)) != PCM::INVALID_PMU_ID)
+            {
+                choose(outputType,
+                    [&]() { printUncoreRows(nullptr, (uint32) m->getMaxNumOfUncorePMUs(pmu_type), type); },
+                    [&]() { printUncoreRows(nullptr, (uint32) m->getMaxNumOfUncorePMUs(pmu_type), type); },
+                    [&]() { printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getUncoreCounter(pmu_type, u, i, before, after); }, (uint32)m->getMaxNumOfUncorePMUs(pmu_type), type);
+                    });
+            }
             else
             {
                 std::cerr << "ERROR: unrecognized PMU type \"" << type << "\"\n";
@@ -2145,6 +2155,24 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs,
                             [s, p]() { cout << "SKT" << s << "CXLDP" << p << separator; },
                             [&event, &i]() { if (event.second.empty()) cout << "CXLDPEvent" << i << separator;  else cout << event.second << separator; },
                             [&]() { cout << getCXLDPCounter(p, i, BeforeUncoreState[s], AfterUncoreState[s]) << separator; });
+                        ++i;
+                    }
+                }
+            }
+        }
+        else if ((pmu_type = m->strToUncorePMUID(type)) != PCM::INVALID_PMU_ID)
+        {
+            for (uint32 s = 0; s < m->getNumSockets(); ++s)
+            {
+                for (uint32 unit = 0; unit < m->getMaxNumOfUncorePMUs(pmu_type); ++unit)
+                {
+                    int i = 0;
+                    for (auto& event : events)
+                    {
+                        choose(outputType,
+                            [s, unit, &type]() { cout << "SKT" << s << type << unit << separator; },
+                            [&event, &i, &type]() { if (event.second.empty()) cout << type << "Event" << i << separator;  else cout << event.second << separator; },
+                            [&]() { cout << getUncoreCounter(pmu_type, unit, i, BeforeUncoreState[s], AfterUncoreState[s]) << separator; });
                         ++i;
                     }
                 }
