@@ -93,7 +93,8 @@ void print_help(const string & prog_name)
         << "                                        to a file, in case filename is provided\n"
         << "                                        the format used is documented here: https://www.intel.com/content/www/us/en/developer/articles/technical/intel-pcm-column-names-decoder-ring.html\n";
     cout << "  -i[=number] | /i[=number]          => allow to determine number of iterations\n";
-    cout << "  -m=integer | /m=integer            => metrics version (default = 1). If version is 2 then a few alternative metrics are shown (UTIL, CFREQ).\n";
+    cout << "  -m=integer | /m=integer            => metrics version (default = 1). If version is 2\n"
+         << "                                        then a few alternative metrics are shown (UTIL=C0 residency for cores, CFREQ=core frequency in GHz).\n";
     print_enforce_flush_option_help();
     print_help_force_rtm_abort_mode(37);
     cout << " Examples:\n";
