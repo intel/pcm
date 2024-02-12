@@ -1,0 +1,19 @@
+# Warning: this file is to be used or direct unprivilegd access which requires 3rd party plugin
+# e.g. device-injector NRI or smarter-devices-cpu-mem
+privileged: false
+
+# Swtich to using MSR
+PCM_NO_MSR: 0               # use MSR
+PCM_NO_PERF: 1              # do not use Linux perf 
+PCM_USE_UNCORE_PERF: 0      # also use MSR for uncore
+PCM_NO_RDT: 0               # Collect RDT data
+PCM_USE_RESCTRL: 0          # using MSR (no resctrl)
+
+# RDT metrics will be used by direct msr programming
+resctrlMount: false     
+resctrlInsideMount: false
+
+# sys and pci mounts are required for uncore PMU devices discovery
+sysMount: true              # /pcm/sys is required
+pciMount: true              # /pcm/proc/bus/pci is required
+

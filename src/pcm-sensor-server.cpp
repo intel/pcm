@@ -427,6 +427,10 @@ private:
         PCM* pcm = PCM::getInstance();
         printCounter( "DRAM Writes",                   getBytesWrittenToMC    ( before, after ) );
         printCounter( "DRAM Reads",                    getBytesReadFromMC     ( before, after ) );
+
+        if (pcm->localMemoryRequestRatioMetricAvailable())
+            printCounter( "DRAM Local Percentage",         getLocalMemoryRequestRatio( before, after ) );
+
         if(pcm->nearMemoryMetricsAvailable()){
             printCounter( "NM HitRate",                    getNMHitRate           ( before, after ) );
             printCounter( "NM Hits",                       getNMHits              ( before, after ) );
@@ -715,6 +719,10 @@ private:
         addToHierarchy( "source=\"uncore\"" );
         printCounter( "DRAM Writes",                   getBytesWrittenToMC    ( before, after ) );
         printCounter( "DRAM Reads",                    getBytesReadFromMC     ( before, after ) );
+
+        if (pcm->localMemoryRequestRatioMetricAvailable())
+            printCounter( "DRAM Local Percentage",         getLocalMemoryRequestRatio( before, after ) );
+
         if(pcm->nearMemoryMetricsAvailable()){
             printCounter( "NM Hits",                       getNMHits              ( before, after ) );
             printCounter( "NM Misses",                     getNMMisses            ( before, after ) );

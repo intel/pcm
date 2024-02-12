@@ -1,0 +1,4 @@
+image:
+  repository: localhost:5001/pcm-local
+  tag: "latest"
+  pullPolicy: Always
