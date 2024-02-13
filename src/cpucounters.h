@@ -852,7 +852,7 @@ public:
     enum { MAX_C_STATE = 10 }; // max C-state on Intel architecture
 
     //! \brief Returns true if the specified core C-state residency metric is supported
-    bool isCoreCStateResidencySupported(int state)
+    bool isCoreCStateResidencySupported(int state) const
     {
         if (state == 0 || state == 1)
             return true;
