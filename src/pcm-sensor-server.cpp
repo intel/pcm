@@ -3318,40 +3318,6 @@ int mainThrows(int argc, char * argv[]) {
                 // handled in check_and_set_silent
                 continue;
             }
-
-#ifdef __linux__
-            // check kernel version for driver dependency.
-            if (accel != ACCEL_NOCONFIG)
-            {
-                std::cout << "Info: IDX - Please ensure the required driver(e.g idxd driver for iaa/dsa, qat driver and etc) correct enabled with this system, else the tool may fail to run.\n";
-                struct utsname sys_info;
-                if (!uname(&sys_info))
-                {
-                    std::string krel_str;
-                    uint32 krel_major_ver=0, krel_minor_ver=0;
-                    krel_str = sys_info.release;
-                    std::vector<std::string> krel_info = split(krel_str, '.');
-                    std::istringstream iss_krel_major(krel_info[0]);
-                    std::istringstream iss_krel_minor(krel_info[1]);
-                    iss_krel_major >> std::setbase(0) >> krel_major_ver;
-                    iss_krel_minor >> std::setbase(0) >> krel_minor_ver;
-
-                    switch (accel)
-                    {
-                        case ACCEL_IAA:
-                        case ACCEL_DSA:
-                            if ((krel_major_ver < 5) || (krel_major_ver == 5 && krel_minor_ver < 11))
-                            {
-                                std::cout<< "Warning: IDX - current linux kernel version(" << krel_str << ") is too old, please upgrade it to the latest due to required idxd driver integrated to kernel since 5.11.\n";
-                            }
-                            break;
-                        default:
-                            std::cout<< "Info: Chosen "<< accel<<" IDX - current linux kernel version(" << krel_str << ")";
-
-                    }
-                }
-            }
-#endif
 #if defined (USE_SSL)
             else if ( check_argument_equals( argv[i], {"-C", "--certificateFile"} ) ) {
 
@@ -3390,6 +3356,40 @@ int mainThrows(int argc, char * argv[]) {
                 throw std::runtime_error( "Unknown argument" );
         }
     }
+
+    #ifdef __linux__
+    // check kernel version for driver dependency.
+    if (accel != ACCEL_NOCONFIG)
+    {
+        std::cout << "Info: IDX - Please ensure the required driver(e.g idxd driver for iaa/dsa, qat driver and etc) correct enabled with this system, else the tool may fail to run.\n";
+        struct utsname sys_info;
+        if (!uname(&sys_info))
+        {
+            std::string krel_str;
+            uint32 krel_major_ver=0, krel_minor_ver=0;
+            krel_str = sys_info.release;
+            std::vector<std::string> krel_info = split(krel_str, '.');
+            std::istringstream iss_krel_major(krel_info[0]);
+            std::istringstream iss_krel_minor(krel_info[1]);
+            iss_krel_major >> std::setbase(0) >> krel_major_ver;
+            iss_krel_minor >> std::setbase(0) >> krel_minor_ver;
+
+            switch (accel)
+            {
+                case ACCEL_IAA:
+                case ACCEL_DSA:
+                    if ((krel_major_ver < 5) || (krel_major_ver == 5 && krel_minor_ver < 11))
+                    {
+                        std::cout<< "Warning: IDX - current linux kernel version(" << krel_str << ") is too old, please upgrade it to the latest due to required idxd driver integrated to kernel since 5.11.\n";
+                    }
+                    break;
+                default:
+                    std::cout<< "Info: Chosen "<< accel<<" IDX - current linux kernel version(" << krel_str << ")";
+
+            }
+        }
+    }
+#endif
 
     debug::dyn_debug_level( debug_level );
 
