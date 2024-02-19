@@ -41,7 +41,7 @@ fi
 echo "Starting prometheus network"
 ${CTR_RUN} network create prometheus-network
 echo Starting prometheus
-${CTR_RUN} run --name prometheus --network prometheus-network -d -p 9090:9090 -v $PWD/prometheus.yml:/etc/prometheus/prometheus.yml:Z -v $PWD/prometheus_volume:/prometheus:Z quay.io/prometheus/prometheus:latest
+${CTR_RUN} run --name prometheus --network=prometheus-network -d -p 9090:9090 -v $PWD/prometheus.yml:/etc/prometheus/prometheus.yml:Z -v $PWD/prometheus_volume:/prometheus:Z quay.io/prometheus/prometheus:latest
 echo Starting grafana
 ${CTR_RUN} run -d --network=prometheus-network --name=grafana -p 3000:3000 -v $PWD/grafana_volume:/var/lib/grafana:Z -v $PWD/provisioning:/etc/grafana/provisioning:Z docker.io/grafana/grafana:latest
 

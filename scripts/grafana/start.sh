@@ -9,6 +9,16 @@ then
   exit 1
 fi
 
+
+mkdir -p grafana_volume/dashboards
+mkdir -p influxdb_volume
+
+chmod -R 777 *_volume
+
+mkdir -p provisioning/datasources
+cp automatic_influxdb.yml provisioning/datasources/automatic.yml
+
+
 CTR_RUN=${CTR_RUN:-docker}
 
 # check if argument is file, create the telegraf.conf accordingly
@@ -34,22 +44,10 @@ else
   curl -o grafana_volume/dashboards/pcm-dashboard.json $1/dashboard
 fi
 
-
-mkdir -p grafana_volume/dashboards
-mkdir -p influxdb_volume
-
-chmod -R 777 *_volume
-
-mkdir -p provisioning/datasources
-cp automatic_influxdb.yml provisioning/datasources/automatic.yml
-
-echo Downloading PCM dashboard
-curl -o grafana_volume/dashboards/pcm-dashboard.json $1/dashboard
-
 echo "Creating influxdb network"
 ${CTR_RUN} network create influxdb-network
 echo Starting influxdb
-${CTR_RUN} run -d --name influxdb -p 8083:8083 -p 8086:8086 -v $PWD/influxdb_volume:/var/lib/influxdb influxdb:1.8.0-alpine --network influxdb-network
+${CTR_RUN} run -d --name influxdb -p 8083:8083 -p 8086:8086 --network=influxdb-network -v $PWD/influxdb_volume:/var/lib/influxdb influxdb:1.8.0-alpine
 echo Starting telegraf
 ${CTR_RUN} run -d --name telegraf --network=influxdb-network -v $PWD/telegraf.conf:/etc/telegraf/telegraf.conf:ro telegraf
 echo Starting grafana
