@@ -10,3 +10,5 @@ for c in grafana telegraf influxdb prometheus; do
 	fi
 done
 
+${CTR_RUN} network rm prometheus-network influxdb-network
+
