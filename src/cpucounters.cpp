@@ -6857,6 +6857,53 @@ bool PCM::useLinuxPerfForUncore() const
     return 1 == use;
 }
 
+template <class F>
+void PCM::getPCICFGPMUsFromDiscovery(const unsigned int BoxType, const size_t s, F f) const
+{
+    if (uncorePMUDiscovery.get())
+    {
+        const auto numBoxes = uncorePMUDiscovery->getNumBoxes(BoxType, s);
+        for (size_t pos = 0; pos < numBoxes; ++pos)
+        {
+            if (uncorePMUDiscovery->getBoxAccessType(BoxType, s, pos) == UncorePMUDiscovery::accessTypeEnum::PCICFG)
+            {
+                std::vector<std::shared_ptr<HWRegister> > CounterControlRegs, CounterValueRegs;
+                const auto n_regs = uncorePMUDiscovery->getBoxNumRegs(BoxType, s, pos);
+                auto makeRegister = [](const uint64 rawAddr)
+                {
+                    constexpr auto PCI_ENABLE = 0x80000000ULL;
+                    UncorePMUDiscovery::PCICFGAddress Addr;
+                    Addr.raw = rawAddr;
+                    assert(Addr.raw & PCI_ENABLE);
+                    try {
+                        auto handle = std::make_shared<PciHandleType>(0, (uint32)Addr.fields.bus,
+                                                                        (uint32)Addr.fields.device,
+                                                                        (uint32)Addr.fields.function);
+                        assert(handle.get());
+                        // std::cerr << "DEBUG: opened bdf "<< Addr.getStr() << "\n";
+                        return std::make_shared<PCICFGRegister64>(handle, (size_t)Addr.fields.offset);
+                    }
+                    catch (...)
+                    {
+                        // std::cerr << "DEBUG: error opening bdf "<< Addr.getStr() << "\n";
+                    }
+                    return std::shared_ptr<PCICFGRegister64>();
+                };
+                auto boxCtlRegister = makeRegister(uncorePMUDiscovery->getBoxCtlAddr(BoxType, s, pos));
+                if (boxCtlRegister.get())
+                {
+                    for (size_t r = 0; r < n_regs; ++r)
+                    {
+                        CounterControlRegs.push_back(makeRegister(uncorePMUDiscovery->getBoxCtlAddr(BoxType, s, pos, r)));
+                        CounterValueRegs.push_back(makeRegister(uncorePMUDiscovery->getBoxCtrAddr(BoxType, s, pos, r)));
+                    }
+                    f(UncorePMU(boxCtlRegister, CounterControlRegs, CounterValueRegs));
+                }
+            }
+        }
+    }
+};
+
 ServerUncorePMUs::ServerUncorePMUs(uint32 socket_, const PCM * pcm) :
      iMCbus(-1)
    , UPIbus(-1)
@@ -7572,11 +7619,28 @@ void ServerUncorePMUs::initDirect(uint32 socket_, const PCM * pcm)
     return;
 #endif
 
+    if (pcm->getNumSockets() <= 4 && safe_getenv("PCM_NO_UPILL_DISCOVERY") != std::string("1"))
+    {
+        switch (cpu_model)
+        {
+            case PCM::SPR:
+            case PCM::EMR:
+                {
+                    std::cerr << "INFO: Trying to detect UPILL PMU through uncore PMU discovery..\n";
+                    pcm->getPCICFGPMUsFromDiscovery(SPR_UPILL_BOX_TYPE, socket_, [this](const UncorePMU & pmu)
+                    {
+                        xpiPMUs.push_back(pmu);
+                    });
+                }
+                break;
+        }
+    }
+
     std::vector<std::shared_ptr<PciHandleType> > qpiLLHandles;
     auto xPI = pcm->xPI();
     try
     {
-        for (size_t i = 0; i < XPIRegisterLocation.size(); ++i)
+        if (xpiPMUs.empty()) for (size_t i = 0; i < XPIRegisterLocation.size(); ++i)
         {
             PciHandleType * handle = createIntelPerfMonDevice(groupnr, UPIbus, XPIRegisterLocation[i].first, XPIRegisterLocation[i].second, true);
             if (handle)
@@ -7602,7 +7666,7 @@ void ServerUncorePMUs::initDirect(uint32 socket_, const PCM * pcm)
         throw std::exception();
     }
 
-    for (auto & handle : qpiLLHandles)
+    if (xpiPMUs.empty()) for (auto & handle : qpiLLHandles)
     {
         if (cpu_model == PCM::SKX)
         {
