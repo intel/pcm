@@ -11,6 +11,7 @@
 namespace pcm {
 
 constexpr auto SPR_PCU_BOX_TYPE = 4U;
+constexpr auto SPR_IMC_BOX_TYPE = 6U;
 constexpr auto SPR_MDF_BOX_TYPE = 11U;
 constexpr auto SPR_CXLCM_BOX_TYPE = 12U;
 constexpr auto SPR_CXLDP_BOX_TYPE = 13U;
@@ -185,7 +186,8 @@ public:
     {
         if (validBox(boxType, socket, pos) && c < boxPMUs[socket][boxType][pos].numRegs)
         {
-            return boxPMUs[socket][boxType][pos].boxCtrlAddr + boxPMUs[socket][boxType][pos].ctrlOffset + c * registerStep(boxType, socket, pos);
+            const size_t step = (boxType == SPR_IMC_BOX_TYPE) ? 4 : registerStep(boxType, socket, pos);
+            return boxPMUs[socket][boxType][pos].boxCtrlAddr + boxPMUs[socket][boxType][pos].ctrlOffset + c * step;
         }
         return 0;
     }

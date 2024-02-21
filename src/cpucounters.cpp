@@ -7293,9 +7293,12 @@ void ServerUncorePMUs::initDirect(uint32 socket_, const PCM * pcm)
     populateM2MPMUs(groupnr, M2Mbus, cpu_model, HBM_M2MRegisterLocation, hbm_m2mPMUs);
 
     int numChannels = 0;
-    if (cpu_model == PCM::SPR || cpu_model == PCM::EMR)
+    if (safe_getenv("PCM_NO_IMC_DISCOVERY") == std::string("1"))
     {
-        numChannels = 3;
+        if (cpu_model == PCM::SPR || cpu_model == PCM::EMR)
+        {
+            numChannels = 3;
+        }
     }
     if (cpu_model == PCM::SNOWRIDGE || cpu_model == PCM::ICX)
     {
@@ -7350,6 +7353,75 @@ void ServerUncorePMUs::initDirect(uint32 socket_, const PCM * pcm)
                 }
                 num_imc_channels.push_back(numChannels);
             }
+        }
+    }
+    else
+    {
+        switch (cpu_model)
+        {
+            case PCM::SPR:
+            case PCM::EMR:
+                {
+                    auto & uncorePMUDiscovery = pcm->uncorePMUDiscovery;
+                    const auto BoxType = SPR_IMC_BOX_TYPE;
+                    if (uncorePMUDiscovery.get())
+                    {
+                        const auto numBoxes = uncorePMUDiscovery->getNumBoxes(BoxType, socket_);
+                        for (size_t pos = 0; pos < numBoxes; ++pos)
+                        {
+                            if (uncorePMUDiscovery->getBoxAccessType(BoxType, socket_, pos) == UncorePMUDiscovery::accessTypeEnum::MMIO)
+                            {
+                                std::vector<std::shared_ptr<HWRegister> > CounterControlRegs, CounterValueRegs;
+                                const auto n_regs = uncorePMUDiscovery->getBoxNumRegs(BoxType, socket_, pos);
+                                auto makeRegister = [](const uint64 rawAddr, const uint32 bits) -> std::shared_ptr<HWRegister>
+                                {
+                                    const auto mapSize = SERVER_MC_CH_PMON_SIZE;
+                                    const auto alignedAddr = rawAddr & ~4095ULL;
+                                    const auto alignDelta = rawAddr & 4095ULL;
+                                    try {
+                                        auto handle = std::make_shared<MMIORange>(alignedAddr, mapSize, false);
+                                        assert(handle.get());
+                                        switch (bits)
+                                        {
+                                            case 32:
+                                                return std::make_shared<MMIORegister32>(handle, (size_t)alignDelta);
+                                            case 64:
+                                                return std::make_shared<MMIORegister64>(handle, (size_t)alignDelta);
+                                        }
+                                    }
+                                    catch (...)
+                                    {
+                                    }
+                                    return std::shared_ptr<HWRegister>();
+                                };
+
+                                auto boxCtlRegister = makeRegister(uncorePMUDiscovery->getBoxCtlAddr(BoxType, socket_, pos), 32);
+                                if (boxCtlRegister.get())
+                                {
+                                    for (size_t r = 0; r < n_regs; ++r)
+                                    {
+                                        CounterControlRegs.push_back(makeRegister(uncorePMUDiscovery->getBoxCtlAddr(BoxType, socket_, pos, r), 32));
+                                        CounterValueRegs.push_back(makeRegister(uncorePMUDiscovery->getBoxCtrAddr(BoxType, socket_, pos, r), 64));
+                                    }
+                                    imcPMUs.push_back(UncorePMU(boxCtlRegister,
+                                        CounterControlRegs,
+                                        CounterValueRegs,
+                                        makeRegister(uncorePMUDiscovery->getBoxCtlAddr(BoxType, socket_, pos) + SERVER_MC_CH_PMON_FIXED_CTL_OFFSET, 32),
+                                        makeRegister(uncorePMUDiscovery->getBoxCtlAddr(BoxType, socket_, pos) + SERVER_MC_CH_PMON_FIXED_CTR_OFFSET, 64)));
+                                }
+                            }
+                        }
+                    }
+                    if (imcPMUs.empty() == false)
+                    {
+                        numChannels = 2;
+                        for (size_t c = 0; c < imcPMUs.size(); c += numChannels)
+                        {
+                            num_imc_channels.push_back(numChannels);
+                        }
+                    }
+                }
+                break;
         }
     }
 
