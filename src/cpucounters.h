@@ -804,6 +804,9 @@ private:
 
     std::shared_ptr<UncorePMUDiscovery> uncorePMUDiscovery;
 
+    template <class F>
+    void getPCICFGPMUsFromDiscovery(const unsigned int BoxType, const size_t s, F f) const;
+
     bool disable_JKT_workaround;
     bool blocked;              // track if time-driven counter update is running or not: PCM is blocked
 

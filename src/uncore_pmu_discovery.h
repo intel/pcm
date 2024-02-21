@@ -12,6 +12,7 @@ namespace pcm {
 
 constexpr auto SPR_PCU_BOX_TYPE = 4U;
 constexpr auto SPR_IMC_BOX_TYPE = 6U;
+constexpr auto SPR_UPILL_BOX_TYPE = 8U;
 constexpr auto SPR_MDF_BOX_TYPE = 11U;
 constexpr auto SPR_CXLCM_BOX_TYPE = 12U;
 constexpr auto SPR_CXLDP_BOX_TYPE = 13U;
