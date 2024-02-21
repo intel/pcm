@@ -79,7 +79,7 @@ int main(int argc, char * argv[])
     assert((argc > 1) && "Need operation type as parameter: 0 - read, 1 - write, 2 - streaming write ");
     int op = atoi(argv[1]);
     T * vector;
-    int nelements = 13000000;
+    int nelements = 1024 * 1024 * 1024 / sizeof(T);
     vector = new T[nelements];
 
     int i = 0;
