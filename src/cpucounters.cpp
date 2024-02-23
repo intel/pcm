@@ -6876,7 +6876,9 @@ void PCM::getPCICFGPMUsFromDiscovery(const unsigned int BoxType, const size_t s,
                 const auto n_regs = uncorePMUDiscovery->getBoxNumRegs(BoxType, s, pos);
                 auto makeRegister = [](const uint64 rawAddr)
                 {
+#ifndef PCI_ENABLE
                     constexpr auto PCI_ENABLE = 0x80000000ULL;
+#endif
                     UncorePMUDiscovery::PCICFGAddress Addr;
                     Addr.raw = rawAddr;
                     assert(Addr.raw & PCI_ENABLE);
