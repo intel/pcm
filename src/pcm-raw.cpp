@@ -549,6 +549,7 @@ AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEven
     assert(pcm);
 
     int stepping = pcm->getCPUStepping();
+    assert(stepping >= 0);
     std::string path, err_msg;
 
     for (; stepping >= 0; --stepping)
