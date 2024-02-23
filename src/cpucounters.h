@@ -1826,6 +1826,10 @@ private:
     RawPMUConfig threadMSRConfig{}, packageMSRConfig{}, pcicfgConfig{}, mmioConfig{};
 public:
 
+    //! \brief Reads CPU family
+    //! \return CPU family
+    uint32 getCPUFamily() const { return (uint32)cpu_family; }
+
     //! \brief Reads CPU model id
     //! \return CPU model ID
     uint32 getCPUModel() const { return (uint32)cpu_model; }
@@ -2258,7 +2262,7 @@ public:
     //! \brief Get Brand string of processor
     static std::string getCPUBrandString();
     std::string getCPUFamilyModelString();
-
+    static std::string getCPUFamilyModelString(const uint32 cpu_family, const uint32 cpu_model, const uint32 cpu_stepping);
 
     //! \brief Enables "force all RTM transaction abort" mode also enabling 4+ programmable counters on Skylake generation processors
     void enableForceRTMAbortMode(const bool silent = false);
