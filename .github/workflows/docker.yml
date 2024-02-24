@@ -20,7 +20,7 @@ jobs:
           egress-policy: audit
 
       - name: Get current time
-        uses: 1466587594/get-current-time@5979d2f4455ed5df566aa6df67cedd77d17afaa9 # v2.1.1
+        uses: 1466587594/get-current-time@060cae3fbd32c181c6841788189a601ac8df8389 # v2.1.2
         id: current-time
         with:
           format: YYYY-MM-DD--HH

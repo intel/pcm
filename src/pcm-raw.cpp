@@ -545,21 +545,44 @@ AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEven
 
     bool fixed = false;
     static size_t offcoreEventIndex = 0;
+    auto * pcm = PCM::getInstance();
+    assert(pcm);
 
-    const std::string path = std::string("PMURegisterDeclarations/") + PCM::getInstance()->getCPUFamilyModelString() + ".json";
+    int stepping = pcm->getCPUStepping();
+    assert(stepping >= 0);
+    std::string path, err_msg;
 
-    std::ifstream in(path);
-    if (!in.is_open())
+    for (; stepping >= 0; --stepping)
     {
-        const auto alt_path = std::string("/usr/share/pcm/") + path;
-        in.open(alt_path);
-        if (!in.is_open())
+        try
         {
-            const auto err_msg = std::string("event file ") + path + " or " + alt_path + " is not available.";
-            throw std::invalid_argument(err_msg);
+            path = std::string("PMURegisterDeclarations/") + pcm->getCPUFamilyModelString(pcm->getCPUFamily(), pcm->getCPUModel(), (uint32)stepping) + ".json";
+
+            std::ifstream in(path);
+            if (!in.is_open())
+            {
+                const auto alt_path = std::string("/usr/share/pcm/") + path;
+                in.open(alt_path);
+                if (!in.is_open())
+                {
+                    err_msg = std::string("event file ") + path + " or " + alt_path + " is not available.";
+                    throw std::invalid_argument(err_msg);
+                }
+            }
+            in.close();
+            break;
+        }
+        catch (std::invalid_argument & e)
+        {
+            std::cerr << "INFO: " << e.what() << "\n";
+            path.clear();
         }
     }
-    in.close();
+
+    if (path.empty())
+    {
+        throw std::invalid_argument(err_msg);
+    }
 
     if (PMURegisterDeclarations.get() == nullptr)
     {
