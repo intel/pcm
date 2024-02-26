@@ -45,7 +45,7 @@ if(UNIX)  # APPLE, LINUX, FREE_BSD
     message(STATUS "initial CMAKE_C_FLAGS: ${CMAKE_C_FLAGS}")
 
     # required PCM common flags
-    set (PCM_COMMON_FLAGS "-Wno-unknown-pragmas -fPIC")
+    set (PCM_COMMON_FLAGS "-Wno-unknown-pragmas -fPIC -z,now")
 
     if(LINUX)
        set (PCM_COMMON_FLAGS "${PCM_COMMON_FLAGS} -Wextra -DPCM_USE_PERF")
