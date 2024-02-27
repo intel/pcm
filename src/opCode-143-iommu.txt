@@ -1,0 +1,9 @@
+# IOMMU events
+ctr=0,ev_sel=0x40,umask=0x01,ch_mask=0x0,fc_mask=0x0,multiplier=1,divider=1,hname=IOTLB Lookup,vname=Total
+ctr=1,ev_sel=0x40,umask=0x20,ch_mask=0x0,fc_mask=0x0,multiplier=1,divider=1,hname=IOTLB Miss,vname=Total
+ctr=2,ev_sel=0x40,umask=0x80,ch_mask=0x0,fc_mask=0x0,multiplier=1,divider=1,hname=Ctxt Cache Hit,vname=Total
+ctr=3,ev_sel=0x41,umask=0x10,ch_mask=0x0,fc_mask=0x0,multiplier=1,divider=1,hname=256T Cache Hit,vname=Total
+ctr=0,ev_sel=0x41,umask=0x08,ch_mask=0x0,fc_mask=0x0,multiplier=1,divider=1,hname=512G Cache Hit,vname=Total
+ctr=1,ev_sel=0x41,umask=0x04,ch_mask=0x0,fc_mask=0x0,multiplier=1,divider=1,hname=1G Cache Hit,vname=Total
+ctr=2,ev_sel=0x41,umask=0x02,ch_mask=0x0,fc_mask=0x0,multiplier=1,divider=1,hname=2M Cache Hit,vname=Total
+ctr=3,ev_sel=0x41,umask=0xc0,ch_mask=0x0,fc_mask=0x0,multiplier=1,divider=1,hname=IOMMU Mem Access,vname=Total
