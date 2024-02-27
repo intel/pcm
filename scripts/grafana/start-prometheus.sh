@@ -9,6 +9,8 @@ then
   exit 1
 fi
 
+CTR_RUN=${CTR_RUN:-docker}
+
 mkdir -p grafana_volume/dashboards
 mkdir -p prometheus_volume
 
@@ -36,10 +38,12 @@ else
   curl -o grafana_volume/dashboards/pcm-dashboard.json $1/dashboard/prometheus
 fi
 
+echo "Starting prometheus network"
+${CTR_RUN} network create prometheus-network
 echo Starting prometheus
-docker run --name prometheus -d -p 9090:9090 -v $PWD/prometheus.yml:/etc/prometheus/prometheus.yml -v $PWD/prometheus_volume:/prometheus prom/prometheus
+${CTR_RUN} run --name prometheus --network=prometheus-network -d -p 9090:9090 -v $PWD/prometheus.yml:/etc/prometheus/prometheus.yml:Z -v $PWD/prometheus_volume:/prometheus:Z quay.io/prometheus/prometheus:latest
 echo Starting grafana
-docker run -d --link=prometheus --name=grafana -p 3000:3000 -v $PWD/grafana_volume:/var/lib/grafana -v $PWD/provisioning:/etc/grafana/provisioning grafana/grafana
+${CTR_RUN} run -d --network=prometheus-network --name=grafana -p 3000:3000 -v $PWD/grafana_volume:/var/lib/grafana:Z -v $PWD/provisioning:/etc/grafana/provisioning:Z docker.io/grafana/grafana:latest
 
 echo Start browser at http://localhost:3000/ and login with admin user, password admin
 

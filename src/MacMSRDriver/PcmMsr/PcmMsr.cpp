@@ -12,8 +12,6 @@ PcmMsrDriverClassName *g_pci_driver = NULL;
 asm volatile ("wrmsr" : : "c" (msr), "a" (lo), "d" (hi))
 #define rdmsr(msr,lo,hi) \
 asm volatile ("\trdmsr\n" : "=a" (lo), "=d" (hi) : "c" (msr))
-#define cpuid(func1, func2, a, b, c, d) \
-asm volatile ("cpuid" : "=a" (a), "=b" (b), "=c" (c), "=d" (d) : "a" (func1), "c" (func2));
 
 extern "C" {
     extern void mp_rendezvous_no_intrs(void (*func)(void *),
@@ -58,14 +56,18 @@ void cpuWriteMSR(void* pIDatas){
 
 void cpuGetTopoData(void* pTopos){
     TopologyEntry* entries = (TopologyEntry*)pTopos;
-    int cpu = cpu_number();
-    int info[4];
-    entries[cpu].os_id = cpu;
-    cpuid(0xB, 1, info[0], info[1], info[2], info[3]);
-    entries[cpu].socket = info[3] >> info[0] & 0xF;
+    const int cpu = cpu_number();
 
-    cpuid(0xB, 0, info[0], info[1], info[2], info[3]);
-    entries[cpu].core_id = info[3] >> info[0] & 0xF;
+    TopologyEntry & entry = entries[cpu];
+    entry.os_id = cpu;
+
+    uint32 smtMaskWidth = 0;
+    uint32 coreMaskWidth = 0;
+    uint32 l2CacheMaskShift = 0;
+    initCoreMasks(smtMaskWidth, coreMaskWidth, l2CacheMaskShift);
+    PCM_CPUID_INFO cpuid_args;
+    pcm_cpuid(0xb, 0x0, cpuid_args);
+    fillEntry(entry, smtMaskWidth, coreMaskWidth, l2CacheMaskShift, cpuid_args.array[3]);
 }
 
 OSDefineMetaClassAndStructors(com_intel_driver_PcmMsr, IOService)
@@ -188,8 +190,10 @@ IOReturn PcmMsrDriverClassName::buildTopology(TopologyEntry* odata, uint32_t inp
 
     for(uint32_t i = 0; i < num_cores && i < input_num_cores; i++)
     {
-        odata[i].core_id = topologies[i].core_id;
         odata[i].os_id = topologies[i].os_id;
+        odata[i].thread_id = topologies[i].thread_id;
+        odata[i].core_id = topologies[i].core_id;
+        odata[i].tile_id = topologies[i].tile_id;
         odata[i].socket = topologies[i].socket;
     }
 

@@ -9,6 +9,9 @@ on:
 env:
   BUILD_TYPE: Release
 
+permissions:
+  contents: read
+
 jobs:
   build:
 
@@ -16,7 +19,12 @@ jobs:
     if: ${{ github.repository != 'intel/pcm' }}
 
     steps:
-    - uses: actions/checkout@v3
+    - name: Harden Runner
+      uses: step-security/harden-runner@eb238b55efaa70779f274895e782ed17c84f2895 # v2.6.1
+      with:
+        egress-policy: audit
+
+    - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
       with:
         submodules: recursive
     - name: Configure CMake
@@ -27,13 +35,13 @@ jobs:
       run: |
         cmake --build ${{github.workspace}}\build --config ${{env.BUILD_TYPE}} --parallel
     - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@v1.1.3
+      uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # v2.0.0
     - name: Build MSR driver
       run: |
         chdir ${{github.workspace}}\src\WinMSRDriver
         msbuild MSR.vcxproj /p:Configuration=Release,Platform=x64 /t:Clean,Build /m
     - name: upload-artifact
-      uses: actions/upload-artifact@v3.1.1
+      uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v3.1.3
       with:
         name: PCMforWindows
         path: build/bin/**/*

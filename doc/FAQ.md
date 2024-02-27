@@ -86,3 +86,10 @@ Not all AWS instances allow users to collect CPU telemetry by exposing PMU to th
 * Bare metal instances: allow collection of CPU metrics from both core (e.g. instructions per cycle, cache misses) and uncore (e.g. memory controller, UPI)
 * Full-socket (single socket, two socket, etc) virtualized instances: e.g. m5d.12xlarge, m5.24xlarge, m5.12xlarge. Only core CPU metrics are exposed, and certain CPU performance events are forbidden (e.g. offcore response events, events collecting “any_thread” information). “arch_perfmon” flag in /proc/cpuinfo indicates if the core CPU metrics are exposed (example: https://instaguide.io/info.html?type=m5.12xlarge ). The mechanism of PMU virtualization is commonly known as vPMU.
 
+## Q12
+
+pcm-pcie reports that the CPU is not supported: "Jaketown, Ivytown, Haswell, Broadwell-DE, Skylake, Icelake, Snowridge and Sapphirerapids Server CPU is required for this tool! Program aborted"
+Can you add support for pcm-pcie for my CPU?
+
+Answer: most likely you have a client CPU which does not have required hardware performance monitoring units. pcm-pcie can not work without them.
+

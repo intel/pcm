@@ -320,6 +320,7 @@ int mainThrows(int argc, char * argv[])
         eventDefinition = iclEventDefinition;
         break;
     case PCM::SPR:
+    case PCM::EMR:
         eventDefinition = sprEventDefinition;
         break;
     }

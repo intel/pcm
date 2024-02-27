@@ -182,7 +182,16 @@ NTSTATUS deviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
                 new_affinity.Group = ProcNumber.Group;
                 new_affinity.Mask = 1ULL << (ProcNumber.Number);
                 KeSetSystemGroupAffinityThread(&new_affinity, &old_affinity);
-                __writemsr(input_msr_req->msr_address, input_msr_req->write_value);
+                __try
+                {
+                    __writemsr(input_msr_req->msr_address, input_msr_req->write_value);
+                }
+                __except (EXCEPTION_EXECUTE_HANDLER)
+                {
+                    status = GetExceptionCode();
+                    DbgPrint("Error: exception with code 0x%X in IO_CTL_MSR_WRITE core 0x%X msr 0x%llX value 0x%llX\n",
+                        status, input_msr_req->core_id, input_msr_req->msr_address, input_msr_req->write_value);
+                }
                 KeRevertToUserGroupAffinityThread(&old_affinity);
                 Irp->IoStatus.Information = 0;                         // result size
                 break;
@@ -198,7 +207,16 @@ NTSTATUS deviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
                 new_affinity.Group = ProcNumber.Group;
                 new_affinity.Mask = 1ULL << (ProcNumber.Number);
                 KeSetSystemGroupAffinityThread(&new_affinity, &old_affinity);
-                *output = __readmsr(input_msr_req->msr_address);
+                __try
+                {
+                    *output = __readmsr(input_msr_req->msr_address);
+                }
+                __except (EXCEPTION_EXECUTE_HANDLER)
+                {
+                    status = GetExceptionCode();
+                    DbgPrint("Error: exception with code 0x%X in IO_CTL_MSR_READ core 0x%X msr 0x%llX\n",
+                        status, input_msr_req->core_id, input_msr_req->msr_address);
+                }
                 KeRevertToUserGroupAffinityThread(&old_affinity);
                 Irp->IoStatus.Information = sizeof(ULONG64);                         // result size
                 break;
@@ -258,8 +276,19 @@ NTSTATUS deviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
                 slot.u.bits.FunctionNumber = input_pcicfg_req->func;
 #pragma warning(push)
 #pragma warning(disable: 4996)
-                size = HalSetBusDataByOffset(PCIConfiguration, input_pcicfg_req->bus, slot.u.AsULONG,
-                                             &(input_pcicfg_req->write_value), input_pcicfg_req->reg, input_pcicfg_req->bytes);
+                __try
+                {
+                    size = HalSetBusDataByOffset(PCIConfiguration, input_pcicfg_req->bus, slot.u.AsULONG,
+                        &(input_pcicfg_req->write_value), input_pcicfg_req->reg, input_pcicfg_req->bytes);
+                }
+                __except (EXCEPTION_EXECUTE_HANDLER)
+                {
+                    status = GetExceptionCode();
+                    size = 0;
+                    DbgPrint("Error: exception with code 0x%X in IO_CTL_PCICFG_WRITE b 0x%X d 0x%X f 0x%X reg 0x%X bytes 0x%X value 0x%llX\n",
+                        status, input_pcicfg_req->bus, input_pcicfg_req->dev, input_pcicfg_req->func, input_pcicfg_req->reg, input_pcicfg_req->bytes,
+                        input_pcicfg_req->write_value);
+                }
 #pragma warning(pop)
                 if (size != input_pcicfg_req->bytes)
                 {
@@ -279,8 +308,18 @@ NTSTATUS deviceControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
                 slot.u.bits.FunctionNumber = input_pcicfg_req->func;
 #pragma warning(push)
 #pragma warning(disable: 4996)
-                size = HalGetBusDataByOffset(PCIConfiguration, input_pcicfg_req->bus, slot.u.AsULONG,
-                                             output, input_pcicfg_req->reg, input_pcicfg_req->bytes);
+                __try
+                {
+                    size = HalGetBusDataByOffset(PCIConfiguration, input_pcicfg_req->bus, slot.u.AsULONG,
+                        output, input_pcicfg_req->reg, input_pcicfg_req->bytes);
+                }
+                __except (EXCEPTION_EXECUTE_HANDLER)
+                {
+                    status = GetExceptionCode();
+                    size = 0;
+                    DbgPrint("Error: exception with code 0x%X in IO_CTL_PCICFG_READ b 0x%X d 0x%X f 0x%X reg 0x%X bytes 0x%X\n",
+                        status, input_pcicfg_req->bus, input_pcicfg_req->dev, input_pcicfg_req->func, input_pcicfg_req->reg, input_pcicfg_req->bytes);
+                }
 #pragma warning(pop)
                 if (size != input_pcicfg_req->bytes)
                 {
