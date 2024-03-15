@@ -2,7 +2,7 @@
 Contributing to Intel&reg; Performance Counter Monitor (Intel&reg; PCM)
 --------------------------------------------------------------------------------
 
-Everyone is welcome to contribute. Patches may be submitted using GitHub pull requests (PRs).
+We warmly welcome contributions from everyone. If you wish to submit patches, please do so using GitHub's pull request (PR) feature. When adding substantial new features, it's crucial to also include relevant tests in our test suite, located in the test/test.sh file. This step helps verify the proper functioning of the new features.
 
 --------------------------------------------------------------------------------
 License
