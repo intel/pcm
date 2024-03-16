@@ -359,7 +359,7 @@ void print_output(PCM * m,
         drawStackedBar(" Core    C-state distribution", CoreCStateStackedBar, 80);
         drawStackedBar(" Package C-state distribution", PackageCStateStackedBar, 80);
 
-        if (m->getNumCores() == m->getNumOnlineCores())
+        if (m->getNumCores() == m->getNumOnlineCores() && false)
         {
             cout << "\n PHYSICAL CORE IPC                 : " << getCoreIPC(sstate1, sstate2) << " => corresponds to " << 100. * (getCoreIPC(sstate1, sstate2) / double(m->getMaxIPC())) << " % utilization for cores in active state";
             cout << "\n Instructions per nominal CPU cycle: " << getTotalExecUsage(sstate1, sstate2) << " => corresponds to " << 100. * (getTotalExecUsage(sstate1, sstate2) / double(m->getMaxIPC())) << " % core utilization over time interval\n";
@@ -393,7 +393,9 @@ void print_output(PCM * m,
             cout << "\n";
         }
 
+#if 0
         cout << " SMI count: " << getSMICount(sstate1, sstate2) << "\n";
+#endif
     }
 
     if (show_socket_output)
