@@ -8,7 +8,7 @@ Everyone is welcome to contribute. Patches may be submitted using GitHub pull re
 License
 --------------------------------------------------------------------------------
 
-(Intel&reg; PCM) is licensed using a [BSD 3-clause license](https://github.com/intel/pcm/blob/master/LICENSE). All code submitted to the project is required to carry that license.
+Intel&reg; PCM is licensed using a [BSD 3-clause license](https://github.com/intel/pcm/blob/master/LICENSE). All code submitted to the project is required to carry that license.
 
 --------------------------------------------------------------------------------
 Coding Style
