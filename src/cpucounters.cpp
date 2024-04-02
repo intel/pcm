@@ -921,6 +921,7 @@ public:
         operation = PCM::IDX_OPERATION(val);
 #ifdef __linux__
         std::ostringstream sysfs_path(std::ostringstream::out);
+	std::string telemetry_filename;
         switch (operation)
         {
             case PCM::QAT_TLM_START: //enable
@@ -935,6 +936,18 @@ public:
                         std::hex << std::setw(2) << std::setfill('0') << b << ":" <<
                         std::hex << std::setw(2) << std::setfill('0') << d << "." <<
                         std::hex << f << "/telemetry/control";
+
+                    /*check telemetry for out-of tree driver*/
+                    telemetry_filename = readSysFS(sysfs_path.str().c_str(), true);
+                    if(!telemetry_filename.size()){
+                        /*is not oot driver, check telemetry for in tree driver  (since kernel 6.8)*/
+                        sysfs_path.str("");
+                        sysfs_path << std::string("/sys/kernel/debug/qat_4xxx_") <<
+                            std::hex << std::setw(4) << std::setfill('0') << domain << ":" <<
+                            std::hex << std::setw(2) << std::setfill('0') << b << ":" <<
+                            std::hex << std::setw(2) << std::setfill('0') << d << "." <<
+                            std::hex << f << "/telemetry/control";
+                    }
 
                     if (writeSysFS(sysfs_path.str().c_str(), (operation == PCM::QAT_TLM_START  ? "1" : "0")) == false)
                     {
@@ -951,7 +964,17 @@ public:
                         std::hex << std::setw(2) << std::setfill('0') << b << ":" <<
                         std::hex << std::setw(2) << std::setfill('0') << d << "." <<
                         std::hex << f << "/telemetry/device_data";
-
+                    /*check telemetry for out-of tree driver*/
+                    telemetry_filename = readSysFS(sysfs_path.str().c_str(), true);
+                    if(!telemetry_filename.size()){
+                        /*is not oot driver, check telemetry for in tree driver  (since kernel 6.8)*/
+                        sysfs_path.str("");
+                        sysfs_path << std::string("/sys/kernel/debug/qat_4xxx_") <<
+                            std::hex << std::setw(4) << std::setfill('0') << domain << ":" <<
+                            std::hex << std::setw(2) << std::setfill('0') << b << ":" <<
+                            std::hex << std::setw(2) << std::setfill('0') << d << "." <<
+                            std::hex << f << "/telemetry/device_data";
+                    }
                     data_cache.clear();
                     readMapFromSysFS(sysfs_path.str().c_str(), data_cache);
                 }
@@ -2382,17 +2405,28 @@ void PCM::initUncorePMUsDirect()
             for (auto & devInfo : devInfos)
             {
                 std::ostringstream qat_TLMCTL_sysfs_path(std::ostringstream::out);
+				/*parse telemetry follow rule of out of tree driver*/
                 qat_TLMCTL_sysfs_path << std::string("/sys/bus/pci/devices/") <<
                     std::hex << std::setw(4) << std::setfill('0') << devInfo.domain << ":" <<
                     std::hex << std::setw(2) << std::setfill('0') << devInfo.bus << ":" <<
                     std::hex << std::setw(2) << std::setfill('0') << devInfo.dev << "." <<
                     std::hex << devInfo.func << "/telemetry/control";
-                const std::string qatTLMCTLStr = readSysFS(qat_TLMCTL_sysfs_path.str().c_str(), true);
+                    std::string qatTLMCTLStr = readSysFS(qat_TLMCTL_sysfs_path.str().c_str(), true);
                 if (!qatTLMCTLStr.size()) //check TLM feature available or NOT.
                 {
-                    std::cout << "Warning: IDX - QAT telemetry feature of B:0x" << std::hex << devInfo.bus << ",D:0x" << devInfo.dev << ",F:0x" << devInfo.func \
-                        << " is NOT available, skipped." << std::dec << std::endl;
-                    continue;
+                    qat_TLMCTL_sysfs_path.str("");
+                    /*parse telemetry follow rule of in tree driver*/
+                    qat_TLMCTL_sysfs_path << std::string("/sys/kernel/debug/qat_4xxx_") <<
+                        std::hex << std::setw(4) << std::setfill('0') << devInfo.domain << ":" <<
+                        std::hex << std::setw(2) << std::setfill('0') << devInfo.bus << ":" <<
+                        std::hex << std::setw(2) << std::setfill('0') << devInfo.dev << "." <<
+                        std::hex << devInfo.func << "/telemetry/control";                    
+                    qatTLMCTLStr = readSysFS(qat_TLMCTL_sysfs_path.str().c_str(), true);
+		    if(!qatTLMCTLStr.size()){
+                        std::cout << "Warning: IDX - QAT telemetry feature of B:0x" << std::hex << devInfo.bus << ",D:0x" << devInfo.dev << ",F:0x" << devInfo.func \
+                            << " is NOT available, skipped." << std::dec << std::endl;
+	                continue;
+		    }
                 }
                 idxPMUs[IDX_QAT].push_back(createQATPMU(devInfo.numa_node, devInfo.socket_id, devInfo.domain , devInfo.bus, devInfo.dev , devInfo.func));
             }
