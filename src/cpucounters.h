@@ -1554,6 +1554,7 @@ public:
             {
             case ADL:
             case RPL:
+            case MTL:
                 if (topology[coreID].core_type == TopologyEntry::Atom)
                 {
                     return std::make_pair(OFFCORE_RESPONSE_0_EVTNR, event + 1);
@@ -1568,6 +1569,7 @@ public:
        case EMR:
        case ADL: // ADL big core (GLC)
        case RPL:
+       case MTL:
            useGLCOCREvent = true;
            break;
        }
@@ -1792,6 +1794,7 @@ public:
         RPL_1 = 0xba,
         RPL_2 = 0xbf,
         RPL_3 = 0xbe,
+        MTL = 0xAA,
         BDX = 79,
         KNL = 87,
         SKL = 94,
@@ -2005,6 +2008,7 @@ public:
         {
         case ADL:
         case RPL:
+        case MTL:
             return 6;
         case SNOWRIDGE:
             return 4;
@@ -2342,6 +2346,7 @@ public:
                  || cpu_model == PCM::ICX
                  || cpu_model == PCM::ADL
                  || cpu_model == PCM::RPL
+                 || cpu_model == PCM::MTL
                  || cpu_model == PCM::SPR
                  || cpu_model == PCM::EMR
                );
@@ -2613,6 +2618,7 @@ public:
             || cpu_model == BROADWELL
             || cpu_model == ADL
             || cpu_model == RPL
+            || cpu_model == MTL
             || useSKLPath()
             ;
     }
@@ -4015,7 +4021,12 @@ uint64 getL2CacheMisses(const CounterStateType & before, const CounterStateType 
     auto pcm = PCM::getInstance();
     if (pcm->isL2CacheMissesAvailable() == false) return 0ULL;
     const auto cpu_model = pcm->getCPUModel();
-    if (pcm->useSkylakeEvents() || cpu_model == PCM::SNOWRIDGE || cpu_model == PCM::ADL || cpu_model == PCM::RPL) {
+    if (pcm->useSkylakeEvents()
+        || cpu_model == PCM::SNOWRIDGE
+        || cpu_model == PCM::ADL
+        || cpu_model == PCM::RPL
+        || cpu_model == PCM::MTL
+        ) {
         return after.Event[BasicCounterState::SKLL2MissPos] - before.Event[BasicCounterState::SKLL2MissPos];
     }
     else if (pcm->isAtom() || cpu_model == PCM::KNL)
@@ -4121,7 +4132,11 @@ uint64 getL3CacheHitsSnoop(const CounterStateType & before, const CounterStateTy
     auto pcm = PCM::getInstance();
     if (!pcm->isL3CacheHitsSnoopAvailable()) return 0;
     const auto cpu_model = pcm->getCPUModel();
-    if (cpu_model == PCM::SNOWRIDGE || cpu_model == PCM::ADL || cpu_model == PCM::RPL)
+    if (cpu_model == PCM::SNOWRIDGE
+        || cpu_model == PCM::ADL
+        || cpu_model == PCM::RPL
+        || cpu_model == PCM::MTL
+        )
     {
         const int64 misses = getL3CacheMisses(before, after);
         const int64 refs = after.Event[BasicCounterState::ArchLLCRefPos] - before.Event[BasicCounterState::ArchLLCRefPos];
