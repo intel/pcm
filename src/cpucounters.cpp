@@ -2430,9 +2430,9 @@ void PCM::initUncorePMUsDirect()
         IRP_UNIT_CTL = SPR_IRP_UNIT_CTL;
         break;
     }
+    irpPMUs.resize(num_sockets);
     if (IRP_UNIT_CTL)
     {
-        irpPMUs.resize(num_sockets);
         for (uint32 s = 0; s < (uint32)num_sockets; ++s)
         {
             auto& handle = MSR[socketRefCore[s]];
@@ -9270,6 +9270,7 @@ uint32 PCM::getMaxNumOfIIOStacks() const
 {
     if (iioPMUs.size() > 0)
     {
+        assert(irpPMUs.size());
         assert(iioPMUs[0].size() == irpPMUs[0].size());
         return (uint32)iioPMUs[0].size();
     }
