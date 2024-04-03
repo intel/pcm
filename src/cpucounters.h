@@ -981,6 +981,10 @@ public:
         SNR_IIO_STACK_COUNT = 5
     };
 
+    enum BDXIIOStacks {
+        BDX_IIO_STACK_COUNT = 1
+    };
+
     enum IDX_IP
     {
         IDX_IAA = 0,

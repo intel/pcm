@@ -2456,6 +2456,47 @@ void PCM::initUncorePMUsDirect()
             }
         }
     }
+    auto findPCICFGPMU = [](uint32 did,
+                            const int s,
+                            const uint32 CtlOffset,
+                            const std::vector<uint32> & CounterControlOffsets,
+                            const std::vector<uint32> & CounterValueOffsets)
+    {
+        int found = 0;
+        UncorePMU out;
+        forAllIntelDevices([&](const uint32 group, const uint32 bus, const uint32 device, const uint32 function, const uint32 device_id)
+        {
+            if (device_id == did)
+            {
+                if (s == found)
+                {
+                    auto handle = std::make_shared<PciHandleType>(group, bus, device, function);
+                    const size_t n_regs = 4;
+                    std::vector<std::shared_ptr<HWRegister> > CounterControlRegs, CounterValueRegs;
+                    for (size_t r = 0; r < n_regs; ++r)
+                    {
+                        CounterControlRegs.push_back(std::make_shared<PCICFGRegister32>(handle, CounterControlOffsets[r]));
+                        CounterValueRegs.push_back(std::make_shared<PCICFGRegister64>(handle, CounterValueOffsets[r]));
+                    }
+                    auto boxCtlRegister = std::make_shared<PCICFGRegister32>(handle, CtlOffset);
+                    out = UncorePMU(boxCtlRegister, CounterControlRegs, CounterValueRegs);
+                    return;
+                }
+                ++found;
+            }
+        });
+        return out;
+    };
+    for (uint32 s = 0; s < (uint32)num_sockets; ++s)
+    {
+        switch (cpu_model)
+        {
+            case BDX:
+                irpPMUs[s][0] = findPCICFGPMU(0x6f2a, s, 0xF4, {0xD8, 0xDC, 0xE0, 0xE4}, {0xA0, 0xB0, 0xB8, 0xC0});
+                iioPMUs[s][0] = findPCICFGPMU(0x6f34, s, 0xF4, {0xD8, 0xDC, 0xE0, 0xE4}, {0xA0, 0xA8, 0xB0, 0xB8});
+                break;
+        }
+    }
 
     if (hasPCICFGUncore() && MSR.size())
     {
@@ -9329,6 +9370,9 @@ void PCM::programIIOCounters(uint64 rawEvents[4], int IIOStack)
         case PCM::SNOWRIDGE:
             stacks_count = SNR_IIO_STACK_COUNT;
             break;
+        case PCM::BDX:
+            stacks_count = BDX_IIO_STACK_COUNT;
+            break;
         case PCM::SKX:
         default:
             stacks_count = SKX_IIO_STACK_COUNT;
@@ -9364,6 +9408,7 @@ void PCM::programIIOCounters(uint64 rawEvents[4], int IIOStack)
 
 void PCM::programIRPCounters(uint64 rawEvents[4], int IIOStack)
 {
+    // std::cerr << "PCM::programIRPCounters IRP PMU unit (stack) " << IIOStack << " getMaxNumOfIIOStacks(): " << getMaxNumOfIIOStacks()<< "\n";
     std::vector<int32> IIO_units;
     if (IIOStack == -1)
     {
@@ -9389,6 +9434,7 @@ void PCM::programIRPCounters(uint64 rawEvents[4], int IIOStack)
                 std::cerr << "IRP PMU unit (stack) " << unit << " is not found \n";
                 continue;
             }
+            // std::cerr << "Programming IRP PMU unit (stack) " << unit << " on socket " << i << " \n";
             auto& pmu = irpPMUs[i][unit];
             pmu.initFreeze(UNC_PMON_UNIT_CTL_RSV);
 
