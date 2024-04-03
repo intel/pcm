@@ -697,6 +697,7 @@ void PCM::initCStateSupportTables()
         case DENVERTON:
         case ADL:
         case RPL:
+        case MTL:
         case SNOWRIDGE:
             PCM_CSTATE_ARRAY(pkgCStateMsr, PCM_PARAM_PROTECT({0, 0, 0x3F8, 0, 0x3F9, 0, 0x3FA, 0, 0, 0, 0 }) );
         case NEHALEM_EP:
@@ -769,6 +770,7 @@ void PCM::initCStateSupportTables()
         PCM_SKL_PATH_CASES
         case ADL:
         case RPL:
+        case MTL:
         case SNOWRIDGE:
         case ICX:
         case SPR:
@@ -1595,6 +1597,7 @@ bool PCM::detectNominalFrequency()
                || cpu_model == KNL
                || cpu_model == ADL
                || cpu_model == RPL
+               || cpu_model == MTL
                || cpu_model == SKX
                || cpu_model == ICX
                || cpu_model == SPR
@@ -1853,7 +1856,8 @@ void PCM::initUncoreObjects()
            {
            case TGL:
            case ADL: // TGLClientBW works fine for ADL
-           case RPL: // TGLClientBW works fine for ADL
+           case RPL: // TGLClientBW works fine for RPL
+           case MTL: // TGLClientBW works fine for MTL
                clientBW = std::make_shared<TGLClientBW>();
                break;
 /*         Disabled since ADLClientBW requires 2x multiplier for BW on top
@@ -2430,9 +2434,9 @@ void PCM::initUncorePMUsDirect()
         IRP_UNIT_CTL = SPR_IRP_UNIT_CTL;
         break;
     }
+    irpPMUs.resize(num_sockets);
     if (IRP_UNIT_CTL)
     {
-        irpPMUs.resize(num_sockets);
         for (uint32 s = 0; s < (uint32)num_sockets; ++s)
         {
             auto& handle = MSR[socketRefCore[s]];
@@ -2976,6 +2980,7 @@ bool PCM::isCPUModelSupported(const int model_)
             || model_ == TGL
             || model_ == ADL
             || model_ == RPL
+            || model_ == MTL
             || model_ == SKX
             || model_ == ICX
             || model_ == SPR
@@ -3146,7 +3151,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
         canUsePerf = false;
         if (!silent) std::cerr << "Installed Linux kernel perf does not support hardware top-down level-1 counters. Using direct PMU programming instead.\n";
     }
-    if (canUsePerf && (cpu_model == ADL || cpu_model == RPL))
+    if (canUsePerf && (cpu_model == ADL || cpu_model == RPL || cpu_model == MTL))
     {
         canUsePerf = false;
         if (!silent) std::cerr << "Linux kernel perf rejects an architectural event on your platform. Using direct PMU programming instead.\n";
@@ -3232,6 +3237,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
         switch ( cpu_model ) {
             case ADL:
             case RPL:
+            case MTL:
                 LLCArchEventInit(hybridAtomEventDesc);
                 hybridAtomEventDesc[2].event_number = SKL_MEM_LOAD_RETIRED_L2_MISS_EVTNR;
                 hybridAtomEventDesc[2].umask_value = SKL_MEM_LOAD_RETIRED_L2_MISS_UMASK;
@@ -4544,6 +4550,8 @@ const char * PCM::getUArchCodename(const int32 cpu_model_param) const
             return "Alder Lake";
         case RPL:
             return "Raptor Lake";
+        case MTL:
+            return "Meteor Lake";
         case SKX:
             if (cpu_model_param >= 0)
             {
@@ -9270,6 +9278,7 @@ uint32 PCM::getMaxNumOfIIOStacks() const
 {
     if (iioPMUs.size() > 0)
     {
+        assert(irpPMUs.size());
         assert(iioPMUs[0].size() == irpPMUs[0].size());
         return (uint32)iioPMUs[0].size();
     }
