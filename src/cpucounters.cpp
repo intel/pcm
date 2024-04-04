@@ -2479,8 +2479,8 @@ void PCM::initUncorePMUsDirect()
                         CounterValueRegs.push_back(std::make_shared<PCICFGRegister64>(handle, CounterValueOffsets[r]));
                     }
                     auto boxCtlRegister = std::make_shared<PCICFGRegister32>(handle, CtlOffset);
+                    // std::cerr << "socket " << std::hex <<  s <<  " device " << device_id << " " << group << ":" << bus << ":" << device << "@" << function << "\n" << std::dec;
                     out = UncorePMU(boxCtlRegister, CounterControlRegs, CounterValueRegs);
-                    return;
                 }
                 ++found;
             }
