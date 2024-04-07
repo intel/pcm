@@ -921,7 +921,7 @@ public:
         operation = PCM::IDX_OPERATION(val);
 #ifdef __linux__
         std::ostringstream sysfs_path(std::ostringstream::out);
-	std::string telemetry_filename;
+        std::string telemetry_filename;
         switch (operation)
         {
             case PCM::QAT_TLM_START: //enable
@@ -2405,13 +2405,13 @@ void PCM::initUncorePMUsDirect()
             for (auto & devInfo : devInfos)
             {
                 std::ostringstream qat_TLMCTL_sysfs_path(std::ostringstream::out);
-				/*parse telemetry follow rule of out of tree driver*/
+                /*parse telemetry follow rule of out of tree driver*/
                 qat_TLMCTL_sysfs_path << std::string("/sys/bus/pci/devices/") <<
                     std::hex << std::setw(4) << std::setfill('0') << devInfo.domain << ":" <<
                     std::hex << std::setw(2) << std::setfill('0') << devInfo.bus << ":" <<
                     std::hex << std::setw(2) << std::setfill('0') << devInfo.dev << "." <<
                     std::hex << devInfo.func << "/telemetry/control";
-                    std::string qatTLMCTLStr = readSysFS(qat_TLMCTL_sysfs_path.str().c_str(), true);
+                std::string qatTLMCTLStr = readSysFS(qat_TLMCTL_sysfs_path.str().c_str(), true);
                 if (!qatTLMCTLStr.size()) //check TLM feature available or NOT.
                 {
                     qat_TLMCTL_sysfs_path.str("");
@@ -2422,11 +2422,11 @@ void PCM::initUncorePMUsDirect()
                         std::hex << std::setw(2) << std::setfill('0') << devInfo.dev << "." <<
                         std::hex << devInfo.func << "/telemetry/control";                    
                     qatTLMCTLStr = readSysFS(qat_TLMCTL_sysfs_path.str().c_str(), true);
-		    if(!qatTLMCTLStr.size()){
+                    if(!qatTLMCTLStr.size()){
                         std::cout << "Warning: IDX - QAT telemetry feature of B:0x" << std::hex << devInfo.bus << ",D:0x" << devInfo.dev << ",F:0x" << devInfo.func \
                             << " is NOT available, skipped." << std::dec << std::endl;
-	                continue;
-		    }
+                        continue;
+                    }
                 }
                 idxPMUs[IDX_QAT].push_back(createQATPMU(devInfo.numa_node, devInfo.socket_id, devInfo.domain , devInfo.bus, devInfo.dev , devInfo.func));
             }
