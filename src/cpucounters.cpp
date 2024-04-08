@@ -2490,6 +2490,7 @@ void PCM::initUncorePMUsDirect()
             }
         }
     }
+#if 0
     auto findPCICFGPMU = [](const uint32 did,
                             const int s,
                             const uint32 CtlOffset,
@@ -2525,14 +2526,13 @@ void PCM::initUncorePMUsDirect()
     {
         switch (cpu_model)
         {
-#if 0
             case BDX:
                 irpPMUs[s][0] = findPCICFGPMU(0x6f2a, s, 0xF4, {0xD8, 0xDC, 0xE0, 0xE4}, {0xA0, 0xB0, 0xB8, 0xC0});
                 iioPMUs[s][0] = findPCICFGPMU(0x6f34, s, 0xF4, {0xD8, 0xDC, 0xE0, 0xE4}, {0xA0, 0xA8, 0xB0, 0xB8});
                 break;
-#endif
         }
     }
+#endif
 
     if (hasPCICFGUncore() && MSR.size())
     {
