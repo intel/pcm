@@ -74,4 +74,4 @@ ${CTR_RUN} run -d --name telegraf --network=influxdb-network -v "$PWD"/telegraf.
 echo Starting grafana
 ${CTR_RUN} run -d --network=influxdb-network --name grafana -p 3000:3000 -v "$PWD"/provisioning:/etc/grafana/provisioning -v "$PWD"/grafana_volume:/var/lib/grafana grafana/grafana || { echo "Error starting grafana"; exit 1; }
 
-echo "Start browser at http://localhost:3000/ and login with admin user, password admin"
+echo "Start browser at http://"`hostname`":3000/ or http://localhost:3000/ and login with admin user, password admin"

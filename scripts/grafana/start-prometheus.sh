@@ -70,4 +70,4 @@ ${CTR_RUN} run --name prometheus --network=prometheus-network -d -p 9090:9090 -v
 echo Starting grafana
 ${CTR_RUN} run -d --network=prometheus-network --name=grafana -p 3000:3000 -v "$PWD"/grafana_volume:/var/lib/grafana:Z -v "$PWD"/provisioning:/etc/grafana/provisioning:Z docker.io/grafana/grafana:latest || { echo "Error starting grafana"; exit 1; }
 
-echo "Start browser at http://localhost:3000/ and login with admin user, password admin"
+echo "Start browser at http://"`hostname`":3000/ or http://localhost:3000/ and login with admin user, password admin"
