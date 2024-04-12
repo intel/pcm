@@ -10,12 +10,19 @@ usage() {
   exit 1
 }
 
-# Validate the URL format
+# Validate the URL format and reject localhost or 127.0.0.1
 validate_url() {
   local url=$1
   local regex='^https?://([a-zA-Z0-9.-]+):[0-9]+$'
+  local localhost_regex='^(https?://)?(localhost|127\.0\.0\.1):[0-9]+$'
+
   if ! [[ $url =~ $regex ]]; then
     echo "Error: The URL provided is not in the correct format."
+    usage
+  fi
+
+  if [[ $url =~ $localhost_regex ]]; then
+    echo "Error: The target_address cannot be localhost or 127.0.0.1."
     usage
   fi
 }
