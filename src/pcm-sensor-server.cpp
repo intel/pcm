@@ -311,8 +311,11 @@ public:
         printUncoreCounterState( before, after );
     }
 
-    virtual void dispatch( ClientUncore* ) override {
+    virtual void dispatch( ClientUncore* cu) override {
         printCounter( "Object", "ClientUncore" );
+        SocketCounterState before = getSocketCounter( aggPair_.first,  cu->socketID() );
+        SocketCounterState after  = getSocketCounter( aggPair_.second, cu->socketID() );
+        printUncoreCounterState( before, after );
     }
 
     virtual void dispatch( Core* c ) override {
@@ -427,8 +430,12 @@ private:
         printCounter( "Persistent Memory Reads",       getBytesReadFromPMM    ( before, after ) );
         printCounter( "Embedded DRAM Writes",          getBytesWrittenToEDC   ( before, after ) );
         printCounter( "Embedded DRAM Reads",           getBytesReadFromEDC    ( before, after ) );
+        printCounter( "Memory Controller IA Requests", getIARequestBytesFromMC( before, after ) );
+        printCounter( "Memory Controller GT Requests", getGTRequestBytesFromMC( before, after ) );
         printCounter( "Memory Controller IO Requests", getIORequestBytesFromMC( before, after ) );
         printCounter( "Package Joules Consumed",       getConsumedJoules      ( before, after ) );
+        printCounter( "PP0 Joules Consumed",           getConsumedJoules      ( 0, before, after ) );
+        printCounter( "PP1 Joules Consumed",           getConsumedJoules      ( 1, before, after ) );
         printCounter( "DRAM Joules Consumed",          getDRAMConsumedJoules  ( before, after ) );
         uint32 i = 0;
         for ( ; i < ( PCM::MAX_C_STATE ); ++i ) {
@@ -597,7 +604,11 @@ public:
         printUncoreCounterState( before, after );
     }
 
-    virtual void dispatch( ClientUncore* ) override {
+    virtual void dispatch( ClientUncore* cu) override {
+        printComment( std::string( "Uncore Counters Socket " ) + std::to_string( cu->socketID() ) );
+        SocketCounterState before = getSocketCounter( aggPair_.first,  cu->socketID() );
+        SocketCounterState after  = getSocketCounter( aggPair_.second, cu->socketID() );
+        printUncoreCounterState( before, after );
     }
 
     virtual void dispatch( Core* c ) override {
@@ -700,8 +711,12 @@ private:
         printCounter( "Persistent Memory Reads",       getBytesReadFromPMM    ( before, after ) );
         printCounter( "Embedded DRAM Writes",          getBytesWrittenToEDC   ( before, after ) );
         printCounter( "Embedded DRAM Reads",           getBytesReadFromEDC    ( before, after ) );
+        printCounter( "Memory Controller IA Requests", getIARequestBytesFromMC( before, after ) );
+        printCounter( "Memory Controller GT Requests", getGTRequestBytesFromMC( before, after ) );
         printCounter( "Memory Controller IO Requests", getIORequestBytesFromMC( before, after ) );
         printCounter( "Package Joules Consumed",       getConsumedJoules      ( before, after ) );
+        printCounter( "PP0 Joules Consumed",           getConsumedJoules      ( 0, before, after ) );
+        printCounter( "PP1 Joules Consumed",           getConsumedJoules      ( 1, before, after ) );
         printCounter( "DRAM Joules Consumed",          getDRAMConsumedJoules  ( before, after ) );
         uint32 i = 0;
         for ( ; i <= ( PCM::MAX_C_STATE ); ++i ) {

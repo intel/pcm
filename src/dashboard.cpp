@@ -823,7 +823,7 @@ std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int
         auto panel = std::make_shared<GraphPanel>(0, y, width, height, std::string("Socket") +  S + " Energy Consumption", "Watt", false);
         auto panel1 = std::make_shared<BarGaugePanel>(width, y, max_width - width, height, std::string("Current Socket") +  S + " Energy Consumption (Watt)");
         y += height;
-        for (auto &m : {"Package Joules Consumed", "DRAM Joules Consumed"})
+        for (auto &m : {"Package Joules Consumed", "DRAM Joules Consumed", "PP0 Joules Consumed", "PP1 Joules Consumed"})
         {
           auto t = createTarget(m, influxDBUncore_Uncore_Counters(S, m), prometheusCounters(S, m, false));
           panel->push(t);

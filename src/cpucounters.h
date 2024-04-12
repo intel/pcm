@@ -591,6 +591,7 @@ class PCM_API PCM
     friend class UncoreCounterState;
     friend class Socket;
     friend class ServerUncore;
+    friend class ClientUncore;
     friend class PerfVirtualControlRegister;
     friend class Aggregator;
     friend class ServerUncorePMUs;
