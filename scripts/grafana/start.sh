@@ -10,9 +10,21 @@ usage() {
   exit 1
 }
 
+# Validate the URL format
+validate_url() {
+  local url=$1
+  local regex='^https?://([a-zA-Z0-9.-]+):[0-9]+$'
+  if ! [[ $url =~ $regex ]]; then
+    echo "Error: The URL provided is not in the correct format."
+    usage
+  fi
+}
+
 if [ "$#" -ne 1 ]; then
   usage
 fi
+
+validate_url "$1"
 
 mkdir -p grafana_volume/dashboards || { echo "Error creating grafana_volume/dashboards directory"; exit 1; }
 mkdir -p influxdb_volume || { echo "Error creating influxdb_volume directory"; exit 1; }
