@@ -2,13 +2,16 @@
 
 set -e
 
-if [ "$#" -ne 1 ];
-then
+usage() {
   echo
   echo "Usage: $0 http(s)://target_address:port"
   echo
   echo "target_address is the hostname or IP address of the system that runs pcm-sensor-server"
   exit 1
+}
+
+if [ "$#" -ne 1 ]; then
+  usage
 fi
 
 mkdir -p grafana_volume/dashboards || { echo "Error creating grafana_volume/dashboards directory"; exit 1; }
