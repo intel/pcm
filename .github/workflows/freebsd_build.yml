@@ -25,7 +25,7 @@ jobs:
         submodules: recursive
     - name: build in FreeBSD VM
       id: build
-      uses: cross-platform-actions/action@5800fa0060a22edf69992a779adac3d2bb3a6f8a # v0.22.0
+      uses: cross-platform-actions/action@a4a7327f8112bc2513a07701786a0c3c1193583a # v0.23.0
       with:
         memory: 2048
         shell: sh
