@@ -18,6 +18,18 @@ UncoreCounterState ServerUncore::uncoreCounterState( void ) const
     return ucs;
 }
 
+UncoreCounterState ClientUncore::uncoreCounterState( void ) const
+{
+    UncoreCounterState ucs;
+    // Fill the ucs
+    PCM* pcm = PCM::getInstance();
+    pcm->readAndAggregateUncoreMCCounters( socketID(), ucs );
+    pcm->readAndAggregateEnergyCounters( socketID(), ucs );
+    pcm->readAndAggregatePackageCStateResidencies( refCore()->msrHandle(), ucs );
+
+    return ucs;
+}
+
 Socket::Socket( PCM* m, int32 apicID, int32 logicalID )
     : pcm_(m), refCore_(nullptr), apicID_(apicID), logicalID_(logicalID)
 {

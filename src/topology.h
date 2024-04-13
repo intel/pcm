@@ -261,11 +261,7 @@ public:
         v.dispatch( this );
     }
 
-    virtual UncoreCounterState uncoreCounterState( void ) const override {
-        UncoreCounterState ucs;
-        // TODO: Fill the ucs
-        return ucs;
-    }
+    virtual UncoreCounterState uncoreCounterState( void ) const override;
 };
 
 class Socket : public SystemObject {
