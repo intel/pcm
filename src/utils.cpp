@@ -46,6 +46,48 @@ void exit_cleanup(void)
     }
 }
 
+bool colorEnabled = false;
+
+void setColorEnabled(bool value)
+{
+    colorEnabled = value;
+}
+
+const char * setColor (const char * colorStr)
+{
+    return colorEnabled ? colorStr : "";
+}
+
+std::vector<const char *> colorTable = {
+        ASCII_GREEN,
+        ASCII_YELLOW,
+        ASCII_MAGENTA,
+        ASCII_CYAN,
+        ASCII_BRIGHT_GREEN,
+        ASCII_BRIGHT_YELLOW,
+        ASCII_BRIGHT_BLUE,
+        ASCII_BRIGHT_MAGENTA,
+        ASCII_BRIGHT_CYAN,
+        ASCII_BRIGHT_WHITE
+};
+
+size_t currentColor = 0;
+const char * setNextColor()
+{
+    const auto result = setColor(colorTable[currentColor++]);
+    if (currentColor == colorTable.size())
+    {
+        currentColor = 0;
+    }
+    return result;
+}
+
+const char * resetColor()
+{
+    currentColor = 0;
+    return setColor(ASCII_RESET_COLOR);
+}
+
 void print_cpu_details()
 {
     const auto m = PCM::getInstance();
