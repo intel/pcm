@@ -363,6 +363,7 @@ void print_output(PCM * m,
         cout << "     N/A\n";
         cout << "\n Instructions retired: " << unit_format(getInstructionsRetired(sstate1, sstate2)) << " ; Active cycles: " << unit_format(getCycles(sstate1, sstate2)) << " ; Time (TSC): " << unit_format(getInvariantTSC(cstates1[0], cstates2[0])) << "ticks ; C0 (active,non-halted) core residency: " << (getCoreCStateResidency(0, sstate1, sstate2)*100.) << " %\n";
         cout << "\n";
+        cout << setColor(ASCII_GREEN);
         for (int s = 1; s <= PCM::MAX_C_STATE; ++s)
         {
             if (m->isCoreCStateResidencySupported(s))
@@ -391,6 +392,8 @@ void print_output(PCM * m,
 
         drawStackedBar(" Core    C-state distribution", CoreCStateStackedBar, 80);
         drawStackedBar(" Package C-state distribution", PackageCStateStackedBar, 80);
+
+        cout << resetColor();
 
         if (m->getNumCores() == m->getNumOnlineCores() && false)
         {
