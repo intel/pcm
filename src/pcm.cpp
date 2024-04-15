@@ -435,7 +435,7 @@ void print_output(PCM * m,
     {
         if (m->getNumSockets() > 1 && m->incomingQPITrafficMetricsAvailable()) // QPI info only for multi socket systems
         {
-            cout << "\nIntel(r) " << m->xPI() << " data traffic estimation in bytes (data traffic coming to CPU/socket through " << m->xPI() << " links):\n\n";
+            cout << "Intel(r) " << m->xPI() << " data traffic estimation in bytes (data traffic coming to CPU/socket through " << m->xPI() << " links):\n\n";
 
             const uint32 qpiLinks = (uint32)m->getQPILinksPerSocket();
 
@@ -517,7 +517,7 @@ void print_output(PCM * m,
     }
     if (show_socket_output)
     {
-        cout << "MEM (GB)->|";
+        cout << "\nMEM (GB)->|";
         if (m->memoryTrafficMetricsAvailable())
             cout << "  READ |  WRITE |";
         if (m->localMemoryRequestRatioMetricAvailable())
