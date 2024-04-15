@@ -114,34 +114,34 @@ void print_basic_metrics(const PCM * m, const State & state1, const State & stat
         case 2:
             if (m->isCoreCStateResidencySupported(0))
             {
-                cout << "     " << getCoreCStateResidency(0, state1, state2);
+                cout << setNextColor() << "     " << getCoreCStateResidency(0, state1, state2);
             }
-            cout << "   " << getIPC(state1, state2);
+            cout << setNextColor() <<  "   " << getIPC(state1, state2);
             if (m->isActiveRelativeFrequencyAvailable())
             {
-                cout << "    " << getActiveAverageFrequency(state1, state2)/1e9;
+                cout << setNextColor() <<  "    " << getActiveAverageFrequency(state1, state2)/1e9;
             }
             break;
         default:
-            cout << "     " << getExecUsage(state1, state2) <<
-                "   " << getIPC(state1, state2) <<
-                "   " << getRelativeFrequency(state1, state2);
+            cout << setNextColor() << "     " << getExecUsage(state1, state2) <<
+                setNextColor() << "   " << getIPC(state1, state2) <<
+                setNextColor() << "   " << getRelativeFrequency(state1, state2);
             if (m->isActiveRelativeFrequencyAvailable())
-                cout << "    " << getActiveRelativeFrequency(state1, state2);
+                cout << setNextColor() << "    " << getActiveRelativeFrequency(state1, state2);
     }
     if (m->isL3CacheMissesAvailable())
-        cout << "    " << unit_format(getL3CacheMisses(state1, state2));
+        cout << setNextColor() << "    " << unit_format(getL3CacheMisses(state1, state2));
     if (m->isL2CacheMissesAvailable())
-        cout << "   " << unit_format(getL2CacheMisses(state1, state2));
+        cout << setNextColor() << "   " << unit_format(getL2CacheMisses(state1, state2));
     if (m->isL3CacheHitRatioAvailable())
-        cout << "    " << getL3CacheHitRatio(state1, state2);
+        cout << setNextColor() << "    " << getL3CacheHitRatio(state1, state2);
     if (m->isL2CacheHitRatioAvailable())
-        cout << "    " << getL2CacheHitRatio(state1, state2);
+        cout << setNextColor() << "    " << getL2CacheHitRatio(state1, state2);
     cout.precision(4);
     if (m->isL3CacheMissesAvailable())
-        cout << "  " << double(getL3CacheMisses(state1, state2)) / getInstructionsRetired(state1, state2);
+        cout << setNextColor() << "  " << double(getL3CacheMisses(state1, state2)) / getInstructionsRetired(state1, state2);
     if (m->isL2CacheMissesAvailable())
-        cout << "  " << double(getL2CacheMisses(state1, state2)) / getInstructionsRetired(state1, state2);
+        cout << setNextColor() << "  " << double(getL2CacheMisses(state1, state2)) / getInstructionsRetired(state1, state2);
     cout.precision(2);
 }
 
@@ -149,12 +149,12 @@ template <class State>
 void print_other_metrics(const PCM * m, const State & state1, const State & state2)
 {
     if (m->L3CacheOccupancyMetricAvailable())
-        cout << "   " << setw(6) << l3cache_occ_format(getL3CacheOccupancy(state2));
+        cout << setNextColor() << "   " << setw(6) << l3cache_occ_format(getL3CacheOccupancy(state2));
     if (m->CoreLocalMemoryBWMetricAvailable())
-        cout << "   " << setw(6) << getLocalMemoryBW(state1, state2);
+        cout << setNextColor() << "   " << setw(6) << getLocalMemoryBW(state1, state2);
     if (m->CoreRemoteMemoryBWMetricAvailable())
-        cout << "   " << setw(6) << getRemoteMemoryBW(state1, state2);
-    cout << "     " << temp_format(state2.getThermalHeadroom()) << "\n";
+        cout << setNextColor() << "   " << setw(6) << getRemoteMemoryBW(state1, state2);
+    cout << setNextColor() <<  "     " << temp_format(state2.getThermalHeadroom()) << "\n";
 }
 
 void print_output(PCM * m,
@@ -245,39 +245,41 @@ void print_output(PCM * m,
         case 2:
             if (m->isCoreCStateResidencySupported(0))
             {
-                cout << " UTIL |";
+                cout << setNextColor() << " UTIL |";
             }
-            cout << " IPC  |";
+            cout << setNextColor() << " IPC  |";
             if (m->isActiveRelativeFrequencyAvailable())
             {
-                cout << " CFREQ |";
+                cout << setNextColor() << " CFREQ |";
             }
             break;
         default:
-            cout << " EXEC | IPC  | FREQ  |";
+            cout << setNextColor() << " EXEC |" << setNextColor() << " IPC  |" << setNextColor() <<" FREQ  |";
             if (m->isActiveRelativeFrequencyAvailable())
-                cout << " AFREQ |";
+                cout << setNextColor() << " AFREQ |";
     }
     if (m->isL3CacheMissesAvailable())
-        cout << " L3MISS |";
+        cout << setNextColor() << " L3MISS |";
     if (m->isL2CacheMissesAvailable())
-        cout << " L2MISS |";
+        cout << setNextColor() << " L2MISS |";
     if (m->isL3CacheHitRatioAvailable())
-        cout << " L3HIT |";
+        cout << setNextColor() << " L3HIT |";
     if (m->isL2CacheHitRatioAvailable())
-        cout << " L2HIT |";
+        cout << setNextColor() << " L2HIT |";
     if (m->isL3CacheMissesAvailable())
-        cout << " L3MPI |";
+        cout << setNextColor() << " L3MPI |";
     if (m->isL2CacheMissesAvailable())
-        cout << " L2MPI | ";
+        cout << setNextColor() << " L2MPI | ";
     if (m->L3CacheOccupancyMetricAvailable())
-        cout << "  L3OCC |";
+        cout << setNextColor() << "  L3OCC |";
     if (m->CoreLocalMemoryBWMetricAvailable())
-        cout << "   LMB  |";
+        cout << setNextColor() << "   LMB  |";
     if (m->CoreRemoteMemoryBWMetricAvailable())
-        cout << "   RMB  |";
+        cout << setNextColor() << "   RMB  |";
 
-    cout << " TEMP\n\n";
+    cout << setNextColor() << " TEMP\n\n";
+
+    cout << resetColor();
 
     if (show_core_output)
     {
@@ -295,6 +297,7 @@ void print_output(PCM * m,
 
             print_basic_metrics(m, cstates1[i], cstates2[i], metricVersion);
             print_other_metrics(m, cstates1[i], cstates2[i]);
+            cout << resetColor();
         }
     }
     if (show_socket_output)
@@ -307,6 +310,7 @@ void print_output(PCM * m,
                 cout << " SKT   " << setw(2) << i;
                 print_basic_metrics(m, sktstate1[i], sktstate2[i], metricVersion);
                 print_other_metrics(m, sktstate1[i], sktstate2[i]);
+                cout << resetColor();
             }
         }
     }
@@ -322,24 +326,27 @@ void print_output(PCM * m,
         print_basic_metrics(m, sstate1, sstate2, metricVersion);
 
         if (m->L3CacheOccupancyMetricAvailable())
-            cout << "     N/A ";
+            cout << setNextColor() <<"     N/A ";
         if (m->CoreLocalMemoryBWMetricAvailable())
-            cout << "    N/A ";
+            cout << setNextColor() <<"    N/A ";
         if (m->CoreRemoteMemoryBWMetricAvailable())
-            cout << "    N/A ";
+            cout << setNextColor() <<"    N/A ";
 
-        cout << "     N/A\n";
-        cout << "\n Instructions retired: " << unit_format(getInstructionsRetired(sstate1, sstate2)) << " ; Active cycles: " << unit_format(getCycles(sstate1, sstate2)) << " ; Time (TSC): " << unit_format(getInvariantTSC(cstates1[0], cstates2[0])) << "ticks ; C0 (active,non-halted) core residency: " << (getCoreCStateResidency(0, sstate1, sstate2)*100.) << " %\n";
+        cout << setNextColor() << "     N/A\n";
+        cout << resetColor();
+        cout << setNextColor() <<"\n Instructions retired: " << unit_format(getInstructionsRetired(sstate1, sstate2)) << " ;"
+             << setNextColor() <<" Active cycles: " << unit_format(getCycles(sstate1, sstate2)) << " ;"
+             << setNextColor() <<" Time (TSC): " << unit_format(getInvariantTSC(cstates1[0], cstates2[0])) << "ticks ;"
+             << setNextColor() << " C0 (active,non-halted) core residency: " << (getCoreCStateResidency(0, sstate1, sstate2)*100.) << " %\n";
         cout << "\n";
-        cout << setColor(ASCII_GREEN);
         for (int s = 1; s <= PCM::MAX_C_STATE; ++s)
         {
             if (m->isCoreCStateResidencySupported(s))
             {
-                std::cout << " C" << s << " core residency: " << (getCoreCStateResidency(s, sstate1, sstate2)*100.) << " %;";
+                std::cout << setNextColor() << " C" << s << " core residency: " << (getCoreCStateResidency(s, sstate1, sstate2)*100.) << " %;";
             }
         }
-        cout << "\n";
+        cout << "\n" ;
         std::vector<StackedBarItem> CoreCStateStackedBar, PackageCStateStackedBar;
         for (int s = 0; s <= PCM::MAX_C_STATE; ++s)
         {
@@ -352,13 +359,14 @@ void print_output(PCM * m,
             }
             if (m->isPackageCStateResidencySupported(s))
             {
-                std::cout << " C" << s << " package residency: " << (getPackageCStateResidency(s, sstate1, sstate2)*100.) << " %;";
+                std::cout << setNextColor() << " C" << s << " package residency: " << (getPackageCStateResidency(s, sstate1, sstate2)*100.) << " %;";
                 PackageCStateStackedBar.push_back(StackedBarItem(getPackageCStateResidency(s, sstate1, sstate2), "", fill));
             }
         }
-        cout << "\n";
+        cout << "\n" << resetColor() << setColor(ASCII_BRIGHT_GREEN);
 
         drawStackedBar(" Core    C-state distribution", CoreCStateStackedBar, 80);
+        cout << setColor(ASCII_GREEN);
         drawStackedBar(" Package C-state distribution", PackageCStateStackedBar, 80);
 
         cout << resetColor();
@@ -405,7 +413,7 @@ void print_output(PCM * m,
 #endif
     }
 
-    cout << setColor(ASCII_BRIGHT_CYAN);
+    cout << setColor(ASCII_CYAN);
 
     if (show_socket_output)
     {
@@ -454,6 +462,8 @@ void print_output(PCM * m,
         if (m->getNumSockets() > 1 && m->incomingQPITrafficMetricsAvailable()) // QPI info only for multi socket systems
             cout << "Total " << m->xPI() << " incoming data traffic: " << unit_format(getAllIncomingQPILinkBytes(sstate1, sstate2)) << "     " << m->xPI() << " data traffic/Memory controller traffic: " << getQPItoMCTrafficRatio(sstate1, sstate2) << "\n";
     }
+
+    cout << setColor(ASCII_BRIGHT_CYAN);
 
     if (show_socket_output)
     {
