@@ -89,6 +89,7 @@ void print_help(const string & prog_name)
     cout << "  -yc   | --yescores  | /yc          => enable specific cores to output\n";
     cout << "  -ns   | --nosockets | /ns          => hide socket related output\n";
     cout << "  -nsys | --nosystem  | /nsys        => hide system related output\n";
+    cout << "  --color                            => use ASCII colors\n";
     cout << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or\n"
         << "                                        to a file, in case filename is provided\n"
         << "                                        the format used is documented here: https://www.intel.com/content/www/us/en/developer/articles/technical/intel-pcm-column-names-decoder-ring.html\n";
@@ -169,10 +170,43 @@ void print_output(PCM * m,
     const bool show_partial_core_output,
     const bool show_socket_output,
     const bool show_system_output,
-    const int metricVersion
+    const int metricVersion,
+    const bool color
     )
 {
     cout << "\n";
+    auto setColor = [&color](const char * colorStr)
+    {
+        return color ? colorStr : "";
+    };
+    std::vector<const char *> colorTable = {
+            ASCII_GREEN,
+            ASCII_YELLOW,
+            ASCII_MAGENTA,
+            ASCII_CYAN,
+            ASCII_BRIGHT_GREEN,
+            ASCII_BRIGHT_YELLOW,
+            ASCII_BRIGHT_BLUE,
+            ASCII_BRIGHT_MAGENTA,
+            ASCII_BRIGHT_CYAN,
+            ASCII_BRIGHT_WHITE
+    };
+    size_t currentColor = 0;
+    auto setNextColor = [&setColor,&currentColor,colorTable]()
+    {
+        const auto result = setColor(colorTable[currentColor++]);
+        if (currentColor == colorTable.size())
+        {
+            currentColor = 0;
+        }
+        return result;
+    };
+    auto resetColor = [&setColor, &currentColor]()
+    {
+        currentColor = 0;
+        return setColor(ASCII_RESET_COLOR);
+    };
+
     switch (metricVersion)
     {
         case 2:
@@ -1292,6 +1326,7 @@ int mainThrows(int argc, char * argv[])
     bool disable_JKT_workaround = false; // as per http://software.intel.com/en-us/articles/performance-impact-when-sampling-certain-llc-events-on-snb-ep-with-vtune
     bool enforceFlush = false;
     int metricVersion = 2;
+    bool color = false;
 
     parsePID(argc, argv, pid);
 
@@ -1369,6 +1404,11 @@ int mainThrows(int argc, char * argv[])
         else if (check_argument_equals(*argv, {"--nosystem", "-nsys", "/nsys"}))
         {
             show_system_output = false;
+            continue;
+        }
+        else if (check_argument_equals(*argv, {"--color"}))
+        {
+            color = true;
             continue;
         }
         else if (check_argument_equals(*argv, {"-csv", "/csv"}))
@@ -1524,7 +1564,8 @@ int mainThrows(int argc, char * argv[])
             cpu_model, show_core_output, show_partial_core_output, show_socket_output, show_system_output);
         else
             print_output(m, cstates1, cstates2, sktstate1, sktstate2, ycores, sstate1, sstate2,
-            cpu_model, show_core_output, show_partial_core_output, show_socket_output, show_system_output, metricVersion);
+                cpu_model, show_core_output, show_partial_core_output, show_socket_output, show_system_output,
+                metricVersion, color);
 
         std::swap(sstate1, sstate2);
         std::swap(sktstate1, sktstate2);
