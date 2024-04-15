@@ -145,6 +145,24 @@ struct null_stream : public std::streambuf
 #pragma clang diagnostic pop
 #endif
 
+constexpr const char* ASCII_BLACK = "\033[0;30m";
+constexpr const char* ASCII_RED = "\033[0;31m";
+constexpr const char* ASCII_GREEN = "\033[0;32m";
+constexpr const char* ASCII_YELLOW = "\033[0;33m";
+constexpr const char* ASCII_BLUE = "\033[0;34m";
+constexpr const char* ASCII_MAGENTA = "\033[0;35m";
+constexpr const char* ASCII_CYAN = "\033[0;36m";
+constexpr const char* ASCII_WHITE = "\033[0;37m";
+constexpr const char* ASCII_BRIGHT_BLACK = "\033[1;30m";
+constexpr const char* ASCII_BRIGHT_RED = "\033[1;31m";
+constexpr const char* ASCII_BRIGHT_GREEN = "\033[1;32m";
+constexpr const char* ASCII_BRIGHT_YELLOW = "\033[1;33m";
+constexpr const char* ASCII_BRIGHT_BLUE = "\033[1;34m";
+constexpr const char* ASCII_BRIGHT_MAGENTA = "\033[1;35m";
+constexpr const char* ASCII_BRIGHT_CYAN = "\033[1;36m";
+constexpr const char* ASCII_BRIGHT_WHITE = "\033[1;37m";
+constexpr const char* ASCII_RESET_COLOR = "\033[0m";
+
 template <class IntType>
 inline std::string unit_format(IntType n)
 {
