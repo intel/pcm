@@ -163,6 +163,11 @@ constexpr const char* ASCII_BRIGHT_CYAN = "\033[1;36m";
 constexpr const char* ASCII_BRIGHT_WHITE = "\033[1;37m";
 constexpr const char* ASCII_RESET_COLOR = "\033[0m";
 
+void setColorEnabled(bool value = true);
+const char * setColor(const char * colorStr);
+const char * setNextColor();
+const char * resetColor();
+
 template <class IntType>
 inline std::string unit_format(IntType n)
 {
