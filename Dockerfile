@@ -1,10 +1,10 @@
-FROM fedora:39@sha256:61864fd19bbd64d620f338eb11dae9e8759bf7fa97302ac6c43865c48dccd679 as builder
+FROM fedora:40@sha256:4e007f288dce23966216be81ef62ba05d139b9338f327c1d1c73b7167dd47312 as builder
 
 RUN dnf -y install gcc-c++ git findutils make cmake
 COPY . /tmp/pcm
 RUN cd /tmp/pcm && mkdir build && cd build && cmake .. && make
 
-FROM fedora:39@sha256:61864fd19bbd64d620f338eb11dae9e8759bf7fa97302ac6c43865c48dccd679
+FROM fedora:40@sha256:4e007f288dce23966216be81ef62ba05d139b9338f327c1d1c73b7167dd47312
 COPY --from=builder /tmp/pcm/build/bin/* /usr/local/bin/
 ENV PCM_NO_PERF=1
 
