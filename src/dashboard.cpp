@@ -262,13 +262,13 @@ public:
     }
 };
 
-class GraphPanel : public Panel
+class TimeSeriesPanel : public Panel
 {
     std::string yAxisLabel;
     bool stack;
-    GraphPanel() = delete;
+    TimeSeriesPanel() = delete;
 public:
-    GraphPanel(int x_, int y_, int w_, int h_, const std::string & title_, const std::string & yAxisLabel_, bool stack_)
+    TimeSeriesPanel(int x_, int y_, int w_, int h_, const std::string & title_, const std::string & yAxisLabel_, bool stack_)
         : Panel(x_, y_, w_, h_, title_)
         , yAxisLabel(yAxisLabel_)
         , stack(stack_)
@@ -306,7 +306,7 @@ public:
         "dataLinks": []
       },
       "percentage": false,
-      "pluginVersion": "6.7.2",
+      "pluginVersion": "10.4.2",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -325,7 +325,7 @@ public:
         "sort": 0,
         "value_type": "individual"
       },
-      "type": "graph",
+      "type": "timeseries",
       "xaxis": {
         "buckets": null,
         "mode": "time",
@@ -587,7 +587,7 @@ std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int
         return t;
     };
     {
-        auto panel = std::make_shared<GraphPanel>(0, y, width, height, "Memory Bandwidth", "MByte/sec", false);
+        auto panel = std::make_shared<TimeSeriesPanel>(0, y, width, height, "Memory Bandwidth", "MByte/sec", false);
         auto panel1 = std::make_shared<BarGaugePanel>(width, y, max_width - width, height, "Memory Bandwidth (MByte/sec)");
         y += height;
         auto genAll = [type](const std::string& special) -> std::string
@@ -622,7 +622,7 @@ std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int
     for (size_t s = 0; s < NumSockets; ++s)
     {
         const auto S = std::to_string(s);
-        auto panel = std::make_shared<GraphPanel>(0, y, width, height, std::string("Socket") + S + " Memory Bandwidth", "MByte/sec", false);
+        auto panel = std::make_shared<TimeSeriesPanel>(0, y, width, height, std::string("Socket") + S + " Memory Bandwidth", "MByte/sec", false);
         auto panel1 = std::make_shared<BarGaugePanel>(width, y, max_width - width, height, std::string("Current Socket") + S + " Memory Bandwidth (MByte/sec)");
         y += height;
         for (auto& m : { "DRAM Reads", "DRAM Writes", "Persistent Memory Reads", "Persistent Memory Writes" })
@@ -648,7 +648,7 @@ std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int
         dashboard.push(panel1);
     }
 
-    auto panel = std::make_shared<GraphPanel>(0, y, width, height, "PMEM/DRAM Bandwidth Ratio", "PMEM/DRAM", false);
+    auto panel = std::make_shared<TimeSeriesPanel>(0, y, width, height, "PMEM/DRAM Bandwidth Ratio", "PMEM/DRAM", false);
     auto panel1 = std::make_shared<BarGaugePanel>(width, y, max_width - width, height, "PMEM/DRAM Bandwidth Ratio");
     y += height;
     for (size_t s = 0; s < NumSockets; ++s)
@@ -676,7 +676,7 @@ std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int
         for (size_t s = 0; s < NumSockets; ++s)
         {
             const auto S = std::to_string(s);
-            auto panel = std::make_shared<GraphPanel>(0, y, width, height, std::string("Socket") + S + " " + pcm->xPI() + " " + m, utilization?"%": "MByte/sec", false);
+            auto panel = std::make_shared<TimeSeriesPanel>(0, y, width, height, std::string("Socket") + S + " " + pcm->xPI() + " " + m, utilization?"%": "MByte/sec", false);
             std::shared_ptr<Panel> panel1;
             if (utilization)
                 panel1 = std::make_shared<GaugePanel>(width, y, max_width - width, height, std::string("Current Socket") + S + " UPI " + m + " (%)");
@@ -708,7 +708,7 @@ std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int
     auto cstate = [&] (const char * m, const char * tPrefix, const char * source)
     {
         auto my_height = 3 * height / 2;
-        auto panel = std::make_shared<GraphPanel>(0, y, width, my_height, std::string(m) + " C-state residency", "stacked %", true);
+        auto panel = std::make_shared<TimeSeriesPanel>(0, y, width, my_height, std::string(m) + " C-state residency", "stacked %", true);
         auto panel1 = std::make_shared<BarGaugePanel>(width, y, max_width - width, my_height, std::string("Current ") + m + " C-state residency (%)");
         y += my_height;
         auto prometheusCStateExpression = [](const std::string& source, const size_t c) -> std::string
@@ -748,7 +748,7 @@ std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int
     cstate("Package", "Uncore Aggregate_Uncore", "uncore");
     auto derived = [&](const std::string & fullName, const std::string & shortName, const std::string & dividend, const std::string & divisor)
     {
-        auto panel = std::make_shared<GraphPanel>(0, y, width, height, fullName, shortName, false);
+        auto panel = std::make_shared<TimeSeriesPanel>(0, y, width, height, fullName, shortName, false);
         auto panel1 = std::make_shared<BarGaugePanel>(width, y, max_width - width, height, fullName);
         y += height;
         for (size_t s = 0; s < NumSockets; ++s)
@@ -775,7 +775,7 @@ std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int
     derived("L2 Cache Misses Per Instruction", "L2 MPI", "L2 Cache Misses", "Instructions Retired Any");
     for (auto & m : {"Instructions Retired Any", "Clock Unhalted Thread", "L2 Cache Hits", "L2 Cache Misses", "L3 Cache Hits", "L3 Cache Misses"})
     {
-        auto panel = std::make_shared<GraphPanel>(0, y, width, height, std::string(m), "Million", false);
+        auto panel = std::make_shared<TimeSeriesPanel>(0, y, width, height, std::string(m), "Million", false);
         auto panel1 = std::make_shared<BarGaugePanel>(width, y, max_width - width, height, std::string(m) + " (Million)");
         y += height;
         for (size_t s = 0; s < NumSockets; ++s)
@@ -794,7 +794,7 @@ std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int
     if (pcm->getAccel() != ACCEL_NOCONFIG){
         auto accelCounters = [&](const std::string & m)
         {
-            auto panel = std::make_shared<GraphPanel>(0, y, width, height, accs->getAccelCounterName() + " " + m,"Byte/sec", false);
+            auto panel = std::make_shared<TimeSeriesPanel>(0, y, width, height, accs->getAccelCounterName() + " " + m,"Byte/sec", false);
             std::shared_ptr<Panel> panel1;
             panel1 = std::make_shared<BarGaugePanel>(width, y, max_width - width, height, std::string("Current ") +accs->getAccelCounterName() + " (Byte/sec)");
             y += height;
@@ -820,7 +820,7 @@ std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int
     for (size_t s = 0; s < NumSockets; ++s)
     {
         const auto S = std::to_string(s);
-        auto panel = std::make_shared<GraphPanel>(0, y, width, height, std::string("Socket") +  S + " Energy Consumption", "Watt", false);
+        auto panel = std::make_shared<TimeSeriesPanel>(0, y, width, height, std::string("Socket") +  S + " Energy Consumption", "Watt", false);
         auto panel1 = std::make_shared<BarGaugePanel>(width, y, max_width - width, height, std::string("Current Socket") +  S + " Energy Consumption (Watt)");
         y += height;
         for (auto &m : {"Package Joules Consumed", "DRAM Joules Consumed", "PP0 Joules Consumed", "PP1 Joules Consumed"})
