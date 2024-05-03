@@ -4,8 +4,8 @@
 pcm-sensor-server is a collector exposing Intel processor metrics over http in JSON or Prometheus (exporter text based) format. Also [available as a docker container](DOCKER_README.md).
 
 Installation on target system to be analyzed:
-1.  [Build](https://github.com/opcm/pcm#building-pcm-tools) or [download](https://github.com/opcm/pcm#downloading-pre-compiled-pcm-tools) pcm tools
-2.  As root, start pcm-sensor-server: `sudo ./pcm-sensor-server` or as non-root https://github.com/intel-innersource/applications.analyzers.pcm#executing-pcm-tools-under-non-root-user-on-linux 
+1.  [Build](https://github.com/intel/pcm#building-pcm-tools) or [download](https://github.com/intel/pcm#downloading-pre-compiled-pcm-tools) pcm tools
+2.  As root, start pcm-sensor-server: `sudo ./pcm-sensor-server` or as non-root https://github.com/intel/pcm#executing-pcm-tools-under-non-root-user-on-linux 
 
 Alternatively one can start [pcm-sensor-server as a container from docker hub](DOCKER_README.md).
 
@@ -33,4 +33,4 @@ The default output of pcm-sensor-server endpoint in a browser:
 
 The PCM exporter can be used together with Grafana to obtain these Intel processor metrics (see [how-to](../scripts/grafana/README.md)):
 
-![pcm grafana output](https://raw.githubusercontent.com/wiki/opcm/pcm/pcm-dashboard-full.png)
+![pcm grafana output](https://raw.githubusercontent.com/wiki/intel/pcm/pcm-dashboard-full.png)
