@@ -32,7 +32,7 @@ PCM provides a number of command-line utilities for real-time monitoring:
 
 - **pcm-sensor-server** : pcm collector exposing metrics over http in JSON or Prometheus (exporter text based) format ([how-to](doc/PCM-EXPORTER.md)). Also available as a [docker container](doc/DOCKER_README.md). More info about Global PCM events is [here](doc/PCM-SENSOR-SERVER-README.md).
 - **pcm-memory** : monitor memory bandwidth (per-channel and per-DRAM DIMM rank)
-![pcm-memory output](https://raw.githubusercontent.com/wiki/opcm/pcm/pcm-memory.x.JPG)
+![pcm-memory output](https://raw.githubusercontent.com/wiki/intel/pcm/pcm-memory.x.JPG)
 - **pcm-accel** : [monitor Intel® In-Memory Analytics Accelerator (Intel® IAA), Intel® Data Streaming Accelerator (Intel® DSA) and Intel® QuickAssist Technology (Intel® QAT)  accelerators](doc/PCM_ACCEL_README.md)
 ![image](https://user-images.githubusercontent.com/25432609/218480696-42ade94f-e0c3-4000-9dd8-39a0e75a210e.png)
 
@@ -40,7 +40,7 @@ PCM provides a number of command-line utilities for real-time monitoring:
 - **pcm-pcie** : monitor PCIe bandwidth per-socket
 - **pcm-iio** : monitor PCIe bandwidth per PCIe device
 
-![pcm-iio output](https://raw.githubusercontent.com/wiki/opcm/pcm/pcm-iio.png)
+![pcm-iio output](https://raw.githubusercontent.com/wiki/intel/pcm/pcm-iio.png)
 - **pcm-numa** : monitor local and remote memory accesses
 - **pcm-power** : monitor sleep and energy states of processor, Intel(r) Quick Path Interconnect, DRAM memory, reasons of CPU frequency throttling and other energy-related metrics
 - **pcm-tsx**: monitor performance metrics for Intel(r) Transactional Synchronization Extensions
@@ -50,7 +50,7 @@ PCM provides a number of command-line utilities for real-time monitoring:
 
 Graphical front ends:
 - **pcm Grafana dashboard** :  front-end for Grafana (in [scripts/grafana](scripts/grafana) directory). Full Grafana Readme is [here](scripts/grafana/README.md)
-![pcm grafana output](https://raw.githubusercontent.com/wiki/opcm/pcm/pcm-dashboard.png)
+![pcm grafana output](https://raw.githubusercontent.com/wiki/intel/pcm/pcm-dashboard.png)
 - **pcm-sensor** :  front-end for KDE KSysGuard
 - **pcm-service** :  front-end for Windows perfmon
 
@@ -65,7 +65,7 @@ Building PCM Tools
 Clone PCM repository with submodules:
 
 ```
-git clone --recursive https://github.com/opcm/pcm.git
+git clone --recursive https://github.com/intel/pcm.git
 ```
 
 or clone the repository first, and then update submodules with:
