@@ -37,7 +37,7 @@ spec:
     spec:
       automountServiceAccountToken: false
       containers:
-      - image: ghcr.io/opcm/pcm:latest
+      - image: ghcr.io/intel/pcm:latest
         env:
         - name: PCM_NO_MSR
           value: "1"

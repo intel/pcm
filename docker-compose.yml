@@ -1,7 +1,7 @@
 version: '2.0'
 services:
     pcm:
-       image: opcm/pcm
+       image: ghcr.io/intel/pcm:latest
        ports:
            - "9738:9738"
        volumes:

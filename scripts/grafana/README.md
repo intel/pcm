@@ -33,4 +33,4 @@ Installation of the grafana front-end (can be on any *host* system with connecti
 5.  You can also stop and delete the containers when needed: `sudo sh stop.sh`
 
 
-![pcm grafana output](https://raw.githubusercontent.com/wiki/opcm/pcm/pcm-dashboard-full.png)
+![pcm grafana output](https://raw.githubusercontent.com/wiki/intel/pcm/pcm-dashboard-full.png)

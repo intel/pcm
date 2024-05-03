@@ -5,7 +5,7 @@ Release:         0
 Summary:         Intel(r) Performance Counter Monitor
 Group:           System/Monitoring
 License:         BSD-3-Clause
-Url:             https://github.com/opcm/pcm/archive
+Url:             https://github.com/intel/pcm/archive
 Source:          master.zip
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 AutoReqProv:    on
