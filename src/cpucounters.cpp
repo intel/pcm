@@ -9053,6 +9053,37 @@ uint64 ServerUncorePMUs::computeQPISpeed(const uint32 core_nr, const int cpumode
                value &= 7; // extract lower 3 bits
                if(value) result = static_cast<uint64>((4000000000ULL + ((uint64)value)*800000000ULL)*2ULL);
            }
+           std::unordered_map<uint32, size_t> UPISpeedMap{};
+           std::pair<uint32, uint32> regBits{};
+           switch (cpumodel)
+           {
+           case PCM::SPR:
+               UPISpeedMap = {
+                   {0,  2500},
+                   {1, 12800},
+                   {2, 14400},
+                   {3, 16000},
+                   {4, 20000}
+               };
+               regBits = std::make_pair(0, 2);
+               break;
+           }
+           if (UPISpeedMap.empty() == false && i < XPIRegisterLocation.size())
+           {
+               const auto UPI_SPEED_REGISTER_FUNC_ADDR = 2;
+               const auto UPI_SPEED_REGISTER_OFFSET = 0x2e0;
+               PciHandleType reg(groupnr, UPIbus, XPIRegisterLocation[i].first, UPI_SPEED_REGISTER_FUNC_ADDR);
+               uint32 value = 0;
+               if (reg.read32(UPI_SPEED_REGISTER_OFFSET, &value) == sizeof(uint32))
+               {
+                   const size_t speedMT = UPISpeedMap[extract_bits_ui(value, regBits.first, regBits.second)];
+                   if (false)
+                   {
+                       std::cerr << "speedMT: " << speedMT << "\n";
+                   }
+                   result = speedMT * 1000000ULL * pcm->getBytesPerLinkTransfer();
+               }
+           }
            if(result == 0ULL)
            {
                if (PCM::hasUPI(cpumodel) == false)
