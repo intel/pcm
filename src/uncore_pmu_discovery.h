@@ -16,6 +16,9 @@ constexpr auto SPR_UPILL_BOX_TYPE = 8U;
 constexpr auto SPR_MDF_BOX_TYPE = 11U;
 constexpr auto SPR_CXLCM_BOX_TYPE = 12U;
 constexpr auto SPR_CXLDP_BOX_TYPE = 13U;
+constexpr auto BHS_MDF_BOX_TYPE = 20U;
+constexpr auto BHS_PCIE_GEN5x16_TYPE = 21U;
+constexpr auto BHS_PCIE_GEN5x8_TYPE = 22U;
 
 class UncorePMUDiscovery
 {

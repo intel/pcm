@@ -35,6 +35,7 @@ using namespace pcm;
 #define NIS_DID 0x18D1
 #define HQM_DID 0x270B
 
+
 #define ROOT_BUSES_OFFSET   0xCC
 #define ROOT_BUSES_OFFSET_2 0xD0
 
@@ -139,6 +140,7 @@ static const std::map<int, int> snr_sad_to_pmu_id_mapping = {
 };
 
 #define HQMV2_DID   0x2710 // Hardware Queue Manager v2
+#define HQMV25_DID  0x2714 // Hardware Queue Manager v2.5
 #define DSA_DID     0x0b25 // Data Streaming Accelerator (DSA)
 #define IAX_DID     0x0cfe // In-Memory Database Analytics Accelerator (IAX)
 #define QATV2_DID   0x4940 // QuickAssist (CPM) v2
@@ -810,22 +812,23 @@ bool WhitleyPlatformMapping::pciTreeDiscover(std::vector<struct iio_stacks_on_so
                     bdf->busno = root_bus;
                     bdf->devno = 0x00;
                     bdf->funcno = 0x00;
-                    probe_pci(pci);
-                    // Probe child devices only under PCH part.
-                    for (uint8_t bus = pci->secondary_bus_number; bus <= pci->subordinate_bus_number; bus++) {
-                        for (uint8_t device = 0; device < 32; device++) {
-                            for (uint8_t function = 0; function < 8; function++) {
-                                struct pci child_pci_dev;
-                                child_pci_dev.bdf.busno = bus;
-                                child_pci_dev.bdf.devno = device;
-                                child_pci_dev.bdf.funcno = function;
-                                if (probe_pci(&child_pci_dev)) {
-                                    pch_part.child_pci_devs.push_back(child_pci_dev);
+                    if (probe_pci(pci)) {
+                        // Probe child devices only under PCH part.
+                        for (uint8_t bus = pci->secondary_bus_number; bus <= pci->subordinate_bus_number; bus++) {
+                            for (uint8_t device = 0; device < 32; device++) {
+                                for (uint8_t function = 0; function < 8; function++) {
+                                    struct pci child_pci_dev;
+                                    child_pci_dev.bdf.busno = bus;
+                                    child_pci_dev.bdf.devno = device;
+                                    child_pci_dev.bdf.funcno = function;
+                                    if (probe_pci(&child_pci_dev)) {
+                                        pch_part.child_pci_devs.push_back(child_pci_dev);
+                                    }
                                 }
                             }
                         }
+                        stack.parts.push_back(pch_part);
                     }
-                    stack.parts.push_back(pch_part);
                 }
 
                 struct iio_bifurcated_part part;
@@ -835,8 +838,8 @@ bool WhitleyPlatformMapping::pciTreeDiscover(std::vector<struct iio_stacks_on_so
                 bdf->busno = root_bus;
                 bdf->devno = 0x01;
                 bdf->funcno = 0x00;
-                probe_pci(pci);
-                stack.parts.push_back(part);
+                if (probe_pci(pci))
+                    stack.parts.push_back(part);
 
                 iio_on_socket.stacks.push_back(stack);
                 continue;
@@ -961,30 +964,32 @@ bool JacobsvillePlatformMapping::pciTreeDiscover(std::vector<struct iio_stacks_o
                 pci_dev.bdf.busno = root_bus;
                 pci_dev.bdf.devno = 0x01;
                 pci_dev.bdf.funcno = 0x00;
-                probe_pci(&pci_dev);
-                part.root_pci_dev = pci_dev;
-                stack.parts.push_back(part);
+                if (probe_pci(&pci_dev)) {
+                    part.root_pci_dev = pci_dev;
+                    stack.parts.push_back(part);
+                }
 
                 part.part_id = 4;
                 pci_dev.bdf.busno = root_bus;
                 pci_dev.bdf.devno = 0x00;
                 pci_dev.bdf.funcno = 0x00;
-                probe_pci(&pci_dev);
-                for (uint8_t bus = pci_dev.secondary_bus_number; bus <= pci_dev.subordinate_bus_number; bus++) {
-                    for (uint8_t device = 0; device < 32; device++) {
-                        for (uint8_t function = 0; function < 8; function++) {
-                            struct pci child_pci_dev;
-                            child_pci_dev.bdf.busno = bus;
-                            child_pci_dev.bdf.devno = device;
-                            child_pci_dev.bdf.funcno = function;
-                            if (probe_pci(&child_pci_dev)) {
-                                part.child_pci_devs.push_back(child_pci_dev);
+                if (probe_pci(&pci_dev)) {
+                    for (uint8_t bus = pci_dev.secondary_bus_number; bus <= pci_dev.subordinate_bus_number; bus++) {
+                        for (uint8_t device = 0; device < 32; device++) {
+                            for (uint8_t function = 0; function < 8; function++) {
+                                struct pci child_pci_dev;
+                                child_pci_dev.bdf.busno = bus;
+                                child_pci_dev.bdf.devno = device;
+                                child_pci_dev.bdf.funcno = function;
+                                if (probe_pci(&child_pci_dev)) {
+                                    part.child_pci_devs.push_back(child_pci_dev);
+                                }
                             }
                         }
                     }
+                    part.root_pci_dev = pci_dev;
+                    stack.parts.push_back(part);
                 }
-                part.root_pci_dev = pci_dev;
-                stack.parts.push_back(part);
             }
             break;
         case SNR_PCIE_GEN3_SAD_ID:

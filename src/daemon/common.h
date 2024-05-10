@@ -124,7 +124,7 @@ namespace PCMDaemon {
         float pmmRead;  // PMM read traffic in MBytes/sec
         float pmmWrite; // PMM write traffic in MBytes/sec
         float total;    // total traffic in MBytes/sec
-        float pmmMemoryModeHitRate; // PMM memory mode hit rate estimation. Metric value range is [0..1]
+        float memoryModeHitRate; // PMM memory mode hit rate estimation. Metric value range is [0..1]
         double dramEnergy; // energy consumed/used by DRAM memory in Joules
 
     public:
@@ -135,7 +135,7 @@ namespace PCMDaemon {
             pmmRead(-1.0),
             pmmWrite(-1.0),
             total(-1.0),
-            pmmMemoryModeHitRate(-1.0),
+            memoryModeHitRate(-1.0),
             dramEnergy(0.0) {}
     } ALIGN(ALIGNMENT);
 

@@ -50,10 +50,11 @@ void scanBus(int bus, const PCIDB & pciDB)
                 bdf->busno = busno;
                 bdf->devno = part;
                 bdf->funcno = 0;
-                if (stack != 0 && busno == 0) /* This is a workaround to catch some IIO stack does not exist */
+                /* This is a workaround to catch some IIO stack does not exist */
+                if (stack != 0 && busno == 0)
                     pci->exist = false;
                 else
-                    probe_pci(pci);
+                    (void)probe_pci(pci);
             }
         }
     for (uint8_t stack = 0; stack < 6; stack++) {
@@ -69,8 +70,7 @@ void scanBus(int bus, const PCIDB & pciDB)
                         pci.bdf.busno = b;
                         pci.bdf.devno = d;
                         pci.bdf.funcno = f;
-                        probe_pci(&pci);
-                        if (pci.exist)
+                        if (probe_pci(&pci))
                             iio_skx.stacks[stack].parts[part].child_pci_devs.push_back(pci);
                     }
                 }

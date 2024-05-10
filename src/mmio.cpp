@@ -87,7 +87,7 @@ WinPmemMMIORange::WinPmemMMIORange(uint64 baseAddr_, uint64 /* size_ */, bool re
     mutex.unlock();
 }
 
-MMIORange::MMIORange(uint64 baseAddr_, uint64 size_, bool readonly_)
+MMIORange::MMIORange(uint64 baseAddr_, uint64 size_, bool readonly_, bool silent)
 {
     auto hDriver = openMSRDriver();
     if (hDriver != INVALID_HANDLE_VALUE)
@@ -103,7 +103,10 @@ MMIORange::MMIORange(uint64 baseAddr_, uint64 size_, bool readonly_)
         }
         else
         {
-            std::cerr << "MSR.sys does not support mmap operations\n";
+            if (!silent)
+            {
+                std::cerr << "MSR.sys does not support mmap operations\n";
+            }
         }
     }
 
@@ -161,13 +164,16 @@ OwnMMIORange::~OwnMMIORange()
 
 #include "PCIDriverInterface.h"
 
-MMIORange::MMIORange(uint64 physical_address, uint64 size_, bool) :
+MMIORange::MMIORange(uint64 physical_address, uint64 size_, bool, bool silent) :
     mmapAddr(NULL),
     size(size_)
 {
     if (size > 4096)
     {
-        std::cerr << "PCM Error: the driver does not support mapping of regions > 4KB\n";
+        if (!silent)
+        {
+            std::cerr << "PCM Error: the driver does not support mapping of regions > 4KB\n";
+        }
         return;
     }
     if (physical_address) {
@@ -205,7 +211,7 @@ MMIORange::~MMIORange()
 
 #elif defined(__linux__) || defined(__FreeBSD__) || defined(__DragonFly__)
 
-MMIORange::MMIORange(uint64 baseAddr_, uint64 size_, bool readonly_) :
+MMIORange::MMIORange(uint64 baseAddr_, uint64 size_, bool readonly_, bool silent) :
     fd(-1),
     mmapAddr(NULL),
     size(size_),
@@ -215,8 +221,13 @@ MMIORange::MMIORange(uint64 baseAddr_, uint64 size_, bool readonly_) :
     int handle = ::open("/dev/mem", oflag);
     if (handle < 0)
     {
-       std::cerr << "opening /dev/mem failed: errno is " << errno << " (" << strerror(errno) << ")\n";
-       throw std::exception();
+       std::ostringstream strstr;
+       strstr << "opening /dev/mem failed: errno is " << errno << " (" << strerror(errno) << ")\n";
+       if (!silent)
+       {
+            std::cerr << strstr.str();
+       }
+       throw std::runtime_error(strstr.str());
     }
     fd = handle;
 
@@ -225,12 +236,17 @@ MMIORange::MMIORange(uint64 baseAddr_, uint64 size_, bool readonly_) :
 
     if (mmapAddr == MAP_FAILED)
     {
-        std::cerr << "mmap failed: errno is " << errno << " (" << strerror(errno) << ")\n";
+        std::ostringstream strstr;
+        strstr << "mmap failed: errno is " << errno << " (" << strerror(errno) << ")\n";
         if (1 == errno)
         {
-            std::cerr << "Try to add 'iomem=relaxed' parameter to the kernel boot command line and reboot.\n";
+            strstr << "Try to add 'iomem=relaxed' parameter to the kernel boot command line and reboot.\n";
         }
-        throw std::exception();
+        if (!silent)
+        {
+            std::cerr << strstr.str();
+        }
+        throw std::runtime_error(strstr.str());
     }
 }
 
@@ -271,7 +287,7 @@ MMIORange::~MMIORange()
 
 #endif
 
-void mmio_memcpy(void * dest_, const uint64 src, const size_t n, const bool checkFailures)
+void mmio_memcpy(void * dest_, const uint64 src, const size_t n, const bool checkFailures, const bool silent)
 {
     assert((src % sizeof(uint32)) == 0);
     assert((n % sizeof(uint32)) == 0);
@@ -280,7 +296,7 @@ void mmio_memcpy(void * dest_, const uint64 src, const size_t n, const bool chec
     const uint64 mapBegin = roundDownTo4K(src);
     const uint64 mapSize = roundUpTo4K(end) - mapBegin;
     uint32 * dest = (uint32 *)dest_;
-    MMIORange range(mapBegin, mapSize);
+    MMIORange range(mapBegin, mapSize, true, silent);
 
     for (uint64 i = src; i < end; i += sizeof(uint32), ++dest)
     {
@@ -290,7 +306,10 @@ void mmio_memcpy(void * dest_, const uint64 src, const size_t n, const bool chec
             // a bad read
             std::ostringstream strstr;
             strstr << "Failed to read memory at 0x" << std::hex << i << std::dec << "\n";
-            std::cerr << strstr.str();
+            if (!silent)
+            {
+                std::cerr << strstr.str();
+            }
             throw std::runtime_error(strstr.str());
         }
         *dest = value;

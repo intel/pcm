@@ -45,7 +45,7 @@ typedef struct memdata {
     float iMC_Wr_socket_chan[max_sockets][ServerUncoreCounterState::maxChannels]{};
     float iMC_PMM_Rd_socket_chan[max_sockets][ServerUncoreCounterState::maxChannels]{};
     float iMC_PMM_Wr_socket_chan[max_sockets][ServerUncoreCounterState::maxChannels]{};
-    float iMC_PMM_MemoryMode_Miss_socket_chan[max_sockets][ServerUncoreCounterState::maxChannels]{};
+    float MemoryMode_Miss_socket_chan[max_sockets][ServerUncoreCounterState::maxChannels]{};
     float iMC_Rd_socket[max_sockets]{};
     float iMC_Wr_socket[max_sockets]{};
     float iMC_PMM_Rd_socket[max_sockets]{};
@@ -54,11 +54,13 @@ typedef struct memdata {
     float CXLMEM_Wr_socket_port[max_sockets][ServerUncoreCounterState::maxCXLPorts]{};
     float CXLCACHE_Rd_socket_port[max_sockets][ServerUncoreCounterState::maxCXLPorts]{};
     float CXLCACHE_Wr_socket_port[max_sockets][ServerUncoreCounterState::maxCXLPorts]{};
-    float iMC_PMM_MemoryMode_Miss_socket[max_sockets]{};
-    bool iMC_NM_hit_rate_supported{};
-    float iMC_PMM_MemoryMode_Hit_socket[max_sockets]{};
+    float MemoryMode_Miss_socket[max_sockets]{};
+    bool NM_hit_rate_supported{};
+    bool BHS_NM{};
+    bool BHS{};
+    float MemoryMode_Hit_socket[max_sockets]{};
     bool M2M_NM_read_hit_rate_supported{};
-    float iMC_NM_hit_rate[max_sockets]{};
+    float NM_hit_rate[max_sockets]{};
     float M2M_NM_read_hit_rate[max_sockets][max_imc_controllers]{};
     float EDC_Rd_socket_chan[max_sockets][max_edc_channels]{};
     float EDC_Wr_socket_chan[max_sockets][max_edc_channels]{};
@@ -301,16 +303,34 @@ void printSocketCXLBW(PCM* m, memdata_t* md, uint32 no_columns, uint32 skt)
         cout << "\n";
     }
     for (uint32 port = 0; port < numPorts; ++port) {
-        for (uint32 i = skt; i < (skt + no_columns); ++i) {
-            cout << "|-- .mem                              --|";
+        if (md->BHS)
+        {
+            for (uint32 i = skt; i < (skt + no_columns); ++i) {
+                cout << "|-- .mem   " << setw(2) << port << "  Reads (MB/s): " << setw(8) << md->CXLMEM_Rd_socket_port[i][port] << " --|";
+            }
+        }
+        else
+        {
+            for (uint32 i = skt; i < (skt + no_columns); ++i) {
+                cout << "|-- .mem                              --|";
+            }
         }
         cout << "\n";
         for (uint32 i = skt; i < (skt + no_columns); ++i) {
             cout << "|--            Writes(MB/s): " << setw(8) << md->CXLMEM_Wr_socket_port[i][port] << " --|";
         }
         cout << "\n";
-        for (uint32 i = skt; i < (skt + no_columns); ++i) {
-            cout << "|-- .cache                            --|";
+        if (md->BHS)
+        {
+            for (uint32 i = skt; i < (skt + no_columns); ++i) {
+                cout << "|-- .cache " << setw(2) << port << " dv->hst(MB/s): " << setw(8) << md->CXLCACHE_Rd_socket_port[i][port] << " --|";
+            }
+        }
+        else
+        {
+            for (uint32 i = skt; i < (skt + no_columns); ++i) {
+                cout << "|-- .cache                            --|";
+            }
         }
         cout << "\n";
         for (uint32 i = skt; i < (skt + no_columns); ++i) {
@@ -323,16 +343,16 @@ void printSocketCXLBW(PCM* m, memdata_t* md, uint32 no_columns, uint32 skt)
 float AD_BW(const memdata_t *md, const uint32 skt)
 {
     const auto totalPMM = md->iMC_PMM_Rd_socket[skt] + md->iMC_PMM_Wr_socket[skt];
-    return (max)(totalPMM - md->iMC_PMM_MemoryMode_Miss_socket[skt], float(0.0));
+    return (max)(totalPMM - md->MemoryMode_Miss_socket[skt], float(0.0));
 }
 
 float PMM_MM_Ratio(const memdata_t *md, const uint32 skt)
 {
     const auto dram = md->iMC_Rd_socket[skt] + md->iMC_Wr_socket[skt];
-    return md->iMC_PMM_MemoryMode_Miss_socket[skt] / dram;
+    return md->MemoryMode_Miss_socket[skt] / dram;
 }
 
-void printSocketBWFooter(uint32 no_columns, uint32 skt, const memdata_t *md)
+void printSocketBWFooter(PCM *m, uint32 no_columns, uint32 skt, const memdata_t *md)
 {
     for (uint32 i=skt; i<(skt+no_columns); ++i) {
         cout << "|-- NODE" << setw(2) << i << " Mem Read (MB/s) :" << setw(9) << md->iMC_Rd_socket[i] << " --|";
@@ -362,7 +382,7 @@ void printSocketBWFooter(uint32 no_columns, uint32 skt, const memdata_t *md)
         cout << "\n";
         for (uint32 i = skt; i < (skt + no_columns); ++i)
         {
-            cout << "|-- NODE" << setw(2) << i << " PMM MM Bw(MB/s):  " << setw(8) << md->iMC_PMM_MemoryMode_Miss_socket[i] << " --|";
+            cout << "|-- NODE" << setw(2) << i << " PMM MM Bw(MB/s):  " << setw(8) << md->MemoryMode_Miss_socket[i] << " --|";
         }
         cout << "\n";
         for (uint32 i = skt; i < (skt + no_columns); ++i)
@@ -381,22 +401,31 @@ void printSocketBWFooter(uint32 no_columns, uint32 skt, const memdata_t *md)
             cout << "\n";
         }
     }
-    if (md->metrics == PmemMemoryMode && md->iMC_NM_hit_rate_supported)
+    if ((md->metrics == PmemMemoryMode && md->NM_hit_rate_supported) || md->BHS_NM == true)
     {
         for (uint32 i=skt; i<(skt+no_columns); ++i) {
-            cout << "|-- NODE" << setw(2) << i << " NM hit rate:        " << setw(6) << md->iMC_NM_hit_rate[i] << " --|";
+            cout << "|-- NODE" << setw(2) << i << " NM hit rate:        " << setw(6) << md->NM_hit_rate[i] << " --|";
         }
         cout << "\n";
         for (uint32 i=skt; i<(skt+no_columns); ++i) {
-            cout << "|-- NODE" << setw(2) << i << " NM hits   (M/s):   " << setw(7) << (md->iMC_PMM_MemoryMode_Hit_socket[i])/1000000. << " --|";
+            cout << "|-- NODE" << setw(2) << i << " NM hits   (M/s):   " << setw(7) << (md->MemoryMode_Hit_socket[i])/1000000. << " --|";
         }
         cout << "\n";
         for (uint32 i=skt; i<(skt+no_columns); ++i) {
-            cout << "|-- NODE" << setw(2) << i << " NM misses (M/s):   " << setw(7) << (md->iMC_PMM_MemoryMode_Miss_socket[i])/1000000. << " --|";
+            cout << "|-- NODE" << setw(2) << i << " NM misses (M/s):   " << setw(7) << (md->MemoryMode_Miss_socket[i])/1000000. << " --|";
         }
         cout << "\n";
     }
-    if (md->metrics == PartialWrites)
+    if (md->BHS_NM == true)
+    {
+        for (uint32 i = skt; i < (skt + no_columns); ++i) {
+            cout << "|-- NODE" << setw(2) << i << " NM miss Bw(MB/s):" << setw(9) << (md->MemoryMode_Miss_socket[i] * 64. * 2.) / 1000000. << " --|";
+        }
+        cout << "\n";
+    }
+    if (    md->metrics == PartialWrites
+        &&  m->getCPUModel() != PCM::SRF
+        )
     {
         for (uint32 i=skt; i<(skt+no_columns); ++i) {
             cout << "|-- NODE" << setw(2) << i << " P. Write (T/s): " << dec << setw(10) << md->partial_write[i] << " --|";
@@ -506,7 +535,7 @@ void display_bandwidth(PCM *m, memdata_t *md, const uint32 no_columns, const boo
             printSocketBWHeader(no_columns, skt, show_channel_output);
             if (show_channel_output)
                 printSocketChannelBW(m, md, no_columns, skt);
-            printSocketBWFooter(no_columns, skt, md);
+            printSocketBWFooter(m, no_columns, skt, md);
             printSocketCXLBW(m, md, no_columns, skt);
             for (uint32 i = skt; i < (skt + no_columns); i++)
             {
@@ -639,7 +668,7 @@ void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 /*elapsedTime*/, const 
                             << setw(8) << md->iMC_PMM_Wr_socket[skt] << ',';
                    });
         }
-        if (md->metrics == PmemMemoryMode && md->iMC_NM_hit_rate_supported)
+        if ((md->metrics == PmemMemoryMode && md->NM_hit_rate_supported) || md->BHS_NM == true)
         {
             choose(outputType,
                 [printSKT]() {
@@ -651,9 +680,22 @@ void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 /*elapsedTime*/, const 
                     cout << "NM misses (M/s),";
                 },
                 [&md, &skt]() {
-                    cout << setw(8) << md->iMC_NM_hit_rate[skt]<< ',';
-                    cout << setw(8) << md->iMC_PMM_MemoryMode_Hit_socket[skt]/1000000. << ',';
-                    cout << setw(8) << md->iMC_PMM_MemoryMode_Miss_socket[skt]/1000000. << ',';
+                    cout << setw(8) << md->NM_hit_rate[skt]<< ',';
+                    cout << setw(8) << md->MemoryMode_Hit_socket[skt]/1000000. << ',';
+                    cout << setw(8) << md->MemoryMode_Miss_socket[skt]/1000000. << ',';
+                });
+        }
+        if (md->BHS_NM == true)
+        {
+            choose(outputType,
+                [printSKT]() {
+                    printSKT();
+                },
+                []() {
+                    cout << "NM miss Bw (MB/s),";
+                },
+                    [&md, &skt]() {
+                    cout << setw(9) << (md->MemoryMode_Miss_socket[skt] * 64. * 2.) / 1000000. << ',';
                 });
         }
         if (md->metrics == Pmem && md->M2M_NM_read_hit_rate_supported)
@@ -683,13 +725,15 @@ void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 /*elapsedTime*/, const 
                    },
                    [&md, &skt]() {
                        cout << setw(8) << AD_BW(md, skt) << ','
-                            << setw(8) << md->iMC_PMM_MemoryMode_Miss_socket[skt] << ','
+                            << setw(8) << md->MemoryMode_Miss_socket[skt] << ','
                             << setw(8) << PMM_MM_Ratio(md, skt) << ',';
                    });
         }
         if (m->HBMmemoryTrafficMetricsAvailable() == false)
         {
-            if (md->metrics == PartialWrites)
+            if (    md->metrics == PartialWrites
+                &&  m->getCPUModel() != PCM::SRF
+                )
             {
                 choose(outputType,
                        [printSKT]() {
@@ -763,17 +807,37 @@ void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 /*elapsedTime*/, const 
         for (uint64 port = 0; port < m->getNumCXLPorts(skt); ++port)
         {
             choose(outputType,
-                [printSKT]() {
-                    printSKT(2);
+                [printSKT, &md]() {
+                    printSKT((md->BHS)? 4 : 2 );
                 },
-                [&port]() {
-                    cout 
-                         << "CXL.mem_P" << port << "Write,"
-                         << "CXL.cache_P" << port << "hst->dv,";
+                [&port,&md]() {
+                    if (md->BHS)
+                    {
+                        cout << "CXL.mem_P" << port << "Read,"
+                            << "CXL.mem_P" << port << "Write,"
+                            << "CXL.cache_P" << port << "dv->hst,"
+                            << "CXL.cache_P" << port << "hst->dv,";
+                    }
+                    else
+                    {
+                        cout
+                            << "CXL.mem_P" << port << "Write,"
+                            << "CXL.cache_P" << port << "hst->dv,";
+                    }
                 },
                     [&md, &skt, &port]() {
-                    cout << setw(8) << md->CXLMEM_Wr_socket_port[skt][port] << ','
-                         << setw(8) << md->CXLCACHE_Wr_socket_port[skt][port] << ',';
+                    if (md->BHS)
+                    {
+                        cout << setw(8) << md->CXLMEM_Rd_socket_port[skt][port] << ','
+                             << setw(8) << md->CXLMEM_Wr_socket_port[skt][port] << ','
+                             << setw(8) << md->CXLCACHE_Rd_socket_port[skt][port] << ','
+                             << setw(8) << md->CXLCACHE_Wr_socket_port[skt][port] << ',';
+                    }
+                    else
+                    {
+                        cout << setw(8) << md->CXLMEM_Wr_socket_port[skt][port] << ','
+                             << setw(8) << md->CXLCACHE_Wr_socket_port[skt][port] << ',';
+                    }
                 });
         }
     }
@@ -841,15 +905,17 @@ void calculate_bandwidth(PCM *m,
     md.metrics = metrics;
     const auto cpu_model = m->getCPUModel();
     md.M2M_NM_read_hit_rate_supported = (cpu_model == PCM::SKX);
-    md.iMC_NM_hit_rate_supported = (cpu_model == PCM::ICX);
+    md.NM_hit_rate_supported = (cpu_model == PCM::ICX);
+    md.BHS_NM = m->nearMemoryMetricsAvailable();
+    md.BHS = md.BHS_NM;
     static bool mm_once = true;
-    if (metrics == Pmem && md.M2M_NM_read_hit_rate_supported == false && md.iMC_NM_hit_rate_supported == true && mm_once)
+    if (metrics == Pmem && md.M2M_NM_read_hit_rate_supported == false && md.NM_hit_rate_supported == true && mm_once)
     {
         cerr << "INFO: Use -mm option to monitor NM Memory Mode metrics\n";
         mm_once = false;
     }
     static bool mm_once1 = true;
-    if (metrics == PmemMemoryMode && md.M2M_NM_read_hit_rate_supported == true && md.iMC_NM_hit_rate_supported == false && mm_once1)
+    if (metrics == PmemMemoryMode && md.M2M_NM_read_hit_rate_supported == true && md.NM_hit_rate_supported == false && mm_once1)
     {
         cerr << "INFO: Use -pmem option to monitor NM Memory Mode metrics\n";
         mm_once1 = false;
@@ -861,9 +927,9 @@ void calculate_bandwidth(PCM *m,
         md.iMC_Wr_socket[skt] = 0.0;
         md.iMC_PMM_Rd_socket[skt] = 0.0;
         md.iMC_PMM_Wr_socket[skt] = 0.0;
-        md.iMC_PMM_MemoryMode_Miss_socket[skt] = 0.0;
-        md.iMC_PMM_MemoryMode_Hit_socket[skt] = 0.0;
-        md.iMC_NM_hit_rate[skt] = 0.0;
+        md.MemoryMode_Miss_socket[skt] = 0.0;
+        md.MemoryMode_Hit_socket[skt] = 0.0;
+        md.NM_hit_rate[skt] = 0.0;
         md.EDC_Rd_socket[skt] = 0.0;
         md.EDC_Wr_socket[skt] = 0.0;
         md.partial_write[skt] = 0;
@@ -885,13 +951,19 @@ void calculate_bandwidth(PCM *m,
         return (float)(nEvents * 64 / 1000000.0 / (elapsedTime / 1000.0));
     };
 
+    auto toRate = [&elapsedTime](const uint64 nEvents)
+    {
+        return (float)(nEvents / (elapsedTime / 1000.0));
+    };
+
     for(uint32 skt = 0; skt < m->getNumSockets(); ++skt)
     {
-		const uint32 numChannels1 = (uint32)m->getMCChannels(skt, 0); // number of channels in the first controller
+        const uint32 numChannels1 = (uint32)m->getMCChannels(skt, 0); // number of channels in the first controller
+
 
         if (m->HBMmemoryTrafficMetricsAvailable())
         {
-            const float scalingFactor = ((float) m->getHBMCASTransferSize()) / float(64.);
+            const float scalingFactor = ((float)m->getHBMCASTransferSize()) / float(64.);
 
             for (uint32 channel = 0; channel < max_edc_channels; ++channel)
             {
@@ -913,10 +985,17 @@ void calculate_bandwidth(PCM *m,
         {
             for (uint32 channel = 0; channel < max_imc_channels; ++channel)
             {
-                uint64 reads = 0, writes = 0, pmmReads = 0, pmmWrites = 0, pmmMemoryModeCleanMisses = 0, pmmMemoryModeDirtyMisses = 0;
-                uint64 pmmMemoryModeHits = 0;
+                uint64 reads = 0, writes = 0, pmmReads = 0, pmmWrites = 0, memoryModeCleanMisses = 0, memoryModeDirtyMisses = 0;
+                uint64 memoryModeHits = 0;
                 reads = getMCCounter(channel, ServerUncorePMUs::EventPosition::READ, uncState1[skt], uncState2[skt]);
                 writes = getMCCounter(channel, ServerUncorePMUs::EventPosition::WRITE, uncState1[skt], uncState2[skt]);
+                switch (cpu_model)
+                {
+                case PCM::SRF:
+                    reads += getMCCounter(channel, ServerUncorePMUs::EventPosition::READ2, uncState1[skt], uncState2[skt]);
+                    writes += getMCCounter(channel, ServerUncorePMUs::EventPosition::WRITE2, uncState1[skt], uncState2[skt]);
+                    break;
+                }
                 if (metrics == Pmem)
                 {
                     pmmReads = getMCCounter(channel, ServerUncorePMUs::EventPosition::PMM_READ, uncState1[skt], uncState2[skt]);
@@ -924,18 +1003,18 @@ void calculate_bandwidth(PCM *m,
                 }
                 else if (metrics == PmemMixedMode || metrics == PmemMemoryMode)
                 {
-                    pmmMemoryModeCleanMisses = getMCCounter(channel, ServerUncorePMUs::EventPosition::PMM_MM_MISS_CLEAN, uncState1[skt], uncState2[skt]);
-                    pmmMemoryModeDirtyMisses = getMCCounter(channel, ServerUncorePMUs::EventPosition::PMM_MM_MISS_DIRTY, uncState1[skt], uncState2[skt]);
+                    memoryModeCleanMisses = getMCCounter(channel, ServerUncorePMUs::EventPosition::MM_MISS_CLEAN, uncState1[skt], uncState2[skt]);
+                    memoryModeDirtyMisses = getMCCounter(channel, ServerUncorePMUs::EventPosition::MM_MISS_DIRTY, uncState1[skt], uncState2[skt]);
                 }
                 if (metrics == PmemMemoryMode)
                 {
-                    pmmMemoryModeHits = getMCCounter(channel, ServerUncorePMUs::EventPosition::NM_HIT, uncState1[skt], uncState2[skt]);
+                    memoryModeHits = getMCCounter(channel, ServerUncorePMUs::EventPosition::NM_HIT, uncState1[skt], uncState2[skt]);
                 }
                 if (skipInactiveChannels && (reads + writes == 0))
                 {
                     if ((metrics != Pmem) || (pmmReads + pmmWrites == 0))
                     {
-                        if ((metrics != PmemMixedMode) || (pmmMemoryModeCleanMisses + pmmMemoryModeDirtyMisses == 0))
+                        if ((metrics != PmemMixedMode) || (memoryModeCleanMisses + memoryModeDirtyMisses == 0))
                         {
 
                             md.iMC_Rd_socket_chan[skt][channel] = -1.0;
@@ -966,15 +1045,17 @@ void calculate_bandwidth(PCM *m,
                 }
                 else if (metrics == PmemMixedMode)
                 {
-                    md.iMC_PMM_MemoryMode_Miss_socket_chan[skt][channel] = toBW(pmmMemoryModeCleanMisses + 2 * pmmMemoryModeDirtyMisses);
-                    md.iMC_PMM_MemoryMode_Miss_socket[skt] += md.iMC_PMM_MemoryMode_Miss_socket_chan[skt][channel];
+                    md.MemoryMode_Miss_socket_chan[skt][channel] = toBW(memoryModeCleanMisses + 2 * memoryModeDirtyMisses);
+                    md.MemoryMode_Miss_socket[skt] += md.MemoryMode_Miss_socket_chan[skt][channel];
                 }
                 else if (metrics == PmemMemoryMode)
                 {
-                    md.iMC_PMM_MemoryMode_Miss_socket[skt] += (float)((pmmMemoryModeCleanMisses + pmmMemoryModeDirtyMisses) / (elapsedTime / 1000.0));
-                    md.iMC_PMM_MemoryMode_Hit_socket[skt] += (float)((pmmMemoryModeHits) / (elapsedTime / 1000.0));
+                    md.MemoryMode_Miss_socket[skt] += toRate(memoryModeCleanMisses + memoryModeDirtyMisses);
+                    md.MemoryMode_Hit_socket[skt] += toRate(memoryModeHits);
                 }
-                else
+                else if (
+                       cpu_model != PCM::SRF
+                    )
                 {
                     md.partial_write[skt] += (uint64)(getMCCounter(channel, ServerUncorePMUs::EventPosition::PARTIAL, uncState1[skt], uncState2[skt]) / (elapsedTime / 1000.0));
                 }
@@ -1000,9 +1081,9 @@ void calculate_bandwidth(PCM *m,
             {
                 md.iMC_PMM_Rd_socket[skt] += toBW(pmmReads);
             }
-            else for(uint32 c = 0; c < max_imc_controllers; ++c)
+            else for (uint32 c = 0; c < max_imc_controllers; ++c)
             {
-                md.iMC_PMM_Rd_socket[skt] += toBW(getM2MCounter(c, ServerUncorePMUs::EventPosition::PMM_READ, uncState1[skt],uncState2[skt]));
+                md.iMC_PMM_Rd_socket[skt] += toBW(getM2MCounter(c, ServerUncorePMUs::EventPosition::PMM_READ, uncState1[skt], uncState2[skt]));
             }
 
             const int64 pmmWrites = getFreeRunningCounter(ServerUncoreCounterState::PMMWrites, uncState1[skt], uncState2[skt]);
@@ -1010,31 +1091,50 @@ void calculate_bandwidth(PCM *m,
             {
                 md.iMC_PMM_Wr_socket[skt] += toBW(pmmWrites);
             }
-            else for(uint32 c = 0; c < max_imc_controllers; ++c)
+            else for (uint32 c = 0; c < max_imc_controllers; ++c)
             {
-                md.iMC_PMM_Wr_socket[skt] += toBW(getM2MCounter(c, ServerUncorePMUs::EventPosition::PMM_WRITE, uncState1[skt],uncState2[skt]));;
+                md.iMC_PMM_Wr_socket[skt] += toBW(getM2MCounter(c, ServerUncorePMUs::EventPosition::PMM_WRITE, uncState1[skt], uncState2[skt]));;
             }
         }
         if (metrics == Pmem)
         {
-            for(uint32 c = 0; c < max_imc_controllers; ++c)
+            for (uint32 c = 0; c < max_imc_controllers; ++c)
             {
-                if(md.M2M_NM_read_hit_rate[skt][c] != 0.0)
+                if (md.M2M_NM_read_hit_rate[skt][c] != 0.0)
                 {
-                    md.M2M_NM_read_hit_rate[skt][c] = ((float)getM2MCounter(c, ServerUncorePMUs::EventPosition::NM_HIT, uncState1[skt],uncState2[skt]))/ md.M2M_NM_read_hit_rate[skt][c];
+                    md.M2M_NM_read_hit_rate[skt][c] = ((float)getM2MCounter(c, ServerUncorePMUs::EventPosition::NM_HIT, uncState1[skt], uncState2[skt])) / md.M2M_NM_read_hit_rate[skt][c];
                 }
             }
         }
-        const auto all = md.iMC_PMM_MemoryMode_Miss_socket[skt] + md.iMC_PMM_MemoryMode_Hit_socket[skt];
-        if (metrics == PmemMemoryMode && all != 0.0)
+        if (md.BHS_NM)
         {
-            md.iMC_NM_hit_rate[skt] = md.iMC_PMM_MemoryMode_Hit_socket[skt] / all;
+            for (uint32 c = 0; c < max_imc_controllers; ++c)
+            {
+                md.MemoryMode_Hit_socket[skt] += toRate(getM2MCounter(c, ServerUncorePMUs::EventPosition::NM_HIT, uncState1[skt], uncState2[skt]));
+                md.MemoryMode_Miss_socket[skt] += toRate(getM2MCounter(c, ServerUncorePMUs::EventPosition::MM_MISS_CLEAN, uncState1[skt], uncState2[skt]));
+                md.MemoryMode_Miss_socket[skt] += toRate(getM2MCounter(c, ServerUncorePMUs::EventPosition::MM_MISS_DIRTY, uncState1[skt], uncState2[skt]));
+            }
+        }
+        const auto all = md.MemoryMode_Miss_socket[skt] + md.MemoryMode_Hit_socket[skt];
+        if ((metrics == PmemMemoryMode || md.BHS_NM == true) && all != 0.0)
+        {
+            md.NM_hit_rate[skt] = md.MemoryMode_Hit_socket[skt] / all;
         }
 
         for (size_t p = 0; p < m->getNumCXLPorts(skt); ++p)
         {
-            md.CXLMEM_Wr_socket_port[skt][p] = CXLBWWrScalingFactor * toBW(getCXLCMCounter((uint32)p, PCM::EventPosition::CXL_TxC_MEM, uncState1[skt], uncState2[skt]));
-            md.CXLCACHE_Wr_socket_port[skt][p] = CXLBWWrScalingFactor * toBW(getCXLCMCounter((uint32)p, PCM::EventPosition::CXL_TxC_CACHE, uncState1[skt], uncState2[skt]));
+            if (md.BHS)
+            {
+                md.CXLMEM_Rd_socket_port[skt][p] = toBW(getCXLCMCounter((uint32)p, PCM::EventPosition::CXL_RxC_MEM, uncState1[skt], uncState2[skt]));
+                md.CXLMEM_Wr_socket_port[skt][p] = toBW(getCXLDPCounter((uint32)p, PCM::EventPosition::CXL_TxC_MEM, uncState1[skt], uncState2[skt]));
+                md.CXLCACHE_Rd_socket_port[skt][p] = toBW(getCXLCMCounter((uint32)p, PCM::EventPosition::CXL_RxC_CACHE, uncState1[skt], uncState2[skt]));
+                md.CXLCACHE_Wr_socket_port[skt][p] = toBW(getCXLCMCounter((uint32)p, PCM::EventPosition::CXL_TxC_CACHE, uncState1[skt], uncState2[skt]));
+            }
+            else
+            {
+                md.CXLMEM_Wr_socket_port[skt][p] = CXLBWWrScalingFactor * toBW(getCXLCMCounter((uint32)p, PCM::EventPosition::CXL_TxC_MEM, uncState1[skt], uncState2[skt]));
+                md.CXLCACHE_Wr_socket_port[skt][p] = CXLBWWrScalingFactor * toBW(getCXLCMCounter((uint32)p, PCM::EventPosition::CXL_TxC_CACHE, uncState1[skt], uncState2[skt]));
+            }
         }
     }
 
