@@ -137,6 +137,14 @@ constexpr auto HSX_L2_RQSTS_REFERENCES_UMASK = 0xff;
 #define SKL_MEM_LOAD_RETIRED_L2_HIT_EVTNR (0xD1)
 #define SKL_MEM_LOAD_RETIRED_L2_HIT_UMASK (0x02)
 
+// Crestmont on-core events
+
+constexpr auto CMT_MEM_LOAD_RETIRED_L2_MISS_EVTNR = 0xD1;
+constexpr auto CMT_MEM_LOAD_RETIRED_L2_MISS_UMASK = 0x80;
+
+constexpr auto CMT_MEM_LOAD_RETIRED_L2_HIT_EVTNR = 0xD1;
+constexpr auto CMT_MEM_LOAD_RETIRED_L2_HIT_UMASK = 0x02;
+
 // architectural on-core events
 
 #define ARCH_LLC_REFERENCE_EVTNR        (0x2E)
@@ -632,6 +640,10 @@ struct BecktonUncorePMUCNTCTLRegister
 #define XPF_HA_PCI_PMON_CTR2_ADDR       (0xA0 + 8*2)
 #define XPF_HA_PCI_PMON_CTR3_ADDR       (0xA0 + 8*3)
 
+constexpr auto BHS_PCIE_GEN5_PCI_PMON_BOX_CTL_ADDR = 0x620;
+constexpr auto BHS_PCIE_GEN5_PCI_PMON_CTL0_ADDR = 0x630;
+constexpr auto BHS_PCIE_GEN5_PCI_PMON_CTR0_ADDR = 0x650;
+
 /**
  * XPF_ for Xeons: SNB, IVT, HSX, BDW, etc.
  * KNX_ for Xeon Phi (Knights *) processors
@@ -703,6 +715,8 @@ struct BecktonUncorePMUCNTCTLRegister
 #define SERVER_MC_CH_PMON_FIXED_CTL_OFFSET (0x54)
 #define SERVER_MC_CH_PMON_FIXED_CTR_OFFSET (0x38)
 
+constexpr auto BHS_MC_CH_PMON_BASE_ADDR = 0x024e800;
+
 #define JKTIVT_QPI_PORT0_REGISTER_DEV_ADDR  (8)
 #define JKTIVT_QPI_PORT0_REGISTER_FUNC_ADDR (2)
 #define JKTIVT_QPI_PORT1_REGISTER_DEV_ADDR  (9)
@@ -749,6 +763,25 @@ struct BecktonUncorePMUCNTCTLRegister
 
 #define SPR_QPI_PORT3_REGISTER_DEV_ADDR  (4)
 #define SPR_QPI_PORT3_REGISTER_FUNC_ADDR (1)
+
+
+constexpr auto BHS_QPI_PORT0_REGISTER_DEV_ADDR = 16;
+constexpr auto BHS_QPI_PORT0_REGISTER_FUNC_ADDR = 1;
+
+constexpr auto BHS_QPI_PORT1_REGISTER_DEV_ADDR = 17;
+constexpr auto BHS_QPI_PORT1_REGISTER_FUNC_ADDR = 1;
+
+constexpr auto BHS_QPI_PORT2_REGISTER_DEV_ADDR = 18;
+constexpr auto BHS_QPI_PORT2_REGISTER_FUNC_ADDR = 1;
+
+constexpr auto BHS_QPI_PORT3_REGISTER_DEV_ADDR = 19;
+constexpr auto BHS_QPI_PORT3_REGISTER_FUNC_ADDR = 1;
+
+constexpr auto BHS_QPI_PORT4_REGISTER_DEV_ADDR = 20;
+constexpr auto BHS_QPI_PORT4_REGISTER_FUNC_ADDR = 1;
+
+constexpr auto BHS_QPI_PORT5_REGISTER_DEV_ADDR = 21;
+constexpr auto BHS_QPI_PORT5_REGISTER_FUNC_ADDR = 1;
 
 #define QPI_PORT0_MISC_REGISTER_FUNC_ADDR (0)
 #define QPI_PORT1_MISC_REGISTER_FUNC_ADDR (0)
@@ -840,6 +873,47 @@ constexpr auto SERVER_HBM_M2M_14_REGISTER_FUNC_ADDR = 4;
 constexpr auto SERVER_HBM_M2M_15_REGISTER_DEV_ADDR = 15;
 constexpr auto SERVER_HBM_M2M_15_REGISTER_FUNC_ADDR = 4;
 
+
+// BHS B2CMI (M2M)
+constexpr auto BHS_M2M_0_REGISTER_DEV_ADDR = 5;
+constexpr auto BHS_M2M_0_REGISTER_FUNC_ADDR = 1;
+constexpr auto BHS_M2M_1_REGISTER_DEV_ADDR = 5;
+constexpr auto BHS_M2M_1_REGISTER_FUNC_ADDR = 2;
+constexpr auto BHS_M2M_2_REGISTER_DEV_ADDR = 5;
+constexpr auto BHS_M2M_2_REGISTER_FUNC_ADDR = 3;
+constexpr auto BHS_M2M_3_REGISTER_DEV_ADDR = 5;
+constexpr auto BHS_M2M_3_REGISTER_FUNC_ADDR = 4;
+constexpr auto BHS_M2M_4_REGISTER_DEV_ADDR = 5;
+constexpr auto BHS_M2M_4_REGISTER_FUNC_ADDR = 5;
+constexpr auto BHS_M2M_5_REGISTER_DEV_ADDR = 5;
+constexpr auto BHS_M2M_5_REGISTER_FUNC_ADDR = 6;
+constexpr auto BHS_M2M_6_REGISTER_DEV_ADDR = 5;
+constexpr auto BHS_M2M_6_REGISTER_FUNC_ADDR = 7;
+constexpr auto BHS_M2M_7_REGISTER_DEV_ADDR = 6;
+constexpr auto BHS_M2M_7_REGISTER_FUNC_ADDR = 1;
+constexpr auto BHS_M2M_8_REGISTER_DEV_ADDR = 6;
+constexpr auto BHS_M2M_8_REGISTER_FUNC_ADDR = 2;
+constexpr auto BHS_M2M_9_REGISTER_DEV_ADDR = 6;
+constexpr auto BHS_M2M_9_REGISTER_FUNC_ADDR = 3;
+constexpr auto BHS_M2M_10_REGISTER_DEV_ADDR = 6;
+constexpr auto BHS_M2M_10_REGISTER_FUNC_ADDR = 4;
+constexpr auto BHS_M2M_11_REGISTER_DEV_ADDR = 6;
+constexpr auto BHS_M2M_11_REGISTER_FUNC_ADDR = 5;
+
+// BHS B2UPI (M3UPI)
+constexpr auto BHS_M3UPI_PORT0_REGISTER_DEV_ADDR = 24;
+constexpr auto BHS_M3UPI_PORT1_REGISTER_DEV_ADDR = 25;
+constexpr auto BHS_M3UPI_PORT2_REGISTER_DEV_ADDR = 26;
+constexpr auto BHS_M3UPI_PORT3_REGISTER_DEV_ADDR = 27;
+constexpr auto BHS_M3UPI_PORT4_REGISTER_DEV_ADDR = 28;
+constexpr auto BHS_M3UPI_PORT5_REGISTER_DEV_ADDR = 29;
+constexpr auto BHS_M3UPI_PORT0_REGISTER_FUNC_ADDR = 0;
+constexpr auto BHS_M3UPI_PORT1_REGISTER_FUNC_ADDR = 0;
+constexpr auto BHS_M3UPI_PORT2_REGISTER_FUNC_ADDR = 0;
+constexpr auto BHS_M3UPI_PORT3_REGISTER_FUNC_ADDR = 0;
+constexpr auto BHS_M3UPI_PORT4_REGISTER_FUNC_ADDR = 0;
+constexpr auto BHS_M3UPI_PORT5_REGISTER_FUNC_ADDR = 0;
+
 #define SKX_M2M_PCI_PMON_BOX_CTL_ADDR (0x258)
 
 #define SKX_M2M_PCI_PMON_CTL0_ADDR (0x228)
@@ -885,6 +959,18 @@ constexpr auto ICX_M3UPI_PCI_PMON_CTR0_ADDR = (0xA8);
 constexpr auto ICX_M3UPI_PCI_PMON_CTR1_ADDR = (0xB0);
 constexpr auto ICX_M3UPI_PCI_PMON_CTR2_ADDR = (0xB8);
 constexpr auto ICX_M3UPI_PCI_PMON_CTR3_ADDR = (0xC0);
+
+constexpr auto BHS_M3UPI_PCI_PMON_BOX_CTL_ADDR = (0x408);
+
+constexpr auto BHS_M3UPI_PCI_PMON_CTL0_ADDR = (0x430);
+constexpr auto BHS_M3UPI_PCI_PMON_CTL1_ADDR = (0x438);
+constexpr auto BHS_M3UPI_PCI_PMON_CTL2_ADDR = (0x440);
+constexpr auto BHS_M3UPI_PCI_PMON_CTL3_ADDR = (0x448);
+
+constexpr auto BHS_M3UPI_PCI_PMON_CTR0_ADDR = (0x410);
+constexpr auto BHS_M3UPI_PCI_PMON_CTR1_ADDR = (0x418);
+constexpr auto BHS_M3UPI_PCI_PMON_CTR2_ADDR = (0x420);
+constexpr auto BHS_M3UPI_PCI_PMON_CTR3_ADDR = (0x428);
 
 constexpr auto MSR_UNCORE_PMON_GLOBAL_CTL = 0x700;
 
@@ -951,6 +1037,16 @@ constexpr auto SPR_UBOX_MSR_PMON_CTL0_ADDR = 0x2FD2;
 constexpr auto SPR_UBOX_MSR_PMON_CTL1_ADDR = 0x2FD3;
 constexpr auto SPR_UBOX_MSR_PMON_CTR0_ADDR = 0X2FD8;
 constexpr auto SPR_UBOX_MSR_PMON_CTR1_ADDR = 0X2FD9;
+
+constexpr auto BHS_UCLK_FIXED_CTR_ADDR = 0x3FFD;
+constexpr auto BHS_UCLK_FIXED_CTL_ADDR = 0x3FFE;
+constexpr auto BHS_UBOX_MSR_PMON_BOX_CTL_ADDR = 0x3FF0;
+constexpr auto BHS_UBOX_MSR_PMON_CTL0_ADDR = 0x3FF2;
+constexpr auto BHS_UBOX_MSR_PMON_CTL1_ADDR = 0x3FF3;
+constexpr auto BHS_UBOX_MSR_PMON_CTR0_ADDR = 0x3FF8;
+constexpr auto BHS_UBOX_MSR_PMON_CTR1_ADDR = 0x3FF9;
+
+
 
 constexpr auto JKTIVT_UCLK_FIXED_CTR_ADDR = (0x0C09);
 constexpr auto JKTIVT_UCLK_FIXED_CTL_ADDR = (0x0C08);
@@ -1180,6 +1276,29 @@ static const uint32 ICX_IIO_UNIT_CTL[] = {
     0x0A50, 0x0A70, 0x0A90, 0x0AE0, 0x0B00, 0x0B20
 };
 
+
+static const uint32 BHS_IRP_UNIT_CTL[] = {
+    0x2A00,
+    0x2A10,
+    0x2A20,
+    0x2A30,
+    0x2A40,
+    0x2A50,
+    0x2A60,
+    0x2A70,
+    0x2A80,
+    0x2A90,
+    0x2AA0,
+    0x2AB0,
+    0x2AC0,
+    0x2AD0,
+    0x2AE0,
+    0x2AF0
+};
+
+#define BHS_IRP_CTL_REG_OFFSET      (0x0002)
+#define BHS_IRP_CTR_REG_OFFSET      (0x0008)
+
 static const uint32 SPR_IRP_UNIT_CTL[] = {
     0x3400,
     0x3410,
@@ -1245,6 +1364,12 @@ constexpr auto SPR_M2IOSF_IIO_CTR0     = 0x3008;
 constexpr auto SPR_M2IOSF_IIO_CTL0     = 0x3002;
 constexpr auto SPR_M2IOSF_REG_STEP = 0x10;
 constexpr auto SPR_M2IOSF_NUM      = 12;
+
+constexpr auto BHS_M2IOSF_IIO_UNIT_CTL = 0x2900;
+constexpr auto BHS_M2IOSF_IIO_CTR0     = 0x2908;
+constexpr auto BHS_M2IOSF_IIO_CTL0     = 0x2902;
+constexpr auto BHS_M2IOSF_REG_STEP = 0x10;
+constexpr auto BHS_M2IOSF_NUM      = 16;
 
 constexpr auto CXL_PMON_SIZE = 0x1000;
 

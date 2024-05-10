@@ -647,7 +647,39 @@ std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int
         dashboard.push(panel);
         dashboard.push(panel1);
     }
+    if(pcm->nearMemoryMetricsAvailable()){        // Near Memory statistics
+      y += height;
+      for (size_t s = 0; s < NumSockets; ++s)
+      {
+      const auto S = std::to_string(s);
+      
+      auto panel = std::make_shared<TimeSeriesPanel>(0, y, width, height,std::string("Socket") + S + " Near Memory Hit Miss", "M/s", false);
+      auto panel1 = std::make_shared<BarGaugePanel>(width, y, max_width - width, height,std::string("Current Socket") + S + "Near Memory Hit/Miss");
+        for (auto& m : {"NM Hits","NM Misses","NM Miss Bw"})
+          {
+              auto t = createTarget(m, influxDBUncore_Uncore_Counters(S, m) + "/1048576", prometheusCounters(S, m, false) + "/1048576");
+              panel->push(t);
+              panel1->push(t);
+          }
+        dashboard.push(panel);
+        dashboard.push(panel1);
+      }
 
+
+      auto NMpanel = std::make_shared<TimeSeriesPanel>(0, y, width, height, "Near Memory Hit Rate", "NM Hit Rate", false);
+      auto NMpanel1 = std::make_shared<GaugePanel>(width, y, max_width - width, height, "Near Memory HitRate");
+      y += height;
+      for (size_t s = 0; s < NumSockets; ++s)
+      {
+        const auto S = std::to_string(s);
+        auto t = createTarget("Socket " + S, influxDBUncore_Uncore_Counters(S, "NM HitRate") + "/1048576", prometheusCounters(S, "NM HitRate", false) + "/1048576");
+              NMpanel->push(t);
+              NMpanel1->push(t);
+        
+      }
+      dashboard.push(NMpanel);
+      dashboard.push(NMpanel1);
+    }
     auto panel = std::make_shared<TimeSeriesPanel>(0, y, width, height, "PMEM/DRAM Bandwidth Ratio", "PMEM/DRAM", false);
     auto panel1 = std::make_shared<BarGaugePanel>(width, y, max_width - width, height, "PMEM/DRAM Bandwidth Ratio");
     y += height;

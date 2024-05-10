@@ -424,8 +424,15 @@ private:
 
     void printUncoreCounterState( SocketCounterState const& before, SocketCounterState const& after ) {
         startObject( "Uncore Counters", BEGIN_OBJECT );
+        PCM* pcm = PCM::getInstance();
         printCounter( "DRAM Writes",                   getBytesWrittenToMC    ( before, after ) );
         printCounter( "DRAM Reads",                    getBytesReadFromMC     ( before, after ) );
+        if(pcm->nearMemoryMetricsAvailable()){
+            printCounter( "NM HitRate",                    getNMHitRate           ( before, after ) );
+            printCounter( "NM Hits",                       getNMHits              ( before, after ) );
+            printCounter( "NM Misses",                     getNMMisses            ( before, after ) );
+            printCounter( "NM Miss Bw",                    getNMMissBW            ( before, after ) );
+        }
         printCounter( "Persistent Memory Writes",      getBytesWrittenToPMM   ( before, after ) );
         printCounter( "Persistent Memory Reads",       getBytesReadFromPMM    ( before, after ) );
         printCounter( "Embedded DRAM Writes",          getBytesWrittenToEDC   ( before, after ) );
@@ -704,9 +711,16 @@ private:
     }
 
     void printUncoreCounterState( SocketCounterState const& before, SocketCounterState const& after ) {
+        PCM* pcm = PCM::getInstance();
         addToHierarchy( "source=\"uncore\"" );
         printCounter( "DRAM Writes",                   getBytesWrittenToMC    ( before, after ) );
         printCounter( "DRAM Reads",                    getBytesReadFromMC     ( before, after ) );
+        if(pcm->nearMemoryMetricsAvailable()){
+            printCounter( "NM Hits",                       getNMHits              ( before, after ) );
+            printCounter( "NM Misses",                     getNMMisses            ( before, after ) );
+            printCounter( "NM Miss Bw",                    getNMMissBW            ( before, after ) );
+            printCounter( "NM HitRate",                    getNMHitRate           ( before, after ) );
+        }
         printCounter( "Persistent Memory Writes",      getBytesWrittenToPMM   ( before, after ) );
         printCounter( "Persistent Memory Reads",       getBytesReadFromPMM    ( before, after ) );
         printCounter( "Embedded DRAM Writes",          getBytesWrittenToEDC   ( before, after ) );

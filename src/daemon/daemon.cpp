@@ -641,7 +641,7 @@ namespace PCMDaemon {
             memory.sockets[onlineSocketsI].pmmWrite = iMC_PMM_Wr_socket[skt];
             memory.sockets[onlineSocketsI].total = iMC_Rd_socket[skt] + iMC_Wr_socket[skt] + iMC_PMM_Rd_socket[skt] + iMC_PMM_Wr_socket[skt];
             const auto all = memory.sockets[onlineSocketsI].total;
-            memory.sockets[onlineSocketsI].pmmMemoryModeHitRate = (all == 0.0) ? -1.0 : ((iMC_Rd_socket[skt] + iMC_Wr_socket[skt]) / all); // simplified approximation
+            memory.sockets[onlineSocketsI].memoryModeHitRate = (all == 0.0) ? -1.0 : ((iMC_Rd_socket[skt] + iMC_Wr_socket[skt]) / all); // simplified approximation
             if (memory.dramEnergyMetricsAvailable)
             {
                 memory.sockets[onlineSocketsI].dramEnergy = getDRAMConsumedJoules(socketStatesBefore_[skt], socketStatesAfter_[skt]);

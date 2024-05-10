@@ -602,8 +602,10 @@ AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEven
 
     static std::map<std::string, std::string> pmuNameMap = {
         {std::string("cbo"), std::string("cha")},
+        {std::string("b2cmi"), std::string("m2m")},
         {std::string("upi"), std::string("xpi")},
         {std::string("upi ll"), std::string("xpi")},
+        {std::string("b2upi"), std::string("m3upi")},
         {std::string("qpi"), std::string("xpi")},
         {std::string("qpi ll"), std::string("xpi")}
     };
