@@ -1,19 +1,19 @@
 
 Name:            pcm
-Version:         0
+Version:         master
 Release:         0
 Summary:         Intel(r) Performance Counter Monitor
 Group:           System/Monitoring
 License:         BSD-3-Clause
-Url:             https://github.com/intel/pcm/archive
-Source:          master.zip
-BuildRoot:      %{_tmppath}/%{name}-%{version}-build
-AutoReqProv:    on
-BuildRequires:  unzip
-BuildRequires:  gcc
-BuildRequires:  make
-BuildRequires:  gcc-c++
-BuildRequires:  cmake
+Url:             https://github.com/intel/pcm
+Source:          %{version}.zip
+BuildRoot:       %{_tmppath}/%{name}-%{version}-build
+AutoReqProv:     on
+BuildRequires:   unzip
+BuildRequires:   gcc
+BuildRequires:   make
+BuildRequires:   gcc-c++
+BuildRequires:   cmake
 
 %description
 
