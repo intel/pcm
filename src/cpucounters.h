@@ -2455,6 +2455,9 @@ public:
             || cpu_model == PCM::BDX
             || cpu_model == PCM::SKX
             || cpu_model == PCM::ICX
+            || cpu_model == PCM::SPR
+            || cpu_model == PCM::EMR
+            || cpu_model == PCM::SRF
             ;
     }
 
