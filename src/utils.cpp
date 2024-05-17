@@ -1176,10 +1176,6 @@ int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
 
 bool get_cpu_bus(uint32 msmDomain, uint32 msmBus, uint32 msmDev, uint32 msmFunc, uint32 &cpuBusValid, std::vector<uint32> &cpuBusNo, int &cpuPackageId)
 {
-    int cpuBusNo0 = 0x0;
-    uint32 sadControlCfg = 0x0;
-    uint32 busNo = 0x0;
-
     //std::cout << "get_cpu_bus: d=" << std::hex << msmDomain << ",b=" << msmBus << ",d=" << msmDev << ",f=" << msmFunc << std::dec << " \n";
     try {
     PciHandleType h(msmDomain, msmBus, msmDev, msmFunc);
@@ -1190,24 +1186,19 @@ bool get_cpu_bus(uint32 msmDomain, uint32 msmBus, uint32 msmDev, uint32 msmFunc,
         return false;
     }
 
-    for (int i = 0; i < 8; ++i)
+    cpuBusNo.resize(8);
+    for (int i = 0; i < 4; ++i)
     {
-        busNo = 0x00;
-        if (i <= 3)
+        h.read32(SPR_MSM_REG_CPUBUSNO0_OFFSET + i * 4, &cpuBusNo[i]);
+
+        h.read32(SPR_MSM_REG_CPUBUSNO4_OFFSET + i * 4, &cpuBusNo[i + 4]);
+
+        if (cpuBusNo[i] == (std::numeric_limits<uint32>::max)() ||
+            cpuBusNo[i + 4] == (std::numeric_limits<uint32>::max)())
         {
-            h.read32(SPR_MSM_REG_CPUBUSNO0_OFFSET + i*4, &busNo);
-        }
-        else
-        {
-            h.read32(SPR_MSM_REG_CPUBUSNO4_OFFSET + (i-4)*4, &busNo);
-        }
-        if (busNo == (std::numeric_limits<uint32>::max)())
-        {
-            std::cerr << "Failed to read CPUBUSNO" << std::endl;
+            std::cerr << "Failed to read CPUBUSNO registers" << std::endl;
             return false;
         }
-        cpuBusNo.push_back(busNo);
-        //std::cout << std::hex << "get_cpu_bus: busNo=0x" << busNo << std::dec <<  "\n";
     }
 
     /*
@@ -1217,8 +1208,9 @@ bool get_cpu_bus(uint32 msmDomain, uint32 msmBus, uint32 msmDev, uint32 msmFunc,
     int firstValidBusId = 0;
     while (!((cpuBusValid >> firstValidBusId) & 0x1)) firstValidBusId++;
     int cpuBusNo0 = (cpuBusNo[(int)(firstValidBusId / 4)] >> ((firstValidBusId % 4) * 8)) & 0xff;
-    PciHandleType sad_cfg_handler(msmDomain, cpuBusNo0, 0, 0);
 
+    uint32 sadControlCfg = 0x0;
+    PciHandleType sad_cfg_handler(msmDomain, cpuBusNo0, 0, 0);
     sad_cfg_handler.read32(SPR_SAD_REG_CTL_CFG_OFFSET, &sadControlCfg);
     if (sadControlCfg == (std::numeric_limits<uint32>::max)())
     {
