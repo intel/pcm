@@ -5,13 +5,15 @@
 //            Aaron Cruz
 //            and others
 #include "cpucounters.h"
+
 #ifdef _MSC_VER
-#pragma warning(disable : 4996) // for sprintf
-#include <windows.h>
-#include "windows/windriver.h"
+    #pragma warning(disable : 4996) // for sprintf
+    #include <windows.h>
+    #include "windows/windriver.h"
 #else
-#include <unistd.h>
+    #include <unistd.h>
 #endif
+
 #include <memory>
 #include <fstream>
 #include <stdlib.h>
@@ -20,8 +22,10 @@
 #include <cstdint>
 #include <numeric>
 #include <algorithm>
+#include <set>
+
 #ifdef _MSC_VER
-#include "freegetopt/getopt.h"
+    #include "freegetopt/getopt.h"
 #endif
 
 #include "lspci.h"
@@ -465,7 +469,6 @@ typedef struct
 
 vector<string> combine_stack_name_and_counter_names(string stack_name, const map<string,std::pair<h_id,std::map<string,v_id>>> &nameMap)
 {
-
     vector<string> v;
     vector<string> tmp(nameMap.size());
     v.push_back(stack_name);
@@ -520,7 +523,6 @@ string build_pci_header(const PCIDB & pciDB, uint32_t column_width, const struct
     } else { /* row without data, just child pci device */
         s.insert(0, std::string(4*level, ' '));
     }
-
 
     return s;
 }
