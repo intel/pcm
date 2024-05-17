@@ -1364,6 +1364,75 @@ void IPlatformMapping::probeDeviceRange(std::vector<struct pci> &pci_devs, int d
     }
 }
 
+class BirchStreamPlatform: public IPlatformMapping {
+private:
+    bool isPcieStack(int unit);
+    bool isRootHcStack(int unit);
+    bool isPartHcStack(int unit);
+    bool isUboxStack(int unit);
+
+    bool stackProbe(int unit, const struct bdf &address, struct iio_stacks_on_socket &iio_on_socket);
+    bool getRootBuses(std::map<int, std::map<int, struct bdf>> &root_buses);
+public:
+    BirchStreamPlatform(int cpu_model, uint32_t sockets_count) : IPlatformMapping(cpu_model, sockets_count) {}
+    ~BirchStreamPlatform() = default;
+    bool pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios) override;
+};
+
+bool BirchStreamPlatform::isPcieStack(int unit)
+{
+    return false;
+}
+
+bool BirchStreamPlatform::isRootHcStack(int unit)
+{
+    return false;
+}
+
+bool BirchStreamPlatform::isPartHcStack(int unit)
+{
+    return false;
+}
+
+bool BirchStreamPlatform::isUboxStack(int unit)
+{
+    return false;
+}
+
+bool BirchStreamPlatform::stackProbe(int unit, const struct bdf &address, struct iio_stacks_on_socket &iio_on_socket)
+{
+    return true;
+}
+
+bool BirchStreamPlatform::getRootBuses(std::map<int, std::map<int, struct bdf>> &root_buses)
+{
+    return true;
+}
+
+bool BirchStreamPlatform::pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios)
+{
+    std::map<int, std::map<int, struct bdf>> root_buses;
+    if (!getRootBuses(root_buses))
+    {
+        return false;
+    }
+
+    for (auto iter = root_buses.cbegin(); iter != root_buses.cend(); ++iter) {
+        auto rbs_on_socket = iter->second;
+        struct iio_stacks_on_socket iio_on_socket;
+        iio_on_socket.socket_id = iter->first;
+        for (auto rb = rbs_on_socket.cbegin(); rb != rbs_on_socket.cend(); ++rb) {
+            if (!stackProbe(rb->first, rb->second, iio_on_socket)) {
+                return false;
+            }
+        }
+        std::sort(iio_on_socket.stacks.begin(), iio_on_socket.stacks.end());
+        iios.push_back(iio_on_socket);
+    }
+
+    return true;
+}
+
 std::unique_ptr<IPlatformMapping> IPlatformMapping::getPlatformMapping(int cpu_model, uint32_t sockets_count)
 {
     switch (cpu_model) {
@@ -1376,6 +1445,8 @@ std::unique_ptr<IPlatformMapping> IPlatformMapping::getPlatformMapping(int cpu_m
     case PCM::SPR:
     case PCM::EMR:
         return std::unique_ptr<IPlatformMapping>{new EagleStreamPlatformMapping(cpu_model, sockets_count)};
+    case PCM::SRF:
+        return std::unique_ptr<IPlatformMapping>{new BirchStreamPlatform(cpu_model, sockets_count)};
     default:
         return nullptr;
     }
