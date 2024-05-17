@@ -1177,50 +1177,52 @@ int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
 bool get_cpu_bus(uint32 msmDomain, uint32 msmBus, uint32 msmDev, uint32 msmFunc, uint32 &cpuBusValid, std::vector<uint32> &cpuBusNo, int &cpuPackageId)
 {
     //std::cout << "get_cpu_bus: d=" << std::hex << msmDomain << ",b=" << msmBus << ",d=" << msmDev << ",f=" << msmFunc << std::dec << " \n";
-    try {
-    PciHandleType h(msmDomain, msmBus, msmDev, msmFunc);
-
-    h.read32(SPR_MSM_REG_CPUBUSNO_VALID_OFFSET, &cpuBusValid);
-    if (cpuBusValid == (std::numeric_limits<uint32>::max)()) {
-        std::cerr << "Failed to read CPUBUSNO_VALID" << std::endl;
-        return false;
-    }
-
-    cpuBusNo.resize(8);
-    for (int i = 0; i < 4; ++i)
+    try
     {
-        h.read32(SPR_MSM_REG_CPUBUSNO0_OFFSET + i * 4, &cpuBusNo[i]);
+        PciHandleType h(msmDomain, msmBus, msmDev, msmFunc);
 
-        h.read32(SPR_MSM_REG_CPUBUSNO4_OFFSET + i * 4, &cpuBusNo[i + 4]);
-
-        if (cpuBusNo[i] == (std::numeric_limits<uint32>::max)() ||
-            cpuBusNo[i + 4] == (std::numeric_limits<uint32>::max)())
-        {
-            std::cerr << "Failed to read CPUBUSNO registers" << std::endl;
+        h.read32(SPR_MSM_REG_CPUBUSNO_VALID_OFFSET, &cpuBusValid);
+        if (cpuBusValid == (std::numeric_limits<uint32>::max)()) {
+            std::cerr << "Failed to read CPUBUSNO_VALID" << std::endl;
             return false;
         }
+
+        cpuBusNo.resize(8);
+        for (int i = 0; i < 4; ++i)
+        {
+            h.read32(SPR_MSM_REG_CPUBUSNO0_OFFSET + i * 4, &cpuBusNo[i]);
+
+            h.read32(SPR_MSM_REG_CPUBUSNO4_OFFSET + i * 4, &cpuBusNo[i + 4]);
+
+            if (cpuBusNo[i] == (std::numeric_limits<uint32>::max)() ||
+                cpuBusNo[i + 4] == (std::numeric_limits<uint32>::max)())
+            {
+                std::cerr << "Failed to read CPUBUSNO registers" << std::endl;
+                return false;
+            }
+        }
+
+        /*
+        * It's possible to have not enabled first stack that's why
+        * need to find the first valid bus to read CSR
+        */
+        int firstValidBusId = 0;
+        while (!((cpuBusValid >> firstValidBusId) & 0x1)) firstValidBusId++;
+        int cpuBusNo0 = (cpuBusNo[(int)(firstValidBusId / 4)] >> ((firstValidBusId % 4) * 8)) & 0xff;
+
+        uint32 sadControlCfg = 0x0;
+        PciHandleType sad_cfg_handler(msmDomain, cpuBusNo0, 0, 0);
+        sad_cfg_handler.read32(SPR_SAD_REG_CTL_CFG_OFFSET, &sadControlCfg);
+        if (sadControlCfg == (std::numeric_limits<uint32>::max)())
+        {
+            std::cerr << "Failed to read SAD_CONTROL_CFG" << std::endl;
+            return false;
+        }
+        cpuPackageId = sadControlCfg & 0xf;
+
+        return true;
     }
-
-    /*
-     * It's possible to have not enabled first stack that's why
-     * need to find the first valid bus to read CSR
-     */
-    int firstValidBusId = 0;
-    while (!((cpuBusValid >> firstValidBusId) & 0x1)) firstValidBusId++;
-    int cpuBusNo0 = (cpuBusNo[(int)(firstValidBusId / 4)] >> ((firstValidBusId % 4) * 8)) & 0xff;
-
-    uint32 sadControlCfg = 0x0;
-    PciHandleType sad_cfg_handler(msmDomain, cpuBusNo0, 0, 0);
-    sad_cfg_handler.read32(SPR_SAD_REG_CTL_CFG_OFFSET, &sadControlCfg);
-    if (sadControlCfg == (std::numeric_limits<uint32>::max)())
-    {
-        std::cerr << "Failed to read SAD_CONTROL_CFG" << std::endl;
-        return false;
-    }
-    cpuPackageId = sadControlCfg & 0xf;
-
-    return true;
-    } catch (...)
+    catch (...)
     {
         std::cerr << "Warning: unable to enumerate CPU Buses" << std::endl;
         return false;
