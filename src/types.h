@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-// Copyright (c) 2009-2022, Intel Corporation
+// Copyright (c) 2009-2024, Intel Corporation
 // written by Roman Dementiev
 //
 
@@ -39,43 +39,41 @@ typedef signed int int32;
 #define PCM_ULIMIT_RECOMMENDATION ("try executing 'ulimit -n 1000000' to increase the limit on the number of open files.\n")
 
 /*
-        MSR addresses from
-        "Intel 64 and IA-32 Architectures Software Developers Manual Volume 3B:
-        System Programming Guide, Part 2", Appendix A "PERFORMANCE-MONITORING EVENTS"
+    MSR addresses from
+    "Intel 64 and IA-32 Architectures Software Developers Manual Volume 3B:
+    System Programming Guide, Part 2", Appendix A "PERFORMANCE-MONITORING EVENTS"
 */
 
-#define INST_RETIRED_ADDR           (0x309)
-#define CPU_CLK_UNHALTED_THREAD_ADDR    (0x30A)
-#define CPU_CLK_UNHALTED_REF_ADDR       (0x30B)
-#define TOPDOWN_SLOTS_ADDR              (0x30C)
-#define PERF_METRICS_ADDR               (0x329)
-#define IA32_CR_PERF_GLOBAL_CTRL        (0x38F)
-#define IA32_CR_FIXED_CTR_CTRL          (0x38D)
-#define IA32_PERFEVTSEL0_ADDR           (0x186)
-#define IA32_PERFEVTSEL1_ADDR           (IA32_PERFEVTSEL0_ADDR + 1)
-#define IA32_PERFEVTSEL2_ADDR           (IA32_PERFEVTSEL0_ADDR + 2)
-#define IA32_PERFEVTSEL3_ADDR           (IA32_PERFEVTSEL0_ADDR + 3)
-
+constexpr auto INST_RETIRED_ADDR = 0x309;
+constexpr auto CPU_CLK_UNHALTED_THREAD_ADDR = 0x30A;
+constexpr auto CPU_CLK_UNHALTED_REF_ADDR = 0x30B;
+constexpr auto TOPDOWN_SLOTS_ADDR = 0x30C;
+constexpr auto PERF_METRICS_ADDR = 0x329;
+constexpr auto IA32_CR_PERF_GLOBAL_CTRL = 0x38F;
+constexpr auto IA32_CR_FIXED_CTR_CTRL = 0x38D;
+constexpr auto IA32_PERFEVTSEL0_ADDR = 0x186;
+constexpr auto IA32_PERFEVTSEL1_ADDR = IA32_PERFEVTSEL0_ADDR + 1;
+constexpr auto IA32_PERFEVTSEL2_ADDR = IA32_PERFEVTSEL0_ADDR + 2;
+constexpr auto IA32_PERFEVTSEL3_ADDR = IA32_PERFEVTSEL0_ADDR + 3;
 constexpr auto IA32_PERF_GLOBAL_STATUS = 0x38E;
 constexpr auto IA32_PERF_GLOBAL_OVF_CTRL = 0x390;
 constexpr auto IA32_PEBS_ENABLE_ADDR = 0x3F1;
 
-#define PERF_MAX_FIXED_COUNTERS          (3)
-#define PERF_MAX_CUSTOM_COUNTERS         (8)
-#define PERF_TOPDOWN_COUNTERS_L1        (5)
-#define PERF_TOPDOWN_COUNTERS           (PERF_TOPDOWN_COUNTERS_L1 + 4)
-#define PERF_MAX_COUNTERS               (PERF_MAX_FIXED_COUNTERS + PERF_MAX_CUSTOM_COUNTERS + PERF_TOPDOWN_COUNTERS)
+constexpr auto PERF_MAX_FIXED_COUNTERS = 3;
+constexpr auto PERF_MAX_CUSTOM_COUNTERS = 8;
+constexpr auto PERF_TOPDOWN_COUNTERS_L1 = 5;
+constexpr auto PERF_TOPDOWN_COUNTERS = PERF_TOPDOWN_COUNTERS_L1 + 4;
+constexpr auto PERF_MAX_COUNTERS = PERF_MAX_FIXED_COUNTERS + PERF_MAX_CUSTOM_COUNTERS + PERF_TOPDOWN_COUNTERS;
 
-#define IA32_DEBUGCTL                   (0x1D9)
+constexpr auto IA32_DEBUGCTL = 0x1D9;
 
-#define IA32_PMC0                       (0xC1)
-#define IA32_PMC1                       (0xC1 + 1)
-#define IA32_PMC2                       (0xC1 + 2)
-#define IA32_PMC3                       (0xC1 + 3)
+constexpr auto IA32_PMC0 = 0xC1;
+constexpr auto IA32_PMC1 = IA32_PMC0 + 1;
+constexpr auto IA32_PMC2 = IA32_PMC0 + 2;
+constexpr auto IA32_PMC3 = IA32_PMC0 + 3;
 
-#define MSR_OFFCORE_RSP0               (0x1A6)
-#define MSR_OFFCORE_RSP1               (0x1A7)
-
+constexpr auto MSR_OFFCORE_RSP0 = 0x1A6;
+constexpr auto MSR_OFFCORE_RSP1 = 0x1A7;
 constexpr auto MSR_LOAD_LATENCY = 0x3F6;
 constexpr auto MSR_FRONTEND = 0x3F7;
 
