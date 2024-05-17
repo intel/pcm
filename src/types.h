@@ -143,13 +143,11 @@ constexpr auto CMT_MEM_LOAD_RETIRED_L2_HIT_EVTNR = 0xD1;
 constexpr auto CMT_MEM_LOAD_RETIRED_L2_HIT_UMASK = 0x02;
 
 // architectural on-core events
+constexpr auto ARCH_LLC_REFERENCE_EVTNR = 0x2E;
+constexpr auto ARCH_LLC_REFERENCE_UMASK = 0x4F;
 
-#define ARCH_LLC_REFERENCE_EVTNR        (0x2E)
-#define ARCH_LLC_REFERENCE_UMASK        (0x4F)
-
-#define ARCH_LLC_MISS_EVTNR     (0x2E)
-#define ARCH_LLC_MISS_UMASK     (0x41)
-
+constexpr auto ARCH_LLC_MISS_EVTNR = 0x2E;
+constexpr auto ARCH_LLC_MISS_UMASK = 0x41;
 // Atom on-core events
 
 #define ATOM_MEM_LOAD_RETIRED_L2_HIT_EVTNR   (0xCB)
