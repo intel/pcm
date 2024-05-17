@@ -193,7 +193,6 @@ constexpr auto MSR_UNCORE_PMC4 = MSR_UNCORE_PMC0 + 4;
 constexpr auto MSR_UNCORE_PMC5 = MSR_UNCORE_PMC0 + 5;
 constexpr auto MSR_UNCORE_PMC6 = MSR_UNCORE_PMC0 + 6;
 constexpr auto MSR_UNCORE_PMC7 = MSR_UNCORE_PMC0 + 7;
-
 // Uncore event IDs
 constexpr auto UNC_QMC_WRITES_FULL_ANY_EVTNR = 0x2F;
 constexpr auto UNC_QMC_WRITES_FULL_ANY_UMASK = 0x07;
@@ -214,90 +213,87 @@ constexpr auto UNC_QHL_REQUESTS_LOCAL_WRITES_UMASK = 0x20;
 */
 
 // Beckton uncore event IDs
+constexpr auto U_MSR_PMON_GLOBAL_CTL = 0x0C00;
 
-#define U_MSR_PMON_GLOBAL_CTL                   (0x0C00)
+constexpr auto MB0_MSR_PERF_GLOBAL_CTL = 0x0CA0;
+constexpr auto MB0_MSR_PMU_CNT_0 = 0x0CB1;
+constexpr auto MB0_MSR_PMU_CNT_CTL_0 = 0x0CB0;
+constexpr auto MB0_MSR_PMU_CNT_1 = 0x0CB3;
+constexpr auto MB0_MSR_PMU_CNT_CTL_1 = 0x0CB2;
+constexpr auto MB0_MSR_PMU_ZDP_CTL_FVC = 0x0CAB;
 
-#define MB0_MSR_PERF_GLOBAL_CTL                 (0x0CA0)
-#define MB0_MSR_PMU_CNT_0                       (0x0CB1)
-#define MB0_MSR_PMU_CNT_CTL_0                   (0x0CB0)
-#define MB0_MSR_PMU_CNT_1                       (0x0CB3)
-#define MB0_MSR_PMU_CNT_CTL_1                   (0x0CB2)
-#define MB0_MSR_PMU_ZDP_CTL_FVC                 (0x0CAB)
+constexpr auto MB1_MSR_PERF_GLOBAL_CTL = 0x0CE0;
+constexpr auto MB1_MSR_PMU_CNT_0 = 0x0CF1;
+constexpr auto MB1_MSR_PMU_CNT_CTL_0 = 0x0CF0;
+constexpr auto MB1_MSR_PMU_CNT_1 = 0x0CF3;
+constexpr auto MB1_MSR_PMU_CNT_CTL_1 = 0x0CF2;
+constexpr auto MB1_MSR_PMU_ZDP_CTL_FVC = 0x0CEB;
 
+constexpr auto BB0_MSR_PERF_GLOBAL_CTL = 0x0C20;
+constexpr auto BB0_MSR_PERF_CNT_1 = 0x0C33;
+constexpr auto BB0_MSR_PERF_CNT_CTL_1 = 0x0C32;
 
-#define MB1_MSR_PERF_GLOBAL_CTL                 (0x0CE0)
-#define MB1_MSR_PMU_CNT_0                       (0x0CF1)
-#define MB1_MSR_PMU_CNT_CTL_0                   (0x0CF0)
-#define MB1_MSR_PMU_CNT_1                       (0x0CF3)
-#define MB1_MSR_PMU_CNT_CTL_1                   (0x0CF2)
-#define MB1_MSR_PMU_ZDP_CTL_FVC                 (0x0CEB)
+constexpr auto BB1_MSR_PERF_GLOBAL_CTL = 0x0C60;
+constexpr auto BB1_MSR_PERF_CNT_1 = 0x0C73;
+constexpr auto BB1_MSR_PERF_CNT_CTL_1 = 0x0C72;
 
-#define BB0_MSR_PERF_GLOBAL_CTL                 (0x0C20)
-#define BB0_MSR_PERF_CNT_1                      (0x0C33)
-#define BB0_MSR_PERF_CNT_CTL_1                  (0x0C32)
+constexpr auto R_MSR_PMON_CTL0 = 0x0E10;
+constexpr auto R_MSR_PMON_CTR0 = 0x0E11;
+constexpr auto R_MSR_PMON_CTL1 = 0x0E12;
+constexpr auto R_MSR_PMON_CTR1 = 0x0E13;
+constexpr auto R_MSR_PMON_CTL2 = 0x0E14;
+constexpr auto R_MSR_PMON_CTR2 = 0x0E15;
+constexpr auto R_MSR_PMON_CTL3 = 0x0E16;
+constexpr auto R_MSR_PMON_CTR3 = 0x0E17;
+constexpr auto R_MSR_PMON_CTL4 = 0x0E18;
+constexpr auto R_MSR_PMON_CTR4 = 0x0E19;
+constexpr auto R_MSR_PMON_CTL5 = 0x0E1A;
+constexpr auto R_MSR_PMON_CTR5 = 0x0E1B;
+constexpr auto R_MSR_PMON_CTL6 = 0x0E1C;
+constexpr auto R_MSR_PMON_CTR6 = 0x0E1D;
+constexpr auto R_MSR_PMON_CTL7 = 0x0E1E;
+constexpr auto R_MSR_PMON_CTR7 = 0x0E1F;
+constexpr auto R_MSR_PMON_CTL8 = 0x0E30;
+constexpr auto R_MSR_PMON_CTR8 = 0x0E31;
+constexpr auto R_MSR_PMON_CTL9 = 0x0E32;
+constexpr auto R_MSR_PMON_CTR9 = 0x0E33;
+constexpr auto R_MSR_PMON_CTL10 = 0x0E34;
+constexpr auto R_MSR_PMON_CTR10 = 0x0E35;
+constexpr auto R_MSR_PMON_CTL11 = 0x0E36;
+constexpr auto R_MSR_PMON_CTR11 = 0x0E37;
+constexpr auto R_MSR_PMON_CTL12 = 0x0E38;
+constexpr auto R_MSR_PMON_CTR12 = 0x0E39;
+constexpr auto R_MSR_PMON_CTL13 = 0x0E3A;
+constexpr auto R_MSR_PMON_CTR13 = 0x0E3B;
+constexpr auto R_MSR_PMON_CTL14 = 0x0E3C;
+constexpr auto R_MSR_PMON_CTR14 = 0x0E3D;
+constexpr auto R_MSR_PMON_CTL15 = 0x0E3E;
+constexpr auto R_MSR_PMON_CTR15 = 0x0E3F;
 
-#define BB1_MSR_PERF_GLOBAL_CTL                 (0x0C60)
-#define BB1_MSR_PERF_CNT_1                      (0x0C73)
-#define BB1_MSR_PERF_CNT_CTL_1                  (0x0C72)
+constexpr auto R_MSR_PORT0_IPERF_CFG0 = 0x0E04;
+constexpr auto R_MSR_PORT1_IPERF_CFG0 = 0x0E05;
+constexpr auto R_MSR_PORT2_IPERF_CFG0 = 0x0E06;
+constexpr auto R_MSR_PORT3_IPERF_CFG0 = 0x0E07;
+constexpr auto R_MSR_PORT4_IPERF_CFG0 = 0x0E08;
+constexpr auto R_MSR_PORT5_IPERF_CFG0 = 0x0E09;
+constexpr auto R_MSR_PORT6_IPERF_CFG0 = 0x0E0A;
+constexpr auto R_MSR_PORT7_IPERF_CFG0 = 0x0E0B;
 
-#define R_MSR_PMON_CTL0 (0x0E10)
-#define R_MSR_PMON_CTR0 (0x0E11)
-#define R_MSR_PMON_CTL1 (0x0E12)
-#define R_MSR_PMON_CTR1 (0x0E13)
-#define R_MSR_PMON_CTL2 (0x0E14)
-#define R_MSR_PMON_CTR2 (0x0E15)
-#define R_MSR_PMON_CTL3 (0x0E16)
-#define R_MSR_PMON_CTR3 (0x0E17)
-#define R_MSR_PMON_CTL4 (0x0E18)
-#define R_MSR_PMON_CTR4 (0x0E19)
-#define R_MSR_PMON_CTL5 (0x0E1A)
-#define R_MSR_PMON_CTR5 (0x0E1B)
-#define R_MSR_PMON_CTL6 (0x0E1C)
-#define R_MSR_PMON_CTR6 (0x0E1D)
-#define R_MSR_PMON_CTL7 (0x0E1E)
-#define R_MSR_PMON_CTR7 (0x0E1F)
-#define R_MSR_PMON_CTL8 (0x0E30)
-#define R_MSR_PMON_CTR8 (0x0E31)
-#define R_MSR_PMON_CTL9 (0x0E32)
-#define R_MSR_PMON_CTR9 (0x0E33)
-#define R_MSR_PMON_CTL10 (0x0E34)
-#define R_MSR_PMON_CTR10 (0x0E35)
-#define R_MSR_PMON_CTL11 (0x0E36)
-#define R_MSR_PMON_CTR11 (0x0E37)
-#define R_MSR_PMON_CTL12 (0x0E38)
-#define R_MSR_PMON_CTR12 (0x0E39)
-#define R_MSR_PMON_CTL13 (0x0E3A)
-#define R_MSR_PMON_CTR13 (0x0E3B)
-#define R_MSR_PMON_CTL14 (0x0E3C)
-#define R_MSR_PMON_CTR14 (0x0E3D)
-#define R_MSR_PMON_CTL15 (0x0E3E)
-#define R_MSR_PMON_CTR15 (0x0E3F)
+constexpr auto R_MSR_PORT0_IPERF_CFG1 = 0x0E24;
+constexpr auto R_MSR_PORT1_IPERF_CFG1 = 0x0E25;
+constexpr auto R_MSR_PORT2_IPERF_CFG1 = 0x0E26;
+constexpr auto R_MSR_PORT3_IPERF_CFG1 = 0x0E27;
+constexpr auto R_MSR_PORT4_IPERF_CFG1 = 0x0E28;
+constexpr auto R_MSR_PORT5_IPERF_CFG1 = 0x0E29;
+constexpr auto R_MSR_PORT6_IPERF_CFG1 = 0x0E2A;
+constexpr auto R_MSR_PORT7_IPERF_CFG1 = 0x0E2B;
 
-#define R_MSR_PORT0_IPERF_CFG0 (0x0E04)
-#define R_MSR_PORT1_IPERF_CFG0 (0x0E05)
-#define R_MSR_PORT2_IPERF_CFG0 (0x0E06)
-#define R_MSR_PORT3_IPERF_CFG0 (0x0E07)
-#define R_MSR_PORT4_IPERF_CFG0 (0x0E08)
-#define R_MSR_PORT5_IPERF_CFG0 (0x0E09)
-#define R_MSR_PORT6_IPERF_CFG0 (0x0E0A)
-#define R_MSR_PORT7_IPERF_CFG0 (0x0E0B)
+constexpr auto R_MSR_PMON_GLOBAL_CTL_7_0 = 0x0E00;
+constexpr auto R_MSR_PMON_GLOBAL_CTL_15_8 = 0x0E20;
 
-#define R_MSR_PORT0_IPERF_CFG1 (0x0E24)
-#define R_MSR_PORT1_IPERF_CFG1 (0x0E25)
-#define R_MSR_PORT2_IPERF_CFG1 (0x0E26)
-#define R_MSR_PORT3_IPERF_CFG1 (0x0E27)
-#define R_MSR_PORT4_IPERF_CFG1 (0x0E28)
-#define R_MSR_PORT5_IPERF_CFG1 (0x0E29)
-#define R_MSR_PORT6_IPERF_CFG1 (0x0E2A)
-#define R_MSR_PORT7_IPERF_CFG1 (0x0E2B)
-
-#define R_MSR_PMON_GLOBAL_CTL_7_0 (0x0E00)
-#define R_MSR_PMON_GLOBAL_CTL_15_8 (0x0E20)
-
-#define W_MSR_PMON_GLOBAL_CTL    (0xC80)
-#define W_MSR_PMON_FIXED_CTR_CTL (0x395)
-#define W_MSR_PMON_FIXED_CTR     (0x394)
-
+constexpr auto W_MSR_PMON_GLOBAL_CTL = 0xC80;
+constexpr auto W_MSR_PMON_FIXED_CTR_CTL = 0x395;
+constexpr auto W_MSR_PMON_FIXED_CTR = 0x394;
 /*
  * Platform QoS MSRs
  */
