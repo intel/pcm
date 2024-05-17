@@ -353,6 +353,103 @@ const std::map<estype, std::map<int, int>> es_sad_to_pmu_id_mapping = {
     {estype::esEmrXcc, emr_sad_to_pmu_id_mapping    },
 };
 
+#define SRF_PE0_PMON_ID         3
+#define SRF_PE1_PMON_ID         4
+#define SRF_PE2_PMON_ID         2
+#define SRF_PE3_PMON_ID         5
+/*
+ * There are platform configuration when FlexUPI stacks (stacks 5 and 6) are enabled as
+ * PCIe stack and PCIe ports are disabled (ports 2 and 3) and vice sersa. See details here:
+ * In these cases the PMON IDs are different.
+ * So, defines with _FLEX_ are applicable for cases when FlexUPI stacks
+ * are working as PCIe ports.
+ */
+#define SRF_PE4_PMON_ID             11
+#define SRF_FLEX_PE4_PMON_ID        13
+#define SRF_PE5_PMON_ID             12
+#define SRF_FLEX_PE5_PMON_ID        10
+
+#define SRF_PE6_PMON_ID             0
+#define SRF_PE7_PMON_ID             7
+#define SRF_PE8_PMON_ID             8
+#define SRF_HC0_PMON_ID             1
+#define SRF_HC1_PMON_ID             6
+#define SRF_HC2_PMON_ID             14
+#define SRF_HC3_PMON_ID             9
+
+#define SRF_PE0_SAD_BUS_ID         2
+#define SRF_PE1_SAD_BUS_ID         3
+#define SRF_PE2_SAD_BUS_ID         1
+#define SRF_PE3_SAD_BUS_ID         4
+#define SRF_PE4_SAD_BUS_ID         29
+#define SRF_FLEX_PE4_SAD_BUS_ID    SRF_PE4_SAD_BUS_ID
+#define SRF_PE5_SAD_BUS_ID         26
+#define SRF_FLEX_PE5_SAD_BUS_ID    SRF_PE5_SAD_BUS_ID
+#define SRF_PE6_SAD_BUS_ID         0  // UPI0
+#define SRF_PE7_SAD_BUS_ID         5  // UPI1
+#define SRF_PE8_SAD_BUS_ID         28 // UPI2
+#define SRF_UBOXA_SAD_BUS_ID       30
+#define SRF_UBOXB_SAD_BUS_ID       31
+
+const std::set<int> srf_pcie_stacks({
+    SRF_PE0_SAD_BUS_ID,
+    SRF_PE1_SAD_BUS_ID,
+    SRF_PE2_SAD_BUS_ID,
+    SRF_PE3_SAD_BUS_ID,
+    SRF_PE4_SAD_BUS_ID,
+    SRF_FLEX_PE4_SAD_BUS_ID,
+    SRF_PE5_SAD_BUS_ID,
+    SRF_FLEX_PE5_SAD_BUS_ID,
+    SRF_PE6_SAD_BUS_ID,
+    SRF_PE7_SAD_BUS_ID,
+    SRF_PE8_SAD_BUS_ID,
+});
+
+#define SRF_HC0_SAD_BUS_ID         8
+#define SRF_HC1_SAD_BUS_ID         12
+#define SRF_HC2_SAD_BUS_ID         20
+#define SRF_HC3_SAD_BUS_ID         16
+
+const std::map<int, int> srf_sad_to_pmu_id_mapping = {
+    { SRF_PE0_SAD_BUS_ID,      SRF_PE0_PMON_ID      },
+    { SRF_PE1_SAD_BUS_ID,      SRF_PE1_PMON_ID      },
+    { SRF_PE2_SAD_BUS_ID,      SRF_PE2_PMON_ID      },
+    { SRF_PE3_SAD_BUS_ID,      SRF_PE3_PMON_ID      },
+    { SRF_PE4_SAD_BUS_ID,      SRF_PE4_PMON_ID      },
+    { SRF_FLEX_PE4_SAD_BUS_ID, SRF_FLEX_PE4_PMON_ID },
+    { SRF_PE5_SAD_BUS_ID,      SRF_PE5_PMON_ID      },
+    { SRF_FLEX_PE5_SAD_BUS_ID, SRF_FLEX_PE5_PMON_ID },
+    { SRF_PE6_SAD_BUS_ID,      SRF_PE6_PMON_ID      },
+    { SRF_PE7_SAD_BUS_ID,      SRF_PE7_PMON_ID      },
+    { SRF_PE8_SAD_BUS_ID,      SRF_PE8_PMON_ID      },
+    { SRF_HC0_SAD_BUS_ID,      SRF_HC0_PMON_ID      },
+    { SRF_HC1_SAD_BUS_ID,      SRF_HC1_PMON_ID      },
+    { SRF_HC2_SAD_BUS_ID,      SRF_HC2_PMON_ID      },
+    { SRF_HC3_SAD_BUS_ID,      SRF_HC3_PMON_ID      },
+};
+
+#define SRF_DSA_IAX_PART_NUMBER 0
+#define SRF_HQM_PART_NUMBER     5
+#define SRF_QAT_PART_NUMBER     4
+
+static const std::string srf_iio_stack_names[] = {
+    "IIO Stack 0  - PCIe6     ", // SRF_PE6_PMON_ID      0
+    "IIO Stack 1  - HCx0      ", // SRF_HC0_PMON_ID      1
+    "IIO Stack 2  - PCIe2     ", // SRF_PE2_PMON_ID      2
+    "IIO Stack 3  - PCIe0     ", // SRF_PE0_PMON_ID      3
+    "IIO Stack 4  - PCIe1     ", // SRF_PE1_PMON_ID      4
+    "IIO Stack 5  - PCIe3     ", // SRF_PE3_PMON_ID      5
+    "IIO Stack 6  - HCx1      ", // SRF_HC1_PMON_ID      6
+    "IIO Stack 7  - PCIe7     ", // SRF_PE7_PMON_ID      7
+    "IIO Stack 8  - PCIe8     ", // SRF_PE8_PMON_ID      8
+    "IIO Stack 9  - HCx3      ", // SRF_HC3_PMON_ID      9
+    "IIO Stack 10 - Flex PCIe5", // SRF_FLEX_PE5_PMON_ID 10
+    "IIO Stack 11 - PCIe4     ", // SRF_PE4_PMON_ID      11
+    "IIO Stack 12 - PCIe5     ", // SRF_PE5_PMON_ID      12
+    "IIO Stack 13 - Flex PCIe4", // SRF_FLEX_PE4_PMON_ID 13
+    "IIO Stack 14 - HCx2      ", // SRF_HC2_PMON_ID      14
+};
+
 struct iio_counter : public counter {
   std::vector<result_content> data;
 };
@@ -1371,6 +1468,9 @@ private:
     bool isPartHcStack(int unit);
     bool isUboxStack(int unit);
 
+    bool birchStreamPciStackProbe(int unit, const struct bdf &address, struct iio_stacks_on_socket &iio_on_socket);
+    bool birchStreamAcceleratorStackProbe(int unit, const struct bdf &address, struct iio_stacks_on_socket &iio_on_socket);
+
     bool stackProbe(int unit, const struct bdf &address, struct iio_stacks_on_socket &iio_on_socket);
     bool getRootBuses(std::map<int, std::map<int, struct bdf>> &root_buses);
 public:
@@ -1379,34 +1479,187 @@ public:
     bool pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios) override;
 };
 
-bool BirchStreamPlatform::isPcieStack(int unit)
+bool BirchStreamPlatform::birchStreamPciStackProbe(int unit, const struct bdf &address, struct iio_stacks_on_socket &iio_on_socket)
 {
-    return false;
+    /*
+     * All stacks manage PCIe 5.0 Root Ports. Bifurcated Root Ports A-H appear as devices 2-9.
+     */
+    struct iio_stack stack;
+    stack.domain = address.domainno;
+    stack.busno = address.busno;
+    stack.iio_unit_id = srf_sad_to_pmu_id_mapping.at(unit);
+    stack.stack_name = srf_iio_stack_names[stack.iio_unit_id];
+    for (int slot = 2; slot < 9; ++slot)
+    {
+        struct pci root_pci_dev;
+        root_pci_dev.bdf = bdf(address.domainno, address.busno, slot, 0x0);
+        if (probe_pci(&root_pci_dev))
+        {
+            struct iio_bifurcated_part part;
+            part.part_id = slot - 2;
+            part.root_pci_dev = root_pci_dev;
+            for (uint8_t b = root_pci_dev.secondary_bus_number; b <= root_pci_dev.subordinate_bus_number; ++b) {
+                for (uint8_t d = 0; d < 32; ++d) {
+                    for (uint8_t f = 0; f < 8; ++f) {
+                        struct pci child_pci_dev(address.domainno, b, d, f);
+                        if (probe_pci(&child_pci_dev)) {
+                            child_pci_dev.parts_no.push_back(part.part_id);
+                            part.child_pci_devs.push_back(child_pci_dev);
+                        }
+                    }
+                }
+            }
+            stack.parts.push_back(part);
+        }
+    }
+    iio_on_socket.stacks.push_back(stack);
+    return true;
 }
 
+bool BirchStreamPlatform::birchStreamAcceleratorStackProbe(int unit, const struct bdf &address, struct iio_stacks_on_socket &iio_on_socket)
+{
+    struct iio_stack stack;
+    stack.iio_unit_id = srf_sad_to_pmu_id_mapping.at(unit);
+    stack.domain = address.domainno;
+    stack.busno = address.busno;
+    stack.stack_name = srf_iio_stack_names[stack.iio_unit_id];
+
+    /*
+     * Instance of DSA(0, 1, 2, 3) appears as PCIe device with SAD Bus ID (8, 12, 20, 16), device 1, function 0
+     * Instance of IAX(0, 1, 2, 3) appears as PCIe device with SAD Bus ID (8, 12, 20, 16), device 2, function 0
+     * Instance of QAT(0, 1, 2, 3) appears as PCIe device with SAD Bus ID (9, 13, 21, 17), device 0, function 0
+     * Instance of HQM(0, 1, 2, 3) appears as PCIe device with SAD Bus ID (10, 14, 22, 18), device 0, function 0
+     */
+    auto process_pci_dev = [](int domainno, int busno, int devno, int part_number, iio_bifurcated_part& part)
+    {
+        struct pci pci_dev(domainno, busno, devno, 0);
+        if (probe_pci(&pci_dev) && pci_dev.isIntelDevice()) {
+            part.part_id = part_number;
+            pci_dev.parts_no.push_back(part_number);
+            part.child_pci_devs.push_back(pci_dev);
+            return true;
+        }
+        return false;
+    };
+
+    {
+        struct iio_bifurcated_part part;
+        if (process_pci_dev(address.domainno, address.busno, 1, SRF_DSA_IAX_PART_NUMBER, part) ||
+            process_pci_dev(address.domainno, address.busno, 2, SRF_DSA_IAX_PART_NUMBER, part)) {
+            stack.parts.push_back(part);
+        }
+    }
+
+    {
+        struct iio_bifurcated_part part;
+        if (process_pci_dev(address.domainno, address.busno + 1, 0, SRF_QAT_PART_NUMBER, part)) {
+            stack.parts.push_back(part);
+        }
+    }
+
+    {
+        /* Bus number for HQM is higher on 3 than DSA bus number */
+        struct iio_bifurcated_part part;
+        if (process_pci_dev(address.domainno, address.busno + 3, 0, SRF_HQM_PART_NUMBER, part)) {
+            stack.parts.push_back(part);
+        }
+    }
+
+    if (!stack.parts.empty()) {
+        iio_on_socket.stacks.push_back(stack);
+    }
+
+    return true;
+}
+
+bool BirchStreamPlatform::isPcieStack(int unit)
+{
+    return srf_pcie_stacks.find(unit) != srf_pcie_stacks.end();
+}
+
+/*
+ * HC is the name of DINO stacks as we had on SPR
+ */
 bool BirchStreamPlatform::isRootHcStack(int unit)
 {
-    return false;
+    return SRF_HC0_SAD_BUS_ID == unit || SRF_HC1_SAD_BUS_ID == unit ||
+           SRF_HC2_SAD_BUS_ID == unit || SRF_HC3_SAD_BUS_ID == unit;
 }
 
 bool BirchStreamPlatform::isPartHcStack(int unit)
 {
-    return false;
+    return isRootHcStack(unit - 1) || isRootHcStack(unit - 2);
 }
 
 bool BirchStreamPlatform::isUboxStack(int unit)
 {
-    return false;
+    return SRF_UBOXA_SAD_BUS_ID == unit || SRF_UBOXB_SAD_BUS_ID == unit;
 }
 
 bool BirchStreamPlatform::stackProbe(int unit, const struct bdf &address, struct iio_stacks_on_socket &iio_on_socket)
 {
-    return true;
+    if (isPcieStack(unit)) {
+        return birchStreamPciStackProbe(unit, address, iio_on_socket);
+    }
+    else if (isRootHcStack(unit)) {
+        return birchStreamAcceleratorStackProbe(unit, address, iio_on_socket);
+    }
+    else if (isPartHcStack(unit)) {
+        cout << "Found a part of HC stack. Stack ID - " << unit << " domain " << address.domainno
+             << " bus " << std::hex << std::setfill('0') << std::setw(2) << (int)address.busno << std::dec << ". Don't probe it again." << endl;
+        return true;
+    }
+    else if (isUboxStack(unit)) {
+        cout << "Found UBOX stack. Stack ID - " << unit << " domain " << address.domainno
+             << " bus " << std::hex << std::setfill('0') << std::setw(2) << (int)address.busno << std::dec << endl;
+        return true;
+    }
+
+    cout << "Unknown stack ID " << unit << " domain " << address.domainno << " bus " << std::hex << std::setfill('0') << std::setw(2) << (int)address.busno << std::dec << endl;
+
+    return false;
 }
 
 bool BirchStreamPlatform::getRootBuses(std::map<int, std::map<int, struct bdf>> &root_buses)
 {
-    return true;
+    bool mapped = true;
+    for (uint32_t domain = 0; mapped; domain++) {
+        mapped = false;
+        for (uint16_t b = 0; b < 256; b++) {
+            for (uint8_t d = 0; d < 32; d++) {
+                for (uint8_t f = 0; f < 8; f++) {
+                    struct pci pci_dev(domain, b, d, f);
+                    if (!probe_pci(&pci_dev)) {
+                        break;
+                    }
+                    if (!((pci_dev.vendor_id == PCM_INTEL_PCI_VENDOR_ID) && (pci_dev.device_id == SPR_MSM_DEV_ID))) {
+                        continue;
+                    }
+
+                    std::uint32_t cpuBusValid;
+                    std::vector<std::uint32_t> cpuBusNo;
+                    int package_id;
+
+                    if (get_cpu_bus(domain, b, d, f, cpuBusValid, cpuBusNo, package_id) == false) {
+                        return false;
+                    }
+
+                    for (int cpuBusId = 0; cpuBusId < SPR_MSM_CPUBUSNO_MAX; ++cpuBusId) {
+                        if (!((cpuBusValid >> cpuBusId) & 0x1)) {
+                            cout << "CPU bus " << cpuBusId << " is disabled on package " << package_id << endl;
+                            continue;
+                        }
+                        int rootBus = (cpuBusNo[(int)(cpuBusId / 4)] >> ((cpuBusId % 4) * 8)) & 0xff;
+                        root_buses[package_id][cpuBusId] = bdf(domain, rootBus, 0, 0);
+                        cout << "Mapped CPU bus #" << cpuBusId << " (domain " << domain << " bus " << std::hex << rootBus << std::dec << ")"
+                             << " package " << package_id << endl;
+                        mapped = true;
+                    }
+                }
+            }
+        }
+    }
+    return !root_buses.empty();
 }
 
 bool BirchStreamPlatform::pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios)
@@ -1462,6 +1715,7 @@ ccr* get_ccr(PCM* m, uint64_t& ccr)
         case PCM::SNOWRIDGE:
         case PCM::SPR:
         case PCM::EMR:
+        case PCM::SRF:
             return new icx_ccr(ccr);
         default:
             cerr << m->getCPUFamilyModelString() << " is not supported! Program aborted" << endl;

@@ -2509,6 +2509,7 @@ public:
 	        || cpu_model  == PCM::SNOWRIDGE
             || cpu_model == PCM::SPR
             || cpu_model == PCM::EMR
+            || cpu_model == PCM::SRF
         );
     }
 
