@@ -21,6 +21,7 @@
 #include <iomanip>
 #include <string.h>
 #include <assert.h>
+#include <limits>
 
 #ifdef _MSC_VER
 #include <windows.h>
@@ -298,11 +299,11 @@ constexpr auto W_MSR_PMON_FIXED_CTR = 0x394;
  * Platform QoS MSRs
  */
 
-#define IA32_PQR_ASSOC (0xc8f)
-#define IA32_QM_EVTSEL (0xc8d)
-#define IA32_QM_CTR (0xc8e)
+constexpr auto IA32_PQR_ASSOC = 0xc8f;
+constexpr auto IA32_QM_EVTSEL = 0xc8d;
+constexpr auto IA32_QM_CTR = 0xc8e;
 
-#define PCM_INVALID_QOS_MONITORING_DATA ((std::numeric_limits<uint64>::max)())
+constexpr auto PCM_INVALID_QOS_MONITORING_DATA = (std::numeric_limits<uint64>::max)();
 
 /* \brief Event Select Register format
 
