@@ -1188,15 +1188,13 @@ bool get_cpu_bus(uint32 msmDomain, uint32 msmBus, uint32 msmDev, uint32 msmFunc,
         }
 
         cpuBusNo.resize(8);
-        for (int i = 0; i < 4; ++i)
-        {
+        for (int i = 0; i < 4; ++i) {
             h.read32(SPR_MSM_REG_CPUBUSNO0_OFFSET + i * 4, &cpuBusNo[i]);
 
             h.read32(SPR_MSM_REG_CPUBUSNO4_OFFSET + i * 4, &cpuBusNo[i + 4]);
 
             if (cpuBusNo[i] == (std::numeric_limits<uint32>::max)() ||
-                cpuBusNo[i + 4] == (std::numeric_limits<uint32>::max)())
-            {
+                cpuBusNo[i + 4] == (std::numeric_limits<uint32>::max)()) {
                 std::cerr << "Failed to read CPUBUSNO registers" << std::endl;
                 return false;
             }
@@ -1213,8 +1211,7 @@ bool get_cpu_bus(uint32 msmDomain, uint32 msmBus, uint32 msmDev, uint32 msmFunc,
         uint32 sadControlCfg = 0x0;
         PciHandleType sad_cfg_handler(msmDomain, cpuBusNo0, 0, 0);
         sad_cfg_handler.read32(SPR_SAD_REG_CTL_CFG_OFFSET, &sadControlCfg);
-        if (sadControlCfg == (std::numeric_limits<uint32>::max)())
-        {
+        if (sadControlCfg == (std::numeric_limits<uint32>::max)()) {
             std::cerr << "Failed to read SAD_CONTROL_CFG" << std::endl;
             return false;
         }
