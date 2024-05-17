@@ -169,13 +169,12 @@ constexpr auto ARCH_LLC_MISS_UMASK = 0x41;
 #define ATOM_MEM_LOAD_RETIRED_L2_MISS_UMASK   (0x02)
 
 // Offcore response events
-#define OFFCORE_RESPONSE_0_EVTNR (0xB7)
-#define OFFCORE_RESPONSE_1_EVTNR (0xBB)
-#define GLC_OFFCORE_RESPONSE_0_EVTNR (0x2A)
-#define GLC_OFFCORE_RESPONSE_1_EVTNR (0x2B)
-#define OFFCORE_RESPONSE_0_UMASK (1)
-#define OFFCORE_RESPONSE_1_UMASK (1)
-
+constexpr auto OFFCORE_RESPONSE_0_EVTNR = 0xB7;
+constexpr auto OFFCORE_RESPONSE_1_EVTNR = 0xBB;
+constexpr auto GLC_OFFCORE_RESPONSE_0_EVTNR = 0x2A;
+constexpr auto GLC_OFFCORE_RESPONSE_1_EVTNR = 0x2B;
+constexpr auto OFFCORE_RESPONSE_0_UMASK = 1;
+constexpr auto OFFCORE_RESPONSE_1_UMASK = 1;
 
 constexpr auto LOAD_LATENCY_EVTNR = 0xcd;
 constexpr auto LOAD_LATENCY_UMASK = 0x01;
