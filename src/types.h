@@ -1449,32 +1449,32 @@ struct ICX_IIOPMUCNTCTLRegister
     ICX_IIOPMUCNTCTLRegister() : value(0) { }
 };
 
-#define MSR_PACKAGE_THERM_STATUS (0x01B1)
-#define MSR_IA32_THERM_STATUS    (0x019C)
-#define PCM_INVALID_THERMAL_HEADROOM ((std::numeric_limits<int32>::min)())
+constexpr auto MSR_PACKAGE_THERM_STATUS = 0x01B1;
+constexpr auto MSR_IA32_THERM_STATUS = 0x019C;
+constexpr auto PCM_INVALID_THERMAL_HEADROOM = (std::numeric_limits<int32_t>::min)();
 
-#define MSR_IA32_BIOS_SIGN_ID   (0x8B)
+constexpr auto MSR_IA32_BIOS_SIGN_ID = 0x8B;
 
-#define MSR_DRAM_ENERGY_STATUS (0x0619)
+constexpr auto MSR_DRAM_ENERGY_STATUS = 0x0619;
 constexpr auto MSR_PP0_ENERGY_STATUS = 0x639;
 constexpr auto MSR_PP1_ENERGY_STATUS = 0x641;
 
-#define MSR_PKG_C2_RESIDENCY    (0x60D)
-#define MSR_PKG_C3_RESIDENCY    (0x3F8)
-#define MSR_PKG_C6_RESIDENCY    (0x3F9)
-#define MSR_PKG_C7_RESIDENCY    (0x3FA)
-#define MSR_CORE_C3_RESIDENCY   (0x3FC)
-#define MSR_CORE_C6_RESIDENCY   (0x3FD)
-#define MSR_CORE_C7_RESIDENCY   (0x3FE)
+constexpr auto MSR_PKG_C2_RESIDENCY    = 0x60D;
+constexpr auto MSR_PKG_C3_RESIDENCY    = 0x3F8;
+constexpr auto MSR_PKG_C6_RESIDENCY    = 0x3F9;
+constexpr auto MSR_PKG_C7_RESIDENCY    = 0x3FA;
+constexpr auto MSR_CORE_C3_RESIDENCY   = 0x3FC;
+constexpr auto MSR_CORE_C6_RESIDENCY   = 0x3FD;
+constexpr auto MSR_CORE_C7_RESIDENCY   = 0x3FE;
 
-#define MSR_PERF_GLOBAL_INUSE   (0x392)
+constexpr auto MSR_PERF_GLOBAL_INUSE   = 0x392;
 
-#define MSR_IA32_SPEC_CTRL         (0x48)
-#define MSR_IA32_ARCH_CAPABILITIES (0x10A)
+constexpr auto MSR_IA32_SPEC_CTRL         = 0x48;
+constexpr auto MSR_IA32_ARCH_CAPABILITIES = 0x10A;
 
-#define MSR_TSX_FORCE_ABORT (0x10f)
+constexpr auto MSR_TSX_FORCE_ABORT = 0x10f;
 
-#define MSR_PERF_CAPABILITIES (0x345)
+constexpr auto MSR_PERF_CAPABILITIES = 0x345;
 
 // data structure for converting two uint32s <-> uin64
 union cvt_ds
