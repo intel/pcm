@@ -1210,7 +1210,13 @@ bool get_cpu_bus(uint32 msmDomain, uint32 msmBus, uint32 msmDev, uint32 msmFunc,
         //std::cout << std::hex << "get_cpu_bus: busNo=0x" << busNo << std::dec <<  "\n";
     }
 
-    cpuBusNo0 = cpuBusNo[0] & 0xff;
+    /*
+     * It's possible to have not enabled first stack that's why
+     * need to find the first valid bus to read CSR
+     */
+    int firstValidBusId = 0;
+    while (!((cpuBusValid >> firstValidBusId) & 0x1)) firstValidBusId++;
+    int cpuBusNo0 = (cpuBusNo[(int)(firstValidBusId / 4)] >> ((firstValidBusId % 4) * 8)) & 0xff;
     PciHandleType sad_cfg_handler(msmDomain, cpuBusNo0, 0, 0);
 
     sad_cfg_handler.read32(SPR_SAD_REG_CTL_CFG_OFFSET, &sadControlCfg);
