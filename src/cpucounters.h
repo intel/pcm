@@ -28,6 +28,7 @@
 #include "msr.h"
 #include "pci.h"
 #include "tpmi.h"
+#include "pmt.h"
 #include "bw.h"
 #include "width_extender.h"
 #include "exceptions/unsupported_processor_exception.hpp"

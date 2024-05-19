@@ -612,6 +612,9 @@ inline void extractBitsPrintHelper(const std::pair<int64,int64> & bits, T & valu
 void restrictDriverAccessNative(LPCTSTR path);
 #endif
 
+#ifdef __linux__
+std::vector<std::string> findPathsFromPattern(const char* pattern);
+#endif
 
 class TemporalThreadAffinity  // speedup trick for Linux, FreeBSD, DragonFlyBSD, Windows
 {
