@@ -378,8 +378,8 @@ const std::map<estype, std::map<int, int>> es_sad_to_pmu_id_mapping = {
 #define SRF_PE8_PMON_ID             8
 #define SRF_HC0_PMON_ID             1
 #define SRF_HC1_PMON_ID             6
-#define SRF_HC2_PMON_ID             14
-#define SRF_HC3_PMON_ID             9
+#define SRF_HC2_PMON_ID             9
+#define SRF_HC3_PMON_ID             14
 
 #define SRF_PE0_SAD_BUS_ID         2
 #define SRF_PE1_SAD_BUS_ID         3
