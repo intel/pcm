@@ -1250,6 +1250,18 @@ std::string getMMIOEventString(const PCM::RawEventEncoding& eventEnc, const std:
     return c.str();
 }
 
+std::string getPMTEventString(const PCM::RawEventEncoding& eventEnc, const std::string& type)
+{
+    std::stringstream c;
+    c << type << ":0x" << std::hex <<
+                          eventEnc[PCM::PMTEventPosition::UID] <<
+                 ":0x" << eventEnc[PCM::PMTEventPosition::offset] <<
+                 ":0x" << eventEnc[PCM::PMTEventPosition::lsb] <<
+                 ":0x" << eventEnc[PCM::PMTEventPosition::msb] <<
+                 ":" << getTypeString(eventEnc[PCM::PMTEventPosition::type]);
+    return c.str();
+}
+
 typedef std::string(*getEventStringFunc)(const PCM::RawEventEncoding& eventEnc, const std::string& type);
 typedef std::vector<uint64>(getEventFunc)(const PCM::RawEventEncoding& eventEnc, const SystemCounterState& before, const SystemCounterState& after);
 
@@ -1638,6 +1650,10 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
             else if (type == "mmio")
             {
                 printRegisterRows(getMMIOEventString, getMMIOEvent);
+            }
+            else if (type == "pmt")
+            {
+                printRegisterRows(getPMTEventString, getPMTEvent);
             }
             else if (type == "m3upi")
             {
@@ -2054,6 +2070,10 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs,
         else if (type == "mmio")
         {
             printRegisters(getMMIOEventString, getMMIOEvent);
+        }
+        else if (type == "pmt")
+        {
+            printRegisters(getPMTEventString, getPMTEvent);
         }
         else if (type == "ubox")
         {

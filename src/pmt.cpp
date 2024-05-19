@@ -8,6 +8,10 @@
 #include <unordered_map>
 #include <iostream>
 
+#ifdef __linux__
+#include <unistd.h>
+#endif
+
 namespace pcm {
 
 #ifdef __linux__
@@ -68,7 +72,12 @@ public:
     }
     static size_t numInstances(const size_t uid)
     {
-        return getTelemetryFiles().at(uid).size();
+        auto t = getTelemetryFiles();
+        if (t.find(uid) == t.end())
+        {
+            return 0;
+        }
+        return t.at(uid).size();
     }
     virtual ~TelemetryArrayLinux() override
     {

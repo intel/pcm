@@ -36,6 +36,9 @@
 #include <map>
 #include <unordered_map>
 
+#ifdef __linux__
+#include <unistd.h>
+#endif
 
 namespace pcm {
     std::string safe_getenv(const char* env);
