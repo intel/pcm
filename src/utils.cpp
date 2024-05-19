@@ -946,6 +946,7 @@ bool isRegisterEvent(const std::string & pmu)
 {
     if (pmu == "mmio"
        || pmu == "pcicfg"
+       || pmu == "pmt"
        || pmu == "package_msr"
        || pmu == "thread_msr")
     {

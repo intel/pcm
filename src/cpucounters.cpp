@@ -5713,6 +5713,7 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool sile
     packageMSRConfig = RawPMUConfig{};
     pcicfgConfig = RawPMUConfig{};
     mmioConfig = RawPMUConfig{};
+    pmtConfig = RawPMUConfig{};
     RawPMUConfigs curPMUConfigs = curPMUConfigs_;
     constexpr auto globalRegPos = 0ULL;
     PCM::ExtendedCustomCoreEventDescription conf;
@@ -5981,6 +5982,29 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool sile
             };
             addLocations(mmioConfig.programmable);
             addLocations(mmioConfig.fixed);
+        }
+        else if (type == "pmt")
+        {
+            pmtConfig = pmuConfig.second;
+            auto addLocations = [this](const std::vector<RawEventConfig>& configs) {
+                for (const auto& c : configs)
+                {
+                    if (PMTRegisterLocations.find(c.first) == PMTRegisterLocations.end())
+                    {
+                        // add locations
+                        std::vector<PMTRegisterEncoding> locations;
+                        const auto UID = c.first[PMTEventPosition::UID];
+                        for (size_t inst = 0; inst < TelemetryArray::numInstances(UID); ++inst)
+                        {
+                            locations.push_back(std::make_shared<TelemetryArray>(UID, inst));
+                            // std::cout << "PMTRegisterLocations: UID: 0x" << std::hex << UID << " inst: " << std::dec << inst << std::endl;
+                        }
+                        PMTRegisterLocations[c.first] = locations;
+                    }
+                }
+            };
+            addLocations(pmtConfig.programmable);
+            addLocations(pmtConfig.fixed);
         }
         else if (type == "cxlcm")
         {
@@ -6466,6 +6490,44 @@ void PCM::readMMIORegisters(SystemCounterState& systemState)
     }
 }
 
+void PCM::readPMTRegisters(SystemCounterState& systemState)
+{
+    for (auto & p: PMTRegisterLocations)
+    {
+        for (auto & t: p.second)
+        {
+            if (t.get())
+            {
+                t->load();
+            }
+        }
+    }
+    auto read = [this, &systemState](const RawEventConfig& cfg) {
+        const RawEventEncoding& reEnc = cfg.first;
+        systemState.PMTValues[reEnc].clear();
+        const auto lsb = reEnc[PMTEventPosition::lsb];
+        const auto msb = reEnc[PMTEventPosition::msb];
+        const auto offset = reEnc[PMTEventPosition::offset];
+        // std::cout << "PMTValues: " << std::hex << reEnc[PMTEventPosition::UID] << std::dec << std::endl;
+        for (auto& reg : PMTRegisterLocations[reEnc])
+        {
+            if (reg.get())
+            {
+                systemState.PMTValues[reEnc].push_back(reg->get(offset, lsb, msb));
+                // std::cout << "PMTValues: " << std::hex << reEnc[PMTEventPosition::UID] << " " << std::dec << reg->get(offset, lsb, msb) << std::endl;
+            }
+        }
+    };
+    for (const auto& cfg : pmtConfig.programmable)
+    {
+        read(cfg);
+    }
+    for (const auto& cfg : pmtConfig.fixed)
+    {
+        read(cfg);
+    }
+}
+
 void PCM::readQPICounters(SystemCounterState & result)
 {
         // read QPI counters
@@ -6671,6 +6733,7 @@ void PCM::getAllCounterStates(SystemCounterState & systemState, std::vector<Sock
         readQPICounters(systemState);
         readPCICFGRegisters(systemState);
         readMMIORegisters(systemState);
+        readPMTRegisters(systemState);
     }
 
     for (auto & ar : asyncCoreResults)
