@@ -23,6 +23,9 @@
 #ifndef _MSC_VER
 #include <execinfo.h>
 #endif
+#ifdef __linux__
+#include <glob.h>
+#endif
 
 namespace pcm {
 
@@ -100,6 +103,24 @@ void print_cpu_details()
     }
     std::cerr << "\n";
 }
+
+#ifdef __linux__
+std::vector<std::string> findPathsFromPattern(const char* pattern)
+{
+            std::vector<std::string> result;
+            glob_t glob_result;
+            memset(&glob_result, 0, sizeof(glob_result));
+            if (glob(pattern, GLOB_TILDE, nullptr, &glob_result) == 0)
+            {
+                for (size_t i = 0; i < glob_result.gl_pathc; ++i)
+                {
+                    result.push_back(glob_result.gl_pathv[i]);
+                }
+            }
+            globfree(&glob_result);
+            return result;
+};
+#endif
 
 #ifdef _MSC_VER
 

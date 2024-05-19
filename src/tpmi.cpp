@@ -10,7 +10,6 @@
 #include <unordered_map>
 #include <assert.h>
 #ifdef __linux__
-#include <glob.h>
 #include <algorithm>
 #endif
 
@@ -331,21 +330,6 @@ bool TPMIHandleDriver::isAvailable()
 {
     if (available < 0) // not initialized yet
     {
-        auto findPathsFromPattern = [](const char* pattern)
-        {
-            std::vector<std::string> result;
-            glob_t glob_result;
-            memset(&glob_result, 0, sizeof(glob_result));
-            if (glob(pattern, GLOB_TILDE, nullptr, &glob_result) == 0)
-            {
-                for (size_t i = 0; i < glob_result.gl_pathc; ++i)
-                {
-                    result.push_back(glob_result.gl_pathv[i]);
-                }
-            }
-            globfree(&glob_result);
-            return result;
-        };
         instancePaths = findPathsFromPattern("/sys/kernel/debug/tpmi-*");
         std::sort(instancePaths.begin(), instancePaths.end());
         for (size_t i = 0; i < instancePaths.size(); ++i)
