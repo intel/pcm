@@ -68,7 +68,7 @@ public:
     TelemetryArrayLinux(const size_t uid_, const size_t instance_): uid(uid_), instance(instance_)
     {
         assert(instance < numInstances(uid));
-        load();
+        TelemetryArrayLinux::load();
     }
     static size_t numInstances(const size_t uid)
     {
@@ -92,7 +92,13 @@ public:
         assert(file);
         // get the file size
         fseek(file, 0, SEEK_END);
-        size_t fileSize = ftell(file);
+        const auto pos = ftell(file);
+        if (pos < 0)
+        {
+            std::cerr << "Error: failed to get file size" << std::endl;
+            return;
+        }
+        const size_t fileSize = pos;
         fseek(file, 0, SEEK_SET);
         data.resize(fileSize);
         const size_t bytesRead = fread(data.data(), 1, fileSize, file);
