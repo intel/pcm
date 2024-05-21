@@ -217,9 +217,8 @@ The fields are the values for the counter from the Intel PMT aggregator XML:
 * lsb : lsb field
 * msb : msb field
 
-Example:
+Example for https://github.com/intel/Intel-PMT/blob/868049006ad2770a75e5fc7526fd0c4b22438e27/xml/SPR/OOBMSM/CORE/spr_aggregator.xml#L15428:
 ```
-# for https://github.com/intel/Intel-PMT/blob/868049006ad2770a75e5fc7526fd0c4b22438e27/xml/SPR/OOBMSM/CORE/spr_aggregator.xml#L15428
 pmt/config=0x87b6fef1,config1=770,config2=0,config3=32,config4=63,name="Temperature_histogram_range_5_(50.5-57.5C)_counter_for_core_0"
 ```
 
