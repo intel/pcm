@@ -203,7 +203,7 @@ pcm-raw can read raw telemetry data from Intel PMT (https://github.com/intel/Int
 Syntax for a PMT raw telemetry counter:
 
 ```
-pcm-raw -e pmt/config=<uniqueid>,config1=<sampleID>,config2=<sampleType>,config3=<lsb,config4=<msb>[,name=<description>]
+pmt/config=<uniqueid>,config1=<sampleID>,config2=<sampleType>,config3=<lsb,config4=<msb>[,name=<description>]
 
 ```
 
