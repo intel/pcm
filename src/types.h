@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-// Copyright (c) 2009-2022, Intel Corporation
+// Copyright (c) 2009-2024, Intel Corporation
 // written by Roman Dementiev
 //
 
@@ -21,6 +21,7 @@
 #include <iomanip>
 #include <string.h>
 #include <assert.h>
+#include <limits>
 
 #ifdef _MSC_VER
 #include <windows.h>
@@ -39,83 +40,80 @@ typedef signed int int32;
 #define PCM_ULIMIT_RECOMMENDATION ("try executing 'ulimit -n 1000000' to increase the limit on the number of open files.\n")
 
 /*
-        MSR addresses from
-        "Intel 64 and IA-32 Architectures Software Developers Manual Volume 3B:
-        System Programming Guide, Part 2", Appendix A "PERFORMANCE-MONITORING EVENTS"
+    MSR addresses from
+    "Intel 64 and IA-32 Architectures Software Developers Manual Volume 3B:
+    System Programming Guide, Part 2", Appendix A "PERFORMANCE-MONITORING EVENTS"
 */
 
-#define INST_RETIRED_ADDR           (0x309)
-#define CPU_CLK_UNHALTED_THREAD_ADDR    (0x30A)
-#define CPU_CLK_UNHALTED_REF_ADDR       (0x30B)
-#define TOPDOWN_SLOTS_ADDR              (0x30C)
-#define PERF_METRICS_ADDR               (0x329)
-#define IA32_CR_PERF_GLOBAL_CTRL        (0x38F)
-#define IA32_CR_FIXED_CTR_CTRL          (0x38D)
-#define IA32_PERFEVTSEL0_ADDR           (0x186)
-#define IA32_PERFEVTSEL1_ADDR           (IA32_PERFEVTSEL0_ADDR + 1)
-#define IA32_PERFEVTSEL2_ADDR           (IA32_PERFEVTSEL0_ADDR + 2)
-#define IA32_PERFEVTSEL3_ADDR           (IA32_PERFEVTSEL0_ADDR + 3)
-
+constexpr auto INST_RETIRED_ADDR = 0x309;
+constexpr auto CPU_CLK_UNHALTED_THREAD_ADDR = 0x30A;
+constexpr auto CPU_CLK_UNHALTED_REF_ADDR = 0x30B;
+constexpr auto TOPDOWN_SLOTS_ADDR = 0x30C;
+constexpr auto PERF_METRICS_ADDR = 0x329;
+constexpr auto IA32_CR_PERF_GLOBAL_CTRL = 0x38F;
+constexpr auto IA32_CR_FIXED_CTR_CTRL = 0x38D;
+constexpr auto IA32_PERFEVTSEL0_ADDR = 0x186;
+constexpr auto IA32_PERFEVTSEL1_ADDR = IA32_PERFEVTSEL0_ADDR + 1;
+constexpr auto IA32_PERFEVTSEL2_ADDR = IA32_PERFEVTSEL0_ADDR + 2;
+constexpr auto IA32_PERFEVTSEL3_ADDR = IA32_PERFEVTSEL0_ADDR + 3;
 constexpr auto IA32_PERF_GLOBAL_STATUS = 0x38E;
 constexpr auto IA32_PERF_GLOBAL_OVF_CTRL = 0x390;
 constexpr auto IA32_PEBS_ENABLE_ADDR = 0x3F1;
 
-#define PERF_MAX_FIXED_COUNTERS          (3)
-#define PERF_MAX_CUSTOM_COUNTERS         (8)
-#define PERF_TOPDOWN_COUNTERS_L1        (5)
-#define PERF_TOPDOWN_COUNTERS           (PERF_TOPDOWN_COUNTERS_L1 + 4)
-#define PERF_MAX_COUNTERS               (PERF_MAX_FIXED_COUNTERS + PERF_MAX_CUSTOM_COUNTERS + PERF_TOPDOWN_COUNTERS)
+constexpr auto PERF_MAX_FIXED_COUNTERS = 3;
+constexpr auto PERF_MAX_CUSTOM_COUNTERS = 8;
+constexpr auto PERF_TOPDOWN_COUNTERS_L1 = 5;
+constexpr auto PERF_TOPDOWN_COUNTERS = PERF_TOPDOWN_COUNTERS_L1 + 4;
+constexpr auto PERF_MAX_COUNTERS = PERF_MAX_FIXED_COUNTERS + PERF_MAX_CUSTOM_COUNTERS + PERF_TOPDOWN_COUNTERS;
 
-#define IA32_DEBUGCTL                   (0x1D9)
+constexpr auto IA32_DEBUGCTL = 0x1D9;
 
-#define IA32_PMC0                       (0xC1)
-#define IA32_PMC1                       (0xC1 + 1)
-#define IA32_PMC2                       (0xC1 + 2)
-#define IA32_PMC3                       (0xC1 + 3)
+constexpr auto IA32_PMC0 = 0xC1;
+constexpr auto IA32_PMC1 = IA32_PMC0 + 1;
+constexpr auto IA32_PMC2 = IA32_PMC0 + 2;
+constexpr auto IA32_PMC3 = IA32_PMC0 + 3;
 
-#define MSR_OFFCORE_RSP0               (0x1A6)
-#define MSR_OFFCORE_RSP1               (0x1A7)
-
+constexpr auto MSR_OFFCORE_RSP0 = 0x1A6;
+constexpr auto MSR_OFFCORE_RSP1 = 0x1A7;
 constexpr auto MSR_LOAD_LATENCY = 0x3F6;
 constexpr auto MSR_FRONTEND = 0x3F7;
 
 /* From Table B-5. of the above mentioned document */
-#define PLATFORM_INFO_ADDR              (0xCE)
+constexpr auto PLATFORM_INFO_ADDR = 0xCE;
 
-#define IA32_TIME_STAMP_COUNTER         (0x10)
+constexpr auto IA32_TIME_STAMP_COUNTER = 0x10;
 
 // Event IDs
 
 // Nehalem/Westmere on-core events
-#define MEM_LOAD_RETIRED_L3_MISS_EVTNR  (0xCB)
-#define MEM_LOAD_RETIRED_L3_MISS_UMASK  (0x10)
+constexpr auto MEM_LOAD_RETIRED_L3_MISS_EVTNR = 0xCB;
+constexpr auto MEM_LOAD_RETIRED_L3_MISS_UMASK = 0x10;
 
-#define MEM_LOAD_RETIRED_L3_UNSHAREDHIT_EVTNR   (0xCB)
-#define MEM_LOAD_RETIRED_L3_UNSHAREDHIT_UMASK   (0x04)
+constexpr auto MEM_LOAD_RETIRED_L3_UNSHAREDHIT_EVTNR = 0xCB;
+constexpr auto MEM_LOAD_RETIRED_L3_UNSHAREDHIT_UMASK = 0x04;
 
-#define MEM_LOAD_RETIRED_L2_HITM_EVTNR  (0xCB)
-#define MEM_LOAD_RETIRED_L2_HITM_UMASK  (0x08)
+constexpr auto MEM_LOAD_RETIRED_L2_HITM_EVTNR = 0xCB;
+constexpr auto MEM_LOAD_RETIRED_L2_HITM_UMASK = 0x08;
 
-#define MEM_LOAD_RETIRED_L2_HIT_EVTNR   (0xCB)
-#define MEM_LOAD_RETIRED_L2_HIT_UMASK   (0x02)
+constexpr auto MEM_LOAD_RETIRED_L2_HIT_EVTNR = 0xCB;
+constexpr auto MEM_LOAD_RETIRED_L2_HIT_UMASK = 0x02;
 
 // Sandy Bridge on-core events
 
-#define MEM_LOAD_UOPS_MISC_RETIRED_LLC_MISS_EVTNR (0xD4)
-#define MEM_LOAD_UOPS_MISC_RETIRED_LLC_MISS_UMASK (0x02)
+constexpr auto MEM_LOAD_UOPS_MISC_RETIRED_LLC_MISS_EVTNR = 0xD4;
+constexpr auto MEM_LOAD_UOPS_MISC_RETIRED_LLC_MISS_UMASK = 0x02;
 
-#define MEM_LOAD_UOPS_LLC_HIT_RETIRED_XSNP_NONE_EVTNR (0xD2)
-#define MEM_LOAD_UOPS_LLC_HIT_RETIRED_XSNP_NONE_UMASK (0x08)
+constexpr auto MEM_LOAD_UOPS_LLC_HIT_RETIRED_XSNP_NONE_EVTNR = 0xD2;
+constexpr auto MEM_LOAD_UOPS_LLC_HIT_RETIRED_XSNP_NONE_UMASK = 0x08;
 
-#define MEM_LOAD_UOPS_LLC_HIT_RETIRED_XSNP_HITM_EVTNR (0xD2)
-#define MEM_LOAD_UOPS_LLC_HIT_RETIRED_XSNP_HITM_UMASK (0x04)
+constexpr auto MEM_LOAD_UOPS_LLC_HIT_RETIRED_XSNP_HITM_EVTNR = 0xD2;
+constexpr auto MEM_LOAD_UOPS_LLC_HIT_RETIRED_XSNP_HITM_UMASK = 0x04;
 
-#define MEM_LOAD_UOPS_LLC_HIT_RETIRED_XSNP_EVTNR (0xD2)
-#define MEM_LOAD_UOPS_LLC_HIT_RETIRED_XSNP_UMASK (0x07)
+constexpr auto MEM_LOAD_UOPS_LLC_HIT_RETIRED_XSNP_EVTNR = 0xD2;
+constexpr auto MEM_LOAD_UOPS_LLC_HIT_RETIRED_XSNP_UMASK = 0x07;
 
-#define MEM_LOAD_UOPS_RETIRED_L2_HIT_EVTNR (0xD1)
-#define MEM_LOAD_UOPS_RETIRED_L2_HIT_UMASK (0x02)
-
+constexpr auto MEM_LOAD_UOPS_RETIRED_L2_HIT_EVTNR = 0xD1;
+constexpr auto MEM_LOAD_UOPS_RETIRED_L2_HIT_UMASK = 0x02;
 // Haswell on-core events
 
 constexpr auto HSX_L2_RQSTS_MISS_EVTNR = 0x24;
@@ -137,42 +135,35 @@ constexpr auto HSX_L2_RQSTS_REFERENCES_UMASK = 0xff;
 #define SKL_MEM_LOAD_RETIRED_L2_HIT_EVTNR (0xD1)
 #define SKL_MEM_LOAD_RETIRED_L2_HIT_UMASK (0x02)
 
+// Crestmont on-core events
+
+constexpr auto CMT_MEM_LOAD_RETIRED_L2_MISS_EVTNR = 0xD1;
+constexpr auto CMT_MEM_LOAD_RETIRED_L2_MISS_UMASK = 0x80;
+
+constexpr auto CMT_MEM_LOAD_RETIRED_L2_HIT_EVTNR = 0xD1;
+constexpr auto CMT_MEM_LOAD_RETIRED_L2_HIT_UMASK = 0x02;
+
 // architectural on-core events
+constexpr auto ARCH_LLC_REFERENCE_EVTNR = 0x2E;
+constexpr auto ARCH_LLC_REFERENCE_UMASK = 0x4F;
 
-#define ARCH_LLC_REFERENCE_EVTNR        (0x2E)
-#define ARCH_LLC_REFERENCE_UMASK        (0x4F)
-
-#define ARCH_LLC_MISS_EVTNR     (0x2E)
-#define ARCH_LLC_MISS_UMASK     (0x41)
+constexpr auto ARCH_LLC_MISS_EVTNR = 0x2E;
+constexpr auto ARCH_LLC_MISS_UMASK = 0x41;
 
 // Atom on-core events
+constexpr auto ATOM_MEM_LOAD_RETIRED_L2_HIT_EVTNR = 0xCB;
+constexpr auto ATOM_MEM_LOAD_RETIRED_L2_HIT_UMASK = 0x01;
 
-#define ATOM_MEM_LOAD_RETIRED_L2_HIT_EVTNR   (0xCB)
-#define ATOM_MEM_LOAD_RETIRED_L2_HIT_UMASK   (0x01)
-
-#define ATOM_MEM_LOAD_RETIRED_L2_MISS_EVTNR   (0xCB)
-#define ATOM_MEM_LOAD_RETIRED_L2_MISS_UMASK   (0x02)
-
-#define ATOM_MEM_LOAD_RETIRED_L2_HIT_EVTNR   (0xCB)
-#define ATOM_MEM_LOAD_RETIRED_L2_HIT_UMASK   (0x01)
-
-#define ATOM_MEM_LOAD_RETIRED_L2_MISS_EVTNR   (0xCB)
-#define ATOM_MEM_LOAD_RETIRED_L2_MISS_UMASK   (0x02)
-
-#define ATOM_MEM_LOAD_RETIRED_L2_HIT_EVTNR   (0xCB)
-#define ATOM_MEM_LOAD_RETIRED_L2_HIT_UMASK   (0x01)
-
-#define ATOM_MEM_LOAD_RETIRED_L2_MISS_EVTNR   (0xCB)
-#define ATOM_MEM_LOAD_RETIRED_L2_MISS_UMASK   (0x02)
+constexpr auto ATOM_MEM_LOAD_RETIRED_L2_MISS_EVTNR = 0xCB;
+constexpr auto ATOM_MEM_LOAD_RETIRED_L2_MISS_UMASK = 0x02;
 
 // Offcore response events
-#define OFFCORE_RESPONSE_0_EVTNR (0xB7)
-#define OFFCORE_RESPONSE_1_EVTNR (0xBB)
-#define GLC_OFFCORE_RESPONSE_0_EVTNR (0x2A)
-#define GLC_OFFCORE_RESPONSE_1_EVTNR (0x2B)
-#define OFFCORE_RESPONSE_0_UMASK (1)
-#define OFFCORE_RESPONSE_1_UMASK (1)
-
+constexpr auto OFFCORE_RESPONSE_0_EVTNR = 0xB7;
+constexpr auto OFFCORE_RESPONSE_1_EVTNR = 0xBB;
+constexpr auto GLC_OFFCORE_RESPONSE_0_EVTNR = 0x2A;
+constexpr auto GLC_OFFCORE_RESPONSE_1_EVTNR = 0x2B;
+constexpr auto OFFCORE_RESPONSE_0_UMASK = 1;
+constexpr auto OFFCORE_RESPONSE_1_UMASK = 1;
 
 constexpr auto LOAD_LATENCY_EVTNR = 0xcd;
 constexpr auto LOAD_LATENCY_UMASK = 0x01;
@@ -184,143 +175,135 @@ constexpr auto FRONTEND_UMASK = 0x01;
 */
 
 // Uncore msrs
+constexpr auto MSR_UNCORE_PERF_GLOBAL_CTRL_ADDR = 0x391;
 
-#define MSR_UNCORE_PERF_GLOBAL_CTRL_ADDR        (0x391)
+constexpr auto MSR_UNCORE_PERFEVTSEL0_ADDR = 0x3C0;
+constexpr auto MSR_UNCORE_PERFEVTSEL1_ADDR = MSR_UNCORE_PERFEVTSEL0_ADDR + 1;
+constexpr auto MSR_UNCORE_PERFEVTSEL2_ADDR = MSR_UNCORE_PERFEVTSEL0_ADDR + 2;
+constexpr auto MSR_UNCORE_PERFEVTSEL3_ADDR = MSR_UNCORE_PERFEVTSEL0_ADDR + 3;
+constexpr auto MSR_UNCORE_PERFEVTSEL4_ADDR = MSR_UNCORE_PERFEVTSEL0_ADDR + 4;
+constexpr auto MSR_UNCORE_PERFEVTSEL5_ADDR = MSR_UNCORE_PERFEVTSEL0_ADDR + 5;
+constexpr auto MSR_UNCORE_PERFEVTSEL6_ADDR = MSR_UNCORE_PERFEVTSEL0_ADDR + 6;
+constexpr auto MSR_UNCORE_PERFEVTSEL7_ADDR = MSR_UNCORE_PERFEVTSEL0_ADDR + 7;
 
-#define MSR_UNCORE_PERFEVTSEL0_ADDR             (0x3C0)
-#define MSR_UNCORE_PERFEVTSEL1_ADDR             (MSR_UNCORE_PERFEVTSEL0_ADDR + 1)
-#define MSR_UNCORE_PERFEVTSEL2_ADDR             (MSR_UNCORE_PERFEVTSEL0_ADDR + 2)
-#define MSR_UNCORE_PERFEVTSEL3_ADDR             (MSR_UNCORE_PERFEVTSEL0_ADDR + 3)
-#define MSR_UNCORE_PERFEVTSEL4_ADDR             (MSR_UNCORE_PERFEVTSEL0_ADDR + 4)
-#define MSR_UNCORE_PERFEVTSEL5_ADDR             (MSR_UNCORE_PERFEVTSEL0_ADDR + 5)
-#define MSR_UNCORE_PERFEVTSEL6_ADDR             (MSR_UNCORE_PERFEVTSEL0_ADDR + 6)
-#define MSR_UNCORE_PERFEVTSEL7_ADDR             (MSR_UNCORE_PERFEVTSEL0_ADDR + 7)
-
-
-#define MSR_UNCORE_PMC0                         (0x3B0)
-#define MSR_UNCORE_PMC1                         (MSR_UNCORE_PMC0 + 1)
-#define MSR_UNCORE_PMC2                         (MSR_UNCORE_PMC0 + 2)
-#define MSR_UNCORE_PMC3                         (MSR_UNCORE_PMC0 + 3)
-#define MSR_UNCORE_PMC4                         (MSR_UNCORE_PMC0 + 4)
-#define MSR_UNCORE_PMC5                         (MSR_UNCORE_PMC0 + 5)
-#define MSR_UNCORE_PMC6                         (MSR_UNCORE_PMC0 + 6)
-#define MSR_UNCORE_PMC7                         (MSR_UNCORE_PMC0 + 7)
-
+constexpr auto MSR_UNCORE_PMC0 = 0x3B0;
+constexpr auto MSR_UNCORE_PMC1 = MSR_UNCORE_PMC0 + 1;
+constexpr auto MSR_UNCORE_PMC2 = MSR_UNCORE_PMC0 + 2;
+constexpr auto MSR_UNCORE_PMC3 = MSR_UNCORE_PMC0 + 3;
+constexpr auto MSR_UNCORE_PMC4 = MSR_UNCORE_PMC0 + 4;
+constexpr auto MSR_UNCORE_PMC5 = MSR_UNCORE_PMC0 + 5;
+constexpr auto MSR_UNCORE_PMC6 = MSR_UNCORE_PMC0 + 6;
+constexpr auto MSR_UNCORE_PMC7 = MSR_UNCORE_PMC0 + 7;
 // Uncore event IDs
+constexpr auto UNC_QMC_WRITES_FULL_ANY_EVTNR = 0x2F;
+constexpr auto UNC_QMC_WRITES_FULL_ANY_UMASK = 0x07;
 
-#define UNC_QMC_WRITES_FULL_ANY_EVTNR           (0x2F)
-#define UNC_QMC_WRITES_FULL_ANY_UMASK           (0x07)
+constexpr auto UNC_QMC_NORMAL_READS_ANY_EVTNR = 0x2C;
+constexpr auto UNC_QMC_NORMAL_READS_ANY_UMASK = 0x07;
 
-#define UNC_QMC_NORMAL_READS_ANY_EVTNR          (0x2C)
-#define UNC_QMC_NORMAL_READS_ANY_UMASK          (0x07)
+constexpr auto UNC_QHL_REQUESTS_EVTNR = 0x20;
 
-#define UNC_QHL_REQUESTS_EVTNR                  (0x20)
-
-#define UNC_QHL_REQUESTS_IOH_READS_UMASK        (0x01)
-#define UNC_QHL_REQUESTS_IOH_WRITES_UMASK       (0x02)
-#define UNC_QHL_REQUESTS_REMOTE_READS_UMASK     (0x04)
-#define UNC_QHL_REQUESTS_REMOTE_WRITES_UMASK    (0x08)
-#define UNC_QHL_REQUESTS_LOCAL_READS_UMASK      (0x10)
-#define UNC_QHL_REQUESTS_LOCAL_WRITES_UMASK     (0x20)
-
+constexpr auto UNC_QHL_REQUESTS_IOH_READS_UMASK = 0x01;
+constexpr auto UNC_QHL_REQUESTS_IOH_WRITES_UMASK = 0x02;
+constexpr auto UNC_QHL_REQUESTS_REMOTE_READS_UMASK = 0x04;
+constexpr auto UNC_QHL_REQUESTS_REMOTE_WRITES_UMASK = 0x08;
+constexpr auto UNC_QHL_REQUESTS_LOCAL_READS_UMASK = 0x10;
+constexpr auto UNC_QHL_REQUESTS_LOCAL_WRITES_UMASK = 0x20;
 /*
         From "Intel(r) Xeon(r) Processor 7500 Series Uncore Programming Guide"
 */
 
 // Beckton uncore event IDs
+constexpr auto U_MSR_PMON_GLOBAL_CTL = 0x0C00;
 
-#define U_MSR_PMON_GLOBAL_CTL                   (0x0C00)
+constexpr auto MB0_MSR_PERF_GLOBAL_CTL = 0x0CA0;
+constexpr auto MB0_MSR_PMU_CNT_0 = 0x0CB1;
+constexpr auto MB0_MSR_PMU_CNT_CTL_0 = 0x0CB0;
+constexpr auto MB0_MSR_PMU_CNT_1 = 0x0CB3;
+constexpr auto MB0_MSR_PMU_CNT_CTL_1 = 0x0CB2;
+constexpr auto MB0_MSR_PMU_ZDP_CTL_FVC = 0x0CAB;
 
-#define MB0_MSR_PERF_GLOBAL_CTL                 (0x0CA0)
-#define MB0_MSR_PMU_CNT_0                       (0x0CB1)
-#define MB0_MSR_PMU_CNT_CTL_0                   (0x0CB0)
-#define MB0_MSR_PMU_CNT_1                       (0x0CB3)
-#define MB0_MSR_PMU_CNT_CTL_1                   (0x0CB2)
-#define MB0_MSR_PMU_ZDP_CTL_FVC                 (0x0CAB)
+constexpr auto MB1_MSR_PERF_GLOBAL_CTL = 0x0CE0;
+constexpr auto MB1_MSR_PMU_CNT_0 = 0x0CF1;
+constexpr auto MB1_MSR_PMU_CNT_CTL_0 = 0x0CF0;
+constexpr auto MB1_MSR_PMU_CNT_1 = 0x0CF3;
+constexpr auto MB1_MSR_PMU_CNT_CTL_1 = 0x0CF2;
+constexpr auto MB1_MSR_PMU_ZDP_CTL_FVC = 0x0CEB;
 
+constexpr auto BB0_MSR_PERF_GLOBAL_CTL = 0x0C20;
+constexpr auto BB0_MSR_PERF_CNT_1 = 0x0C33;
+constexpr auto BB0_MSR_PERF_CNT_CTL_1 = 0x0C32;
 
-#define MB1_MSR_PERF_GLOBAL_CTL                 (0x0CE0)
-#define MB1_MSR_PMU_CNT_0                       (0x0CF1)
-#define MB1_MSR_PMU_CNT_CTL_0                   (0x0CF0)
-#define MB1_MSR_PMU_CNT_1                       (0x0CF3)
-#define MB1_MSR_PMU_CNT_CTL_1                   (0x0CF2)
-#define MB1_MSR_PMU_ZDP_CTL_FVC                 (0x0CEB)
+constexpr auto BB1_MSR_PERF_GLOBAL_CTL = 0x0C60;
+constexpr auto BB1_MSR_PERF_CNT_1 = 0x0C73;
+constexpr auto BB1_MSR_PERF_CNT_CTL_1 = 0x0C72;
 
-#define BB0_MSR_PERF_GLOBAL_CTL                 (0x0C20)
-#define BB0_MSR_PERF_CNT_1                      (0x0C33)
-#define BB0_MSR_PERF_CNT_CTL_1                  (0x0C32)
+constexpr auto R_MSR_PMON_CTL0 = 0x0E10;
+constexpr auto R_MSR_PMON_CTR0 = 0x0E11;
+constexpr auto R_MSR_PMON_CTL1 = 0x0E12;
+constexpr auto R_MSR_PMON_CTR1 = 0x0E13;
+constexpr auto R_MSR_PMON_CTL2 = 0x0E14;
+constexpr auto R_MSR_PMON_CTR2 = 0x0E15;
+constexpr auto R_MSR_PMON_CTL3 = 0x0E16;
+constexpr auto R_MSR_PMON_CTR3 = 0x0E17;
+constexpr auto R_MSR_PMON_CTL4 = 0x0E18;
+constexpr auto R_MSR_PMON_CTR4 = 0x0E19;
+constexpr auto R_MSR_PMON_CTL5 = 0x0E1A;
+constexpr auto R_MSR_PMON_CTR5 = 0x0E1B;
+constexpr auto R_MSR_PMON_CTL6 = 0x0E1C;
+constexpr auto R_MSR_PMON_CTR6 = 0x0E1D;
+constexpr auto R_MSR_PMON_CTL7 = 0x0E1E;
+constexpr auto R_MSR_PMON_CTR7 = 0x0E1F;
+constexpr auto R_MSR_PMON_CTL8 = 0x0E30;
+constexpr auto R_MSR_PMON_CTR8 = 0x0E31;
+constexpr auto R_MSR_PMON_CTL9 = 0x0E32;
+constexpr auto R_MSR_PMON_CTR9 = 0x0E33;
+constexpr auto R_MSR_PMON_CTL10 = 0x0E34;
+constexpr auto R_MSR_PMON_CTR10 = 0x0E35;
+constexpr auto R_MSR_PMON_CTL11 = 0x0E36;
+constexpr auto R_MSR_PMON_CTR11 = 0x0E37;
+constexpr auto R_MSR_PMON_CTL12 = 0x0E38;
+constexpr auto R_MSR_PMON_CTR12 = 0x0E39;
+constexpr auto R_MSR_PMON_CTL13 = 0x0E3A;
+constexpr auto R_MSR_PMON_CTR13 = 0x0E3B;
+constexpr auto R_MSR_PMON_CTL14 = 0x0E3C;
+constexpr auto R_MSR_PMON_CTR14 = 0x0E3D;
+constexpr auto R_MSR_PMON_CTL15 = 0x0E3E;
+constexpr auto R_MSR_PMON_CTR15 = 0x0E3F;
 
-#define BB1_MSR_PERF_GLOBAL_CTL                 (0x0C60)
-#define BB1_MSR_PERF_CNT_1                      (0x0C73)
-#define BB1_MSR_PERF_CNT_CTL_1                  (0x0C72)
+constexpr auto R_MSR_PORT0_IPERF_CFG0 = 0x0E04;
+constexpr auto R_MSR_PORT1_IPERF_CFG0 = 0x0E05;
+constexpr auto R_MSR_PORT2_IPERF_CFG0 = 0x0E06;
+constexpr auto R_MSR_PORT3_IPERF_CFG0 = 0x0E07;
+constexpr auto R_MSR_PORT4_IPERF_CFG0 = 0x0E08;
+constexpr auto R_MSR_PORT5_IPERF_CFG0 = 0x0E09;
+constexpr auto R_MSR_PORT6_IPERF_CFG0 = 0x0E0A;
+constexpr auto R_MSR_PORT7_IPERF_CFG0 = 0x0E0B;
 
-#define R_MSR_PMON_CTL0 (0x0E10)
-#define R_MSR_PMON_CTR0 (0x0E11)
-#define R_MSR_PMON_CTL1 (0x0E12)
-#define R_MSR_PMON_CTR1 (0x0E13)
-#define R_MSR_PMON_CTL2 (0x0E14)
-#define R_MSR_PMON_CTR2 (0x0E15)
-#define R_MSR_PMON_CTL3 (0x0E16)
-#define R_MSR_PMON_CTR3 (0x0E17)
-#define R_MSR_PMON_CTL4 (0x0E18)
-#define R_MSR_PMON_CTR4 (0x0E19)
-#define R_MSR_PMON_CTL5 (0x0E1A)
-#define R_MSR_PMON_CTR5 (0x0E1B)
-#define R_MSR_PMON_CTL6 (0x0E1C)
-#define R_MSR_PMON_CTR6 (0x0E1D)
-#define R_MSR_PMON_CTL7 (0x0E1E)
-#define R_MSR_PMON_CTR7 (0x0E1F)
-#define R_MSR_PMON_CTL8 (0x0E30)
-#define R_MSR_PMON_CTR8 (0x0E31)
-#define R_MSR_PMON_CTL9 (0x0E32)
-#define R_MSR_PMON_CTR9 (0x0E33)
-#define R_MSR_PMON_CTL10 (0x0E34)
-#define R_MSR_PMON_CTR10 (0x0E35)
-#define R_MSR_PMON_CTL11 (0x0E36)
-#define R_MSR_PMON_CTR11 (0x0E37)
-#define R_MSR_PMON_CTL12 (0x0E38)
-#define R_MSR_PMON_CTR12 (0x0E39)
-#define R_MSR_PMON_CTL13 (0x0E3A)
-#define R_MSR_PMON_CTR13 (0x0E3B)
-#define R_MSR_PMON_CTL14 (0x0E3C)
-#define R_MSR_PMON_CTR14 (0x0E3D)
-#define R_MSR_PMON_CTL15 (0x0E3E)
-#define R_MSR_PMON_CTR15 (0x0E3F)
+constexpr auto R_MSR_PORT0_IPERF_CFG1 = 0x0E24;
+constexpr auto R_MSR_PORT1_IPERF_CFG1 = 0x0E25;
+constexpr auto R_MSR_PORT2_IPERF_CFG1 = 0x0E26;
+constexpr auto R_MSR_PORT3_IPERF_CFG1 = 0x0E27;
+constexpr auto R_MSR_PORT4_IPERF_CFG1 = 0x0E28;
+constexpr auto R_MSR_PORT5_IPERF_CFG1 = 0x0E29;
+constexpr auto R_MSR_PORT6_IPERF_CFG1 = 0x0E2A;
+constexpr auto R_MSR_PORT7_IPERF_CFG1 = 0x0E2B;
 
-#define R_MSR_PORT0_IPERF_CFG0 (0x0E04)
-#define R_MSR_PORT1_IPERF_CFG0 (0x0E05)
-#define R_MSR_PORT2_IPERF_CFG0 (0x0E06)
-#define R_MSR_PORT3_IPERF_CFG0 (0x0E07)
-#define R_MSR_PORT4_IPERF_CFG0 (0x0E08)
-#define R_MSR_PORT5_IPERF_CFG0 (0x0E09)
-#define R_MSR_PORT6_IPERF_CFG0 (0x0E0A)
-#define R_MSR_PORT7_IPERF_CFG0 (0x0E0B)
+constexpr auto R_MSR_PMON_GLOBAL_CTL_7_0 = 0x0E00;
+constexpr auto R_MSR_PMON_GLOBAL_CTL_15_8 = 0x0E20;
 
-#define R_MSR_PORT0_IPERF_CFG1 (0x0E24)
-#define R_MSR_PORT1_IPERF_CFG1 (0x0E25)
-#define R_MSR_PORT2_IPERF_CFG1 (0x0E26)
-#define R_MSR_PORT3_IPERF_CFG1 (0x0E27)
-#define R_MSR_PORT4_IPERF_CFG1 (0x0E28)
-#define R_MSR_PORT5_IPERF_CFG1 (0x0E29)
-#define R_MSR_PORT6_IPERF_CFG1 (0x0E2A)
-#define R_MSR_PORT7_IPERF_CFG1 (0x0E2B)
-
-#define R_MSR_PMON_GLOBAL_CTL_7_0 (0x0E00)
-#define R_MSR_PMON_GLOBAL_CTL_15_8 (0x0E20)
-
-#define W_MSR_PMON_GLOBAL_CTL    (0xC80)
-#define W_MSR_PMON_FIXED_CTR_CTL (0x395)
-#define W_MSR_PMON_FIXED_CTR     (0x394)
-
+constexpr auto W_MSR_PMON_GLOBAL_CTL = 0xC80;
+constexpr auto W_MSR_PMON_FIXED_CTR_CTL = 0x395;
+constexpr auto W_MSR_PMON_FIXED_CTR = 0x394;
 /*
  * Platform QoS MSRs
  */
 
-#define IA32_PQR_ASSOC (0xc8f)
-#define IA32_QM_EVTSEL (0xc8d)
-#define IA32_QM_CTR (0xc8e)
+constexpr auto IA32_PQR_ASSOC = 0xc8f;
+constexpr auto IA32_QM_EVTSEL = 0xc8d;
+constexpr auto IA32_QM_CTR = 0xc8e;
 
-#define PCM_INVALID_QOS_MONITORING_DATA ((std::numeric_limits<uint64>::max)())
+constexpr auto PCM_INVALID_QOS_MONITORING_DATA = (std::numeric_limits<uint64>::max)();
 
 /* \brief Event Select Register format
 
@@ -515,244 +498,264 @@ struct BecktonUncorePMUCNTCTLRegister
     };
 };
 
-#define MSR_SMI_COUNT (0x34)
+constexpr auto MSR_SMI_COUNT = 0x34;
 
 /* \brief Sandy Bridge energy counters
 */
 
-#define MSR_PKG_ENERGY_STATUS (0x611)
-#define MSR_RAPL_POWER_UNIT   (0x606)
-#define MSR_PKG_POWER_INFO    (0x614)
+constexpr auto MSR_PKG_ENERGY_STATUS = 0x611;
+constexpr auto MSR_RAPL_POWER_UNIT = 0x606;
+constexpr auto MSR_PKG_POWER_INFO = 0x614;
 
-#define PCM_INTEL_PCI_VENDOR_ID (0x8086)
-#define PCM_PCI_VENDOR_ID_OFFSET (0)
+constexpr auto PCM_INTEL_PCI_VENDOR_ID = 0x8086;
+constexpr auto PCM_PCI_VENDOR_ID_OFFSET = 0;
 
 // server PCICFG uncore counters
+constexpr auto JKTIVT_MC0_CH0_REGISTER_DEV_ADDR = 16;
+constexpr auto JKTIVT_MC0_CH1_REGISTER_DEV_ADDR = 16;
+constexpr auto JKTIVT_MC0_CH2_REGISTER_DEV_ADDR = 16;
+constexpr auto JKTIVT_MC0_CH3_REGISTER_DEV_ADDR = 16;
+constexpr auto JKTIVT_MC0_CH0_REGISTER_FUNC_ADDR = 4;
+constexpr auto JKTIVT_MC0_CH1_REGISTER_FUNC_ADDR = 5;
+constexpr auto JKTIVT_MC0_CH2_REGISTER_FUNC_ADDR = 0;
+constexpr auto JKTIVT_MC0_CH3_REGISTER_FUNC_ADDR = 1;
 
-#define JKTIVT_MC0_CH0_REGISTER_DEV_ADDR (16)
-#define JKTIVT_MC0_CH1_REGISTER_DEV_ADDR (16)
-#define JKTIVT_MC0_CH2_REGISTER_DEV_ADDR (16)
-#define JKTIVT_MC0_CH3_REGISTER_DEV_ADDR (16)
-#define JKTIVT_MC0_CH0_REGISTER_FUNC_ADDR (4)
-#define JKTIVT_MC0_CH1_REGISTER_FUNC_ADDR (5)
-#define JKTIVT_MC0_CH2_REGISTER_FUNC_ADDR (0)
-#define JKTIVT_MC0_CH3_REGISTER_FUNC_ADDR (1)
+constexpr auto JKTIVT_MC1_CH0_REGISTER_DEV_ADDR = 30;
+constexpr auto JKTIVT_MC1_CH1_REGISTER_DEV_ADDR = 30;
+constexpr auto JKTIVT_MC1_CH2_REGISTER_DEV_ADDR = 30;
+constexpr auto JKTIVT_MC1_CH3_REGISTER_DEV_ADDR = 30;
+constexpr auto JKTIVT_MC1_CH0_REGISTER_FUNC_ADDR = 4;
+constexpr auto JKTIVT_MC1_CH1_REGISTER_FUNC_ADDR = 5;
+constexpr auto JKTIVT_MC1_CH2_REGISTER_FUNC_ADDR = 0;
+constexpr auto JKTIVT_MC1_CH3_REGISTER_FUNC_ADDR = 1;
 
-#define JKTIVT_MC1_CH0_REGISTER_DEV_ADDR (30)
-#define JKTIVT_MC1_CH1_REGISTER_DEV_ADDR (30)
-#define JKTIVT_MC1_CH2_REGISTER_DEV_ADDR (30)
-#define JKTIVT_MC1_CH3_REGISTER_DEV_ADDR (30)
-#define JKTIVT_MC1_CH0_REGISTER_FUNC_ADDR (4)
-#define JKTIVT_MC1_CH1_REGISTER_FUNC_ADDR (5)
-#define JKTIVT_MC1_CH2_REGISTER_FUNC_ADDR (0)
-#define JKTIVT_MC1_CH3_REGISTER_FUNC_ADDR (1)
+constexpr auto HSX_MC0_CH0_REGISTER_DEV_ADDR = 20;
+constexpr auto HSX_MC0_CH1_REGISTER_DEV_ADDR = 20;
+constexpr auto HSX_MC0_CH2_REGISTER_DEV_ADDR = 21;
+constexpr auto HSX_MC0_CH3_REGISTER_DEV_ADDR = 21;
+constexpr auto HSX_MC0_CH0_REGISTER_FUNC_ADDR = 0;
+constexpr auto HSX_MC0_CH1_REGISTER_FUNC_ADDR = 1;
+constexpr auto HSX_MC0_CH2_REGISTER_FUNC_ADDR = 0;
+constexpr auto HSX_MC0_CH3_REGISTER_FUNC_ADDR = 1;
 
-#define HSX_MC0_CH0_REGISTER_DEV_ADDR (20)
-#define HSX_MC0_CH1_REGISTER_DEV_ADDR (20)
-#define HSX_MC0_CH2_REGISTER_DEV_ADDR (21)
-#define HSX_MC0_CH3_REGISTER_DEV_ADDR (21)
-#define HSX_MC0_CH0_REGISTER_FUNC_ADDR (0)
-#define HSX_MC0_CH1_REGISTER_FUNC_ADDR (1)
-#define HSX_MC0_CH2_REGISTER_FUNC_ADDR (0)
-#define HSX_MC0_CH3_REGISTER_FUNC_ADDR (1)
+constexpr auto HSX_MC1_CH0_REGISTER_DEV_ADDR = 23;
+constexpr auto HSX_MC1_CH1_REGISTER_DEV_ADDR = 23;
+constexpr auto HSX_MC1_CH2_REGISTER_DEV_ADDR = 24;
+constexpr auto HSX_MC1_CH3_REGISTER_DEV_ADDR = 24;
+constexpr auto HSX_MC1_CH0_REGISTER_FUNC_ADDR = 0;
+constexpr auto HSX_MC1_CH1_REGISTER_FUNC_ADDR = 1;
+constexpr auto HSX_MC1_CH2_REGISTER_FUNC_ADDR = 0;
+constexpr auto HSX_MC1_CH3_REGISTER_FUNC_ADDR = 1;
 
-#define HSX_MC1_CH0_REGISTER_DEV_ADDR (23)
-#define HSX_MC1_CH1_REGISTER_DEV_ADDR (23)
-#define HSX_MC1_CH2_REGISTER_DEV_ADDR (24)
-#define HSX_MC1_CH3_REGISTER_DEV_ADDR (24)
-#define HSX_MC1_CH0_REGISTER_FUNC_ADDR (0)
-#define HSX_MC1_CH1_REGISTER_FUNC_ADDR (1)
-#define HSX_MC1_CH2_REGISTER_FUNC_ADDR (0)
-#define HSX_MC1_CH3_REGISTER_FUNC_ADDR (1)
+constexpr auto KNL_MC0_CH0_REGISTER_DEV_ADDR = 8;
+constexpr auto KNL_MC0_CH1_REGISTER_DEV_ADDR = 8;
+constexpr auto KNL_MC0_CH2_REGISTER_DEV_ADDR = 8;
+constexpr auto KNL_MC0_CH0_REGISTER_FUNC_ADDR = 2;
+constexpr auto KNL_MC0_CH1_REGISTER_FUNC_ADDR = 3;
+constexpr auto KNL_MC0_CH2_REGISTER_FUNC_ADDR = 4;
 
-#define KNL_MC0_CH0_REGISTER_DEV_ADDR (8)
-#define KNL_MC0_CH1_REGISTER_DEV_ADDR (8)
-#define KNL_MC0_CH2_REGISTER_DEV_ADDR (8)
-#define KNL_MC0_CH0_REGISTER_FUNC_ADDR (2)
-#define KNL_MC0_CH1_REGISTER_FUNC_ADDR (3)
-#define KNL_MC0_CH2_REGISTER_FUNC_ADDR (4)
+constexpr auto SKX_MC0_CH0_REGISTER_DEV_ADDR = 10;
+constexpr auto SKX_MC0_CH1_REGISTER_DEV_ADDR = 10;
+constexpr auto SKX_MC0_CH2_REGISTER_DEV_ADDR = 11;
+constexpr auto SKX_MC0_CH3_REGISTER_DEV_ADDR = -1; //Does not exist
+constexpr auto SKX_MC0_CH0_REGISTER_FUNC_ADDR = 2;
+constexpr auto SKX_MC0_CH1_REGISTER_FUNC_ADDR = 6;
+constexpr auto SKX_MC0_CH2_REGISTER_FUNC_ADDR = 2;
+constexpr auto SKX_MC0_CH3_REGISTER_FUNC_ADDR = -1; //Does not exist
 
-#define SKX_MC0_CH0_REGISTER_DEV_ADDR (10)
-#define SKX_MC0_CH1_REGISTER_DEV_ADDR (10)
-#define SKX_MC0_CH2_REGISTER_DEV_ADDR (11)
-#define SKX_MC0_CH3_REGISTER_DEV_ADDR (-1) //Does not exist
-#define SKX_MC0_CH0_REGISTER_FUNC_ADDR (2)
-#define SKX_MC0_CH1_REGISTER_FUNC_ADDR (6)
-#define SKX_MC0_CH2_REGISTER_FUNC_ADDR (2)
-#define SKX_MC0_CH3_REGISTER_FUNC_ADDR (-1) //Does not exist
+constexpr auto SKX_MC1_CH0_REGISTER_DEV_ADDR = 12;
+constexpr auto SKX_MC1_CH1_REGISTER_DEV_ADDR = 12;
+constexpr auto SKX_MC1_CH2_REGISTER_DEV_ADDR = 13;
+constexpr auto SKX_MC1_CH3_REGISTER_DEV_ADDR = -1; //Does not exist
+constexpr auto SKX_MC1_CH0_REGISTER_FUNC_ADDR = 2;
+constexpr auto SKX_MC1_CH1_REGISTER_FUNC_ADDR = 6;
+constexpr auto SKX_MC1_CH2_REGISTER_FUNC_ADDR = 2;
+constexpr auto SKX_MC1_CH3_REGISTER_FUNC_ADDR = -1; //Does not exist
 
-#define SKX_MC1_CH0_REGISTER_DEV_ADDR (12)
-#define SKX_MC1_CH1_REGISTER_DEV_ADDR (12)
-#define SKX_MC1_CH2_REGISTER_DEV_ADDR (13)
-#define SKX_MC1_CH3_REGISTER_DEV_ADDR (-1) //Does not exist
-#define SKX_MC1_CH0_REGISTER_FUNC_ADDR (2)
-#define SKX_MC1_CH1_REGISTER_FUNC_ADDR (6)
-#define SKX_MC1_CH2_REGISTER_FUNC_ADDR (2)
-#define SKX_MC1_CH3_REGISTER_FUNC_ADDR (-1) //Does not exist
+constexpr auto SERVER_UBOX0_REGISTER_DEV_ADDR = 0;
+constexpr auto SERVER_UBOX0_REGISTER_FUNC_ADDR = 1;
 
-#define SERVER_UBOX0_REGISTER_DEV_ADDR  (0)
-#define SERVER_UBOX0_REGISTER_FUNC_ADDR (1)
+constexpr auto KNL_MC1_CH0_REGISTER_DEV_ADDR = 9;
+constexpr auto KNL_MC1_CH1_REGISTER_DEV_ADDR = 9;
+constexpr auto KNL_MC1_CH2_REGISTER_DEV_ADDR = 9;
+constexpr auto KNL_MC1_CH0_REGISTER_FUNC_ADDR = 2;
+constexpr auto KNL_MC1_CH1_REGISTER_FUNC_ADDR = 3;
+constexpr auto KNL_MC1_CH2_REGISTER_FUNC_ADDR = 4;
 
-#define KNL_MC1_CH0_REGISTER_DEV_ADDR (9)
-#define KNL_MC1_CH1_REGISTER_DEV_ADDR (9)
-#define KNL_MC1_CH2_REGISTER_DEV_ADDR (9)
-#define KNL_MC1_CH0_REGISTER_FUNC_ADDR (2)
-#define KNL_MC1_CH1_REGISTER_FUNC_ADDR (3)
-#define KNL_MC1_CH2_REGISTER_FUNC_ADDR (4)
+constexpr auto KNL_EDC0_ECLK_REGISTER_DEV_ADDR = 24;
+constexpr auto KNL_EDC0_ECLK_REGISTER_FUNC_ADDR = 2;
+constexpr auto KNL_EDC1_ECLK_REGISTER_DEV_ADDR = 25;
+constexpr auto KNL_EDC1_ECLK_REGISTER_FUNC_ADDR = 2;
+constexpr auto KNL_EDC2_ECLK_REGISTER_DEV_ADDR = 26;
+constexpr auto KNL_EDC2_ECLK_REGISTER_FUNC_ADDR = 2;
+constexpr auto KNL_EDC3_ECLK_REGISTER_DEV_ADDR = 27;
+constexpr auto KNL_EDC3_ECLK_REGISTER_FUNC_ADDR = 2;
+constexpr auto KNL_EDC4_ECLK_REGISTER_DEV_ADDR = 28;
+constexpr auto KNL_EDC4_ECLK_REGISTER_FUNC_ADDR = 2;
+constexpr auto KNL_EDC5_ECLK_REGISTER_DEV_ADDR = 29;
+constexpr auto KNL_EDC5_ECLK_REGISTER_FUNC_ADDR = 2;
+constexpr auto KNL_EDC6_ECLK_REGISTER_DEV_ADDR = 30;
+constexpr auto KNL_EDC6_ECLK_REGISTER_FUNC_ADDR = 2;
+constexpr auto KNL_EDC7_ECLK_REGISTER_DEV_ADDR = 31;
+constexpr auto KNL_EDC7_ECLK_REGISTER_FUNC_ADDR = 2;
 
-#define KNL_EDC0_ECLK_REGISTER_DEV_ADDR (24)
-#define KNL_EDC0_ECLK_REGISTER_FUNC_ADDR (2)
-#define KNL_EDC1_ECLK_REGISTER_DEV_ADDR (25)
-#define KNL_EDC1_ECLK_REGISTER_FUNC_ADDR (2)
-#define KNL_EDC2_ECLK_REGISTER_DEV_ADDR (26)
-#define KNL_EDC2_ECLK_REGISTER_FUNC_ADDR (2)
-#define KNL_EDC3_ECLK_REGISTER_DEV_ADDR (27)
-#define KNL_EDC3_ECLK_REGISTER_FUNC_ADDR (2)
-#define KNL_EDC4_ECLK_REGISTER_DEV_ADDR (28)
-#define KNL_EDC4_ECLK_REGISTER_FUNC_ADDR (2)
-#define KNL_EDC5_ECLK_REGISTER_DEV_ADDR (29)
-#define KNL_EDC5_ECLK_REGISTER_FUNC_ADDR (2)
-#define KNL_EDC6_ECLK_REGISTER_DEV_ADDR (30)
-#define KNL_EDC6_ECLK_REGISTER_FUNC_ADDR (2)
-#define KNL_EDC7_ECLK_REGISTER_DEV_ADDR (31)
-#define KNL_EDC7_ECLK_REGISTER_FUNC_ADDR (2)
+constexpr auto HSX_HA0_REGISTER_DEV_ADDR = 18;
+constexpr auto HSX_HA0_REGISTER_FUNC_ADDR = 1;
+constexpr auto HSX_HA1_REGISTER_DEV_ADDR = 18;
+constexpr auto HSX_HA1_REGISTER_FUNC_ADDR = 5;
 
-#define HSX_HA0_REGISTER_DEV_ADDR (18)
-#define HSX_HA0_REGISTER_FUNC_ADDR (1)
-#define HSX_HA1_REGISTER_DEV_ADDR (18)
-#define HSX_HA1_REGISTER_FUNC_ADDR (5)
-
-#define XPF_HA_PCI_PMON_BOX_CTL_ADDR    (0xF4)
-#define XPF_HA_PCI_PMON_CTL0_ADDR       (0xD8 + 4*0)
-#define XPF_HA_PCI_PMON_CTL1_ADDR       (0xD8 + 4*1)
-#define XPF_HA_PCI_PMON_CTL2_ADDR       (0xD8 + 4*2)
-#define XPF_HA_PCI_PMON_CTL3_ADDR       (0xD8 + 4*3)
-#define XPF_HA_PCI_PMON_CTR0_ADDR       (0xA0 + 8*0)
-#define XPF_HA_PCI_PMON_CTR1_ADDR       (0xA0 + 8*1)
-#define XPF_HA_PCI_PMON_CTR2_ADDR       (0xA0 + 8*2)
-#define XPF_HA_PCI_PMON_CTR3_ADDR       (0xA0 + 8*3)
+constexpr auto XPF_HA_PCI_PMON_BOX_CTL_ADDR = 0xF4;
+constexpr auto XPF_HA_PCI_PMON_CTL0_ADDR = 0xD8 + 4*0;
+constexpr auto XPF_HA_PCI_PMON_CTL1_ADDR = 0xD8 + 4*1;
+constexpr auto XPF_HA_PCI_PMON_CTL2_ADDR = 0xD8 + 4*2;
+constexpr auto XPF_HA_PCI_PMON_CTL3_ADDR = 0xD8 + 4*3;
+constexpr auto XPF_HA_PCI_PMON_CTR0_ADDR = 0xA0 + 8*0;
+constexpr auto XPF_HA_PCI_PMON_CTR1_ADDR = 0xA0 + 8*1;
+constexpr auto XPF_HA_PCI_PMON_CTR2_ADDR = 0xA0 + 8*2;
+constexpr auto XPF_HA_PCI_PMON_CTR3_ADDR = 0xA0 + 8*3;
+constexpr auto BHS_PCIE_GEN5_PCI_PMON_BOX_CTL_ADDR = 0x620;
+constexpr auto BHS_PCIE_GEN5_PCI_PMON_CTL0_ADDR = 0x630;
+constexpr auto BHS_PCIE_GEN5_PCI_PMON_CTR0_ADDR = 0x650;
 
 /**
  * XPF_ for Xeons: SNB, IVT, HSX, BDW, etc.
  * KNX_ for Xeon Phi (Knights *) processors
  */
-#define XPF_MC_CH_PCI_PMON_BOX_CTL_ADDR (0x0F4)
-#define KNX_MC_CH_PCI_PMON_BOX_CTL_ADDR (0xB30)
-#define KNX_EDC_CH_PCI_PMON_BOX_CTL_ADDR (0xA30)
+constexpr auto XPF_MC_CH_PCI_PMON_BOX_CTL_ADDR = 0x0F4;
+constexpr auto KNX_MC_CH_PCI_PMON_BOX_CTL_ADDR = 0xB30;
+constexpr auto KNX_EDC_CH_PCI_PMON_BOX_CTL_ADDR = 0xA30;
 
 //! for Xeons
-#define XPF_MC_CH_PCI_PMON_FIXED_CTL_ADDR (0x0F0)
-#define XPF_MC_CH_PCI_PMON_CTL3_ADDR (0x0E4)
-#define XPF_MC_CH_PCI_PMON_CTL2_ADDR (0x0E0)
-#define XPF_MC_CH_PCI_PMON_CTL1_ADDR (0x0DC)
-#define XPF_MC_CH_PCI_PMON_CTL0_ADDR (0x0D8)
+constexpr auto XPF_MC_CH_PCI_PMON_FIXED_CTL_ADDR = 0x0F0;
+constexpr auto XPF_MC_CH_PCI_PMON_CTL3_ADDR = 0x0E4;
+constexpr auto XPF_MC_CH_PCI_PMON_CTL2_ADDR = 0x0E0;
+constexpr auto XPF_MC_CH_PCI_PMON_CTL1_ADDR = 0x0DC;
+constexpr auto XPF_MC_CH_PCI_PMON_CTL0_ADDR = 0x0D8;
 
 //! KNL IMC
-#define KNX_MC_CH_PCI_PMON_FIXED_CTL_ADDR (0xB44)
-#define KNX_MC_CH_PCI_PMON_CTL3_ADDR (0xB2C)
-#define KNX_MC_CH_PCI_PMON_CTL2_ADDR (0xB28)
-#define KNX_MC_CH_PCI_PMON_CTL1_ADDR (0xB24)
-#define KNX_MC_CH_PCI_PMON_CTL0_ADDR (0xB20)
+constexpr auto KNX_MC_CH_PCI_PMON_FIXED_CTL_ADDR = 0xB44;
+constexpr auto KNX_MC_CH_PCI_PMON_CTL3_ADDR = 0xB2C;
+constexpr auto KNX_MC_CH_PCI_PMON_CTL2_ADDR = 0xB28;
+constexpr auto KNX_MC_CH_PCI_PMON_CTL1_ADDR = 0xB24;
+constexpr auto KNX_MC_CH_PCI_PMON_CTL0_ADDR = 0xB20;
 
 //! KNL EDC ECLK
-#define KNX_EDC_CH_PCI_PMON_FIXED_CTL_ADDR (0xA44)
-#define KNX_EDC_CH_PCI_PMON_CTL3_ADDR (0xA2C)
-#define KNX_EDC_CH_PCI_PMON_CTL2_ADDR (0xA28)
-#define KNX_EDC_CH_PCI_PMON_CTL1_ADDR (0xA24)
-#define KNX_EDC_CH_PCI_PMON_CTL0_ADDR (0xA20)
-#define KNX_EDC_ECLK_PMON_UNIT_CTL_REG (0xA30)
+constexpr auto KNX_EDC_CH_PCI_PMON_FIXED_CTL_ADDR = 0xA44;
+constexpr auto KNX_EDC_CH_PCI_PMON_CTL3_ADDR = 0xA2C;
+constexpr auto KNX_EDC_CH_PCI_PMON_CTL2_ADDR = 0xA28;
+constexpr auto KNX_EDC_CH_PCI_PMON_CTL1_ADDR = 0xA24;
+constexpr auto KNX_EDC_CH_PCI_PMON_CTL0_ADDR = 0xA20;
+constexpr auto KNX_EDC_ECLK_PMON_UNIT_CTL_REG = 0xA30;
 
 //! for Xeons
-#define XPF_MC_CH_PCI_PMON_FIXED_CTR_ADDR (0x0D0)
-#define XPF_MC_CH_PCI_PMON_CTR3_ADDR (0x0B8)
-#define XPF_MC_CH_PCI_PMON_CTR2_ADDR (0x0B0)
-#define XPF_MC_CH_PCI_PMON_CTR1_ADDR (0x0A8)
-#define XPF_MC_CH_PCI_PMON_CTR0_ADDR (0x0A0)
+constexpr auto XPF_MC_CH_PCI_PMON_FIXED_CTR_ADDR = 0x0D0;
+constexpr auto XPF_MC_CH_PCI_PMON_CTR3_ADDR = 0x0B8;
+constexpr auto XPF_MC_CH_PCI_PMON_CTR2_ADDR = 0x0B0;
+constexpr auto XPF_MC_CH_PCI_PMON_CTR1_ADDR = 0x0A8;
+constexpr auto XPF_MC_CH_PCI_PMON_CTR0_ADDR = 0x0A0;
 
 //! for KNL IMC
-#define KNX_MC_CH_PCI_PMON_FIXED_CTR_ADDR (0xB3C)
-#define KNX_MC_CH_PCI_PMON_CTR3_ADDR (0xB18)
-#define KNX_MC_CH_PCI_PMON_CTR2_ADDR (0xB10)
-#define KNX_MC_CH_PCI_PMON_CTR1_ADDR (0xB08)
-#define KNX_MC_CH_PCI_PMON_CTR0_ADDR (0xB00)
+constexpr auto KNX_MC_CH_PCI_PMON_FIXED_CTR_ADDR = 0xB3C;
+constexpr auto KNX_MC_CH_PCI_PMON_CTR3_ADDR = 0xB18;
+constexpr auto KNX_MC_CH_PCI_PMON_CTR2_ADDR = 0xB10;
+constexpr auto KNX_MC_CH_PCI_PMON_CTR1_ADDR = 0xB08;
+constexpr auto KNX_MC_CH_PCI_PMON_CTR0_ADDR = 0xB00;
 
 //! for KNL EDC ECLK
-#define KNX_EDC_CH_PCI_PMON_FIXED_CTR_ADDR (0xA3C)
-#define KNX_EDC_CH_PCI_PMON_CTR3_ADDR (0xA18)
-#define KNX_EDC_CH_PCI_PMON_CTR2_ADDR (0xA10)
-#define KNX_EDC_CH_PCI_PMON_CTR1_ADDR (0xA08)
-#define KNX_EDC_CH_PCI_PMON_CTR0_ADDR (0xA00)
+constexpr auto KNX_EDC_CH_PCI_PMON_FIXED_CTR_ADDR = 0xA3C;
+constexpr auto KNX_EDC_CH_PCI_PMON_CTR3_ADDR = 0xA18;
+constexpr auto KNX_EDC_CH_PCI_PMON_CTR2_ADDR = 0xA10;
+constexpr auto KNX_EDC_CH_PCI_PMON_CTR1_ADDR = 0xA08;
+constexpr auto KNX_EDC_CH_PCI_PMON_CTR0_ADDR = 0xA00;
 
-#define SERVER_HBM_CH_PMON_BASE_ADDR      (0x141c00)
-#define SERVER_HBM_CH_PMON_STEP             (0x4000)
-#define SERVER_HBM_CH_PMON_SIZE             (0x1000)
-#define SERVER_HBM_BOX_PMON_STEP            (0x9000)
+constexpr auto SERVER_HBM_CH_PMON_BASE_ADDR = 0x141c00;
+constexpr auto SERVER_HBM_CH_PMON_STEP = 0x4000;
+constexpr auto SERVER_HBM_CH_PMON_SIZE = 0x1000;
+constexpr auto SERVER_HBM_BOX_PMON_STEP = 0x9000;
 
-#define SERVER_MC_CH_PMON_BASE_ADDR        (0x22800)
-#define SERVER_MC_CH_PMON_STEP             (0x4000)
-#define SERVER_MC_CH_PMON_SIZE             (0x1000)
-#define SERVER_MC_CH_PMON_BOX_CTL_OFFSET   (0x00)
-#define SERVER_MC_CH_PMON_CTL0_OFFSET      (0x40)
-#define SERVER_MC_CH_PMON_CTL1_OFFSET      (SERVER_MC_CH_PMON_CTL0_OFFSET + 4*1)
-#define SERVER_MC_CH_PMON_CTL2_OFFSET      (SERVER_MC_CH_PMON_CTL0_OFFSET + 4*2)
-#define SERVER_MC_CH_PMON_CTL3_OFFSET      (SERVER_MC_CH_PMON_CTL0_OFFSET + 4*3)
-#define SERVER_MC_CH_PMON_CTR0_OFFSET      (0x08)
-#define SERVER_MC_CH_PMON_CTR1_OFFSET      (SERVER_MC_CH_PMON_CTR0_OFFSET + 8*1)
-#define SERVER_MC_CH_PMON_CTR2_OFFSET      (SERVER_MC_CH_PMON_CTR0_OFFSET + 8*2)
-#define SERVER_MC_CH_PMON_CTR3_OFFSET      (SERVER_MC_CH_PMON_CTR0_OFFSET + 8*3)
-#define SERVER_MC_CH_PMON_FIXED_CTL_OFFSET (0x54)
-#define SERVER_MC_CH_PMON_FIXED_CTR_OFFSET (0x38)
+constexpr auto SERVER_MC_CH_PMON_BASE_ADDR = 0x22800;
+constexpr auto SERVER_MC_CH_PMON_STEP = 0x4000;
+constexpr auto SERVER_MC_CH_PMON_SIZE = 0x1000;
+constexpr auto SERVER_MC_CH_PMON_BOX_CTL_OFFSET = 0x00;
+constexpr auto SERVER_MC_CH_PMON_CTL0_OFFSET = 0x40;
+constexpr auto SERVER_MC_CH_PMON_CTL1_OFFSET = SERVER_MC_CH_PMON_CTL0_OFFSET + 4*1;
+constexpr auto SERVER_MC_CH_PMON_CTL2_OFFSET = SERVER_MC_CH_PMON_CTL0_OFFSET + 4*2;
+constexpr auto SERVER_MC_CH_PMON_CTL3_OFFSET = SERVER_MC_CH_PMON_CTL0_OFFSET + 4*3;
+constexpr auto SERVER_MC_CH_PMON_CTR0_OFFSET = 0x08;
+constexpr auto SERVER_MC_CH_PMON_CTR1_OFFSET = SERVER_MC_CH_PMON_CTR0_OFFSET + 8*1;
+constexpr auto SERVER_MC_CH_PMON_CTR2_OFFSET = SERVER_MC_CH_PMON_CTR0_OFFSET + 8*2;
+constexpr auto SERVER_MC_CH_PMON_CTR3_OFFSET = SERVER_MC_CH_PMON_CTR0_OFFSET + 8*3;
+constexpr auto SERVER_MC_CH_PMON_FIXED_CTL_OFFSET = 0x54;
+constexpr auto SERVER_MC_CH_PMON_FIXED_CTR_OFFSET = 0x38;
+constexpr auto BHS_MC_CH_PMON_BASE_ADDR = 0x024e800;
 
-#define JKTIVT_QPI_PORT0_REGISTER_DEV_ADDR  (8)
-#define JKTIVT_QPI_PORT0_REGISTER_FUNC_ADDR (2)
-#define JKTIVT_QPI_PORT1_REGISTER_DEV_ADDR  (9)
-#define JKTIVT_QPI_PORT1_REGISTER_FUNC_ADDR (2)
-#define JKTIVT_QPI_PORT2_REGISTER_DEV_ADDR  (24)
-#define JKTIVT_QPI_PORT2_REGISTER_FUNC_ADDR (2)
+constexpr auto JKTIVT_QPI_PORT0_REGISTER_DEV_ADDR = 8;
+constexpr auto JKTIVT_QPI_PORT0_REGISTER_FUNC_ADDR = 2;
+constexpr auto JKTIVT_QPI_PORT1_REGISTER_DEV_ADDR = 9;
+constexpr auto JKTIVT_QPI_PORT1_REGISTER_FUNC_ADDR = 2;
+constexpr auto JKTIVT_QPI_PORT2_REGISTER_DEV_ADDR = 24;
+constexpr auto JKTIVT_QPI_PORT2_REGISTER_FUNC_ADDR = 2;
 
-#define HSX_QPI_PORT0_REGISTER_DEV_ADDR  (8)
-#define HSX_QPI_PORT0_REGISTER_FUNC_ADDR (2)
-#define HSX_QPI_PORT1_REGISTER_DEV_ADDR  (9)
-#define HSX_QPI_PORT1_REGISTER_FUNC_ADDR (2)
-#define HSX_QPI_PORT2_REGISTER_DEV_ADDR  (10)
-#define HSX_QPI_PORT2_REGISTER_FUNC_ADDR (2)
+constexpr auto HSX_QPI_PORT0_REGISTER_DEV_ADDR = 8;
+constexpr auto HSX_QPI_PORT0_REGISTER_FUNC_ADDR = 2;
+constexpr auto HSX_QPI_PORT1_REGISTER_DEV_ADDR = 9;
+constexpr auto HSX_QPI_PORT1_REGISTER_FUNC_ADDR = 2;
+constexpr auto HSX_QPI_PORT2_REGISTER_DEV_ADDR = 10;
+constexpr auto HSX_QPI_PORT2_REGISTER_FUNC_ADDR = 2;
 
-#define SKX_QPI_PORT0_REGISTER_DEV_ADDR  (14)
-#define SKX_QPI_PORT0_REGISTER_FUNC_ADDR (0)
-#define SKX_QPI_PORT1_REGISTER_DEV_ADDR  (15)
-#define SKX_QPI_PORT1_REGISTER_FUNC_ADDR (0)
-#define SKX_QPI_PORT2_REGISTER_DEV_ADDR  (16)
-#define SKX_QPI_PORT2_REGISTER_FUNC_ADDR (0)
+constexpr auto SKX_QPI_PORT0_REGISTER_DEV_ADDR = 14;
+constexpr auto SKX_QPI_PORT0_REGISTER_FUNC_ADDR = 0;
+constexpr auto SKX_QPI_PORT1_REGISTER_DEV_ADDR = 15;
+constexpr auto SKX_QPI_PORT1_REGISTER_FUNC_ADDR = 0;
+constexpr auto SKX_QPI_PORT2_REGISTER_DEV_ADDR = 16;
+constexpr auto SKX_QPI_PORT2_REGISTER_FUNC_ADDR = 0;
 
-#define CPX_QPI_PORT3_REGISTER_DEV_ADDR  (14)
-#define CPX_QPI_PORT3_REGISTER_FUNC_ADDR (4)
-#define CPX_QPI_PORT4_REGISTER_DEV_ADDR  (15)
-#define CPX_QPI_PORT4_REGISTER_FUNC_ADDR (4)
-#define CPX_QPI_PORT5_REGISTER_DEV_ADDR  (16)
-#define CPX_QPI_PORT5_REGISTER_FUNC_ADDR (4)
+constexpr auto CPX_QPI_PORT3_REGISTER_DEV_ADDR = 14;
+constexpr auto CPX_QPI_PORT3_REGISTER_FUNC_ADDR = 4;
+constexpr auto CPX_QPI_PORT4_REGISTER_DEV_ADDR = 15;
+constexpr auto CPX_QPI_PORT4_REGISTER_FUNC_ADDR = 4;
+constexpr auto CPX_QPI_PORT5_REGISTER_DEV_ADDR = 16;
+constexpr auto CPX_QPI_PORT5_REGISTER_FUNC_ADDR = 4;
 
-#define ICX_QPI_PORT0_REGISTER_DEV_ADDR  (2)
-#define ICX_QPI_PORT0_REGISTER_FUNC_ADDR (1)
-#define ICX_QPI_PORT1_REGISTER_DEV_ADDR  (3)
-#define ICX_QPI_PORT1_REGISTER_FUNC_ADDR (1)
-#define ICX_QPI_PORT2_REGISTER_DEV_ADDR  (4)
-#define ICX_QPI_PORT2_REGISTER_FUNC_ADDR (1)
+constexpr auto ICX_QPI_PORT0_REGISTER_DEV_ADDR = 2;
+constexpr auto ICX_QPI_PORT0_REGISTER_FUNC_ADDR = 1;
+constexpr auto ICX_QPI_PORT1_REGISTER_DEV_ADDR = 3;
+constexpr auto ICX_QPI_PORT1_REGISTER_FUNC_ADDR = 1;
+constexpr auto ICX_QPI_PORT2_REGISTER_DEV_ADDR = 4;
+constexpr auto ICX_QPI_PORT2_REGISTER_FUNC_ADDR = 1;
 
-#define SPR_QPI_PORT0_REGISTER_DEV_ADDR  (1)
-#define SPR_QPI_PORT0_REGISTER_FUNC_ADDR (1)
+constexpr auto SPR_QPI_PORT0_REGISTER_DEV_ADDR = 1;
+constexpr auto SPR_QPI_PORT0_REGISTER_FUNC_ADDR = 1;
 
-#define SPR_QPI_PORT1_REGISTER_DEV_ADDR  (2)
-#define SPR_QPI_PORT1_REGISTER_FUNC_ADDR (1)
+constexpr auto SPR_QPI_PORT1_REGISTER_DEV_ADDR = 2;
+constexpr auto SPR_QPI_PORT1_REGISTER_FUNC_ADDR = 1;
 
-#define SPR_QPI_PORT2_REGISTER_DEV_ADDR  (3)
-#define SPR_QPI_PORT2_REGISTER_FUNC_ADDR (1)
+constexpr auto SPR_QPI_PORT2_REGISTER_DEV_ADDR = 3;
+constexpr auto SPR_QPI_PORT2_REGISTER_FUNC_ADDR = 1;
 
-#define SPR_QPI_PORT3_REGISTER_DEV_ADDR  (4)
-#define SPR_QPI_PORT3_REGISTER_FUNC_ADDR (1)
+constexpr auto SPR_QPI_PORT3_REGISTER_DEV_ADDR = 4;
+constexpr auto SPR_QPI_PORT3_REGISTER_FUNC_ADDR = 1;
+constexpr auto BHS_QPI_PORT0_REGISTER_DEV_ADDR = 16;
+constexpr auto BHS_QPI_PORT0_REGISTER_FUNC_ADDR = 1;
 
-#define QPI_PORT0_MISC_REGISTER_FUNC_ADDR (0)
-#define QPI_PORT1_MISC_REGISTER_FUNC_ADDR (0)
-#define QPI_PORT2_MISC_REGISTER_FUNC_ADDR (0)
+constexpr auto BHS_QPI_PORT1_REGISTER_DEV_ADDR = 17;
+constexpr auto BHS_QPI_PORT1_REGISTER_FUNC_ADDR = 1;
+
+constexpr auto BHS_QPI_PORT2_REGISTER_DEV_ADDR = 18;
+constexpr auto BHS_QPI_PORT2_REGISTER_FUNC_ADDR = 1;
+
+constexpr auto BHS_QPI_PORT3_REGISTER_DEV_ADDR = 19;
+constexpr auto BHS_QPI_PORT3_REGISTER_FUNC_ADDR = 1;
+
+constexpr auto BHS_QPI_PORT4_REGISTER_DEV_ADDR = 20;
+constexpr auto BHS_QPI_PORT4_REGISTER_FUNC_ADDR = 1;
+
+constexpr auto BHS_QPI_PORT5_REGISTER_DEV_ADDR = 21;
+constexpr auto BHS_QPI_PORT5_REGISTER_FUNC_ADDR = 1;
+
+constexpr auto QPI_PORT0_MISC_REGISTER_FUNC_ADDR = 0;
+constexpr auto QPI_PORT1_MISC_REGISTER_FUNC_ADDR = 0;
+constexpr auto QPI_PORT2_MISC_REGISTER_FUNC_ADDR = 0;
 
 constexpr auto SKX_M3UPI_PORT0_REGISTER_DEV_ADDR = (0x12);
 constexpr auto SKX_M3UPI_PORT0_REGISTER_FUNC_ADDR = (1);
@@ -790,19 +793,19 @@ constexpr auto SPR_M3UPI_PORT1_REGISTER_FUNC_ADDR = 1;
 constexpr auto SPR_M3UPI_PORT2_REGISTER_FUNC_ADDR = 1;
 constexpr auto SPR_M3UPI_PORT3_REGISTER_FUNC_ADDR = 1;
 
-#define SKX_M2M_0_REGISTER_DEV_ADDR  (8)
-#define SKX_M2M_0_REGISTER_FUNC_ADDR (0)
-#define SKX_M2M_1_REGISTER_DEV_ADDR  (9)
-#define SKX_M2M_1_REGISTER_FUNC_ADDR (0)
+constexpr auto SKX_M2M_0_REGISTER_DEV_ADDR = 8;
+constexpr auto SKX_M2M_0_REGISTER_FUNC_ADDR = 0;
+constexpr auto SKX_M2M_1_REGISTER_DEV_ADDR = 9;
+constexpr auto SKX_M2M_1_REGISTER_FUNC_ADDR = 0;
 
-#define SERVER_M2M_0_REGISTER_DEV_ADDR  (12)
-#define SERVER_M2M_0_REGISTER_FUNC_ADDR (0)
-#define SERVER_M2M_1_REGISTER_DEV_ADDR  (13)
-#define SERVER_M2M_1_REGISTER_FUNC_ADDR (0)
-#define SERVER_M2M_2_REGISTER_DEV_ADDR  (14)
-#define SERVER_M2M_2_REGISTER_FUNC_ADDR (0)
-#define SERVER_M2M_3_REGISTER_DEV_ADDR  (15)
-#define SERVER_M2M_3_REGISTER_FUNC_ADDR (0)
+constexpr auto SERVER_M2M_0_REGISTER_DEV_ADDR = 12;
+constexpr auto SERVER_M2M_0_REGISTER_FUNC_ADDR = 0;
+constexpr auto SERVER_M2M_1_REGISTER_DEV_ADDR = 13;
+constexpr auto SERVER_M2M_1_REGISTER_FUNC_ADDR = 0;
+constexpr auto SERVER_M2M_2_REGISTER_DEV_ADDR = 14;
+constexpr auto SERVER_M2M_2_REGISTER_FUNC_ADDR = 0;
+constexpr auto SERVER_M2M_3_REGISTER_DEV_ADDR = 15;
+constexpr auto SERVER_M2M_3_REGISTER_FUNC_ADDR = 0;
 
 constexpr auto SERVER_HBM_M2M_0_REGISTER_DEV_ADDR = 12;
 constexpr auto SERVER_HBM_M2M_0_REGISTER_FUNC_ADDR = 1;
@@ -840,29 +843,70 @@ constexpr auto SERVER_HBM_M2M_14_REGISTER_FUNC_ADDR = 4;
 constexpr auto SERVER_HBM_M2M_15_REGISTER_DEV_ADDR = 15;
 constexpr auto SERVER_HBM_M2M_15_REGISTER_FUNC_ADDR = 4;
 
-#define SKX_M2M_PCI_PMON_BOX_CTL_ADDR (0x258)
 
-#define SKX_M2M_PCI_PMON_CTL0_ADDR (0x228)
-#define SKX_M2M_PCI_PMON_CTL1_ADDR (0x230)
-#define SKX_M2M_PCI_PMON_CTL2_ADDR (0x238)
-#define SKX_M2M_PCI_PMON_CTL3_ADDR (0x240)
+// BHS B2CMI (M2M)
+constexpr auto BHS_M2M_0_REGISTER_DEV_ADDR = 5;
+constexpr auto BHS_M2M_0_REGISTER_FUNC_ADDR = 1;
+constexpr auto BHS_M2M_1_REGISTER_DEV_ADDR = 5;
+constexpr auto BHS_M2M_1_REGISTER_FUNC_ADDR = 2;
+constexpr auto BHS_M2M_2_REGISTER_DEV_ADDR = 5;
+constexpr auto BHS_M2M_2_REGISTER_FUNC_ADDR = 3;
+constexpr auto BHS_M2M_3_REGISTER_DEV_ADDR = 5;
+constexpr auto BHS_M2M_3_REGISTER_FUNC_ADDR = 4;
+constexpr auto BHS_M2M_4_REGISTER_DEV_ADDR = 5;
+constexpr auto BHS_M2M_4_REGISTER_FUNC_ADDR = 5;
+constexpr auto BHS_M2M_5_REGISTER_DEV_ADDR = 5;
+constexpr auto BHS_M2M_5_REGISTER_FUNC_ADDR = 6;
+constexpr auto BHS_M2M_6_REGISTER_DEV_ADDR = 5;
+constexpr auto BHS_M2M_6_REGISTER_FUNC_ADDR = 7;
+constexpr auto BHS_M2M_7_REGISTER_DEV_ADDR = 6;
+constexpr auto BHS_M2M_7_REGISTER_FUNC_ADDR = 1;
+constexpr auto BHS_M2M_8_REGISTER_DEV_ADDR = 6;
+constexpr auto BHS_M2M_8_REGISTER_FUNC_ADDR = 2;
+constexpr auto BHS_M2M_9_REGISTER_DEV_ADDR = 6;
+constexpr auto BHS_M2M_9_REGISTER_FUNC_ADDR = 3;
+constexpr auto BHS_M2M_10_REGISTER_DEV_ADDR = 6;
+constexpr auto BHS_M2M_10_REGISTER_FUNC_ADDR = 4;
+constexpr auto BHS_M2M_11_REGISTER_DEV_ADDR = 6;
+constexpr auto BHS_M2M_11_REGISTER_FUNC_ADDR = 5;
 
-#define SKX_M2M_PCI_PMON_CTR0_ADDR (0x200)
-#define SKX_M2M_PCI_PMON_CTR1_ADDR (0x208)
-#define SKX_M2M_PCI_PMON_CTR2_ADDR (0x210)
-#define SKX_M2M_PCI_PMON_CTR3_ADDR (0x218)
+// BHS B2UPI (M3UPI)
+constexpr auto BHS_M3UPI_PORT0_REGISTER_DEV_ADDR = 24;
+constexpr auto BHS_M3UPI_PORT1_REGISTER_DEV_ADDR = 25;
+constexpr auto BHS_M3UPI_PORT2_REGISTER_DEV_ADDR = 26;
+constexpr auto BHS_M3UPI_PORT3_REGISTER_DEV_ADDR = 27;
+constexpr auto BHS_M3UPI_PORT4_REGISTER_DEV_ADDR = 28;
+constexpr auto BHS_M3UPI_PORT5_REGISTER_DEV_ADDR = 29;
+constexpr auto BHS_M3UPI_PORT0_REGISTER_FUNC_ADDR = 0;
+constexpr auto BHS_M3UPI_PORT1_REGISTER_FUNC_ADDR = 0;
+constexpr auto BHS_M3UPI_PORT2_REGISTER_FUNC_ADDR = 0;
+constexpr auto BHS_M3UPI_PORT3_REGISTER_FUNC_ADDR = 0;
+constexpr auto BHS_M3UPI_PORT4_REGISTER_FUNC_ADDR = 0;
+constexpr auto BHS_M3UPI_PORT5_REGISTER_FUNC_ADDR = 0;
 
-#define SERVER_M2M_PCI_PMON_BOX_CTL_ADDR (0x438)
+constexpr auto SKX_M2M_PCI_PMON_BOX_CTL_ADDR = 0x258;
 
-#define SERVER_M2M_PCI_PMON_CTL0_ADDR (0x468)
-#define SERVER_M2M_PCI_PMON_CTL1_ADDR (SERVER_M2M_PCI_PMON_CTL0_ADDR + 1*8)
-#define SERVER_M2M_PCI_PMON_CTL2_ADDR (SERVER_M2M_PCI_PMON_CTL0_ADDR + 2*8)
-#define SERVER_M2M_PCI_PMON_CTL3_ADDR (SERVER_M2M_PCI_PMON_CTL0_ADDR + 3*8)
+constexpr auto SKX_M2M_PCI_PMON_CTL0_ADDR = 0x228;
+constexpr auto SKX_M2M_PCI_PMON_CTL1_ADDR = 0x230;
+constexpr auto SKX_M2M_PCI_PMON_CTL2_ADDR = 0x238;
+constexpr auto SKX_M2M_PCI_PMON_CTL3_ADDR = 0x240;
 
-#define SERVER_M2M_PCI_PMON_CTR0_ADDR (0x440)
-#define SERVER_M2M_PCI_PMON_CTR1_ADDR (SERVER_M2M_PCI_PMON_CTR0_ADDR + 1*8)
-#define SERVER_M2M_PCI_PMON_CTR2_ADDR (SERVER_M2M_PCI_PMON_CTR0_ADDR + 2*8)
-#define SERVER_M2M_PCI_PMON_CTR3_ADDR (SERVER_M2M_PCI_PMON_CTR0_ADDR + 3*8)
+constexpr auto SKX_M2M_PCI_PMON_CTR0_ADDR = 0x200;
+constexpr auto SKX_M2M_PCI_PMON_CTR1_ADDR = 0x208;
+constexpr auto SKX_M2M_PCI_PMON_CTR2_ADDR = 0x210;
+constexpr auto SKX_M2M_PCI_PMON_CTR3_ADDR = 0x218;
+
+constexpr auto SERVER_M2M_PCI_PMON_BOX_CTL_ADDR = 0x438;
+
+constexpr auto SERVER_M2M_PCI_PMON_CTL0_ADDR = 0x468;
+constexpr auto SERVER_M2M_PCI_PMON_CTL1_ADDR = SERVER_M2M_PCI_PMON_CTL0_ADDR + 1*8;
+constexpr auto SERVER_M2M_PCI_PMON_CTL2_ADDR = SERVER_M2M_PCI_PMON_CTL0_ADDR + 2*8;
+constexpr auto SERVER_M2M_PCI_PMON_CTL3_ADDR = SERVER_M2M_PCI_PMON_CTL0_ADDR + 3*8;
+
+constexpr auto SERVER_M2M_PCI_PMON_CTR0_ADDR = 0x440;
+constexpr auto SERVER_M2M_PCI_PMON_CTR1_ADDR = SERVER_M2M_PCI_PMON_CTR0_ADDR + 1*8;
+constexpr auto SERVER_M2M_PCI_PMON_CTR2_ADDR = SERVER_M2M_PCI_PMON_CTR0_ADDR + 2*8;
+constexpr auto SERVER_M2M_PCI_PMON_CTR3_ADDR = SERVER_M2M_PCI_PMON_CTR0_ADDR + 3*8;
 
 constexpr auto M3UPI_PCI_PMON_BOX_CTL_ADDR = (0xF4);
 
@@ -886,63 +930,74 @@ constexpr auto ICX_M3UPI_PCI_PMON_CTR1_ADDR = (0xB0);
 constexpr auto ICX_M3UPI_PCI_PMON_CTR2_ADDR = (0xB8);
 constexpr auto ICX_M3UPI_PCI_PMON_CTR3_ADDR = (0xC0);
 
+constexpr auto BHS_M3UPI_PCI_PMON_BOX_CTL_ADDR = (0x408);
+
+constexpr auto BHS_M3UPI_PCI_PMON_CTL0_ADDR = (0x430);
+constexpr auto BHS_M3UPI_PCI_PMON_CTL1_ADDR = (0x438);
+constexpr auto BHS_M3UPI_PCI_PMON_CTL2_ADDR = (0x440);
+constexpr auto BHS_M3UPI_PCI_PMON_CTL3_ADDR = (0x448);
+
+constexpr auto BHS_M3UPI_PCI_PMON_CTR0_ADDR = (0x410);
+constexpr auto BHS_M3UPI_PCI_PMON_CTR1_ADDR = (0x418);
+constexpr auto BHS_M3UPI_PCI_PMON_CTR2_ADDR = (0x420);
+constexpr auto BHS_M3UPI_PCI_PMON_CTR3_ADDR = (0x428);
+
 constexpr auto MSR_UNCORE_PMON_GLOBAL_CTL = 0x700;
 
 constexpr auto IVT_MSR_UNCORE_PMON_GLOBAL_CTL = 0x0C00;
 
 constexpr auto SPR_MSR_UNCORE_PMON_GLOBAL_CTL = 0x2FF0;
 
-#define PCM_INVALID_DEV_ADDR (~(uint32)0UL)
-#define PCM_INVALID_FUNC_ADDR (~(uint32)0UL)
+constexpr auto PCM_INVALID_DEV_ADDR = ~(uint32)0UL;
+constexpr auto PCM_INVALID_FUNC_ADDR = ~(uint32)0UL;
 
-#define Q_P_PCI_PMON_BOX_CTL_ADDR (0x0F4)
+constexpr auto Q_P_PCI_PMON_BOX_CTL_ADDR = 0x0F4;
 
-#define Q_P_PCI_PMON_CTL3_ADDR (0x0E4)
-#define Q_P_PCI_PMON_CTL2_ADDR (0x0E0)
-#define Q_P_PCI_PMON_CTL1_ADDR (0x0DC)
-#define Q_P_PCI_PMON_CTL0_ADDR (0x0D8)
+constexpr auto Q_P_PCI_PMON_CTL3_ADDR = 0x0E4;
+constexpr auto Q_P_PCI_PMON_CTL2_ADDR = 0x0E0;
+constexpr auto Q_P_PCI_PMON_CTL1_ADDR = 0x0DC;
+constexpr auto Q_P_PCI_PMON_CTL0_ADDR = 0x0D8;
 
-#define Q_P_PCI_PMON_CTR3_ADDR (0x0B8)
-#define Q_P_PCI_PMON_CTR2_ADDR (0x0B0)
-#define Q_P_PCI_PMON_CTR1_ADDR (0x0A8)
-#define Q_P_PCI_PMON_CTR0_ADDR (0x0A0)
+constexpr auto Q_P_PCI_PMON_CTR3_ADDR = 0x0B8;
+constexpr auto Q_P_PCI_PMON_CTR2_ADDR = 0x0B0;
+constexpr auto Q_P_PCI_PMON_CTR1_ADDR = 0x0A8;
+constexpr auto Q_P_PCI_PMON_CTR0_ADDR = 0x0A0;
 
-#define QPI_RATE_STATUS_ADDR (0x0D4)
+constexpr auto QPI_RATE_STATUS_ADDR = 0x0D4;
 
-#define U_L_PCI_PMON_BOX_CTL_ADDR (0x378)
+constexpr auto U_L_PCI_PMON_BOX_CTL_ADDR = 0x378;
 
-#define U_L_PCI_PMON_CTL3_ADDR (0x368)
-#define U_L_PCI_PMON_CTL2_ADDR (0x360)
-#define U_L_PCI_PMON_CTL1_ADDR (0x358)
-#define U_L_PCI_PMON_CTL0_ADDR (0x350)
+constexpr auto U_L_PCI_PMON_CTL3_ADDR = 0x368;
+constexpr auto U_L_PCI_PMON_CTL2_ADDR = 0x360;
+constexpr auto U_L_PCI_PMON_CTL1_ADDR = 0x358;
+constexpr auto U_L_PCI_PMON_CTL0_ADDR = 0x350;
 
-#define U_L_PCI_PMON_CTR3_ADDR (0x330)
-#define U_L_PCI_PMON_CTR2_ADDR (0x328)
-#define U_L_PCI_PMON_CTR1_ADDR (0x320)
-#define U_L_PCI_PMON_CTR0_ADDR (0x318)
+constexpr auto U_L_PCI_PMON_CTR3_ADDR = 0x330;
+constexpr auto U_L_PCI_PMON_CTR2_ADDR = 0x328;
+constexpr auto U_L_PCI_PMON_CTR1_ADDR = 0x320;
+constexpr auto U_L_PCI_PMON_CTR0_ADDR = 0x318;
 
-#define ICX_UPI_PCI_PMON_BOX_CTL_ADDR (0x318)
+constexpr auto ICX_UPI_PCI_PMON_BOX_CTL_ADDR = 0x318;
 
-#define ICX_UPI_PCI_PMON_CTL3_ADDR (0x368)
-#define ICX_UPI_PCI_PMON_CTL2_ADDR (0x360)
-#define ICX_UPI_PCI_PMON_CTL1_ADDR (0x358)
-#define ICX_UPI_PCI_PMON_CTL0_ADDR (0x350)
+constexpr auto ICX_UPI_PCI_PMON_CTL3_ADDR = 0x368;
+constexpr auto ICX_UPI_PCI_PMON_CTL2_ADDR = 0x360;
+constexpr auto ICX_UPI_PCI_PMON_CTL1_ADDR = 0x358;
+constexpr auto ICX_UPI_PCI_PMON_CTL0_ADDR = 0x350;
 
-#define ICX_UPI_PCI_PMON_CTR3_ADDR (0x338)
-#define ICX_UPI_PCI_PMON_CTR2_ADDR (0x330)
-#define ICX_UPI_PCI_PMON_CTR1_ADDR (0x328)
-#define ICX_UPI_PCI_PMON_CTR0_ADDR (0x320)
-
+constexpr auto ICX_UPI_PCI_PMON_CTR3_ADDR = 0x338;
+constexpr auto ICX_UPI_PCI_PMON_CTR2_ADDR = 0x330;
+constexpr auto ICX_UPI_PCI_PMON_CTR1_ADDR = 0x328;
+constexpr auto ICX_UPI_PCI_PMON_CTR0_ADDR = 0x320;
 constexpr auto SPR_UPI_PCI_PMON_BOX_CTL_ADDR =  0x318;
 constexpr auto SPR_UPI_PCI_PMON_CTL0_ADDR =     0x350;
-constexpr auto SPR_UPI_PCI_PMON_CTR0_ADDR =     0x320;
+constexpr auto SPR_UPI_PCI_PMON_CTR0_ADDR = 0x320;
 
-#define UCLK_FIXED_CTR_ADDR (0x704)
-#define UCLK_FIXED_CTL_ADDR (0x703)
-#define UBOX_MSR_PMON_CTL0_ADDR (0x705)
-#define UBOX_MSR_PMON_CTL1_ADDR (0x706)
-#define UBOX_MSR_PMON_CTR0_ADDR (0x709)
-#define UBOX_MSR_PMON_CTR1_ADDR (0x70a)
+constexpr auto UCLK_FIXED_CTR_ADDR = 0x704;
+constexpr auto UCLK_FIXED_CTL_ADDR = 0x703;
+constexpr auto UBOX_MSR_PMON_CTL0_ADDR = 0x705;
+constexpr auto UBOX_MSR_PMON_CTL1_ADDR = 0x706;
+constexpr auto UBOX_MSR_PMON_CTR0_ADDR = 0x709;
+constexpr auto UBOX_MSR_PMON_CTR1_ADDR = 0x70a;
 
 constexpr auto SPR_UCLK_FIXED_CTR_ADDR = 0x2FDF;
 constexpr auto SPR_UCLK_FIXED_CTL_ADDR = 0x2FDE;
@@ -951,6 +1006,16 @@ constexpr auto SPR_UBOX_MSR_PMON_CTL0_ADDR = 0x2FD2;
 constexpr auto SPR_UBOX_MSR_PMON_CTL1_ADDR = 0x2FD3;
 constexpr auto SPR_UBOX_MSR_PMON_CTR0_ADDR = 0X2FD8;
 constexpr auto SPR_UBOX_MSR_PMON_CTR1_ADDR = 0X2FD9;
+
+constexpr auto BHS_UCLK_FIXED_CTR_ADDR = 0x3FFD;
+constexpr auto BHS_UCLK_FIXED_CTL_ADDR = 0x3FFE;
+constexpr auto BHS_UBOX_MSR_PMON_BOX_CTL_ADDR = 0x3FF0;
+constexpr auto BHS_UBOX_MSR_PMON_CTL0_ADDR = 0x3FF2;
+constexpr auto BHS_UBOX_MSR_PMON_CTL1_ADDR = 0x3FF3;
+constexpr auto BHS_UBOX_MSR_PMON_CTR0_ADDR = 0x3FF8;
+constexpr auto BHS_UBOX_MSR_PMON_CTR1_ADDR = 0x3FF9;
+
+
 
 constexpr auto JKTIVT_UCLK_FIXED_CTR_ADDR = (0x0C09);
 constexpr auto JKTIVT_UCLK_FIXED_CTL_ADDR = (0x0C08);
@@ -1180,6 +1245,29 @@ static const uint32 ICX_IIO_UNIT_CTL[] = {
     0x0A50, 0x0A70, 0x0A90, 0x0AE0, 0x0B00, 0x0B20
 };
 
+
+static const uint32 BHS_IRP_UNIT_CTL[] = {
+    0x2A00,
+    0x2A10,
+    0x2A20,
+    0x2A30,
+    0x2A40,
+    0x2A50,
+    0x2A60,
+    0x2A70,
+    0x2A80,
+    0x2A90,
+    0x2AA0,
+    0x2AB0,
+    0x2AC0,
+    0x2AD0,
+    0x2AE0,
+    0x2AF0
+};
+
+#define BHS_IRP_CTL_REG_OFFSET      (0x0002)
+#define BHS_IRP_CTR_REG_OFFSET      (0x0008)
+
 static const uint32 SPR_IRP_UNIT_CTL[] = {
     0x3400,
     0x3410,
@@ -1245,6 +1333,12 @@ constexpr auto SPR_M2IOSF_IIO_CTR0     = 0x3008;
 constexpr auto SPR_M2IOSF_IIO_CTL0     = 0x3002;
 constexpr auto SPR_M2IOSF_REG_STEP = 0x10;
 constexpr auto SPR_M2IOSF_NUM      = 12;
+
+constexpr auto BHS_M2IOSF_IIO_UNIT_CTL = 0x2900;
+constexpr auto BHS_M2IOSF_IIO_CTR0     = 0x2908;
+constexpr auto BHS_M2IOSF_IIO_CTL0     = 0x2902;
+constexpr auto BHS_M2IOSF_REG_STEP = 0x10;
+constexpr auto BHS_M2IOSF_NUM      = 16;
 
 constexpr auto CXL_PMON_SIZE = 0x1000;
 
@@ -1349,32 +1443,32 @@ struct ICX_IIOPMUCNTCTLRegister
     ICX_IIOPMUCNTCTLRegister() : value(0) { }
 };
 
-#define MSR_PACKAGE_THERM_STATUS (0x01B1)
-#define MSR_IA32_THERM_STATUS    (0x019C)
-#define PCM_INVALID_THERMAL_HEADROOM ((std::numeric_limits<int32>::min)())
+constexpr auto MSR_PACKAGE_THERM_STATUS = 0x01B1;
+constexpr auto MSR_IA32_THERM_STATUS = 0x019C;
+constexpr auto PCM_INVALID_THERMAL_HEADROOM = (std::numeric_limits<int32_t>::min)();
 
-#define MSR_IA32_BIOS_SIGN_ID   (0x8B)
+constexpr auto MSR_IA32_BIOS_SIGN_ID = 0x8B;
 
-#define MSR_DRAM_ENERGY_STATUS (0x0619)
+constexpr auto MSR_DRAM_ENERGY_STATUS = 0x0619;
 constexpr auto MSR_PP0_ENERGY_STATUS = 0x639;
 constexpr auto MSR_PP1_ENERGY_STATUS = 0x641;
 
-#define MSR_PKG_C2_RESIDENCY    (0x60D)
-#define MSR_PKG_C3_RESIDENCY    (0x3F8)
-#define MSR_PKG_C6_RESIDENCY    (0x3F9)
-#define MSR_PKG_C7_RESIDENCY    (0x3FA)
-#define MSR_CORE_C3_RESIDENCY   (0x3FC)
-#define MSR_CORE_C6_RESIDENCY   (0x3FD)
-#define MSR_CORE_C7_RESIDENCY   (0x3FE)
+constexpr auto MSR_PKG_C2_RESIDENCY    = 0x60D;
+constexpr auto MSR_PKG_C3_RESIDENCY    = 0x3F8;
+constexpr auto MSR_PKG_C6_RESIDENCY    = 0x3F9;
+constexpr auto MSR_PKG_C7_RESIDENCY    = 0x3FA;
+constexpr auto MSR_CORE_C3_RESIDENCY   = 0x3FC;
+constexpr auto MSR_CORE_C6_RESIDENCY   = 0x3FD;
+constexpr auto MSR_CORE_C7_RESIDENCY   = 0x3FE;
 
-#define MSR_PERF_GLOBAL_INUSE   (0x392)
+constexpr auto MSR_PERF_GLOBAL_INUSE   = 0x392;
 
-#define MSR_IA32_SPEC_CTRL         (0x48)
-#define MSR_IA32_ARCH_CAPABILITIES (0x10A)
+constexpr auto MSR_IA32_SPEC_CTRL         = 0x48;
+constexpr auto MSR_IA32_ARCH_CAPABILITIES = 0x10A;
 
-#define MSR_TSX_FORCE_ABORT (0x10f)
+constexpr auto MSR_TSX_FORCE_ABORT = 0x10f;
 
-#define MSR_PERF_CAPABILITIES (0x345)
+constexpr auto MSR_PERF_CAPABILITIES = 0x345;
 
 // data structure for converting two uint32s <-> uin64
 union cvt_ds

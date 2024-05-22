@@ -21,12 +21,14 @@ using namespace pcm;
 
 void print_usage(const char * progname)
 {
-    std::cout << "Usage " << progname << " [-w value] [-d] [-b low:high] ID offset\n\n";
+    std::cout << "Usage " << progname << " [-w value] [-d] [-b low:high] [-e entries] ID offset\n\n";
     std::cout << "  Reads/writes TPMI (Topology Aware Register and PM Capsule Interface) register \n";
     std::cout << "   ID          : TPMI ID\n";
     std::cout << "   offset      : register offset\n";
     std::cout << "   -w value    : write the value before reading \n";
     std::cout << "   -b low:high : read or write only low..high bits of the register\n";
+    std::cout << "   -e entries  : perform read/write on specified entries (default is all entries)\n";
+    std::cout << "                 (examples: -e 10 -e 10-11 -e 4,6,12-20,6)\n";
     std::cout << "   -d          : output all numbers in dec (default is hex)\n";
     std::cout << "   -v          : verbose ouput\n";
     std::cout << "   --version   : print application version\n";
@@ -48,11 +50,11 @@ int mainThrows(int argc, char * argv[])
     uint64 value = 0;
     bool write = false;
     bool dec = false;
-    bool verbose = false;
     std::pair<int64,int64> bits{-1, -1};
+    std::list<int> entries;
 
     int my_opt = -1;
-    while ((my_opt = getopt(argc, argv, "w:dvb:")) != -1)
+    while ((my_opt = getopt(argc, argv, "w:dvb:e:")) != -1)
     {
         switch (my_opt)
         {
@@ -64,10 +66,13 @@ int mainThrows(int argc, char * argv[])
             dec = true;
             break;
         case 'v':
-            verbose = true;
+            TPMIHandle::setVerbose(true);
             break;
         case 'b':
             bits = parseBitsParameter(optarg);
+            break;
+        case 'e':
+            entries = extract_integer_list(optarg);
             break;
         default:
             print_usage(argv[0]);
@@ -98,88 +103,48 @@ int mainThrows(int argc, char * argv[])
         return -1;
     }
     #endif
-    
-    processDVSEC([](const VSEC & vsec)
+
+    try
+    {
+        for (size_t i = 0; i < TPMIHandle::getNumInstances(); ++i)
         {
-            return vsec.fields.cap_id == 0xb // Vendor Specific DVSEC
-                && vsec.fields.vsec_id == 0x42; // TPMI PM_Features
-        }, [&](const uint64 bar, const VSEC & vsec)
-        {
-            struct PFS
+            TPMIHandle h(i, requestedID, requestedRelativeOffset, !write);
+            auto one = [&](const size_t p)
             {
-                uint64 TPMI_ID:8;
-                uint64 NumEntries:8;
-                uint64 EntrySize:16;
-                uint64 CapOffset:16;
-                uint64 Attribute:2;
-                uint64 Reserved:14;
-            };
-            static_assert(sizeof(PFS) == sizeof(uint64), "sizeof(PFS) != sizeof(uint64)");
-            assert(vsec.fields.EntrySize == 2);
-            std::vector<PFS> pfsArray(vsec.fields.NumEntries);
-            pcm::mmio_memcpy(&(pfsArray[0]), bar + vsec.fields.Address, vsec.fields.NumEntries * sizeof(PFS), true);
-            for (const auto & pfs : pfsArray)
-            {
-                if (verbose)
+                if (!dec)
+                    std::cout << std::hex << std::showbase;
+                readOldValueHelper(bits, value, write, [&h, &p](uint64& old_value)
+                { old_value = h.read64(p); return true; });
+                if (write)
                 {
-                    std::cout << "PFS" <<
-                    "\t TPMI_ID: " << pfs.TPMI_ID <<
-                    "\t NumEntries: " << pfs.NumEntries <<
-                    "\t EntrySize: " << pfs.EntrySize <<
-                    "\t CapOffset: " << pfs.CapOffset <<
-                    "\t Attribute: " << pfs.Attribute <<
-                    "\n";
+                    std::cout << " Writing " << value << " to TPMI ID " << requestedID << "@" << requestedRelativeOffset << " for entry " << p << " in instance " << i << "\n";
+                    h.write64(p, value);
                 }
-                for (uint64 p = 0; p < pfs.NumEntries; ++p)
+                value = h.read64(p);
+                extractBitsPrintHelper(bits, value, dec);
+                std::cout << " from TPMI ID " << requestedID << "@" << requestedRelativeOffset << " for entry " << p << " in instance " << i << "\n\n";
+            };
+            if (entries.empty())
+            {
+                for (size_t p = 0; p < h.getNumEntries(); ++p)
                 {
-                    uint32 reg0 = 0;
-                    const auto addr = bar + vsec.fields.Address + pfs.CapOffset * 1024ULL + p * pfs.EntrySize * sizeof(uint32); 
-                    mmio_memcpy(&reg0, addr, sizeof(uint32), false);
-                    if (reg0 == ~0U)
-                    {
-                        if (verbose)
-                        {
-                            std::cout << "invalid entry " << p << "\n";
-                        }
-                    }
-                    else if (pfs.TPMI_ID == requestedID)
-                    {
-                        if (verbose)
-                        {
-                            std::cout << "Entry "<< p << std::hex;
-                            for (uint64 i_offset = 0; i_offset < pfs.EntrySize * sizeof(uint32);  i_offset += sizeof(uint64))
-                            {
-                                uint64 reg = 0;
-                                mmio_memcpy(&reg, addr + i_offset, sizeof(uint64), false);
-                                std::cout << " register "<< i_offset << " = " << reg;
-                            }
-                            std::cout << std::dec << "\n";
-                        }
-                        try {
-                            const auto requestedAddr = addr + requestedRelativeOffset;
-                            const auto baseAddr = roundDownTo4K(requestedAddr);
-                            const auto baseOffset = requestedAddr - baseAddr;
-                            MMIORange range(baseAddr, 4096ULL, !write);
-                            if (!dec) std::cout << std::hex << std::showbase;
-                            readOldValueHelper(bits, value, write, [&range, &baseOffset](uint64 & old_value){ old_value = range.read64(baseOffset); return true; });
-                            if (write)
-                            {
-                                std::cout << " Writing " << value << " to TPMI ID " << requestedID << "@" << requestedRelativeOffset << " for entry " << p << "\n";
-                                range.write64(baseOffset, value);
-                            }
-                            value = range.read64(baseOffset);
-                            extractBitsPrintHelper(bits, value, dec);
-                            std::cout << " from TPMI ID " << requestedID << "@" << requestedRelativeOffset << " for entry " << p << "\n\n";
-                        }
-                        catch (std::exception& e)
-                        {
-                            std::cerr << "Error accessing registers: " << e.what() << "\n";
-                            std::cerr << "Please check if the program can access MSR/PCICFG drivers.\n";
-                        }
-                    }
+                    entries.push_back(p);
                 }
             }
-        });
+            for (const size_t p : entries)
+            {
+                if (p < h.getNumEntries())
+                {
+                    one(p);
+                }
+            }
+        }
+    }
+    catch (std::exception &e)
+    {
+        std::cerr << "Error accessing registers: " << e.what() << "\n";
+        std::cerr << "Please check if the program can access MSR/PCICFG drivers.\n";
+    }
 
     return 0;
 }

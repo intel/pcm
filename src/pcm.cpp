@@ -533,7 +533,33 @@ void print_output(PCM * m,
             cout << setNextColor() << " LLCRDMISSLAT (ns)|";
         if (m->uncoreFrequencyMetricAvailable())
             cout << setNextColor() << " UncFREQ (Ghz)|";
+
+        auto printCentered = [](const std::string& str, int width)
+        {
+            int len = str.length();
+            if(width < len) {
+                std::cout << str;
+            } else {
+                int diff = width - len;
+                int pad1 = diff/2;
+                int pad2 = diff - pad1;
+                std::cout << std::string(pad1, ' ') << str << std::string(pad2, ' ');
+            }
+        };
+        const std::vector<uint64> uncoreDieTypes{getUncoreDieTypes(sktstate2[0])};
+        if (uncoreDieTypes.empty() == false)
+        {
+            cout << setNextColor() << " Unc(Ghz) ";
+            for (auto & d: uncoreDieTypes)
+            {
+                cout << setNextColor();
+                printCentered(UncoreCounterState::getDieTypeStr(d), 7);
+                cout << " ";
+            }
+            std::cout << "|" ;
+        }
         cout << resetColor() << "\n";
+
         cout << longDiv;
         for (uint32 i = 0; i < m->getNumSockets(); ++i)
         {
@@ -575,6 +601,17 @@ void print_output(PCM * m,
                 if (m->uncoreFrequencyMetricAvailable()) {
                     cout << setNextColor() << "             ";
                     cout << setw(4) << getAverageUncoreFrequencyGhz(sktstate1[i], sktstate2[i]);
+                }
+                const std::vector<double> uncoreFrequencies{getUncoreFrequency(sktstate2[i])};
+                assert(uncoreFrequencies.size() == uncoreDieTypes.size());
+
+                if (uncoreFrequencies.empty() == false)
+                {
+                    cout << setNextColor() << "                ";
+                    for (auto & d: uncoreFrequencies)
+                    {
+                        cout << setNextColor() << "  " << std::setw(4) << d/1e9 << "  ";
+                    }
                 }
                 cout << resetColor() << "\n";
         }
@@ -824,6 +861,14 @@ void print_csv_header(PCM * m,
             header = "UncFREQ (Ghz)";
             print_csv_header_helper(header, m->getNumSockets());
         }
+        for (uint32 s = 0; s < m->getNumSockets(); ++s)
+        {
+            for (size_t die = 0; die < m->getNumUFSDies(); ++die)
+            {
+                header = "UncFREQ Die " + std::to_string(die) + " (Ghz)";
+                print_csv_header_helper(header);
+            }
+        }
     }
 
     if (show_core_output)
@@ -965,30 +1010,41 @@ void print_csv_header(PCM * m,
                 cout << "C" << s << "res%,";
         }
 
+        auto printSKT = [] (const uint32 i, const uint32 count = 1)
+        {
+            for (uint32 j = 0; j < count; ++j)
+            {
+                cout << "SKT" << i << ",";
+            }
+        };
         if (m->packageEnergyMetricsAvailable())
         {
             for (uint32 i = 0; i < m->getNumSockets(); ++i)
-                cout << "SKT" << i << ",";
+                printSKT(i);
         }
         if (m->ppEnergyMetricsAvailable())
         {
             for (uint32 i = 0; i < m->getNumSockets(); ++i)
-                cout << "SKT" << i << "," << "SKT" << i << ",";
+                printSKT(i, 2);
         }
         if (m->dramEnergyMetricsAvailable())
         {
             for (uint32 i = 0; i < m->getNumSockets(); ++i)
-                cout << "SKT" << i << ",";
+                printSKT(i);
         }
         if (m->LLCReadMissLatencyMetricsAvailable())
         {
             for (uint32 i = 0; i < m->getNumSockets(); ++i)
-                cout << "SKT" << i << ",";
+                printSKT(i);
         }
         if (m->uncoreFrequencyMetricAvailable())
         {
             for (uint32 i = 0; i < m->getNumSockets(); ++i)
-                cout << "SKT" << i << ",";
+                printSKT(i);
+        }
+        for (uint32 i = 0; i < m->getNumSockets(); ++i)
+        {
+            printSKT(i, m->getNumUFSDies());
         }
     }
 
@@ -1244,6 +1300,15 @@ void print_csv(PCM * m,
         {
             for (uint32 i = 0; i < m->getNumSockets(); ++i)
                 cout << getAverageUncoreFrequencyGhz(sktstate1[i], sktstate2[i]) << ",";
+        }
+        for (uint32 i = 0; i < m->getNumSockets(); ++i)
+        {
+            const auto freqs = getUncoreFrequency(sktstate2[i]);
+            assert(freqs.size() == (size_t)m->getNumUFSDies());
+            for (auto & f : freqs)
+            {
+                cout << f/1e9 << ",";
+            }
         }
     }
 

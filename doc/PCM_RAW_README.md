@@ -193,3 +193,33 @@ Sample csv output (date,time,event_name,milliseconds_between_samples,TSC_cycles_
 2021-09-27,00:07:40.507,UNC_UPI_L1_POWER_CYCLES,1000,2102078418,0,0,1200328715,0,0,1200283803
 ```
 The unit can be logical core, memory channel, CHA, etc, depending on the event type.
+
+--------------------------------------------------------------------------------
+Low-level access to Intel PMT telemetry data
+--------------------------------------------------------------------------------
+
+pcm-raw can read raw telemetry data from Intel PMT (https://github.com/intel/Intel-PMT/).
+
+Syntax for a PMT raw telemetry counter:
+
+```
+pmt/config=<uniqueid>,config1=<sampleID>,config2=<sampleType>,config3=<lsb,config4=<msb>[,name=<description>]
+
+```
+
+The fields are the values for the counter from the Intel PMT aggregator XML:
+
+* uniqueid : Intel PMT Telemetry unique identifier
+* sampleID : sample ID of the counter
+* sampleType counter encoding:
+  -  0        : Snapshot (last value reported in csv)
+  - non-zero  : Counter (delta to last value reported in csv)
+* lsb : lsb field
+* msb : msb field
+
+Example for https://github.com/intel/Intel-PMT/blob/868049006ad2770a75e5fc7526fd0c4b22438e27/xml/SPR/OOBMSM/CORE/spr_aggregator.xml#L15428:
+```
+pmt/config=0x87b6fef1,config1=770,config2=0,config3=32,config4=63,name="Temperature_histogram_range_5_(50.5-57.5C)_counter_for_core_0"
+```
+
+Current limitations: this feature (PMT access) is currently only available on Linux (with Intel PMT Linux driver).

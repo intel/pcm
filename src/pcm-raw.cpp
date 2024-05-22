@@ -602,8 +602,10 @@ AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEven
 
     static std::map<std::string, std::string> pmuNameMap = {
         {std::string("cbo"), std::string("cha")},
+        {std::string("b2cmi"), std::string("m2m")},
         {std::string("upi"), std::string("xpi")},
         {std::string("upi ll"), std::string("xpi")},
+        {std::string("b2upi"), std::string("m3upi")},
         {std::string("qpi"), std::string("xpi")},
         {std::string("qpi ll"), std::string("xpi")}
     };
@@ -1223,14 +1225,16 @@ const char * getTypeString(uint64 typeID)
 std::string getMSREventString(const uint64 & index, const std::string & type, const PCM::MSRType & msrType)
 {
     std::stringstream c;
-    c << type << ":0x" << std::hex << index << ":" << getTypeString(msrType);
+    c << type << "/MSR 0x" << std::hex << index << "/" << getTypeString(msrType);
     return c.str();
 }
 
 std::string getPCICFGEventString(const PCM::RawEventEncoding & eventEnc, const std::string& type)
 {
     std::stringstream c;
-    c << type << ":0x" << std::hex << eventEnc[PCM::PCICFGEventPosition::deviceID] << ":0x" << eventEnc[PCM::PCICFGEventPosition::offset] << ":0x" << eventEnc[PCM::PCICFGEventPosition::width] << ":"
+    c << type << "/deviceID 0x" << std::hex << eventEnc[PCM::PCICFGEventPosition::deviceID]
+              << "/offset 0x" << eventEnc[PCM::PCICFGEventPosition::offset]
+              << "/width 0x" << eventEnc[PCM::PCICFGEventPosition::width] << "/"
         << getTypeString(eventEnc[PCM::PCICFGEventPosition::type]);
     return c.str();
 }
@@ -1238,13 +1242,25 @@ std::string getPCICFGEventString(const PCM::RawEventEncoding & eventEnc, const s
 std::string getMMIOEventString(const PCM::RawEventEncoding& eventEnc, const std::string& type)
 {
     std::stringstream c;
-    c << type << ":0x" << std::hex <<
+    c << type << "/deviceID 0x" << std::hex <<
                           eventEnc[PCM::MMIOEventPosition::deviceID] <<
-                 ":0x" << eventEnc[PCM::MMIOEventPosition::offset] <<
-                 ":0x" << eventEnc[PCM::MMIOEventPosition::membar_bits1] <<
-                 ":0x" << eventEnc[PCM::MMIOEventPosition::membar_bits2] <<
-                 ":0x" << eventEnc[PCM::MMIOEventPosition::width] <<
-                 ":" << getTypeString(eventEnc[PCM::MMIOEventPosition::type]);
+                 "/offset 0x" << eventEnc[PCM::MMIOEventPosition::offset] <<
+                 "/membar_bits1 0x" << eventEnc[PCM::MMIOEventPosition::membar_bits1] <<
+                 "/membar_bits2 0x" << eventEnc[PCM::MMIOEventPosition::membar_bits2] <<
+                 "/width 0x" << eventEnc[PCM::MMIOEventPosition::width] <<
+                 "/" << getTypeString(eventEnc[PCM::MMIOEventPosition::type]);
+    return c.str();
+}
+
+std::string getPMTEventString(const PCM::RawEventEncoding& eventEnc, const std::string& type)
+{
+    std::stringstream c;
+    c << type << "/UID 0x" << std::hex <<
+                          eventEnc[PCM::PMTEventPosition::UID] <<
+                 "/offset 0x" << eventEnc[PCM::PMTEventPosition::offset] <<
+                 "/lsb 0x" << eventEnc[PCM::PMTEventPosition::lsb] <<
+                 "/msb 0x" << eventEnc[PCM::PMTEventPosition::msb] <<
+                 "/" << getTypeString(eventEnc[PCM::PMTEventPosition::type]);
     return c.str();
 }
 
@@ -1636,6 +1652,10 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
             else if (type == "mmio")
             {
                 printRegisterRows(getMMIOEventString, getMMIOEvent);
+            }
+            else if (type == "pmt")
+            {
+                printRegisterRows(getPMTEventString, getPMTEvent);
             }
             else if (type == "m3upi")
             {
@@ -2052,6 +2072,10 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs,
         else if (type == "mmio")
         {
             printRegisters(getMMIOEventString, getMMIOEvent);
+        }
+        else if (type == "pmt")
+        {
+            printRegisters(getPMTEventString, getPMTEvent);
         }
         else if (type == "ubox")
         {

@@ -115,7 +115,7 @@ class MMIORange
     MMIORange(const MMIORange &) = delete;
     MMIORange & operator = (const MMIORange &) = delete;
 public:
-    MMIORange(uint64 baseAddr_, uint64 size_, bool readonly_ = true);
+    MMIORange(uint64 baseAddr_, uint64 size_, bool readonly_ = true, bool silent = false);
     uint32 read32(uint64 offset)
     {
         return impl->read32(offset);
@@ -149,7 +149,7 @@ class MMIORange
     MMIORange(const MMIORange &) = delete;
     MMIORange & operator = (const MMIORange &) = delete;
 public:
-    MMIORange(uint64 baseAddr_, uint64 size_, bool readonly_ = true);
+    MMIORange(uint64 baseAddr_, uint64 size_, bool readonly_ = true, bool silent = false);
     uint32 read32(uint64 offset);
     uint64 read64(uint64 offset);
     void write32(uint64 offset, uint32 val);
@@ -158,6 +158,6 @@ public:
 };
 #endif
 
-void mmio_memcpy(void * dest, const uint64 src, const size_t n, const bool checkFailures);
+void mmio_memcpy(void * dest, const uint64 src, const size_t n, const bool checkFailures, const bool silent = false);
 
 } // namespace pcm

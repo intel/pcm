@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-// Copyright (c) 2009-2022, Intel Corporation
+// Copyright (c) 2009-2024, Intel Corporation
 // written by Roman Dementiev
 //            Thomas Willhalm
 //            and others
@@ -27,6 +27,8 @@
 #include "topologyentry.h"
 #include "msr.h"
 #include "pci.h"
+#include "tpmi.h"
+#include "pmt.h"
 #include "bw.h"
 #include "width_extender.h"
 #include "exceptions/unsupported_processor_exception.hpp"
@@ -412,6 +414,8 @@ public:
     enum EventPosition {
         READ=0,
         WRITE=1,
+        READ2=2,
+        WRITE2=3,
         READ_RANK_A=0,
         WRITE_RANK_A=1,
         READ_RANK_B=2,
@@ -419,8 +423,8 @@ public:
         PARTIAL=2,
         PMM_READ=2,
         PMM_WRITE=3,
-        PMM_MM_MISS_CLEAN=2,
-        PMM_MM_MISS_DIRTY=3,
+        MM_MISS_CLEAN=2,
+        MM_MISS_DIRTY=3,
         NM_HIT=0,  // NM :  Near Memory (DRAM cache) in Memory Mode
         M2M_CLOCKTICKS=1
     };
@@ -445,7 +449,10 @@ public:
     uint64 getHALocalRequests();
     //! \brief Get the number of local requests to home agent (BDX/HSX only)
     uint64 getHARequests();
-
+    //! \brief Get the number of Near Memory Hits
+    uint64 getNMHits();
+    //! \brief Get the number of Near Memory Misses
+    uint64 getNMMisses();
     //! \brief Get the number of PMM memory reads (in cache lines)
     uint64 getPMMReads();
     //! \brief Get the number of PMM memory writes (in cache lines)
@@ -632,6 +639,13 @@ class PCM_API PCM
     uint64 max_qpi_speed; // in GBytes/second
     uint32 L3ScalingFactor;
     int32 pkgThermalSpecPower, pkgMinimumPower, pkgMaximumPower;
+    enum UFS_TPMI
+    {
+        UFS_ID = 2,
+        UFS_FABRIC_CLUSTER_OFFSET = 1,
+        UFS_STATUS = 0
+    };
+    std::vector<std::vector<std::shared_ptr<TPMIHandle> > > UFSStatus;
 
     std::vector<TopologyEntry> topology;
     SystemRoot* systemTopology;
@@ -650,16 +664,26 @@ public:
         MDF_PMU_ID,
         PCU_PMU_ID,
         UBOX_PMU_ID,
+        PCIE_GEN5x16_PMU_ID,
+        PCIE_GEN5x8_PMU_ID,
         INVALID_PMU_ID
     };
 private:
     std::unordered_map<std::string, int> strToUncorePMUID_ {
+        {"pciex8", PCIE_GEN5x8_PMU_ID},
+        {"pciex16", PCIE_GEN5x16_PMU_ID}
     };
 public:
     UncorePMUIDs strToUncorePMUID(const std::string & type) const
     {
         const auto iter = strToUncorePMUID_.find(type);
         return (iter == strToUncorePMUID_.end()) ? INVALID_PMU_ID : (UncorePMUIDs)iter->second;
+    }
+    size_t getNumUFSDies() const
+    {
+        if (UFSStatus.empty()) return 0;
+
+        return UFSStatus[0].size();
     }
 private:
     typedef std::unordered_map<int, UncorePMUArrayType> UncorePMUMapType;
@@ -1183,6 +1207,7 @@ private:
 public:
     struct RawPMUConfig;
     void programCXLCM();
+    void programCXLDP();
     template <class CounterStateType>
     void readAndAggregateCXLCMCounters(CounterStateType & counterState);
 
@@ -1192,6 +1217,7 @@ private:
     void readQPICounters(SystemCounterState & counterState);
     void readPCICFGRegisters(SystemCounterState& result);
     void readMMIORegisters(SystemCounterState& result);
+    void readPMTRegisters(SystemCounterState& result);
     void reportQPISpeed() const;
     void readCoreCounterConfig(const bool complainAboutMSR = false);
     void readCPUMicrocodeLevel();
@@ -1218,12 +1244,14 @@ private:
             auto ctrl = pmu.counterControl[c];
             if (ctrl.get() != nullptr)
             {
-                if (PCM::SPR == cpu_model || PCM::EMR == cpu_model)
+                switch (cpu_model)
                 {
+                case SPR:
+                case EMR:
+                case SRF:
                     *ctrl = *curEvent;
-                }
-                else
-                {
+                    break;
+                default:
                     *ctrl = MC_CH_PCI_PMON_CTL_EN;
                     *ctrl = MC_CH_PCI_PMON_CTL_EN | *curEvent;
                 }
@@ -1286,7 +1314,9 @@ public:
         REQUESTS_ALL = 2,
         REQUESTS_LOCAL = 3,
         CXL_TxC_MEM = 0,   // works only on counters 0-3
-        CXL_TxC_CACHE = 1  // works only on counters 0-3
+        CXL_TxC_CACHE = 1, // works only on counters 0-3
+        CXL_RxC_MEM = 4,   // works only on counters 4-7
+        CXL_RxC_CACHE = 5  // works only on counters 4-7
     };
     //! check if in secure boot mode
     bool isSecureBoot() const;
@@ -1539,9 +1569,46 @@ public:
                 && a[MMIOEventPosition::membar_bits2] == b[MMIOEventPosition::membar_bits2];
         }
     };
+    struct PMTEventPosition
+    {
+        enum constants
+        {
+            UID = PCICFGEventPosition::deviceID,
+            offset = PCICFGEventPosition::offset,
+            type = PCICFGEventPosition::type,
+            lsb = 3,
+            msb = 4
+        };
+    };
+    struct PMTRegisterEncodingHash
+    {
+        std::size_t operator()(const RawEventEncoding & e) const
+        {
+            return std::hash<uint64>{}(e[PMTEventPosition::UID]);
+        }
+    };
+    struct PMTRegisterEncodingHash2
+    {
+        std::size_t operator()(const RawEventEncoding & e) const
+        {
+            std::size_t h1 = std::hash<uint64>{}(e[PMTEventPosition::UID]);
+            std::size_t h2 = std::hash<uint64>{}(e[PMTEventPosition::offset]);
+            std::size_t h3 = std::hash<uint64>{}(e[PMTEventPosition::lsb]);
+            return h1 ^ (h2 << 1ULL) ^ (h3 << 2ULL);
+        }
+    };
+    struct PMTRegisterEncodingCmp
+    {
+        bool operator ()(const RawEventEncoding& a, const RawEventEncoding& b) const
+        {
+            return a[PMTEventPosition::UID] == b[PMTEventPosition::UID];
+        }
+    };
+    typedef std::shared_ptr<TelemetryArray> PMTRegisterEncoding; // TelemetryArray shared ptr
 private:
     std::unordered_map<RawEventEncoding, std::vector<PCICFGRegisterEncoding>, PCICFGRegisterEncodingHash, PCICFGRegisterEncodingCmp> PCICFGRegisterLocations{};
     std::unordered_map<RawEventEncoding, std::vector<MMIORegisterEncoding>, MMIORegisterEncodingHash, MMIORegisterEncodingCmp> MMIORegisterLocations{};
+    std::unordered_map<RawEventEncoding, std::vector<PMTRegisterEncoding>, PMTRegisterEncodingHash, PMTRegisterEncodingCmp> PMTRegisterLocations{};
 public:
 
     TopologyEntry::CoreType getCoreType(const unsigned coreID) const
@@ -1808,6 +1875,7 @@ public:
         ICX = 106,
         SPR = 143,
         EMR = 207,
+        SRF = 175,
         END_OF_MODEL_LIST = 0x0ffff
     };
 
@@ -1831,7 +1899,7 @@ private:
         }
         return false;
     }
-    RawPMUConfig threadMSRConfig{}, packageMSRConfig{}, pcicfgConfig{}, mmioConfig{};
+    RawPMUConfig threadMSRConfig{}, packageMSRConfig{}, pcicfgConfig{}, mmioConfig{}, pmtConfig{};
 public:
 
     //! \brief Reads CPU family
@@ -1901,6 +1969,7 @@ public:
         case ICX:
         case SPR:
         case EMR:
+        case SRF:
             return (serverUncorePMUs.size() && serverUncorePMUs[0].get()) ? (serverUncorePMUs[0]->getNumQPIPorts()) : 0;
         }
         return 0;
@@ -1926,6 +1995,7 @@ public:
         case ICX:
         case SPR:
         case EMR:
+        case SRF:
         case BDX:
         case KNL:
             return (serverUncorePMUs.size() && serverUncorePMUs[0].get()) ? (serverUncorePMUs[0]->getNumMC()) : 0;
@@ -1953,6 +2023,7 @@ public:
         case ICX:
         case SPR:
         case EMR:
+        case SRF:
         case BDX:
         case KNL:
         case SNOWRIDGE:
@@ -1983,6 +2054,7 @@ public:
         case ICX:
         case SPR:
         case EMR:
+        case SRF:
         case BDX:
         case KNL:
         case SNOWRIDGE:
@@ -2042,6 +2114,7 @@ public:
             return 5;
         case SPR:
         case EMR:
+        case SRF:
             return 6;
         }
         if (isAtom())
@@ -2093,6 +2166,7 @@ public:
         case SNOWRIDGE:
         case SPR:
         case EMR:
+        case SRF:
         case KNL:
             return true;
         default:
@@ -2354,6 +2428,7 @@ public:
                  || cpu_model == PCM::MTL
                  || cpu_model == PCM::SPR
                  || cpu_model == PCM::EMR
+                 || cpu_model == PCM::SRF
                );
     }
 
@@ -2370,6 +2445,7 @@ public:
           || cpu_model == PCM::ICX
           || cpu_model == PCM::SPR
           || cpu_model == PCM::EMR
+          || cpu_model == PCM::SRF
           );
     }
 
@@ -2392,6 +2468,7 @@ public:
             ||  cpu_model == PCM::ICX
             ||  cpu_model == PCM::SPR
             ||  cpu_model == PCM::EMR
+            ||  cpu_model == PCM::SRF
             );
     }
 
@@ -2407,6 +2484,7 @@ public:
             ||  cpu_model == PCM::ICX
             ||  cpu_model == PCM::SPR
             ||  cpu_model == PCM::EMR
+            ||  cpu_model == PCM::SRF
                );
     }
 
@@ -2416,6 +2494,9 @@ public:
             || cpu_model == PCM::BDX
             || cpu_model == PCM::SKX
             || cpu_model == PCM::ICX
+            || cpu_model == PCM::SPR
+            || cpu_model == PCM::EMR
+            || cpu_model == PCM::SRF
             ;
     }
 
@@ -2424,6 +2505,13 @@ public:
         return outgoingQPITrafficMetricsAvailable();
     }
 
+    bool nearMemoryMetricsAvailable() const
+    {
+        return (
+               cpu_model == PCM::SRF
+            );
+    }
+    
     bool memoryTrafficMetricsAvailable() const
     {
         return (!(isAtom() || cpu_model == PCM::CLARKDALE))
@@ -2460,12 +2548,17 @@ public:
 	        || cpu_model  == PCM::SNOWRIDGE
             || cpu_model == PCM::SPR
             || cpu_model == PCM::EMR
+            || cpu_model == PCM::SRF
         );
     }
 
     bool uncoreFrequencyMetricAvailable() const
     {
-        return MSR.empty() == false && getMaxNumOfUncorePMUs(UBOX_PMU_ID) > 0ULL && getNumCores() == getNumOnlineCores();
+        return MSR.empty() == false
+                && getMaxNumOfUncorePMUs(UBOX_PMU_ID) > 0ULL
+                && getNumCores() == getNumOnlineCores()
+                && PCM::SRF != cpu_model
+            ;
     }
 
     bool LatencyMetricsAvailable() const
@@ -2556,6 +2649,7 @@ public:
             || cpu_model == PCM::ICX
             || cpu_model == PCM::SPR
             || cpu_model == PCM::EMR
+            || cpu_model == PCM::SRF
             || cpu_model == PCM::BDX
             || cpu_model == PCM::KNL
             );
@@ -2575,6 +2669,7 @@ public:
          || cpu_model_ == PCM::ICX
          || cpu_model_ == PCM::SPR
          || cpu_model_ == PCM::EMR
+         || cpu_model_ == PCM::SRF
                );
     }
 
@@ -2598,6 +2693,7 @@ public:
          || cpu_model == PCM::ICX
          || cpu_model == PCM::SPR
          || cpu_model == PCM::EMR
+         || cpu_model == PCM::SRF
                );
     }
 
@@ -2685,7 +2781,7 @@ public:
         return getBytesPerLinkCycle(cpu_model);
     }
 
-    static double getLinkTransfersPerLinkCycle()
+    double getLinkTransfersPerLinkCycle() const
     {
         return 8.;
     }
@@ -3280,6 +3376,7 @@ double getDRAMConsumedJoules(const CounterStateType & before, const CounterState
         || PCM::BDX == cpu_model
         || PCM::SKX == cpu_model
         || PCM::ICX == cpu_model
+        || PCM::SRF == cpu_model
         || PCM::KNL == cpu_model
         ) {
 /* as described in sections 5.3.2 (DRAM_POWER_INFO) and 5.3.3 (DRAM_ENERGY_STATUS) of
@@ -3308,6 +3405,16 @@ class UncoreCounterState
     friend uint64 getBytesReadFromMC(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
     friend uint64 getBytesWrittenToMC(const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
+
+    friend uint64 getNMHits(const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
+    friend uint64 getNMMisses(const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
+    friend double getNMHitRate(const CounterStateType & before, const CounterStateType & after);
+    template <class CounterStateType>
+    friend uint64 getNMMissBW(const CounterStateType & before, const CounterStateType & after);
+
     template <class CounterStateType>
     friend uint64 getBytesReadFromPMM(const CounterStateType & before, const CounterStateType & after);
     template <class CounterStateType>
@@ -3341,13 +3448,49 @@ class UncoreCounterState
     template <class CounterStateType>
     friend double getAverageUncoreFrequency(const CounterStateType& before, const CounterStateType& after);
     template <class CounterStateType>
+    friend std::vector<double> getUncoreFrequency(const CounterStateType& state);
+    template <class CounterStateType>
+    friend std::vector<uint64> getUncoreDieTypes(const CounterStateType& state);
+    template <class CounterStateType>
     friend double getAverageFrequencyFromClocks(const int64 clocks, const CounterStateType& before, const CounterStateType& after);
 
+public:
+    enum DieTypeBits
+    {
+        Compute = 1<<23,
+        LLC     = 1<<24,
+        Memory  = 1<<25,
+        IO      = 1<<26
+    };
+    static std::string getDieTypeStr(const uint64 d)
+    {
+        std::string type{};
+        if (d & UncoreCounterState::Compute)
+        {
+            type += "COR";
+        }
+        if (d & UncoreCounterState::IO)
+        {
+            type += "IO";
+        }
+        if (d & UncoreCounterState::LLC)
+        {
+            type += "LLC";
+        }
+        if (d & UncoreCounterState::Memory)
+        {
+            type += "M";
+        }
+        return type;
+    }
 protected:
+    std::vector<uint64> UFSStatus;
     uint64 UncMCFullWrites;
     uint64 UncMCNormalReads;
     uint64 UncHARequests;
     uint64 UncHALocalRequests;
+    uint64 UncNMMiss;
+    uint64 UncNMHit;
     uint64 UncPMMWrites;
     uint64 UncPMMReads;
     uint64 UncEDCFullWrites;
@@ -3366,10 +3509,13 @@ protected:
 
 public:
     UncoreCounterState() :
+        UFSStatus{{}},
         UncMCFullWrites(0),
         UncMCNormalReads(0),
         UncHARequests(0),
         UncHALocalRequests(0),
+        UncNMMiss(0),
+        UncNMHit(0),
         UncPMMWrites(0),
         UncPMMReads(0),
         UncEDCFullWrites(0),
@@ -3383,6 +3529,7 @@ public:
         TORInsertsIAMiss(0),
         UncClocks(0)
     {
+        UFSStatus.clear();
         std::fill(CStateResidency, CStateResidency + PCM::MAX_C_STATE + 1, 0);
         std::fill(PPEnergyStatus, PPEnergyStatus + PCM::MAX_PP + 1, 0);
     }
@@ -3423,7 +3570,7 @@ class ServerUncoreCounterState : public UncoreCounterState
 {
 public:
     enum {
-        maxControllers = 4,
+        maxControllers = 32,
         maxChannels = 32,
         maxXPILinks = 6,
         maxIIOStacks = 16,
@@ -3634,6 +3781,7 @@ class SystemCounterState : public SocketCounterState
     friend class PCM;
     friend std::vector<uint64> getPCICFGEvent(const PCM::RawEventEncoding& eventEnc, const SystemCounterState& before, const SystemCounterState& after);
     friend std::vector<uint64> getMMIOEvent(const PCM::RawEventEncoding& eventEnc, const SystemCounterState& before, const SystemCounterState& after);
+    friend std::vector<uint64> getPMTEvent(const PCM::RawEventEncoding& eventEnc, const SystemCounterState& before, const SystemCounterState& after);
 
     std::vector<std::vector<uint64> > incomingQPIPackets; // each 64 byte
     std::vector<std::vector<uint64> > outgoingQPIFlits; // idle or data/non-data flits depending on the architecture
@@ -3641,6 +3789,7 @@ class SystemCounterState : public SocketCounterState
     uint64 uncoreTSC;
     std::unordered_map<PCM::RawEventEncoding, std::vector<uint64> , PCM::PCICFGRegisterEncodingHash, PCM::PCICFGRegisterEncodingCmp> PCICFGValues{};
     std::unordered_map<PCM::RawEventEncoding, std::vector<uint64>, PCM::MMIORegisterEncodingHash, PCM::MMIORegisterEncodingCmp> MMIOValues{};
+    std::unordered_map<PCM::RawEventEncoding, std::vector<uint64>, PCM::PMTRegisterEncodingHash2> PMTValues{};
 
 protected:
     void readAndAggregate(std::shared_ptr<SafeMsrHandle> handle)
@@ -3743,6 +3892,29 @@ double getIPC(const CounterStateType & before, const CounterStateType & after) /
     return -1;
 }
 
+// \brief Returns current uncore frequency vector
+template <class CounterStateType>
+std::vector<double> getUncoreFrequency(const CounterStateType& state)
+{
+    std::vector<double> result;
+    for (auto & e : state.UFSStatus)
+    {
+        result.push_back(extract_bits(e, 0, 6) * 100000000.);
+    }
+    return result;
+}
+
+// \brief Returns uncore die type vector
+template <class CounterStateType>
+std::vector<uint64> getUncoreDieTypes(const CounterStateType& state)
+{
+    std::vector<uint64> result;
+    for (auto & e : state.UFSStatus)
+    {
+        result.push_back(extract_bits(e, 23, 26) << 23);
+    }
+    return result;
+}
 
 /*! \brief Computes the number of retired instructions
 
@@ -4028,6 +4200,7 @@ uint64 getL2CacheMisses(const CounterStateType & before, const CounterStateType 
     const auto cpu_model = pcm->getCPUModel();
     if (pcm->useSkylakeEvents()
         || cpu_model == PCM::SNOWRIDGE
+        ||  cpu_model == PCM::SRF
         || cpu_model == PCM::ADL
         || cpu_model == PCM::RPL
         || cpu_model == PCM::MTL
@@ -4138,6 +4311,7 @@ uint64 getL3CacheHitsSnoop(const CounterStateType & before, const CounterStateTy
     if (!pcm->isL3CacheHitsSnoopAvailable()) return 0;
     const auto cpu_model = pcm->getCPUModel();
     if (cpu_model == PCM::SNOWRIDGE
+        ||  cpu_model == PCM::SRF
         || cpu_model == PCM::ADL
         || cpu_model == PCM::RPL
         || cpu_model == PCM::MTL
@@ -4302,12 +4476,75 @@ uint64 getBytesWrittenToMC(const CounterStateType & before, const CounterStateTy
     return 0ULL;
 }
 
+/*! \brief Computes number of Near Memory Hits
+
+    \param before CPU counter state before the experiment
+    \param after CPU counter state after the experiment
+    \return Number of bytes
+*/
+template <class CounterStateType>
+uint64 getNMHits(const CounterStateType & before, const CounterStateType & after)
+{
+    if (PCM::getInstance()->nearMemoryMetricsAvailable())
+        return (after.UncNMHit - before.UncNMHit);
+    return 0ULL;
+}
+
+/*! \brief Computes number of Near Memory Misses
+
+    \param before CPU counter state before the experiment
+    \param after CPU counter state after the experiment
+    \return Number of NMMisses
+*/
+template <class CounterStateType>
+uint64 getNMMisses(const CounterStateType & before, const CounterStateType & after)
+{
+    if (PCM::getInstance()->nearMemoryMetricsAvailable())
+        return (after.UncNMMiss - before.UncNMMiss);
+    return 0ULL;
+}
+
+/*! \brief Computes Near Memory Misses Bandwidth
+
+    \param before CPU counter state before the experiment
+    \param after CPU counter state after the experiment
+    \return Number of bytes
+*/
+template <class CounterStateType>
+uint64 getNMMissBW(const CounterStateType & before, const CounterStateType & after)
+{
+    if (PCM::getInstance()->nearMemoryMetricsAvailable())
+        return (after.UncNMMiss - before.UncNMMiss)*64*2;
+    return 0ULL;
+}
+
+/*! \brief Computes Near Memory Hit/Miss rate as a percentage
+
+    \param before CPU counter state before the experiment
+    \param after CPU counter state after the experiment
+    \return Number of bytes
+*/
+template <class CounterStateType>
+double getNMHitRate(const CounterStateType & before, const CounterStateType & after)
+{
+
+    if (PCM::getInstance()->nearMemoryMetricsAvailable())
+    {
+        auto hit = (after.UncNMHit - before.UncNMHit);
+        auto miss = (after.UncNMMiss - before.UncNMMiss);
+        if((hit+miss) != 0 )
+        return (hit*100.0/(hit+miss));}
+
+    return 0ULL;
+}
+
 /*! \brief Computes number of bytes read from PMM memory
 
     \param before CPU counter state before the experiment
     \param after CPU counter state after the experiment
     \return Number of bytes
 */
+
 template <class CounterStateType>
 uint64 getBytesReadFromPMM(const CounterStateType & before, const CounterStateType & after)
 {
@@ -4901,6 +5138,11 @@ inline std::vector<uint64> getPCICFGEvent(const PCM::RawEventEncoding & eventEnc
 inline std::vector<uint64> getMMIOEvent(const PCM::RawEventEncoding& eventEnc, const SystemCounterState& before, const SystemCounterState& after)
 {
     return getRegisterEvent(eventEnc, before.MMIOValues, after.MMIOValues);
+}
+
+inline std::vector<uint64> getPMTEvent(const PCM::RawEventEncoding& eventEnc, const SystemCounterState& before, const SystemCounterState& after)
+{
+    return getRegisterEvent(eventEnc, before.PMTValues, after.PMTValues);
 }
 
 template <class CounterStateType>

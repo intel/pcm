@@ -282,6 +282,8 @@ struct pci {
         {}
 
     bool hasChildDevices() const { return (child_pci_devs.size() != 0); }
+
+    bool isIntelDevice() const { return (vendor_id == PCM_INTEL_PCI_VENDOR_ID); }
 };
 struct iio_skx {
     struct {
