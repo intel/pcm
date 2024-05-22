@@ -303,7 +303,9 @@ constexpr auto IA32_PQR_ASSOC = 0xc8f;
 constexpr auto IA32_QM_EVTSEL = 0xc8d;
 constexpr auto IA32_QM_CTR = 0xc8e;
 
+#ifndef KERNEL
 constexpr auto PCM_INVALID_QOS_MONITORING_DATA = (std::numeric_limits<uint64>::max)();
+#endif
 
 /* \brief Event Select Register format
 
@@ -1445,7 +1447,9 @@ struct ICX_IIOPMUCNTCTLRegister
 
 constexpr auto MSR_PACKAGE_THERM_STATUS = 0x01B1;
 constexpr auto MSR_IA32_THERM_STATUS = 0x019C;
+#ifndef KERNEL
 constexpr auto PCM_INVALID_THERMAL_HEADROOM = (std::numeric_limits<int32_t>::min)();
+#endif
 
 constexpr auto MSR_IA32_BIOS_SIGN_ID = 0x8B;
 
