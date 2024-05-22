@@ -27,6 +27,7 @@
 #endif
 
 #ifndef _MSC_VER
+#include <unistd.h>
 #include <csignal>
 #include <ctime>
 #include <cmath>
@@ -35,10 +36,6 @@
 #endif
 #include <map>
 #include <unordered_map>
-
-#ifdef __linux__
-#include <unistd.h>
-#endif
 
 namespace pcm {
     std::string safe_getenv(const char* env);
