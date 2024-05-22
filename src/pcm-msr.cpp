@@ -167,8 +167,8 @@ int mainThrows(int argc, char * argv[])
                         uint64 value2 = value;
                         extractBitsPrintHelper(bits, value, dec);
                         char cname[100];
-                        if (core_in_dec) sprintf(cname,"%d",core);
-                        else sprintf(cname,"0x%x",core);
+                        if (core_in_dec) std::snprintf(cname, sizeof(cname), "%d", core);
+                        else std::snprintf(cname, sizeof(cname), "0x%x", core);
                         std::cout << " from MSR " << msr << " on core " << cname << "\n";
                         auto itx = it;
                         itx++;

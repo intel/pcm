@@ -4,7 +4,6 @@
 
 #include "pcm-accel-common.h"
 #ifdef _MSC_VER
-#pragma warning(disable : 4996) // for sprintf
 #include <windows.h>
 #include "windows/windriver.h"
 #else
