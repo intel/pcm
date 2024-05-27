@@ -477,7 +477,7 @@ PciHandleM::PciHandleM(uint32 bus_, uint32 device_, uint32 function_) :
     fd = handle;
 
     int mcfg_handle = PciHandle::openMcfgTable();
-    if (mcfg_handle < 0) throw std::exception();
+    if (mcfg_handle < 0) throw std::runtime_error("Cannot open any of /[pcm]/sys/firmware/acpi/tables/MCFG* files!");
 
     int32 result = ::pread(mcfg_handle, (void *)&base_addr, sizeof(uint64), 44);
 
@@ -569,11 +569,7 @@ void PciHandleMM::readMCFG()
         return; // already initialized
 
     int mcfg_handle = PciHandle::openMcfgTable();
-
-    if (mcfg_handle < 0)
-    {
-        throw std::exception();
-    }
+    if (mcfg_handle < 0) throw std::runtime_error("cannot open any of /[pcm]/sys/firmware/acpi/tables/MCFG* files!");
 
     ssize_t read_bytes = ::read(mcfg_handle, (void *)&mcfgHeader, sizeof(MCFGHeader));
 

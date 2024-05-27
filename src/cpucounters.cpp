@@ -1969,26 +1969,31 @@ void PCM::initUncoreObjects()
         initUncorePMUsDirect();
     }
 
-    // TPMIHandle::setVerbose(true);
-    if (TPMIHandle::getNumInstances() == (size_t)num_sockets)
-    {
-        // std::cerr << "DEBUG: TPMIHandle::getNumInstances(): " << TPMIHandle::getNumInstances() << "\n";
-        UFSStatus.resize(num_sockets);
-        for (uint32 s = 0; s < (uint32)num_sockets; ++s)
+    //TPMIHandle::setVerbose(true);
+    try {
+        if (TPMIHandle::getNumInstances() == (size_t)num_sockets)
         {
-            try {
-                TPMIHandle h(s, UFS_ID, UFS_FABRIC_CLUSTER_OFFSET * sizeof(uint64));
-                // std::cerr << "DEBUG: Socket " << s << " dies: " << h.getNumEntries() << "\n";
-                for (size_t die = 0; die < h.getNumEntries(); ++die)
-                {
-                    const auto clusterOffset = extract_bits(h.read64(die), 0, 7);
-                    UFSStatus[s].push_back(std::make_shared<TPMIHandle>(s, UFS_ID, (clusterOffset + UFS_STATUS)* sizeof(uint64)));
-                }
-            } catch (std::exception & )
+            // std::cerr << "DEBUG: TPMIHandle::getNumInstances(): " << TPMIHandle::getNumInstances() << "\n";
+            UFSStatus.resize(num_sockets);
+            for (uint32 s = 0; s < (uint32)num_sockets; ++s)
             {
-                std::cerr << "ERROR: Could not open UFS TPMI register on socket " << s << ". Uncore frequency metrics will be unavailable.\n";
+                try {
+                    TPMIHandle h(s, UFS_ID, UFS_FABRIC_CLUSTER_OFFSET * sizeof(uint64));
+                    // std::cerr << "DEBUG: Socket " << s << " dies: " << h.getNumEntries() << "\n";
+                    for (size_t die = 0; die < h.getNumEntries(); ++die)
+                    {
+                        const auto clusterOffset = extract_bits(h.read64(die), 0, 7);
+                        UFSStatus[s].push_back(std::make_shared<TPMIHandle>(s, UFS_ID, (clusterOffset + UFS_STATUS)* sizeof(uint64)));
+                    }
+                } catch (std::exception & e)
+                {
+                    std::cerr << "ERROR: Could not open UFS TPMI register on socket " << s << ". Uncore frequency metrics will be unavailable. Excaption details: " << e.what() << "\n";
+                }
             }
         }
+    } catch (std::exception & e)
+    {
+        std::cerr << "ERROR: Could not initialize TPMI. Uncore frequency metrics will be unavailable. Exception details: " << e.what() << "\n";
     }
 
     for (uint32 s = 0; s < (uint32)num_sockets; ++s)
