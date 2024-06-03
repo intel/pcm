@@ -1987,7 +1987,7 @@ void PCM::initUncoreObjects()
                     }
                 } catch (std::exception & e)
                 {
-                    std::cerr << "ERROR: Could not open UFS TPMI register on socket " << s << ". Uncore frequency metrics will be unavailable. Excaption details: " << e.what() << "\n";
+                    std::cerr << "ERROR: Could not open UFS TPMI register on socket " << s << ". Uncore frequency metrics will be unavailable. Exception details: " << e.what() << "\n";
                 }
             }
         }
