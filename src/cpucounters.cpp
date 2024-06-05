@@ -1019,12 +1019,13 @@ class QATTelemetryVirtualCounterRegister : public HWRegister
 {
     std::shared_ptr<QATTelemetryVirtualGeneralConfigRegister> gConfigReg;
     std::shared_ptr<QATTelemetryVirtualControlRegister> controlReg;
-    int ctr_id;
+    // int ctr_id; // unused
 public:
-    QATTelemetryVirtualCounterRegister( std::shared_ptr<QATTelemetryVirtualGeneralConfigRegister> gConfigReg_, std::shared_ptr<QATTelemetryVirtualControlRegister> controlReg_, int ctr_id_) : 
+    QATTelemetryVirtualCounterRegister( std::shared_ptr<QATTelemetryVirtualGeneralConfigRegister> gConfigReg_,
+        std::shared_ptr<QATTelemetryVirtualControlRegister> controlReg_,
+        int /* ctr_id_ */ ) :
         gConfigReg(gConfigReg_),
-        controlReg(controlReg_),
-        ctr_id(ctr_id_)
+        controlReg(controlReg_)
     {
     }
     void operator = (uint64 /* val */) override
@@ -5738,7 +5739,11 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool sile
         return true;
     };
     FixedEventControlRegister fixedReg;
-    auto setOtherConf = [&conf, &fixedReg, &globalRegPos](const RawPMUConfig& corePMUConfig)
+    auto setOtherConf = [&conf, &fixedReg
+#ifdef _MSC_VER
+        , &globalRegPos
+#endif
+            ](const RawPMUConfig& corePMUConfig)
     {
         if ((size_t)globalRegPos < corePMUConfig.programmable.size())
         {

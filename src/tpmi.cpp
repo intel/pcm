@@ -197,7 +197,7 @@ class TPMIHandleDriver : public TPMIHandleInterface
     const size_t instance;
     const size_t ID;
     const size_t offset;
-    const bool readonly;
+    // const bool readonly; // not used
     size_t nentries;
     struct TPMIEntry {
         unsigned int offset{0};
@@ -271,11 +271,11 @@ class TPMIHandleDriver : public TPMIHandleInterface
     }
 public:
     static size_t getNumInstances();
-    TPMIHandleDriver(const size_t instance_, const size_t ID_, const size_t offset_, const bool readonly_ = true) :
+    TPMIHandleDriver(const size_t instance_, const size_t ID_, const size_t offset_, const bool /* readonly_ */ = true) :
         instance(instance_),
         ID(ID_),
         offset(offset_),
-        readonly(readonly_),
+        // readonly(readonly_), // not used
         nentries(0)
     {
         assert(available > 0);

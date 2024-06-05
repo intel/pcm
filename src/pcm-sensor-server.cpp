@@ -4,7 +4,9 @@
 // Use port allocated for PCM in prometheus:
 // https://github.com/prometheus/prometheus/wiki/Default-port-allocations
 constexpr unsigned int DEFAULT_HTTP_PORT = 9738;
+#if defined (USE_SSL)
 constexpr unsigned int DEFAULT_HTTPS_PORT = DEFAULT_HTTP_PORT;
+#endif
 #include "pcm-accel-common.h"
 
 #include <limits.h>
@@ -969,7 +971,7 @@ protected:
         return 0;
     }
 
-    virtual int_type overflow( int_type ch ) {
+    virtual int_type overflow( int_type ch ) override {
         // send data in buffer and reset it
         if ( traits_type::eof() != ch ) {
             *Base::pptr() = ch;
@@ -982,7 +984,7 @@ protected:
         return bytesWritten; // Anything but traits_type::eof() to signal ok.
     }
 
-    virtual int_type underflow() {
+    virtual int_type underflow() override {
         std::fill(inputBuffer_, inputBuffer_ + SIZE, 0);
         ssize_t bytesReceived;
 
@@ -2547,9 +2549,9 @@ class HTTPConnection : public Work {
 public:
     HTTPConnection() = delete;
 #if defined (USE_SSL)
-    HTTPConnection( HTTPServer* hs, int socketFD, struct sockaddr_in clientAddr, std::vector<http_callback> const & cl, SSL* ssl = nullptr ) : hs_( hs ), socketStream_( socketFD, ssl ), clientAddress_( clientAddr ), callbackList_( cl ) {}
+    HTTPConnection( HTTPServer* hs, int socketFD, struct sockaddr_in /* clientAddr */, std::vector<http_callback> const & cl, SSL* ssl = nullptr ) : hs_( hs ), socketStream_( socketFD, ssl ), /* clientAddress_( clientAddr ), */ callbackList_( cl ) {}
 #else
-    HTTPConnection( HTTPServer* hs, int socketFD, struct sockaddr_in clientAddr, std::vector<http_callback> const & cl ) : hs_( hs ), socketStream_( socketFD ), clientAddress_( clientAddr ), callbackList_( cl ) {}
+    HTTPConnection( HTTPServer* hs, int socketFD, struct sockaddr_in /* clientAddr */, std::vector<http_callback> const & cl ) : hs_( hs ), socketStream_( socketFD ), /* clientAddress_( clientAddr ), */ callbackList_( cl ) {}
 #endif
     HTTPConnection( HTTPConnection const & ) = delete;
     void operator=( HTTPConnection const & ) = delete;
@@ -2644,7 +2646,7 @@ public:
 private:
     HTTPServer*  hs_;
     socketstream socketStream_;
-    struct sockaddr_in clientAddress_;
+    // struct sockaddr_in clientAddress_; // Not used yet
     std::vector<http_callback> const & callbackList_;
     std::vector<std::string> responseHeader_;
     std::string responseBody_;
