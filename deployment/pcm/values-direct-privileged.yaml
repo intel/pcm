@@ -13,4 +13,3 @@ resctrlMount: false     # with MSR resctrl mount is not needed
 resctrlInsideMount: false
 sysMount: false
 pciMount: false
-mcfgMount: false
