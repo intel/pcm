@@ -95,6 +95,7 @@ For validation to verify that all metrics are available without msr, unload "msr
 ```
 rmmod msr
 echo 2 > /proc/sys/kernel/perf_event_paranoid
+cat /proc/sys/kernel/perf_event_paranoid  # expected value 2
 ```
 
 #### 2) Create kind based Kubernetes cluster
@@ -292,6 +293,7 @@ helm install pcm . -f values-vm.yaml
 
 #### Heterogeneous (mixed VM/metal instances) cluster 
 
+values-metal.yaml requires node-feature-discovery to be preinstallaed
 ```
 helm install pcm-vm . -f values-vm.yaml
 helm install pcm-metal . -f values-metal.yaml
@@ -316,20 +318,22 @@ wget https://kind.sigs.k8s.io/examples/kind-with-registry.sh
 bash kind-with-registry.sh
 ```
 
-2) Build docker image and upload to local registry (from project root directory)
-```
-docker build . -t localhost:5001/pcm-local 
-docker push localhost:5001/pcm-local
+2) Build docker image and upload to local registry 
 
+```
 # optionally create buildx based builder
 mkdir ~/.docker/cli-plugins
 curl -sL https://github.com/docker/buildx/releases/download/v0.14.0/buildx-v0.14.0.linux-amd64 -o ~/.docker/cli-plugins/docker-buildx
 chmod +x ~/.docker/cli-plugins/docker-buildx
 docker buildx create --driver docker-container --name mydocker --use --bootstrap
 
-# or with single line (from deployment/pcm/ directory)
-# Build local image for tests/development
-# Following Dockerfile contains source code of pcm and some debugging utils (like gdb,strace for further analysis)
+# Build production image from **project root directory**:
+docker build . -t localhost:5001/pcm-local 
+docker push localhost:5001/pcm-local
+
+# Build/push **debug** image with single line 
+# Debug Dockerfile contains source code of pcm and some debugging utils (like gdb,strace for further analysis)
+# Run from deployment/pcm/ directory:
 (cd ../.. ;  docker build . -f Dockerfile.debug -t localhost:5001/pcm-local && docker push localhost:5001/pcm-local)
 ```
 
