@@ -1,0 +1,36 @@
+name: fuzz-job
+
+on:
+  schedule:
+    # every sunday at midnight
+    - cron: '0 0 * * 0'
+  # also allow manual triggering
+  workflow_dispatch:
+
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    runs-on: ci-test
+    if: ${{ github.repository != 'intel/pcm' }}
+
+    steps:
+    - name: Harden Runner
+      uses: step-security/harden-runner@eb238b55efaa70779f274895e782ed17c84f2895 # v2.6.1
+      with:
+        egress-policy: audit
+
+    - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
+      with:
+        submodules: recursive
+
+    - name: Build and test
+      run: |
+        cmake --version
+        set -o pipefail
+        mkdir build
+        cd build
+        sh ${{ github.workspace }}/tests/fuzz.sh 2>&1 | tee fuzz-log.txt
+
