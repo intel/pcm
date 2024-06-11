@@ -369,8 +369,8 @@ helm test pcm --logs --filter name=pcm-test-connection
 
 # or run test-connection-pod manually
 kubectl run -ti --rm --image busybox pcm-test-connection-manual -- sh
-kubectl run -ti --rm --image busybox pcm-test-connection-manual -- ping pcm-test-connection -t 1 -W 1 -w 1 -c 1
-kubectl run -ti --rm --image busybox pcm-test-connection-manual -- wget -S -T 15 pcm-test-connection:9739/metrics
+kubectl run -ti --rm --image busybox pcm-test-connection-manual -- ping pcm-test-connection.default.svc.cluster.local -t 1 -W 1 -w 1 -c 1
+kubectl run -ti --rm --image busybox pcm-test-connection-manual -- wget -S -T 15 pcm-test-connection.default.svc.cluster.local:9739/metrics
 ```
 
 ### Metric collection methods (capabilities vs requirements)
