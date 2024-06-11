@@ -37,3 +37,4 @@ src/simdjson
 /deployment/pcm/nri/
 /deployment/pcm/kind-with-registry.sh
 /deployment/pcm/autoscaler
+/deployment/pcm/pcm-dashboard.json

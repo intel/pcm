@@ -358,6 +358,21 @@ kubectl exec -ti ds/pcm -- bash
 kubectl logs ds/pcm
 ```
 
+6) Helm testing
+
+```
+helm test pcm
+
+# in case of failing, see the logs of test connection pod 
+# NOTE: filter is used to ignore service (helm limitation, which tries to download logs from service), so it assumes service exists, because previous run failed
+helm test pcm --logs --filter name=pcm-test-connection
+
+# or run test-connection-pod manually
+kubectl run -ti --rm --image busybox pcm-test-connection-manual -- sh
+kubectl run -ti --rm --image busybox pcm-test-connection-manual -- ping pcm-test-connection -t 1 -W 1 -w 1 -c 1
+kubectl run -ti --rm --image busybox pcm-test-connection-manual -- wget -S -T 15 pcm-test-connection:9739/metrics
+```
+
 ### Metric collection methods (capabilities vs requirements)
 
 
