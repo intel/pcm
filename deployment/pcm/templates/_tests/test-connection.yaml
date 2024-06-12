@@ -16,5 +16,5 @@ spec:
       command: 
       - 'sh' 
       - '-c'
-      - 'sleep 5; ping {{ include "pcm.fullname" . }}-test-connection.{{ .Release.Namespace }}.svc.cluster.local -t 1 -W 1 -w 1 -c 1 ; wget -T 15 -S {{ include "pcm.fullname" . }}-test-connection.{{ .Release.Namespace }}.svc.cluster.localg:9739/metrics -O - | grep Measurement_Interval_in_us'
+      - 'sleep 15; ping {{ include "pcm.fullname" . }}-test-connection.{{ .Release.Namespace }}.svc.cluster.local -t 1 -W 1 -w 1 -c 1 ; wget -T 15 -S {{ include "pcm.fullname" . }}-test-connection.{{ .Release.Namespace }}.svc.cluster.local:9739/metrics -O - | grep Measurement_Interval_in_us'
   restartPolicy: Never

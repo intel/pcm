@@ -38,3 +38,4 @@ src/simdjson
 /deployment/pcm/kind-with-registry.sh
 /deployment/pcm/autoscaler
 /deployment/pcm/pcm-dashboard.json
+/deployment/pcm/kind*
