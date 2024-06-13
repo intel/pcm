@@ -1340,6 +1340,8 @@ void print_csv(PCM * m,
     }
 }
 
+#ifndef UNIT_TEST
+
 PCM_MAIN_NOTHROW;
 
 int mainThrows(int argc, char * argv[])
@@ -1632,3 +1634,5 @@ int mainThrows(int argc, char * argv[])
 
     exit(EXIT_SUCCESS);
 }
+
+#endif // UNIT_TEST
