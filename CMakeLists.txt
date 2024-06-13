@@ -96,6 +96,13 @@ if(UNIX)  # APPLE, LINUX, FREE_BSD
 
 endif(UNIX)
 
+if(FUZZ)
+    set(FUZZER_OPTIONS "-fsanitize=fuzzer,address -fprofile-instr-generate -fcoverage-mapping")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${FUZZER_OPTIONS}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${FUZZER_OPTIONS}")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${FUZZER_OPTIONS}")
+endif(FUZZ)
+
 #######################
 # Install
 #######################
