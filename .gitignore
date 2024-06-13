@@ -35,7 +35,5 @@ build
 src/simdjson
 /deployment/pcm/smarter-device-manager/
 /deployment/pcm/nri/
-/deployment/pcm/kind-with-registry.sh
-/deployment/pcm/autoscaler
 /deployment/pcm/pcm-dashboard.json
-/deployment/pcm/kind*
+/deployment/pcm/_kind*
