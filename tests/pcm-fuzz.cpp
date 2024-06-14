@@ -7,15 +7,22 @@
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
-       auto m = PCM::getInstance();
-       const int *data_int = reinterpret_cast<const int *>(data);
        size_t size_int = size / sizeof(int);
-
-       if (size_int < 1) {
+       const auto ints_used = 7;
+       if (size_int < ints_used)
+       {
                return 0;
        }
 
-       int pid = data_int[0];
+       auto m = PCM::getInstance();
+       const int *data_int = reinterpret_cast<const int *>(data);
+       int pos = 0;
+       int pid = data_int[pos++];
+       bool use_pid = data_int[pos++] % 2;
+       if (!use_pid)
+       {
+                pid = -1;
+       }
 
        m->resetPMU();
 
@@ -41,11 +48,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
                 exit(EXIT_FAILURE);
         }
 
-        if (size_int < 6)
-        {
-                return 0;
-        }
-
         print_cpu_details();
 
         std::vector<CoreCounterState> cstates1, cstates2;
@@ -56,11 +58,12 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 
         print_pid_collection_message(pid);
         bool show_partial_core_output = false; // TODO: add support for partial core output
-        bool csv_output = data_int[1] % 2;
-        int metricVersion = data_int[2];
-        bool show_socket_output = data_int[3] % 2;
-        bool show_system_output = data_int[4] % 2;
-        bool show_core_output = data_int[5] % 2;
+        bool csv_output = data_int[pos++] % 2;
+        int metricVersion = data_int[pos++];
+        bool show_socket_output = data_int[pos++] % 2;
+        bool show_system_output = data_int[pos++] % 2;
+        bool show_core_output = data_int[pos++] % 2;
+        assert(pos == ints_used);
 
         m->getAllCounterStates(sstate1, sktstate1, cstates1);
         m->getAllCounterStates(sstate2, sktstate2, cstates2);
