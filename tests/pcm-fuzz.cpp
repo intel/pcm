@@ -24,6 +24,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
                 pid = -1;
        }
 
+       print_help("");
+
        m->resetPMU();
 
        m->disableJKTWorkaround();

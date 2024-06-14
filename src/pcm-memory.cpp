@@ -1326,6 +1326,7 @@ public:
     }
 };
 
+#ifndef UNIT_TEST
 
 PCM_MAIN_NOTHROW;
 
@@ -1641,3 +1642,5 @@ int mainThrows(int argc, char * argv[])
 
     exit(EXIT_SUCCESS);
 }
+
+#endif // UNIT_TEST
