@@ -8,5 +8,5 @@ LLVM_PROFILE_FILE="pcm.uncore_perf.profraw" PCM_USE_UNCORE_PERF=1 bin/tests/pcm-
 LLVM_PROFILE_FILE="pcm.nmi_watchdog.profraw" PCM_KEEP_NMI_WATCHDOG=1 bin/tests/pcm-fuzz -max_total_time=100 corpus > /dev/null &&
 LLVM_PROFILE_FILE="pcm-memory.profraw" bin/tests/pcm-memory-fuzz -max_total_time=1000 corpus > /dev/null &&
 llvm-profdata merge -sparse urltest.profraw pcm.profraw pcm.no_perf.profraw pcm.uncore_perf.profraw pcm.nmi_watchdog.profraw pcm-memory.profraw -o all.profdata &&
-llvm-cov report --summary-only -object ./bin/tests/pcm-fuzz -object ./bin/tests/urltest-fuzz -object ./bin/tests/pcm-memory-fuzz -instr-profile=all.profdata
+llvm-cov report --summary-only -object ./bin/tests/pcm-fuzz -object ./bin/tests/urltest-fuzz -object ./bin/tests/pcm-memory-fuzz -instr-profile=all.profdata | tee report.txt
 
