@@ -8059,7 +8059,8 @@ void ServerUncorePMUs::initDirect(uint32 socket_, const PCM * pcm)
     {
         switch (cpu_model)
         {
-            case PCM::SPR:
+            // don't use the discovery on SPR to work-around the issue
+	    // mentioned in https://lore.kernel.org/lkml/20221129191023.936738-1-kan.liang@linux.intel.com/T/
             case PCM::EMR:
                 {
                     std::cerr << "INFO: Trying to detect UPILL PMU through uncore PMU discovery..\n";
