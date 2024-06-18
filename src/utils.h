@@ -42,6 +42,14 @@
 #endif
 namespace pcm {
     std::string safe_getenv(const char* env);
+#ifdef _MSC_VER
+    typedef std::wstring StringType;
+    #define PCM_STRING(x) (L ## x)
+#else
+    typedef std::string StringType;
+    #define PCM_STRING(x) (x)
+#endif
+    void eraseEnvironmentVariables(const std::vector<StringType>& keepList);
 }
 
 #ifdef _MSC_VER
@@ -54,6 +62,13 @@ namespace pcm {
 int mainThrows(int argc, char * argv[]); \
 int main(int argc, char * argv[]) \
 { \
+    try { \
+       eraseEnvironmentVariables({PCM_STRING("POSIXLY_CORRECT")}); \
+    } catch(const std::exception & e) \
+    { \
+        std::cerr << "PCM ERROR. Exception in eraseEnvironmentVariables: " << e.what() << "\n"; \
+        return -1; \
+    } \
     PCM_SET_DLL_DIR \
     if (pcm::safe_getenv("PCM_NO_MAIN_EXCEPTION_HANDLER") == std::string("1")) return mainThrows(argc, argv); \
     try { \
