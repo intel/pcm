@@ -35,5 +35,6 @@ My Inspector XE Results - pcm
 .codedocs
 .cproject
 .project
+.dockerignore
 makefile
 sources
