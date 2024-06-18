@@ -124,7 +124,8 @@ nriBalloonsPolicyIntegration: false
 nfd: false
 # if enabled daemonset nodeAffinity will require node without feature.node.kubernetes.io/cpu-cpuid.HYPERVISOR flag (requires nfd=true)
 nfdBaremetalAffinity: false
-# if enabled, followin RDT labels will be required for scheduling (requires nfd=true)
+# if enabled, following RDT labels will be required for scheduling (requires nfd=true)
+# TODO: those labels are no longer available with default node-feature-discovery deployment
 # feature.node.kubernetes.io/cpu-rdt.RDTCMT=true
 # feature.node.kubernetes.io/cpu-rdt.RDTL3CA=true
 # feature.node.kubernetes.io/cpu-rdt.RDTMBA=true

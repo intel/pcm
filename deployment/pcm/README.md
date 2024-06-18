@@ -5,7 +5,7 @@ Helm chart instructions
 ### Features:
 
 - Configurable as non-privileged container (value: `privileged`, default: false) and privileged container,
-- Support for bare-metal and VM host configurations (files: [values-metal.yaml](values-metal.yaml), [values-vm.yaml](values-vm.yaml)),
+- Support for bare-metal and VM host configurations (files: [values-metal-nfd.yaml](values-metal.yaml), [values-vm.yaml](values-vm.yaml)),
 - Ability to deploy multiple releases alongside configured differently to handle different kinds of machines (bare-metal, VM) at the [same time](#heterogeneous-mixed-vmmetal-instances-cluster),
 - Linux Watchdog handling (controlled with `PCM_KEEP_NMI_WATCHDOG`, `PCM_NO_AWS_WORKAROUND`, `nmiWatchdogMount` values).
 - Deploy to own namespace with "helm install ... **-n pcm --create-namespace**".
@@ -76,6 +76,22 @@ More information here: https://kubernetes.io/docs/tutorials/security/ns-level-ps
 - Indirect method uses Linux abstraction to access event counters (Linux Perf, resctrl) and run container in non-privileged mode.
 - hostPort 9738 is exposed on host. (TODO: security review, consider TLS, together with Prometheus scrapping !!).
 - Prometheus podMonitor is disabled (enabled it with --set podMonitor=true).
+
+### TLS 
+
+TODO:
+- requires pcm-sensor-server to be build with SSL support
+- ERRROR !!!!
+
+```
+mkdir build
+cd build
+cmake .. -DCMAKE_CXX_FLAGS='-DUSE_SSL -lssl'
+zypper install openssl-devel
+make pcm-sensor-server -j
+openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -sha256 -days 3650 -nodes -subj "/C=XX/ST=StateName/L=CityName/O=CompanyName/OU=CompanySectionName/CN=CommonNameOrHostname"
+./bin/pcm-sensor-server -s -p 8443 --certificateFile cert.pem --privateKeyFile key.pem
+```
 
 ### Validation on local kind cluster
 
@@ -282,7 +298,7 @@ helm install pcm . -f values-direct-privileged.yaml
 #### Homogeneous bare metal instances cluster (full set of metrics)
 
 ```
-helm install pcm . -f values-metal.yaml
+helm install pcm . -f values-metal-nfd.yaml
 ```
 
 #### Homogenizer VM instances cluster (limited set of metrics core)
@@ -293,10 +309,10 @@ helm install pcm . -f values-vm.yaml
 
 #### Heterogeneous (mixed VM/metal instances) cluster 
 
-values-metal.yaml requires node-feature-discovery to be preinstallaed
+values-metal-nfd.yaml requires node-feature-discovery to be preinstallaed
 ```
 helm install pcm-vm . -f values-vm.yaml
-helm install pcm-metal . -f values-metal.yaml
+helm install pcm-metal . -f values-metal-nfd.yaml
 ```
 
 #### Direct method as non-privileged container (not recommended)
@@ -402,3 +418,12 @@ kubectl run -ti --rm --image busybox pcm-test-connection-manual -- wget -S -T 15
 |               | energy                                                     |                                 |                       | cpucounters.cpp initEnergyMonitoring()                   |                                                     |
 
 
+### E2E tests 
+
+Following end to end tests based on kind enviornment are provided by make targets:
+
+- `e2e-default` - test PCM with default configuration (indirect) and checks connection by calling `helm test`
+- `e2e-default-local-image` - same as above but build and deploys PCM with local image
+- `e2e-prometheus` - test PCM chart with deployed PodMonitor with Prometheus stack and queries Prometheus for collected data,
+- `e2e-vpa` - deploy PCM with VerticalPodAutoscaler (requires metrics-service to be deployed alongside)
+- `e2e-metal-nfd` - test PCM chart on metal scheduled by features exposed by node-feature-discovery (uses: values-metal-nfd.yaml),
