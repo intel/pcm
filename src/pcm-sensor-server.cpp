@@ -849,6 +849,8 @@ void PrometheusPrinter::iterateVectorAndCallAccept(Vector const& v) {
 template <std::size_t SIZE = 256, class CharT = char, class Traits = std::char_traits<CharT>>
 class basic_socketbuf : public std::basic_streambuf<CharT> {
 public:
+    basic_socketbuf(const basic_socketbuf&) = delete;
+    basic_socketbuf & operator = (const basic_socketbuf&) = delete;
     using Base = std::basic_streambuf<CharT>;
     using char_type   = typename Base::char_type;
     using int_type    = typename Base::int_type;
@@ -1060,6 +1062,8 @@ public:
     using traits_type = typename Base::traits_type;
 
 public:
+    basic_socketstream(const basic_socketstream &) = delete;
+    basic_socketstream & operator = (const basic_socketstream &) = delete;
     basic_socketstream() : stream_type( &socketBuffer_ ) {}
 #if defined (USE_SSL)
     basic_socketstream( int socketFD, SSL* ssl ) : stream_type( &socketBuffer_ ) {
@@ -2856,6 +2860,7 @@ public:
     HTTPSServer() : HTTPServer( "", 443 ) {}
     HTTPSServer( std::string const & ip, uint16_t port ) : HTTPServer( ip, port ), sslCTX_( nullptr ) {}
     HTTPSServer( HTTPSServer const & ) = delete;
+    HTTPSServer & operator = ( HTTPSServer const & ) = delete;
     virtual ~HTTPSServer() = default;
 
 public:
