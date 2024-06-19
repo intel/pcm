@@ -1,4 +1,6 @@
 
+export PCM_ENFORCE_MBM="1"
+
 CC=`which clang` CXX=`which clang++` cmake ..  -DCMAKE_BUILD_TYPE=Debug -DFUZZ=1 && mkdir -p corpus &&
 make urltest-fuzz pcm-fuzz pcm-memory-fuzz -j &&
 LLVM_PROFILE_FILE="urltest.profraw" bin/tests/urltest-fuzz -max_total_time=1000 corpus > /dev/null &&

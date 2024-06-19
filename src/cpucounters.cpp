@@ -550,9 +550,20 @@ bool PCM::L3CacheOccupancyMetricAvailable() const
     return (cpuinfo.reg.edx & 1)?true:false;
 }
 
+bool isMBMEnforced()
+{
+    static int flag = -1;
+    if (flag < 0)
+    {
+        // flag not yet initialized
+        flag = pcm::safe_getenv("PCM_ENFORCE_MBM") == std::string("1") ? 1 : 0;
+    }
+    return flag > 0;
+}
+
 bool PCM::CoreLocalMemoryBWMetricAvailable() const
 {
-    if (cpu_model == SKX && cpu_stepping < 5) return false; // SKZ4 errata
+    if (isMBMEnforced() == false && cpu_model == SKX && cpu_stepping < 5) return false; // SKZ4 errata
     PCM_CPUID_INFO cpuinfo;
     if (!(QOSMetricAvailable() && L3QOSMetricAvailable()))
             return false;
@@ -562,7 +573,7 @@ bool PCM::CoreLocalMemoryBWMetricAvailable() const
 
 bool PCM::CoreRemoteMemoryBWMetricAvailable() const
 {
-    if (cpu_model == SKX && cpu_stepping < 5) return false; // SKZ4 errata
+    if (isMBMEnforced() == false && cpu_model == SKX && cpu_stepping < 5) return false; // SKZ4 errata
     PCM_CPUID_INFO cpuinfo;
     if (!(QOSMetricAvailable() && L3QOSMetricAvailable()))
         return false;
