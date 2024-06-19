@@ -2915,9 +2915,43 @@ void HTTPSServer::run() {
         SSL* ssl = SSL_new( sslCTX_ );
         SSL_set_fd( ssl, clientSocketFD );
 
-        // Check if the SSL handshake worked
-        if ( SSL_accept( ssl ) <= 0 )
-            throw std::runtime_error( "SSL handshake failure" );
+        try {
+            while (1) {
+                bool leaveLoop = false;
+                // Check if the SSL handshake worked
+                int accept = SSL_accept( ssl );
+                switch (accept) {
+                case 0:
+                    throw std::runtime_error( "accept == 0 is a hard error." );
+                case -1:
+                    {
+                        int errorCode = SSL_get_error( ssl, accept );
+                        switch ( errorCode ) {
+                        case SSL_ERROR_WANT_READ:
+                        case SSL_ERROR_WANT_WRITE:
+                            // All good, just try again
+                            leaveLoop = false; // Unnecessary but for easier understanding
+                            break;
+                        case SSL_ERROR_ZERO_RETURN:
+                        case SSL_ERROR_SYSCALL:
+                        case SSL_ERROR_SSL:
+                        default:
+                            throw std::runtime_error( "Error not read or write is a hard error." );
+                        }
+                    }
+                    break;
+                default:
+                    // all good, continue
+                    leaveLoop = true;
+                }
+                if ( leaveLoop )
+                    break;
+            }
+        } catch( std::exception& e ) {
+             DBG( 3, "SSL Accept: error accepting incoming connection, closing the FD and continuing: ", e.what() );
+             ::close( clientSocketFD );
+             continue;
+        }
 
         // Client connected, let's determine the client ip as string.
         char ipbuf[INET_ADDRSTRLEN];
