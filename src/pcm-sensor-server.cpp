@@ -3181,23 +3181,35 @@ void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & re
 
 int startHTTPServer( unsigned short port ) {
     HTTPServer server( "", port );
-    // HEAD is GET without body, we will remove the body in execute()
-    server.registerCallback( HTTPRequestMethod::GET,  my_get_callback );
-    server.registerCallback( HTTPRequestMethod::HEAD, my_get_callback );
-    server.run();
+    try {
+        // HEAD is GET without body, we will remove the body in execute()
+        server.registerCallback( HTTPRequestMethod::GET,  my_get_callback );
+        server.registerCallback( HTTPRequestMethod::HEAD, my_get_callback );
+        server.run();
+    } catch (std::exception & e)
+    {
+        std::cerr << "Exception caught: " << e.what() << "\n";
+        return -1;
+    }
     return 0;
 }
 
 #if defined (USE_SSL)
 int startHTTPSServer( unsigned short port, std::string const & cFile, std::string const & pkFile) {
     HTTPSServer server( "", port );
-    server.setPrivateKeyFile ( pkFile );
-    server.setCertificateFile( cFile );
-    server.initialiseSSL();
-    // HEAD is GET without body, we will remove the body in execute()
-    server.registerCallback( HTTPRequestMethod::GET,  my_get_callback );
-    server.registerCallback( HTTPRequestMethod::HEAD, my_get_callback );
-    server.run();
+    try {
+        server.setPrivateKeyFile ( pkFile );
+        server.setCertificateFile( cFile );
+        server.initialiseSSL();
+        // HEAD is GET without body, we will remove the body in execute()
+        server.registerCallback( HTTPRequestMethod::GET,  my_get_callback );
+        server.registerCallback( HTTPRequestMethod::HEAD, my_get_callback );
+        server.run();
+    } catch (std::exception & e)
+    {
+        std::cerr << "Exception caught: " << e.what() << "\n";
+        return -1;
+    }
     return 0;
 }
 #endif
