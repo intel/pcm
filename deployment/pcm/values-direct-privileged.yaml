@@ -1,0 +1,15 @@
+#### Tunning for "direct" privilaged access
+privileged: true
+
+# Switch PCM to use msr access always
+PCM_NO_MSR: 0               # use MSR
+PCM_NO_PERF: 1              # do not use Linux perf 
+PCM_USE_UNCORE_PERF: 0      # also use MSR for uncore
+PCM_NO_RDT: 0               # Enable RDT metrics ...
+PCM_USE_RESCTRL: 0          # but using MSR (no resctrl filesystem)
+
+# with privileged container addtional mounts aren't required
+resctrlMount: false     # with MSR resctrl mount is not needed
+resctrlInsideMount: false
+sysMount: false
+pciMount: false

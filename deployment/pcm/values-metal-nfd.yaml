@@ -1,0 +1,7 @@
+#### ================ Tunning for bare-metal instances ================
+# with node-feature-discovery node affinity for non hypervisor and RDT
+nmiWatchdogMount: false
+PCM_NO_AWS_WORKAROUND: 1
+PCM_KEEP_NMI_WATCHDOG: 0
+nfd: true  
+nfdBaremetalAffinity: true

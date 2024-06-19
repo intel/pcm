@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: "{{ include "pcm.fullname" . }}-test-connection"
+  labels:
+    {{- include "pcm.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+    "helm.sh/hook-weight": "1"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  type: NodePort
+  ports:
+    - port: 9739
+      targetPort: pcm-metrics
+      protocol: TCP
+      name: pcm-metrics
+  selector:
+    {{- include "pcm.selectorLabels" . | nindent 4 }}

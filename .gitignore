@@ -33,3 +33,7 @@ latex/
 .idea/
 build
 src/simdjson
+/deployment/pcm/smarter-device-manager/
+/deployment/pcm/nri/
+/deployment/pcm/pcm-dashboard.json
+/deployment/pcm/_kind*

@@ -552,7 +552,7 @@ bool PCM::L3CacheOccupancyMetricAvailable() const
 
 bool PCM::CoreLocalMemoryBWMetricAvailable() const
 {
-    if (cpu_model == SKX && cpu_stepping < 5) return false; // SKZ4 errata
+    //if (cpu_model == SKX && cpu_stepping < 5) return false; // SKZ4 errata
     PCM_CPUID_INFO cpuinfo;
     if (!(QOSMetricAvailable() && L3QOSMetricAvailable()))
             return false;
@@ -562,7 +562,7 @@ bool PCM::CoreLocalMemoryBWMetricAvailable() const
 
 bool PCM::CoreRemoteMemoryBWMetricAvailable() const
 {
-    if (cpu_model == SKX && cpu_stepping < 5) return false; // SKZ4 errata
+    //if (cpu_model == SKX && cpu_stepping < 5) return false; // SKZ4 errata
     PCM_CPUID_INFO cpuinfo;
     if (!(QOSMetricAvailable() && L3QOSMetricAvailable()))
         return false;

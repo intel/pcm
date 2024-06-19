@@ -1,0 +1,41 @@
+{{- if .Values.podMonitor }}
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: {{ include "pcm.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "pcm.labels" . | nindent 4 }}
+    app.kubernetes.io/component: metrics
+    jobLabel: pcm
+    {{- with .Values.podMonitorLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  attachMetadata:
+    node: true
+  jobLabel: jobLabel
+  namespaceSelector:
+    matchNames:
+    - {{ .Release.Namespace }}
+  podMetricsEndpoints:
+  # requires hostPort to be set {{ required "A valid .Values.hostPort is required with PodMonitor enabled " .Values.hostPort }}
+  - enableHttp2: false
+    filterRunning: true
+    followRedirects: false
+    honorLabels: true
+    honorTimestamps: true
+    path: /metrics
+    port: pcm-metrics
+    interval: {{ .Values.podMonitorInterval | quote }}
+    relabelings:
+    - sourceLabels:
+      - __meta_kubernetes_pod_node_name
+      targetLabel: nodename
+    scheme: http
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: pcm-sensor-server
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/name: pcm
+{{- end }}

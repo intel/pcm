@@ -1,0 +1,6 @@
+#### ================ Tunning for VM ================
+nmiWatchdogMount: true
+
+# Disable RDT because is not avaiable for VM instances
+PCM_NO_RDT: 1                 
+resctrlMount: false

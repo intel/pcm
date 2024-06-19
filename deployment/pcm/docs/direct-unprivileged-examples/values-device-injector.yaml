@@ -1,0 +1,16 @@
+# Requires device injector nri Plugin
+# https://github.com/containerd/nri/tree/main/plugins/device-injector
+podAnnotations:
+  devices.nri.io/container.pcm: |+
+    - path: /dev/cpu/0/msr
+      type: c
+      major: 202
+      minor: 0
+    - path: /dev/cpu/1/msr
+      type: c
+      major: 202
+      minor: 1
+    - path: /dev/mem
+      type: c
+      major: 1
+      minor: 1

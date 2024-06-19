@@ -1,0 +1,9 @@
+# Requires smarter device manager
+# https://github.com/smarter-project/smarter-device-manager
+extraResources:
+  requests:
+    smarter-devices/cpu: 1
+    smarter-devices/mem: 1
+  limits:
+    smarter-devices/cpu: 1
+    smarter-devices/mem: 1

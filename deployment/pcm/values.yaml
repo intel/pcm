@@ -1,0 +1,167 @@
+### -------------- Naming -------------------
+# Used in:
+# - common label: app.kubernetes.io/name otherwise "Chart name"
+# - also in selectorLabels together with release.name
+# defaults to "Chart.name"
+nameOverride: ""
+# Used as daemonset name (usually based on truncated "name + release name")
+fullnameOverride: ""
+
+### -------------- Image options ------------
+image:
+  repository: ghcr.io/intel/pcm
+  pullPolicy: IfNotPresent
+  tag: "latest"               # uses .Chart.AppVersion if empty
+imagePullSecrets: {}
+
+### -------------- Security ------------------
+# Configures SecurityContext to not privileged (by default) so SYS_ADMIN/SYS_RAWIO capabilietes are required for running pod
+privileged: false
+
+# Use new kernel 5.8+ PERFMON (least privileged) instead of generic SYS_ADMIN capability
+# !Warning requires kernel 5.8+
+# more info here: https://www.kernel.org/doc/html/latest/admin-guide/perf-security.html#perf-events-access-control
+cap_perfmon: true
+
+# Run pcm in silent mode (additional -silent argument to pcm-sensor-server binary)
+# Removes some of debug outputs (like warnings about unability to open some /sys... /proc... files)
+silent: false
+
+### -------------- Required OS affinity -------
+# Should only running on linux
+nodeSelector:
+  kubernetes.io/os: linux
+
+### -------------- Probes ---------------------
+probes: false
+
+### ================ Metrics configuration ======================
+
+### -------------- Metrics: Uncore ------------
+# Mounts section
+# NOTE: only required for direct mode
+# required for uncore metrics discovery and working only in baremetal, not available for VM
+sysMount: false         # mounts host /sys into container /pcm/sys/
+pciMount: false         # mounts host /proc/bus/pci into container /pcm/proc/bus/pci/
+
+# NOTE this is only required for direct unprivileged mode  ?!?!?!
+# TODO: to be removed!!!?!?!!?!? (already coverred sysMounts !!!!) yes or not
+mcfgMount: false       # mounts hosts: /sys/firmware/acpi/tables/MCFG -> /pcm/sys/firmware/acpi/tables/MCFG
+
+### linux Perf (indirect) vs msr(direct)
+# Lets try "indirect" as default
+PCM_NO_MSR: 1                 # do not use MSR
+PCM_NO_PERF: 0                # use Linux Perf over MSR for core metrics
+PCM_USE_UNCORE_PERF: 1        # use Linux Perf instead of MSR for uncore metrics (collection+detection)
+
+### -------------- Metrics: RDT ---------------
+### RDT rdt/resctrl:
+PCM_NO_RDT: 0                 # 0 - try to collect RDT data, enables local/remote memory bandwidth + llc occupancy
+PCM_USE_RESCTRL: 1            # use Linux Perf  instead of MSR access (more reliable)
+# required for indirect RDT access, not available for VM only in baremetal
+# do not mount by default RDT can be also accessed through direct MSR programming
+resctrlMount: true        # mount from external host
+resctrlInsideMount: false     # TODO: mount inside with extra call to mount, requires image with mount installed - doesn't require
+
+### -------------- Other (NMI handling and/or on VM/AWS)
+PCM_IGNORE_ARCH_PERFMON: 0    # After VM is detected through CPUID (hypervisor flag) - check arch_perfmon flag to be also enabled - fail if not avaiable (0 - do check, 1 - disable check)
+# 0: Disabling NMI watchdog since it consumes one hw-PMU counter, requires nmiWatchdogMount to be true
+# 1: don't disable NMI watchdog (reducing the core metrics set) - prefferd for production usage!
+# but even with 0 automatic AWS workround applies!
+PCM_KEEP_NMI_WATCHDOG: 0
+# workaround: after VM is detected: "INFO: Reducing the number of programmable counters to 3 to workaround the fixed cycle counter virtualization issue on AWS.\n";)
+# 1: disables workaround and tries to use four programable counters (without workaround on VM will pcm-sensor-server will hang)
+# Please do not disable (value=1) on VMs
+PCM_NO_AWS_WORKAROUND: 0
+
+# mounting watchdog is recommened when PCM_KEEP_NMI_WATCHDOG=0 or we expect AWS workaround to be applied
+nmiWatchdogMount: true
+
+### -------------- Other (Debugging options for uncore pmu discovery)
+PCM_NO_UNCORE_PMU_DISCOVERY: 0      #  skip 1: this is not required for direct privileged access and with 0 ends with WARNING enumaration failed
+PCM_PRINT_UNCORE_PMU_DISCOVERY: 1   #  show: discovered pmu
+PCM_PRINT_TOPOLOGY: 0               #  show individual CPU topology  for each core (plenty of lines)
+PCM_NO_MAIN_EXCEPTION_HANDLER: 0    #  show full call stack of error
+
+### =============================== Optional POD fields no related to PCM ===============================
+# Pod level
+podAnnotations: {}
+podLabels: {}
+# Container level
+tolerations: []
+# Resources cpu/mem
+cpuLimit: 100m
+cpuRequest: 100m
+memoryLimit: 512Mi
+memoryRequest: 256Mi
+# requests, limits level need to be specified here
+extraResources: {}
+
+### =============================== Integrations with other projects ====================================
+#
+### -------------- Prometheus operator --------------------
+# Expose run containerPort "pcm-sensor-server -p 9738" as hostPort, can be empty to disable hostPort
+hostPort: 9738
+# Deploy PromtheusOperator PodMonitor (requires hostPort to be not empty)
+podMonitor: false
+# Extra PodMonitor labels to let Prometheus operator filter based on that
+# e.g. default "kube-prometheus-stack" helm chart requires additional release:"{name of chart release}" label in podMonitor to be considered
+# here is example how to check extra labels required to be added to PodMonitor
+# 1) kubectl get prometheus -o jsonpath='{.items[].spec.podMonitorSelector.matchLabels}' # e.g. release: prometheus
+# 2) helm install pcm . --set podMonitor=true --set podMonitorLabels.release=prometheus
+podMonitorLabels: {}
+# Default interval for Prometheus scrapping configuration
+podMonitorInterval: 30s
+
+
+### -------------- NRI balloons policy plugin -------------
+# PCM deployment to be intergrated with NRI balloons resource policy intergration
+# if true, will add special annotation to allow pcm pod use all the core, regardless NRI balloons policy rules.
+nriBalloonsPolicyIntegration: false
+
+### -------------  node-feature-discovery -----------------
+# when enabled specific set of labels will be used as node selector (Intel vendor, RDT availability, baremetal)
+nfd: false
+# if enabled daemonset nodeAffinity will require node without feature.node.kubernetes.io/cpu-cpuid.HYPERVISOR flag (requires nfd=true)
+nfdBaremetalAffinity: false
+# if enabled, following RDT labels will be required for scheduling (requires nfd=true)
+# TODO: those labels are no longer available with default node-feature-discovery deployment
+# feature.node.kubernetes.io/cpu-rdt.RDTCMT=true
+# feature.node.kubernetes.io/cpu-rdt.RDTL3CA=true
+# feature.node.kubernetes.io/cpu-rdt.RDTMBA=true
+# feature.node.kubernetes.io/cpu-rdt.RDTMBM=true
+# feature.node.kubernetes.io/cpu-rdt.RDTMON=true
+nfdRDTAffinity: false
+
+
+### -------------- verticalPodAutoscaler ------------------
+# Enable vertical pod autoscaler support for pcm-sensor-server
+verticalPodAutoscaler:
+  enabled: false
+
+  # Recommender responsible for generating recommendation for the object.
+  # List should be empty (then the default recommender will generate the recommendation)
+  # or contain exactly one recommender.
+  # recommenders:
+  # - name: custom-recommender-performance
+
+  # List of resources that the vertical pod autoscaler can control. Defaults to cpu and memory
+  controlledResources: []
+  # Specifies which resource values should be controlled: RequestsOnly or RequestsAndLimits.
+  # controlledValues: RequestsAndLimits
+
+  # Define the max allowed resources for the pod
+  maxAllowed: {}
+  # cpu: 200m
+  # memory: 100Mi
+  # Define the min allowed resources for the pod
+  minAllowed: {}
+  # cpu: 200m
+  # memory: 100Mi
+
+  # updatePolicy:
+    # Specifies minimal number of replicas which need to be alive for VPA Updater to attempt pod eviction
+    # minReplicas: 1
+    # Specifies whether recommended updates are applied when a Pod is started and whether recommended updates
+    # are applied during the life of a Pod. Possible values are "Off", "Initial", "Recreate", and "Auto".
+    # updateMode: Auto

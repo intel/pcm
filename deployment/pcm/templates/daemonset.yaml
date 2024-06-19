@@ -1,0 +1,201 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ include "pcm.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "pcm.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "pcm.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "pcm.labels" . | nindent 8 }}
+      annotations:
+      {{- with .Values.podAnnotations }}{{- toYaml . | nindent 8 }}{{- end }}
+      {{- if .Values.nriBalloonsPolicyIntegration }}
+        cpu.preserve.resource-policy.nri.io: "true"
+      {{- end }}
+    spec:
+      nodeSelector:
+        {{- with .Values.nodeSelector -}}{{- toYaml . | nindent 8 -}}{{- end -}}
+      {{- if .Values.nfd }}
+        feature.node.kubernetes.io/cpu-model.vendor_id: Intel
+        {{- if .Values.nfdRDTAffinity }}
+        feature.node.kubernetes.io/cpu-rdt.RDTCMT: "true"
+        feature.node.kubernetes.io/cpu-rdt.RDTL3CA: "true"
+        feature.node.kubernetes.io/cpu-rdt.RDTMBA: "true"
+        feature.node.kubernetes.io/cpu-rdt.RDTMBM: "true"
+        feature.node.kubernetes.io/cpu-rdt.RDTMON: "true"
+        {{- end }}
+      {{- if .Values.nfdBaremetalAffinity}}
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: "feature.node.kubernetes.io/cpu-cpuid.HYPERVISOR"
+                operator: DoesNotExist
+      {{- end }}
+      {{- end }} {{/* if nfd */}}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end -}}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      terminationGracePeriodSeconds: 0
+      containers:
+      - name: pcm
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        {{- include "pcm.securityContext" . | nindent 8 }}
+        {{- if .Values.silent }}
+        command:
+        - "/usr/local/bin/pcm-sensor-server"
+        - "-p"
+        - "9738"
+        - "-r"
+        - "-silent"
+        {{- end -}}
+        {{- if .Values.debugSleep }}
+        command:
+        - /usr/bin/sleep
+        - inf
+        {{- end -}}
+        {{- if .Values.debugPcm }}
+        command:
+        - /bin/bash
+        - -c 
+        - "/usr/local/bin/pcm 2 -r -nc -nsys{{ if .Values.silent }} -silent{{ end }}"
+        {{- end -}}
+        {{- if .Values.resctrlInternalMount }}
+        # Ugly hack to mount resctrl inside only for baremetal when we want use resctrl abstraction and is not mounted on HOST: TBC conflicts with 
+        command:
+        - /bin/bash
+        - -c 
+        - "dnf install -q -y util-linux-core; mount -t resctrl resctrl /sys/fs/resctrl; /usr/local/bin/pcm-sensor-server -p 9738 -r"
+        {{- end -}}
+        {{/* ALREADY DONE by securityContext on pod level
+        securityContext:
+          {{- toYaml .Values.podSecurityContext | nindent 12 }}
+        */}} 
+        resources:
+          requests:
+            {{ with .Values.cpuRequest }}cpu: {{.}}{{ end }}
+            {{ with .Values.memoryRequest }}memory: {{.}}{{ end }}
+            {{- with .Values.extraResources }} {{- toYaml .requests | nindent 12 }} {{- end }}
+          limits:
+            {{ with .Values.cpuLimit }}cpu: {{.}}{{ end }}
+            {{ with .Values.memoryLimit }}memory: {{.}}{{ end }}
+            {{- with .Values.extraResources }} {{- toYaml .limits | nindent 12 }} {{- end }}
+        env:
+        - name: PCM_NO_MSR
+          value: {{ .Values.PCM_NO_MSR | quote }} 
+        - name: PCM_NO_PERF
+          value: {{ .Values.PCM_NO_PERF | quote }} 
+        - name: PCM_USE_UNCORE_PERF
+          value: {{ .Values.PCM_USE_UNCORE_PERF | quote }} 
+        - name: PCM_NO_RDT
+          value: {{ .Values.PCM_NO_RDT | quote }} 
+        - name: PCM_USE_RESCTRL
+          value: {{ .Values.PCM_USE_RESCTRL | quote }} 
+        - name: PCM_IGNORE_ARCH_PERFMON
+          value: {{ .Values.PCM_IGNORE_ARCH_PERFMON | quote }} 
+        - name: PCM_KEEP_NMI_WATCHDOG
+          value: {{ .Values.PCM_KEEP_NMI_WATCHDOG | quote }} 
+        - name: PCM_NO_AWS_WORKAROUND
+          value: {{ .Values.PCM_NO_AWS_WORKAROUND | quote }} 
+        - name: PCM_NO_UNCORE_PMU_DISCOVERY
+          value: {{ .Values.PCM_NO_UNCORE_PMU_DISCOVERY | quote }} 
+        - name: PCM_PRINT_UNCORE_PMU_DISCOVERY
+          value: {{ .Values.PCM_PRINT_UNCORE_PMU_DISCOVERY | quote }} 
+        - name: PCM_PRINT_TOPOLOGY
+          value: {{ .Values.PCM_PRINT_TOPOLOGY | quote }} 
+        - name: PCM_NO_MAIN_EXCEPTION_HANDLER
+          value: {{ .Values.PCM_NO_MAIN_EXCEPTION_HANDLER | quote }} 
+        {{- with .Values.probes }}
+        livenessProbe:
+          {{- include "pcm.probe" . | nindent 12 }}
+        readinessProbe:
+          {{- include "pcm.probe" . | nindent 12 }}
+        {{- end }}
+        {{- with .Values.hostPort }}
+        ports:
+        - containerPort: 9738
+          hostPort: {{ . }} 
+          name: pcm-metrics
+          protocol: TCP
+        {{- end }}
+        volumeMounts:
+        # {{- if .Values.privileged }}
+        # - mountPath: /pcm/dev/cpu
+        #   name: dev-cpu
+        #   readOnly: false
+        # - mountPath: /pcm/dev/mem
+        #   name: dev-mem
+        #   readOnly: false
+        # {{- end }}
+        {{- if .Values.pciMount }}
+        - mountPath: /pcm/proc/bus/pci
+          name: proc-pci
+        {{- end }}
+        {{- if .Values.sysMount }}
+        - mountPath: /pcm/sys
+          name: sysfs
+          readOnly: true
+        {{- end }}
+        {{- if .Values.nmiWatchdogMount }}
+        - mountPath: /pcm/proc/sys/kernel/nmi_watchdog
+          name: nmi-watchdog
+          readOnly: true  # RW? # TODO
+        {{- end }}
+        {{- if .Values.resctrlMount }}
+        - mountPath: /sys/fs/resctrl
+          name: sysfs-resctrl
+        {{- end }}
+        # TODO: to be removed, already handled by /sysMount
+        # {{- if .Values.mcfgMount }}
+        # - mountPath: /pcm/sys/firmware/acpi/tables/MCFG
+        #   name: sys-acpi
+        #   readOnly: true
+        # {{- end }}
+      volumes:
+      # {{- if .Values.privileged }}
+      # - name: dev-cpu
+      #   hostPath:
+      #     path: /dev/cpu
+      # - name: dev-mem
+      #   hostPath:
+      #     path: /dev/mem
+      # {{- end}}
+      {{- if .Values.sysMount }}
+      - name: sysfs
+        hostPath:
+          path: /sys
+      {{- end}}
+      {{- if .Values.pciMount }}
+      - name: proc-pci
+        hostPath:
+          path: /proc/bus/pci
+      {{- end}}
+      {{- if .Values.nmiWatchdogMount }}
+      - name: nmi-watchdog
+        hostPath:
+          path: /proc/sys/kernel/nmi_watchdog
+      {{- end }}
+      # TODO: to be removed, already handled by /sysMount
+      # {{- if .Values.mcfgMount }}
+      # - name: sys-acpi
+      #   hostPath:
+      #     path: /sys/firmware/acpi/tables/MCFG
+      # {{- end }}
+      {{- if .Values.resctrlMount }}
+      - name: sysfs-resctrl
+        hostPath:
+          path: /sys/fs/resctrl
+      {{- end }}

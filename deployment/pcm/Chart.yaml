@@ -1,0 +1,9 @@
+apiVersion: v2
+name: pcm
+version: 0.1.0
+appVersion: "202404"
+description: A PCM Helm chart for Kubernetes
+home: https://github.com/intel/pcm
+maintainers:
+  - name: Pawel Palucki
+    email: pawel.palucki@intel.com
