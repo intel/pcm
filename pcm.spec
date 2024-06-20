@@ -14,6 +14,7 @@ BuildRequires:   gcc
 BuildRequires:   make
 BuildRequires:   gcc-c++
 BuildRequires:   cmake
+BuildRequires:   libopenssl-devel
 
 %description
 
