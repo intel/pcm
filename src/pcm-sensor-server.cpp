@@ -4,7 +4,9 @@
 // Use port allocated for PCM in prometheus:
 // https://github.com/prometheus/prometheus/wiki/Default-port-allocations
 constexpr unsigned int DEFAULT_HTTP_PORT = 9738;
+#if defined (USE_SSL)
 constexpr unsigned int DEFAULT_HTTPS_PORT = DEFAULT_HTTP_PORT;
+#endif
 #include "pcm-accel-common.h"
 
 #include <limits.h>
@@ -847,6 +849,8 @@ void PrometheusPrinter::iterateVectorAndCallAccept(Vector const& v) {
 template <std::size_t SIZE = 256, class CharT = char, class Traits = std::char_traits<CharT>>
 class basic_socketbuf : public std::basic_streambuf<CharT> {
 public:
+    basic_socketbuf(const basic_socketbuf&) = delete;
+    basic_socketbuf & operator = (const basic_socketbuf&) = delete;
     using Base = std::basic_streambuf<CharT>;
     using char_type   = typename Base::char_type;
     using int_type    = typename Base::int_type;
@@ -969,7 +973,7 @@ protected:
         return 0;
     }
 
-    virtual int_type overflow( int_type ch ) {
+    virtual int_type overflow( int_type ch ) override {
         // send data in buffer and reset it
         if ( traits_type::eof() != ch ) {
             *Base::pptr() = ch;
@@ -982,7 +986,7 @@ protected:
         return bytesWritten; // Anything but traits_type::eof() to signal ok.
     }
 
-    virtual int_type underflow() {
+    virtual int_type underflow() override {
         std::fill(inputBuffer_, inputBuffer_ + SIZE, 0);
         ssize_t bytesReceived;
 
@@ -1058,6 +1062,8 @@ public:
     using traits_type = typename Base::traits_type;
 
 public:
+    basic_socketstream(const basic_socketstream &) = delete;
+    basic_socketstream & operator = (const basic_socketstream &) = delete;
     basic_socketstream() : stream_type( &socketBuffer_ ) {}
 #if defined (USE_SSL)
     basic_socketstream( int socketFD, SSL* ssl ) : stream_type( &socketBuffer_ ) {
@@ -2547,9 +2553,9 @@ class HTTPConnection : public Work {
 public:
     HTTPConnection() = delete;
 #if defined (USE_SSL)
-    HTTPConnection( HTTPServer* hs, int socketFD, struct sockaddr_in clientAddr, std::vector<http_callback> const & cl, SSL* ssl = nullptr ) : hs_( hs ), socketStream_( socketFD, ssl ), clientAddress_( clientAddr ), callbackList_( cl ) {}
+    HTTPConnection( HTTPServer* hs, int socketFD, struct sockaddr_in /* clientAddr */, std::vector<http_callback> const & cl, SSL* ssl = nullptr ) : hs_( hs ), socketStream_( socketFD, ssl ), /* clientAddress_( clientAddr ), */ callbackList_( cl ) {}
 #else
-    HTTPConnection( HTTPServer* hs, int socketFD, struct sockaddr_in clientAddr, std::vector<http_callback> const & cl ) : hs_( hs ), socketStream_( socketFD ), clientAddress_( clientAddr ), callbackList_( cl ) {}
+    HTTPConnection( HTTPServer* hs, int socketFD, struct sockaddr_in /* clientAddr */, std::vector<http_callback> const & cl ) : hs_( hs ), socketStream_( socketFD ), /* clientAddress_( clientAddr ), */ callbackList_( cl ) {}
 #endif
     HTTPConnection( HTTPConnection const & ) = delete;
     void operator=( HTTPConnection const & ) = delete;
@@ -2644,7 +2650,7 @@ public:
 private:
     HTTPServer*  hs_;
     socketstream socketStream_;
-    struct sockaddr_in clientAddress_;
+    // struct sockaddr_in clientAddress_; // Not used yet
     std::vector<http_callback> const & callbackList_;
     std::vector<std::string> responseHeader_;
     std::string responseBody_;
@@ -2854,6 +2860,7 @@ public:
     HTTPSServer() : HTTPServer( "", 443 ) {}
     HTTPSServer( std::string const & ip, uint16_t port ) : HTTPServer( ip, port ), sslCTX_( nullptr ) {}
     HTTPSServer( HTTPSServer const & ) = delete;
+    HTTPSServer & operator = ( HTTPSServer const & ) = delete;
     virtual ~HTTPSServer() = default;
 
 public:
@@ -2913,9 +2920,43 @@ void HTTPSServer::run() {
         SSL* ssl = SSL_new( sslCTX_ );
         SSL_set_fd( ssl, clientSocketFD );
 
-        // Check if the SSL handshake worked
-        if ( SSL_accept( ssl ) <= 0 )
-            throw std::runtime_error( "SSL handshake failure" );
+        try {
+            while (1) {
+                bool leaveLoop = false;
+                // Check if the SSL handshake worked
+                int accept = SSL_accept( ssl );
+                switch (accept) {
+                case 0:
+                    throw std::runtime_error( "accept == 0 is a hard error." );
+                case -1:
+                    {
+                        int errorCode = SSL_get_error( ssl, accept );
+                        switch ( errorCode ) {
+                        case SSL_ERROR_WANT_READ:
+                        case SSL_ERROR_WANT_WRITE:
+                            // All good, just try again
+                            leaveLoop = false; // Unnecessary but for easier understanding
+                            break;
+                        case SSL_ERROR_ZERO_RETURN:
+                        case SSL_ERROR_SYSCALL:
+                        case SSL_ERROR_SSL:
+                        default:
+                            throw std::runtime_error( "Error not read or write is a hard error." );
+                        }
+                    }
+                    break;
+                default:
+                    // all good, continue
+                    leaveLoop = true;
+                }
+                if ( leaveLoop )
+                    break;
+            }
+        } catch( std::exception& e ) {
+             DBG( 3, "SSL Accept: error accepting incoming connection, closing the FD and continuing: ", e.what() );
+             ::close( clientSocketFD );
+             continue;
+        }
 
         // Client connected, let's determine the client ip as string.
         char ipbuf[INET_ADDRSTRLEN];
@@ -3179,23 +3220,35 @@ void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & re
 
 int startHTTPServer( unsigned short port ) {
     HTTPServer server( "", port );
-    // HEAD is GET without body, we will remove the body in execute()
-    server.registerCallback( HTTPRequestMethod::GET,  my_get_callback );
-    server.registerCallback( HTTPRequestMethod::HEAD, my_get_callback );
-    server.run();
+    try {
+        // HEAD is GET without body, we will remove the body in execute()
+        server.registerCallback( HTTPRequestMethod::GET,  my_get_callback );
+        server.registerCallback( HTTPRequestMethod::HEAD, my_get_callback );
+        server.run();
+    } catch (std::exception & e)
+    {
+        std::cerr << "Exception caught: " << e.what() << "\n";
+        return -1;
+    }
     return 0;
 }
 
 #if defined (USE_SSL)
 int startHTTPSServer( unsigned short port, std::string const & cFile, std::string const & pkFile) {
     HTTPSServer server( "", port );
-    server.setPrivateKeyFile ( pkFile );
-    server.setCertificateFile( cFile );
-    server.initialiseSSL();
-    // HEAD is GET without body, we will remove the body in execute()
-    server.registerCallback( HTTPRequestMethod::GET,  my_get_callback );
-    server.registerCallback( HTTPRequestMethod::HEAD, my_get_callback );
-    server.run();
+    try {
+        server.setPrivateKeyFile ( pkFile );
+        server.setCertificateFile( cFile );
+        server.initialiseSSL();
+        // HEAD is GET without body, we will remove the body in execute()
+        server.registerCallback( HTTPRequestMethod::GET,  my_get_callback );
+        server.registerCallback( HTTPRequestMethod::HEAD, my_get_callback );
+        server.run();
+    } catch (std::exception & e)
+    {
+        std::cerr << "Exception caught: " << e.what() << "\n";
+        return -1;
+    }
     return 0;
 }
 #endif

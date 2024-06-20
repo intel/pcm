@@ -1,6 +1,6 @@
 FROM fedora:40@sha256:4e007f288dce23966216be81ef62ba05d139b9338f327c1d1c73b7167dd47312 as builder
 
-RUN dnf -y install gcc-c++ git findutils make cmake
+RUN dnf -y install gcc-c++ git findutils make cmake openssl openssl-devel
 COPY . /tmp/pcm
 RUN cd /tmp/pcm && mkdir build && cd build && cmake .. && make -j
 

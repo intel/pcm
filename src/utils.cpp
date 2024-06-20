@@ -22,12 +22,76 @@
 #include <numeric>
 #ifndef _MSC_VER
 #include <execinfo.h>
+extern char ** environ;
 #endif
 #ifdef __linux__
 #include <glob.h>
 #endif
 
 namespace pcm {
+
+
+bool startsWithPCM(const StringType& varName) {
+    const StringType prefix = PCM_STRING("PCM_");
+    return varName.compare(0, prefix.size(), prefix) == 0;
+}
+
+bool isInKeepList(const StringType& varName, const std::vector<StringType>& keepList) {
+    for (const auto& keepVar : keepList) {
+        if (varName == keepVar) {
+            return true;
+        }
+    }
+    return false;
+}
+
+#if defined(_MSC_VER)
+
+void eraseEnvironmentVariables(const std::vector<std::wstring>& keepList) {
+    // Get a snapshot of the current environment block
+    LPWCH envBlock = GetEnvironmentStrings();
+    if (!envBlock) {
+        std::cerr << "Error getting environment strings." << std::endl;
+        return;
+    }
+
+    // Iterate over the environment block
+    for (LPWCH var = envBlock; *var != 0; var += std::wcslen(var) + 1) {
+        std::wstring varName(var);
+        size_t pos = varName.find('=');
+        if (pos != std::string::npos) {
+            varName = varName.substr(0, pos);
+            if (!startsWithPCM(varName) && !isInKeepList(varName, keepList)) {
+                SetEnvironmentVariable(varName.c_str(), NULL);
+            }
+        }
+    }
+
+    // Free the environment block
+    FreeEnvironmentStrings(envBlock);
+}
+#else
+void eraseEnvironmentVariables(const std::vector<std::string>& keepList) {
+    std::vector<std::string> varsToDelete;
+
+    // Collect all the variables that need to be deleted
+    for (char **env = environ; *env != nullptr; ++env) {
+        std::string envEntry(*env);
+        size_t pos = envEntry.find('=');
+        if (pos != std::string::npos) {
+            std::string varName = envEntry.substr(0, pos);
+            if (!startsWithPCM(varName) && !isInKeepList(varName, keepList)) {
+                varsToDelete.push_back(varName);
+            }
+        }
+    }
+
+    // Delete the collected variables
+    for (const auto& varName : varsToDelete) {
+        unsetenv(varName.c_str());
+    }
+}
+#endif
 
 void (*post_cleanup_callback)(void) = NULL;
 

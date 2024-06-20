@@ -9,8 +9,6 @@
 
 namespace pcm {
 
-constexpr auto UNCORE_DISCOVERY_MAP_SIZE = 0x80000;
-
 UncorePMUDiscovery::UncorePMUDiscovery()
 {
     if (safe_getenv("PCM_NO_UNCORE_PMU_DISCOVERY") == std::string("1"))

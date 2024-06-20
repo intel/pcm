@@ -1,5 +1,6 @@
 modprobe msr
 
+export PCM_ENFORCE_MBM="1"
 export BIN_DIR="build/bin"
 
 pushd $BIN_DIR

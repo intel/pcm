@@ -550,9 +550,20 @@ bool PCM::L3CacheOccupancyMetricAvailable() const
     return (cpuinfo.reg.edx & 1)?true:false;
 }
 
+bool isMBMEnforced()
+{
+    static int flag = -1;
+    if (flag < 0)
+    {
+        // flag not yet initialized
+        flag = pcm::safe_getenv("PCM_ENFORCE_MBM") == std::string("1") ? 1 : 0;
+    }
+    return flag > 0;
+}
+
 bool PCM::CoreLocalMemoryBWMetricAvailable() const
 {
-    if (cpu_model == SKX && cpu_stepping < 5) return false; // SKZ4 errata
+    if (isMBMEnforced() == false && cpu_model == SKX && cpu_stepping < 5) return false; // SKZ4 errata
     PCM_CPUID_INFO cpuinfo;
     if (!(QOSMetricAvailable() && L3QOSMetricAvailable()))
             return false;
@@ -562,7 +573,7 @@ bool PCM::CoreLocalMemoryBWMetricAvailable() const
 
 bool PCM::CoreRemoteMemoryBWMetricAvailable() const
 {
-    if (cpu_model == SKX && cpu_stepping < 5) return false; // SKZ4 errata
+    if (isMBMEnforced() == false && cpu_model == SKX && cpu_stepping < 5) return false; // SKZ4 errata
     PCM_CPUID_INFO cpuinfo;
     if (!(QOSMetricAvailable() && L3QOSMetricAvailable()))
         return false;
@@ -1019,12 +1030,13 @@ class QATTelemetryVirtualCounterRegister : public HWRegister
 {
     std::shared_ptr<QATTelemetryVirtualGeneralConfigRegister> gConfigReg;
     std::shared_ptr<QATTelemetryVirtualControlRegister> controlReg;
-    int ctr_id;
+    // int ctr_id; // unused
 public:
-    QATTelemetryVirtualCounterRegister( std::shared_ptr<QATTelemetryVirtualGeneralConfigRegister> gConfigReg_, std::shared_ptr<QATTelemetryVirtualControlRegister> controlReg_, int ctr_id_) : 
+    QATTelemetryVirtualCounterRegister( std::shared_ptr<QATTelemetryVirtualGeneralConfigRegister> gConfigReg_,
+        std::shared_ptr<QATTelemetryVirtualControlRegister> controlReg_,
+        int /* ctr_id_ */ ) :
         gConfigReg(gConfigReg_),
-        controlReg(controlReg_),
-        ctr_id(ctr_id_)
+        controlReg(controlReg_)
     {
     }
     void operator = (uint64 /* val */) override
@@ -5738,7 +5750,11 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool sile
         return true;
     };
     FixedEventControlRegister fixedReg;
-    auto setOtherConf = [&conf, &fixedReg, &globalRegPos](const RawPMUConfig& corePMUConfig)
+    auto setOtherConf = [&conf, &fixedReg
+#ifdef _MSC_VER
+        , &globalRegPos
+#endif
+            ](const RawPMUConfig& corePMUConfig)
     {
         if ((size_t)globalRegPos < corePMUConfig.programmable.size())
         {

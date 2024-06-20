@@ -1,14 +1,19 @@
-name: coverity-linux-and-python-report
+name: fuzz-job
 
-on: [workflow_dispatch, workflow_call]
+on:
+  schedule:
+    # every sunday at midnight
+    - cron: '0 0 * * 0'
+  # also allow manual triggering
+  workflow_dispatch:
+
 
 permissions:
   contents: read
 
 jobs:
-  build:
-
-    runs-on: ci-kw-linux
+  fuzz:
+    runs-on: ci-test
     if: ${{ github.repository != 'intel/pcm' }}
 
     steps:
@@ -21,23 +26,24 @@ jobs:
       with:
         submodules: recursive
 
-    - name: coverity-python
+    - name: Build and test
       run: |
-        ci-cov-python.sh
-
-    - name: coverity-linux
-      run: |
+        cmake --version
+        set -o pipefail
         mkdir build
         cd build
-        cmake ..
-        ci-cov-linux.sh
+        sh ${{ github.workspace }}/tests/fuzz.sh 2>&1 | tee fuzz-log.txt
+        cd ..
 
-    - name: coverity-linux-and-python-report
+    - name: Show report
       run: |
-        ci-cov-linux-report.sh PCM.linux.and.python
+        cat build/report.txt
+        echo "Fuzzing completed"
 
     - name: upload-artifact
       uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v3.1.3
       with:
-        name: coverity-linux-and-python-report-${{ github.sha }}
-        path: "*-Report.pdf"
+        name: fuzz-log-${{ github.sha }}
+        path: "build/fuzz-log.txt"
+
+
