@@ -1,0 +1,12 @@
+<services>
+  <service name="download_url">
+    <param name="host">github.com</param>
+    <param name="protocol">https</param>
+    <param name="path">/intel/pcm/archive/master.zip</param>
+  </service>
+  <service name="download_url">
+    <param name="host">github.com</param>
+    <param name="protocol">https</param>
+    <param name="path">/intel/pcm/archive/master.tar.gz</param>
+  </service>
+<service name="download_url"><param name="host">raw.githubusercontent.com</param><param name="protocol">https</param><param name="path">/intel/pcm/master/pcm.spec</param></service></services>
