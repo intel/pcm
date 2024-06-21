@@ -32,6 +32,8 @@ if(UNIX)  # LINUX, FREE_BSD, APPLE
       $<$<CONFIG:RelWithDebInfo>:PCM_SILENT>
     )
 
+    target_compile_options(PCM_STATIC_SILENT PRIVATE "-fPIC")
+
     # libpcm.so
     add_library(PCM_SHARED SHARED pcm-core.cpp)
     # PCM_SILENT in Release* for pcm-core.cpp
