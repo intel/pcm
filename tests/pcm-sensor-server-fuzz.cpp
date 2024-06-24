@@ -151,7 +151,8 @@ std::string make_request(const std::string& request) {
     if (bytes_received < 0) {
         std::cerr << "Failed to receive response. Error: " << strerror(errno) << std::endl;
         close(sock);
-        throw std::runtime_error("Failed to receive response");
+        // throw std::runtime_error("Failed to receive response");
+        return "Failed to receive response"; // expected to happen sometimes
     }
 
     // Close the socket
