@@ -103,12 +103,14 @@ std::string make_request(const std::string& request) {
     // Resolve the host
     struct hostent* host = gethostbyname(server.c_str());
     if (!host) {
+        std::cerr << "Failed to resolve host. Error: " << strerror(errno) << std::endl;
         throw std::runtime_error("Failed to resolve host: " + server);
     }
 
     // Create socket
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) {
+        std::cerr << "Failed to create socket. Error: " << strerror(errno) << std::endl;
         throw std::runtime_error("Failed to create socket");
     }
 
@@ -121,6 +123,7 @@ std::string make_request(const std::string& request) {
 
     // Connect to server
     if (connect(sock, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
+        std::cerr << "Failed to connect to server. Error: " << strerror(errno) << std::endl;
         close(sock);
         throw std::runtime_error("Failed to connect to server");
     }
@@ -146,6 +149,7 @@ std::string make_request(const std::string& request) {
     }
 
     if (bytes_received < 0) {
+        std::cerr << "Failed to receive response. Error: " << strerror(errno) << std::endl;
         close(sock);
         throw std::runtime_error("Failed to receive response");
     }
