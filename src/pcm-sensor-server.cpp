@@ -1170,8 +1170,10 @@ public:
         SignalHandler* shi = SignalHandler::getInstance();
         shi->setSocket( serverSocket_ );
         shi->ignoreSignal( SIGPIPE ); // Sorry Dennis Ritchie, we do not care about this, we always check return codes
+        #ifndef UNIT_TEST // libFuzzer installs own signal handlers
         shi->installHandler( SignalHandler::handleSignal, SIGTERM );
         shi->installHandler( SignalHandler::handleSignal, SIGINT );
+        #endif
     }
     Server( Server const & ) = delete;
     Server & operator = ( Server const & ) = delete;
