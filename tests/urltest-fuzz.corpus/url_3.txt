@@ -1,1 +1,0 @@
-gopher://otto@hostname1.intel.com:8080/file3.zyx
