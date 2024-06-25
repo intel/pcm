@@ -37,7 +37,7 @@ jobs:
     - name: Test
       run: |
         set -o pipefail
-        sh ${{ github.workspace }}/tests/test.sh 2>&1 | tee test-log.txt
+        bash ${{ github.workspace }}/tests/test.sh 2>&1 | tee test-log.txt
 
     - name: upload-artifact
       uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v3.1.3
