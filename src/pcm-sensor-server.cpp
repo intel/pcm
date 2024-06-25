@@ -2371,8 +2371,9 @@ std::string& compressLWSAndRemoveCR( std::string& line ) {
     }
 
     // Remove trailing '\r'
-    if ( line[line.size()-1] == '\r' )
+    if (!line.empty() && line.back() == '\r') {
         line.pop_back();
+    }
 
     return line;
 }
