@@ -159,6 +159,9 @@ if [ "$?" -ne "0" ]; then
     exit 1
 fi
 
+echo "/sys/fs/cgroup/cpuset/cpuset.cpus:"
+cat /sys/fs/cgroup/cpuset/cpuset.cpus
+
 echo Testing pcm-pcie
 ./pcm-pcie -- sleep 1
 if [ "$?" -ne "0" ]; then
