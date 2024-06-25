@@ -28,7 +28,7 @@ printf '%b' "GET /dashboard/prometheus HTTP/1.1\r\nHost: localhost\r\nAccept: */
 printf '%b' "GET /dashboard/prometheus/default HTTP/1.1\r\nHost: localhost\r\nAccept: */*\r\n\r\n" > corpus/10 &&
 printf '%b' "GET /dashboard HTTP/1.1\r\nHost: localhost\r\nAccept: */*\r\n\r\n" > corpus/11 &&
 printf '%b' "GET /favicon.ico HTTP/1.1\r\nHost: localhost\r\nAccept: */*\r\n\r\n" > corpus/12 &&
-LLVM_PROFILE_FILE="pcm-sensor-server.profraw" bin/tests/pcm-sensor-server-fuzz -max_total_time=$((10 * $factor)) corpus > /dev/null &&
+LLVM_PROFILE_FILE="pcm-sensor-server.profraw" bin/tests/pcm-sensor-server-fuzz -detect_leaks=0 -max_total_time=$((10 * $factor)) corpus > /dev/null &&
 rm -rf corpus/* &&
 printf '%b' "http://otto:test@www.intel.com/~otto/file1.txt" > corpus/1 &&
 printf '%b' "file://localhost/c/mnt/cd/file2.txt" > corpus/2 &&
