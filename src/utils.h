@@ -675,7 +675,7 @@ public:
     bool supported() const { return true; }
 
 #elif defined(__linux__)
-    cpu_set_t* old_affinity;
+    cpu_set_t* old_affinity = nullptr;
     static constexpr auto maxCPUs = 8192;
     const size_t set_size;
     bool restore;
@@ -691,7 +691,9 @@ public:
         if (res != 0)
         {
             std::cerr << "ERROR: pthread_getaffinity_np for core " << core_id << " failed with code " << res << "\n";
-            throw std::exception();
+            CPU_FREE(old_affinity);
+            old_affinity = nullptr;
+            throw std::runtime_error("pthread_getaffinity_np failed");
         }
         cpu_set_t* new_affinity = CPU_ALLOC(maxCPUs);
         assert(new_affinity);
@@ -708,13 +710,16 @@ public:
         if (res != 0 && checkStatus)
         {
             std::cerr << "ERROR: pthread_setaffinity_np for core " << core_id << " failed with code " << res << "\n";
-            throw std::exception();
+            CPU_FREE(old_affinity);
+            old_affinity = nullptr;
+            throw std::runtime_error("pthread_setaffinity_np failed");
         }
     }
     ~TemporalThreadAffinity()
     {
         if (restore) pthread_setaffinity_np(pthread_self(), set_size, old_affinity);
         CPU_FREE(old_affinity);
+        old_affinity = nullptr;
     }
     bool supported() const { return true; }
 #elif defined(_MSC_VER)
