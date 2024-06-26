@@ -2,8 +2,8 @@ name: fuzz-job
 
 on:
   schedule:
-    # every sunday at midnight
-    - cron: '0 0 * * 0'
+    # every saturday at midnight
+    - cron: '0 0 * * 6'
   # also allow manual triggering
   workflow_dispatch:
 
@@ -32,7 +32,7 @@ jobs:
         set -o pipefail
         mkdir build
         cd build
-        bash ${{ github.workspace }}/tests/fuzz.sh 2>&1 | tee fuzz-log.txt
+        bash ${{ github.workspace }}/tests/fuzz.sh 1000 2>&1 | tee fuzz-log.txt
         cd ..
 
     - name: Show report
