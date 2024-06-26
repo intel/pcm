@@ -2961,6 +2961,7 @@ void HTTPSServer::run() {
             }
         } catch( std::exception& e ) {
              DBG( 3, "SSL Accept: error accepting incoming connection, closing the FD and continuing: ", e.what() );
+             SSL_free( ssl ); // Free the SSL structure to prevent memory leaks
              ::close( clientSocketFD );
              continue;
         }
@@ -2971,6 +2972,7 @@ void HTTPSServer::run() {
         char const * resbuf = ::inet_ntop( AF_INET, &(clientAddress.sin_addr), ipbuf, INET_ADDRSTRLEN );
         if ( nullptr == resbuf ) {
             std::cerr << strerror( errno ) << "\n";
+            SSL_free( ssl ); // Free the SSL structure to prevent memory leaks
             ::close( clientSocketFD );
             continue;
         }
