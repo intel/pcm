@@ -1,7 +1,13 @@
 
 export PCM_ENFORCE_MBM="1"
 
-factor=100
+factor=1
+
+if [ "$#" -eq 1 ]; then
+    factor=$1
+fi
+
+echo "Running fuzz tests with running time multiplier $factor"
 
 CC=`which clang` CXX=`which clang++` cmake ..  -DCMAKE_BUILD_TYPE=Debug -DFUZZ=1 && mkdir -p corpus &&
 make urltest-fuzz \
