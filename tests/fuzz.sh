@@ -35,7 +35,7 @@ printf '%b' "GET /dashboard/prometheus HTTP/1.1\r\nHost: localhost\r\nAccept: */
 printf '%b' "GET /dashboard/prometheus/default HTTP/1.1\r\nHost: localhost\r\nAccept: */*\r\n\r\n" > corpus/10 &&
 printf '%b' "GET /dashboard HTTP/1.1\r\nHost: localhost\r\nAccept: */*\r\n\r\n" > corpus/11 &&
 printf '%b' "GET /favicon.ico HTTP/1.1\r\nHost: localhost\r\nAccept: */*\r\n\r\n" > corpus/12 &&
-LLVM_PROFILE_FILE="pcm-sensor-server-ssl.profraw" bin/tests/pcm-sensor-server-ssl-fuzz -detect_leaks=0 -max_total_time=$((10 * $factor)) corpus > /dev/null &&
+LLVM_PROFILE_FILE="pcm-sensor-server-ssl.profraw" bin/tests/pcm-sensor-server-ssl-fuzz -detect_leaks=0 -max_total_time=$((10 * $factor)) -rss_limit_mb=10000 corpus > /dev/null &&
 rm -rf corpus/* &&
 printf '%b' "GET / HTTP/1.1\r\nHost: localhost\r\nAccept: */*\r\n\r\n" > corpus/1 &&
 printf '%b' "GET /metrics HTTP/1.1\r\nHost: localhost\r\nAccept: */*\r\n\r\n" > corpus/2 &&
