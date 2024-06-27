@@ -2886,9 +2886,13 @@ public:
         // SSL too old on development machine, not available yet FIXME
         //OPENSSL_config(nullptr);
 
-        sslCTX_ = SSL_CTX_new( SSLv23_method() );
+        // We require 1.1.1 now so TLS_method is available but still 
+        // make sure minimum protocol is TSL1_VERSION below
+        sslCTX_ = SSL_CTX_new( TLS_method() );
         if ( nullptr == sslCTX_ )
             throw std::runtime_error( "Cannot create an SSL context" );
+        if( SSL_CTX_set_min_proto_version( sslCTX_, TLS1_VERSION ) != 1 )
+            throw std::runtime_error( "Cannot set minimum protocol to TSL1_VERSION" );
         if ( SSL_CTX_use_certificate_file( sslCTX_, certificateFile_.c_str(), SSL_FILETYPE_PEM ) <= 0 )
             throw std::runtime_error( "Cannot use certificate file" );
         if ( SSL_CTX_use_PrivateKey_file( sslCTX_, privateKeyFile_.c_str(), SSL_FILETYPE_PEM ) <= 0 )
