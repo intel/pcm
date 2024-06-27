@@ -52,11 +52,7 @@ bool waitForPort(int port, int timeoutSeconds) {
     return isBound;
 }
 
-#ifdef FUZZ_USE_SSL
-HTTPSServer * httpServer;
-#else
 HTTPServer * httpServer;
-#endif
 std::thread * serverThread;
 
 void cleanup()
@@ -83,10 +79,11 @@ bool init()
         debug::dyn_debug_level(0);
         #ifdef FUZZ_USE_SSL
         std::cerr << "Starting SSL enabled server on https://localhost:" << port << "/\n";
-        httpServer = new HTTPSServer( "", port );
-        httpServer->setPrivateKeyFile ( "/private.key" );
-        httpServer->setCertificateFile( "/certificate.crt" );
-        httpServer->initialiseSSL();
+        auto httpsServer = new HTTPSServer( "", port );
+        httpsServer->setPrivateKeyFile ( "/private.key" );
+        httpsServer->setCertificateFile( "/certificate.crt" );
+        httpsServer->initialiseSSL();
+        httpServer = httpsServer;
         #else
         std::cerr << "Starting plain HTTP server on http://localhost:" << port << "/\n";
         httpServer = new HTTPServer( "", port );
