@@ -39,6 +39,7 @@ if(UNIX)  # LINUX, FREE_BSD, APPLE
 
     # libpcm.so
     add_library(PCM_SHARED SHARED pcm-core.cpp)
+    target_compile_options(PCM_SHARED PRIVATE -DPCM_SHARED_LIBRARY=1)
     # PCM_SILENT in Release* for pcm-core.cpp
     target_compile_definitions(PCM_SHARED PRIVATE
       $<$<CONFIG:Release>:PCM_SILENT>
