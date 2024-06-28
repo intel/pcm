@@ -227,6 +227,7 @@ MsrHandle::MsrHandle(uint32 cpu) : fd(-1), cpu_id(cpu)
         writesEnabled = true;
     }
     char * path = new char[200];
+    if (!path) throw std::runtime_error("Allocation of 200 bytes failed.");
     snprintf(path, 200, "/dev/cpu/%d/msr", cpu);
     int handle = ::open(path, O_RDWR);
     if (handle < 0)
