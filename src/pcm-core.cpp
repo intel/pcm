@@ -48,6 +48,8 @@ struct CoreEvent
 	char * description;
 } events[PERF_MAX_CUSTOM_COUNTERS];
 
+#ifdef PCM_SHARED_LIBRARY
+
 extern "C" {
 	SystemCounterState globalSysBeforeState, globalSysAfterState;
 	std::vector<CoreCounterState> globalBeforeState, globalAfterState;
@@ -109,6 +111,8 @@ extern "C" {
 		return getNumberOfCustomEvents(event_id, globalBeforeState[core_id], globalAfterState[core_id]);
 	}
 }
+
+#endif // PCM_SHARED_LIBRARY
 
 void print_usage(const string & progname)
 {
