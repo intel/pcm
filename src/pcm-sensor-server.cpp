@@ -2713,7 +2713,7 @@ public:
     virtual ~HTTPServer() {
         pcf_->stop();
         std::this_thread::sleep_for( std::chrono::seconds(1) );
-        delete pcf_;
+        deleteAndNullify(pcf_);
     }
 
 public:
@@ -2848,7 +2848,7 @@ void HTTPServer::run() {
             connection = new HTTPConnection( this, clientSocketFD, clientAddress, callbackList_ );
         } catch ( std::exception& e ) {
             DBG( 3, "Exception caught while creating a HTTPConnection: " );
-	    if (connection) delete connection;
+	    if (connection) deleteAndNullify(connection);
             ::close( clientSocketFD );
             continue;
         }

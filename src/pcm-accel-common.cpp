@@ -346,7 +346,7 @@ void readAccelCounters(SystemCounterState& sycs_)
             break;
     }
 
-    delete[] currState;
+    deleteAndNullifyArray(currState);
     
 }
 

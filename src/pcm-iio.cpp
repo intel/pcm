@@ -1826,8 +1826,8 @@ result_content get_IIO_Samples(PCM *m, const std::vector<struct iio_stacks_on_so
             results[socket->socket_id][iio_unit_id][std::pair<h_id,v_id>(ctr.h_id,ctr.v_id)] = trans_result;
         }
     }
-    delete[] before;
-    delete[] after;
+    deleteAndNullifyArray(before);
+    deleteAndNullifyArray(after);
     return results;
 }
 

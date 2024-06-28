@@ -126,8 +126,7 @@ MsrHandle::~MsrHandle()
     MsrHandle::num_handles--;
     if (MsrHandle::num_handles == 0)
     {
-        delete driver;
-        driver = NULL;
+        deleteAndNullify(driver);
     }
 }
 
@@ -235,7 +234,7 @@ MsrHandle::MsrHandle(uint32 cpu) : fd(-1), cpu_id(cpu)
         snprintf(path, 200, "/dev/msr%d", cpu);
         handle = ::open(path, O_RDWR);
     }
-    delete[] path;
+    deleteAndNullifyArray(path);
     if (handle < 0)
     {
          std::cerr << "PCM Error: can't open MSR handle for core " << cpu << " (" << strerror(errno) << ")\n";
