@@ -57,6 +57,9 @@ namespace pcm
 
         class Scope {
             Mutex & m;
+            Scope() = delete;
+            Scope(const Scope &) = delete;
+            Scope & operator = (const Scope &) = delete;
         public:
             Scope(Mutex & m_) : m(m_)
             {
