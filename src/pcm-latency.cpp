@@ -443,8 +443,8 @@ void collect_data(PCM *m, bool enable_pmm, bool enable_verbose, int delay_ms, Ma
         return true;
     });
 
-    delete[] BeforeState;
-    delete[] AfterState;
+    deleteAndNullifyArray(BeforeState);
+    deleteAndNullifyArray(AfterState);
 }
 
 void print_usage()

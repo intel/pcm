@@ -291,8 +291,8 @@ void collect_data(PCM *m, const double delay, const ACCEL_IP accel, std::vector<
             break;
     }
 
-    delete[] before;
-    delete[] after;
+    deleteAndNullifyArray(before);
+    deleteAndNullifyArray(after);
 }
 
 

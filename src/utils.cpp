@@ -348,8 +348,7 @@ void sigSEGV_handler(int signum)
         {
             std::cerr << backtrace_strings[i] << "\n";
         }
-        free(backtrace_strings);
-        backtrace_strings = NULL;
+        freeAndNullify(backtrace_strings);
     }
 
     sigINT_handler(signum);
@@ -453,15 +452,16 @@ void set_signal_handlers(void)
         std::cerr << "\nPCM ERROR: _dupenv_s failed.\n";
         _exit(EXIT_FAILURE);
     }
-    free(envPath);
     if (envPath)
     {
         std::cerr << "\nPCM ERROR: Detected cygwin/mingw environment which does not allow to setup PMU clean-up handlers on Ctrl-C and other termination signals.\n";
         std::cerr << "See https://www.mail-archive.com/cygwin@cygwin.com/msg74817.html\n";
         std::cerr << "As a workaround please run pcm directly from a native windows shell (e.g. cmd).\n";
         std::cerr << "Exiting...\n\n";
+        freeAndNullify(envPath);
         _exit(EXIT_FAILURE);
     }
+    freeAndNullify(envPath);
     std::cerr << "DEBUG: Setting Ctrl+C done.\n";
 
 #else
@@ -826,7 +826,7 @@ std::string safe_getenv(const char* env)
     if (_dupenv_s(&buffer, NULL, env) == 0 && buffer != nullptr)
     {
         result = buffer;
-        free(buffer);
+        freeAndNullify(buffer);
     }
     return result;
 }

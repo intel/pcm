@@ -41,6 +41,37 @@
 #include <unistd.h>
 #endif
 namespace pcm {
+
+    template <class T>
+    inline void deleteAndNullify(T & p)
+    {
+        if (p)
+        {
+            delete p;
+            p = nullptr;
+        }
+    }
+
+    template <class T>
+    inline void deleteAndNullifyArray(T & p)
+    {
+        if (p)
+        {
+            delete [] p;
+            p = nullptr;
+        }
+    }
+
+    template <class T>
+    inline void freeAndNullify(T & p)
+    {
+        if (p)
+        {
+            free(p);
+            p = nullptr;
+        }
+    }
+
     std::string safe_getenv(const char* env);
 #ifdef _MSC_VER
     typedef std::wstring StringType;
@@ -288,7 +319,7 @@ private:
         {
             istr.setstate(std::ios_base::failbit);
         }
-        delete [] buffer;
+        deleteAndNullifyArray(buffer);
     }
 };
 

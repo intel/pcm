@@ -2,6 +2,7 @@
 // Copyright (c) 2020-2022, Intel Corporation
 
 #include "threadpool.h"
+#include "utils.h"
 
 namespace pcm {
 
@@ -10,7 +11,7 @@ void ThreadPool::execute( ThreadPool* tp ) {
         Work* w = tp->retrieveWork();
         if ( w == nullptr ) break;
         w->execute();
-        delete w;
+        deleteAndNullify(w);
     }
 }
 

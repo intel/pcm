@@ -89,8 +89,8 @@ namespace PCMDaemon {
 
     Daemon::~Daemon()
     {
-        delete[] serverUncoreCounterStatesBefore_;
-        delete[] serverUncoreCounterStatesAfter_;
+        deleteAndNullifyArray(serverUncoreCounterStatesBefore_);
+        deleteAndNullifyArray(serverUncoreCounterStatesAfter_);
     }
 
     void Daemon::setupPCM()

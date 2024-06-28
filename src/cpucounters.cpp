@@ -513,7 +513,7 @@ bool PCM::isRDTDisabled() const
             flag = 0;
         }
 #ifdef _MSC_VER
-        free(env);
+        freeAndNullify(env);
 #endif
     }
     return flag > 0;
@@ -1204,7 +1204,7 @@ bool PCM::discoverSystemTopology()
 
     while (res == FALSE)
     {
-        delete[] slpi;
+        deleteAndNullifyArray(slpi);
 
         if (GetLastError() == ERROR_INSUFFICIENT_BUFFER)
         {
@@ -1263,7 +1263,7 @@ bool PCM::discoverSystemTopology()
         socketIdMap[entry.socket] = 0;
     }
 
-    delete[] base_slpi;
+    deleteAndNullifyArray(base_slpi);
 
 #else
     // for Linux, Mac OS, FreeBSD and DragonFlyBSD
@@ -1374,7 +1374,7 @@ bool PCM::discoverSystemTopology()
             return false;                                                                                  \
         }                                                                                                  \
         ret_value = convertUnknownToInt(size, pParam);                                                     \
-        free(pParam);                                                                                      \
+        freeAndNullify(pParam);                                                                            \
     }
 // End SAFE_SYSCTLBYNAME
 
@@ -3307,7 +3307,7 @@ PCM::~PCM()
     {
         destroyMSR();
         instance = NULL;
-        delete systemTopology;
+        deleteAndNullify(systemTopology);
     }
 }
 
@@ -7160,7 +7160,7 @@ PciHandleType * ServerUncorePMUs::createIntelPerfMonDevice(uint32 groupnr_, int3
 
         if(vendor_id == PCM_INTEL_PCI_VENDOR_ID) return handle;
 
-        delete handle;
+        deleteAndNullify(handle);
     }
     return NULL;
 }
@@ -9742,7 +9742,7 @@ PciHandleType * getDeviceHandle(uint32 vendorId, uint32 deviceId)
                         const uint32 did = (value >> 16) & 0xffff;
                         if (vid == vendorId && did == deviceId)
                             return h;
-                        delete h;
+                        deleteAndNullify(h);
                     }
                 }
             }
@@ -9792,7 +9792,7 @@ uint32 PCM::getMaxNumOfCBoxesInternal() const
                 num = (uint32)weight32(value);
                 h->read32(0xa0, &value);
                 num += (uint32)weight32(value);
-                delete h;
+                deleteAndNullify(h);
             }
             else
             {
@@ -10457,8 +10457,8 @@ CounterWidthExtender::CounterWidthExtender(AbstractRawCounter * raw_counter_, ui
 }
 CounterWidthExtender::~CounterWidthExtender()
 {
-    delete UpdateThread;
-    if (raw_counter) delete raw_counter;
+    deleteAndNullify(UpdateThread);
+    deleteAndNullify(raw_counter);
 }
 
 
