@@ -132,7 +132,8 @@ if [ "$?" -ne "0" ]; then
 fi
 
 echo Testing c_example
-LD_LIBRARY_PATH=../lib/ ./examples/c_example
+# see https://github.com/google/sanitizers/issues/934
+LD_PRELOAD="$(realpath "$(gcc -print-file-name=libasan.so)") $(realpath "$(gcc -print-file-name=libstdc++.so)")" LD_LIBRARY_PATH=../lib/ ./examples/c_example
 if [ "$?" -ne "0" ]; then
     echo "Error in c_example"
     exit 1
