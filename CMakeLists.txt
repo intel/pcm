@@ -82,7 +82,7 @@ if(UNIX)  # APPLE, LINUX, FREE_BSD
     elseif()
          set (PCM_DYNAMIC "")
     endif()
-    set(PCM_HARDENING_FLAGS "-fPIE -fstack-protector -D_FORTIFY_SOURCE=2 -ftrapv -fsanitize=address -fwrapv -fno-delete-null-pointer-checks -fno-strict-overflow")
+    set(PCM_HARDENING_FLAGS "-fPIE -fstack-protector -D_FORTIFY_SOURCE=2 -ftrapv -fsanitize=address -fwrapv -fno-delete-null-pointer-checks -fno-strict-overflow -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer")
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5)
         message(WARNING "Old gcc compiler (version < 5), -fsanitize=undefined option is not supported.")
     elseif()
