@@ -132,7 +132,7 @@ if [ "$?" -ne "0" ]; then
 fi
 
 echo Testing c_example
-./examples/c_example
+LD_LIBRARY_PATH=../lib/ ./examples/c_example
 if [ "$?" -ne "0" ]; then
     echo "Error in c_example"
     exit 1
