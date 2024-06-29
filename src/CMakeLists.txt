@@ -49,9 +49,9 @@ if(UNIX)  # LINUX, FREE_BSD, APPLE
     if(APPLE)
         add_subdirectory(MacMSRDriver)
         include_directories("${CMAKE_SOURCE_DIR}/src/MacMSRDriver") # target_include_directories doesn't work
-        target_link_libraries(PCM_SHARED PRIVATE PCM_STATIC_SILENT PcmMsr Threads::Threads)
+        target_link_libraries(PCM_SHARED PRIVATE PCM_STATIC_SILENT PcmMsr Threads::Threads asan)
     else()
-        target_link_libraries(PCM_SHARED PRIVATE PCM_STATIC_SILENT Threads::Threads)
+        target_link_libraries(PCM_SHARED PRIVATE PCM_STATIC_SILENT Threads::Threads asan)
     endif()
     set_target_properties(PCM_SHARED PROPERTIES OUTPUT_NAME pcm)
 endif()
