@@ -2,8 +2,8 @@ name: fuzz-job
 
 on:
   schedule:
-    # every saturday at midnight
-    - cron: '0 0 * * 6'
+    # every sunday at midnight
+    - cron: '0 0 * * 0'
   # also allow manual triggering
   workflow_dispatch:
 
