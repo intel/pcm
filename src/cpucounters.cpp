@@ -8600,6 +8600,18 @@ ServerUncorePMUs::~ServerUncorePMUs()
 
 void ServerUncorePMUs::programServerUncoreMemoryMetrics(const ServerUncoreMemoryMetrics & metrics, const int rankA, const int rankB)
 {
+    switch (metrics)
+    {
+        case PartialWrites:
+        case Pmem:
+        case PmemMemoryMode:
+        case PmemMixedMode:
+            break;
+        default:
+            std::cerr << "PCM Error: unknown memory metrics: " << metrics << "\n";
+            return;
+    }
+
     PCM * pcm = PCM::getInstance();
     uint32 MCCntConfig[4] = {0,0,0,0};
     uint32 EDCCntConfig[4] = {0,0,0,0};
@@ -8695,6 +8707,16 @@ void ServerUncorePMUs::programServerUncoreMemoryMetrics(const ServerUncoreMemory
             }
         }
     } else {
+        if (rankA < 0 || rankA > 7)
+        {
+            std::cerr << "PCM Error: invalid rankA value: " << rankA << "\n";
+            return;
+        }
+        if (rankB < 0 || rankB > 7)
+        {
+            std::cerr << "PCM Error: invalid rankB value: " << rankB << "\n";
+            return;
+        }
         switch(cpu_model)
         {
         case PCM::IVYTOWN:

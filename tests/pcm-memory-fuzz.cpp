@@ -25,8 +25,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
         bool print_update = data_int[pos++] % 2;
         uint32 no_columns = DEFAULT_DISPLAY_COLUMNS; // Default number of columns is 2
         int delay = data_int[pos++] % 4;
-        int rankA = data_int[pos++];
-        int rankB = data_int[pos++];
+        int rankA = data_int[pos++] % 11;
+        int rankB = data_int[pos++] % 11;
         bool use_rank = data_int[pos++] % 2;
         if (!use_rank)
         {
@@ -90,6 +90,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
                 cerr << "Rank level output requires channel output\n";
                 return 0;
         }
+        std::cerr << "programServerUncoreMemoryMetrics parameters:" << metrics << ";" << rankA << ";" << rankB << "\n";
         PCM::ErrorCode status = m->programServerUncoreMemoryMetrics(metrics, rankA, rankB);
         m->checkError(status);
 
