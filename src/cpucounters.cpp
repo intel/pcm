@@ -5598,6 +5598,7 @@ PCM::ErrorCode PCM::programServerUncorePowerMetrics(int mc_profile, int pcu_prof
     {
         case SPR:
         case EMR:
+        case SRF:
             PCUCntConf[0] = PCU_MSR_PMON_CTL_EVENT(1); // clock ticks
             break;
         default:
@@ -5616,6 +5617,7 @@ PCM::ErrorCode PCM::programServerUncorePowerMetrics(int mc_profile, int pcu_prof
          {
              case SPR:
              case EMR:
+             case SRF:
                  PCUCntConf[1] =  PCU_MSR_PMON_CTL_EVENT(0x35); // POWER_STATE_OCCUPANCY.C0
                  PCUCntConf[2] =  PCU_MSR_PMON_CTL_EVENT(0x36); // POWER_STATE_OCCUPANCY.C3
                  PCUCntConf[3] =  PCU_MSR_PMON_CTL_EVENT(0x37); // POWER_STATE_OCCUPANCY.C6
@@ -5634,12 +5636,12 @@ PCM::ErrorCode PCM::programServerUncorePowerMetrics(int mc_profile, int pcu_prof
     case 3:
          PCUCntConf[1] =  PCU_MSR_PMON_CTL_EVENT(0x04); // Thermal frequency limit cycles: FREQ_MAX_LIMIT_THERMAL_CYCLES
          PCUCntConf[2] =  PCU_MSR_PMON_CTL_EVENT(0x05); // Power frequency limit cycles: FREQ_MAX_POWER_CYCLES
-         PCUCntConf[3] =  PCU_MSR_PMON_CTL_EVENT(0x07); // Clipped frequency limit cycles: FREQ_MAX_CURRENT_CYCLES (not supported on SKX,ICX,SNOWRIDGE,SPR,EMR)
+         PCUCntConf[3] =  PCU_MSR_PMON_CTL_EVENT(0x07); // Clipped frequency limit cycles: FREQ_MAX_CURRENT_CYCLES (not supported on SKX,ICX,SNOWRIDGE,SPR,EMR,SRF)
          break;
     case 4: // not supported on SKX, ICX, SNOWRIDGE, SPR, EMR
          PCUCntConf[1] =  PCU_MSR_PMON_CTL_EVENT(0x06); // OS frequency limit cycles: FREQ_MAX_OS_CYCLES
          PCUCntConf[2] =  PCU_MSR_PMON_CTL_EVENT(0x05); // Power frequency limit cycles: FREQ_MAX_POWER_CYCLES
-         PCUCntConf[3] =  PCU_MSR_PMON_CTL_EVENT(0x07); // Clipped frequency limit cycles: FREQ_MAX_CURRENT_CYCLES (not supported on SKX and ICX and SNOWRIDGE)
+         PCUCntConf[3] =  PCU_MSR_PMON_CTL_EVENT(0x07); // Clipped frequency limit cycles: FREQ_MAX_CURRENT_CYCLES (not supported on SKX,ICX,SNOWRIDGE,SPR,EMR,SRF)
          break;
     case 5:
          if(JAKETOWN == cpu_model)
@@ -5650,8 +5652,17 @@ PCM::ErrorCode PCM::programServerUncorePowerMetrics(int mc_profile, int pcu_prof
          {
              PCUCntConf[1] =  PCU_MSR_PMON_CTL_EVENT(0x60) + PCU_MSR_PMON_CTL_EDGE_DET ; // number of frequency transitions
              PCUCntConf[2] =  PCU_MSR_PMON_CTL_EVENT(0x60) ; // cycles spent changing frequency: FREQ_TRANS_CYCLES
-         } else if (HASWELLX == cpu_model || BDX_DE == cpu_model || BDX == cpu_model || SKX == cpu_model
-                 || ICX == cpu_model || SNOWRIDGE == cpu_model || SPR == cpu_model || EMR == cpu_model)
+         } else if (
+               HASWELLX == cpu_model
+            || BDX_DE == cpu_model
+            || BDX == cpu_model
+            || SKX == cpu_model
+            || ICX == cpu_model
+            || SNOWRIDGE == cpu_model
+            || SPR == cpu_model
+            || EMR == cpu_model
+            || SRF == cpu_model
+            )
          {
              PCUCntConf[1] =  PCU_MSR_PMON_CTL_EVENT(0x74) + PCU_MSR_PMON_CTL_EDGE_DET ; // number of frequency transitions
              PCUCntConf[2] =  PCU_MSR_PMON_CTL_EVENT(0x74) ; // cycles spent changing frequency: FREQ_TRANS_CYCLES
@@ -5670,11 +5681,21 @@ PCM::ErrorCode PCM::programServerUncorePowerMetrics(int mc_profile, int pcu_prof
          {
              PCUCntConf[2] =  PCU_MSR_PMON_CTL_EVENT(0x2B) + PCU_MSR_PMON_CTL_EDGE_DET ; // PC2 transitions
              PCUCntConf[3] =  PCU_MSR_PMON_CTL_EVENT(0x2D) + PCU_MSR_PMON_CTL_EDGE_DET ; // PC6 transitions
-         } else if (HASWELLX == cpu_model || BDX_DE == cpu_model || BDX == cpu_model || SKX == cpu_model || ICX == cpu_model || SNOWRIDGE == cpu_model || SPR == cpu_model || EMR == cpu_model)
+         } else if (
+               HASWELLX == cpu_model
+            || BDX_DE == cpu_model
+            || BDX == cpu_model
+            || SKX == cpu_model
+            || ICX == cpu_model
+            || SNOWRIDGE == cpu_model
+            || SPR == cpu_model
+            || EMR == cpu_model
+            || SRF == cpu_model
+            )
          {
-             PCUCntConf[0] =  PCU_MSR_PMON_CTL_EVENT(0x4E)                             ; // PC1e residenicies (not supported on SKX,ICX,SNOWRIDGE,SPR,EMR)
-             PCUCntConf[1] =  PCU_MSR_PMON_CTL_EVENT(0x4E) + PCU_MSR_PMON_CTL_EDGE_DET ; // PC1 transitions (not supported on SKX,ICX,SNOWRIDGE,SPR,EMR)
-             PCUCntConf[2] =  PCU_MSR_PMON_CTL_EVENT(0x2B) + PCU_MSR_PMON_CTL_EDGE_DET ; // PC2 transitions
+             PCUCntConf[0] =  PCU_MSR_PMON_CTL_EVENT(0x4E)                             ; // PC1e residenicies (not supported on SKX,ICX,SNOWRIDGE,SPR,EMR,SRF)
+             PCUCntConf[1] =  PCU_MSR_PMON_CTL_EVENT(0x4E) + PCU_MSR_PMON_CTL_EDGE_DET ; // PC1 transitions (not supported on SKX,ICX,SNOWRIDGE,SPR,EMR,SRF)
+             PCUCntConf[2] =  PCU_MSR_PMON_CTL_EVENT(0x2B) + PCU_MSR_PMON_CTL_EDGE_DET ; // PC2e transitions
              PCUCntConf[3] =  PCU_MSR_PMON_CTL_EVENT(0x2D) + PCU_MSR_PMON_CTL_EDGE_DET ; // PC6 transitions
          } else
          {
@@ -9073,9 +9094,25 @@ void ServerUncorePMUs::program_power_metrics(int mc_profile)
         case PCM::SNOWRIDGE:
         case PCM::SPR:
         case PCM::EMR:
+        case PCM::SRF:
             UNC_M_POWER_CKE_CYCLES = 0x47;
             break;
     }
+    unsigned int UNC_M_POWER_CHANNEL_PPD_CYCLES = 0x85;
+    switch (cpu_model)
+    {
+        case PCM::SRF:
+            UNC_M_POWER_CHANNEL_PPD_CYCLES = 0x88;
+            break;
+    }
+    unsigned int UNC_M_SELF_REFRESH_ENTER_SUCCESS_CYCLES_UMASK = 0;
+    switch (cpu_model)
+    {
+        case PCM::SRF:
+            UNC_M_SELF_REFRESH_ENTER_SUCCESS_CYCLES_UMASK = 0x01;
+            break;
+    }
+
     switch(mc_profile)
     {
         case 0: // POWER_CKE_CYCLES.RANK0 and POWER_CKE_CYCLES.RANK1
@@ -9103,9 +9140,9 @@ void ServerUncorePMUs::program_power_metrics(int mc_profile)
             MCCntConfig[3] = MC_CH_PCI_PMON_CTL_EVENT(UNC_M_POWER_CKE_CYCLES) + MC_CH_PCI_PMON_CTL_UMASK(0x80) + MC_CH_PCI_PMON_CTL_THRESH(1) + MC_CH_PCI_PMON_CTL_EDGE_DET;
            break;
         case 4: // POWER_SELF_REFRESH
-            MCCntConfig[0] = MC_CH_PCI_PMON_CTL_EVENT(0x43);
-            MCCntConfig[1] = MC_CH_PCI_PMON_CTL_EVENT(0x43) + MC_CH_PCI_PMON_CTL_THRESH(1) + MC_CH_PCI_PMON_CTL_EDGE_DET;
-            MCCntConfig[2] = MC_CH_PCI_PMON_CTL_EVENT(0x85);
+            MCCntConfig[0] = MC_CH_PCI_PMON_CTL_EVENT(0x43) + MC_CH_PCI_PMON_CTL_UMASK(UNC_M_SELF_REFRESH_ENTER_SUCCESS_CYCLES_UMASK);
+            MCCntConfig[1] = MC_CH_PCI_PMON_CTL_EVENT(0x43) + MC_CH_PCI_PMON_CTL_UMASK(UNC_M_SELF_REFRESH_ENTER_SUCCESS_CYCLES_UMASK) + MC_CH_PCI_PMON_CTL_THRESH(1) + MC_CH_PCI_PMON_CTL_EDGE_DET;
+            MCCntConfig[2] = MC_CH_PCI_PMON_CTL_EVENT(UNC_M_POWER_CHANNEL_PPD_CYCLES);
             break;
     }
 
