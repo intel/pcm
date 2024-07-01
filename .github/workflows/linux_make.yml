@@ -57,7 +57,7 @@ jobs:
     - name: install dependencies
       run: |
         apt update
-        apt -y --no-install-recommends install build-essential cmake libsimdjson-dev
+        apt -y --no-install-recommends install build-essential cmake libsimdjson-dev libssl-dev
     - name: cmake
       run: |
         rm -rf ${{ github.workspace }}/build
