@@ -18,6 +18,7 @@ BuildRequires:   cmake
 BuildRequires:   libopenssl-devel
 %else
 BuildRequires:   openssl-devel
+BuildRequires:   libasan
 %endif
 
 
