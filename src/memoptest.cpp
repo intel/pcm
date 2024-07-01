@@ -132,7 +132,7 @@ int main(int argc, char * argv[])
         cout << "Bandwidth: " << (sizeof(T) * nelements * niter) / ((after_ts - before_ts) * 1024 * 1024) << " MByte/sec\n" << std::flush;
     }
 
-    delete[] vector;
+    deleteAndNullifyArray(vector);
 
     return 0;
 }

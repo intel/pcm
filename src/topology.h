@@ -120,7 +120,7 @@ public:
     virtual ~Core() {
         pcm_ = nullptr;
         for ( auto& thread : threads_ )
-            delete thread;
+            deleteAndNullify(thread);
     }
 
     virtual void accept( Visitor& v ) override {
@@ -272,9 +272,9 @@ public:
     virtual ~Socket() {
         pcm_ = nullptr;
         for ( auto& core : cores_ )
-            delete core;
+            deleteAndNullify(core);
         refCore_ = nullptr; // cores_ is owner so it is already deleted by here
-        delete uncore_;
+        deleteAndNullify(uncore_);
     }
 
     virtual void accept( Visitor& v ) override {
@@ -352,9 +352,9 @@ public:
     virtual ~SystemRoot() {
         pcm_ = nullptr;
         for ( auto& socket : sockets_ )
-            delete socket;
+            deleteAndNullify(socket);
         for ( auto& thread : offlinedThreadsAtStart_ )
-            delete thread;
+            deleteAndNullify(thread);
     }
 
     virtual void accept( Visitor& v ) override {

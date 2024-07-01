@@ -126,8 +126,7 @@ MsrHandle::~MsrHandle()
     MsrHandle::num_handles--;
     if (MsrHandle::num_handles == 0)
     {
-        delete driver;
-        driver = NULL;
+        deleteAndNullify(driver);
     }
 }
 
@@ -228,6 +227,7 @@ MsrHandle::MsrHandle(uint32 cpu) : fd(-1), cpu_id(cpu)
         writesEnabled = true;
     }
     char * path = new char[200];
+    if (!path) throw std::runtime_error("Allocation of 200 bytes failed.");
     snprintf(path, 200, "/dev/cpu/%d/msr", cpu);
     int handle = ::open(path, O_RDWR);
     if (handle < 0)
@@ -235,7 +235,7 @@ MsrHandle::MsrHandle(uint32 cpu) : fd(-1), cpu_id(cpu)
         snprintf(path, 200, "/dev/msr%d", cpu);
         handle = ::open(path, O_RDWR);
     }
-    delete[] path;
+    deleteAndNullifyArray(path);
     if (handle < 0)
     {
          std::cerr << "PCM Error: can't open MSR handle for core " << cpu << " (" << strerror(errno) << ")\n";

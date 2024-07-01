@@ -1,9 +1,12 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright (c) 2022, Intel Corporation
 
+include(FindOpenSSL)
 
 # All pcm-* executables
 set(PROJECT_NAMES pcm pcm-numa pcm-latency pcm-power pcm-msr pcm-memory pcm-tsx pcm-pcie pcm-core pcm-iio pcm-lspci pcm-pcicfg pcm-mmio pcm-tpmi pcm-raw pcm-accel)
+
+set(MINIMUM_OPENSSL_VERSION 1.1.1)
 
 file(GLOB COMMON_SOURCES pcm-accel-common.cpp msr.cpp cpucounters.cpp pci.cpp mmio.cpp tpmi.cpp pmt.cpp bw.cpp utils.cpp topology.cpp debug.cpp threadpool.cpp uncore_pmu_discovery.cpp)
 
@@ -32,8 +35,11 @@ if(UNIX)  # LINUX, FREE_BSD, APPLE
       $<$<CONFIG:RelWithDebInfo>:PCM_SILENT>
     )
 
+    target_compile_options(PCM_STATIC_SILENT PRIVATE "-fPIC")
+
     # libpcm.so
     add_library(PCM_SHARED SHARED pcm-core.cpp)
+    target_compile_options(PCM_SHARED PRIVATE -DPCM_SHARED_LIBRARY=1)
     # PCM_SILENT in Release* for pcm-core.cpp
     target_compile_definitions(PCM_SHARED PRIVATE
       $<$<CONFIG:Release>:PCM_SILENT>
@@ -43,9 +49,9 @@ if(UNIX)  # LINUX, FREE_BSD, APPLE
     if(APPLE)
         add_subdirectory(MacMSRDriver)
         include_directories("${CMAKE_SOURCE_DIR}/src/MacMSRDriver") # target_include_directories doesn't work
-        target_link_libraries(PCM_SHARED PRIVATE PCM_STATIC_SILENT PcmMsr Threads::Threads)
+        target_link_libraries(PCM_SHARED PRIVATE PCM_STATIC_SILENT PcmMsr Threads::Threads asan)
     else()
-        target_link_libraries(PCM_SHARED PRIVATE PCM_STATIC_SILENT Threads::Threads)
+        target_link_libraries(PCM_SHARED PRIVATE PCM_STATIC_SILENT Threads::Threads asan)
     endif()
     set_target_properties(PCM_SHARED PROPERTIES OUTPUT_NAME pcm)
 endif()
@@ -145,9 +151,14 @@ foreach(PROJECT_NAME ${PROJECT_NAMES})
       else()
         message(STATUS "Compiling with SSL support, requires libssl-dev or openssl-devel or libopenssl-devel or libopenssl-dev package installed")
         message(STATUS "To disable SSL support, use -DNO_SSL=1 option")
-        find_package(OpenSSL REQUIRED)
-        target_compile_options(${PROJECT_NAME} PRIVATE "-DUSE_SSL")
-        set(LIBS ${LIBS} OpenSSL::SSL OpenSSL::Crypto)
+        find_package(OpenSSL ${MINIMUM_OPENSSL_VERSION} QUIET)
+        if(OPENSSL_FOUND)
+          message(STATUS "OpenSSL version ${OPENSSL_VERSION} >= ${MINIMUM_OPENSSL_VERSION}, OpenSSL support enabled")
+          target_compile_options(${PROJECT_NAME} PRIVATE "-DUSE_SSL")
+          set(LIBS ${LIBS} OpenSSL::SSL OpenSSL::Crypto)
+        else()
+          message(STATUS "OpenSSL support has been disabled, the version is less than ${MINIMUM_OPENSSL_VERSION}")
+        endif()
       endif()
       file(READ pcm-sensor-server.service.in SENSOR_SERVICE_IN)
       string(REPLACE "@@CMAKE_INSTALL_SBINDIR@@" "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_SBINDIR}" SENSOR_SERVICE "${SENSOR_SERVICE_IN}")

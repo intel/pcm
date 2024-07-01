@@ -92,9 +92,9 @@ ServerUncoreCounterState * BeforeState;
 ServerUncoreCounterState * AfterState;
 
 
-SystemCounterState SysBeforeState, SysAfterState;
-std::vector<CoreCounterState> BeforeState_core, AfterState_core;
-std::vector<SocketCounterState> DummySocketStates;
+std::shared_ptr<SystemCounterState> SysBeforeState, SysAfterState;
+std::shared_ptr<std::vector<CoreCounterState> > BeforeState_core, AfterState_core;
+std::shared_ptr<std::vector<SocketCounterState> > DummySocketStates;
 
 void collect_beforestate_uncore(PCM *m)
 {
@@ -150,12 +150,12 @@ void store_latency_uncore(PCM *m, bool ddr, int delay_ms)
 
 void collect_beforestate_core(PCM *m)
 {
-    m->getAllCounterStates(SysBeforeState, DummySocketStates, BeforeState_core);
+    m->getAllCounterStates(*SysBeforeState.get(), *DummySocketStates.get(), *BeforeState_core.get());
 }
 
 void collect_afterstate_core(PCM *m)
 {
-    m->getAllCounterStates(SysAfterState, DummySocketStates, AfterState_core);
+    m->getAllCounterStates(*SysAfterState.get(), *DummySocketStates.get(), *AfterState_core.get());
 }
 
 void store_latency_core(PCM *m)
@@ -173,12 +173,12 @@ void store_latency_core(PCM *m)
     }
     for (unsigned int i=0; i<m->getNumCores(); i++)
     {
-        const double frequency = (((double)getCycles(BeforeState_core[i], AfterState_core[i]) /
-            (double)getRefCycles(BeforeState_core[i], AfterState_core[i])) * (double)m->getNominalFrequency()) / 1000000000;
+        const double frequency = (((double)getCycles(BeforeState_core->operator[](i), AfterState_core->operator[](i)) /
+            (double)getRefCycles(BeforeState_core->operator[](i), AfterState_core->operator[](i))) * (double)m->getNominalFrequency()) / 1000000000;
         for(int j=0; j<2; j++)// 2 events
         {
             core_event[j].core[i].core_id = i;
-            core_event[j].core[i].latency = (double)getNumberOfCustomEvents(j, BeforeState_core[i], AfterState_core[i]);
+            core_event[j].core[i].latency = (double)getNumberOfCustomEvents(j, BeforeState_core->operator[](i), AfterState_core->operator[](i));
         }
         // L1 latency
         //Adding 5 clocks for L1 Miss
@@ -443,8 +443,8 @@ void collect_data(PCM *m, bool enable_pmm, bool enable_verbose, int delay_ms, Ma
         return true;
     });
 
-    delete[] BeforeState;
-    delete[] AfterState;
+    deleteAndNullifyArray(BeforeState);
+    deleteAndNullifyArray(AfterState);
 }
 
 void print_usage()
@@ -511,6 +511,12 @@ int mainThrows(int argc, char * argv[])
 
     PCM::ExtendedCustomCoreEventDescription conf;
     PCM * m = PCM::getInstance();
+
+    SysBeforeState = std::make_shared<SystemCounterState>();
+    SysAfterState = std::make_shared<SystemCounterState>();
+    BeforeState_core = std::make_shared<std::vector<CoreCounterState> >();
+    AfterState_core = std::make_shared<std::vector<CoreCounterState> >();
+    DummySocketStates = std::make_shared<std::vector<SocketCounterState> >();
 
     build_registers(m, conf, enable_pmm, enable_verbose);
     collect_data(m, enable_pmm, enable_verbose, delay_ms, mainLoop);

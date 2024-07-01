@@ -1,12 +1,10 @@
-name: fuzz-job
+name: fuzz-micro-job
 
 on:
-  schedule:
-    # every sunday at midnight
-    - cron: '0 0 * * 0'
-  # also allow manual triggering
-  workflow_dispatch:
-
+  push:
+    branches: [ '**' ]
+  pull_request:
+    branches: [ '**' ]
 
 permissions:
   contents: read
@@ -32,7 +30,7 @@ jobs:
         set -o pipefail
         mkdir build
         cd build
-        bash ${{ github.workspace }}/tests/fuzz.sh 300 2>&1 | tee fuzz-log.txt
+        bash ${{ github.workspace }}/tests/fuzz.sh 5 2>&1 | tee fuzz-log.txt
         cd ..
 
     - name: Show report

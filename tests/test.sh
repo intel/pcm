@@ -132,7 +132,8 @@ if [ "$?" -ne "0" ]; then
 fi
 
 echo Testing c_example
-./examples/c_example
+# see https://github.com/google/sanitizers/issues/934
+LD_PRELOAD="$(realpath "$(gcc -print-file-name=libasan.so)") $(realpath "$(gcc -print-file-name=libstdc++.so)")" LD_LIBRARY_PATH=../lib/ ./examples/c_example
 if [ "$?" -ne "0" ]; then
     echo "Error in c_example"
     exit 1
@@ -158,6 +159,9 @@ if [ "$?" -ne "0" ]; then
     echo "Error in pcm-power"
     exit 1
 fi
+
+echo "/sys/fs/cgroup/cpuset/cpuset.cpus:"
+cat /sys/fs/cgroup/cpuset/cpuset.cpus
 
 echo Testing pcm-pcie
 ./pcm-pcie -- sleep 1
