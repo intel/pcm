@@ -7,6 +7,12 @@ if [ "$#" -eq 1 ]; then
     factor=$1
 fi
 
+# Suppress leaks in libcrypto
+# Below is caused by openssl leaks
+# similar to https://github.com/spdk/spdk/issues/2947
+echo leak:libcrypto.so >> pcm_asan_suppression_file
+export LSAN_OPTIONS=suppressions="pcm_asan_suppression_file"
+
 echo "Running fuzz tests with running time multiplier $factor"
 
 CC=`which clang` CXX=`which clang++` cmake ..  -DCMAKE_BUILD_TYPE=Debug -DFUZZ=1 && mkdir -p corpus &&
