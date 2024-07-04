@@ -50,8 +50,6 @@ if(UNIX)  # LINUX, FREE_BSD, APPLE
         add_subdirectory(MacMSRDriver)
         include_directories("${CMAKE_SOURCE_DIR}/src/MacMSRDriver") # target_include_directories doesn't work
         target_link_libraries(PCM_SHARED PRIVATE PCM_STATIC_SILENT PcmMsr Threads::Threads)
-    elseif(LINUX)
-        target_link_libraries(PCM_SHARED PRIVATE PCM_STATIC_SILENT Threads::Threads asan)
     else()
         target_link_libraries(PCM_SHARED PRIVATE PCM_STATIC_SILENT Threads::Threads)
     endif()
@@ -148,6 +146,10 @@ foreach(PROJECT_NAME ${PROJECT_NAMES})
     if(MSVC)
         target_compile_options(${PROJECT_NAME} PRIVATE "${PCM_MSVC_RUNTIME_LIBRARY_OPTIONS}")
     endif(MSVC)
+
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "-static-libasan")
+    endif()
 
     # specific file for pcm-raw project
     if(${PROJECT_NAME} STREQUAL pcm-raw)
