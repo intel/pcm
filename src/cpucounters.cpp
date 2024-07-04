@@ -8712,18 +8712,16 @@ void ServerUncorePMUs::programServerUncoreMemoryMetrics(const ServerUncoreMemory
             std::cerr << "PCM Error: invalid rankA value: " << rankA << "\n";
             return;
         }
-        if (rankB < 0 || rankB > 7)
-        {
-            std::cerr << "PCM Error: invalid rankB value: " << rankB << "\n";
-            return;
-        }
         switch(cpu_model)
         {
         case PCM::IVYTOWN:
             MCCntConfig[EventPosition::READ_RANK_A] = MC_CH_PCI_PMON_CTL_EVENT((0xb0 + rankA)) + MC_CH_PCI_PMON_CTL_UMASK(0xff); // RD_CAS_RANK(rankA) all banks
             MCCntConfig[EventPosition::WRITE_RANK_A] = MC_CH_PCI_PMON_CTL_EVENT((0xb8 + rankA)) + MC_CH_PCI_PMON_CTL_UMASK(0xff); // WR_CAS_RANK(rankA) all banks
-            MCCntConfig[EventPosition::READ_RANK_B] = MC_CH_PCI_PMON_CTL_EVENT((0xb0 + rankB)) + MC_CH_PCI_PMON_CTL_UMASK(0xff); // RD_CAS_RANK(rankB) all banks
-            MCCntConfig[EventPosition::WRITE_RANK_B] = MC_CH_PCI_PMON_CTL_EVENT((0xb8 + rankB)) + MC_CH_PCI_PMON_CTL_UMASK(0xff); // WR_CAS_RANK(rankB) all banks
+            if (rankB >= 0 && rankB <= 7)
+            {
+                MCCntConfig[EventPosition::READ_RANK_B] = MC_CH_PCI_PMON_CTL_EVENT((0xb0 + rankB)) + MC_CH_PCI_PMON_CTL_UMASK(0xff); // RD_CAS_RANK(rankB) all banks
+                MCCntConfig[EventPosition::WRITE_RANK_B] = MC_CH_PCI_PMON_CTL_EVENT((0xb8 + rankB)) + MC_CH_PCI_PMON_CTL_UMASK(0xff); // WR_CAS_RANK(rankB) all banks
+            }
             break;
         case PCM::HASWELLX:
         case PCM::BDX_DE:
@@ -8731,8 +8729,11 @@ void ServerUncorePMUs::programServerUncoreMemoryMetrics(const ServerUncoreMemory
         case PCM::SKX:
             MCCntConfig[EventPosition::READ_RANK_A] = MC_CH_PCI_PMON_CTL_EVENT((0xb0 + rankA)) + MC_CH_PCI_PMON_CTL_UMASK(16); // RD_CAS_RANK(rankA) all banks
             MCCntConfig[EventPosition::WRITE_RANK_A] = MC_CH_PCI_PMON_CTL_EVENT((0xb8 + rankA)) + MC_CH_PCI_PMON_CTL_UMASK(16); // WR_CAS_RANK(rankA) all banks
-            MCCntConfig[EventPosition::READ_RANK_B] = MC_CH_PCI_PMON_CTL_EVENT((0xb0 + rankB)) + MC_CH_PCI_PMON_CTL_UMASK(16); // RD_CAS_RANK(rankB) all banks
-            MCCntConfig[EventPosition::WRITE_RANK_B] = MC_CH_PCI_PMON_CTL_EVENT((0xb8 + rankB)) + MC_CH_PCI_PMON_CTL_UMASK(16); // WR_CAS_RANK(rankB) all banks
+            if (rankB >= 0 && rankB <= 7)
+            {
+                MCCntConfig[EventPosition::READ_RANK_B] = MC_CH_PCI_PMON_CTL_EVENT((0xb0 + rankB)) + MC_CH_PCI_PMON_CTL_UMASK(16); // RD_CAS_RANK(rankB) all banks
+                MCCntConfig[EventPosition::WRITE_RANK_B] = MC_CH_PCI_PMON_CTL_EVENT((0xb8 + rankB)) + MC_CH_PCI_PMON_CTL_UMASK(16); // WR_CAS_RANK(rankB) all banks
+            }
             break;
         case PCM::KNL:
             MCCntConfig[EventPosition::READ] = MC_CH_PCI_PMON_CTL_EVENT(0x03) + MC_CH_PCI_PMON_CTL_UMASK(1);  // monitor reads on counter 0: CAS.RD
