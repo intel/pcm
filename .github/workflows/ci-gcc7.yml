@@ -1,0 +1,36 @@
+name: g++ 7 build
+
+on:
+  push:
+    branches: [ '**' ]
+  pull_request:
+    branches: [ '**' ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+
+    runs-on: ci-gcc9
+    if: ${{ github.repository != 'intel/pcm' }}
+
+    steps:
+    - name: Harden Runner
+      uses: step-security/harden-runner@eb238b55efaa70779f274895e782ed17c84f2895 # v2.6.1
+      with:
+        egress-policy: audit
+
+    - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+      with:
+        submodules: recursive
+    - name: Configure CMake
+      run: |
+        cmake --version
+        rm -rf ${{ github.workspace }}/build
+        CXX=g++-7 CC=gcc-7 cmake -B ${{ github.workspace }}/build -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/build
+    - name: Build and Install
+      run: |
+        g++-7 --version
+        cd ${{ github.workspace }}/build
+        make install -j$(nproc)
