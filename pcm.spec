@@ -19,7 +19,6 @@ BuildRequires:   libopenssl-devel
 %else
 BuildRequires:   openssl-devel
 BuildRequires:   libasan
-BuildRequires:   libasan-static
 %endif
 
 
@@ -33,7 +32,7 @@ Intel(r) Performance Counter Monitor (Intel(r) PCM) is an application programmin
 %build
 mkdir build
 cd build
-cmake -DCMAKE_INSTALL_PREFIX=/usr/ -DCMAKE_BUILD_TYPE=RelWithDebInfo ..
+cmake -DNO_STATIC_LIBASAN=1 -DCMAKE_INSTALL_PREFIX=/usr/ -DCMAKE_BUILD_TYPE=RelWithDebInfo ..
 make -j 
 
 %install
