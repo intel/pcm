@@ -19,6 +19,7 @@ BuildRequires:   libopenssl-devel
 %else
 BuildRequires:   openssl-devel
 BuildRequires:   libasan
+BuildRequires:   libasan-static
 %endif
 
 
