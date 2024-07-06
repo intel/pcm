@@ -50,8 +50,6 @@ if(UNIX)  # LINUX, FREE_BSD, APPLE
         add_subdirectory(MacMSRDriver)
         include_directories("${CMAKE_SOURCE_DIR}/src/MacMSRDriver") # target_include_directories doesn't work
         target_link_libraries(PCM_SHARED PRIVATE PCM_STATIC_SILENT PcmMsr Threads::Threads)
-    elseif(LINUX)
-        target_link_libraries(PCM_SHARED PRIVATE PCM_STATIC_SILENT Threads::Threads asan)
     else()
         target_link_libraries(PCM_SHARED PRIVATE PCM_STATIC_SILENT Threads::Threads)
     endif()
@@ -66,14 +64,21 @@ if(MSVC)
     file(GLOB WINDOWS_SOURCES winpmem/winpmem.cpp windows/stdafx.cpp freegetopt/getopt.cpp)
     add_library(PCM_STATIC STATIC ${COMMON_SOURCES} ${WINDOWS_SOURCES})
     target_compile_definitions(PCM_STATIC PRIVATE UNICODE _UNICODE _CONSOLE)
-    target_compile_options(PCM_STATIC PRIVATE "/MT$<$<CONFIG:Debug>:d>")
+    if (NO_STATIC_MSVC_RUNTIME_LIBRARY)
+        set(PCM_MSVC_RUNTIME_LIBRARY_OPTIONS "")
+    else()
+        set(PCM_MSVC_RUNTIME_LIBRARY_OPTIONS "/MT$<$<CONFIG:Debug>:d>")
+        message(STATUS "Using static MSVC runtime library")
+        message(STATUS "To use default/dynamic MSVC runtime library, use -DNO_STATIC_MSVC_RUNTIME_LIBRARY=1 option")
+    endif()
+    target_compile_options(PCM_STATIC PRIVATE "${PCM_MSVC_RUNTIME_LIBRARY_OPTIONS}")
 
     # Graphical perfmon front-end: pcm-lib, pcm-service
     # Files: COMMON_FILES() + pcm-lib.cpp winpmem\winpmem.cpp dllmain.cpp
     file(GLOB PCM_LIB_SOURCES winpmem/winpmem.cpp dllmain.cpp pcm-lib.cpp )
     add_library(pcm-lib SHARED ${COMMON_SOURCES} ${PCM_LIB_SOURCES})
     target_compile_definitions(pcm-lib PRIVATE _WINDOWS _USRDLL PCM_EXPORTS _WINDLL _UNICODE UNICODE)
-    target_compile_options(pcm-lib PRIVATE "/MT$<$<CONFIG:Debug>:d>")
+    target_compile_options(pcm-lib PRIVATE "${PCM_MSVC_RUNTIME_LIBRARY_OPTIONS}")
 
     # Pcm-service files: PCM_SHARED + AssemblyInfo.cpp PCMInstaller.cpp PCMService.cpp
     file(GLOB PCM_SERVICE_SOURCES windows/PCMInstaller.cpp  windows/PCMService.cpp windows/AssemblyInfo.cpp winddows/utils.cpp)
@@ -139,8 +144,12 @@ foreach(PROJECT_NAME ${PROJECT_NAMES})
     add_executable(${PROJECT_NAME} ${PROJECT_FILE})
 
     if(MSVC)
-        target_compile_options(${PROJECT_NAME} PRIVATE "/MT$<$<CONFIG:Debug>:d>")
+        target_compile_options(${PROJECT_NAME} PRIVATE "${PCM_MSVC_RUNTIME_LIBRARY_OPTIONS}")
     endif(MSVC)
+
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "-static-libasan")
+    endif()
 
     # specific file for pcm-raw project
     if(${PROJECT_NAME} STREQUAL pcm-raw)

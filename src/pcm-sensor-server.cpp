@@ -1017,6 +1017,7 @@ protected:
                 bytesReceived = SSL_read( ssl_, static_cast<void*>(inputBuffer_), SIZE * sizeof( char_type ) );
                 if ( 0 >= bytesReceived ) {
                     int sslError = SSL_get_error( ssl_, bytesReceived );
+                    ERR_print_errors_fp(stderr);
                     switch ( sslError ) {
                         case SSL_ERROR_WANT_READ:
                         case SSL_ERROR_WANT_WRITE:

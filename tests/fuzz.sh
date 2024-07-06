@@ -7,6 +7,12 @@ if [ "$#" -eq 1 ]; then
     factor=$1
 fi
 
+# Suppress leaks in libcrypto
+# Below is caused by openssl leaks
+# similar to https://github.com/spdk/spdk/issues/2947
+echo leak:libcrypto.so >> pcm_asan_suppression_file
+export LSAN_OPTIONS=suppressions="pcm_asan_suppression_file"
+
 echo "Running fuzz tests with running time multiplier $factor"
 
 CC=`which clang` CXX=`which clang++` cmake ..  -DCMAKE_BUILD_TYPE=Debug -DFUZZ=1 && mkdir -p corpus &&
@@ -14,7 +20,28 @@ make urltest-fuzz \
      pcm-fuzz \
      pcm-memory-fuzz \
      pcm-sensor-server-fuzz \
+     pcm-sensor-server-ssl-fuzz \
      -j &&
+rm -rf corpus/* &&
+printf '%b' "GET / HTTP/1.1\r\nHost: localhost\r\nAccept: */*\r\n\r\n" > corpus/1 &&
+printf '%b' "GET /metrics HTTP/1.1\r\nHost: localhost\r\nAccept: */*\r\n\r\n" > corpus/2 &&
+printf '%b' "GET /persecond HTTP/1.1\r\nHost: localhost\r\nAccept: */*\r\n\r\n" > corpus/3 &&
+printf '%b' "GET /persecond HTTP/1.1\r\nHost: localhost\r\nAccept: application/json\r\n\r\n" > corpus/3.1 &&
+printf '%b' "GET /persecond HTTP/1.1\r\nHost: localhost\r\nAccept: text/plain; version=0.0.4\r\n\r\n" > corpus/3.2 &&
+printf '%b' "GET /persecond/1 HTTP/1.1\r\nHost: localhost\r\nAccept: */*\r\n\r\n"   > corpus/4 &&
+printf '%b' "GET /persecond/1 HTTP/1.1\r\nHost: localhost\r\nAccept: application/json\r\n\r\n"   > corpus/4.1 &&
+printf '%b' "GET /persecond/1 HTTP/1.1\r\nHost: localhost\r\nAccept: text/plain; version=0.0.4\r\n\r\n"   > corpus/4.2 &&
+printf '%b' "GET /persecond/10 HTTP/1.1\r\nHost: localhost\r\nAccept: */*\r\n\r\n" > corpus/5 &&
+printf '%b' "GET /persecond/10 HTTP/1.1\r\nHost: localhost\r\nAccept: application/json\r\n\r\n" > corpus/5.1 &&
+printf '%b' "GET /persecond/10 HTTP/1.1\r\nHost: localhost\r\nAccept: text/plain; version=0.0.4\r\n\r\n" > corpus/5.2 &&
+printf '%b' "GET /persecond/100 HTTP/1.1\r\nHost: localhost\r\nAccept: application/json\r\n\r\n" > corpus/6 &&
+printf '%b' "GET /metrics HTTP/1.1\r\nHost: localhost\r\nAccept: */*\r\n\r\n" > corpus/7 &&
+printf '%b' "GET /dashboard/influxdb HTTP/1.1\r\nHost: localhost\r\nAccept: */*\r\n\r\n" > corpus/8 &&
+printf '%b' "GET /dashboard/prometheus HTTP/1.1\r\nHost: localhost\r\nAccept: */*\r\n\r\n" > corpus/9 &&
+printf '%b' "GET /dashboard/prometheus/default HTTP/1.1\r\nHost: localhost\r\nAccept: */*\r\n\r\n" > corpus/10 &&
+printf '%b' "GET /dashboard HTTP/1.1\r\nHost: localhost\r\nAccept: */*\r\n\r\n" > corpus/11 &&
+printf '%b' "GET /favicon.ico HTTP/1.1\r\nHost: localhost\r\nAccept: */*\r\n\r\n" > corpus/12 &&
+LLVM_PROFILE_FILE="pcm-sensor-server-ssl.profraw" bin/tests/pcm-sensor-server-ssl-fuzz -detect_leaks=0 -max_total_time=$((10 * $factor)) -rss_limit_mb=10000 corpus > /dev/null &&
 rm -rf corpus/* &&
 printf '%b' "GET / HTTP/1.1\r\nHost: localhost\r\nAccept: */*\r\n\r\n" > corpus/1 &&
 printf '%b' "GET /metrics HTTP/1.1\r\nHost: localhost\r\nAccept: */*\r\n\r\n" > corpus/2 &&
@@ -71,11 +98,13 @@ llvm-profdata merge -sparse \
         pcm.nmi_watchdog.profraw \
         pcm-memory.profraw \
         pcm-sensor-server.profraw \
+        pcm-sensor-server-ssl.profraw \
         -o all.profdata &&
 llvm-cov report --summary-only \
         -object ./bin/tests/pcm-fuzz \
         -object ./bin/tests/urltest-fuzz \
         -object ./bin/tests/pcm-memory-fuzz \
         -object ./bin/tests/pcm-sensor-server-fuzz \
+        -object ./bin/tests/pcm-sensor-server-ssl-fuzz \
         -instr-profile=all.profdata | tee report.txt
 

@@ -77,14 +77,25 @@ bool init()
             exit(1);
         }
         debug::dyn_debug_level(0);
+        #ifdef FUZZ_USE_SSL
+        std::cerr << "Starting SSL enabled server on https://localhost:" << port << "/\n";
+        auto httpsServer = new HTTPSServer( "", port );
+        httpsServer->setPrivateKeyFile ( "/private.key" );
+        httpsServer->setCertificateFile( "/certificate.crt" );
+        httpsServer->initialiseSSL();
+        httpServer = httpsServer;
+        #else
         std::cerr << "Starting plain HTTP server on http://localhost:" << port << "/\n";
         httpServer = new HTTPServer( "", port );
+        #endif
         // HEAD is GET without body, we will remove the body in execute()
         httpServer->registerCallback( HTTPRequestMethod::GET,  my_get_callback );
         httpServer->registerCallback( HTTPRequestMethod::HEAD, my_get_callback );
         httpServer->run();
     });
     int timeout = 60; // Timeout in seconds
+    std::cout << "Waiting for port " << port << " to be bound with timeout of " << timeout << " seconds..." << std::endl;
+    std::cout.flush();
     if (waitForPort(port, timeout)) {
             std::cout << "Port " << port << " is now bound." << std::endl;
     } else {
@@ -99,10 +110,20 @@ bool init()
 std::vector<char> buffer(1024*1024*16);
 
 std::string make_request(const std::string& request) {
+#ifdef FUZZ_USE_SSL
+    const SSL_METHOD* method = TLS_client_method();
+    SSL_CTX* ctx = SSL_CTX_new(method);
+    if (!ctx) {
+        throw std::runtime_error("Unable to create SSL context");
+    }
+#endif
     std::string server = "127.0.0.1";
     // Resolve the host
     struct hostent* host = gethostbyname(server.c_str());
     if (!host) {
+#ifdef FUZZ_USE_SSL
+        SSL_CTX_free(ctx);
+#endif
         std::cerr << "Failed to resolve host. Error: " << strerror(errno) << std::endl;
         throw std::runtime_error("Failed to resolve host: " + server);
     }
@@ -110,6 +131,9 @@ std::string make_request(const std::string& request) {
     // Create socket
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) {
+#ifdef FUZZ_USE_SSL
+        SSL_CTX_free(ctx);
+#endif
         std::cerr << "Failed to create socket. Error: " << strerror(errno) << std::endl;
         throw std::runtime_error("Failed to create socket");
     }
@@ -125,12 +149,40 @@ std::string make_request(const std::string& request) {
     if (connect(sock, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
         std::cerr << "Failed to connect to server. Error: " << strerror(errno) << std::endl;
         close(sock);
+#ifdef FUZZ_USE_SSL
+        SSL_CTX_free(ctx);
+#endif
         throw std::runtime_error("Failed to connect to server");
     }
 
-    // Form the request
+#ifdef FUZZ_USE_SSL
+    // Create SSL structure
+    SSL* ssl = SSL_new(ctx);
+    SSL_set_fd(ssl, sock);
+    if (SSL_connect(ssl) <= 0) {
+        SSL_free(ssl);
+        close(sock);
+        SSL_CTX_free(ctx);
+        throw std::runtime_error("Failed to establish SSL connection");
+    }
+#endif
+
     std::cout << "Sending request: " << request << "\n=====\n";
 
+    std::string response;
+    int bytes_received = -1;
+#ifdef FUZZ_USE_SSL
+    // Send the request
+    if (SSL_write(ssl, request.c_str(), request.length()) <= 0) {
+        SSL_free(ssl);
+        close(sock);
+        SSL_CTX_free(ctx);
+        return "Failed to send request, no response";
+    }
+
+    // Receive the response
+    bytes_received = SSL_read(ssl, &(buffer[0]), buffer.size());
+#else
     // Send the request
     if (send(sock, request.c_str(), request.length(), 0) < 0) {
         std::cerr << "Failed to send request. Error: " << strerror(errno) << std::endl;
@@ -140,23 +192,35 @@ std::string make_request(const std::string& request) {
     }
 
     // Receive the response
-    std::string response;
-    ssize_t bytes_received;
     bytes_received = recv(sock, &(buffer[0]), buffer.size(), 0);
+#endif
     if (bytes_received > 0)
     {
         response.append(&(buffer[0]), bytes_received);
     }
 
     if (bytes_received < 0) {
+#ifdef FUZZ_USE_SSL
+        SSL_free(ssl);
+#endif
         std::cerr << "Failed to receive response. Error: " << strerror(errno) << std::endl;
         close(sock);
+#ifdef FUZZ_USE_SSL
+        SSL_CTX_free(ctx);
+#endif
         // throw std::runtime_error("Failed to receive response");
         return "Failed to receive response"; // expected to happen sometimes
     }
 
-    // Close the socket
+    // clean up
+#ifdef FUZZ_USE_SSL
+    SSL_shutdown(ssl);
+    SSL_free(ssl);
+#endif
     close(sock);
+#ifdef FUZZ_USE_SSL
+    SSL_CTX_free(ctx);
+#endif
 
     return response;
 }

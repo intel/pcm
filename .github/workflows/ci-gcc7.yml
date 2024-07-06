@@ -12,7 +12,7 @@ permissions:
 jobs:
   build:
 
-    runs-on: ci-gcc7
+    runs-on: ci-gcc9
     if: ${{ github.repository != 'intel/pcm' }}
 
     steps:
@@ -21,26 +21,16 @@ jobs:
       with:
         egress-policy: audit
 
-    - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
-    - name: install simdjson
-      uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
+    - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
       with:
-        repository: simdjson/simdjson
-        path: src/simdjson
+        submodules: recursive
     - name: Configure CMake
       run: |
         cmake --version
-        rm -rf ${{ github.workspace }}/build && mkdir ${{ github.workspace }}/build
-        cd ${{ github.workspace }}/build
-        cmake -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/build ..
-    - name: Build
+        rm -rf ${{ github.workspace }}/build
+        CXX=g++-7 CC=gcc-7 cmake -B ${{ github.workspace }}/build -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/build
+    - name: Build and Install
       run: |
-        g++ --version
-        cd ${{ github.workspace }}/build
-        make -j$(nproc)
-    - name: Install
-      run: |
+        g++-7 --version
         cd ${{ github.workspace }}/build
         make install -j$(nproc)
-    - name: Diagnostic
-      run: date
