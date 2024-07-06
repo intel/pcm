@@ -46,12 +46,23 @@ if(UNIX)  # LINUX, FREE_BSD, APPLE
       $<$<CONFIG:MinSizeRel>:PCM_SILENT>
       $<$<CONFIG:RelWithDebInfo>:PCM_SILENT>
     )
+
+    if(NO_STATIC_LIBASAN)
+        set(PCM_DYNAMIC_ASAN "asan")
+        set(PCM_STATIC_ASAN "")
+    else()
+        set(PCM_DYNAMIC_ASAN "")
+        set(PCM_STATIC_ASAN "-static-libasan")
+        message(STATUS "Using static libasan")
+        message(STATUS "To use dynamic libasan, use -DNO_STATIC_LIBASAN=1 option")
+    endif()
+
     if(APPLE)
         add_subdirectory(MacMSRDriver)
         include_directories("${CMAKE_SOURCE_DIR}/src/MacMSRDriver") # target_include_directories doesn't work
         target_link_libraries(PCM_SHARED PRIVATE PCM_STATIC_SILENT PcmMsr Threads::Threads)
     else()
-        target_link_libraries(PCM_SHARED PRIVATE PCM_STATIC_SILENT Threads::Threads)
+        target_link_libraries(PCM_SHARED PRIVATE PCM_STATIC_SILENT Threads::Threads "${PCM_DYNAMIC_ASAN}")
     endif()
     set_target_properties(PCM_SHARED PROPERTIES OUTPUT_NAME pcm)
 endif()
@@ -148,7 +159,7 @@ foreach(PROJECT_NAME ${PROJECT_NAMES})
     endif(MSVC)
 
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-        set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "-static-libasan")
+        set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "${PCM_STATIC_ASAN}")
     endif()
 
     # specific file for pcm-raw project
