@@ -117,6 +117,13 @@ if [ "$?" -ne "0" ]; then
     exit 1
 fi
 
+echo Testing pcm-tpmi
+./pcm-tpmi 2 0x10 -d -b 26:26
+if [ "$?" -ne "0" ]; then
+    echo "Error in pcm-tpmi"
+    exit 1
+fi
+
 echo Testing pcm-numa
 ./pcm-numa -- sleep 1
 if [ "$?" -ne "0" ]; then
