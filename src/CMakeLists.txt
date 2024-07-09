@@ -16,6 +16,16 @@ else()
   file(GLOB UNUX_SOURCES dashboard.cpp resctrl.cpp)
 endif()
 
+if (LINUX)
+    file(STRINGS "/etc/os-release" OS_RELEASE_CONTENTS)
+    foreach(LINE ${OS_RELEASE_CONTENTS})
+    if(LINE MATCHES "^ID=")
+        string(REGEX REPLACE "^ID=\"?\([a-zA-Z]+\)\"?" "\\1" OS_ID ${LINE})
+    endif()
+    endforeach()
+    message(STATUS "Detected Linux distribution: ${OS_ID}")
+endif()
+
 if(UNIX)  # LINUX, FREE_BSD, APPLE
     if (NOT APPLE)
       set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS} -s")  # --strip-unneeded for packaging
