@@ -26,6 +26,11 @@ if (LINUX)
     message(STATUS "Detected Linux distribution: ${OS_ID}")
 endif()
 
+if(OS_ID STREQUAL "centos")
+  set(NO_STATIC_LIBASAN 1)
+  message(STATUS "CentOS detected, using dynamic libasan")
+endif()
+
 if(UNIX)  # LINUX, FREE_BSD, APPLE
     if (NOT APPLE)
       set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS} -s")  # --strip-unneeded for packaging
@@ -58,6 +63,7 @@ if(UNIX)  # LINUX, FREE_BSD, APPLE
     )
 
     if(NO_STATIC_LIBASAN)
+        message(STATUS "Using dynamic libasan")
         set(PCM_DYNAMIC_ASAN "asan")
         set(PCM_STATIC_ASAN "")
     else()
