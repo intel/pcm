@@ -401,6 +401,9 @@ private:
         printCounter( "L3 Cache Occupancy",       getL3CacheOccupancy   ( after ) );
         printCounter( "Invariant TSC",            getInvariantTSC       ( before, after ) );
         printCounter( "SMI Count",                getSMICount           ( before, after ) );
+
+        printCounter( "Core Frequency",           getActiveAverageFrequency ( before, after ) );
+
         endObject( JSONPrinter::DelimiterAndNewLine, END_OBJECT );
         //DBG( 2, "Invariant TSC before=", before.InvariantTSC, ", after=", after.InvariantTSC, ", difference=", after.InvariantTSC-before.InvariantTSC );
 
@@ -446,6 +449,11 @@ private:
         printCounter( "PP0 Joules Consumed",           getConsumedJoules      ( 0, before, after ) );
         printCounter( "PP1 Joules Consumed",           getConsumedJoules      ( 1, before, after ) );
         printCounter( "DRAM Joules Consumed",          getDRAMConsumedJoules  ( before, after ) );
+        auto uncoreFrequencies = getUncoreFrequencies( before, after );
+        for (size_t i = 0; i < uncoreFrequencies.size(); ++i)
+        {
+            printCounter( std::string("Uncore Frequency Die ") + std::to_string(i), uncoreFrequencies[i]);
+        }
         uint32 i = 0;
         for ( ; i < ( PCM::MAX_C_STATE ); ++i ) {
             std::stringstream s;
@@ -692,6 +700,8 @@ private:
         printCounter( "L3 Cache Occupancy",       getL3CacheOccupancy   ( after ) );
         printCounter( "Invariant TSC",            getInvariantTSC       ( before, after ) );
         printCounter( "SMI Count",                getSMICount           ( before, after ) );
+
+        printCounter( "Core Frequency",           getActiveAverageFrequency ( before, after ) );
         //DBG( 2, "Invariant TSC before=", before.InvariantTSC, ", after=", after.InvariantTSC, ", difference=", after.InvariantTSC-before.InvariantTSC );
 
         printCounter( "Thermal Headroom", after.getThermalHeadroom() );
@@ -734,6 +744,11 @@ private:
         printCounter( "PP0 Joules Consumed",           getConsumedJoules      ( 0, before, after ) );
         printCounter( "PP1 Joules Consumed",           getConsumedJoules      ( 1, before, after ) );
         printCounter( "DRAM Joules Consumed",          getDRAMConsumedJoules  ( before, after ) );
+        auto uncoreFrequencies = getUncoreFrequencies( before, after );
+        for (size_t i = 0; i < uncoreFrequencies.size(); ++i)
+        {
+            printCounter( std::string("Uncore Frequency Die ") + std::to_string(i), uncoreFrequencies[i]);
+        }
         uint32 i = 0;
         for ( ; i <= ( PCM::MAX_C_STATE ); ++i ) {
             std::stringstream s;

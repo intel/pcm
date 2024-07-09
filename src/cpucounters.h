@@ -4078,6 +4078,25 @@ double getAverageUncoreFrequency(const UncoreStateType& before, const UncoreStat
     return double(m->getNumOnlineCores()) * getAverageFrequencyFromClocks(after.UncClocks - before.UncClocks, before, after) / double(m->getNumOnlineSockets());
 }
 
+/*! \brief Computes uncore frequency for all dies
+
+    \param before CPU counter state before the experiment
+    \param after CPU counter state after the experiment
+    \return frequency in Hz
+*/
+template <class UncoreStateType>
+std::vector<double> getUncoreFrequencies(const UncoreStateType& before, const UncoreStateType & after) // in Hz
+{
+    auto m = PCM::getInstance();
+    assert(m);
+    std::vector<double> uncoreFrequencies{getUncoreFrequency(after)};
+    if (m->uncoreFrequencyMetricAvailable())
+    {
+        uncoreFrequencies.push_back(getAverageUncoreFrequency(before, after));
+    }
+    return uncoreFrequencies;
+}
+
 /*! \brief Computes average core frequency when not in powersaving C0-state (also taking Intel Turbo Boost technology into account)
 
     \param before CPU counter state before the experiment
