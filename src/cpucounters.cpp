@@ -6529,7 +6529,10 @@ void PCM::readAndAggregatePackageCStateResidencies(std::shared_ptr<SafeMsrHandle
 
     for (int i = 0; i <= int(PCM::MAX_C_STATE); ++i)
     {
-        atomic_fetch_add((std::atomic<uint64> *)(result.CStateResidency + i), cCStateResidency[i]);
+        if (cCStateResidency[i])
+        {
+            atomic_fetch_add((std::atomic<uint64> *)(result.CStateResidency + i), cCStateResidency[i]);
+        }
     }
 }
 
