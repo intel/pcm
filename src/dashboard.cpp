@@ -419,7 +419,7 @@ public:
         }
         result += R"PCMDELIMITER(
   ],
-  "refresh": "5s",
+  "refresh": "1s",
   "schemaVersion": 22,
   "style": "dark",
   "tags": [],
@@ -456,7 +456,22 @@ public:
     "from": "now-5m",
     "to": "now"
   },
-  "timepicker": {},
+  "timepicker": {
+    "refresh_intervals": [
+      "1s",
+      "2s",
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m",
+      "15m",
+      "30m",
+      "1h",
+      "2h",
+      "1d"
+    ]
+  },
   "timezone": "",
   "title": ")PCMDELIMITER";
         result += title;
