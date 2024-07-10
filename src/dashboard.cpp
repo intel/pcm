@@ -625,6 +625,21 @@ std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int
         dashboard.push(panel);
         dashboard.push(panel1);
     }
+    for (size_t s = 0; s < NumSockets; ++s)
+    {
+        const auto S = std::to_string(s);
+        auto panel = std::make_shared<TimeSeriesPanel>(0, y, width, height, std::string("Socket") +  S + " Energy Consumption", "Watt", false);
+        auto panel1 = std::make_shared<BarGaugePanel>(width, y, max_width - width, height, std::string("Current Socket") +  S + " Energy Consumption (Watt)");
+        y += height;
+        for (auto &m : {"Package Joules Consumed", "DRAM Joules Consumed", "PP0 Joules Consumed", "PP1 Joules Consumed"})
+        {
+          auto t = createTarget(m, influxDBUncore_Uncore_Counters(S, m), prometheusCounters(S, m, false));
+          panel->push(t);
+          panel1->push(t);
+        }
+        dashboard.push(panel);
+        dashboard.push(panel1);
+    }
     {
         auto panel = std::make_shared<TimeSeriesPanel>(0, y, width, height, "Memory Bandwidth", "MByte/sec", false);
         auto panel1 = std::make_shared<BarGaugePanel>(width, y, max_width - width, height, "Memory Bandwidth (MByte/sec)");
@@ -873,21 +888,6 @@ std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int
         {
             accelCounters(accs->getAccelIndexCounterName(j));
         }
-    }
-    for (size_t s = 0; s < NumSockets; ++s)
-    {
-        const auto S = std::to_string(s);
-        auto panel = std::make_shared<TimeSeriesPanel>(0, y, width, height, std::string("Socket") +  S + " Energy Consumption", "Watt", false);
-        auto panel1 = std::make_shared<BarGaugePanel>(width, y, max_width - width, height, std::string("Current Socket") +  S + " Energy Consumption (Watt)");
-        y += height;
-        for (auto &m : {"Package Joules Consumed", "DRAM Joules Consumed", "PP0 Joules Consumed", "PP1 Joules Consumed"})
-        {
-          auto t = createTarget(m, influxDBUncore_Uncore_Counters(S, m), prometheusCounters(S, m, false));
-          panel->push(t);
-          panel1->push(t);
-        }
-        dashboard.push(panel);
-        dashboard.push(panel1);
     }
     return dashboard();
 }
