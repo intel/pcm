@@ -16,7 +16,7 @@ providers:
   # <bool> enable dashboard editing
   editable: true
   # <int> how often Grafana will scan for changed dashboards
-  updateIntervalSeconds: 10
+  updateIntervalSeconds: 1
   # <bool> allow updating provisioned dashboards from the UI
   allowUiUpdates: false
   options:
