@@ -17,7 +17,7 @@ else()
 endif()
 
 if (LINUX)
-    if(EXISTS "/etc/os-release" AND IS_READABLE "/etc/os-release")
+    if(EXISTS "/etc/os-release") #  AND IS_READABLE "/etc/os-release" (3.29 cmake required :-( )
       file(STRINGS "/etc/os-release" OS_RELEASE_CONTENTS)
       foreach(LINE ${OS_RELEASE_CONTENTS})
           if(LINE MATCHES "^ID=")
