@@ -351,13 +351,16 @@ void readAccelCounters(SystemCounterState& sycs_)
 }
 
 AcceleratorCounterState* AcceleratorCounterState::instance = NULL;
+
+std::mutex instanceCreationMutexForAcceleratorCounterState{};
+
 AcceleratorCounterState * AcceleratorCounterState::getInstance()
  {
     // lock-free read
     // cppcheck-suppress identicalConditionAfterEarlyExit
     if (instance) return instance;
 
-    std::unique_lock<std::mutex> instanceCreationMutex;
+    std::unique_lock<std::mutex> _(instanceCreationMutexForAcceleratorCounterState);
     // cppcheck-suppress identicalConditionAfterEarlyExit
     if (instance) return instance;
 
