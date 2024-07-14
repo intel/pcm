@@ -3062,6 +3062,7 @@ PCM::PCM() :
 #ifdef PCM_USE_PERF
     canUsePerf = true;
     perfEventHandle.resize(num_cores, std::vector<int>(PERF_MAX_COUNTERS, -1));
+    std::fill(perfTopDownPos.begin(), perfTopDownPos.end(), 0);
 #endif
 
     for (int32 i = 0; i < num_cores; ++i)
