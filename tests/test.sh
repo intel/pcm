@@ -29,6 +29,13 @@ if [ "$?" -ne "0" ]; then
    exit 1
 fi
 
+echo Testing pcm w/o env vars + color
+./pcm -r --color -- sleep 1
+if [ "$?" -ne "0" ]; then
+   echo "Error in pcm"
+   exit 1
+fi
+
 echo Testing pcm with -pid
 perl -e ' do {} until (0)' &
 test_pid="$!"
