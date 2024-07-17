@@ -2,6 +2,7 @@
 // Copyright (c) 2009-2022, Intel Corporation
 // written by Andrey Semin and many others
 
+#include <array>
 #include <iostream>
 #include <cassert>
 #include <climits>
@@ -125,18 +126,24 @@ const char * setColor (const char * colorStr)
     return colorEnabled ? colorStr : "";
 }
 
-std::vector<const char *> colorTable = {
-        ASCII_GREEN,
-        ASCII_YELLOW,
-        ASCII_MAGENTA,
-        ASCII_CYAN,
-        ASCII_BRIGHT_GREEN,
-        ASCII_BRIGHT_YELLOW,
-        ASCII_BRIGHT_BLUE,
-        ASCII_BRIGHT_MAGENTA,
-        ASCII_BRIGHT_CYAN,
-        ASCII_BRIGHT_WHITE
-};
+template<typename T, typename... N>
+constexpr auto make_array(N&&... args) -> std::array<T, sizeof...(args)>
+{
+    return {std::forward<N>(args)...};
+}
+
+constexpr auto colorTable{make_array<const char*>(
+    ASCII_GREEN,
+    ASCII_YELLOW,
+    ASCII_MAGENTA,
+    ASCII_CYAN,
+    ASCII_BRIGHT_GREEN,
+    ASCII_BRIGHT_YELLOW,
+    ASCII_BRIGHT_BLUE,
+    ASCII_BRIGHT_MAGENTA,
+    ASCII_BRIGHT_CYAN,
+    ASCII_BRIGHT_WHITE
+)};
 
 size_t currentColor = 0;
 const char * setNextColor()
