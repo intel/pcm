@@ -29,6 +29,8 @@ void print_usage(const char * progname)
     std::cout << "   -b low:high : read or write only low..high bits of the register\n";
     std::cout << "   -e entries  : perform read/write on specified entries (default is all entries)\n";
     std::cout << "                 (examples: -e 10 -e 10-11 -e 4,6,12-20,6)\n";
+    std::cout << "   -i instances: perform read/write on specified instances (default is all instances)\n";
+    std::cout << "                 (examples: -i 1 -i 0,1 -i 0,2-3)\n";
     std::cout << "   -d          : output all numbers in dec (default is hex)\n";
     std::cout << "   -v          : verbose ouput\n";
     std::cout << "   --version   : print application version\n";
@@ -51,10 +53,10 @@ int mainThrows(int argc, char * argv[])
     bool write = false;
     bool dec = false;
     std::pair<int64,int64> bits{-1, -1};
-    std::list<int> entries;
+    std::list<int> entries, instances;
 
     int my_opt = -1;
-    while ((my_opt = getopt(argc, argv, "w:dvb:e:")) != -1)
+    while ((my_opt = getopt(argc, argv, "w:dvb:e:i:")) != -1)
     {
         switch (my_opt)
         {
@@ -73,6 +75,9 @@ int mainThrows(int argc, char * argv[])
             break;
         case 'e':
             entries = extract_integer_list(optarg);
+            break;
+        case 'i':
+            instances = extract_integer_list(optarg);
             break;
         default:
             print_usage(argv[0]);
@@ -106,8 +111,20 @@ int mainThrows(int argc, char * argv[])
 
     try
     {
-        for (size_t i = 0; i < TPMIHandle::getNumInstances(); ++i)
+        if (instances.empty())
         {
+            for (size_t i = 0; i < TPMIHandle::getNumInstances(); ++i)
+            {
+                instances.push_back(i);
+            }
+        }
+        for (const size_t i : instances)
+        {
+            if (i >= TPMIHandle::getNumInstances())
+            {
+                std::cerr << "Instance " << i << " does not exist\n";
+                continue;
+            }
             TPMIHandle h(i, requestedID, requestedRelativeOffset, !write);
             auto one = [&](const size_t p)
             {
