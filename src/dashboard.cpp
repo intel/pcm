@@ -773,7 +773,26 @@ std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int
     }
     dashboard.push(panel);
     dashboard.push(panel1);
-
+    auto stacked = [&] (const char * m, std::vector<const char *> metrics, size_t s)
+    {
+        const auto S = std::to_string(s);
+        auto my_height = 3 * height / 2;
+        auto panel = std::make_shared<TimeSeriesPanel>(0, y, width, my_height, "Socket" + S + " " + std::string(m), "stacked %", true);
+        auto panel1 = std::make_shared<BarGaugePanel>(width, y, max_width - width, my_height, std::string("Current ") + m + " (%)");
+        y += my_height;
+        for (auto & metric : metrics)
+        {
+            auto t = createTarget(metric, influxDBUncore_Uncore_Counters(S, metric), "");
+            panel->push(t);
+            panel1->push(t);
+        }
+        dashboard.push(panel);
+        dashboard.push(panel1);
+    };
+    for (size_t s = 0; type == InfluxDB && s < NumSockets; ++s)
+    {
+        stacked("Memory Request Ratio", {"Local Memory Request Ratio", "Remote Memory Request Ratio"}, s);
+    }
     auto upi = [&](const std::string & m, const bool utilization)
     {
         for (size_t s = 0; s < NumSockets; ++s)

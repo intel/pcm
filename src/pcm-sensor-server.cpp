@@ -454,6 +454,9 @@ private:
         {
             printCounter( std::string("Uncore Frequency Die ") + std::to_string(i), uncoreFrequencies[i]);
         }
+        const auto localRatio = int(100.* getLocalMemoryRequestRatio(before, after));
+        printCounter( "Local Memory Request Ratio",  int(100.* getLocalMemoryRequestRatio(before, after)) );
+        printCounter( "Remote Memory Request Ratio", 100 - localRatio);
         uint32 i = 0;
         for ( ; i < ( PCM::MAX_C_STATE ); ++i ) {
             std::stringstream s;
