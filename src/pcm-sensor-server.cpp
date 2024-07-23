@@ -404,6 +404,19 @@ private:
 
         printCounter( "Core Frequency",           getActiveAverageFrequency ( before, after ) );
 
+        printCounter( "Frontend Bound",             int(100. * getFrontendBound(before, after)) );
+        printCounter( "Bad Speculation",            int(100. * getBadSpeculation(before, after)) );
+        printCounter( "Backend Bound",              int(100. * getBackendBound(before, after)) );
+        printCounter( "Retiring",                   int(100. * getRetiring(before, after)) );
+        printCounter( "Fetch Latency Bound",        int(100. * getFetchLatencyBound(before, after)) );
+        printCounter( "Fetch Bandwidth Bound",      int(100. * getFetchBandwidthBound(before, after)) );
+        printCounter( "Branch Misprediction Bound", int(100. * getBranchMispredictionBound(before, after)) );
+        printCounter( "Machine Clears Bound",       int(100. * getMachineClearsBound(before, after)) );
+        printCounter( "Memory Bound",               int(100. * getMemoryBound(before, after)) );
+        printCounter( "Core Bound",                 int(100. * getCoreBound(before, after)) );
+        printCounter( "Heavy Operations Bound",     int(100. * getHeavyOperationsBound(before, after)) );
+        printCounter( "Light Operations Bound",     int(100. * getLightOperationsBound(before, after)) );
+
         endObject( JSONPrinter::DelimiterAndNewLine, END_OBJECT );
         //DBG( 2, "Invariant TSC before=", before.InvariantTSC, ", after=", after.InvariantTSC, ", difference=", after.InvariantTSC-before.InvariantTSC );
 
