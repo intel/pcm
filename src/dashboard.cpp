@@ -622,8 +622,10 @@ std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int
             dashboard.push(panel1);
         }
     };
-    scaled("Core Frequency", "GHz", "/1000000000");
-    for (size_t s = 0; s < NumSockets; ++s)
+    if (type == InfluxDB) {
+        scaled("Core Frequency", "GHz", "/1000000000");
+    }
+    for (size_t s = 0; type == InfluxDB && s < NumSockets; ++s)
     {
         const char * op = "/1000000000";
         const auto S = std::to_string(s);
