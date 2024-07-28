@@ -1,12 +1,29 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright (c) 2022, Intel Corporation
- 
+
 cmake_minimum_required(VERSION 3.5)
 
 project(PCM)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
+# set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
+
+option(PCM_NO_ASAN "Disable address sanitizer" OFF)
+option(PCM_FUZZ "Enable fuzzing" OFF)
+option(PCM_BUILD_EXECUTABLES "Build PCM utilities" ON)
+
+if(MSVC)
+    option(PCM_NO_STATIC_MSVC_RUNTIME_LIBRARY "Disable using static runtime under MSVC" OFF)
+endif()
+
+foreach(opt NO_STATIC_MSVC_RUNTIME_LIBRARY;FUZZ;NO_ASAN)
+    if(${opt})
+        message(DEPRECATION "Option \"${opt}\" is deprecated and will be removed soon. Please use \"PCM_${opt}\"")
+        set(PCM_${opt} ${opt})
+    endif()
+endforeach()
 
 include(GNUInstallDirs)
 
@@ -19,6 +36,7 @@ foreach(file ${PCM_X_ARTIFACTS})
     file(REMOVE ${file})
     message(STATUS "Removing old artifact from current source directory : ${file}")
 endforeach()
+
 if(PCM_X_ARTIFACTS)
     message(WARNING
 	  " Old pcm utilities (.x) were indicated in build folder.\n"
@@ -82,12 +100,12 @@ if(UNIX)  # APPLE, LINUX, FREE_BSD
     elseif()
          set (PCM_DYNAMIC "")
     endif()
-    if(NO_ASAN)
+    if(PCM_NO_ASAN)
         message(STATUS "AddressSanitizer is disabled")
         set(PCM_ASAN "")
     else()
         message(STATUS "AddressSanitizer is enabled")
-        message(STATUS "To disable AddressSanitizer, use -DNO_ASAN=1 option")
+        message(STATUS "To disable AddressSanitizer, use -DPCM_NO_ASAN=1 option")
         set(PCM_ASAN "-fsanitize=address")
     endif()
     set(PCM_HARDENING_FLAGS "-fPIE -fstack-protector -D_FORTIFY_SOURCE=2 -ftrapv ${PCM_ASAN} -fwrapv -fno-delete-null-pointer-checks -fno-strict-overflow -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer")
@@ -117,12 +135,12 @@ if(UNIX)  # APPLE, LINUX, FREE_BSD
 
 endif(UNIX)
 
-if(FUZZ)
+if(PCM_FUZZ)
     set(FUZZER_OPTIONS "-fsanitize=fuzzer,address -fprofile-instr-generate -fcoverage-mapping")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${FUZZER_OPTIONS}")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${FUZZER_OPTIONS}")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${FUZZER_OPTIONS}")
-endif(FUZZ)
+endif(PCM_FUZZ)
 
 #######################
 # Install
