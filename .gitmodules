@@ -1,3 +1,6 @@
 [submodule "src/simdjson"]
 	path = src/simdjson
 	url = https://github.com/simdjson/simdjson.git
+[submodule "perfmon"]
+	path = perfmon
+	url = https://github.com/intel/perfmon
