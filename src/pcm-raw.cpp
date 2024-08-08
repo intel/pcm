@@ -568,6 +568,7 @@ AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEven
                     err_msg = std::string("event file ") + path + " or " + alt_path + " is not available.";
                     throw std::invalid_argument(err_msg);
                 }
+                path = alt_path;
             }
             in.close();
             break;
