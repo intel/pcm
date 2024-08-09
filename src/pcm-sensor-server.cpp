@@ -59,7 +59,7 @@ class Indent {
         }
         Indent() = delete;
         Indent(Indent const &) = default;
-        Indent & operator = (Indent const &) = default;
+        Indent & operator = (Indent const &) = delete;
         ~Indent() = default;
 
         friend std::stringstream& operator <<( std::stringstream& stream, Indent in );
@@ -107,13 +107,13 @@ class datetime {
         datetime( std::tm t ) : now( t ) {}
         ~datetime() = default;
         datetime( datetime const& ) = default;
-	datetime & operator = ( datetime const& ) = default;
+        datetime & operator = ( datetime const& ) = default;
 
     public:
         void printDateTimeString( std::ostream& os ) const {
             std::stringstream str("");
             char timeBuffer[64];
-	    std::fill(timeBuffer, timeBuffer + 64, 0);
+            std::fill(timeBuffer, timeBuffer + 64, 0);
             str.imbue( std::locale::classic() );
             if ( strftime( timeBuffer, 63, "%a, %d %b %Y %T GMT", &now ) )
                 str << timeBuffer;
@@ -124,7 +124,7 @@ class datetime {
         std::string toString() const {
             std::stringstream str("");
             char timeBuffer[64];
-	    std::fill(timeBuffer, timeBuffer + 64, 0);
+            std::fill(timeBuffer, timeBuffer + 64, 0);
             str.imbue( std::locale::classic() );
             if ( strftime( timeBuffer, 63, "%a, %d %b %Y %T GMT", &now ) )
                 str << timeBuffer;
@@ -149,13 +149,13 @@ class date {
         }
         ~date() = default;
         date( date const& ) = default;
-	date & operator = ( date const& ) = default;
+        date & operator = ( date const& ) = default;
 
     public:
         void printDate( std::ostream& os ) const {
             char buf[64];
-	    const auto t = std::localtime(&now);
-	    assert(t);
+            const auto t = std::localtime(&now);
+            assert(t);
             std::strftime( buf, 64, "%F", t);
             os << buf;
         }
@@ -187,7 +187,7 @@ std::string read_ndctl_info( std::ofstream& logfile ) {
         // parent, reads from pipe, close write-end
         close( pipes[1] );
         char buf[2049];
-	std::fill(buf, buf + 2049, 0);
+        std::fill(buf, buf + 2049, 0);
         ssize_t len = 0;
         while( (len = read( pipes[0], buf, 2048 )) > 0 ) {
             buf[len] = '\0';
@@ -226,7 +226,7 @@ public:
 
     void ignoreSignal( int signum ) {
         struct sigaction sa;
-	sigemptyset(&sa.sa_mask);
+        sigemptyset(&sa.sa_mask);
         sa.sa_handler = SIG_IGN;
         sa.sa_flags = 0;
         sigaction( signum, &sa, 0 );
@@ -234,7 +234,7 @@ public:
 
     void installHandler( void (*handler)(int), int signum ) {
         struct sigaction sa;
-	sigemptyset(&sa.sa_mask);
+        sigemptyset(&sa.sa_mask);
         sa.sa_handler = handler;
         sa.sa_flags = 0;
         sigaction( signum, &sa, 0 );
@@ -268,7 +268,7 @@ public:
     JSONPrinter( std::pair<std::shared_ptr<Aggregator>,std::shared_ptr<Aggregator>> aggregatorPair ) : indentation("  "), aggPair_( aggregatorPair ) {
         if ( nullptr == aggPair_.second.get() )
             throw std::runtime_error("BUG: second Aggregator == nullptr!");
-        DBG(2, "Constructor: before=", std::hex, aggPair_.first.get(), ", after=", std::hex, aggPair_.second.get() );
+        DBG( 2, "Constructor: before=", std::hex, aggPair_.first.get(), ", after=", std::hex, aggPair_.second.get() );
     }
 
     JSONPrinter( JSONPrinter const & ) = delete;
@@ -404,6 +404,19 @@ private:
 
         printCounter( "Core Frequency",           getActiveAverageFrequency ( before, after ) );
 
+        printCounter( "Frontend Bound",             int(100. * getFrontendBound(before, after)) );
+        printCounter( "Bad Speculation",            int(100. * getBadSpeculation(before, after)) );
+        printCounter( "Backend Bound",              int(100. * getBackendBound(before, after)) );
+        printCounter( "Retiring",                   int(100. * getRetiring(before, after)) );
+        printCounter( "Fetch Latency Bound",        int(100. * getFetchLatencyBound(before, after)) );
+        printCounter( "Fetch Bandwidth Bound",      int(100. * getFetchBandwidthBound(before, after)) );
+        printCounter( "Branch Misprediction Bound", int(100. * getBranchMispredictionBound(before, after)) );
+        printCounter( "Machine Clears Bound",       int(100. * getMachineClearsBound(before, after)) );
+        printCounter( "Memory Bound",               int(100. * getMemoryBound(before, after)) );
+        printCounter( "Core Bound",                 int(100. * getCoreBound(before, after)) );
+        printCounter( "Heavy Operations Bound",     int(100. * getHeavyOperationsBound(before, after)) );
+        printCounter( "Light Operations Bound",     int(100. * getLightOperationsBound(before, after)) );
+
         endObject( JSONPrinter::DelimiterAndNewLine, END_OBJECT );
         //DBG( 2, "Invariant TSC before=", before.InvariantTSC, ", after=", after.InvariantTSC, ", difference=", after.InvariantTSC-before.InvariantTSC );
 
@@ -454,6 +467,9 @@ private:
         {
             printCounter( std::string("Uncore Frequency Die ") + std::to_string(i), uncoreFrequencies[i]);
         }
+        const auto localRatio = int(100.* getLocalMemoryRequestRatio(before, after));
+        printCounter( "Local Memory Request Ratio",  int(100.* getLocalMemoryRequestRatio(before, after)) );
+        printCounter( "Remote Memory Request Ratio", 100 - localRatio);
         uint32 i = 0;
         for ( ; i < ( PCM::MAX_C_STATE ); ++i ) {
             std::stringstream s;
@@ -577,7 +593,7 @@ public:
     PrometheusPrinter( std::pair<std::shared_ptr<Aggregator>,std::shared_ptr<Aggregator>> aggregatorPair ) : aggPair_( aggregatorPair ) {
         if ( nullptr == aggPair_.second.get() )
             throw std::runtime_error("BUG: second Aggregator == nullptr!");
-        DBG(2, "Constructor: before=", std::hex, aggPair_.first.get(), ", after=", std::hex, aggPair_.second.get() );
+        DBG( 2, "Constructor: before=", std::hex, aggPair_.first.get(), ", after=", std::hex, aggPair_.second.get() );
     }
 
     PrometheusPrinter( PrometheusPrinter const & ) = delete;
@@ -866,6 +882,26 @@ void PrometheusPrinter::iterateVectorAndCallAccept(Vector const& v) {
     }
 };
 
+#if defined (USE_SSL)
+void closeSSLConnectionAndFD( int fd, SSL* ssl ) {
+    int ret;
+
+    if ( (ret = SSL_shutdown( ssl )) == 0 ) {
+        DBG( 3, "first shutdown returned: ", ret );
+        // Call it again when it returns 0, it has sent the notification but not received it back yet
+        if ( (ret = SSL_shutdown( ssl )) != 1 )
+            // Big trouble but we did all we could.
+            DBG( 3, "Could not shutdown the SSL connection the second time... ret: ", ret );
+    }
+    ERR_clear_error();
+    SSL_free( ssl ); // Free the SSL structure to prevent memory leaks
+    // cppcheck-suppress uselessAssignmentPtrArg
+    ssl = nullptr;
+    DBG( 3, "close fd" );
+    ::close( fd );
+}
+#endif
+
 template <std::size_t SIZE = 256, class CharT = char, class Traits = std::char_traits<CharT>>
 class basic_socketbuf : public std::basic_streambuf<CharT> {
 public:
@@ -876,7 +912,7 @@ public:
     using int_type    = typename Base::int_type;
     using traits_type = typename Base::traits_type;
 
-    basic_socketbuf(): socketFD_(0) {
+    basic_socketbuf( std::string dbg_ = std::string("Server: ") ): socketFD_(0), dbg(dbg_) {
         // According to http://en.cppreference.com/w/cpp/io/basic_streambuf
         // epptr and egptr point beyond the buffer, so start + SIZE
         Base::setp( outputBuffer_, outputBuffer_ + SIZE );
@@ -884,19 +920,15 @@ public:
         // Default timeout of 10 seconds and 0 microseconds
         timeout_ = { 10, 0 };
 #if defined (USE_SSL)
+        // I guess one could say that the instantiation of the ptr in this object will always be 0, i just want this to be explicit for now
+        // cppcheck-suppress uselessAssignmentPtrArg
         ssl_ = nullptr;
 #endif
     }
 
     virtual ~basic_socketbuf() {
-        basic_socketbuf::sync();
-#if defined (USE_SSL)
-        if ( nullptr != ssl_ ) {
-            SSL_free( ssl_ );
-        }
-#endif
-        if ( 0 != socketFD_ )
-            ::close( socketFD_ );
+        close();
+        DBG( 3, dbg, "socketbuf destructor finished" );
     }
 
     int socket() {
@@ -931,25 +963,42 @@ public:
 
     void setSSL( SSL* ssl ) {
         if ( nullptr != ssl_ )
-            throw std::runtime_error( "You can set the SSL pointer only once" );
+            throw std::runtime_error( "BUG: You can set the SSL pointer only once" );
         if ( nullptr == ssl )
-            throw std::runtime_error( "Trying to set a nullptr as ssl" );
+            throw std::runtime_error( "BUG: Trying to set a nullptr as ssl" );
         ssl_ = ssl;
     }
 #endif
+
+    void close() {
+        basic_socketbuf::sync();
+#if defined (USE_SSL)
+        if ( nullptr != ssl_ ) {
+            SSL_shutdown( ssl_ );
+            ERR_clear_error();
+            SSL_free( ssl_ );
+            ssl_ = nullptr;
+        }
+#endif
+        if ( 0 != socketFD_ ) {
+            DBG( 3, dbg, "close clientsocketFD" );
+            ::close( socketFD_ );
+        }
+    }
 
 protected:
     int_type writeToSocket() {
         size_t bytesToSend;
         ssize_t bytesSent;
         bytesToSend = (char*)Base::pptr() - (char*)Base::pbase();
+        DBG( 3, dbg, "wts: Bytes to send: ", bytesToSend );
 
 #if defined (USE_SSL)
         if ( nullptr == ssl_ ) {
 #endif
             bytesSent= ::send( socketFD_, (void*)outputBuffer_, bytesToSend, MSG_NOSIGNAL );
             if ( -1 == bytesSent ) {
-                std::cerr << strerror( errno ) << "\n";
+                DBG( 3, "bytesSent == -1: strerror( ", errno, " ): ", strerror( errno ), ", returning eof..." );
                 return traits_type::eof();
             }
 #if defined (USE_SSL)
@@ -959,19 +1008,32 @@ protected:
                 // openSSL has no support for setting the MSG_NOSIGNAL during send
                 // but we ignore sigpipe so we should be fine
                 bytesSent = SSL_write( ssl_, (void*)outputBuffer_, bytesToSend );
+                DBG( 3, dbg, "wts: SSL_write returned for bytesSent: ", bytesSent );
                 if ( 0 >= bytesSent ) {
                     int sslError = SSL_get_error( ssl_, bytesSent );
-                    switch ( sslError ) {
-                        case SSL_ERROR_WANT_READ:
-                        case SSL_ERROR_WANT_WRITE:
-                            // retry
-                            continue; // Should continue in the while loop and attempt to write again
-//                            break;
-                        case SSL_ERROR_ZERO_RETURN:
-                        case SSL_ERROR_SYSCALL:
-                        case SSL_ERROR_SSL:
-                        default:
-                            return traits_type::eof();
+                    if ( sslError == SSL_ERROR_ZERO_RETURN ) {
+                        // TSL/SSL Connection has been closed, the underlying socket may not though
+                        return traits_type::eof();
+                    } else {
+                        DBG( 3, dbg, "wts: SSL_get_error returned: ", sslError );
+                        ERR_clear_error(); // Clear error because SSL_get_error does not do so
+                        switch ( sslError ) {
+                            case SSL_ERROR_WANT_READ:
+                            case SSL_ERROR_WANT_WRITE:
+                                DBG( 3, dbg, "wts: Want read or write or error none. Trying SSL_write again...");
+                                // retry
+                                continue; // Should continue in the while loop and attempt to write again
+//                                break;
+                            case SSL_ERROR_SYSCALL:
+                                DBG( 3, dbg, "wts: errno is: ", errno, " strerror(errno): ", strerror(errno) );
+                                if ( errno == 0 )
+                                    return 0;
+                                /* fall-through */
+                            case SSL_ERROR_SSL:
+                            default:
+                                DBG( 3, dbg, "wts: SSL_write, syscall, ssl or default. Returning eof" );
+                                return traits_type::eof();
+                        }
                     }
                 } else {
                     // Valid write
@@ -985,9 +1047,13 @@ protected:
     }
 
     int sync() override {
-        if ( 0 == socketFD_ )  // Socket is closed already
+        DBG( 3, dbg, "sync socketFD_: ", socketFD_ );
+        if ( 0 == socketFD_ ) // Socket is closed already
             return 0;
+
+        DBG( 3, dbg, "sync: Calling writeToSocket()" );
         int_type ret = writeToSocket();
+        DBG( 3, dbg, "sync: writeToSocket returned: ", ret );
         if ( traits_type::eof() == ret )
             return -1;
         return 0;
@@ -1013,47 +1079,83 @@ protected:
 #if defined (USE_SSL)
         if ( nullptr == ssl_ ) {
 #endif
-            DBG( 3, "Socketbuf: Read from socket:" );
+            DBG( 3, dbg, "Socketbuf: Read from socket:" );
             bytesReceived = ::read( socketFD_, static_cast<char*>(inputBuffer_), SIZE * sizeof( char_type ) );
             if ( 0 == bytesReceived ) {
                 // Client closed the socket normally, we will do the same
-                ::close( socketFD_ );
+                close();
                 return traits_type::eof();
             }
             if ( -1 == bytesReceived ) {
                 if ( errno )
-                    DBG( 3, "Errno: ", errno, ", (", strerror( errno ) , ")" );
-                ::close( socketFD_ );
+                    DBG( 3, dbg, "Errno: ", errno, ", (", strerror( errno ) , ")" );
+                close();
                 Base::setg( nullptr, nullptr, nullptr );
                 return traits_type::eof();
             }
-            DBG( 3, "Bytes received: ", bytesReceived );
+            DBG( 3, dbg, "Bytes received: ", bytesReceived );
             debug::dyn_hex_table_output( 3, std::cout, bytesReceived, inputBuffer_ );
-            DBG( 3, "End", std::dec );
+            DBG( 3, dbg, "End", std::dec );
 #if defined (USE_SSL)
         }
         else {
-            while (1) {
+            bool loopAgain = true;
+            while (loopAgain) {
                 bytesReceived = SSL_read( ssl_, static_cast<void*>(inputBuffer_), SIZE * sizeof( char_type ) );
+                DBG( 3, dbg, "SSL_read: bytesReceived: ", bytesReceived );
                 if ( 0 >= bytesReceived ) {
                     int sslError = SSL_get_error( ssl_, bytesReceived );
-                    ERR_print_errors_fp(stderr);
-                    switch ( sslError ) {
-                        case SSL_ERROR_WANT_READ:
-                        case SSL_ERROR_WANT_WRITE:
-                            // retry
-                            continue; // Should continue in the while loop and attempt to read again
-                            break;
-                        case SSL_ERROR_ZERO_RETURN:
-                        case SSL_ERROR_SYSCALL:
-                        case SSL_ERROR_SSL:
-                        default:
-                            Base::setg( nullptr, nullptr, nullptr );
-                            return traits_type::eof();
+                    if ( sslError == SSL_ERROR_ZERO_RETURN ) {
+                        // TSL/SSL Connection has been closed, the underlying socket may not though
+                        throw std::runtime_error( "SSL_read returned SSL_ERROR_ZERO_RETURN, connection was closed" );
+                    } else {
+                        DBG( 3, dbg, "SSL_read: sslError: ", sslError );
+                        int err = 0;
+                        char buf[256];
+                        err = ERR_get_error();
+                        DBG( 3, dbg, "ERR_get_error(): ", err  );
+                        ERR_error_string( err, buf );
+                        DBG( 3, dbg, "ERR_error_string(): ", buf );
+                        ERR_clear_error(); // Clear error because SSL_get_error does not do so
+                        //ERR_print_errors_fp(stderr);
+                        switch ( sslError ) {
+                            case SSL_ERROR_WANT_READ:
+                                DBG( 3, "SSL_ERROR_WANT_READ: Errno = ", errno, ", strerror(errno): ", strerror(errno) );
+                                if ( errno == EAGAIN || errno == EWOULDBLOCK ) {
+                                    DBG( 3, dbg, "Most likely the set timeout, so aborting..." );
+                                    close();
+                                    Base::setg( nullptr, nullptr, nullptr );
+                                    DBG( 3, dbg, "return eof" );
+                                    return traits_type::eof();
+                                }
+                            /* fall-through */
+                            case SSL_ERROR_WANT_WRITE:
+                                // retry
+                                loopAgain = true; // Should continue in the while loop and attempt to read again
+                                break;
+                            case SSL_ERROR_SYSCALL:
+                                DBG( 3, "SSL_ERROR_SYSCALL: Errno = ", errno );
+                                if ( errno == EAGAIN || errno == EWOULDBLOCK ) {
+                                    DBG( 3, dbg, "Most likely the set timeout, so aborting..." );
+                                    close();
+                                    Base::setg( nullptr, nullptr, nullptr );
+                                    DBG( 3, dbg, "return eof" );
+                                    return traits_type::eof();
+                                }
+                                /* fall-through */
+                            case SSL_ERROR_SSL:
+                            default:
+                                 close();
+                                 Base::setg( nullptr, nullptr, nullptr );
+                                 DBG( 3, dbg, "return eof" );
+                                 return traits_type::eof();
+                        }
                     }
                 } else {
                     // Valid read
-                    break; // out of the while loop
+                    ERR_get_error();
+                    ERR_clear_error();
+                    loopAgain = false; // out of the while loop
                 }
             }
         }
@@ -1069,6 +1171,7 @@ protected:
     CharT inputBuffer_[SIZE];
     int   socketFD_;
     struct timeval timeout_;
+    std::string dbg;
 #if defined (USE_SSL)
     SSL*  ssl_;
 #endif
@@ -1084,35 +1187,31 @@ public:
 
 public:
     basic_socketstream(const basic_socketstream &) = delete;
+    virtual ~basic_socketstream() = default;
     basic_socketstream & operator = (const basic_socketstream &) = delete;
     basic_socketstream() : stream_type( &socketBuffer_ ) {}
 #if defined (USE_SSL)
-    basic_socketstream( int socketFD, SSL* ssl ) : stream_type( &socketBuffer_ ) {
-#else
-    basic_socketstream( int socketFD ) : stream_type( &socketBuffer_ ) {
-#endif
-        DBG( 3,"socketFD = ", socketFD );
+    basic_socketstream( int socketFD, SSL* ssl, std::string dbg_ = "Server: " ) : stream_type( &socketBuffer_ ), dbg( dbg_ ), socketBuffer_( dbg_ ) {
+        DBG( 3, dbg, "socketFD = ", socketFD );
         if ( 0 == socketFD ) {
-            DBG( 3,"Trying to set socketFD to 0 which is not allowed!" );
+            DBG( 3, dbg, "Trying to set socketFD to 0 which is not allowed!" );
             throw std::runtime_error( "Trying to set socketFD to 0 on basic_socketstream level which is not allowed." );
         }
         socketBuffer_.setSocket( socketFD );
 
-#if defined (USE_SSL)
         if ( nullptr != ssl )
             socketBuffer_.setSSL( ssl );
-        else
-#endif
-        {
-            CharT ch = Base::peek();
-            // for SSLv2 bit 7 is set and for SSLv3 and up the first ClientHello Message is 0x16
-            if ( ( ch & 0x80 ) || ( ch == 0x16 ) ) {
-                ::close( socketFD );
-                throw std::runtime_error( "Client tries to initiate https" );
-            }
-        }
     }
-    virtual ~basic_socketstream() {}
+#endif
+
+    basic_socketstream( int socketFD ) : stream_type( &socketBuffer_ ) {
+        DBG( 3, dbg, "socketFD = ", socketFD );
+        if ( 0 == socketFD ) {
+            DBG( 3, dbg, "Trying to set socketFD to 0 which is not allowed!" );
+            throw std::runtime_error( "Trying to set socketFD to 0 on basic_socketstream level which is not allowed." );
+        }
+        socketBuffer_.setSocket( socketFD );
+    }
 
 public:
     // For clients only, servers will have to create a socketstream
@@ -1140,6 +1239,7 @@ public:
 
         retval = connect( sockfd, address->ai_addr, address->ai_addrlen );
         if ( -1 == retval ) {
+            DBG( 3, dbg, "close clientsocketFD" );
             ::close( sockfd );
             freeaddrinfo( address );
             return -5;
@@ -1163,20 +1263,28 @@ public:
 //        return result;
 //    }
 
+    bool usesSSL() {
+#ifdef USE_SSL
+        return ( socketBuffer_.ssl() != nullptr );
+#else
+        return false;
+#endif
+    }
+
     void putLine( std::string& line ) {
         if ( !socketBuffer_.socket() )
             throw std::runtime_error( "The socket is not or no longer open!" );
-        DBG( 3, "socketstream::putLine: putting \"", line, "\" into the socket." );
+        DBG( 3, dbg, "socketstream::putLine: putting \"", line, "\" into the socket." );
         Base::write( line.c_str(), line.size() );
     }
 
     void close() {
-        const auto s = socketBuffer_.socket();
-        if ( 0 != s ) ::close(s);
-        socketBuffer_.setSocket( 0 );
+        DBG( 3, dbg, "close clientsocketFD" );
+        socketBuffer_.close();
     }
 
 protected:
+    std::string dbg;
     buf_type socketBuffer_;
 };
 
@@ -1186,7 +1294,8 @@ typedef basic_socketstream<wchar_t> wsocketstream;
 class Server {
 public:
     Server() = delete;
-    Server( const std::string & listenIP, uint16_t port ) noexcept( false ) : listenIP_(listenIP), port_( port ) {
+    Server( const std::string & listenIP, uint16_t port ) noexcept( false ) : listenIP_(listenIP), wq_( WorkQueue::getInstance() ), port_( port ) {
+        DBG( 3, "Initializing Server" );
         serverSocket_ = initializeServerSocket();
         SignalHandler* shi = SignalHandler::getInstance();
         shi->setSocket( serverSocket_ );
@@ -1198,7 +1307,9 @@ public:
     }
     Server( Server const & ) = delete;
     Server & operator = ( Server const & ) = delete;
-    virtual ~Server() = default;
+    virtual ~Server() {
+        wq_ = nullptr;
+    }
 
 public:
     virtual void run() = 0;
@@ -1222,6 +1333,7 @@ private:
         else {
             if ( 1 != ::inet_pton( AF_INET, listenIP_.c_str(), &(serv.sin_addr) ) )
             {
+                DBG( 3, "close clientsocketFD" );
                 ::close(sockfd);
                 throw std::runtime_error( "Server Constructor: Cannot convert IP string" );
             }
@@ -1229,12 +1341,14 @@ private:
         socklen_t len = sizeof( struct sockaddr_in );
         retval = ::bind( sockfd, reinterpret_cast<struct sockaddr*>(&serv), len );
         if ( 0 != retval ) {
+            DBG( 3, "close clientsocketFD" );
             ::close( sockfd );
             throw std::runtime_error( std::string("Server Constructor: Cannot bind to port ") + std::to_string(port_) );
         }
 
         retval = listen( sockfd, 64 );
         if ( 0 != retval ) {
+            DBG( 3, "close clientsocketFD" );
             ::close( sockfd );
             throw std::runtime_error( "Server Constructor: Cannot listen on socket" );
         }
@@ -1244,7 +1358,7 @@ private:
 
 protected:
     std::string  listenIP_;
-    WorkQueue    wq_;
+    WorkQueue*   wq_;
     int          serverSocket_;
     uint16_t     port_;
 };
@@ -1263,7 +1377,8 @@ enum HTTPRequestMethod {
 };
 
 enum HTTPProtocol {
-    HTTP_0_9 = 1,
+    InvalidProtocol = 0,
+    HTTP_0_9,
     HTTP_1_0,
     HTTP_1_1,
     HTTP_2_0,
@@ -1598,8 +1713,8 @@ private:
             return (int)(c - 'a') + 10;
         if ( '0' <= c && '9' >= c )
             return (int)(c - '0');
-	std::stringstream s;
-	s << "'" << c << "' is not a hexadecimal digit!";
+        std::stringstream s;
+        s << "'" << c << "' is not a hexadecimal digit!";
         throw std::runtime_error( s.str() );
     }
 public:
@@ -1674,7 +1789,7 @@ public:
                 url.scheme_ = scheme;
                 url.hasScheme_ = true;
             } else
-                throw std::runtime_error( "Does not start with / and no scheme" );
+                throw std::runtime_error( "URL does not start with / and has no scheme" );
 
             size_t authorityPos = fullURL.find( "//", schemeColonPos+1 );
             size_t authorityEndPos;
@@ -1771,7 +1886,7 @@ public:
                                 DBG( 3, "number of characters processed: ", pos );
                             } catch ( std::out_of_range& e ) {
                                 DBG( 3, "out_of_range exception caught in stoull: ", e.what() );
-                                DBG( 3, "errno: ", errno, strerror(errno) );
+                                DBG( 3, "errno: ", errno, ", strerror(errno): ", strerror(errno) );
                             }
                         }
                         if ( port >= 65536 )
@@ -1948,7 +2063,9 @@ std::unordered_map<enum MimeType, std::string, std::hash<int>> mimeTypeMap = {
 
 class HTTPHeader {
 public:
-    HTTPHeader() = default;
+    HTTPHeader() {
+        type_ = HeaderType::Invalid;
+    }
     HTTPHeader( std::string n, std::string v ) : name_( n ), value_( v ) {
         type_ = HeaderType::ServerSet;
     }
@@ -1963,12 +2080,15 @@ public:
 public:
     static HTTPHeader parse( std::string& header ) {
         HTTPHeader hh;
+        hh.type_ = HeaderType::Invalid;
 
         DBG( 3, "Raw Header : '", header, "'" );
 
         std::string::size_type colonPos = header.find( ':' );
-        if ( std::string::npos == colonPos )
-            throw std::runtime_error( "Not a valid header, no : found" );
+        if ( std::string::npos == colonPos ) {
+            hh.invalidReason_ = "Not a valid header, no : found";
+            return hh;
+        }
 
         std::string headerName  = header.substr( 0, colonPos );
         std::string headerValue = header.substr( colonPos+1 ); // FIXME: possible whitespace before, between and after
@@ -1984,14 +2104,17 @@ public:
         DBG( 3, "Headervalue: '", headerValue, "'" );
         DBG( 3, "HeaderType : '", HTTPHeaderProperties::headerTypeAsString(hh.type_), "'" );
 
-        if ( hh.type_ == HeaderType::Invalid )
-            throw std::runtime_error( "Parsing with Invalid HeaderType" );
+        if ( hh.type_ == HeaderType::Invalid ) {
+            hh.invalidReason_ = "parse header: found an Invalid HeaderType";
+            return hh;
+        }
 
         std::string::size_type quotes = std::count( headerValue.begin(), headerValue.end(), '"' );
         bool properlyQuoted = (quotes % 2 == 0);
         if ( !properlyQuoted ) {
             DBG( 3, "Parse: header not properly quoted: uneven number of  quotes (", quotes, ") found" );
-            throw std::runtime_error( "parse header: header improperly quoted" );
+            hh.type_ = HeaderType::Invalid;
+            hh.invalidReason_ = "parse header: header improperly quoted";
         }
 
         return hh;
@@ -2037,7 +2160,11 @@ public:
     }
 
     void debugPrint() const {
-        DBG( 3, "Headername: '", name_, "', Headervalue: '", value_, "'" );
+        if ( type_ == HeaderType::Invalid ) {
+            DBG( 3, "HeaderType::Invalid, invalidReason: ", invalidReason_ );
+        } else {
+            DBG( 3, "Headername: '", name_, "', Headervalue: '", value_, "'" );
+        }
     }
 
     size_t headerValueAsNumber() const {
@@ -2048,6 +2175,10 @@ public:
     double headerValueAsDouble() const {
         double number = std::stod( value_ );
         return number;
+    }
+
+    HeaderType type() const {
+        return type_;
     }
 
     std::string const & headerValueAsString() const {
@@ -2070,6 +2201,10 @@ public:
         return TextHTML;
     }
 
+    const std::string& invalidReason() const {
+        return invalidReason_;
+    }
+
 private:
     std::vector<std::string> splitHeaderValue() const {
         std::vector<std::string> elementList;
@@ -2090,7 +2225,8 @@ private:
 private:
     std::string name_;
     std::string value_;
-    enum HeaderType type_{HeaderType::Invalid};
+    enum HeaderType type_;
+    std::string invalidReason_;
     std::vector<std::string> valueList_;
     std::vector<double> floats_;
     std::vector<long long> integers_;
@@ -2101,7 +2237,10 @@ private:
 
 class HTTPMessage {
 protected:
-    HTTPMessage() = default;
+    HTTPMessage() {
+        initialized_ = false;
+        protocol_ = HTTPProtocol::InvalidProtocol;
+    }
     HTTPMessage( HTTPMessage const & ) = default;
     HTTPMessage & operator = ( HTTPMessage const & ) = default;
     ~HTTPMessage() = default;
@@ -2155,6 +2294,8 @@ public:
     }
 
     void setProtocol( enum HTTPProtocol protocol ) {
+        if ( protocol < HTTPProtocol::HTTP_0_9 || protocol > HTTPProtocol::HTTP_2_0 )
+            throw std::runtime_error( std::string("Protocol enum value out of bounds: ") + std::to_string(protocol) );
         protocol_ = protocol;
     }
 
@@ -2169,7 +2310,7 @@ public:
         }
         if ( it == protocol_map_.end() ) {
             DBG( 3, "Protocol string '", protocolString, "' not found in map, protocol unsupported!" );
-            throw std::runtime_error( "Protocol not found in the map" );
+            throw std::runtime_error( std::string("Protocol is not supported: ") + protocolString );
         }
     }
 
@@ -2178,10 +2319,18 @@ public:
         if ( hasHeader( "Host" ) ) {
             HTTPHeader host = getHeader( "Host" );
         } else {
-            DBG(3, "HTTPMessage::host: header Host not found." );
+            DBG( 3, "HTTPMessage::host: header Host not found." );
             host = "";
         }
         return host;
+    }
+
+    bool isInitialized() const {
+        return initialized_;
+    }
+
+    void setInitialized() {
+        initialized_ = true;
     }
 
 protected:
@@ -2229,6 +2378,7 @@ protected:
         { HTTPProtocol::HTTP_1_1, "HTTP/1.1" },
         { HTTPProtocol::HTTP_2_0, "HTTP/2.0" }
     };
+    bool initialized_;
 };
 
 class HTTPRequest : public HTTPMessage {
@@ -2267,7 +2417,7 @@ private:
 
 class HTTPResponse : public HTTPMessage {
 public:
-    HTTPResponse() : responseCode_( HTTPResponseCode::RC_200_OK ) {}
+    HTTPResponse( bool bodyExpected = true ) : responseCode_( HTTPResponseCode::RC_200_OK ), bodyExpected_( bodyExpected ) {}
     HTTPResponse( HTTPResponse const & ) = default;
     HTTPResponse & operator = ( HTTPResponse const & ) = default;
     virtual ~HTTPResponse() = default;
@@ -2275,13 +2425,24 @@ public:
     template <typename CharT, typename Traits>
     friend basic_socketstream<CharT,Traits>& operator<<(basic_socketstream<CharT,Traits>&, HTTPResponse& );
 
+    template <typename CharT, typename Traits>
+    friend basic_socketstream<CharT,Traits>& operator>>(basic_socketstream<CharT,Traits>&, HTTPResponse& );
+
 public:
     enum HTTPResponseCode responseCode() const {
         return responseCode_;
     }
 
+    std::string reasonPhrase() const {
+        return reasonPhrase_;
+    }
+
     std::string responseCodeAsString() const {
         return response_map_.at( responseCode_ );
+    }
+
+    bool bodyExpected() const {
+        return bodyExpected_;
     }
 
     void setResponseCode( enum HTTPResponseCode rc ) {
@@ -2289,11 +2450,23 @@ public:
         responseCode_ = rc;
     }
 
+    void setResponseCode( std::string& rc ) {
+        int anInt = std::stoi( rc );
+        if ( anInt < 0 || anInt > HTTPResponseCode::HTTPReponseCode_Spare )
+            throw std::runtime_error( "Responsecode is out of bounds!" );
+        responseCode_ = static_cast<HTTPResponseCode>( anInt );
+    }
+
+    void setReasonPhrase( std::string& reason ) {
+        reasonPhrase_ = reason;
+    }
+
     void debugPrint() {
         DBG( 3, "HTTPReponse::debugPrint:" );
         DBG( 3, "Response Code: \"", (int)responseCode_, "\"" );
         for ( auto& header: headers_ )
             DBG( 3, "Header: \"", header.first, "\" ==> \"", header.second.headerValueAsString(), "\"" );
+        // Leaving body at 3, too large and spams the output
         DBG( 3, "Body: \"", body_, "\"" );
     }
 
@@ -2307,6 +2480,8 @@ public:
 
 private:
     enum HTTPResponseCode responseCode_;
+    bool bodyExpected_;
+    std::string reasonPhrase_;
     std::unordered_map<enum HTTPResponseCode, std::string, std::hash<int>> response_map_ = {
         { RC_100_Continue, "Continue" },
         { RC_101_SwitchingProtocols, "Switching Protocols" },
@@ -2399,24 +2574,65 @@ std::string& compressLWSAndRemoveCR( std::string& line ) {
     return line;
 }
 
+// This method is for a server reading a request from the client
 template <class CharT, class Traits>
 basic_socketstream<CharT, Traits>& operator>>( basic_socketstream<CharT, Traits>& rs, HTTPRequest& m ) {
     DBG( 3, "Reading from the socket" );
 
-    std::string method, url, protocol;
-    rs >> method >> url >> protocol;
+    // Read something like: GET /persecond/10 HTTP/1.1\r\n
+    std::string requestLine, method, url, protocol;
+    // We need to read a line and check if the request is valid
+    // Fuzzers like to remove spaces so there are not enough elements
+    // on the line and then we're in trouble with the old method
+    std::getline( rs, requestLine );
     if ( rs.fail() ) {
-        DBG( 5, "Could not read from socket, might have been closed due to e.g. timeout" );
+        DBG( 3, "Could not read from socket, might have been closed due to e.g. timeout" );
         throw std::runtime_error( "Could not read from socket, might have been closed due to e.g. timeout" );
     }
+    size_t nlPos = requestLine.find( '\n', 0 );
+    if ( nlPos != std::string::npos )
+        requestLine.erase( nlPos, 1 );
+    size_t crPos = requestLine.find( '\r', 0 );
+    if ( crPos != std::string::npos )
+        requestLine.erase( crPos, 1 );
+    DBG( 3, "RequestLine: \"", requestLine, "\"" );
+    // Method does not have spaces, url has %20, protocol does not have spaces, so exactly 2
+    if ( std::count( requestLine.begin(), requestLine.end(), ' ' ) == 2 ) {
+        // No need to check for npos, we determined there are enough spaces in the string
+        size_t firstSpace = requestLine.find( ' ', 0 );
+        // Bogus check, we checked for the existence of 2 spaces...
+        // A simple assert is not enough to silence cppcheck and coverity.
+        if ( firstSpace == std::string::npos )
+            throw std::runtime_error("No first space found in request line");
+        DBG( 3, "firstSpace: ", firstSpace );
+        method = requestLine.substr( 0, firstSpace );
+        DBG( 3, "method: ", method );
+        if ( method.size() == 0 )
+            throw std::runtime_error( "Not a valid request string: Method is empty" );
+        size_t secondSpace = requestLine.find( ' ', firstSpace+1 );
+        // Bogus check, we checked for the existence of 2 spaces...
+        // A simple assert is not enough to silence cppcheck and coverity.
+        if ( secondSpace == std::string::npos )
+            throw std::runtime_error("No second space found in request line");
+        DBG( 3, "secondSpace: ", secondSpace );
+        url = requestLine.substr( firstSpace+1, secondSpace-firstSpace-1 );
+        DBG( 3, "url: ", url );
+        if ( url.size() == 0 )
+            throw std::runtime_error( "Not a valid request string: URL is empty" );
+        protocol = requestLine.substr( secondSpace+1, std::string::npos );
+        DBG( 3, "protocol: ", protocol );
+        if ( protocol.size() == 0 )
+            throw std::runtime_error( "Not a valid request string: Protocol is empty" );
+    }
+    else
+        throw std::runtime_error( std::string( "Not a valid request string: Not exactly 3 space separated tokens: " ) + requestLine );
 
-    m.method_   = HTTPMethodProperties::getMethodAsEnum( method );
-    m.url_      = URL::parse( url );
     m.setProtocol( protocol );
+    m.method_ = HTTPMethodProperties::getMethodAsEnum( method );
+    m.url_    = URL::parse( url );
+    m.setInitialized();
 
-    //m.debugPrint();
-    // ignore the '\n' after the protocol
-    rs.ignore( std::numeric_limits<std::streamsize>::max(), '\n' );
+    // m.debugPrint();
     std::string line;
     std::string concatLine;
     while ( true ) {
@@ -2438,6 +2654,10 @@ basic_socketstream<CharT, Traits>& operator>>( basic_socketstream<CharT, Traits>
         HTTPHeader hh;
         hh = HTTPHeader::parse( concatLine );
         hh.debugPrint();
+        if ( hh.type() == HeaderType::Invalid ) {
+            // Bad request, throw exception, catch in httpconnection, create response there
+            throw std::runtime_error( std::string("Bad Request received: ") + hh.invalidReason() );
+        }
         m.addHeader( hh );
         // Parsing of header done, clear concatLine to start fresh
         concatLine.clear();
@@ -2447,7 +2667,7 @@ basic_socketstream<CharT, Traits>& operator>>( basic_socketstream<CharT, Traits>
     enum HTTPRequestHasBody hasBody = HTTPMethodProperties::requestHasBody( m.method_ );
     DBG( 3, "Request has Body (0 No, 1 Optional, 2 Yes): ", (int)hasBody );
     if ( hasBody != HTTPRequestHasBody::No ) {
-        // this mess of code checks if the body is chunked or regular and tests the pre conditions
+        // this mess of code checks if the body will arrive in pieces (chunked) or in one piece and tests the pre-conditions
         // that belong with them either content-length header or transfer-encoding header, both
         // means bad request, in case neither is there we need to check if body is optional
         bool validCL = false;
@@ -2520,6 +2740,10 @@ basic_socketstream<CharT, Traits>& operator>>( basic_socketstream<CharT, Traits>
                 DBG( 3, "Parsing remainder '", remainder, "'" );
                 while ( remainder[0] != '\r' ) {
                     HTTPHeader hh = HTTPHeader::parse( remainder );
+                    if ( hh.type() == HeaderType::Invalid ) {
+                        // Bad request, throw exception, catch in httpconnection, create response there
+                        throw std::runtime_error( std::string("Bad Request received: ") + hh.invalidReason() );
+                    }
                     m.addHeader( hh );
                     ++numHeadersAdded;
                 }
@@ -2533,17 +2757,91 @@ basic_socketstream<CharT, Traits>& operator>>( basic_socketstream<CharT, Traits>
             // Good request, no body, done
             return rs;
         } else {
-            // Bad request, respond, throw exception
-            HTTPResponse resp;
-            resp.setProtocol( HTTPProtocol::HTTP_1_1 );
-            resp.setResponseCode( HTTPResponseCode::RC_400_BadRequest );
-            rs << resp;
+            // Bad request, throw exception, catch in connection, create response there
             throw std::runtime_error( "Bad Request received" );
         }
     }
     return rs;
 }
 
+// This method is for a client reading a response from the server
+template <class CharT, class Traits>
+basic_socketstream<CharT, Traits>& operator>>( basic_socketstream<CharT, Traits>& rs, HTTPResponse& m ) {
+    DBG( 3, "Reading from the socket" );
+
+    // Read something like: HTTP/1.1 403 OK\r\n
+    std::string protocol, statuscode, reasonphrase;
+    rs >> protocol >> statuscode;
+    std::getline( rs, reasonphrase );
+    if ( rs.fail() ) {
+        DBG( 3, "Could not read from socket, might have been closed due to e.g. timeout" );
+        throw std::runtime_error( "Could not read from socket, might have been closed due to e.g. timeout" );
+    }
+
+    m.setProtocol( protocol );
+    m.setResponseCode( statuscode );
+    m.setReasonPhrase( reasonphrase );
+
+    //m.debugPrint();
+    // ignore the '\n' after the protocol
+    //rs.ignore( std::numeric_limits<std::streamsize>::max(), '\n' );
+    std::string line;
+    std::string concatLine;
+    while ( true ) {
+        std::getline( rs, line );
+        DBG( 3, "Line with whitespace: '", line, "'" );
+        concatLine += compressLWSAndRemoveCR( line );
+
+        DBG( 3, "Line without whitespace: '", line, "'" );
+        DBG( 3, "ConcatLine: '", concatLine, "'" );
+        // empty line is separator between headers and body
+        if ( concatLine.empty() ) {
+            break;
+        }
+
+        // Header spans multiple lines if a line starts with SP or HTAB, fetch another line and append to concatLine
+        if ( rs.peek() == ' ' || rs.peek() == '\t' )
+            continue;
+
+        HTTPHeader hh;
+        hh = HTTPHeader::parse( concatLine );
+        if ( hh.type() == HeaderType::Invalid ) {
+            // Bad request, throw exception, catch in httpconnection, create response there
+            throw std::runtime_error( std::string("Bad Request received: ") + hh.invalidReason() );
+        }
+        hh.debugPrint();
+        m.addHeader( hh );
+        // Parsing of header done, clear concatLine to start fresh
+        concatLine.clear();
+    }
+    DBG( 3, "Done parsing headers" );
+
+    DBG( 3, "Body expected: ", (int)m.bodyExpected() );
+    if ( m.bodyExpected() ) {
+        bool validCL = false;
+        size_t contentLength = 0;
+        std::string body( "" );
+        // cl = Content Length
+        if ( m.hasHeader( "Content-Length" ) ) {
+            HTTPHeader const h = m.getHeader( "Content-Length" );
+            contentLength = h.headerValueAsNumber();
+            if ( contentLength == 0 )
+                throw std::runtime_error( "Client: Server did not send a body (cl=0) but we expected one." );
+            validCL = true;
+            DBG( 3, "Content-Length: clValue: ", contentLength, ", validCL: ", validCL );
+        } else {
+            validCL = false;
+            DBG( 3, "Content-Length: header not found." );
+            throw std::runtime_error( "Could not find a Content-Length header so we're not sure how much data is coming, this is a protocol error on the server." );
+        }
+
+        body = m.readData( rs, contentLength );
+        m.addBody( body );
+    }
+    return rs;
+}
+
+// This method is for a server writing a response to the client
 template <class CharT, class Traits>
 basic_socketstream<CharT, Traits>& operator<<( basic_socketstream<CharT, Traits>& ws, HTTPResponse& m ) {
     DBG( 3, "Writing the HTTPResponse to the socket" );
@@ -2568,6 +2866,7 @@ basic_socketstream<CharT, Traits>& operator<<( basic_socketstream<CharT, Traits>
     ws << m.body();
 
     ws.flush();
+    DBG( 3, "Written the response to the socket and flushed it" );
     return ws;
 }
 
@@ -2577,7 +2876,9 @@ class HTTPConnection : public Work {
 public:
     HTTPConnection() = delete;
 #if defined (USE_SSL)
-    HTTPConnection( HTTPServer* hs, int socketFD, struct sockaddr_in /* clientAddr */, std::vector<http_callback> const & cl, SSL* ssl = nullptr ) : hs_( hs ), socketStream_( socketFD, ssl ), /* clientAddress_( clientAddr ), */ callbackList_( cl ) {}
+    HTTPConnection( HTTPServer* hs, int socketFD, struct sockaddr_in /* clientAddr */, std::vector<http_callback> const & cl, SSL* ssl = nullptr ) : hs_( hs ), socketStream_( socketFD, ssl ), /* clientAddress_( clientAddr ), */ callbackList_( cl ) {
+        DBG( 3, "HTTPConnection Constructor called..." );
+    }
 #else
     HTTPConnection( HTTPServer* hs, int socketFD, struct sockaddr_in /* clientAddr */, std::vector<http_callback> const & cl ) : hs_( hs ), socketStream_( socketFD ), /* clientAddress_( clientAddr ), */ callbackList_( cl ) {}
 #endif
@@ -2586,10 +2887,6 @@ public:
     ~HTTPConnection() = default;
 
 public:
-    void close() {
-        socketStream_.close();
-    }
-
     virtual void execute() override {
         bool keepListening = false;
         int numRequests = 0;
@@ -2598,11 +2895,24 @@ public:
             HTTPResponse response;
 
             try {
+                DBG( 3, "Starting a HTTPConnection read from socket" );
                 socketStream_ >> request;
             } catch( std::exception& e ) {
                 DBG( 3, "Reading request from socket: Exception caught: ", e.what(), "\n" );
+                // Use the protocol that the client used or simply respond with HTTP/1.1 if it could not be determined
+                if ( request.isInitialized() ) {
+                    // No need to catch here, if request isInitialized is true then the protocol
+                    // is set and there was no throw at that point
+                    response.setProtocol( request.protocol() );
+                } else {
+                    response.setProtocol( HTTPProtocol::HTTP_1_1 );
+                }
+                // Always send a response
+                response.createResponse( TextPlain, std::string( "400 Bad Request " ) + e.what(), RC_400_BadRequest );
+                socketStream_ << response;
                 break;
             }
+            DBG( 3, "Request read from socket, processing..." );
             ++numRequests;
             // Debug:
             // request.debugPrint();
@@ -2615,7 +2925,8 @@ public:
                     DBG( 3, "Mandatory Host header not found." );
                     std::string body( "400 Bad Request. HTTP 1.1: Mandatory Host header is missing." );
                     response.createResponse( TextPlain, body, RC_400_BadRequest );
-                    return;
+                    socketStream_ << response;
+                    break;
                 }
             }
 
@@ -2639,7 +2950,7 @@ public:
                     HTTPHeader const h = request.getHeader( "Connection" );
                     connection = h.headerValueAsString();
                 } else {
-                    DBG( 3, "Connection: header not found" );
+                    DBG( 3, "Connection: header not found, this is not an error" );
                     connection = "";
                 }
                 // FIXME: case insensitive compare
@@ -2663,12 +2974,14 @@ public:
                 response.addBody( "" );
             }
             response.debugPrint();
+            DBG( 3, "Writing back the response to the client" );
             socketStream_ << response;
+            DBG( 3, "Now flushing the socket" );
             socketStream_.flush();
+            DBG( 3, "Flushed, keep listening: ", keepListening );
+        } while ( keepListening );
 
-        } while ( !keepListening );
-
-        close();
+        DBG( 3, "Stopped listening and ending this HTTPConnection" );
     }
 
 private:
@@ -2685,20 +2998,22 @@ class PeriodicCounterFetcher : public Work
 {
 public:
     PeriodicCounterFetcher( HTTPServer* hs ) : hs_(hs), run_(false), exit_(false) {}
-    virtual ~PeriodicCounterFetcher() override {}
+    virtual ~PeriodicCounterFetcher() override {
+        hs_ = nullptr;
+    }
 
     void start( void ) {
-        DBG( 3, "PeriodicCounterFetcher::start() called" );
+        DBG( 4, "PeriodicCounterFetcher::start() called" );
         run_ = true;
     }
 
     void pause( void ) {
-        DBG( 3, "PeriodicCounterFetcher::pause() called" );
+        DBG( 4, "PeriodicCounterFetcher::pause() called" );
         run_ = false;
     }
 
     void stop( void ) {
-        DBG( 3, "PeriodicCounterFetcher::stop() called" );
+        DBG( 4, "PeriodicCounterFetcher::stop() called" );
         exit_ = true;
     }
 
@@ -2712,7 +3027,7 @@ private:
 
 class HTTPServer : public Server {
 public:
-    HTTPServer() : Server( "", 80 ) {
+    HTTPServer() : Server( "", 80 ), stopped_( false ){
         DBG( 3, "HTTPServer::HTTPServer()" );
         callbackList_.resize( 256 );
         createPeriodicCounterFetcher();
@@ -2720,7 +3035,7 @@ public:
         SignalHandler::getInstance()->setHTTPServer( this );
     }
 
-    HTTPServer( std::string const & ip, uint16_t port ) : Server( ip, port ) {
+    HTTPServer( std::string const & ip, uint16_t port ) : Server( ip, port ), stopped_( false ) {
         DBG( 3, "HTTPServer::HTTPServer( ip=", ip, ", port=", port, " )" );
         callbackList_.resize( 256 );
         createPeriodicCounterFetcher();
@@ -2732,16 +3047,26 @@ public:
     HTTPServer & operator = ( HTTPServer const & ) = delete;
 
     virtual ~HTTPServer() {
-        pcf_->stop();
-        std::this_thread::sleep_for( std::chrono::seconds(1) );
-        deleteAndNullify(pcf_);
+        if ( ! stopped_ ) {
+            DBG( 0, "BUG: HTTPServer or derived class not explicitly stopped before destruction!" );
+            stop();
+        }
+        SignalHandler::getInstance()->setHTTPServer( nullptr );
     }
 
 public:
     virtual void run() override;
 
-    virtual void stop() {
+    void stop() {
+        stopped_ = true;
         pcf_->stop();
+        // pcf is a Work object in the threadpool, calling stop makes
+        // it leave the loop and then automatically gets deleted,
+        // we just set it to nullptr here
+        pcf_ = nullptr;
+        // It takes up to one second for a pcf to leave the loop
+        std::this_thread::sleep_for( std::chrono::seconds(1) );
+        ThreadPool::getInstance().emptyThreadPool();
     }
 
     // Register Callbacks
@@ -2756,12 +3081,12 @@ public:
     }
 
     void addAggregator( std::shared_ptr<Aggregator> agp ) {
-        DBG( 3, "HTTPServer::addAggregator( agp=", std::hex, agp.get(), " ) called" );
+        DBG( 4, "HTTPServer::addAggregator( agp=", std::hex, agp.get(), " ) called" );
 
         agVectorMutex_.lock();
         agVector_.insert( agVector_.begin(), agp );
         if ( agVector_.size() > 30 ) {
-            DBG( 3, "HTTPServer::addAggregator(): Removing last Aggegator" );
+            DBG( 4, "HTTPServer::addAggregator(): Removing last Aggegator" );
             agVector_.pop_back();
         }
         agVectorMutex_.unlock();
@@ -2781,10 +3106,33 @@ public:
         return ret;
     }
 
+    bool checkForIncomingSSLConnection( int fd ) {
+        char ch = ' ';
+        ssize_t bytes = ::recv( fd, &ch, 1, MSG_PEEK );
+        if ( bytes == -1 ) {
+            DBG( 1, "recv call to peek for the first incoming character failed, errno = ", errno, ", strerror: ", strerror(errno) );
+            throw std::runtime_error( "recv to peek first char failed" );
+        } else if ( bytes == 0 ) {
+            DBG( 0, "Connection was properly closed by the client, no bytes to read" );
+            throw std::runtime_error( "No error but the connecton is closed so we should just wait for a new connection again" );
+        }
+        DBG( 1, "SSL: Peeked Char: ", (EOF == ch) ? std::string("EOF") : std::string(1, ch) );
+        if ( ch == EOF )
+            throw std::runtime_error( "Peeking for SSL resulted in EOF" );
+        // for SSLv2 bit 7 is set and for SSLv3 and up the first ClientHello Message is 0x16
+        if ( ( ch & 0x80 ) || ( ch == 0x16 ) ) {
+            DBG( 3, "SSL detected" );
+            return true;
+        }
+        return false;
+    }
+
 private:
     void createPeriodicCounterFetcher() {
+        // We keep a pointer to pcf to start and stop execution
+        // not to delete it when done with it, that is up to threadpool/workqueue
         pcf_ = new PeriodicCounterFetcher( this );
-        wq_.addWork( pcf_ );
+        wq_->addWork( pcf_ );
         pcf_->start();
     }
 
@@ -2793,6 +3141,7 @@ protected:
     std::vector<std::shared_ptr<Aggregator>> agVector_;
     std::mutex agVectorMutex_;
     PeriodicCounterFetcher* pcf_;
+    bool stopped_;
 };
 
 // Here to break dependency on HTTPServer
@@ -2823,14 +3172,14 @@ void PeriodicCounterFetcher::execute() {
             // create an aggregator
             std::shared_ptr<Aggregator> sagp = std::make_shared<Aggregator>();
             assert(sagp.get());
-            DBG( 2, "PCF::execute(): AGP=", sagp.get(), " )" );
+            DBG( 4, "PCF::execute(): AGP=", sagp.get(), " )" );
             // dispatch it
             sagp->dispatch( PCM::getInstance()->getSystemTopology() );
             // add it to the vector
             hs_->addAggregator( sagp );
             auto after = steady_clock::now();
             auto elapsed = duration_cast<std::chrono::milliseconds>(after - before);
-            DBG( 2, "Aggregation Duration: ", elapsed.count(), "ms." );
+            DBG( 4, "Aggregation Duration: ", elapsed.count(), "ms." );
         }
         now = now + std::chrono::seconds(1);
         std::this_thread::sleep_until( now );
@@ -2841,22 +3190,41 @@ void HTTPServer::run() {
     struct sockaddr_in clientAddress;
     clientAddress.sin_family = AF_INET;
     int clientSocketFD = 0;
-    while (1) {
+    while ( ! stopped_ ) {
         // Listen on socket for incoming requests
         socklen_t sa_len = sizeof( struct sockaddr_in );
         int retval = ::accept( serverSocket_, (struct sockaddr*)&clientAddress, &sa_len );
         if ( -1 == retval ) {
-            std::cerr << ::strerror( errno ) << "\n";
+            DBG( 3, "Accept returned -1, errno: ", strerror( errno ) );
             continue;
         }
         clientSocketFD = retval;
 
+        bool clientWantsSSL = false;
+        try {
+            clientWantsSSL = checkForIncomingSSLConnection( clientSocketFD );
+        } catch( std::exception& e ) {
+            DBG( 3, "Exception during checkForIncomingConnection: ", e.what(), ", closing clientsocketFD" );
+            ::close( clientSocketFD );
+            continue;
+        }
+
+        // HTTPServer so we cannot do SSL
+        if ( clientWantsSSL ) {
+            DBG( 0, "Client wants SSL but we can't speak SSL ourselves" );
+            // TODO: return a 403 response, then close the connection
+            DBG( 3, "close clientsocketFD" );
+            ::close( clientSocketFD );
+            continue;
+        }
+
         // Client connected, let's determine the client ip as string.
         char ipbuf[INET_ADDRSTRLEN];
-	std::fill(ipbuf, ipbuf + INET_ADDRSTRLEN, 0);
+        std::fill(ipbuf, ipbuf + INET_ADDRSTRLEN, 0);
         char const * resbuf = ::inet_ntop( AF_INET, &(clientAddress.sin_addr), ipbuf, INET_ADDRSTRLEN );
         if ( nullptr == resbuf ) {
-            std::cerr << ::strerror( errno ) << "\n";
+            DBG( 3, "inet_ntop returned -1, strerror: ", strerror( errno ) );
+            DBG( 3, "close clientsocketFD" );
             ::close( clientSocketFD );
             continue;
         }
@@ -2869,12 +3237,18 @@ void HTTPServer::run() {
             connection = new HTTPConnection( this, clientSocketFD, clientAddress, callbackList_ );
         } catch ( std::exception& e ) {
             DBG( 3, "Exception caught while creating a HTTPConnection: " );
-	    if (connection) deleteAndNullify(connection);
+            deleteAndNullify( connection );
+            DBG( 3, "close clientsocketFD" );
             ::close( clientSocketFD );
             continue;
         }
 
-        wq_.addWork( connection );
+        if ( stopped_ ) {
+            // Overkill if you know the program flow but we want to be overly cautious...
+            deleteAndNullify( connection );
+            break;
+        }
+        wq_->addWork( connection );
     }
 }
 
@@ -2885,7 +3259,15 @@ public:
     HTTPSServer( std::string const & ip, uint16_t port ) : HTTPServer( ip, port ), sslCTX_( nullptr ) {}
     HTTPSServer( HTTPSServer const & ) = delete;
     HTTPSServer & operator = ( HTTPSServer const & ) = delete;
-    virtual ~HTTPSServer() = default;
+    virtual ~HTTPSServer() {
+        if ( ! stopped_ ) {
+            DBG( 0, "BUG: HTTPServer or derived class not explicitly stopped before destruction!" );
+            stop();
+        }
+        // Program ends after this, no need to set it to nullptr
+        SSL_CTX_free( sslCTX_ );
+        sslCTX_ = nullptr; // a reuse of sslCTX_ can never happen but we want to be overly cautious.
+    }
 
 public:
     virtual void run() final;
@@ -2912,12 +3294,16 @@ public:
         sslCTX_ = SSL_CTX_new( TLS_method() );
         if ( nullptr == sslCTX_ )
             throw std::runtime_error( "Cannot create an SSL context" );
+        DBG( 3, "SSLCTX set up" );
         if( SSL_CTX_set_min_proto_version( sslCTX_, TLS1_VERSION ) != 1 )
             throw std::runtime_error( "Cannot set minimum protocol to TSL1_VERSION" );
+        DBG( 3, "Min TLS Version set" );
         if ( SSL_CTX_use_certificate_file( sslCTX_, certificateFile_.c_str(), SSL_FILETYPE_PEM ) <= 0 )
             throw std::runtime_error( "Cannot use certificate file" );
+        DBG( 3, "Certificate file set up" );
         if ( SSL_CTX_use_PrivateKey_file( sslCTX_, privateKeyFile_.c_str(), SSL_FILETYPE_PEM ) <= 0 )
             throw std::runtime_error( "Cannot use private key file" );
+        DBG( 3, "Private key set up" );
     }
 
 private:
@@ -2934,66 +3320,107 @@ void HTTPSServer::run() {
     if ( nullptr == sslCTX_ )
         throw std::runtime_error( "No SSL_CTX created" );
 
-    while (1) {
+    while ( ! stopped_ ) {
         // Listen on socket for incoming requests, same as for regular connection
         socklen_t sa_len = sizeof( struct sockaddr_in );
         int retval = ::accept( serverSocket_, (struct sockaddr*)&clientAddress, &sa_len );
+        DBG( 3, "RegularAccept: (if not -1 it is client socket descriptor) ", retval );
         if ( -1 == retval ) {
-            std::cerr << strerror( errno ) << "\n";
+            DBG( 3, "Accept failed: strerror( ", errno, " ): ", strerror( errno ) );
             continue;
         }
         clientSocketFD = retval;
 
-        // Create and setup SSL on the socket
-        SSL* ssl = SSL_new( sslCTX_ );
-        SSL_set_fd( ssl, clientSocketFD );
-
+        bool clientWantsSSL = false;
         try {
-            while (1) {
-                bool leaveLoop = false;
-                // Check if the SSL handshake worked
-                int accept = SSL_accept( ssl );
-                switch (accept) {
-                case 0:
-                    throw std::runtime_error( "accept == 0 is a hard error." );
-                case -1:
-                    {
-                        int errorCode = SSL_get_error( ssl, accept );
-                        switch ( errorCode ) {
-                        case SSL_ERROR_WANT_READ:
-                        case SSL_ERROR_WANT_WRITE:
-                            // All good, just try again
-                            leaveLoop = false; // Unnecessary but for easier understanding
-                            break;
-                        case SSL_ERROR_ZERO_RETURN:
-                        case SSL_ERROR_SYSCALL:
-                        case SSL_ERROR_SSL:
-                        default:
-                            throw std::runtime_error( "Error not read or write is a hard error." );
-                        }
-                    }
-                    break;
-                default:
-                    // all good, continue
-                    leaveLoop = true;
-                }
-                if ( leaveLoop )
-                    break;
-            }
+            clientWantsSSL = checkForIncomingSSLConnection( clientSocketFD );
         } catch( std::exception& e ) {
-             DBG( 3, "SSL Accept: error accepting incoming connection, closing the FD and continuing: ", e.what() );
-             SSL_free( ssl ); // Free the SSL structure to prevent memory leaks
-             ::close( clientSocketFD );
-             continue;
+            DBG( 3, "Exception during checkForIncomingConnection: ", e.what(), ", closing clientsocketFD" );
+            ::close( clientSocketFD );
+            continue;
         }
 
+        // HTTPSServer so we want to do SSL
+        if ( ! clientWantsSSL ) {
+            DBG( 0, "Client wants Plain HTTP but we want to speak SSL ourselves" );
+            // TODO: return a 403 response, then close the connection
+            DBG( 3, "close clientsocketFD" );
+            ::close( clientSocketFD );
+            continue;
+        }
+
+        // Create and setup SSL on the socket
+        SSL* ssl = SSL_new( sslCTX_ );
+        if (ssl == nullptr ) {
+            DBG( 3, "We're in big trouble, we could not create an SSL object with the SSL_CTX..." );
+            throw std::runtime_error( "Could not create SSL object" );
+        }
+        int ret = SSL_set_fd( ssl, clientSocketFD );
+        DBG( 3, "set_fd: ret = ", ret );
+        if (ret == 0 ) {
+            DBG( 3, "SSL_set_fd returned 0, oops...", ret );
+            throw std::runtime_error("SSL_set_fd returned 0, oops...");
+        }
+
+        bool cleanupAndRestartListening = false;
+        while (1) {
+            bool leaveLoop = true;
+            // Check if the SSL handshake worked
+            int accept = SSL_accept( ssl );
+            DBG( 3, "SSL_accept: ", accept );
+            if ( 0 >= accept ) {
+                int errorCode = SSL_get_error( ssl, accept );
+                if ( errorCode == SSL_ERROR_ZERO_RETURN ) {
+                    // TLS/SSL Connection has been closed, socket may not though
+                    cleanupAndRestartListening = true;
+                    break;
+                }
+                int err = 0;
+                char buf[256];
+                DBG( 3, "errorCode: ", errorCode );
+                switch ( errorCode ) {
+                case SSL_ERROR_WANT_READ:
+                case SSL_ERROR_WANT_WRITE:
+                    // All good, just try again
+                    leaveLoop = false;
+                    break;
+                case SSL_ERROR_SSL:
+                case SSL_ERROR_SYSCALL:
+                    err = ERR_get_error();
+                    DBG( 3, "ERR_get_error(): ", err  );
+                    ERR_error_string( err, buf );
+                    DBG( 3, "ERR_error_string(): ", buf );
+                    cleanupAndRestartListening = true;
+                    break;
+                default:
+                    DBG( 3, "Unhandled SSL Error: ", errorCode );
+                    ERR_print_errors_fp( stderr);
+                    cleanupAndRestartListening = true;
+                }
+            }
+            ERR_clear_error(); // Clear error because SSL_get_error does not do so
+            if ( leaveLoop )
+                break;
+        }
+
+        if ( cleanupAndRestartListening ) {
+            // Here we still have not passed it to socket_buffer so we need to deal with shutdown properly.
+            DBG( 3, "SSL Accept: error accepting incoming connection, closing the FD and continuing: " );
+            closeSSLConnectionAndFD( clientSocketFD, ssl );
+            continue;
+        }
+
+        DBG( 1, "Server: client connected successfully, starting a new HTTPConnection" );
         // Client connected, let's determine the client ip as string.
         char ipbuf[INET_ADDRSTRLEN];
         memset( ipbuf, 0, 16 );
         char const * resbuf = ::inet_ntop( AF_INET, &(clientAddress.sin_addr), ipbuf, INET_ADDRSTRLEN );
         if ( nullptr == resbuf ) {
-            std::cerr << strerror( errno ) << "\n";
+            DBG( 3, "inet_ntop returned an error: ", errno, ", error string: ", strerror( errno ), "\n");
+            ERR_clear_error();
             SSL_free( ssl ); // Free the SSL structure to prevent memory leaks
+            ssl = nullptr;
+            DBG( 3, "close clientsocketFD" );
             ::close( clientSocketFD );
             continue;
         }
@@ -3002,9 +3429,16 @@ void HTTPSServer::run() {
         DBG( 3, "Client IP is: ", ipbuf, ", and the port it uses is : ", port );
         DBG( 3, "SSL info: version: ", SSL_get_version( ssl ), ", stuff" );
 
+        // Ownership of ssl is now passed to HTTPConnection, it will delete ssl when done
         HTTPConnection* connection = new HTTPConnection( this, clientSocketFD, clientAddress, callbackList_, ssl );
+        ssl = nullptr;
 
-        wq_.addWork( connection );
+        if ( stopped_ ) {
+            // Overkill if you know the program flow but we want to be overly cautious...
+            deleteAndNullify( connection );
+            break;
+        }
+        wq_->addWork( connection );
     }
 }
 #endif // USE_SSL
@@ -3162,12 +3596,12 @@ void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & re
         return;
     }
     else if (url.path_ == "/dashboard/prometheus") {
-        DBG(3, "client requesting /dashboard path: '", url.path_, "'");
+        DBG( 3, "client requesting /dashboard path: '", url.path_, "'");
         resp.createResponse(ApplicationJSON, getPCMDashboardJSON(Prometheus), RC_200_OK);
         return;
     }
     else if (url.path_ == "/dashboard/prometheus/default") {
-        DBG(3, "client requesting /dashboard path: '", url.path_, "'");
+        DBG( 3, "client requesting /dashboard path: '", url.path_, "'");
         resp.createResponse(ApplicationJSON, getPCMDashboardJSON(Prometheus_Default), RC_200_OK);
         return;
     } else if ( 0 == url.path_.rfind( "/persecond", 0 ) ) {
@@ -3197,8 +3631,8 @@ void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & re
                     if ( 1 <= seconds && 30 >= seconds ) {
                         aggregatorPair = hs->getAggregators( seconds, 0 );
                     } else {
-                        DBG( 3, "seconds == 0 or seconds >= 30, not allowed" );
-                        std::string body( "400 Bad Request. seconds == 0 or seconds >= 30, not allowed" );
+                        DBG( 3, "seconds equals 0 or seconds larger than 30 is not allowed" );
+                        std::string body( "400 Bad Request. seconds equals 0 or seconds larger than 30 is not allowed" );
                         resp.createResponse( TextPlain, body, RC_400_BadRequest );
                         return;
                     }
@@ -3243,7 +3677,7 @@ void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & re
     }
     default:
         std::string body( "406 Not Acceptable. Server can only serve \"" );
-        body += req.url().path_ + "\" as application/json, \"text/plain; version=0.0.4\" (prometheus format).";
+        body += req.url().path_ + "\" as application/json or \"text/plain; version=0.0.4\" (prometheus format).";
         resp.createResponse( TextPlain, body, RC_406_NotAcceptable );
     }
 }
@@ -3255,8 +3689,7 @@ int startHTTPServer( unsigned short port ) {
         server.registerCallback( HTTPRequestMethod::GET,  my_get_callback );
         server.registerCallback( HTTPRequestMethod::HEAD, my_get_callback );
         server.run();
-    } catch (std::exception & e)
-    {
+    } catch (std::exception & e) {
         std::cerr << "Exception caught: " << e.what() << "\n";
         return -1;
     }
@@ -3274,8 +3707,7 @@ int startHTTPSServer( unsigned short port, std::string const & cFile, std::strin
         server.registerCallback( HTTPRequestMethod::GET,  my_get_callback );
         server.registerCallback( HTTPRequestMethod::HEAD, my_get_callback );
         server.run();
-    } catch (std::exception & e)
-    {
+    } catch (std::exception & e) {
         std::cerr << "Exception caught: " << e.what() << "\n";
         return -1;
     }
@@ -3617,6 +4049,7 @@ int mainThrows(int argc, char * argv[]) {
             std::cerr << "Starting plain HTTP server on http://localhost:" << port << "/\n";
             startHTTPServer( port );
         }
+        delete pcmInstance;
     } else if ( pid > 0 ) {
         /* Parent, just leave */
         DBG( 2, "Child pid: ", pid );

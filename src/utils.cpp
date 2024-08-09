@@ -1133,7 +1133,7 @@ int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
     std::string line, item;
     if (!in.is_open())
     {
-        const auto alt_fn = std::string("/usr/share/pcm/") + fn;
+        const auto alt_fn = getInstallPathPrefix() + fn;
         in.open(alt_fn);
         if (!in.is_open())
         {

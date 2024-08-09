@@ -102,15 +102,4 @@ void Aggregator::dispatch( SystemRoot const& syp ) {
     readAccelCounters(sycs_);
 }
 
-Aggregator::Aggregator()
-{
-    PCM* const pcm = PCM::getInstance();
-    // Resize user provided vectors to the right size
-    ccsVector_.resize( pcm->getNumCores() );
-    socsVector_.resize( pcm->getNumSockets() );
-    // Internal use only, need to be the same size as the user provided vectors
-    ccsFutures_.resize( pcm->getNumCores() );
-    ucsFutures_.resize( pcm->getNumSockets() );
-}
-
 }// namespace pcm
