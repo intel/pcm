@@ -622,8 +622,10 @@ std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int
             dashboard.push(panel1);
         }
     };
-    scaled("Core Frequency", "GHz", "/1000000000");
-    for (size_t s = 0; s < NumSockets; ++s)
+    if (type == InfluxDB) {
+        scaled("Core Frequency", "GHz", "/1000000000");
+    }
+    for (size_t s = 0; type == InfluxDB && s < NumSockets; ++s)
     {
         const char * op = "/1000000000";
         const auto S = std::to_string(s);
@@ -771,7 +773,34 @@ std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int
     }
     dashboard.push(panel);
     dashboard.push(panel1);
-
+    auto stacked = [&] (const char * m, std::vector<const char *> metrics, size_t s, const bool core = false)
+    {
+        const auto S = std::to_string(s);
+        auto my_height = 3 * height / 2;
+        auto panel = std::make_shared<TimeSeriesPanel>(0, y, width, my_height, "Socket" + S + " " + std::string(m), "stacked %", true);
+        auto panel1 = std::make_shared<BarGaugePanel>(width, y, max_width - width, my_height, std::string("Current ") + m + " (%)");
+        y += my_height;
+        for (auto & metric : metrics)
+        {
+            std::shared_ptr<pcm::Target> t;
+            if (core)
+            {
+                t = createTarget(metric, influxDBCore_Aggregate_Core_Counters(S, metric), "");
+            }
+            else
+            {
+                t = createTarget(metric, influxDBUncore_Uncore_Counters(S, metric), "");
+            }
+            panel->push(t);
+            panel1->push(t);
+        }
+        dashboard.push(panel);
+        dashboard.push(panel1);
+    };
+    for (size_t s = 0; type == InfluxDB && s < NumSockets; ++s)
+    {
+        stacked("Memory Request Ratio", {"Local Memory Request Ratio", "Remote Memory Request Ratio"}, s);
+    }
     auto upi = [&](const std::string & m, const bool utilization)
     {
         for (size_t s = 0; s < NumSockets; ++s)
@@ -871,6 +900,23 @@ std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int
         dashboard.push(panel1);
     };
     derived("Instructions Per Cycle", "IPC", "Instructions Retired Any", "Clock Unhalted Thread");
+    for (size_t s = 0; type == InfluxDB && s < NumSockets; ++s)
+    {
+        stacked("Core Stalls", {
+            "Frontend Bound",
+            "Bad Speculation",
+            "Backend Bound",
+            "Retiring",
+            "Fetch Latency Bound",
+            "Fetch Bandwidth Bound",
+            "Branch Misprediction Bound",
+            "Machine Clears Bound",
+            "Memory Bound",
+            "Core Bound",
+            "Heavy Operations Bound",
+            "Light Operations Bound"
+            }, s, true);
+    }
     derived("Active Frequency Ratio", "AFREQ", "Clock Unhalted Thread", "Clock Unhalted Ref");
     derived("L3 Cache Misses Per Instruction", "L3 MPI", "L3 Cache Misses", "Instructions Retired Any");
     derived("L2 Cache Misses Per Instruction", "L2 MPI", "L2 Cache Misses", "Instructions Retired Any");

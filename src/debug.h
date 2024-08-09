@@ -32,9 +32,10 @@ namespace debug {
     template<typename LVL, typename PF, typename F, typename L, typename... Args>
     void dyn_debug_output( std::ostream& out, LVL level, PF pretty_function, F file, L line, Args... args ) {
         std::stringstream ss;
+        auto now = time(nullptr);
         ss << "DBG(" << std::dec << level << "): File '" << file << "', line '" << std::dec << line << "' :\n";
         ss << "DBG(" << std::dec << level << "): " << pretty_function << ":\n";
-        ss << "DBG(" << std::dec << level << "): "; // Next code line will continue printing on this output line
+        ss << "DBG(" << std::dec << level << ") " << std::put_time( localtime(&now), "%F_%T: " ); // Next code line will continue printing on this output line
         dyn_debug_output_helper( ss, args... );
         out << ss.str() << std::flush;
     }
@@ -57,6 +58,6 @@ namespace debug {
 
 #define DBG( level, ... ) \
     if ( debug::currentDebugLevel >= level ) \
-        debug::dyn_debug_output( std::cout, level, __PRETTY_FUNCTION__, __FILE__, __LINE__, __VA_ARGS__)
+        debug::dyn_debug_output( std::cerr, level, __PRETTY_FUNCTION__, __FILE__, __LINE__, __VA_ARGS__)
 
 } // namespace pcm

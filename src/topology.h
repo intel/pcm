@@ -451,8 +451,20 @@ private:
 class Aggregator : Visitor
 {
 public:
-    Aggregator();
-    virtual ~Aggregator() {}
+    Aggregator() : wq_( WorkQueue::getInstance() )
+    {
+        PCM* const pcm = PCM::getInstance();
+        // Resize user provided vectors to the right size
+        ccsVector_.resize( pcm->getNumCores() );
+        socsVector_.resize( pcm->getNumSockets() );
+        // Internal use only, need to be the same size as the user provided vectors
+        ccsFutures_.resize( pcm->getNumCores() );
+        ucsFutures_.resize( pcm->getNumSockets() );
+    }
+
+    virtual ~Aggregator() {
+        wq_ = nullptr;
+    }
 
 public:
     virtual void dispatch( SystemRoot const& syp ) override;
@@ -465,7 +477,7 @@ public:
         // Fetch UncoreCounterState async result
         auto job = new LambdaJob<UncoreCounterState>(
             []( Socket* s ) -> UncoreCounterState {
-                DBG( 3, "Lambda fetching UncoreCounterState async" );
+                DBG( 5, "Lambda fetching UncoreCounterState async" );
                 UncoreCounterState ucs;
                 if ( !s->isOnline() )
                     return ucs;
@@ -473,9 +485,7 @@ public:
             }, sop
         );
         ucsFutures_[ sop->socketID() ] = job->getFuture();
-        wq_.addWork( job );
-        // For now execute directly to compile test
-        //job->execute();
+        wq_->addWork( job );
     }
 
     virtual void dispatch( Core* cop ) override {
@@ -492,7 +502,7 @@ public:
         // std::cerr << "Dispatch htp with osID=" << htp->osID() << "\n";
         auto job = new LambdaJob<CoreCounterState>(
             []( HyperThread* h ) -> CoreCounterState {
-                DBG( 3, "Lambda fetching CoreCounterState async" );
+                DBG( 5, "Lambda fetching CoreCounterState async" );
                 CoreCounterState ccs;
                 if ( !h->isOnline() )
                     return ccs;
@@ -500,7 +510,7 @@ public:
             }, htp
         );
         ccsFutures_[ htp->osID() ] = job->getFuture();
-        wq_.addWork( job );
+        wq_->addWork( job );
     }
 
     virtual void dispatch( ServerUncore* /*sup*/ ) override {
@@ -528,13 +538,13 @@ public:
     }
 
 private:
+    WorkQueue* wq_;
     std::vector<CoreCounterState> ccsVector_;
     std::vector<SocketCounterState> socsVector_;
     SystemCounterState sycs_;
     std::vector<std::future<CoreCounterState>> ccsFutures_;
     std::vector<std::future<UncoreCounterState>> ucsFutures_;
     std::chrono::steady_clock::time_point dispatchedAt_{};
-    WorkQueue wq_;
 };
 
 } // namespace pcm

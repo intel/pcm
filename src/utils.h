@@ -627,6 +627,19 @@ inline uint64 roundUpTo4K(uint64 number) {
     }
 }
 
+#define PCM_STRINGIFY(x) #x
+#define PCM_TOSTRING(x) PCM_STRINGIFY(x)
+
+inline std::string getInstallPathPrefix()
+{
+#if defined (CMAKE_INSTALL_PREFIX)
+    const std::string prefix{ PCM_TOSTRING(CMAKE_INSTALL_PREFIX) };
+#else
+    const std::string prefix{ "/usr" };
+#endif
+    return prefix + "/share/pcm/";
+}
+
 std::pair<int64,int64> parseBitsParameter(const char * param);
 template <class T, class R>
 inline bool readOldValueHelper(const std::pair<int64,int64> & bits, T & value, const bool & write, R readValue)

@@ -55,7 +55,7 @@ private:
     ThreadPool & operator = ( ThreadPool const& ) = delete;
 
 public:
-    ~ThreadPool() {
+    void emptyThreadPool( void ) {
         try {
             for (size_t i = 0; i < threads_.size(); ++i)
                 addWork(nullptr);
@@ -69,6 +69,11 @@ public:
         }
     }
 
+    ~ThreadPool() {
+        DBG( 5, "Threadpool is being deleted..." );
+        emptyThreadPool();
+    }
+
 public:
     static ThreadPool& getInstance() {
         static ThreadPool tp_(64);
@@ -76,21 +81,21 @@ public:
     }
 
     void addWork( Work* w ) {
-        DBG( 3, "WQ: Adding work" );
+        DBG( 5, "WQ: Adding work" );
         std::lock_guard<std::mutex> lg( qMutex_ );
         workQ_.push( w );
         queueCV_.notify_one();
-        DBG( 3, "WQ: Work available" );
+        DBG( 5, "WQ: Work available" );
     }
 
     Work* retrieveWork() {
-        DBG( 3, "WQ: Retrieving work" );
+        DBG( 5, "WQ: Retrieving work" );
         std::unique_lock<std::mutex> lock( qMutex_ );
         queueCV_.wait( lock, [this]{ return !workQ_.empty(); } );
         Work* w = workQ_.front();
         workQ_.pop();
         lock.unlock();
-        DBG( 3, "WQ: Work retrieved" );
+        DBG( 5, "WQ: Work retrieved" );
 
         return w;
     }
@@ -111,12 +116,23 @@ private:
 };
 
 class WorkQueue {
-public:
-    WorkQueue() : tp_( ThreadPool::getInstance() ), workProcessed_(0) {}
+private:
+    WorkQueue( size_t init ) : tp_( ThreadPool::getInstance() ), workProcessed_( init ) {
+        DBG( 5, "Constructing WorkQueue..." );
+    }
     WorkQueue( WorkQueue const& ) = delete;
     WorkQueue & operator = ( WorkQueue const& ) = delete;
-    ~WorkQueue() = default;
 
+public:
+    ~WorkQueue() {
+        DBG( 5, "Destructing WorkQueue..." );
+    }
+
+public:
+    static WorkQueue* getInstance() {
+        static WorkQueue wq_( 0 );
+        return &wq_;
+    }
     // Just forwarding to the threadpool
     void addWork( Work* w ) {
         ++workProcessed_;
