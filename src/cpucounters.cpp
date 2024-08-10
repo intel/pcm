@@ -9485,7 +9485,7 @@ uint64 ServerUncorePMUs::computeQPISpeed(const uint32 core_nr, const int cpumode
         qpi_speed.resize(getNumQPIPorts());
 
         auto getSpeed = [&] (size_t i) {
-           if (i == 1) return 0ULL; // link 1 should have the same speed as link 0, skip it
+           if (PCM::hasUPI(cpumodel) == false && i == 1) return 0ULL; // link 1 should have the same speed as link 0, skip it
            uint64 result = 0;
            if (PCM::hasUPI(cpumodel) == false && i < XPIRegisterLocation.size())
            {
@@ -9571,7 +9571,7 @@ uint64 ServerUncorePMUs::computeQPISpeed(const uint32 core_nr, const int cpumode
              getSpeedsAsync.push_back(std::async(std::launch::async, getSpeed, i));
          }
          for (size_t i = 0; i < getNumQPIPorts(); ++i) {
-             qpi_speed[i] = (i==1)? qpi_speed[0] : getSpeedsAsync[i].get(); // link 1 does not have own speed register, it runs with the speed of link 0
+             qpi_speed[i] = (PCM::hasUPI(cpumodel) == false && i==1)? qpi_speed[0] : getSpeedsAsync[i].get(); // link 1 does not have own speed register, it runs with the speed of link 0
          }
          if (PCM::hasUPI(cpumodel))
          {

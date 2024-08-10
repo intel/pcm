@@ -561,13 +561,14 @@ AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEven
             std::ifstream in(path);
             if (!in.is_open())
             {
-                const auto alt_path = std::string("/usr/share/pcm/") + path;
+                const auto alt_path = getInstallPathPrefix() + path;
                 in.open(alt_path);
                 if (!in.is_open())
                 {
                     err_msg = std::string("event file ") + path + " or " + alt_path + " is not available.";
                     throw std::invalid_argument(err_msg);
                 }
+                path = alt_path;
             }
             in.close();
             break;
