@@ -65,7 +65,7 @@ Building PCM Tools
 Clone PCM repository with submodules:
 
 ```
-git clone --recursive https://github.com/intel/pcm.git
+git clone --recursive https://github.com/intel/pcm
 ```
 
 or clone the repository first, and then update submodules with:
