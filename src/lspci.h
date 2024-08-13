@@ -17,7 +17,9 @@
     " https://raw.githubusercontent.com/pciutils/pciids/master/pci.ids and" \
     " copy it to the current directory."
 #else
+// different distributions put it in different places
 #define PCI_IDS_PATH "/usr/share/hwdata/pci.ids"
+#define PCI_IDS_PATH2 "/usr/share/misc/pci.ids"
 #define PCI_IDS_NOT_FOUND "/usr/share/hwdata/pci.ids file is not available." \
     " Ensure that the \"hwdata\" package is properly installed or download" \
     " https://raw.githubusercontent.com/pciutils/pciids/master/pci.ids and" \
@@ -448,6 +450,12 @@ void load_PCIDB(PCIDB & pciDB)
     if (!in.is_open())
     {
 #ifndef _MSC_VER
+        // On Unix, try PCI_IDS_PATH2
+        in.open(PCI_IDS_PATH2);
+    }
+
+    if (!in.is_open())
+    {
         // On Unix, try the current directory if the default path failed
         in.open("pci.ids");
     }
