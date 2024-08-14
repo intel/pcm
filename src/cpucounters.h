@@ -1442,6 +1442,12 @@ public:
     */
     ErrorCode program(const ProgramMode mode_ = DEFAULT_EVENTS, const void * parameter_ = NULL, const bool silent = false, const int pid = -1); // program counters and start counting
 
+    /*! \brief checks the error without side effects.
+        \throw std::system_error generic_category exception with PCM error code.
+        \param code error code from the 'program' call
+    */
+    void checkStatus(const ErrorCode status);
+
     /*! \brief checks the error and suggests solution and/or exits the process
         \param code error code from the 'program' call
     */
