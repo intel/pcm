@@ -74,6 +74,7 @@
 #include <condition_variable>
 #include <mutex>
 #include <atomic>
+#include <system_error>
 
 #ifdef __APPLE__
 #include <sys/types.h>
@@ -3834,30 +3835,54 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
     return PCM::Success;
 }
 
+void PCM::checkStatus(const PCM::ErrorCode status)
+{
+    switch (status)
+    {
+        case pcm::PCM::Success:
+        {
+            break;
+        }
+        case pcm::PCM::MSRAccessDenied:
+            throw std::system_error(pcm::PCM::MSRAccessDenied, std::generic_category(),
+                "Access to Intel(r) Performance Counter Monitor has denied (no MSR or PCI CFG space access).");
+        case pcm::PCM::PMUBusy:
+            throw std::system_error(pcm::PCM::PMUBusy, std::generic_category(),
+                "Access to Intel(r) Performance Counter Monitor has denied (Performance Monitoring Unit"
+                " is occupied by other application). Try to stop the application that uses PMU,"
+                " or reset PMU configuration from PCM application itself");
+        default:
+            throw std::system_error(pcm::PCM::UnknownError, std::generic_category(),
+                "Access to Intel(r) Performance Counter Monitor has denied (Unknown error).");
+    }
+}
+
 void PCM::checkError(const PCM::ErrorCode code)
 {
-    switch (code)
+    try
     {
-    case PCM::Success:
-        break;
-    case PCM::MSRAccessDenied:
-        std::cerr << "Access to Intel(r) Performance Counter Monitor has denied (no MSR or PCI CFG space access).\n";
-        exit(EXIT_FAILURE);
-    case PCM::PMUBusy:
-        std::cerr << "Access to Intel(r) Performance Counter Monitor has denied (Performance Monitoring Unit is occupied by other application)\n";
-        std::cerr << "Try to stop the application that uses PMU, or reset PMU configuration from PCM application itself\n";
-        std::cerr << "You can try to reset PMU configuration now. Try to reset? (y/n)\n";
-        char yn;
-        std::cin >> yn;
-        if ('y' == yn)
+        checkStatus(code);
+    }
+    catch (const std::system_error &e)
+    {
+        switch (e.code().value())
         {
-            resetPMU();
-            std::cerr << "PMU configuration has been reset. Try to rerun the program again.\n";
+           case PCM::PMUBusy:
+               std::cerr << e.what() << "\n"
+                               << "You can try to reset PMU configuration now. Try to reset? (y/n)" << std::endl;
+               char yn;
+               std::cin >> yn;
+               if ('y' == yn)
+               {
+                   resetPMU();
+                   std::cerr << "PMU configuration has been reset. Try to rerun the program again." << std::endl;
+               }
+               exit(EXIT_FAILURE);
+           case PCM::MSRAccessDenied:
+           default:
+               std::cerr << e.what() << std::endl;
+               exit(EXIT_FAILURE);
         }
-        exit(EXIT_FAILURE);
-    default:
-        std::cerr << "Access to Intel(r) Performance Counter Monitor has denied (Unknown error).\n";
-        exit(EXIT_FAILURE);
     }
 }
 
