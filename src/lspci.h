@@ -19,12 +19,12 @@
 #else
 // different distributions put it in different places
 #define PCI_IDS_PATH "/usr/share/hwdata/pci.ids"
-#define PCI_IDS_PATH2 "/usr/share/misc/pci.ids"
 #define PCI_IDS_NOT_FOUND "/usr/share/hwdata/pci.ids file is not available." \
     " Ensure that the \"hwdata\" package is properly installed or download" \
     " https://raw.githubusercontent.com/pciutils/pciids/master/pci.ids and" \
     " copy it to the current directory."
 #endif
+#define PCI_IDS_PATH2 "/usr/share/misc/pci.ids"
 
 namespace pcm {
 
