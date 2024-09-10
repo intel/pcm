@@ -25,6 +25,7 @@
     " https://raw.githubusercontent.com/pciutils/pciids/master/pci.ids and" \
     " copy it to the current directory."
 #endif
+#define PCI_IDS_PATH2 "/usr/share/misc/pci.ids"
 
 namespace pcm {
 
