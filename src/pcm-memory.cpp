@@ -355,21 +355,21 @@ float PMM_MM_Ratio(const memdata_t *md, const uint32 skt)
 void printSocketBWFooter(PCM *m, uint32 no_columns, uint32 skt, const memdata_t *md)
 {
     for (uint32 i=skt; i<(skt+no_columns); ++i) {
-        cout << "|-- NODE" << setw(2) << i << " Mem Read (MB/s) :" << setw(9) << md->iMC_Rd_socket[i] << " --|";
+        cout << "|-- SKT " << setw(2) << i << " Mem Read (MB/s) :" << setw(9) << md->iMC_Rd_socket[i] << " --|";
     }
     cout << "\n";
     for (uint32 i=skt; i<(skt+no_columns); ++i) {
-        cout << "|-- NODE" << setw(2) << i << " Mem Write(MB/s) :" << setw(9) << md->iMC_Wr_socket[i] << " --|";
+        cout << "|-- SKT " << setw(2) << i << " Mem Write(MB/s) :" << setw(9) << md->iMC_Wr_socket[i] << " --|";
     }
     cout << "\n";
     if (anyPmem(md->metrics))
     {
         for (uint32 i=skt; i<(skt+no_columns); ++i) {
-            cout << "|-- NODE" << setw(2) << i << " PMM Read (MB/s):  " << setw(8) << md->iMC_PMM_Rd_socket[i] << " --|";
+            cout << "|-- SKT " << setw(2) << i << " PMM Read (MB/s):  " << setw(8) << md->iMC_PMM_Rd_socket[i] << " --|";
         }
         cout << "\n";
         for (uint32 i=skt; i<(skt+no_columns); ++i) {
-            cout << "|-- NODE" << setw(2) << i << " PMM Write(MB/s):  " << setw(8) << md->iMC_PMM_Wr_socket[i] << " --|";
+            cout << "|-- SKT " << setw(2) << i << " PMM Write(MB/s):  " << setw(8) << md->iMC_PMM_Wr_socket[i] << " --|";
         }
         cout << "\n";
     }
@@ -377,17 +377,17 @@ void printSocketBWFooter(PCM *m, uint32 no_columns, uint32 skt, const memdata_t 
     {
         for (uint32 i = skt; i < (skt + no_columns); ++i)
         {
-            cout << "|-- NODE" << setw(2) << i << " PMM AD Bw(MB/s):  " << setw(8) << AD_BW(md, i) << " --|";
+            cout << "|-- SKT " << setw(2) << i << " PMM AD Bw(MB/s):  " << setw(8) << AD_BW(md, i) << " --|";
         }
         cout << "\n";
         for (uint32 i = skt; i < (skt + no_columns); ++i)
         {
-            cout << "|-- NODE" << setw(2) << i << " PMM MM Bw(MB/s):  " << setw(8) << md->MemoryMode_Miss_socket[i] << " --|";
+            cout << "|-- SKT " << setw(2) << i << " PMM MM Bw(MB/s):  " << setw(8) << md->MemoryMode_Miss_socket[i] << " --|";
         }
         cout << "\n";
         for (uint32 i = skt; i < (skt + no_columns); ++i)
         {
-            cout << "|-- NODE" << setw(2) << i << " PMM MM Bw/DRAM Bw:" << setw(8) << PMM_MM_Ratio(md, i) << " --|";
+            cout << "|-- SKT " << setw(2) << i << " PMM MM Bw/DRAM Bw:" << setw(8) << PMM_MM_Ratio(md, i) << " --|";
         }
         cout << "\n";
     }
@@ -396,7 +396,7 @@ void printSocketBWFooter(PCM *m, uint32 no_columns, uint32 skt, const memdata_t 
         for (uint32 ctrl = 0; ctrl < max_imc_controllers; ++ctrl)
         {
             for (uint32 i=skt; i<(skt+no_columns); ++i) {
-                cout << "|-- NODE" << setw(2) << i << "." << ctrl << " NM read hit rate :" << setw(6) << md->M2M_NM_read_hit_rate[i][ctrl] << " --|";
+                cout << "|-- SKT " << setw(2) << i << "." << ctrl << " NM read hit rate :" << setw(6) << md->M2M_NM_read_hit_rate[i][ctrl] << " --|";
             }
             cout << "\n";
         }
@@ -404,22 +404,22 @@ void printSocketBWFooter(PCM *m, uint32 no_columns, uint32 skt, const memdata_t 
     if ((md->metrics == PmemMemoryMode && md->NM_hit_rate_supported) || md->BHS_NM == true)
     {
         for (uint32 i=skt; i<(skt+no_columns); ++i) {
-            cout << "|-- NODE" << setw(2) << i << " NM hit rate:        " << setw(6) << md->NM_hit_rate[i] << " --|";
+            cout << "|-- SKT " << setw(2) << i << " NM hit rate:        " << setw(6) << md->NM_hit_rate[i] << " --|";
         }
         cout << "\n";
         for (uint32 i=skt; i<(skt+no_columns); ++i) {
-            cout << "|-- NODE" << setw(2) << i << " NM hits   (M/s):   " << setw(7) << (md->MemoryMode_Hit_socket[i])/1000000. << " --|";
+            cout << "|-- SKT " << setw(2) << i << " NM hits   (M/s):   " << setw(7) << (md->MemoryMode_Hit_socket[i])/1000000. << " --|";
         }
         cout << "\n";
         for (uint32 i=skt; i<(skt+no_columns); ++i) {
-            cout << "|-- NODE" << setw(2) << i << " NM misses (M/s):   " << setw(7) << (md->MemoryMode_Miss_socket[i])/1000000. << " --|";
+            cout << "|-- SKT " << setw(2) << i << " NM misses (M/s):   " << setw(7) << (md->MemoryMode_Miss_socket[i])/1000000. << " --|";
         }
         cout << "\n";
     }
     if (md->BHS_NM == true)
     {
         for (uint32 i = skt; i < (skt + no_columns); ++i) {
-            cout << "|-- NODE" << setw(2) << i << " NM miss Bw(MB/s):" << setw(9) << (md->MemoryMode_Miss_socket[i] * 64. * 2.) / 1000000. << " --|";
+            cout << "|-- SKT " << setw(2) << i << " NM miss Bw(MB/s):" << setw(9) << (md->MemoryMode_Miss_socket[i] * 64. * 2.) / 1000000. << " --|";
         }
         cout << "\n";
     }
@@ -428,12 +428,12 @@ void printSocketBWFooter(PCM *m, uint32 no_columns, uint32 skt, const memdata_t 
         )
     {
         for (uint32 i=skt; i<(skt+no_columns); ++i) {
-            cout << "|-- NODE" << setw(2) << i << " P. Write (T/s): " << dec << setw(10) << md->partial_write[i] << " --|";
+            cout << "|-- SKT " << setw(2) << i << " P. Write (T/s): " << dec << setw(10) << md->partial_write[i] << " --|";
         }
         cout << "\n";
     }
     for (uint32 i=skt; i<(skt+no_columns); ++i) {
-        cout << "|-- NODE" << setw(2) << i << " Memory (MB/s): " << setw(11) << right << (md->iMC_Rd_socket[i]+md->iMC_Wr_socket[i]+
+        cout << "|-- SKT " << setw(2) << i << " Memory (MB/s): " << setw(11) << right << (md->iMC_Rd_socket[i]+md->iMC_Wr_socket[i]+
               md->iMC_PMM_Rd_socket[i]+md->iMC_PMM_Wr_socket[i]) << " --|";
     }
     cout << "\n";
