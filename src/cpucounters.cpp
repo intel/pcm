@@ -711,6 +711,7 @@ void PCM::initCStateSupportTables()
         case ADL:
         case RPL:
         case MTL:
+        case LNL:
         case SNOWRIDGE:
             PCM_CSTATE_ARRAY(pkgCStateMsr, PCM_PARAM_PROTECT({0, 0, 0x3F8, 0, 0x3F9, 0, 0x3FA, 0, 0, 0, 0 }) );
         case NEHALEM_EP:
@@ -785,6 +786,7 @@ void PCM::initCStateSupportTables()
         case ADL:
         case RPL:
         case MTL:
+        case LNL:
         case SNOWRIDGE:
         case ICX:
         case SPR:
@@ -1637,6 +1639,7 @@ bool PCM::detectNominalFrequency()
                || cpu_model == ADL
                || cpu_model == RPL
                || cpu_model == MTL
+               || cpu_model == LNL
                || cpu_model == SKX
                || cpu_model == ICX
                || cpu_model == SPR
@@ -3237,6 +3240,7 @@ bool PCM::isCPUModelSupported(const int model_)
             || model_ == ADL
             || model_ == RPL
             || model_ == MTL
+            || model_ == LNL
             || model_ == SKX
             || model_ == ICX
             || model_ == SPR
@@ -3408,7 +3412,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
         canUsePerf = false;
         if (!silent) std::cerr << "Installed Linux kernel perf does not support hardware top-down level-1 counters. Using direct PMU programming instead.\n";
     }
-    if (canUsePerf && (cpu_model == ADL || cpu_model == RPL || cpu_model == MTL))
+    if (canUsePerf && (cpu_model == ADL || cpu_model == RPL || cpu_model == MTL || cpu_model == LNL))
     {
         canUsePerf = false;
         if (!silent) std::cerr << "Linux kernel perf rejects an architectural event on your platform. Using direct PMU programming instead.\n";
@@ -3495,6 +3499,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
             case ADL:
             case RPL:
             case MTL:
+            case LNL:
                 LLCArchEventInit(hybridAtomEventDesc);
                 hybridAtomEventDesc[2].event_number = SKL_MEM_LOAD_RETIRED_L2_MISS_EVTNR;
                 hybridAtomEventDesc[2].umask_value = SKL_MEM_LOAD_RETIRED_L2_MISS_UMASK;
@@ -4844,6 +4849,8 @@ const char * PCM::getUArchCodename(const int32 cpu_model_param) const
             return "Raptor Lake";
         case MTL:
             return "Meteor Lake";
+        case LNL:
+            return "Lunar Lake";
         case SKX:
             if (cpu_model_param >= 0)
             {
