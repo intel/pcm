@@ -1633,6 +1633,7 @@ public:
             case ADL:
             case RPL:
             case MTL:
+            case LNL:
                 if (topology[coreID].core_type == TopologyEntry::Atom)
                 {
                     return std::make_pair(OFFCORE_RESPONSE_0_EVTNR, event + 1);
@@ -1648,6 +1649,7 @@ public:
        case ADL: // ADL big core (GLC)
        case RPL:
        case MTL:
+       case LNL:
            useGLCOCREvent = true;
            break;
        }
@@ -1873,6 +1875,7 @@ public:
         RPL_2 = 0xbf,
         RPL_3 = 0xbe,
         MTL = 0xAA,
+        LNL = 0xBD,
         BDX = 79,
         KNL = 87,
         SKL = 94,
@@ -2093,6 +2096,8 @@ public:
         case RPL:
         case MTL:
             return 6;
+        case LNL:
+            return 12;
         case SNOWRIDGE:
             return 4;
         case DENVERTON:
@@ -2432,6 +2437,7 @@ public:
                  || cpu_model == PCM::ADL
                  || cpu_model == PCM::RPL
                  || cpu_model == PCM::MTL
+                 || cpu_model == PCM::LNL
                  || cpu_model == PCM::SPR
                  || cpu_model == PCM::EMR
                  || cpu_model == PCM::SRF
@@ -4229,6 +4235,7 @@ uint64 getL2CacheMisses(const CounterStateType & before, const CounterStateType 
         || cpu_model == PCM::ADL
         || cpu_model == PCM::RPL
         || cpu_model == PCM::MTL
+        || cpu_model == PCM::LNL
         ) {
         return after.Event[BasicCounterState::SKLL2MissPos] - before.Event[BasicCounterState::SKLL2MissPos];
     }
@@ -4340,6 +4347,7 @@ uint64 getL3CacheHitsSnoop(const CounterStateType & before, const CounterStateTy
         || cpu_model == PCM::ADL
         || cpu_model == PCM::RPL
         || cpu_model == PCM::MTL
+        || cpu_model == PCM::LNL
         )
     {
         const int64 misses = getL3CacheMisses(before, after);
