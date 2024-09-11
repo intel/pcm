@@ -2732,6 +2732,7 @@ public:
             || cpu_model == ADL
             || cpu_model == RPL
             || cpu_model == MTL
+            || cpu_model == LNL
             || useSKLPath()
             ;
     }

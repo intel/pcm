@@ -1901,6 +1901,7 @@ void PCM::initUncoreObjects()
            case ADL: // TGLClientBW works fine for ADL
            case RPL: // TGLClientBW works fine for RPL
            case MTL: // TGLClientBW works fine for MTL
+           case LNL: // TGLClientBW works fine for LNL
                clientBW = std::make_shared<TGLClientBW>();
                break;
 /*         Disabled since ADLClientBW requires 2x multiplier for BW on top
