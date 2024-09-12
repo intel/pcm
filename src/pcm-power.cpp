@@ -481,6 +481,8 @@ int mainThrows(int argc, char * argv[])
                         && cpu_model != PCM::SPR
                         && cpu_model != PCM::EMR
                         && cpu_model != PCM::SRF
+                        && cpu_model != PCM::GNR
+                        && cpu_model != PCM::GNR_D
                         )
                         cout << "; Clipped freq limit cycles:" << getNormalizedPCUCounter(u, 3, BeforeState[socket], AfterState[socket]) * 100. << " %";
                     cout << "\n";
@@ -493,6 +495,8 @@ int mainThrows(int argc, char * argv[])
                          || cpu_model == PCM::SPR
                          || cpu_model == PCM::EMR
                          || cpu_model == PCM::SRF
+                         || cpu_model == PCM::GNR
+                         || cpu_model == PCM::GNR_D
                          )
                     {
                         cout << "This PCU profile is not supported on your processor\n";
@@ -531,6 +535,8 @@ int mainThrows(int argc, char * argv[])
                     case PCM::SPR:
                     case PCM::EMR:
                     case PCM::SRF:
+                    case PCM::GNR:
+                    case PCM::GNR_D:
                         cout << "; PC2 residency: " << getPackageCStateResidency(2, BeforeState[socket], AfterState[socket]) * 100. << " %";
                         cout << "; PC2 transitions: " << getUncoreCounter(PCM::PCU_PMU_ID, u, 2, BeforeState[socket], AfterState[socket]) << " ";
                         cout << "; PC3 residency: " << getPackageCStateResidency(3, BeforeState[socket], AfterState[socket]) * 100. << " %";

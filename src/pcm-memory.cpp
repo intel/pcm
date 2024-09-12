@@ -425,6 +425,7 @@ void printSocketBWFooter(PCM *m, uint32 no_columns, uint32 skt, const memdata_t 
     }
     if (    md->metrics == PartialWrites
         &&  m->getCPUModel() != PCM::SRF
+        &&  m->getCPUModel() != PCM::GNR
         )
     {
         for (uint32 i=skt; i<(skt+no_columns); ++i) {
@@ -732,6 +733,7 @@ void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 /*elapsedTime*/, const 
         if (m->HBMmemoryTrafficMetricsAvailable() == false)
         {
             if (    md->metrics == PartialWrites
+                &&  m->getCPUModel() != PCM::GNR
                 &&  m->getCPUModel() != PCM::SRF
                 )
             {
@@ -991,6 +993,7 @@ void calculate_bandwidth(PCM *m,
                 writes = getMCCounter(channel, ServerUncorePMUs::EventPosition::WRITE, uncState1[skt], uncState2[skt]);
                 switch (cpu_model)
                 {
+                case PCM::GNR:
                 case PCM::SRF:
                     reads += getMCCounter(channel, ServerUncorePMUs::EventPosition::READ2, uncState1[skt], uncState2[skt]);
                     writes += getMCCounter(channel, ServerUncorePMUs::EventPosition::WRITE2, uncState1[skt], uncState2[skt]);
@@ -1054,7 +1057,8 @@ void calculate_bandwidth(PCM *m,
                     md.MemoryMode_Hit_socket[skt] += toRate(memoryModeHits);
                 }
                 else if (
-                       cpu_model != PCM::SRF
+                    cpu_model != PCM::GNR
+                &&  cpu_model != PCM::SRF
                     )
                 {
                     md.partial_write[skt] += (uint64)(getMCCounter(channel, ServerUncorePMUs::EventPosition::PARTIAL, uncState1[skt], uncState2[skt]) / (elapsedTime / 1000.0));
