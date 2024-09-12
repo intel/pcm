@@ -1248,6 +1248,7 @@ private:
                 {
                 case SPR:
                 case EMR:
+                case GNR:
                 case SRF:
                     *ctrl = *curEvent;
                     break;
@@ -1304,6 +1305,8 @@ public:
                 (
                     SPR == cpu_model
                 ||  EMR == cpu_model
+                ||  GNR == cpu_model
+                ||  GNR_D == cpu_model
                 );
     }
 
@@ -1884,7 +1887,9 @@ public:
         ICX = 106,
         SPR = 143,
         EMR = 207,
+        GNR = 173,
         SRF = 175,
+        GNR_D = 174,
         END_OF_MODEL_LIST = 0x0ffff
     };
 
@@ -1978,6 +1983,7 @@ public:
         case ICX:
         case SPR:
         case EMR:
+        case GNR:
         case SRF:
             return (serverUncorePMUs.size() && serverUncorePMUs[0].get()) ? (serverUncorePMUs[0]->getNumQPIPorts()) : 0;
         }
@@ -2004,6 +2010,7 @@ public:
         case ICX:
         case SPR:
         case EMR:
+        case GNR:
         case SRF:
         case BDX:
         case KNL:
@@ -2032,6 +2039,7 @@ public:
         case ICX:
         case SPR:
         case EMR:
+        case GNR:
         case SRF:
         case BDX:
         case KNL:
@@ -2063,6 +2071,7 @@ public:
         case ICX:
         case SPR:
         case EMR:
+        case GNR:
         case SRF:
         case BDX:
         case KNL:
@@ -2125,6 +2134,7 @@ public:
             return 5;
         case SPR:
         case EMR:
+        case GNR:
         case SRF:
             return 6;
         }
@@ -2177,6 +2187,7 @@ public:
         case SNOWRIDGE:
         case SPR:
         case EMR:
+        case GNR:
         case SRF:
         case KNL:
             return true;
@@ -2440,6 +2451,7 @@ public:
                  || cpu_model == PCM::LNL
                  || cpu_model == PCM::SPR
                  || cpu_model == PCM::EMR
+                 || cpu_model == PCM::GNR
                  || cpu_model == PCM::SRF
                );
     }
@@ -2457,6 +2469,7 @@ public:
           || cpu_model == PCM::ICX
           || cpu_model == PCM::SPR
           || cpu_model == PCM::EMR
+          || cpu_model == PCM::GNR
           || cpu_model == PCM::SRF
           );
     }
@@ -2480,6 +2493,7 @@ public:
             ||  cpu_model == PCM::ICX
             ||  cpu_model == PCM::SPR
             ||  cpu_model == PCM::EMR
+            ||  cpu_model == PCM::GNR
             ||  cpu_model == PCM::SRF
             );
     }
@@ -2496,6 +2510,7 @@ public:
             ||  cpu_model == PCM::ICX
             ||  cpu_model == PCM::SPR
             ||  cpu_model == PCM::EMR
+            ||  cpu_model == PCM::GNR
             ||  cpu_model == PCM::SRF
                );
     }
@@ -2509,6 +2524,7 @@ public:
             || cpu_model == PCM::SPR
             || cpu_model == PCM::EMR
             || cpu_model == PCM::SRF
+            || cpu_model == PCM::GNR
             ;
     }
 
@@ -2521,6 +2537,7 @@ public:
     {
         return (
                cpu_model == PCM::SRF
+            || cpu_model == PCM::GNR
             );
     }
     
@@ -2557,10 +2574,11 @@ public:
         return (
                cpu_model == PCM::SKX
             || cpu_model == PCM::ICX
-	        || cpu_model  == PCM::SNOWRIDGE
+	        || cpu_model == PCM::SNOWRIDGE
             || cpu_model == PCM::SPR
             || cpu_model == PCM::EMR
             || cpu_model == PCM::SRF
+            || cpu_model == PCM::GNR
         );
     }
 
@@ -2569,6 +2587,7 @@ public:
         return MSR.empty() == false
                 && getMaxNumOfUncorePMUs(UBOX_PMU_ID) > 0ULL
                 && getNumCores() == getNumOnlineCores()
+                && PCM::GNR != cpu_model
                 && PCM::SRF != cpu_model
             ;
     }
@@ -2661,6 +2680,7 @@ public:
             || cpu_model == PCM::ICX
             || cpu_model == PCM::SPR
             || cpu_model == PCM::EMR
+            || cpu_model == PCM::GNR
             || cpu_model == PCM::SRF
             || cpu_model == PCM::BDX
             || cpu_model == PCM::KNL
@@ -2681,6 +2701,7 @@ public:
          || cpu_model_ == PCM::ICX
          || cpu_model_ == PCM::SPR
          || cpu_model_ == PCM::EMR
+         || cpu_model_ == PCM::GNR
          || cpu_model_ == PCM::SRF
                );
     }
@@ -2705,6 +2726,7 @@ public:
          || cpu_model == PCM::ICX
          || cpu_model == PCM::SPR
          || cpu_model == PCM::EMR
+         || cpu_model == PCM::GNR
          || cpu_model == PCM::SRF
                );
     }
@@ -2720,6 +2742,7 @@ public:
                || PCM::ICX == cpu_model
                || PCM::SPR == cpu_model
                || PCM::EMR == cpu_model
+               || PCM::GNR == cpu_model
                ;
     }
 
@@ -3389,6 +3412,7 @@ double getDRAMConsumedJoules(const CounterStateType & before, const CounterState
         || PCM::BDX == cpu_model
         || PCM::SKX == cpu_model
         || PCM::ICX == cpu_model
+        || PCM::GNR == cpu_model
         || PCM::SRF == cpu_model
         || PCM::KNL == cpu_model
         ) {

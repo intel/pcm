@@ -1700,6 +1700,7 @@ std::unique_ptr<IPlatformMapping> IPlatformMapping::getPlatformMapping(int cpu_m
     case PCM::EMR:
         return std::unique_ptr<IPlatformMapping>{new EagleStreamPlatformMapping(cpu_model, sockets_count)};
     case PCM::SRF:
+    case PCM::GNR:
         return std::unique_ptr<IPlatformMapping>{new BirchStreamPlatform(cpu_model, sockets_count)};
     default:
         return nullptr;
@@ -1717,6 +1718,7 @@ ccr* get_ccr(PCM* m, uint64_t& ccr)
         case PCM::SPR:
         case PCM::EMR:
         case PCM::SRF:
+        case PCM::GNR:
             return new icx_ccr(ccr);
         default:
             cerr << m->getCPUFamilyModelString() << " is not supported! Program aborted" << endl;

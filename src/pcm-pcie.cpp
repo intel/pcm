@@ -96,6 +96,7 @@ void print_usage(const string & progname)
 IPlatform *IPlatform::getPlatform(PCM *m, bool csv, bool print_bandwidth, bool print_additional_info, uint32 delay)
 {
     switch (m->getCPUModel()) {
+        case PCM::GNR:
         case PCM::SRF:
             return new BirchStreamPlatform(m, csv, print_bandwidth, print_additional_info, delay);
         case PCM::SPR:
