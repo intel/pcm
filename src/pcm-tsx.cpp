@@ -321,6 +321,8 @@ int mainThrows(int argc, char * argv[])
         break;
     case PCM::SPR:
     case PCM::EMR:
+    case PCM::GNR:
+    case PCM::GNR_D:
         eventDefinition = sprEventDefinition;
         break;
     }
