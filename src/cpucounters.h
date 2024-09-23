@@ -1845,7 +1845,7 @@ public:
         APOLLO_LAKE = 92,
         GEMINI_LAKE = 122,
         DENVERTON = 95,
-        SNOWRIDGE = 134,
+        SNOWRIDGE = 150, // fake Elkhart Lake
         CLARKDALE = 37,
         WESTMERE_EP = 44,
         NEHALEM_EX = 46,
@@ -2184,7 +2184,6 @@ public:
         case BDX_DE:
         case SKX:
         case ICX:
-        case SNOWRIDGE:
         case SPR:
         case EMR:
         case GNR:
@@ -2574,7 +2573,6 @@ public:
         return (
                cpu_model == PCM::SKX
             || cpu_model == PCM::ICX
-	        || cpu_model == PCM::SNOWRIDGE
             || cpu_model == PCM::SPR
             || cpu_model == PCM::EMR
             || cpu_model == PCM::SRF
@@ -2621,7 +2619,6 @@ public:
             isCLX()
                     ||  isCPX()
                      || cpu_model == PCM::ICX
-                     || cpu_model == PCM::SNOWRIDGE
                      || cpu_model == SPR
                      || cpu_model == EMR
         );
@@ -2633,7 +2630,6 @@ public:
                   isCLX()
                || isCPX()
                || cpu_model == PCM::ICX
-               || cpu_model == PCM::SNOWRIDGE
               );
     }
 
@@ -2657,7 +2653,6 @@ public:
 #endif
             || ICX == cpu_model
             || SPR == cpu_model
-            || SNOWRIDGE == cpu_model
                );
     }
 
@@ -2672,7 +2667,6 @@ public:
     {
         return (
             cpu_model == PCM::JAKETOWN
-            || cpu_model == PCM::SNOWRIDGE
             || cpu_model == PCM::IVYTOWN
             || cpu_model == PCM::HASWELLX
             || cpu_model == PCM::BDX_DE

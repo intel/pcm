@@ -1941,7 +1941,6 @@ void PCM::initUncoreObjects()
     switch (cpu_model)
     {
     case ICX:
-    case SNOWRIDGE:
     case SPR:
     case EMR:
     case GNR:
@@ -2393,27 +2392,7 @@ void PCM::initUncorePMUsDirect()
             }
         }
         break;
-    case PCM::SNOWRIDGE:
-        for (uint32 s = 0; s < (uint32)num_sockets; ++s)
-        {
-            auto & handle = MSR[socketRefCore[s]];
-            for (int unit = 0; unit < SNR_IIO_STACK_COUNT; ++unit)
-            {
-                iioPMUs[s][unit] = UncorePMU(
-                    std::make_shared<MSRRegister>(handle, SNR_IIO_CBDMA_UNIT_CTL + SNR_IIO_PM_REG_STEP * unit),
-                    std::make_shared<MSRRegister>(handle, SNR_IIO_CBDMA_CTL0 + SNR_IIO_PM_REG_STEP * unit + 0),
-                    std::make_shared<MSRRegister>(handle, SNR_IIO_CBDMA_CTL0 + SNR_IIO_PM_REG_STEP * unit + 1),
-                    std::make_shared<MSRRegister>(handle, SNR_IIO_CBDMA_CTL0 + SNR_IIO_PM_REG_STEP * unit + 2),
-                    std::make_shared<MSRRegister>(handle, SNR_IIO_CBDMA_CTL0 + SNR_IIO_PM_REG_STEP * unit + 3),
-                    std::make_shared<MSRRegister>(handle, SNR_IIO_CBDMA_CTR0 + SNR_IIO_PM_REG_STEP * unit + 0),
-                    std::make_shared<MSRRegister>(handle, SNR_IIO_CBDMA_CTR0 + SNR_IIO_PM_REG_STEP * unit + 1),
-                    std::make_shared<MSRRegister>(handle, SNR_IIO_CBDMA_CTR0 + SNR_IIO_PM_REG_STEP * unit + 2),
-                    std::make_shared<MSRRegister>(handle, SNR_IIO_CBDMA_CTR0 + SNR_IIO_PM_REG_STEP * unit + 3)
-                );
-            }
-        }
-        break;
-
+    
     case PCM::SPR:
     case PCM::EMR:
         for (uint32 s = 0; s < (uint32)num_sockets; ++s)
@@ -2631,12 +2610,6 @@ void PCM::initUncorePMUsDirect()
         IRP_CTL_REG_OFFSET = ICX_IRP_CTL_REG_OFFSET;
         IRP_CTR_REG_OFFSET = ICX_IRP_CTR_REG_OFFSET;
         IRP_UNIT_CTL = ICX_IRP_UNIT_CTL;
-        break;
-    case SNOWRIDGE:
-        irpStacks = SNR_IIO_STACK_COUNT;
-        IRP_CTL_REG_OFFSET = SNR_IRP_CTL_REG_OFFSET;
-        IRP_CTR_REG_OFFSET = SNR_IRP_CTR_REG_OFFSET;
-        IRP_UNIT_CTL = SNR_IRP_UNIT_CTL;
         break;
     case SPR:
     case EMR:
@@ -7603,10 +7576,6 @@ void ServerUncorePMUs::initRegisterLocations(const PCM * pcm)
     }
     else if (cpu_model == PCM::SNOWRIDGE)
     {
-        PCM_PCICFG_M2M_INIT(0, SERVER)
-        PCM_PCICFG_M2M_INIT(1, SERVER)
-        PCM_PCICFG_M2M_INIT(2, SERVER)
-        PCM_PCICFG_M2M_INIT(3, SERVER)
     }
     else
     {
