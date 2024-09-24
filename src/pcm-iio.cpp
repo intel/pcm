@@ -2002,7 +2002,7 @@ int mainThrows(int argc, char * argv[])
     string ev_file_name;
     if (m->IIOEventsAvailable())
     {
-        ev_file_name = "opCode-" + std::to_string(m->getCPUModel()) + ".txt";
+        ev_file_name = "opCode-" + std::to_string(m->getCPUFamily()) + "-" + std::to_string(m->getInternalCPUModel()) + ".txt";
     }
     else
     {

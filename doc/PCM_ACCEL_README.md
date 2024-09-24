@@ -29,13 +29,13 @@ Notes: multiple options is allowed.
 | options                | Default              | Description                                                                                                                |
 | ---------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------- |
 | -numa                  | no                   | Print NUMA node mapping instead of CPU socket location.                                                                    |
-| -evt=[cfg.txt]         | opCode-xxx-accel.txt | Specify the event config file name as cfg.txt.<br>- xxx is the cpu model id, for example 143 for sapphire rapid.            |
+| -evt=[cfg.txt]         | opCode-x-y-accel.txt | Specify the event config file name as cfg.txt.<br>- x/y is cpu family is model id, for example 6/143 for Sapphire Rapids.  |
 | -silent                | no                   | Silence information output and print only measurements                                                                     |
 | -csv[=file.csv]        | no                   | Output compact CSV format to screen or a file in case filename is provided                                                 |
 | -csv-delimiter=[value] | no                   | Set custom csv delimiter                                                                                                   |
 | -human-readable        | no                   | Use human readable format for output (for csv only)                                                                        |
-| -i=[value]            | 0                    | Allow to determine number of iterations, default is 0(infinite loop) if not specified.                                        |
-| [interval]             | 3                    | Time interval in seconds (floating point number is accepted) to sample performance counters, default is 3s if not specified. |
+| -i=[value]             | 0                    | Allow to determine number of iterations, default is 0(infinite loop) if not specified.                                     |
+| [interval]             | 3                    | Time interval in seconds (floating point number is accepted) to sample performance counters, default is 3s if not specified|
 
 #### Examples:
 
@@ -117,7 +117,7 @@ Please refer to the spec or code to learn more about the event mapping if you wa
 - QAT: please refer to the [mapping table in source code](https://github.com/intel/pcm/blob/f20013f7563714cf592d7a59f169c1ddee3cf8ba/src/cpucounters.cpp#L915)
 
 
-Here is the content of the event cfg file(opCode-143-accel.txt as example)
+Here is the content of the event cfg file(opCode-6-143-accel.txt as example)
 
 ![image](https://user-images.githubusercontent.com/25432609/224027717-1dcdae9e-6701-4b6f-90a0-8108c4ea4550.png)
 
