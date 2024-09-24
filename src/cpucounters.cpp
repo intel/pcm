@@ -427,12 +427,6 @@ bool PCM::detectModel()
 
     readCoreCounterConfig();
 
-    if (cpu_family != 6)
-    {
-        std::cerr << getUnsupportedMessage() << " CPU Family: " << cpu_family << "\n";
-        return false;
-    }
-
     pcm_cpuid(7, 0, cpuinfo);
 
     std::cerr << "\n=====  Processor information  =====\n";
