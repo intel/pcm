@@ -2721,7 +2721,7 @@ void PCM::initUncorePMUsDirect()
     };
     for (uint32 s = 0; s < (uint32)num_sockets; ++s)
     {
-        switch (cpu_model)
+        switch (cpu_family_model)
         {
             case BDX:
                 irpPMUs[s][0] = findPCICFGPMU(0x6f39, s, 0xF4, {0xD8, 0xDC, 0xE0, 0xE4}, {0xA0, 0xB0, 0xB8, 0xC0});
@@ -3323,7 +3323,7 @@ bool PCM::checkModel()
 /* FOR TESTING PURPOSES ONLY */
 #ifdef PCM_TEST_FALLBACK_TO_ATOM
         std::cerr << "Fall back to ATOM functionality.\n";
-        cpu_model = ATOM;
+        cpu_family_model = ATOM;
         return true;
 #endif
         return false;
@@ -3441,7 +3441,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
         canUsePerf = false;
         if (!silent) std::cerr << "Installed Linux kernel perf does not support hardware top-down level-1 counters. Using direct PMU programming instead.\n";
     }
-    if (canUsePerf && (cpu_model == ADL || cpu_model == RPL || cpu_model == MTL || cpu_model == LNL))
+    if (canUsePerf && (cpu_family_model == ADL || cpu_family_model == RPL || cpu_family_model == MTL || cpu_family_model == LNL))
     {
         canUsePerf = false;
         if (!silent) std::cerr << "Linux kernel perf rejects an architectural event on your platform. Using direct PMU programming instead.\n";
@@ -4884,7 +4884,7 @@ const char * PCM::getUArchCodename(const int32 cpu_family_model_param) const
         case SKX:
             if (cpu_family_model_param >= 0)
             {
-                // query for specified cpu_model_param, stepping not provided
+                // query for specified cpu_family_model_param, stepping not provided
                 return "Skylake-SP, Cascade Lake-SP";
             }
             if (isCLX())

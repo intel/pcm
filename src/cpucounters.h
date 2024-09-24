@@ -2375,8 +2375,8 @@ public:
     uint64 extractQOSMonitoring(uint64 val);
 
     //! \brief Get a string describing the codename of the processor microarchitecture
-    //! \param cpu_model_ cpu model (if no parameter provided the codename of the detected CPU is returned)
-    const char * getUArchCodename(const int32 cpu_model_ = -1) const;
+    //! \param cpu_family_model_ cpu model (if no parameter provided the codename of the detected CPU is returned)
+    const char * getUArchCodename(const int32 cpu_family_model_ = -1) const;
 
     //! \brief Get Brand string of processor
     static std::string getCPUBrandString();
@@ -2821,9 +2821,9 @@ public:
         return 2.;
     }
 
-    static double getBytesPerLinkCycle(int32 cpu_model_)
+    static double getBytesPerLinkCycle(const int32 cpu_family_model_)
     {
-        return getBytesPerFlit(cpu_model_) * getFlitsPerLinkCycle(cpu_model_);
+        return getBytesPerFlit(cpu_family_model_) * getFlitsPerLinkCycle(cpu_family_model_);
     }
 
     double getBytesPerLinkCycle() const
