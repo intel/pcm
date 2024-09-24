@@ -855,7 +855,7 @@ private:
     const std::string * iio_stack_names;
 public:
     WhitleyPlatformMapping(int cpu_model, uint32_t sockets_count) : IPlatformMapping10Nm(cpu_model, sockets_count),
-        icx_d(PCM::getInstance()->getCPUModelFromCPUID() == PCM::ICX_D),
+        icx_d(PCM::getInstance()->getCPUFamilyModelFromCPUID() == PCM::ICX_D),
         sad_to_pmu_id_mapping(icx_d ? icx_d_sad_to_pmu_id_mapping : icx_sad_to_pmu_id_mapping),
         iio_stack_names(icx_d ? icx_d_iio_stack_names : icx_iio_stack_names)
     {
@@ -1687,21 +1687,21 @@ bool BirchStreamPlatform::pciTreeDiscover(std::vector<struct iio_stacks_on_socke
     return true;
 }
 
-std::unique_ptr<IPlatformMapping> IPlatformMapping::getPlatformMapping(int cpu_model, uint32_t sockets_count)
+std::unique_ptr<IPlatformMapping> IPlatformMapping::getPlatformMapping(int cpu_family_model, uint32_t sockets_count)
 {
-    switch (cpu_model) {
+    switch (cpu_family_model) {
     case PCM::SKX:
-        return std::unique_ptr<IPlatformMapping>{new PurleyPlatformMapping(cpu_model, sockets_count)};
+        return std::unique_ptr<IPlatformMapping>{new PurleyPlatformMapping(cpu_family_model, sockets_count)};
     case PCM::ICX:
-        return std::unique_ptr<IPlatformMapping>{new WhitleyPlatformMapping(cpu_model, sockets_count)};
+        return std::unique_ptr<IPlatformMapping>{new WhitleyPlatformMapping(cpu_family_model, sockets_count)};
     case PCM::SNOWRIDGE:
-        return std::unique_ptr<IPlatformMapping>{new JacobsvillePlatformMapping(cpu_model, sockets_count)};
+        return std::unique_ptr<IPlatformMapping>{new JacobsvillePlatformMapping(cpu_family_model, sockets_count)};
     case PCM::SPR:
     case PCM::EMR:
-        return std::unique_ptr<IPlatformMapping>{new EagleStreamPlatformMapping(cpu_model, sockets_count)};
+        return std::unique_ptr<IPlatformMapping>{new EagleStreamPlatformMapping(cpu_family_model, sockets_count)};
     case PCM::SRF:
     case PCM::GNR:
-        return std::unique_ptr<IPlatformMapping>{new BirchStreamPlatform(cpu_model, sockets_count)};
+        return std::unique_ptr<IPlatformMapping>{new BirchStreamPlatform(cpu_family_model, sockets_count)};
     default:
         return nullptr;
     }
@@ -1709,7 +1709,7 @@ std::unique_ptr<IPlatformMapping> IPlatformMapping::getPlatformMapping(int cpu_m
 
 ccr* get_ccr(PCM* m, uint64_t& ccr)
 {
-    switch (m->getCPUModel())
+    switch (m->getCPUFamilyModel())
     {
         case PCM::SKX:
             return new skx_ccr(ccr);
@@ -1976,7 +1976,7 @@ int mainThrows(int argc, char * argv[])
     PCIDB pciDB;
     load_PCIDB(pciDB);
 
-    auto mapping = IPlatformMapping::getPlatformMapping(m->getCPUModel(), m->getNumSockets());
+    auto mapping = IPlatformMapping::getPlatformMapping(m->getCPUFamilyModel(), m->getNumSockets());
     if (!mapping) {
         cerr << "Failed to discover pci tree: unknown platform" << endl;
         exit(EXIT_FAILURE);

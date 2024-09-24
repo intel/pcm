@@ -1930,11 +1930,9 @@ public:
     //! \return CPU family
     uint32 getCPUFamily() const { return (uint32)cpu_family; }
 
-    //! \brief Reads CPU model id
-    //! \return CPU model ID
-    /*
-    uint32 getCPUModel() const { return (uint32)cpu_model; }
-    */
+    //! \brief Reads CPU model id (use only with the family API together, don't always assume family 6)
+    //! \return Internal CPU model ID
+    uint32 getInternalCPUModel() const { return (uint32)cpu_model_private; }
 
     //! \brief Reads CPU family and model id
     //! \return CPU family and model ID (lowest 8 bits is the model, next 8 bits is the family)
@@ -3142,8 +3140,8 @@ template <class CounterStateType>
 uint64 getDRAMClocks(uint32 channel, const CounterStateType & before, const CounterStateType & after)
 {
     const auto clk = after.DRAMClocks[channel] - before.DRAMClocks[channel];
-    const auto cpu_model = PCM::getInstance()->getCPUModel();
-    if (cpu_model == PCM::ICX || cpu_model == PCM::SNOWRIDGE)
+    const auto cpu_family_model = PCM::getInstance()->getCPUFamilyModel();
+    if (cpu_family_model == PCM::ICX || cpu_family_model == PCM::SNOWRIDGE)
     {
         return 2 * clk;
     }
