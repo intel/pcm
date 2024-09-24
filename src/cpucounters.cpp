@@ -382,6 +382,7 @@ int32 PCM::getMaxCustomCoreEvents()
     return core_gen_counter_num_max;
 }
 
+/*
 int PCM::getCPUModelFromCPUID()
 {
     static int result = -1;
@@ -393,6 +394,7 @@ int PCM::getCPUModelFromCPUID()
     }
     return result;
 }
+*/
 
 bool PCM::detectModel()
 {

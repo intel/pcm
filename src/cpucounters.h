@@ -1829,7 +1829,9 @@ public:
 
     /*! \brief Returns cpu model id number from cpuid instruction
     */
+    /*
     static int getCPUModelFromCPUID();
+    */
 
     #define PCM_CPU_FAMILY_MODEL(family_, model_) (((family_) << 8) + (model_))
 
@@ -1924,7 +1926,9 @@ public:
 
     //! \brief Reads CPU model id
     //! \return CPU model ID
+    /*
     uint32 getCPUModel() const { return (uint32)cpu_model; }
+    */
 
     //! \brief Reads CPU stepping id
     //! \return CPU stepping ID
