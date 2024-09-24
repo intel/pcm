@@ -244,8 +244,8 @@ public:
 class UncorePMU
 {
     typedef std::shared_ptr<HWRegister> HWRegisterPtr;
-    uint32 cpu_model_;
-    uint32 getCPUModel();
+    uint32 cpu_family_model_;
+    uint32 getCPUFamilyModel();
     HWRegisterPtr unitControl;
 public:
     std::vector<HWRegisterPtr> counterControl;
@@ -279,7 +279,7 @@ public:
         const HWRegisterPtr& filter0 = HWRegisterPtr(),
         const HWRegisterPtr& filter1 = HWRegisterPtr()
     );
-    UncorePMU() : cpu_model_(0U) {}
+    UncorePMU() : cpu_family_model_(0U) {}
     size_t size() const { return counterControl.size(); }
     virtual ~UncorePMU() {}
     bool valid() const
@@ -298,8 +298,8 @@ typedef std::shared_ptr<UncorePMU> UncorePMURef;
 class IDX_PMU
 {
     typedef std::shared_ptr<HWRegister> HWRegisterPtr;
-    uint32 cpu_model_;
-    uint32 getCPUModel();
+    uint32 cpu_family_model_;
+    uint32 getCPUFamilyModel();
     bool perf_mode_;
     uint32 numa_node_;
     uint32 socket_id_;
@@ -330,7 +330,7 @@ public:
         const std::vector<HWRegisterPtr> & counterFilterXFERSZ
     );
 
-    IDX_PMU() : cpu_model_(0U), perf_mode_(false), numa_node_(0), socket_id_(0) {}
+    IDX_PMU() : cpu_family_model_(0U), perf_mode_(false), numa_node_(0), socket_id_(0) {}
     size_t size() const { return counterControl.size(); }
     virtual ~IDX_PMU() {}
     bool valid() const
@@ -361,7 +361,7 @@ class ServerUncorePMUs
     friend class PCM;
     int32 iMCbus,UPIbus,M2Mbus;
     uint32 groupnr;
-    int32 cpu_model;
+    int32 cpu_family_model;
     typedef std::vector<UncorePMU> UncorePMUVector;
     UncorePMUVector imcPMUs;
     UncorePMUVector edcPMUs;
@@ -1238,13 +1238,13 @@ private:
     {
         if (!eventsBegin) return;
         Iterator curEvent = eventsBegin;
-        const auto cpu_model = PCM::getInstance()->getCPUModel();
+        const auto cpu_family_model = PCM::getInstance()->getCPUFamilyModel();
         for (int c = 0; curEvent != eventsEnd && size_t(c) < pmu.size(); ++c, ++curEvent)
         {
             auto ctrl = pmu.counterControl[c];
             if (ctrl.get() != nullptr)
             {
-                switch (cpu_model)
+                switch (cpu_family_model)
                 {
                 case SPR:
                 case EMR:
@@ -1833,6 +1833,11 @@ public:
     static int getCPUModelFromCPUID();
     */
 
+    /*! \brief Returns cpu family and model id number from cpuid instruction
+    *   \return cpu family and model id number (model id is in the lower 8 bits, family id is in the next 8 bits)
+    */
+    static int getCPUFamilyModelFromCPUID();
+
     #define PCM_CPU_FAMILY_MODEL(family_, model_) (((family_) << 8) + (model_))
 
     //! \brief Identifiers of supported CPU models
@@ -1929,6 +1934,10 @@ public:
     /*
     uint32 getCPUModel() const { return (uint32)cpu_model; }
     */
+
+    //! \brief Reads CPU family and model id
+    //! \return CPU family and model ID (lowest 8 bits is the model, next 8 bits is the family)
+    uint32 getCPUFamilyModel() const { return PCM_CPU_FAMILY_MODEL((uint32)cpu_family, (uint32)cpu_model); }
 
     //! \brief Reads CPU stepping id
     //! \return CPU stepping ID
@@ -2700,15 +2709,15 @@ public:
                );
     }
 
-    static bool hasUPI(const int32 cpu_model_) // Intel(r) Ultra Path Interconnect
+    static bool hasUPI(const int32 cpu_family_model_) // Intel(r) Ultra Path Interconnect
     {
         return (
-            cpu_model_ == PCM::SKX
-         || cpu_model_ == PCM::ICX
-         || cpu_model_ == PCM::SPR
-         || cpu_model_ == PCM::EMR
-         || cpu_model_ == PCM::GNR
-         || cpu_model_ == PCM::SRF
+            cpu_family_model_ == PCM::SKX
+         || cpu_family_model_ == PCM::ICX
+         || cpu_family_model_ == PCM::SPR
+         || cpu_family_model_ == PCM::EMR
+         || cpu_family_model_ == PCM::GNR
+         || cpu_family_model_ == PCM::SRF
                );
     }
 
@@ -3411,16 +3420,16 @@ double getDRAMConsumedJoules(const CounterStateType & before, const CounterState
     PCM * m = PCM::getInstance();
     if (!m) return -1.;
     double dram_joules_per_energy_unit = 0.;
-    const auto cpu_model = m->getCPUModel();
+    const auto cpu_family_model = m->getCPUFamilyModel();
 
-    if (PCM::HASWELLX == cpu_model
-        || PCM::BDX_DE == cpu_model
-        || PCM::BDX == cpu_model
-        || PCM::SKX == cpu_model
-        || PCM::ICX == cpu_model
-        || PCM::GNR == cpu_model
-        || PCM::SRF == cpu_model
-        || PCM::KNL == cpu_model
+    if (PCM::HASWELLX == cpu_family_model
+        || PCM::BDX_DE == cpu_family_model
+        || PCM::BDX == cpu_family_model
+        || PCM::SKX == cpu_family_model
+        || PCM::ICX == cpu_family_model
+        || PCM::GNR == cpu_family_model
+        || PCM::SRF == cpu_family_model
+        || PCM::KNL == cpu_family_model
         ) {
 /* as described in sections 5.3.2 (DRAM_POWER_INFO) and 5.3.3 (DRAM_ENERGY_STATUS) of
  * Volume 2 (Registers) of
@@ -4259,18 +4268,18 @@ uint64 getL2CacheMisses(const CounterStateType & before, const CounterStateType 
 {
     auto pcm = PCM::getInstance();
     if (pcm->isL2CacheMissesAvailable() == false) return 0ULL;
-    const auto cpu_model = pcm->getCPUModel();
+    const auto cpu_family_model = pcm->getCPUFamilyModel();
     if (pcm->useSkylakeEvents()
-        || cpu_model == PCM::SNOWRIDGE
-        ||  cpu_model == PCM::SRF
-        || cpu_model == PCM::ADL
-        || cpu_model == PCM::RPL
-        || cpu_model == PCM::MTL
-        || cpu_model == PCM::LNL
+        || cpu_family_model == PCM::SNOWRIDGE
+        || cpu_family_model == PCM::SRF
+        || cpu_family_model == PCM::ADL
+        || cpu_family_model == PCM::RPL
+        || cpu_family_model == PCM::MTL
+        || cpu_family_model == PCM::LNL
         ) {
         return after.Event[BasicCounterState::SKLL2MissPos] - before.Event[BasicCounterState::SKLL2MissPos];
     }
-    else if (pcm->isAtom() || cpu_model == PCM::KNL)
+    else if (pcm->isAtom() || cpu_family_model == PCM::KNL)
     {
         return after.Event[BasicCounterState::ArchLLCMissPos] - before.Event[BasicCounterState::ArchLLCMissPos];
     }
@@ -4296,7 +4305,7 @@ uint64 getL2CacheHits(const CounterStateType & before, const CounterStateType & 
 {
     auto pcm = PCM::getInstance();
     if (pcm->isL2CacheHitsAvailable() == false) return 0ULL;
-    if (pcm->isAtom() || pcm->getCPUModel() == PCM::KNL)
+    if (pcm->isAtom() || pcm->getCPUFamilyModel() == PCM::KNL)
     {
         uint64 L2Miss = after.Event[BasicCounterState::ArchLLCMissPos] - before.Event[BasicCounterState::ArchLLCMissPos];
         uint64 L2Ref = after.Event[BasicCounterState::ArchLLCRefPos] - before.Event[BasicCounterState::ArchLLCRefPos];
@@ -4372,13 +4381,13 @@ uint64 getL3CacheHitsSnoop(const CounterStateType & before, const CounterStateTy
 {
     auto pcm = PCM::getInstance();
     if (!pcm->isL3CacheHitsSnoopAvailable()) return 0;
-    const auto cpu_model = pcm->getCPUModel();
-    if (cpu_model == PCM::SNOWRIDGE
-        ||  cpu_model == PCM::SRF
-        || cpu_model == PCM::ADL
-        || cpu_model == PCM::RPL
-        || cpu_model == PCM::MTL
-        || cpu_model == PCM::LNL
+    const auto cpu_family_model = pcm->getCPUFamilyModel();
+    if (cpu_family_model == PCM::SNOWRIDGE
+        || cpu_family_model == PCM::SRF
+        || cpu_family_model == PCM::ADL
+        || cpu_family_model == PCM::RPL
+        || cpu_family_model == PCM::MTL
+        || cpu_family_model == PCM::LNL
         )
     {
         const int64 misses = getL3CacheMisses(before, after);
