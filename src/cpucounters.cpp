@@ -4503,14 +4503,14 @@ std::string PCM::getCPUBrandString()
 
 std::string PCM::getCPUFamilyModelString()
 {
-    return getCPUFamilyModelString(cpu_family, cpu_family_model, cpu_stepping);
+    return getCPUFamilyModelString(cpu_family, cpu_model_private, cpu_stepping);
 }
 
-std::string PCM::getCPUFamilyModelString(const uint32 cpu_family_, const uint32 cpu_family_model_, const uint32 cpu_stepping_)
+std::string PCM::getCPUFamilyModelString(const uint32 cpu_family_, const uint32 internal_cpu_model_, const uint32 cpu_stepping_)
 {
     char buffer[sizeof(int)*4*3+6];
     std::fill(buffer, buffer + sizeof(buffer), 0);
-    std::snprintf(buffer,sizeof(buffer),"GenuineIntel-%d-%2X-%X", cpu_family_, cpu_family_model_, cpu_stepping_);
+    std::snprintf(buffer,sizeof(buffer),"GenuineIntel-%d-%2X-%X", cpu_family_, internal_cpu_model_, cpu_stepping_);
     std::string result(buffer);
     return result;
 }
