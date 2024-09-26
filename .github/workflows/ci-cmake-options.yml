@@ -32,7 +32,7 @@ jobs:
         cmake -B ${{ github.workspace }}/build -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/build
         cd ${{ github.workspace }}/build
         export VERBOSE=1
-        make install -j$(nproc) 
+        make install -j$(nproc)
 
     - name: CMake Release install
       run: |
@@ -41,7 +41,7 @@ jobs:
         cmake -B ${{ github.workspace }}/build -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/build -DCMAKE_BUILD_TYPE=Release
         cd ${{ github.workspace }}/build
         export VERBOSE=1
-        make install -j$(nproc) 
+        make install -j$(nproc)
 
     - name: CMake Debug install
       run: |
@@ -50,7 +50,7 @@ jobs:
         cmake -B ${{ github.workspace }}/build -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/build -DCMAKE_BUILD_TYPE=Debug
         cd ${{ github.workspace }}/build
         export VERBOSE=1
-        make install -j$(nproc) 
+        make install -j$(nproc)
 
     - name: CMake RelWithDebInfo install
       run: |
@@ -59,7 +59,7 @@ jobs:
         cmake -B ${{ github.workspace }}/build -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/build -DCMAKE_BUILD_TYPE=RelWithDebInfo
         cd ${{ github.workspace }}/build
         export VERBOSE=1
-        make install -j$(nproc) 
+        make install -j$(nproc)
 
     - name: CMake Custom build install
       run: |
@@ -83,7 +83,7 @@ jobs:
       run: |
         cmake --version
         rm -rf ${{ github.workspace }}/build
-        cmake -B ${{ github.workspace }}/build -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/build -DCMAKE_CXX_FLAGS="-O2 -g -fPIC"
+        cmake -B ${{ github.workspace }}/build -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/build -DCMAKE_CXX_FLAGS="-O2 -g"
         cd ${{ github.workspace }}/build
         export VERBOSE=1
         make install -j$(nproc)
@@ -95,7 +95,7 @@ jobs:
         export CXXFLAGS="-grecord-gcc-switches"
         export CFLAGS="-fstack-protector-strong"
         export LDFLAGS="-Wl,-z,now"
-        cmake -B ${{ github.workspace }}/build -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/build -DCMAKE_CXX_FLAGS_CUSTOM:STRING="-O2 -g -fPIC" -DCMAKE_BUILD_TYPE=CUSTOM
+        cmake -B ${{ github.workspace }}/build -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/build -DCMAKE_CXX_FLAGS_CUSTOM:STRING="-O2 -g" -DCMAKE_BUILD_TYPE=CUSTOM
         cd ${{ github.workspace }}/build
         export VERBOSE=1
         make install -j$(nproc)

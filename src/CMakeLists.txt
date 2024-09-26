@@ -56,7 +56,7 @@ if(UNIX)  # LINUX, FREE_BSD, APPLE
       $<$<CONFIG:RelWithDebInfo>:PCM_SILENT>
     )
 
-    target_compile_options(PCM_STATIC_SILENT PRIVATE "-fPIC")
+    set_target_properties(PCM_STATIC_SILENT PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
     # libpcm.so
     add_library(PCM_SHARED SHARED pcm-core.cpp)
