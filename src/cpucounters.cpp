@@ -725,6 +725,8 @@ void PCM::initCStateSupportTables()
         case MTL:
         case LNL:
         case SNOWRIDGE:
+        case ELKHART_LAKE:
+        case JASPER_LAKE:
             PCM_CSTATE_ARRAY(pkgCStateMsr, PCM_PARAM_PROTECT({0, 0, 0x3F8, 0, 0x3F9, 0, 0x3FA, 0, 0, 0, 0 }) );
         case NEHALEM_EP:
         case NEHALEM:
@@ -801,6 +803,8 @@ void PCM::initCStateSupportTables()
         case MTL:
         case LNL:
         case SNOWRIDGE:
+        case ELKHART_LAKE:
+        case JASPER_LAKE:
         case ICX:
         case SPR:
         case EMR:
@@ -1649,6 +1653,8 @@ bool PCM::detectNominalFrequency()
                || cpu_family_model == DENVERTON
                || useSKLPath()
                || cpu_family_model == SNOWRIDGE
+               || cpu_family_model == ELKHART_LAKE
+               || cpu_family_model == JASPER_LAKE
                || cpu_family_model == KNL
                || cpu_family_model == ADL
                || cpu_family_model == RPL
@@ -3243,6 +3249,8 @@ bool PCM::isCPUModelSupported(const int model_)
             || model_ == WESTMERE_EX
             || isAtom(model_)
             || model_ == SNOWRIDGE
+            || model_ == ELKHART_LAKE
+            || model_ == JASPER_LAKE
             || model_ == CLARKDALE
             || model_ == SANDY_BRIDGE
             || model_ == JAKETOWN
@@ -3549,6 +3557,8 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
                 core_gen_counter_num_used = 4;
                 break;
             case SNOWRIDGE:
+            case ELKHART_LAKE:
+            case JASPER_LAKE:
                 LLCArchEventInit(coreEventDesc);
                 coreEventDesc[2].event_number = SKL_MEM_LOAD_RETIRED_L2_MISS_EVTNR;
                 coreEventDesc[2].umask_value = SKL_MEM_LOAD_RETIRED_L2_MISS_UMASK;
@@ -4824,6 +4834,10 @@ const char * PCM::getUArchCodename(const int32 cpu_family_model_param) const
             return "Denverton";
         case SNOWRIDGE:
             return "Snowridge";
+        case ELKHART_LAKE:
+            return "Elkhart Lake";
+        case JASPER_LAKE:
+            return "Jasper Lake";
         case NEHALEM_EP:
         case NEHALEM:
             return "Nehalem/Nehalem-EP";

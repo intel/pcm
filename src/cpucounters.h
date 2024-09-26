@@ -1856,6 +1856,8 @@ public:
         GEMINI_LAKE =   PCM_CPU_FAMILY_MODEL(6, 122),
         DENVERTON =     PCM_CPU_FAMILY_MODEL(6, 95),
         SNOWRIDGE =     PCM_CPU_FAMILY_MODEL(6, 134),
+        ELKHART_LAKE =  PCM_CPU_FAMILY_MODEL(6, 150),
+        JASPER_LAKE =   PCM_CPU_FAMILY_MODEL(6, 156),
         CLARKDALE =     PCM_CPU_FAMILY_MODEL(6, 37),
         WESTMERE_EP =   PCM_CPU_FAMILY_MODEL(6, 44),
         NEHALEM_EX =    PCM_CPU_FAMILY_MODEL(6, 46),
@@ -2122,6 +2124,8 @@ public:
         case LNL:
             return 12;
         case SNOWRIDGE:
+        case ELKHART_LAKE:
+        case JASPER_LAKE:
             return 4;
         case DENVERTON:
             return 3;
@@ -2451,6 +2455,8 @@ public:
                  || cpu_family_model == PCM::GEMINI_LAKE
                  || cpu_family_model == PCM::DENVERTON
                  || cpu_family_model == PCM::SNOWRIDGE
+                 || cpu_family_model == PCM::ELKHART_LAKE
+                 || cpu_family_model == PCM::JASPER_LAKE
                  || cpu_family_model == PCM::HASWELLX
                  || cpu_family_model == PCM::BROADWELL
                  || cpu_family_model == PCM::BDX_DE
@@ -4270,6 +4276,8 @@ uint64 getL2CacheMisses(const CounterStateType & before, const CounterStateType 
     const auto cpu_family_model = pcm->getCPUFamilyModel();
     if (pcm->useSkylakeEvents()
         || cpu_family_model == PCM::SNOWRIDGE
+        || cpu_family_model == PCM::ELKHART_LAKE
+        || cpu_family_model == PCM::JASPER_LAKE
         || cpu_family_model == PCM::SRF
         || cpu_family_model == PCM::ADL
         || cpu_family_model == PCM::RPL
@@ -4382,6 +4390,8 @@ uint64 getL3CacheHitsSnoop(const CounterStateType & before, const CounterStateTy
     if (!pcm->isL3CacheHitsSnoopAvailable()) return 0;
     const auto cpu_family_model = pcm->getCPUFamilyModel();
     if (cpu_family_model == PCM::SNOWRIDGE
+        || cpu_family_model == PCM::ELKHART_LAKE
+        || cpu_family_model == PCM::JASPER_LAKE
         || cpu_family_model == PCM::SRF
         || cpu_family_model == PCM::ADL
         || cpu_family_model == PCM::RPL
