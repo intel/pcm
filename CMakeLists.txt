@@ -7,7 +7,7 @@ project(PCM)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
-# set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 
 option(PCM_NO_ASAN "Disable address sanitizer" OFF)
@@ -64,7 +64,7 @@ if(UNIX)  # APPLE, LINUX, FREE_BSD
     message(STATUS "initial CMAKE_C_FLAGS: ${CMAKE_C_FLAGS}")
 
     # required PCM common flags
-    set (PCM_COMMON_FLAGS "-Wno-unknown-pragmas -fPIC -DCMAKE_INSTALL_PREFIX=\"${CMAKE_INSTALL_PREFIX}\"")
+    set (PCM_COMMON_FLAGS "-Wno-unknown-pragmas -DCMAKE_INSTALL_PREFIX=\"${CMAKE_INSTALL_PREFIX}\"")
 
     if(LINUX)
        set (PCM_COMMON_FLAGS "${PCM_COMMON_FLAGS} -Wextra -DPCM_USE_PERF")
