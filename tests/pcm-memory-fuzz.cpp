@@ -57,10 +57,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
         m->resetPMU();
         m->disableJKTWorkaround();
 
-        const auto cpu_model = m->getCPUModel();
+        const auto cpu_family_model = m->getCPUFamilyModel();
         if (!m->hasPCICFGUncore())
         {
-                cerr << "Unsupported processor model (" << cpu_model << ").\n";
+                cerr << "Unsupported processor model (0x" << std::hex << cpu_family_model << std::dec << ").\n";
                 if (m->memoryTrafficMetricsAvailable())
                         cerr << "For processor-level memory bandwidth statistics please use 'pcm' utility\n";
                 return 0;

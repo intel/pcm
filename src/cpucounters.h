@@ -244,8 +244,8 @@ public:
 class UncorePMU
 {
     typedef std::shared_ptr<HWRegister> HWRegisterPtr;
-    uint32 cpu_model_;
-    uint32 getCPUModel();
+    uint32 cpu_family_model_;
+    uint32 getCPUFamilyModel();
     HWRegisterPtr unitControl;
 public:
     std::vector<HWRegisterPtr> counterControl;
@@ -279,7 +279,7 @@ public:
         const HWRegisterPtr& filter0 = HWRegisterPtr(),
         const HWRegisterPtr& filter1 = HWRegisterPtr()
     );
-    UncorePMU() : cpu_model_(0U) {}
+    UncorePMU() : cpu_family_model_(0U) {}
     size_t size() const { return counterControl.size(); }
     virtual ~UncorePMU() {}
     bool valid() const
@@ -298,8 +298,8 @@ typedef std::shared_ptr<UncorePMU> UncorePMURef;
 class IDX_PMU
 {
     typedef std::shared_ptr<HWRegister> HWRegisterPtr;
-    uint32 cpu_model_;
-    uint32 getCPUModel();
+    uint32 cpu_family_model_;
+    uint32 getCPUFamilyModel();
     bool perf_mode_;
     uint32 numa_node_;
     uint32 socket_id_;
@@ -330,7 +330,7 @@ public:
         const std::vector<HWRegisterPtr> & counterFilterXFERSZ
     );
 
-    IDX_PMU() : cpu_model_(0U), perf_mode_(false), numa_node_(0), socket_id_(0) {}
+    IDX_PMU() : cpu_family_model_(0U), perf_mode_(false), numa_node_(0), socket_id_(0) {}
     size_t size() const { return counterControl.size(); }
     virtual ~IDX_PMU() {}
     bool valid() const
@@ -361,7 +361,7 @@ class ServerUncorePMUs
     friend class PCM;
     int32 iMCbus,UPIbus,M2Mbus;
     uint32 groupnr;
-    int32 cpu_model;
+    int32 cpu_family_model;
     typedef std::vector<UncorePMU> UncorePMUVector;
     UncorePMUVector imcPMUs;
     UncorePMUVector edcPMUs;
@@ -607,7 +607,8 @@ class PCM_API PCM
     PCM & operator = (const PCM &) = delete;
 
     int32 cpu_family;
-    int32 cpu_model;
+    int32 cpu_model_private;
+    int32 cpu_family_model;
     bool hybrid = false;
     int32 cpu_stepping;
     int64 cpu_microcode_level;
@@ -1238,13 +1239,13 @@ private:
     {
         if (!eventsBegin) return;
         Iterator curEvent = eventsBegin;
-        const auto cpu_model = PCM::getInstance()->getCPUModel();
+        const auto cpu_family_model = PCM::getInstance()->getCPUFamilyModel();
         for (int c = 0; curEvent != eventsEnd && size_t(c) < pmu.size(); ++c, ++curEvent)
         {
             auto ctrl = pmu.counterControl[c];
             if (ctrl.get() != nullptr)
             {
-                switch (cpu_model)
+                switch (cpu_family_model)
                 {
                 case SPR:
                 case EMR:
@@ -1271,17 +1272,17 @@ private:
 
     bool isCLX() const // Cascade Lake-SP
     {
-        return (PCM::SKX == cpu_model) && (cpu_stepping > 4 && cpu_stepping < 8);
+        return (PCM::SKX == cpu_family_model) && (cpu_stepping > 4 && cpu_stepping < 8);
     }
 
-    static bool isCPX(int cpu_model_, int cpu_stepping_) // Cooper Lake
+    static bool isCPX(int cpu_family_model_, int cpu_stepping_) // Cooper Lake
     {
-        return (PCM::SKX == cpu_model_) && (cpu_stepping_ >= 10);
+        return (PCM::SKX == cpu_family_model_) && (cpu_stepping_ >= 10);
     }
 
     bool isCPX() const
     {
-        return isCPX(cpu_model, cpu_stepping);
+        return isCPX(cpu_family_model, cpu_stepping);
     }
 
     void initUncorePMUsDirect();
@@ -1303,10 +1304,10 @@ public:
     {
         return isHWTMAL1Supported() &&
                 (
-                    SPR == cpu_model
-                ||  EMR == cpu_model
-                ||  GNR == cpu_model
-                ||  GNR_D == cpu_model
+                    SPR == cpu_family_model
+                ||  EMR == cpu_family_model
+                ||  GNR == cpu_family_model
+                ||  GNR_D == cpu_family_model
                 );
     }
 
@@ -1631,7 +1632,7 @@ public:
        assert (coreID < topology.size());
        if (hybrid)
        {
-            switch (cpu_model)
+            switch (cpu_family_model)
             {
             case ADL:
             case RPL:
@@ -1645,7 +1646,7 @@ public:
             }
        }
        bool useGLCOCREvent = false;
-       switch (cpu_model)
+       switch (cpu_family_model)
        {
        case SPR:
        case EMR:
@@ -1829,67 +1830,78 @@ public:
 
     /*! \brief Returns cpu model id number from cpuid instruction
     */
+    /*
     static int getCPUModelFromCPUID();
+    */
+
+    /*! \brief Returns cpu family and model id number from cpuid instruction
+    *   \return cpu family and model id number (model id is in the lower 8 bits, family id is in the next 8 bits)
+    */
+    static int getCPUFamilyModelFromCPUID();
+
+    #define PCM_CPU_FAMILY_MODEL(family_, model_) (((family_) << 8) + (model_))
 
     //! \brief Identifiers of supported CPU models
     enum SupportedCPUModels
     {
-        NEHALEM_EP = 26,
-        NEHALEM = 30,
-        ATOM = 28,
-        ATOM_2 = 53,
-        CENTERTON = 54,
-        BAYTRAIL = 55,
-        AVOTON = 77,
-        CHERRYTRAIL = 76,
-        APOLLO_LAKE = 92,
-        GEMINI_LAKE = 122,
-        DENVERTON = 95,
-        SNOWRIDGE = 134,
-        CLARKDALE = 37,
-        WESTMERE_EP = 44,
-        NEHALEM_EX = 46,
-        WESTMERE_EX = 47,
-        SANDY_BRIDGE = 42,
-        JAKETOWN = 45,
-        IVY_BRIDGE = 58,
-        HASWELL = 60,
-        HASWELL_ULT = 69,
-        HASWELL_2 = 70,
-        IVYTOWN = 62,
-        HASWELLX = 63,
-        BROADWELL = 61,
-        BROADWELL_XEON_E3 = 71,
-        BDX_DE = 86,
-        SKL_UY = 78,
-        KBL = 158,
-        KBL_1 = 142,
-        CML = 166,
-        CML_1 = 165,
-        ICL = 126,
-        ICL_1 = 125,
-        RKL = 167,
-        TGL = 140,
-        TGL_1 = 141,
-        ADL = 151,
-        ADL_1 = 154,
-        RPL = 0xb7,
-        RPL_1 = 0xba,
-        RPL_2 = 0xbf,
-        RPL_3 = 0xbe,
-        MTL = 0xAA,
-        LNL = 0xBD,
-        BDX = 79,
-        KNL = 87,
-        SKL = 94,
-        SKX = 85,
-        ICX_D = 108,
-        ICX = 106,
-        SPR = 143,
-        EMR = 207,
-        GNR = 173,
-        SRF = 175,
-        GNR_D = 174,
+        NEHALEM_EP =    PCM_CPU_FAMILY_MODEL(6, 26),
+        NEHALEM =       PCM_CPU_FAMILY_MODEL(6, 30),
+        ATOM =          PCM_CPU_FAMILY_MODEL(6, 28),
+        ATOM_2 =        PCM_CPU_FAMILY_MODEL(6, 53),
+        CENTERTON =     PCM_CPU_FAMILY_MODEL(6, 54),
+        BAYTRAIL =      PCM_CPU_FAMILY_MODEL(6, 55),
+        AVOTON =        PCM_CPU_FAMILY_MODEL(6, 77),
+        CHERRYTRAIL =   PCM_CPU_FAMILY_MODEL(6, 76),
+        APOLLO_LAKE =   PCM_CPU_FAMILY_MODEL(6, 92),
+        GEMINI_LAKE =   PCM_CPU_FAMILY_MODEL(6, 122),
+        DENVERTON =     PCM_CPU_FAMILY_MODEL(6, 95),
+        SNOWRIDGE =     PCM_CPU_FAMILY_MODEL(6, 134),
+        ELKHART_LAKE =  PCM_CPU_FAMILY_MODEL(6, 150),
+        JASPER_LAKE =   PCM_CPU_FAMILY_MODEL(6, 156),
+        CLARKDALE =     PCM_CPU_FAMILY_MODEL(6, 37),
+        WESTMERE_EP =   PCM_CPU_FAMILY_MODEL(6, 44),
+        NEHALEM_EX =    PCM_CPU_FAMILY_MODEL(6, 46),
+        WESTMERE_EX =   PCM_CPU_FAMILY_MODEL(6, 47),
+        SANDY_BRIDGE =  PCM_CPU_FAMILY_MODEL(6, 42),
+        JAKETOWN =      PCM_CPU_FAMILY_MODEL(6, 45),
+        IVY_BRIDGE =    PCM_CPU_FAMILY_MODEL(6, 58),
+        HASWELL =       PCM_CPU_FAMILY_MODEL(6, 60),
+        HASWELL_ULT =   PCM_CPU_FAMILY_MODEL(6, 69),
+        HASWELL_2 =     PCM_CPU_FAMILY_MODEL(6, 70),
+        IVYTOWN =       PCM_CPU_FAMILY_MODEL(6, 62),
+        HASWELLX =      PCM_CPU_FAMILY_MODEL(6, 63),
+        BROADWELL =     PCM_CPU_FAMILY_MODEL(6, 61),
+        BROADWELL_XEON_E3 = PCM_CPU_FAMILY_MODEL(6, 71),
+        BDX_DE =        PCM_CPU_FAMILY_MODEL(6, 86),
+        SKL_UY =        PCM_CPU_FAMILY_MODEL(6, 78),
+        KBL =           PCM_CPU_FAMILY_MODEL(6, 158),
+        KBL_1 =         PCM_CPU_FAMILY_MODEL(6, 142),
+        CML =           PCM_CPU_FAMILY_MODEL(6, 166),
+        CML_1 =         PCM_CPU_FAMILY_MODEL(6, 165),
+        ICL =           PCM_CPU_FAMILY_MODEL(6, 126),
+        ICL_1 =         PCM_CPU_FAMILY_MODEL(6, 125),
+        RKL =           PCM_CPU_FAMILY_MODEL(6, 167),
+        TGL =           PCM_CPU_FAMILY_MODEL(6, 140),
+        TGL_1 =         PCM_CPU_FAMILY_MODEL(6, 141),
+        ADL =           PCM_CPU_FAMILY_MODEL(6, 151),
+        ADL_1 =         PCM_CPU_FAMILY_MODEL(6, 154),
+        RPL =           PCM_CPU_FAMILY_MODEL(6, 0xb7),
+        RPL_1 =         PCM_CPU_FAMILY_MODEL(6, 0xba),
+        RPL_2 =         PCM_CPU_FAMILY_MODEL(6, 0xbf),
+        RPL_3 =         PCM_CPU_FAMILY_MODEL(6, 0xbe),
+        MTL =           PCM_CPU_FAMILY_MODEL(6, 0xAA),
+        LNL =           PCM_CPU_FAMILY_MODEL(6, 0xBD),
+        BDX =           PCM_CPU_FAMILY_MODEL(6, 79),
+        KNL =           PCM_CPU_FAMILY_MODEL(6, 87),
+        SKL =           PCM_CPU_FAMILY_MODEL(6, 94),
+        SKX =           PCM_CPU_FAMILY_MODEL(6, 85),
+        ICX_D =         PCM_CPU_FAMILY_MODEL(6, 108),
+        ICX =           PCM_CPU_FAMILY_MODEL(6, 106),
+        SPR =           PCM_CPU_FAMILY_MODEL(6, 143),
+        EMR =           PCM_CPU_FAMILY_MODEL(6, 207),
+        GNR =           PCM_CPU_FAMILY_MODEL(6, 173),
+        SRF =           PCM_CPU_FAMILY_MODEL(6, 175),
+        GNR_D =         PCM_CPU_FAMILY_MODEL(6, 174),
         END_OF_MODEL_LIST = 0x0ffff
     };
 
@@ -1906,7 +1918,7 @@ public:
 private:
     bool useSKLPath() const
     {
-        switch (cpu_model)
+        switch (cpu_family_model)
         {
             PCM_SKL_PATH_CASES
                 return true;
@@ -1920,9 +1932,13 @@ public:
     //! \return CPU family
     uint32 getCPUFamily() const { return (uint32)cpu_family; }
 
-    //! \brief Reads CPU model id
-    //! \return CPU model ID
-    uint32 getCPUModel() const { return (uint32)cpu_model; }
+    //! \brief Reads CPU model id (use only with the family API together, don't always assume family 6)
+    //! \return Internal CPU model ID
+    uint32 getInternalCPUModel() const { return (uint32)cpu_model_private; }
+
+    //! \brief Reads CPU family and model id
+    //! \return CPU family and model ID (lowest 8 bits is the model, next 8 bits is the family)
+    uint32 getCPUFamilyModel() const { return cpu_family_model; }
 
     //! \brief Reads CPU stepping id
     //! \return CPU stepping ID
@@ -1962,7 +1978,7 @@ public:
     //! \return number of QPI links per socket
     uint64 getQPILinksPerSocket() const
     {
-        switch (cpu_model)
+        switch (cpu_family_model)
         {
         case NEHALEM_EP:
         case WESTMERE_EP:
@@ -1993,7 +2009,7 @@ public:
     //! \brief Returns the number of detected integrated memory controllers per socket
     uint32 getMCPerSocket() const
     {
-        switch (cpu_model)
+        switch (cpu_family_model)
         {
         case NEHALEM_EP:
         case WESTMERE_EP:
@@ -2022,7 +2038,7 @@ public:
     //! \brief Returns the total number of detected memory channels on all integrated memory controllers per socket
     size_t getMCChannelsPerSocket() const
     {
-        switch (cpu_model)
+        switch (cpu_family_model)
         {
         case NEHALEM_EP:
         case WESTMERE_EP:
@@ -2054,7 +2070,7 @@ public:
     //! \param controller controller
     size_t getMCChannels(uint32 socket, uint32 controller) const
     {
-        switch (cpu_model)
+        switch (cpu_family_model)
         {
         case NEHALEM_EP:
         case WESTMERE_EP:
@@ -2085,7 +2101,7 @@ public:
     //! \brief Returns the total number of detected memory channels on all integrated memory controllers per socket
     size_t getEDCChannelsPerSocket() const
     {
-        switch (cpu_model)
+        switch (cpu_family_model)
         {
         case KNL:
             return (serverUncorePMUs.size() && serverUncorePMUs[0].get()) ? (serverUncorePMUs[0]->getNumEDCChannels()) : 0;
@@ -2098,8 +2114,8 @@ public:
     //! \return max number of instructions per cycle
     uint32 getMaxIPC() const
     {
-        if (ICL == cpu_model || TGL == cpu_model || RKL == cpu_model) return 5;
-        switch (cpu_model)
+        if (ICL == cpu_family_model || TGL == cpu_family_model || RKL == cpu_family_model) return 5;
+        switch (cpu_family_model)
         {
         case ADL:
         case RPL:
@@ -2108,6 +2124,8 @@ public:
         case LNL:
             return 12;
         case SNOWRIDGE:
+        case ELKHART_LAKE:
+        case JASPER_LAKE:
             return 4;
         case DENVERTON:
             return 3;
@@ -2142,7 +2160,7 @@ public:
         {
             return 2;
         }
-        std::cerr << "MaxIPC is not defined for your cpu model " << cpu_model << '\n';
+        std::cerr << "MaxIPC is not defined for your cpu family " << cpu_family << " model " << cpu_model_private << '\n';
         assert (0);
         return 0;
     }
@@ -2150,7 +2168,7 @@ public:
     //! \brief Returns the frequency of Power Control Unit
     uint64 getPCUFrequency() const
     {
-        switch (cpu_model)
+        switch (cpu_family_model)
         {
         case JAKETOWN:
         case IVYTOWN:
@@ -2171,7 +2189,7 @@ public:
     //! \brief Returns whether it is a server part
     bool isServerCPU() const
     {
-        switch (cpu_model)
+        switch (cpu_family_model)
         {
         case NEHALEM_EP:
         case NEHALEM_EX:
@@ -2361,8 +2379,8 @@ public:
     uint64 extractQOSMonitoring(uint64 val);
 
     //! \brief Get a string describing the codename of the processor microarchitecture
-    //! \param cpu_model_ cpu model (if no parameter provided the codename of the detected CPU is returned)
-    const char * getUArchCodename(const int32 cpu_model_ = -1) const;
+    //! \param cpu_family_model_ cpu model (if no parameter provided the codename of the detected CPU is returned)
+    const char * getUArchCodename(const int32 cpu_family_model_ = -1) const;
 
     //! \brief Get Brand string of processor
     static std::string getCPUBrandString();
@@ -2385,31 +2403,31 @@ public:
     int64 getCPUMicrocodeLevel() const { return cpu_microcode_level; }
 
     //! \brief returns true if CPU model is Atom-based
-    static bool isAtom(const int32 cpu_model_)
+    static bool isAtom(const int32 cpu_family_model_)
     {
-        return cpu_model_ == ATOM
-            || cpu_model_ == ATOM_2
-            || cpu_model_ == CENTERTON
-            || cpu_model_ == BAYTRAIL
-            || cpu_model_ == AVOTON
-            || cpu_model_ == CHERRYTRAIL
-            || cpu_model_ == APOLLO_LAKE
-            || cpu_model_ == GEMINI_LAKE
-            || cpu_model_ == DENVERTON
-            // || cpu_model_ == SNOWRIDGE do not use Atom code for SNOWRIDGE
+        return cpu_family_model_ == ATOM
+            || cpu_family_model_ == ATOM_2
+            || cpu_family_model_ == CENTERTON
+            || cpu_family_model_ == BAYTRAIL
+            || cpu_family_model_ == AVOTON
+            || cpu_family_model_ == CHERRYTRAIL
+            || cpu_family_model_ == APOLLO_LAKE
+            || cpu_family_model_ == GEMINI_LAKE
+            || cpu_family_model_ == DENVERTON
+            // || cpu_family_model_ == SNOWRIDGE do not use Atom code for SNOWRIDGE
             ;
     }
 
     //! \brief returns true if CPU is Atom-based
     bool isAtom() const
     {
-        return isAtom(cpu_model);
+        return isAtom(cpu_family_model);
     }
 
     // From commit message: https://github.com/torvalds/linux/commit/e979121b1b1556e184492e6fc149bbe188fc83e6
     bool memoryEventErrata() const
     {
-        switch (cpu_model)
+        switch (cpu_family_model)
         {
             case SANDY_BRIDGE:
             case JAKETOWN:
@@ -2425,52 +2443,54 @@ public:
     bool packageEnergyMetricsAvailable() const
     {
         return (
-                    cpu_model == PCM::JAKETOWN
-                 || cpu_model == PCM::IVYTOWN
-                 || cpu_model == PCM::SANDY_BRIDGE
-                 || cpu_model == PCM::IVY_BRIDGE
-                 || cpu_model == PCM::HASWELL
-                 || cpu_model == PCM::AVOTON
-                 || cpu_model == PCM::CHERRYTRAIL
-                 || cpu_model == PCM::BAYTRAIL
-                 || cpu_model == PCM::APOLLO_LAKE
-                 || cpu_model == PCM::GEMINI_LAKE
-                 || cpu_model == PCM::DENVERTON
-                 || cpu_model == PCM::SNOWRIDGE
-                 || cpu_model == PCM::HASWELLX
-                 || cpu_model == PCM::BROADWELL
-                 || cpu_model == PCM::BDX_DE
-                 || cpu_model == PCM::BDX
-                 || cpu_model == PCM::KNL
+                    cpu_family_model == PCM::JAKETOWN
+                 || cpu_family_model == PCM::IVYTOWN
+                 || cpu_family_model == PCM::SANDY_BRIDGE
+                 || cpu_family_model == PCM::IVY_BRIDGE
+                 || cpu_family_model == PCM::HASWELL
+                 || cpu_family_model == PCM::AVOTON
+                 || cpu_family_model == PCM::CHERRYTRAIL
+                 || cpu_family_model == PCM::BAYTRAIL
+                 || cpu_family_model == PCM::APOLLO_LAKE
+                 || cpu_family_model == PCM::GEMINI_LAKE
+                 || cpu_family_model == PCM::DENVERTON
+                 || cpu_family_model == PCM::SNOWRIDGE
+                 || cpu_family_model == PCM::ELKHART_LAKE
+                 || cpu_family_model == PCM::JASPER_LAKE
+                 || cpu_family_model == PCM::HASWELLX
+                 || cpu_family_model == PCM::BROADWELL
+                 || cpu_family_model == PCM::BDX_DE
+                 || cpu_family_model == PCM::BDX
+                 || cpu_family_model == PCM::KNL
                  || useSKLPath()
-                 || cpu_model == PCM::SKX
-                 || cpu_model == PCM::ICX
-                 || cpu_model == PCM::ADL
-                 || cpu_model == PCM::RPL
-                 || cpu_model == PCM::MTL
-                 || cpu_model == PCM::LNL
-                 || cpu_model == PCM::SPR
-                 || cpu_model == PCM::EMR
-                 || cpu_model == PCM::GNR
-                 || cpu_model == PCM::SRF
+                 || cpu_family_model == PCM::SKX
+                 || cpu_family_model == PCM::ICX
+                 || cpu_family_model == PCM::ADL
+                 || cpu_family_model == PCM::RPL
+                 || cpu_family_model == PCM::MTL
+                 || cpu_family_model == PCM::LNL
+                 || cpu_family_model == PCM::SPR
+                 || cpu_family_model == PCM::EMR
+                 || cpu_family_model == PCM::GNR
+                 || cpu_family_model == PCM::SRF
                );
     }
 
     bool dramEnergyMetricsAvailable() const
     {
         return (
-             cpu_model == PCM::JAKETOWN
-          || cpu_model == PCM::IVYTOWN
-          || cpu_model == PCM::HASWELLX
-          || cpu_model == PCM::BDX_DE
-          || cpu_model == PCM::BDX
-          || cpu_model == PCM::KNL
-          || cpu_model == PCM::SKX
-          || cpu_model == PCM::ICX
-          || cpu_model == PCM::SPR
-          || cpu_model == PCM::EMR
-          || cpu_model == PCM::GNR
-          || cpu_model == PCM::SRF
+             cpu_family_model == PCM::JAKETOWN
+          || cpu_family_model == PCM::IVYTOWN
+          || cpu_family_model == PCM::HASWELLX
+          || cpu_family_model == PCM::BDX_DE
+          || cpu_family_model == PCM::BDX
+          || cpu_family_model == PCM::KNL
+          || cpu_family_model == PCM::SKX
+          || cpu_family_model == PCM::ICX
+          || cpu_family_model == PCM::SPR
+          || cpu_family_model == PCM::EMR
+          || cpu_family_model == PCM::GNR
+          || cpu_family_model == PCM::SRF
           );
     }
 
@@ -2483,18 +2503,18 @@ public:
     {
         return getQPILinksPerSocket() > 0 &&
             (
-                cpu_model == PCM::NEHALEM_EX
-            ||  cpu_model == PCM::WESTMERE_EX
-            ||  cpu_model == PCM::JAKETOWN
-            ||  cpu_model == PCM::IVYTOWN
-            ||  cpu_model == PCM::HASWELLX
-            ||  cpu_model == PCM::BDX
-            ||  cpu_model == PCM::SKX
-            ||  cpu_model == PCM::ICX
-            ||  cpu_model == PCM::SPR
-            ||  cpu_model == PCM::EMR
-            ||  cpu_model == PCM::GNR
-            ||  cpu_model == PCM::SRF
+               cpu_family_model == PCM::NEHALEM_EX
+            || cpu_family_model == PCM::WESTMERE_EX
+            || cpu_family_model == PCM::JAKETOWN
+            || cpu_family_model == PCM::IVYTOWN
+            || cpu_family_model == PCM::HASWELLX
+            || cpu_family_model == PCM::BDX
+            || cpu_family_model == PCM::SKX
+            || cpu_family_model == PCM::ICX
+            || cpu_family_model == PCM::SPR
+            || cpu_family_model == PCM::EMR
+            || cpu_family_model == PCM::GNR
+            || cpu_family_model == PCM::SRF
             );
     }
 
@@ -2502,29 +2522,29 @@ public:
     {
         return getQPILinksPerSocket() > 0 &&
             (
-                cpu_model == PCM::NEHALEM_EX
-            ||  cpu_model == PCM::WESTMERE_EX
-            ||  cpu_model == PCM::JAKETOWN
-            ||  cpu_model == PCM::IVYTOWN
-            || (cpu_model == PCM::SKX && cpu_stepping > 1)
-            ||  cpu_model == PCM::ICX
-            ||  cpu_model == PCM::SPR
-            ||  cpu_model == PCM::EMR
-            ||  cpu_model == PCM::GNR
-            ||  cpu_model == PCM::SRF
+               cpu_family_model == PCM::NEHALEM_EX
+            || cpu_family_model == PCM::WESTMERE_EX
+            || cpu_family_model == PCM::JAKETOWN
+            || cpu_family_model == PCM::IVYTOWN
+            || (cpu_family_model == PCM::SKX && cpu_stepping > 1)
+            || cpu_family_model == PCM::ICX
+            || cpu_family_model == PCM::SPR
+            || cpu_family_model == PCM::EMR
+            || cpu_family_model == PCM::GNR
+            || cpu_family_model == PCM::SRF
                );
     }
 
     bool localMemoryRequestRatioMetricAvailable() const
     {
-        return cpu_model == PCM::HASWELLX
-            || cpu_model == PCM::BDX
-            || cpu_model == PCM::SKX
-            || cpu_model == PCM::ICX
-            || cpu_model == PCM::SPR
-            || cpu_model == PCM::EMR
-            || cpu_model == PCM::SRF
-            || cpu_model == PCM::GNR
+        return cpu_family_model == PCM::HASWELLX
+            || cpu_family_model == PCM::BDX
+            || cpu_family_model == PCM::SKX
+            || cpu_family_model == PCM::ICX
+            || cpu_family_model == PCM::SPR
+            || cpu_family_model == PCM::EMR
+            || cpu_family_model == PCM::SRF
+            || cpu_family_model == PCM::GNR
             ;
     }
 
@@ -2536,14 +2556,14 @@ public:
     bool nearMemoryMetricsAvailable() const
     {
         return (
-               cpu_model == PCM::SRF
-            || cpu_model == PCM::GNR
+               cpu_family_model == PCM::SRF
+            || cpu_family_model == PCM::GNR
             );
     }
     
     bool memoryTrafficMetricsAvailable() const
     {
-        return (!(isAtom() || cpu_model == PCM::CLARKDALE))
+        return (!(isAtom() || cpu_family_model == PCM::CLARKDALE))
                ;
     }
 
@@ -2554,17 +2574,17 @@ public:
 
     size_t getHBMCASTransferSize() const
     {
-        return (SPR == cpu_model) ? 32ULL : 64ULL;
+        return (SPR == cpu_family_model) ? 32ULL : 64ULL;
     }
 
     bool memoryIOTrafficMetricAvailable() const
     {
-        if (cpu_model == TGL) return false;
+        if (cpu_family_model == TGL) return false;
         return (
-            cpu_model == PCM::SANDY_BRIDGE
-            || cpu_model == PCM::IVY_BRIDGE
-            || cpu_model == PCM::HASWELL
-            || cpu_model == PCM::BROADWELL
+            cpu_family_model == PCM::SANDY_BRIDGE
+            || cpu_family_model == PCM::IVY_BRIDGE
+            || cpu_family_model == PCM::HASWELL
+            || cpu_family_model == PCM::BROADWELL
             || useSKLPath()
             );
     }
@@ -2572,13 +2592,13 @@ public:
     bool IIOEventsAvailable() const
     {
         return (
-               cpu_model == PCM::SKX
-            || cpu_model == PCM::ICX
-	        || cpu_model == PCM::SNOWRIDGE
-            || cpu_model == PCM::SPR
-            || cpu_model == PCM::EMR
-            || cpu_model == PCM::SRF
-            || cpu_model == PCM::GNR
+               cpu_family_model == PCM::SKX
+            || cpu_family_model == PCM::ICX
+	        || cpu_family_model == PCM::SNOWRIDGE
+            || cpu_family_model == PCM::SPR
+            || cpu_family_model == PCM::EMR
+            || cpu_family_model == PCM::SRF
+            || cpu_family_model == PCM::GNR
         );
     }
 
@@ -2587,20 +2607,20 @@ public:
         return MSR.empty() == false
                 && getMaxNumOfUncorePMUs(UBOX_PMU_ID) > 0ULL
                 && getNumCores() == getNumOnlineCores()
-                && PCM::GNR != cpu_model
-                && PCM::SRF != cpu_model
+                && PCM::GNR != cpu_family_model
+                && PCM::SRF != cpu_family_model
             ;
     }
 
     bool LatencyMetricsAvailable() const
     {
         return (
-            cpu_model == PCM::HASWELLX
-            || cpu_model == PCM::BDX
-            || cpu_model == PCM::SKX
-            || cpu_model == PCM::ICX
-            || cpu_model == PCM::SPR
-            || cpu_model == PCM::EMR
+               cpu_family_model == PCM::HASWELLX
+            || cpu_family_model == PCM::BDX
+            || cpu_family_model == PCM::SKX
+            || cpu_family_model == PCM::ICX
+            || cpu_family_model == PCM::SPR
+            || cpu_family_model == PCM::EMR
             || useSKLPath()
             );
     }
@@ -2608,10 +2628,10 @@ public:
     bool DDRLatencyMetricsAvailable() const
     {
         return (
-            cpu_model == PCM::SKX
-            || cpu_model == PCM::ICX
-            || cpu_model == PCM::SPR
-            || cpu_model == PCM::EMR
+               cpu_family_model == PCM::SKX
+            || cpu_family_model == PCM::ICX
+            || cpu_family_model == PCM::SPR
+            || cpu_family_model == PCM::EMR
             );
     }
 
@@ -2620,10 +2640,10 @@ public:
         return (
             isCLX()
                     ||  isCPX()
-                     || cpu_model == PCM::ICX
-                     || cpu_model == PCM::SNOWRIDGE
-                     || cpu_model == SPR
-                     || cpu_model == EMR
+                     || cpu_family_model == PCM::ICX
+                     || cpu_family_model == PCM::SNOWRIDGE
+                     || cpu_family_model == SPR
+                     || cpu_family_model == EMR
         );
     }
 
@@ -2632,8 +2652,8 @@ public:
        return (
                   isCLX()
                || isCPX()
-               || cpu_model == PCM::ICX
-               || cpu_model == PCM::SNOWRIDGE
+               || cpu_family_model == PCM::ICX
+               || cpu_family_model == PCM::SNOWRIDGE
               );
     }
 
@@ -2645,70 +2665,70 @@ public:
     bool LLCReadMissLatencyMetricsAvailable() const
     {
         return (
-               HASWELLX == cpu_model
-            || BDX_DE == cpu_model
-            || BDX == cpu_model
+               HASWELLX == cpu_family_model
+            || BDX_DE == cpu_family_model
+            || BDX == cpu_family_model
             || isCLX()
             || isCPX()
 #ifdef PCM_ENABLE_LLCRDLAT_SKX_MP
-            || SKX == cpu_model
+            || SKX == cpu_family_model
 #else
-            || ((SKX == cpu_model) && (num_sockets == 1))
+            || ((SKX == cpu_family_model) && (num_sockets == 1))
 #endif
-            || ICX == cpu_model
-            || SPR == cpu_model
-            || SNOWRIDGE == cpu_model
+            || ICX == cpu_family_model
+            || SPR == cpu_family_model
+            || SNOWRIDGE == cpu_family_model
                );
     }
 
     bool hasBecktonUncore() const
     {
         return (
-            cpu_model == PCM::NEHALEM_EX
-            || cpu_model == PCM::WESTMERE_EX
+            cpu_family_model == PCM::NEHALEM_EX
+            || cpu_family_model == PCM::WESTMERE_EX
             );
     }
     bool hasPCICFGUncore() const // has PCICFG uncore PMON
     {
         return (
-            cpu_model == PCM::JAKETOWN
-            || cpu_model == PCM::SNOWRIDGE
-            || cpu_model == PCM::IVYTOWN
-            || cpu_model == PCM::HASWELLX
-            || cpu_model == PCM::BDX_DE
-            || cpu_model == PCM::SKX
-            || cpu_model == PCM::ICX
-            || cpu_model == PCM::SPR
-            || cpu_model == PCM::EMR
-            || cpu_model == PCM::GNR
-            || cpu_model == PCM::SRF
-            || cpu_model == PCM::BDX
-            || cpu_model == PCM::KNL
+            cpu_family_model == PCM::JAKETOWN
+            || cpu_family_model == PCM::SNOWRIDGE
+            || cpu_family_model == PCM::IVYTOWN
+            || cpu_family_model == PCM::HASWELLX
+            || cpu_family_model == PCM::BDX_DE
+            || cpu_family_model == PCM::SKX
+            || cpu_family_model == PCM::ICX
+            || cpu_family_model == PCM::SPR
+            || cpu_family_model == PCM::EMR
+            || cpu_family_model == PCM::GNR
+            || cpu_family_model == PCM::SRF
+            || cpu_family_model == PCM::BDX
+            || cpu_family_model == PCM::KNL
             );
     }
 
     bool isSkxCompatible() const
     {
         return (
-            cpu_model == PCM::SKX
+            cpu_family_model == PCM::SKX
                );
     }
 
-    static bool hasUPI(const int32 cpu_model_) // Intel(r) Ultra Path Interconnect
+    static bool hasUPI(const int32 cpu_family_model_) // Intel(r) Ultra Path Interconnect
     {
         return (
-            cpu_model_ == PCM::SKX
-         || cpu_model_ == PCM::ICX
-         || cpu_model_ == PCM::SPR
-         || cpu_model_ == PCM::EMR
-         || cpu_model_ == PCM::GNR
-         || cpu_model_ == PCM::SRF
+            cpu_family_model_ == PCM::SKX
+         || cpu_family_model_ == PCM::ICX
+         || cpu_family_model_ == PCM::SPR
+         || cpu_family_model_ == PCM::EMR
+         || cpu_family_model_ == PCM::GNR
+         || cpu_family_model_ == PCM::SRF
                );
     }
 
     bool hasUPI() const
     {
-        return hasUPI(cpu_model);
+        return hasUPI(cpu_family_model);
     }
 
     const char * xPI() const
@@ -2722,12 +2742,12 @@ public:
     bool hasCHA() const
     {
         return (
-            cpu_model == PCM::SKX
-         || cpu_model == PCM::ICX
-         || cpu_model == PCM::SPR
-         || cpu_model == PCM::EMR
-         || cpu_model == PCM::GNR
-         || cpu_model == PCM::SRF
+            cpu_family_model == PCM::SKX
+         || cpu_family_model == PCM::ICX
+         || cpu_family_model == PCM::SPR
+         || cpu_family_model == PCM::EMR
+         || cpu_family_model == PCM::GNR
+         || cpu_family_model == PCM::SRF
                );
     }
 
@@ -2738,24 +2758,24 @@ public:
     bool useSkylakeEvents() const
     {
         return    useSKLPath()
-               || PCM::SKX == cpu_model
-               || PCM::ICX == cpu_model
-               || PCM::SPR == cpu_model
-               || PCM::EMR == cpu_model
-               || PCM::GNR == cpu_model
+               || PCM::SKX == cpu_family_model
+               || PCM::ICX == cpu_family_model
+               || PCM::SPR == cpu_family_model
+               || PCM::EMR == cpu_family_model
+               || PCM::GNR == cpu_family_model
                ;
     }
 
     bool hasClientMCCounters() const
     {
-        return  cpu_model == SANDY_BRIDGE
-            || cpu_model == IVY_BRIDGE
-            || cpu_model == HASWELL
-            || cpu_model == BROADWELL
-            || cpu_model == ADL
-            || cpu_model == RPL
-            || cpu_model == MTL
-            || cpu_model == LNL
+        return cpu_family_model == SANDY_BRIDGE
+            || cpu_family_model == IVY_BRIDGE
+            || cpu_family_model == HASWELL
+            || cpu_family_model == BROADWELL
+            || cpu_family_model == ADL
+            || cpu_family_model == RPL
+            || cpu_family_model == MTL
+            || cpu_family_model == LNL
             || useSKLPath()
             ;
     }
@@ -2765,9 +2785,9 @@ public:
         return packageEnergyMetricsAvailable() && hasClientMCCounters() && num_sockets == 1;
     }
 
-    static double getBytesPerFlit(int32 cpu_model_)
+    static double getBytesPerFlit(int32 cpu_family_model_)
     {
-        if (hasUPI(cpu_model_))
+        if (hasUPI(cpu_family_model_))
         {
             // 172 bits per UPI flit
             return 172./8.;
@@ -2778,12 +2798,12 @@ public:
 
     double getBytesPerFlit() const
     {
-        return getBytesPerFlit(cpu_model);
+        return getBytesPerFlit(cpu_family_model);
     }
 
-    static double getDataBytesPerFlit(int32 cpu_model_)
+    static double getDataBytesPerFlit(const int32 cpu_family_model_)
     {
-        if (hasUPI(cpu_model_))
+        if (hasUPI(cpu_family_model_))
         {
             // 9 UPI flits to transfer 64 bytes
             return 64./9.;
@@ -2794,12 +2814,12 @@ public:
 
     double getDataBytesPerFlit() const
     {
-        return getDataBytesPerFlit(cpu_model);
+        return getDataBytesPerFlit(cpu_family_model);
     }
 
-    static double getFlitsPerLinkCycle(int32 cpu_model_)
+    static double getFlitsPerLinkCycle(const int32 cpu_family_model_)
     {
-        if (hasUPI(cpu_model_))
+        if (hasUPI(cpu_family_model_))
         {
             // 5 UPI flits sent every 6 link cycles
             return 5./6.;
@@ -2807,14 +2827,14 @@ public:
         return 2.;
     }
 
-    static double getBytesPerLinkCycle(int32 cpu_model_)
+    static double getBytesPerLinkCycle(const int32 cpu_family_model_)
     {
-        return getBytesPerFlit(cpu_model_) * getFlitsPerLinkCycle(cpu_model_);
+        return getBytesPerFlit(cpu_family_model_) * getFlitsPerLinkCycle(cpu_family_model_);
     }
 
     double getBytesPerLinkCycle() const
     {
-        return getBytesPerLinkCycle(cpu_model);
+        return getBytesPerLinkCycle(cpu_family_model);
     }
 
     double getLinkTransfersPerLinkCycle() const
@@ -3126,8 +3146,8 @@ template <class CounterStateType>
 uint64 getDRAMClocks(uint32 channel, const CounterStateType & before, const CounterStateType & after)
 {
     const auto clk = after.DRAMClocks[channel] - before.DRAMClocks[channel];
-    const auto cpu_model = PCM::getInstance()->getCPUModel();
-    if (cpu_model == PCM::ICX || cpu_model == PCM::SNOWRIDGE)
+    const auto cpu_family_model = PCM::getInstance()->getCPUFamilyModel();
+    if (cpu_family_model == PCM::ICX || cpu_family_model == PCM::SNOWRIDGE)
     {
         return 2 * clk;
     }
@@ -3405,16 +3425,16 @@ double getDRAMConsumedJoules(const CounterStateType & before, const CounterState
     PCM * m = PCM::getInstance();
     if (!m) return -1.;
     double dram_joules_per_energy_unit = 0.;
-    const auto cpu_model = m->getCPUModel();
+    const auto cpu_family_model = m->getCPUFamilyModel();
 
-    if (PCM::HASWELLX == cpu_model
-        || PCM::BDX_DE == cpu_model
-        || PCM::BDX == cpu_model
-        || PCM::SKX == cpu_model
-        || PCM::ICX == cpu_model
-        || PCM::GNR == cpu_model
-        || PCM::SRF == cpu_model
-        || PCM::KNL == cpu_model
+    if (PCM::HASWELLX == cpu_family_model
+        || PCM::BDX_DE == cpu_family_model
+        || PCM::BDX == cpu_family_model
+        || PCM::SKX == cpu_family_model
+        || PCM::ICX == cpu_family_model
+        || PCM::GNR == cpu_family_model
+        || PCM::SRF == cpu_family_model
+        || PCM::KNL == cpu_family_model
         ) {
 /* as described in sections 5.3.2 (DRAM_POWER_INFO) and 5.3.3 (DRAM_ENERGY_STATUS) of
  * Volume 2 (Registers) of
@@ -4253,18 +4273,20 @@ uint64 getL2CacheMisses(const CounterStateType & before, const CounterStateType 
 {
     auto pcm = PCM::getInstance();
     if (pcm->isL2CacheMissesAvailable() == false) return 0ULL;
-    const auto cpu_model = pcm->getCPUModel();
+    const auto cpu_family_model = pcm->getCPUFamilyModel();
     if (pcm->useSkylakeEvents()
-        || cpu_model == PCM::SNOWRIDGE
-        ||  cpu_model == PCM::SRF
-        || cpu_model == PCM::ADL
-        || cpu_model == PCM::RPL
-        || cpu_model == PCM::MTL
-        || cpu_model == PCM::LNL
+        || cpu_family_model == PCM::SNOWRIDGE
+        || cpu_family_model == PCM::ELKHART_LAKE
+        || cpu_family_model == PCM::JASPER_LAKE
+        || cpu_family_model == PCM::SRF
+        || cpu_family_model == PCM::ADL
+        || cpu_family_model == PCM::RPL
+        || cpu_family_model == PCM::MTL
+        || cpu_family_model == PCM::LNL
         ) {
         return after.Event[BasicCounterState::SKLL2MissPos] - before.Event[BasicCounterState::SKLL2MissPos];
     }
-    else if (pcm->isAtom() || cpu_model == PCM::KNL)
+    else if (pcm->isAtom() || cpu_family_model == PCM::KNL)
     {
         return after.Event[BasicCounterState::ArchLLCMissPos] - before.Event[BasicCounterState::ArchLLCMissPos];
     }
@@ -4290,7 +4312,7 @@ uint64 getL2CacheHits(const CounterStateType & before, const CounterStateType & 
 {
     auto pcm = PCM::getInstance();
     if (pcm->isL2CacheHitsAvailable() == false) return 0ULL;
-    if (pcm->isAtom() || pcm->getCPUModel() == PCM::KNL)
+    if (pcm->isAtom() || pcm->getCPUFamilyModel() == PCM::KNL)
     {
         uint64 L2Miss = after.Event[BasicCounterState::ArchLLCMissPos] - before.Event[BasicCounterState::ArchLLCMissPos];
         uint64 L2Ref = after.Event[BasicCounterState::ArchLLCRefPos] - before.Event[BasicCounterState::ArchLLCRefPos];
@@ -4366,13 +4388,15 @@ uint64 getL3CacheHitsSnoop(const CounterStateType & before, const CounterStateTy
 {
     auto pcm = PCM::getInstance();
     if (!pcm->isL3CacheHitsSnoopAvailable()) return 0;
-    const auto cpu_model = pcm->getCPUModel();
-    if (cpu_model == PCM::SNOWRIDGE
-        ||  cpu_model == PCM::SRF
-        || cpu_model == PCM::ADL
-        || cpu_model == PCM::RPL
-        || cpu_model == PCM::MTL
-        || cpu_model == PCM::LNL
+    const auto cpu_family_model = pcm->getCPUFamilyModel();
+    if (cpu_family_model == PCM::SNOWRIDGE
+        || cpu_family_model == PCM::ELKHART_LAKE
+        || cpu_family_model == PCM::JASPER_LAKE
+        || cpu_family_model == PCM::SRF
+        || cpu_family_model == PCM::ADL
+        || cpu_family_model == PCM::RPL
+        || cpu_family_model == PCM::MTL
+        || cpu_family_model == PCM::LNL
         )
     {
         const int64 misses = getL3CacheMisses(before, after);

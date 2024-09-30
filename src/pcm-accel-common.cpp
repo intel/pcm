@@ -390,7 +390,7 @@ void AcceleratorCounterState::setEvents(PCM *m,ACCEL_IP  accel, std::string spec
     {
         if (evtfile==false) //All platform use the spr config file by default.
         {
-            ev_file_name = "opCode-143-accel.txt";
+            ev_file_name = "opCode-6-143-accel.txt";
         }
         else
         {
