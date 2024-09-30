@@ -56,7 +56,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
         std::vector<SocketCounterState> sktstate1, sktstate2;
         SystemCounterState sstate1, sstate2;
         bitset<MAX_CORES> ycores;
-        const auto cpu_model = m->getCPUModel();
+        const auto cpu_family_model = m->getCPUFamilyModel();
 
         print_pid_collection_message(pid);
         bool show_partial_core_output = false; // TODO: add support for partial core output
@@ -71,10 +71,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
         m->getAllCounterStates(sstate2, sktstate2, cstates2);
         if (csv_output)
                 print_csv(m, cstates1, cstates2, sktstate1, sktstate2, ycores, sstate1, sstate2,
-                cpu_model, show_core_output, show_partial_core_output, show_socket_output, show_system_output);
+                        show_core_output, show_partial_core_output, show_socket_output, show_system_output);
         else
                 print_output(m, cstates1, cstates2, sktstate1, sktstate2, ycores, sstate1, sstate2,
-                        cpu_model, show_core_output, show_partial_core_output, show_socket_output, show_system_output,
+                        cpu_family_model, show_core_output, show_partial_core_output, show_socket_output, show_system_output,
                         metricVersion);
 
        return 0;

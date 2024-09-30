@@ -103,7 +103,7 @@ int mainThrows(int /*argc*/, char * /*argv*/[])
 
     if (!m->isSkxCompatible())
     {
-        cerr << "PCI tree display is currently not supported for processor model " << m->getCPUModel() << "\n";
+        cerr << "PCI tree display is currently not supported for processor family/model 0x" << std::hex << m->getCPUFamilyModel() << std::dec << "\n";
     }
     else
     {

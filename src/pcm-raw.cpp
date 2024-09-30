@@ -558,7 +558,7 @@ AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEven
     {
         try
         {
-            path = std::string("PMURegisterDeclarations/") + pcm->getCPUFamilyModelString(pcm->getCPUFamily(), pcm->getCPUModel(), (uint32)stepping) + ".json";
+            path = std::string("PMURegisterDeclarations/") + pcm->getCPUFamilyModelString(pcm->getCPUFamily(), pcm->getInternalCPUModel(), (uint32)stepping) + ".json";
 
             std::ifstream in(path);
             if (!in.is_open())

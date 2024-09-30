@@ -165,7 +165,7 @@ void print_output(PCM * m,
     const std::bitset<MAX_CORES> & ycores,
     const SystemCounterState& sstate1,
     const SystemCounterState& sstate2,
-    const int cpu_model,
+    const int cpu_family_model,
     const bool show_core_output,
     const bool show_partial_core_output,
     const bool show_socket_output,
@@ -199,7 +199,7 @@ void print_output(PCM * m,
         cout << " L3MISS: L3 (read) cache misses \n";
     if (m->isL2CacheHitsAvailable())
     {
-        if (m->isAtom() || cpu_model == PCM::KNL)
+        if (m->isAtom() || cpu_family_model == PCM::KNL)
             cout << " L2MISS: L2 (read) cache misses \n";
         else
             cout << " L2MISS: L2 (read) cache misses (including other core's L2 cache *hits*) \n";
@@ -235,7 +235,7 @@ void print_output(PCM * m,
     const char * longDiv = "---------------------------------------------------------------------------------------------------------------\n";
     cout.precision(2);
     cout << std::fixed;
-    if (cpu_model == PCM::KNL)
+    if (cpu_family_model == PCM::KNL)
         cout << " Proc Tile Core Thread |";
     else
         cout << " Core (SKT) |";
@@ -288,7 +288,7 @@ void print_output(PCM * m,
             if (m->isCoreOnline(i) == false || (show_partial_core_output && ycores.test(i) == false))
                 continue;
 
-            if (cpu_model == PCM::KNL)
+            if (cpu_family_model == PCM::KNL)
                 cout << setfill(' ') << internal << setw(5) << i
                 << setw(5) << m->getTileId(i) << setw(5) << m->getCoreId(i)
                 << setw(7) << m->getThreadId(i);
@@ -302,7 +302,7 @@ void print_output(PCM * m,
     }
     if (show_socket_output)
     {
-        if (!(m->getNumSockets() == 1 && (m->isAtom() || cpu_model == PCM::KNL)))
+        if (!(m->getNumSockets() == 1 && (m->isAtom() || cpu_family_model == PCM::KNL)))
         {
             cout << longDiv;
             for (uint32 i = 0; i < m->getNumSockets(); ++i)
@@ -318,7 +318,7 @@ void print_output(PCM * m,
 
     if (show_system_output)
     {
-        if (cpu_model == PCM::KNL)
+        if (cpu_family_model == PCM::KNL)
             cout << setw(22) << left << " TOTAL" << internal << setw(7-5);
         else
             cout << " TOTAL  *";
@@ -714,7 +714,6 @@ void print_basic_metrics_csv_semicolons(const PCM * m, const string & header)
 
 void print_csv_header(PCM * m,
     const std::bitset<MAX_CORES> & ycores,
-    const int /*cpu_model*/,
     const bool show_core_output,
     const bool show_partial_core_output,
     const bool show_socket_output,
@@ -1137,7 +1136,6 @@ void print_csv(PCM * m,
     const std::bitset<MAX_CORES> & ycores,
     const SystemCounterState& sstate1,
     const SystemCounterState& sstate2,
-    const int /*cpu_model*/,
     const bool show_core_output,
     const bool show_partial_core_output,
     const bool show_socket_output,
@@ -1579,7 +1577,7 @@ int mainThrows(int argc, char * argv[])
     std::vector<CoreCounterState> cstates1, cstates2;
     std::vector<SocketCounterState> sktstate1, sktstate2;
     SystemCounterState sstate1, sstate2;
-    const auto cpu_model = m->getCPUModel();
+    const auto cpu_family_model = m->getCPUFamilyModel();
 
     print_pid_collection_message(pid);
 
@@ -1596,7 +1594,7 @@ int mainThrows(int argc, char * argv[])
     // cerr << "DEBUG: Delay: " << delay << " seconds. Blocked: " << m->isBlocked() << "\n";
 
     if (csv_output) {
-        print_csv_header(m, ycores, cpu_model, show_core_output, show_partial_core_output, show_socket_output, show_system_output);
+        print_csv_header(m, ycores, show_core_output, show_partial_core_output, show_socket_output, show_system_output);
     }
 
     m->getAllCounterStates(sstate1, sktstate1, cstates1);
@@ -1615,10 +1613,10 @@ int mainThrows(int argc, char * argv[])
 
         if (csv_output)
             print_csv(m, cstates1, cstates2, sktstate1, sktstate2, ycores, sstate1, sstate2,
-            cpu_model, show_core_output, show_partial_core_output, show_socket_output, show_system_output);
+                show_core_output, show_partial_core_output, show_socket_output, show_system_output);
         else
             print_output(m, cstates1, cstates2, sktstate1, sktstate2, ycores, sstate1, sstate2,
-                cpu_model, show_core_output, show_partial_core_output, show_socket_output, show_system_output,
+                cpu_family_model, show_core_output, show_partial_core_output, show_socket_output, show_system_output,
                 metricVersion);
 
         std::swap(sstate1, sstate2);

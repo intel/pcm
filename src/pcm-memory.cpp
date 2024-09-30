@@ -424,8 +424,8 @@ void printSocketBWFooter(PCM *m, uint32 no_columns, uint32 skt, const memdata_t 
         cout << "\n";
     }
     if (    md->metrics == PartialWrites
-        &&  m->getCPUModel() != PCM::SRF
-        &&  m->getCPUModel() != PCM::GNR
+        &&  m->getCPUFamilyModel() != PCM::SRF
+        &&  m->getCPUFamilyModel() != PCM::GNR
         )
     {
         for (uint32 i=skt; i<(skt+no_columns); ++i) {
@@ -733,8 +733,8 @@ void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 /*elapsedTime*/, const 
         if (m->HBMmemoryTrafficMetricsAvailable() == false)
         {
             if (    md->metrics == PartialWrites
-                &&  m->getCPUModel() != PCM::GNR
-                &&  m->getCPUModel() != PCM::SRF
+                &&  m->getCPUFamilyModel() != PCM::GNR
+                &&  m->getCPUFamilyModel() != PCM::SRF
                 )
             {
                 choose(outputType,
@@ -905,9 +905,9 @@ void calculate_bandwidth(PCM *m,
     //const uint32 num_edc_channels = m->getEDCChannelsPerSocket();
     memdata_t md;
     md.metrics = metrics;
-    const auto cpu_model = m->getCPUModel();
-    md.M2M_NM_read_hit_rate_supported = (cpu_model == PCM::SKX);
-    md.NM_hit_rate_supported = (cpu_model == PCM::ICX);
+    const auto cpu_family_model = m->getCPUFamilyModel();
+    md.M2M_NM_read_hit_rate_supported = (cpu_family_model == PCM::SKX);
+    md.NM_hit_rate_supported = (cpu_family_model == PCM::ICX);
     md.BHS_NM = m->nearMemoryMetricsAvailable();
     md.BHS = md.BHS_NM;
     static bool mm_once = true;
@@ -991,7 +991,7 @@ void calculate_bandwidth(PCM *m,
                 uint64 memoryModeHits = 0;
                 reads = getMCCounter(channel, ServerUncorePMUs::EventPosition::READ, uncState1[skt], uncState2[skt]);
                 writes = getMCCounter(channel, ServerUncorePMUs::EventPosition::WRITE, uncState1[skt], uncState2[skt]);
-                switch (cpu_model)
+                switch (cpu_family_model)
                 {
                 case PCM::GNR:
                 case PCM::SRF:
@@ -1057,8 +1057,8 @@ void calculate_bandwidth(PCM *m,
                     md.MemoryMode_Hit_socket[skt] += toRate(memoryModeHits);
                 }
                 else if (
-                    cpu_model != PCM::GNR
-                &&  cpu_model != PCM::SRF
+                   cpu_family_model != PCM::GNR
+                && cpu_family_model != PCM::SRF
                     )
                 {
                     md.partial_write[skt] += (uint64)(getMCCounter(channel, ServerUncorePMUs::EventPosition::PARTIAL, uncState1[skt], uncState2[skt]) / (elapsedTime / 1000.0));
@@ -1248,7 +1248,7 @@ public:
         pcm(m)
     {
         assert(pcm);
-        switch (pcm->getCPUModel())
+        switch (pcm->getCPUFamilyModel())
         {
             case PCM::SPR:
                 eventGroups = {
@@ -1516,10 +1516,10 @@ int mainThrows(int argc, char * argv[])
 
     m->disableJKTWorkaround();
     print_cpu_details();
-    const auto cpu_model = m->getCPUModel();
+    const auto cpu_family_model = m->getCPUFamilyModel();
     if (!m->hasPCICFGUncore())
     {
-        cerr << "Unsupported processor model (" << cpu_model << ").\n";
+        cerr << "Unsupported processor model (0x" << std::hex << cpu_family_model << std::dec << ").\n";
         if (m->memoryTrafficMetricsAvailable())
             cerr << "For processor-level memory bandwidth statistics please use 'pcm' utility\n";
         exit(EXIT_FAILURE);
@@ -1577,7 +1577,7 @@ int mainThrows(int argc, char * argv[])
 
     shared_ptr<CHAEventCollector> chaEventCollector;
 
-    SPR_CXL = (PCM::SPR == cpu_model || PCM::EMR == cpu_model) && (getNumCXLPorts(m) > 0);
+    SPR_CXL = (PCM::SPR == cpu_family_model || PCM::EMR == cpu_family_model) && (getNumCXLPorts(m) > 0);
     if (SPR_CXL)
     {
          chaEventCollector = std::make_shared<CHAEventCollector>(delay, sysCmd, mainLoop, m);
