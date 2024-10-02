@@ -10987,6 +10987,7 @@ void PCM::setupCustomCoreEventsForNuma(PCM::ExtendedCustomCoreEventDescription& 
         break;
     case PCM::SPR:
     case PCM::EMR:
+    case PCM::GNR:
         std::cout << "INFO: Monitored accesses include demand + L2 cache prefetcher, code read and RFO.\n";
          // OCR.READS_TO_CORE.LOCAL_DRAM
         conf.OffcoreResponseMsrValue[0] = 0x104004477;
