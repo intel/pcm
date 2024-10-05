@@ -33,6 +33,7 @@ target_link_libraries(PcmMsrDriver PRIVATE
         "-lkmodc++"
         "-lkmod"
         "-lcc_kext"
+        "-lasan"
         "-nostdlib"
         "-Xlinker -export_dynamic"
         "-Xlinker -kext"
