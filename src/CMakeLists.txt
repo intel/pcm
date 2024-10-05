@@ -35,6 +35,10 @@ if(NOT PCM_NO_ASAN)
         set(PCM_NO_STATIC_LIBASAN ON)
         message(STATUS "CentOS detected, using dynamic libasan")
     endif()
+    if (APPLE)
+        set(PCM_NO_STATIC_LIBASAN ON)
+        message(STATUS "MacOS detected, using dynamic libasan")
+    endif()
 endif()
 
 if(UNIX)  # LINUX, FREE_BSD, APPLE
