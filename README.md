@@ -74,7 +74,7 @@ or clone the repository first, and then update submodules with:
 git submodule update --init --recursive
 ```
 
-Install cmake then:
+Install cmake (and libasan on Linux) then:
 
 ```
 mkdir build

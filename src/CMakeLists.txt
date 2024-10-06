@@ -84,7 +84,7 @@ if(UNIX)  # LINUX, FREE_BSD, APPLE
             set(PCM_DYNAMIC_ASAN "")
             set(PCM_STATIC_ASAN "-static-libasan")
             message(STATUS "Using static libasan")
-            message(STATUS "To use dynamic libasan, use -DPCM_NO_STATIC_LIBASAN=1 option (required for CentOS)")
+            message(STATUS "To use dynamic libasan, use -DPCM_NO_STATIC_LIBASAN=1 option (required for CentOS and arch Linux)")
         endif()
     endif()
 
