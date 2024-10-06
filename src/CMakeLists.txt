@@ -35,6 +35,10 @@ if(NOT PCM_NO_ASAN)
         set(PCM_NO_STATIC_LIBASAN ON)
         message(STATUS "CentOS detected, using dynamic libasan")
     endif()
+    if(OS_ID STREQUAL "arch")
+        set(PCM_NO_STATIC_LIBASAN ON)
+        message(STATUS "arch Linux detected, using dynamic libasan")
+    endif()
 endif()
 
 if(UNIX)  # LINUX, FREE_BSD, APPLE
