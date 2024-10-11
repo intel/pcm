@@ -1962,7 +1962,7 @@ public:
     //! \brief Determines socket of given core
     //! \param core_id core identifier
     //! \return socket identifier
-    int32 getSocketId(uint32 core_id) const { return (int32)topology[core_id].socket; }
+    int32 getSocketId(uint32 core_id) const { return (int32)topology[core_id].socket_id; }
 
 
     size_t getNumCXLPorts(uint32 socket) const
