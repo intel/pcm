@@ -194,7 +194,7 @@ IOReturn PcmMsrDriverClassName::buildTopology(TopologyEntry* odata, uint32_t inp
         odata[i].thread_id = topologies[i].thread_id;
         odata[i].core_id = topologies[i].core_id;
         odata[i].tile_id = topologies[i].tile_id;
-        odata[i].socket = topologies[i].socket;
+        odata[i].socket_id = topologies[i].socket_id;
     }
 
     IOFreeAligned(topologies, topologyBufferSize);
