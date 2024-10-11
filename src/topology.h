@@ -372,19 +372,19 @@ public:
         // assert( te.os_id != -1 && osID == te.os_id );
         bool entryAdded = false;
         for ( auto& socket : sockets_ ) {
-            if ( socket->apicId() == te.socket ) {
+            if ( socket->apicId() == te.socket_id ) {
                 Core* core = nullptr;
                 if ( (core = socket->findCoreByTileID( te.tile_id )) == nullptr ) {
                     // std::cerr << "SystemRoot::addThread: " << te.tile_id << ", " << osID << "\n";
-                    core = new Core( pcm_, te.core_id, te.tile_id, te.socket );
+                    core = new Core( pcm_, te.core_id, te.tile_id, te.socket_id );
                     // std::cerr << "new Core ThreadID: " << te.thread_id << "\n";
                     core->addHyperThreadInfo( te.thread_id, osID );
                     socket->addCore( core );
-                    // std::cerr << "Added core " << te.core_id << " with os_id " << osID << ", threadid " << te.thread_id << " and tileid " << te.tile_id << " to socket " << te.socket << ".\n";
+                    // std::cerr << "Added core " << te.core_id << " with os_id " << osID << ", threadid " << te.thread_id << " and tileid " << te.tile_id << " to socket " << te.socket_id << ".\n";
                 } else {
                     // std::cerr << "existing Core ThreadID: " << te.thread_id << "\n";
                     core->addHyperThreadInfo( te.thread_id, osID );
-                    // std::cerr << "Augmented core " << te.core_id << " with osID " << osID << " and threadid " << te.thread_id << " for the hyperthread to socket " << te.socket << ".\n";
+                    // std::cerr << "Augmented core " << te.core_id << " with osID " << osID << " and threadid " << te.thread_id << " for the hyperthread to socket " << te.socket_id << ".\n";
                 }
                 entryAdded = true;
                 break;

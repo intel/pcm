@@ -652,14 +652,14 @@ void PCM::initRDT()
         MSR[core]->read(IA32_PQR_ASSOC, &msr_pqr_assoc);
         //std::cout << "initRMID reading IA32_PQR_ASSOC 0x" << std::hex << msr_pqr_assoc << std::dec << "\n";
 
-        //std::cout << "Socket Id : " << topology[core].socket;
+        //std::cout << "Socket Id : " << topology[core].socket_id;
         msr_pqr_assoc &= 0xffffffff00000000ULL;
-        msr_pqr_assoc |= (uint64)(rmid[topology[core].socket] & ((1ULL<<10)-1ULL));
+        msr_pqr_assoc |= (uint64)(rmid[topology[core].socket_id] & ((1ULL<<10)-1ULL));
         //std::cout << "initRMID writing IA32_PQR_ASSOC 0x" << std::hex << msr_pqr_assoc << std::dec << "\n";
         //Write 0xC8F MSR with new RMID for each core
         MSR[core]->write(IA32_PQR_ASSOC,msr_pqr_assoc);
 
-        msr_qm_evtsel = static_cast<uint64>(rmid[topology[core].socket] & ((1ULL<<10)-1ULL));
+        msr_qm_evtsel = static_cast<uint64>(rmid[topology[core].socket_id] & ((1ULL<<10)-1ULL));
         msr_qm_evtsel <<= 32;
         //Write 0xC8D MSR with new RMID for each core
         //std::cout << "initRMID writing IA32_QM_EVTSEL 0x" << std::hex << msr_qm_evtsel << std::dec << "\n";
@@ -675,7 +675,7 @@ void PCM::initRDT()
                 memory_bw_total.push_back(std::make_shared<CounterWidthExtender>(new CounterWidthExtender::MBTCounter(MSR[core]), 24, 1000));
             }
         }
-        rmid[topology[core].socket] --;
+        rmid[topology[core].socket_id] --;
         //std::cout << std::flush; // Explicitly flush after each iteration
     }
     /* Get The scaling factor by running CPUID.0xF.0x1 instruction */
@@ -1188,7 +1188,7 @@ bool PCM::discoverSystemTopology()
             }
             entry.die_id = getID(apic_id, TopologyEntry::DomainTypeID::DieDomain);
             entry.die_grp_id = getID(apic_id, TopologyEntry::DomainTypeID::DieGrpDomain);
-            entry.socket = getID(apic_id, TopologyEntry::DomainTypeID::SocketPackageDomain);
+            entry.socket_id = getID(apic_id, TopologyEntry::DomainTypeID::SocketPackageDomain);
         }
         else
         {
@@ -1281,7 +1281,7 @@ bool PCM::discoverSystemTopology()
         }
 
         topology.push_back(entry);
-        socketIdMap[entry.socket] = 0;
+        socketIdMap[entry.socket_id] = 0;
     }
 
     deleteAndNullifyArray(base_slpi);
@@ -1329,7 +1329,7 @@ bool PCM::discoverSystemTopology()
                 }
 
                 topology[entry.os_id] = entry;
-                socketIdMap[entry.socket] = 0;
+                socketIdMap[entry.socket_id] = 0;
                 ++num_online_cores;
             }
             catch (std::exception &)
@@ -1368,10 +1368,10 @@ bool PCM::discoverSystemTopology()
             return false;
         }
 
-        if (entry.socket == 0 && entry.core_id == 0) ++threads_per_core;
+        if (entry.socket_id == 0 && entry.core_id == 0) ++threads_per_core;
 
         topology.push_back(entry);
-        socketIdMap[entry.socket] = 0;
+        socketIdMap[entry.socket_id] = 0;
     }
 
 #else // Getting processor info for Mac OS
@@ -1419,10 +1419,10 @@ bool PCM::discoverSystemTopology()
       return false;
     }
     for(int i = 0; i < num_cores; i++){
-        socketIdMap[entries[i].socket] = 0;
+        socketIdMap[entries[i].socket_id] = 0;
         if(entries[i].os_id >= 0)
         {
-            if(entries[i].core_id == 0 && entries[i].socket == 0) ++threads_per_core;
+            if(entries[i].core_id == 0 && entries[i].socket_id == 0) ++threads_per_core;
             if (populateHybridEntry(entries[i], i) == false)
             {
                 return false;
@@ -1464,7 +1464,7 @@ bool PCM::discoverSystemTopology()
     for (int i = 0; (i < (int)num_cores) && (!socketIdMap.empty()); ++i)
     {
         if(isCoreOnline((int32)i))
-          topology[i].socket = socketIdMap[topology[i].socket];
+          topology[i].socket_id = socketIdMap[topology[i].socket_id];
     }
 
 #if 0
@@ -1472,14 +1472,14 @@ bool PCM::discoverSystemTopology()
     std::cerr << "Topology:\nsocket os_id core_id\n";
     for (int i = 0; i < num_cores; ++i)
     {
-        std::cerr << topology[i].socket << " " << topology[i].os_id << " " << topology[i].core_id << "\n";
+        std::cerr << topology[i].socket_id << " " << topology[i].os_id << " " << topology[i].core_id << "\n";
     }
 #endif
     if (threads_per_core == 0)
     {
         for (int i = 0; i < (int)num_cores; ++i)
         {
-            if (topology[i].socket == topology[0].socket && topology[i].core_id == topology[0].core_id)
+            if (topology[i].socket_id == topology[0].socket_id && topology[i].core_id == topology[0].core_id)
                 ++threads_per_core;
         }
         assert(threads_per_core != 0);
@@ -1494,7 +1494,7 @@ bool PCM::discoverSystemTopology()
     {
         if(isCoreOnline(i))
         {
-            socketRefCore[topology[i].socket] = i;
+            socketRefCore[topology[i].socket_id] = i;
         }
     }
 
@@ -3132,16 +3132,16 @@ void PCM::printDetailedSystemTopology(const int detailLevel)
             if (detailLevel > 0) std::cerr << std::setw(16) << it->module_id;
             std::cerr << std::setw(16) << it->tile_id;
             if (detailLevel > 0) std::cerr << std::setw(16) << it->die_id << std::setw(16) << it->die_grp_id;
-            std::cerr << std::setw(16) << it->socket
+            std::cerr << std::setw(16) << it->socket_id
                 << std::setw(16) << it->getCoreTypeStr()
                 << std::setw(16) << it->native_cpu_model
                 << "\n";
-            if (std::find(core_id_by_socket[it->socket].begin(), core_id_by_socket[it->socket].end(), it->core_id)
-                == core_id_by_socket[it->socket].end())
-                core_id_by_socket[it->socket].push_back(it->core_id);
+            if (std::find(core_id_by_socket[it->socket_id].begin(), core_id_by_socket[it->socket_id].end(), it->core_id)
+                == core_id_by_socket[it->socket_id].end())
+                core_id_by_socket[it->socket_id].push_back(it->core_id);
             // add socket offset to distinguish cores and tiles from different sockets
-            os_id_by_core[(it->socket << 15) + it->core_id].push_back(it->os_id);
-            os_id_by_tile[(it->socket << 15) + it->tile_id].push_back(it->os_id);
+            os_id_by_core[(it->socket_id << 15) + it->core_id].push_back(it->os_id);
+            os_id_by_tile[(it->socket_id << 15) + it->tile_id].push_back(it->os_id);
 
             ++counter;
         }
@@ -3233,7 +3233,7 @@ void PCM::showSpecControlMSRs()
 
 bool PCM::isCoreOnline(int32 os_core_id) const
 {
-    return (topology[os_core_id].os_id != -1) && (topology[os_core_id].core_id != -1) && (topology[os_core_id].socket != -1);
+    return (topology[os_core_id].os_id != -1) && (topology[os_core_id].core_id != -1) && (topology[os_core_id].socket_id != -1);
 }
 
 bool PCM::isSocketOnline(int32 socket_id) const
@@ -6671,7 +6671,7 @@ void PCM::readQPICounters(SystemCounterState & result)
 
                 if(core == socketRefCore[0]) MSR[core]->read(W_MSR_PMON_FIXED_CTR, &(result.uncoreTSC));
 
-                uint32 s = topology[core].socket;
+                uint32 s = topology[core].socket_id;
 
                 if (!SocketProcessed[s])
                 {
@@ -6799,7 +6799,7 @@ SocketCounterState PCM::getSocketCounterState(uint32 socket)
     {
         // reading core and uncore counter states
         for (int32 core = 0; core < num_cores; ++core)
-            if (isCoreOnline(core) && (topology[core].socket == int32(socket)))
+            if (isCoreOnline(core) && (topology[core].socket_id == int32(socket)))
                 result.readAndAggregate(MSR[core]);
 
         readAndAggregateUncoreMCCounters(socket, result);
@@ -6833,7 +6833,7 @@ void PCM::getAllCounterStates(SystemCounterState & systemState, std::vector<Sock
                     coreStates[core].readAndAggregate(MSR[core]);
                     if (readAndAggregateSocketUncoreCounters)
                     {
-                        socketStates[topology[core].socket].UncoreCounterState::readAndAggregate(MSR[core]); // read package C state counters
+                        socketStates[topology[core].socket_id].UncoreCounterState::readAndAggregate(MSR[core]); // read package C state counters
                     }
                     readMSRs(MSR[core], threadMSRConfig, coreStates[core]);
                 }
@@ -6873,7 +6873,7 @@ void PCM::getAllCounterStates(SystemCounterState & systemState, std::vector<Sock
     for (int32 core = 0; core < num_cores; ++core)
     {   // aggregate core counters into sockets
         if(isCoreOnline(core))
-          socketStates[topology[core].socket] += coreStates[core];
+          socketStates[topology[core].socket_id] += coreStates[core];
     }
 
     for (int32 s = 0; s < num_sockets; ++s)
@@ -6912,7 +6912,7 @@ void PCM::getUncoreCounterStates(SystemCounterState & systemState, std::vector<S
         {
             for(uint32 core=0; core < getNumCores(); ++core)
             {
-                if(topology[core].socket == s && isCoreOnline(core))
+                if(topology[core].socket_id == s && isCoreOnline(core))
                     socketStates[s] += refCoreStates[s];
             }
         }
