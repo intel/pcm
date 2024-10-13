@@ -38,6 +38,8 @@ jobs:
         version: '14.1'
         sync_files: runner-to-vm
         run: |
+          sudo sh -c 'echo "FreeBSD: { url: \"https://pkg.FreeBSD.org/\${ABI}/quarterly\", mirror_type: \"srv\", enabled: yes }" > /usr/local/etc/pkg/repos/FreeBSD.conf'
+          sudo pkg update -f
           sudo pkg upgrade -y
           sudo pkg install -y curl gmake cmake
           pwd
