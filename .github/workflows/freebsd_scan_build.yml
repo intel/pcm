@@ -12,13 +12,18 @@ permissions:
 jobs:
   build:
 
-    runs-on: macos-12
+    runs-on: ubuntu-24.04
 
     steps:
     - name: Harden Runner
-      uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+      uses: step-security/harden-runner@446798f8213ac2e75931c1b0769676d927801858 # v2.10.0
       with:
-        egress-policy: audit
+        egress-policy: block
+        allowed-endpoints: >
+          *.freebsd.pool.ntp.org:443
+          github.com:443
+          objects.githubusercontent.com:443
+          pkg.FreeBSD.org:*
 
     - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
       with:
@@ -30,8 +35,12 @@ jobs:
         memory: 2048
         shell: sh
         operating_system: freebsd
-        version: '13.2'
+        version: '14.1'
         run: |
+          sudo mkdir -p /usr/local/etc/pkg/repos
+          sudo sh -c 'echo "FreeBSD: { url: \"https://pkg.FreeBSD.org/\${ABI}/quarterly\", mirror_type: \"srv\", enabled: yes }" > /usr/local/etc/pkg/repos/FreeBSD.conf'
+          sudo pkg update -f
+          sudo pkg upgrade -y
           sudo pkg install -y curl gmake cmake devel/llvm llvm
           pwd
           ls -lah
