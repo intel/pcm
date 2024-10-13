@@ -20,11 +20,10 @@ jobs:
       with:
         egress-policy: block
         allowed-endpoints: >
-          freebsd.pool.ntp.org:443
+          *.freebsd.pool.ntp.org:443
           github.com:443
           objects.githubusercontent.com:443
-          pkg.FreeBSD.org:443
-          pkg.FreeBSD.org:80
+          pkg.FreeBSD.org:*
 
     - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
       with:
