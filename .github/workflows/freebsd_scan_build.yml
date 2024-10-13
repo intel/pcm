@@ -35,7 +35,7 @@ jobs:
         memory: 2048
         shell: sh
         operating_system: freebsd
-        version: '13.2'
+        version: '14.1'
         run: |
           sudo mkdir -p /usr/local/etc/pkg/repos
           sudo sh -c 'echo "FreeBSD: { url: \"https://pkg.FreeBSD.org/\${ABI}/quarterly\", mirror_type: \"srv\", enabled: yes }" > /usr/local/etc/pkg/repos/FreeBSD.conf'
