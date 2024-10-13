@@ -16,9 +16,15 @@ jobs:
 
     steps:
     - name: Harden Runner
-      uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+      uses: step-security/harden-runner@446798f8213ac2e75931c1b0769676d927801858 # v2.10.0
       with:
-        egress-policy: audit
+        egress-policy: block
+        allowed-endpoints: >
+          freebsd.pool.ntp.org:443
+          github.com:443
+          objects.githubusercontent.com:443
+          pkg.FreeBSD.org:443
+          pkg.FreeBSD.org:80
 
     - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
       with:
