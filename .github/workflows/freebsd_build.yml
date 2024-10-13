@@ -30,7 +30,7 @@ jobs:
         memory: 2048
         shell: sh
         operating_system: freebsd
-        version: '13.2'
+        version: '14.1'
         run: |
           sudo pkg install -y curl gmake cmake
           pwd
