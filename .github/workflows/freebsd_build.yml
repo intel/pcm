@@ -32,6 +32,7 @@ jobs:
         operating_system: freebsd
         version: '14.1'
         run: |
+          sudo pkg upgrade -y
           sudo pkg install -y curl gmake cmake
           pwd
           ls -lah
