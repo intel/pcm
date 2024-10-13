@@ -31,6 +31,7 @@ jobs:
         shell: sh
         operating_system: freebsd
         version: '14.1'
+        sync_files: runner-to-vm
         run: |
           sudo pkg upgrade -y
           sudo pkg install -y curl gmake cmake
