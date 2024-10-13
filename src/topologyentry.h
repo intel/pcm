@@ -17,7 +17,7 @@ struct PCM_API TopologyEntry // describes a core
     int32 tile_id; // tile is a constalation of 1 or more cores sharing same L2 cache. Unique for entire system
     int32 die_id;
     int32 die_grp_id;
-    int32 socket;
+    int32 socket_id;
     int32 native_cpu_model = -1;
     enum DomainTypeID
     {
@@ -38,7 +38,7 @@ struct PCM_API TopologyEntry // describes a core
     };
     CoreType core_type = Invalid;
 
-    TopologyEntry() : os_id(-1), thread_id (-1), core_id(-1), module_id(-1), tile_id(-1), die_id(-1), die_grp_id(-1), socket(-1) { }
+    TopologyEntry() : os_id(-1), thread_id (-1), core_id(-1), module_id(-1), tile_id(-1), die_id(-1), die_grp_id(-1), socket_id(-1) { }
     const char* getCoreTypeStr()
     {
         switch (core_type)
@@ -73,7 +73,7 @@ inline void fillEntry(TopologyEntry & entry, const uint32 & smtMaskWidth, const 
 {
     entry.thread_id = smtMaskWidth ? extract_bits_ui(apic_id, 0, smtMaskWidth - 1) : 0;
     entry.core_id = (smtMaskWidth + coreMaskWidth) ? extract_bits_ui(apic_id, smtMaskWidth, smtMaskWidth + coreMaskWidth - 1) : 0;
-    entry.socket = extract_bits_ui(apic_id, smtMaskWidth + coreMaskWidth, 31);
+    entry.socket_id = extract_bits_ui(apic_id, smtMaskWidth + coreMaskWidth, 31);
     entry.tile_id = extract_bits_ui(apic_id, l2CacheMaskShift, 31);
 }
 

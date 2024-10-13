@@ -15,8 +15,7 @@ UncorePMUDiscovery::UncorePMUDiscovery()
     {
         return;
     }
-    unsigned socket = 0;
-    auto processTables = [&socket,this](const uint64 bar, const VSEC &)
+    auto processTables = [this](const uint64 bar, const VSEC &)
     {
         constexpr size_t UncoreDiscoverySize = 3UL;
         union UncoreGlobalDiscovery {
@@ -45,7 +44,6 @@ UncorePMUDiscovery::UncorePMUDiscovery()
             boxPMUMap[unit.pmu.boxType].push_back(unit.pmu);
         }
         boxPMUs.push_back(boxPMUMap);
-        ++socket;
     };
     try {
         processDVSEC([](const VSEC & vsec)
