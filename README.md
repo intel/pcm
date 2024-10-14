@@ -2,6 +2,9 @@
 Intel&reg; Performance Counter Monitor (Intel&reg; PCM)
 --------------------------------------------------------------------------------
 
+[![CodeQL](https://github.com/intel/pcm/actions/workflows/codeql.yml/badge.svg?branch=master)](https://github.com/intel/pcm/security/code-scanning/tools/CodeQL/status)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/intel/pcm/badge)](https://securityscorecards.dev/viewer/?uri=github.com/intel/pcm)
+
 [PCM Tools](#pcm-tools) | [Building PCM](#building-pcm-tools) | [Downloading Pre-Compiled PCM](#downloading-pre-compiled-pcm-tools) | [FAQ](#frequently-asked-questions-faq) | [API Documentation](#pcm-api-documentation) | [Environment Variables](#pcm-environment-variables) | [Compilation Options](#custom-compilation-options)
 
 Intel&reg; Performance Counter Monitor (Intel&reg; PCM) is an application programming interface (API) and a set of tools based on the API to monitor performance and energy metrics of Intel&reg; Core&trade;, Xeon&reg;, Atom&trade; and Xeon Phi&trade; processors. PCM works on Linux, Windows, Mac OS X, FreeBSD, DragonFlyBSD and ChromeOS operating systems.
