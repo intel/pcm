@@ -77,7 +77,7 @@ if(UNIX)  # APPLE, LINUX, FREE_BSD
        endif()
 
        if(NOT DEFINED LINUX_SYSTEMD_UNITDIR)
-           set(LINUX_SYSTEMD_UNITDIR /usr/lib/systemd/system)
+         set(LINUX_SYSTEMD_UNITDIR "${CMAKE_INSTALL_LIBDIR}/systemd/system")
        endif()
 
        if(LINUX_SYSTEMD)
