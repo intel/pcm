@@ -13,7 +13,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 option(PCM_NO_ASAN "Disable address sanitizer" OFF)
 option(PCM_FUZZ "Enable fuzzing" OFF)
 option(PCM_BUILD_EXECUTABLES "Build PCM utilities" ON)
-option(PCM_NO_STATIC_LIBASAN OFF)
+option(PCM_NO_STATIC_LIBASAN "Disable static address sanitizer library" ON)
 
 if(MSVC)
     option(PCM_NO_STATIC_MSVC_RUNTIME_LIBRARY "Disable using static runtime under MSVC" OFF)
