@@ -752,6 +752,7 @@ void PCM::initCStateSupportTables()
         case SPR:
         case EMR:
         case GNR:
+        case GRR:
         case SRF:
             PCM_CSTATE_ARRAY(pkgCStateMsr, PCM_PARAM_PROTECT({0, 0, 0x60D, 0, 0, 0, 0x3F9, 0, 0, 0, 0}) );
         case HASWELL_ULT:
@@ -809,6 +810,7 @@ void PCM::initCStateSupportTables()
         case SPR:
         case EMR:
         case GNR:
+        case GRR:
         case SRF:
             PCM_CSTATE_ARRAY(coreCStateMsr, PCM_PARAM_PROTECT({0, 0, 0, 0x3FC, 0, 0, 0x3FD, 0x3FE, 0, 0, 0}) );
         case KNL:
@@ -1666,6 +1668,7 @@ bool PCM::detectNominalFrequency()
                || cpu_family_model == EMR
                || cpu_family_model == GNR
                || cpu_family_model == SRF
+               || cpu_family_model == GRR
                ) ? (100000000ULL) : (133333333ULL);
 
             nominal_frequency = ((freq >> 8) & 255) * bus_freq;
@@ -1963,6 +1966,7 @@ void PCM::initUncoreObjects()
     case SPR:
     case EMR:
     case GNR:
+    case GRR:
     case SRF:
         {
             bool failed = false;
@@ -2170,6 +2174,28 @@ void PCM::initUncorePMUsDirect()
             );
             }
             break;
+        case GRR:
+            uncorePMUs[s].resize(1);
+            {
+            std::vector<std::shared_ptr<HWRegister> >   CounterControlRegs{
+                    std::make_shared<MSRRegister>(handle, GRR_UBOX_MSR_PMON_CTL0_ADDR),
+                    std::make_shared<MSRRegister>(handle, GRR_UBOX_MSR_PMON_CTL1_ADDR)
+            },
+                CounterValueRegs{
+                    std::make_shared<MSRRegister>(handle, GRR_UBOX_MSR_PMON_CTR0_ADDR),
+                    std::make_shared<MSRRegister>(handle, GRR_UBOX_MSR_PMON_CTR1_ADDR)
+            };
+            uncorePMUs[s][0][UBOX_PMU_ID].push_back(
+                std::make_shared<UncorePMU>(
+                    std::make_shared<MSRRegister>(handle, GRR_UBOX_MSR_PMON_BOX_CTL_ADDR),
+                    CounterControlRegs,
+                    CounterValueRegs,
+                    std::make_shared<MSRRegister>(handle, GRR_UCLK_FIXED_CTL_ADDR),
+                    std::make_shared<MSRRegister>(handle, GRR_UCLK_FIXED_CTR_ADDR)
+                )
+            );
+            }
+            break;
         default:
             if (isServerCPU() && hasPCICFGUncore())
             {
@@ -2349,6 +2375,7 @@ void PCM::initUncorePMUsDirect()
         switch (cpu_family_model)
         {
             case GNR:
+            case GRR:
             case SRF:
                 uncorePMUs[s].resize(1);
                 if (safe_getenv("PCM_NO_PCIE_GEN5_DISCOVERY") == std::string("1"))
@@ -2470,6 +2497,26 @@ void PCM::initUncorePMUsDirect()
                     std::make_shared<MSRRegister>(handle, BHS_M2IOSF_IIO_CTR0 + BHS_M2IOSF_REG_STEP * unit + 1),
                     std::make_shared<MSRRegister>(handle, BHS_M2IOSF_IIO_CTR0 + BHS_M2IOSF_REG_STEP * unit + 2),
                     std::make_shared<MSRRegister>(handle, BHS_M2IOSF_IIO_CTR0 + BHS_M2IOSF_REG_STEP * unit + 3)
+                );
+            }
+        }
+        break;
+    case PCM::GRR:
+        for (uint32 s = 0; s < (uint32)num_sockets; ++s)
+        {
+            auto & handle = MSR[socketRefCore[s]];
+            for (int unit = 0; unit < GRR_M2IOSF_NUM; ++unit)
+            {
+                iioPMUs[s][unit] = UncorePMU(
+                    std::make_shared<MSRRegister>(handle, GRR_M2IOSF_IIO_UNIT_CTL + GRR_M2IOSF_REG_STEP * unit),
+                    std::make_shared<MSRRegister>(handle, GRR_M2IOSF_IIO_CTL0 + GRR_M2IOSF_REG_STEP * unit + 0),
+                    std::make_shared<MSRRegister>(handle, GRR_M2IOSF_IIO_CTL0 + GRR_M2IOSF_REG_STEP * unit + 1),
+                    std::make_shared<MSRRegister>(handle, GRR_M2IOSF_IIO_CTL0 + GRR_M2IOSF_REG_STEP * unit + 2),
+                    std::make_shared<MSRRegister>(handle, GRR_M2IOSF_IIO_CTL0 + GRR_M2IOSF_REG_STEP * unit + 3),
+                    std::make_shared<MSRRegister>(handle, GRR_M2IOSF_IIO_CTR0 + GRR_M2IOSF_REG_STEP * unit + 0),
+                    std::make_shared<MSRRegister>(handle, GRR_M2IOSF_IIO_CTR0 + GRR_M2IOSF_REG_STEP * unit + 1),
+                    std::make_shared<MSRRegister>(handle, GRR_M2IOSF_IIO_CTR0 + GRR_M2IOSF_REG_STEP * unit + 2),
+                    std::make_shared<MSRRegister>(handle, GRR_M2IOSF_IIO_CTR0 + GRR_M2IOSF_REG_STEP * unit + 3)
                 );
             }
         }
@@ -2669,6 +2716,12 @@ void PCM::initUncorePMUsDirect()
         IRP_CTL_REG_OFFSET = BHS_IRP_CTL_REG_OFFSET;
         IRP_CTR_REG_OFFSET = BHS_IRP_CTR_REG_OFFSET;
         IRP_UNIT_CTL = BHS_IRP_UNIT_CTL;
+        break;
+    case GRR:
+        irpStacks = GRR_M2IOSF_NUM;
+        IRP_CTL_REG_OFFSET = GRR_IRP_CTL_REG_OFFSET;
+        IRP_CTR_REG_OFFSET = GRR_IRP_CTR_REG_OFFSET;
+        IRP_UNIT_CTL = GRR_IRP_UNIT_CTL;
         break;
     }
     irpPMUs.resize(num_sockets);
@@ -3279,6 +3332,7 @@ bool PCM::isCPUModelSupported(const int model_)
             || model_ == SPR
             || model_ == EMR
             || model_ == GNR
+            || model_ == GRR
             || model_ == SRF
            );
 }
@@ -3573,6 +3627,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
                 L3CacheHitsAvailable = true;
                 core_gen_counter_num_used = 4;
                 break;
+            case GRR:
             case SRF:
                 LLCArchEventInit(coreEventDesc);
                 coreEventDesc[2].event_number = CMT_MEM_LOAD_RETIRED_L2_MISS_EVTNR;
@@ -4918,6 +4973,8 @@ const char * PCM::getUArchCodename(const int32 cpu_family_model_param) const
             return "Emerald Rapids-SP";
         case GNR:
             return "Granite Rapids-SP";
+        case GRR:
+            return "Grand Ridge";
         case SRF:
             return "Sierra Forest";
     }
@@ -7656,6 +7713,11 @@ void ServerUncorePMUs::initRegisterLocations(const PCM * pcm)
         PCM_PCICFG_M2M_INIT(3, SERVER)
     }
     break;
+    case PCM::GRR:
+    {
+        // placeholder to init GRR PCICFG
+    }
+    break;
     default:
         std::cerr << "Error: Uncore PMU for processor with id 0x" << std::hex << cpu_family_model << std::dec << " is not supported.\n";
         throw std::exception();
@@ -8029,6 +8091,9 @@ void ServerUncorePMUs::initDirect(uint32 socket_, const PCM * pcm)
 
     switch (cpu_family_model)
     {
+        case PCM::GRR:
+            initBHSiMCPMUs(2);
+            break;
         case PCM::GNR:
         case PCM::SRF:
             initBHSiMCPMUs(12);
@@ -8818,6 +8883,7 @@ void ServerUncorePMUs::programServerUncoreMemoryMetrics(const ServerUncoreMemory
             }
             break;
         case PCM::GNR:
+        case PCM::GRR:
         case PCM::SRF:
             if (metrics == PmemMemoryMode)
             {
@@ -8913,6 +8979,7 @@ void ServerUncorePMUs::program()
         EDCCntConfig[EventPosition::WRITE] = MCCntConfig[EventPosition::WRITE] = MC_CH_PCI_PMON_CTL_EVENT(0x05) + MC_CH_PCI_PMON_CTL_UMASK(0xf0); // monitor writes on counter 1: CAS_COUNT.WR
         break;
     case PCM::GNR:
+    case PCM::GRR:
     case PCM::SRF:
         MCCntConfig[EventPosition::READ] = MC_CH_PCI_PMON_CTL_EVENT(0x05) + MC_CH_PCI_PMON_CTL_UMASK(0xcf);  // monitor reads on counter 0: CAS_COUNT_SCH0.RD
         MCCntConfig[EventPosition::WRITE] = MC_CH_PCI_PMON_CTL_EVENT(0x05) + MC_CH_PCI_PMON_CTL_UMASK(0xf0); // monitor writes on counter 1: CAS_COUNT_SCH0.WR
@@ -9045,6 +9112,7 @@ uint64 ServerUncorePMUs::getImcReadsForChannels(uint32 beginChannel, uint32 endC
         switch (cpu_family_model)
         {
             case PCM::GNR:
+            case PCM::GRR:
             case PCM::SRF:
                 result += getMCCounter(i, EventPosition::READ2);
                 break;
@@ -9062,6 +9130,7 @@ uint64 ServerUncorePMUs::getImcWrites()
         switch (cpu_family_model)
         {
             case PCM::GNR:
+            case PCM::GRR:
             case PCM::SRF:
                 result += getMCCounter(i, EventPosition::WRITE2);
                 break;
@@ -9784,6 +9853,7 @@ uint64 PCM::CX_MSR_PMON_CTRY(uint32 Cbo, uint32 Ctr) const
     case SPR:
     case EMR:
     case GNR:
+    case GRR:
     case SRF:
         return SPR_CHA0_MSR_PMON_CTR0 + SPR_CHA_MSR_STEP * Cbo + Ctr;
 
@@ -9815,6 +9885,7 @@ uint64 PCM::CX_MSR_PMON_BOX_FILTER(uint32 Cbo) const
     case SPR:
     case EMR:
     case GNR:
+    case GRR:
     case SRF:
         return SPR_CHA0_MSR_PMON_BOX_FILTER + SPR_CHA_MSR_STEP * Cbo;
 
@@ -9859,6 +9930,7 @@ uint64 PCM::CX_MSR_PMON_CTLY(uint32 Cbo, uint32 Ctl) const
     case SPR:
     case EMR:
     case GNR:
+    case GRR:
     case SRF:
         return SPR_CHA0_MSR_PMON_CTL0 + SPR_CHA_MSR_STEP * Cbo + Ctl;
 
@@ -9889,6 +9961,7 @@ uint64 PCM::CX_MSR_PMON_BOX_CTL(uint32 Cbo) const
     case SPR:
     case EMR:
     case GNR:
+    case GRR:
     case SRF:
         return SPR_CHA0_MSR_PMON_BOX_CTRL + SPR_CHA_MSR_STEP * Cbo;
 
@@ -9964,6 +10037,7 @@ uint32 PCM::getMaxNumOfCBoxesInternal() const
     uint64 val = 0;
     switch (cpu_family_model)
     {
+    case GRR:
     case GNR:
     case SRF:
         {
@@ -10079,6 +10153,9 @@ void PCM::programIIOCounters(uint64 rawEvents[4], int IIOStack)
         int stacks_count;
         switch (getCPUFamilyModel())
         {
+        case PCM::GRR:
+            stacks_count = GRR_M2IOSF_NUM;
+            break;
         case PCM::GNR:
         case PCM::SRF:
             stacks_count = BHS_M2IOSF_NUM;
@@ -10175,6 +10252,7 @@ void PCM::programPCIeEventGroup(eventGroup_t &eventGroup)
     switch (cpu_family_model)
     {
         case PCM::GNR:
+        case PCM::GRR:
         case PCM::SRF:
         case PCM::SPR:
         case PCM::EMR:
@@ -10228,6 +10306,7 @@ void PCM::programCbo(const uint64 * events, const uint32 opCode, const uint32 nc
                 &&  EMR != cpu_family_model
                 &&  GNR != cpu_family_model
                 &&  SRF != cpu_family_model
+                &&  GRR != cpu_family_model
                 )
             {
                 programCboOpcodeFilter(opCode, pmu, nc_, 0, loc, rem);
@@ -10728,6 +10807,7 @@ void UncorePMU::freeze(const uint32 extra)
     case PCM::SPR:
     case PCM::EMR:
     case PCM::GNR:
+    case PCM::GRR:
     case PCM::SRF:
         *unitControl = SPR_UNC_PMON_UNIT_CTL_FRZ;
         break;
@@ -10743,6 +10823,7 @@ void UncorePMU::unfreeze(const uint32 extra)
     case PCM::SPR:
     case PCM::EMR:
     case PCM::GNR:
+    case PCM::GRR:
     case PCM::SRF:
         *unitControl = 0;
         break;
@@ -10763,6 +10844,7 @@ bool UncorePMU::initFreeze(const uint32 extra, const char* xPICheckMsg)
         case PCM::SPR:
         case PCM::EMR:
         case PCM::GNR:
+        case PCM::GRR:
         case PCM::SRF:
             *unitControl = SPR_UNC_PMON_UNIT_CTL_FRZ; // freeze
             *unitControl = SPR_UNC_PMON_UNIT_CTL_FRZ + SPR_UNC_PMON_UNIT_CTL_RST_CONTROL; // freeze and reset control registers
@@ -10802,6 +10884,7 @@ void UncorePMU::resetUnfreeze(const uint32 extra)
     case PCM::SPR:
     case PCM::EMR:
     case PCM::GNR:
+    case PCM::GRR:
     case PCM::SRF:
         *unitControl = SPR_UNC_PMON_UNIT_CTL_FRZ + SPR_UNC_PMON_UNIT_CTL_RST_COUNTERS; // freeze and reset counter registers
         *unitControl = 0; // unfreeze
