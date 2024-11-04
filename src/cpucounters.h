@@ -1250,6 +1250,7 @@ private:
                 case SPR:
                 case EMR:
                 case GNR:
+                case GRR:
                 case SRF:
                     *ctrl = *curEvent;
                     break;
@@ -1902,6 +1903,7 @@ public:
         GNR =           PCM_CPU_FAMILY_MODEL(6, 173),
         SRF =           PCM_CPU_FAMILY_MODEL(6, 175),
         GNR_D =         PCM_CPU_FAMILY_MODEL(6, 174),
+        GRR =           PCM_CPU_FAMILY_MODEL(6, 182),
         END_OF_MODEL_LIST = 0x0ffff
     };
 
@@ -2000,6 +2002,7 @@ public:
         case SPR:
         case EMR:
         case GNR:
+        case GRR:
         case SRF:
             return (serverUncorePMUs.size() && serverUncorePMUs[0].get()) ? (serverUncorePMUs[0]->getNumQPIPorts()) : 0;
         }
@@ -2027,6 +2030,7 @@ public:
         case SPR:
         case EMR:
         case GNR:
+        case GRR:
         case SRF:
         case BDX:
         case KNL:
@@ -2056,6 +2060,7 @@ public:
         case SPR:
         case EMR:
         case GNR:
+        case GRR:
         case SRF:
         case BDX:
         case KNL:
@@ -2088,6 +2093,7 @@ public:
         case SPR:
         case EMR:
         case GNR:
+        case GRR:
         case SRF:
         case BDX:
         case KNL:
@@ -2153,6 +2159,7 @@ public:
         case SPR:
         case EMR:
         case GNR:
+        case GRR:
         case SRF:
             return 6;
         }
@@ -2206,6 +2213,7 @@ public:
         case SPR:
         case EMR:
         case GNR:
+        case GRR:
         case SRF:
         case KNL:
             return true;
@@ -2473,6 +2481,7 @@ public:
                  || cpu_family_model == PCM::EMR
                  || cpu_family_model == PCM::GNR
                  || cpu_family_model == PCM::SRF
+                 || cpu_family_model == PCM::GRR
                );
     }
 
@@ -2491,6 +2500,7 @@ public:
           || cpu_family_model == PCM::EMR
           || cpu_family_model == PCM::GNR
           || cpu_family_model == PCM::SRF
+          || cpu_family_model == PCM::GRR
           );
     }
 
@@ -2597,6 +2607,7 @@ public:
 	        || cpu_family_model == PCM::SNOWRIDGE
             || cpu_family_model == PCM::SPR
             || cpu_family_model == PCM::EMR
+            || cpu_family_model == PCM::GRR
             || cpu_family_model == PCM::SRF
             || cpu_family_model == PCM::GNR
         );
@@ -2702,6 +2713,7 @@ public:
             || cpu_family_model == PCM::EMR
             || cpu_family_model == PCM::GNR
             || cpu_family_model == PCM::SRF
+            || cpu_family_model == PCM::GRR
             || cpu_family_model == PCM::BDX
             || cpu_family_model == PCM::KNL
             );
@@ -2748,6 +2760,7 @@ public:
          || cpu_family_model == PCM::EMR
          || cpu_family_model == PCM::GNR
          || cpu_family_model == PCM::SRF
+         || cpu_family_model == PCM::GRR
                );
     }
 
@@ -3434,6 +3447,7 @@ double getDRAMConsumedJoules(const CounterStateType & before, const CounterState
         || PCM::ICX == cpu_family_model
         || PCM::GNR == cpu_family_model
         || PCM::SRF == cpu_family_model
+        || PCM::GRR == cpu_family_model
         || PCM::KNL == cpu_family_model
         ) {
 /* as described in sections 5.3.2 (DRAM_POWER_INFO) and 5.3.3 (DRAM_ENERGY_STATUS) of
@@ -4279,6 +4293,7 @@ uint64 getL2CacheMisses(const CounterStateType & before, const CounterStateType 
         || cpu_family_model == PCM::ELKHART_LAKE
         || cpu_family_model == PCM::JASPER_LAKE
         || cpu_family_model == PCM::SRF
+        || cpu_family_model == PCM::GRR
         || cpu_family_model == PCM::ADL
         || cpu_family_model == PCM::RPL
         || cpu_family_model == PCM::MTL
@@ -4390,6 +4405,7 @@ uint64 getL3CacheHitsSnoop(const CounterStateType & before, const CounterStateTy
     if (!pcm->isL3CacheHitsSnoopAvailable()) return 0;
     const auto cpu_family_model = pcm->getCPUFamilyModel();
     if (cpu_family_model == PCM::SNOWRIDGE
+        || cpu_family_model == PCM::GRR
         || cpu_family_model == PCM::ELKHART_LAKE
         || cpu_family_model == PCM::JASPER_LAKE
         || cpu_family_model == PCM::SRF
