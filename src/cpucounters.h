@@ -2405,7 +2405,7 @@ public:
     void disableForceRTMAbortMode(const bool silent = false);
 
     //! \brief queries availability of "force all RTM transaction abort" mode
-    bool isForceRTMAbortModeAvailable() const;
+    static bool isForceRTMAbortModeAvailable();
 
     //! \brief Get microcode level (returns -1 if retrieval not supported due to some restrictions)
     int64 getCPUMicrocodeLevel() const { return cpu_microcode_level; }

@@ -812,16 +812,31 @@ int calibratedSleep(const double delay, const char* sysCmd, const MainLoop& main
 
 void print_help_force_rtm_abort_mode(const int alignment, const char * separator)
 {
-    const auto m = PCM::getInstance();
-    if (m->isForceRTMAbortModeAvailable() && (m->getMaxCustomCoreEvents() < 4))
+    if (PCM::isForceRTMAbortModeAvailable() == false)
     {
-        std::cout << "  -force-rtm-abort-mode";
-        for (int i = 0; i < (alignment - 23); ++i)
+        return;
+    }
+    try
+    {
+        const auto m = PCM::getInstance();
+        if (m->getMaxCustomCoreEvents() < 4)
         {
-            std::cout << " ";
+            std::cout << "  -force-rtm-abort-mode";
+            for (int i = 0; i < (alignment - 23); ++i)
+            {
+                std::cout << " ";
+            }
+            assert(separator);
+            std::cout << separator << " force RTM transaction abort mode to enable more programmable counters\n";
         }
-        assert(separator);
-        std::cout << separator << " force RTM transaction abort mode to enable more programmable counters\n";
+    }
+    catch (std::exception & e)
+    {
+        std::cerr << "ERROR: " << e.what() << "\n";
+    }
+    catch (...)
+    {
+        std::cerr << "ERROR: Unknown exception caught in print_help_force_rtm_abort_mode\n";
     }
 }
 
