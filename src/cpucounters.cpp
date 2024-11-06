@@ -2666,7 +2666,7 @@ void PCM::initUncorePMUsDirect()
                         std::hex << devInfo.func << "/telemetry/control";                    
                     qatTLMCTLStr = readSysFS(qat_TLMCTL_sysfs_path.str().c_str(), true);
                     if(!qatTLMCTLStr.size()){
-                        std::cout << "Warning: IDX - QAT telemetry feature of B:0x" << std::hex << devInfo.bus << ",D:0x" << devInfo.dev << ",F:0x" << devInfo.func \
+                        std::cerr << "Warning: IDX - QAT telemetry feature of B:0x" << std::hex << devInfo.bus << ",D:0x" << devInfo.dev << ",F:0x" << devInfo.func \
                             << " is NOT available, skipped." << std::dec << std::endl;
                         continue;
                     }
