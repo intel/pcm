@@ -4636,7 +4636,7 @@ void PCM::disableForceRTMAbortMode(const bool silent)
     }
 }
 
-bool PCM::isForceRTMAbortModeAvailable() const
+bool PCM::isForceRTMAbortModeAvailable()
 {
     PCM_CPUID_INFO info;
     pcm_cpuid(7, 0, info); // leaf 7, subleaf 0
