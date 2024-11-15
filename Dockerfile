@@ -5,7 +5,7 @@ FROM fedora:40@sha256:b7b4b222c2a433e831c006a49a397009640cc30e097824410a35b160be
 
 RUN dnf -y install gcc-c++ git findutils make cmake openssl openssl-devel libasan libasan-static
 COPY . /tmp/pcm
-RUN cd /tmp/pcm && mkdir build && cd build && cmake .. && make -j
+RUN cd /tmp/pcm && mkdir build && cd build && cmake -DPCM_NO_STATIC_LIBASAN=OFF .. && make -j
 
 FROM fedora:40@sha256:b7b4b222c2a433e831c006a49a397009640cc30e097824410a35b160be4a176b
 COPY --from=builder /tmp/pcm/build/bin/* /usr/local/bin/
