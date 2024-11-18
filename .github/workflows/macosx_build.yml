@@ -12,7 +12,7 @@ permissions:
 jobs:
   build:
 
-    runs-on: macOS-14
+    runs-on: macOS-13
 
     steps:
     - name: Harden Runner
