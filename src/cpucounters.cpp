@@ -2666,7 +2666,7 @@ void PCM::initUncorePMUsDirect()
                         std::hex << devInfo.func << "/telemetry/control";                    
                     qatTLMCTLStr = readSysFS(qat_TLMCTL_sysfs_path.str().c_str(), true);
                     if(!qatTLMCTLStr.size()){
-                        std::cout << "Warning: IDX - QAT telemetry feature of B:0x" << std::hex << devInfo.bus << ",D:0x" << devInfo.dev << ",F:0x" << devInfo.func \
+                        std::cerr << "Warning: IDX - QAT telemetry feature of B:0x" << std::hex << devInfo.bus << ",D:0x" << devInfo.dev << ",F:0x" << devInfo.func \
                             << " is NOT available, skipped." << std::dec << std::endl;
                         continue;
                     }
@@ -2858,7 +2858,14 @@ void PCM::initUncorePMUsDirect()
                             uncorePMUDiscovery->getNumBoxes(SPR_CXLDP_BOX_TYPE, s));
                         for (size_t pos = 0; pos < n_units; ++pos)
                         {
-                            cxlPMUs[s].push_back(std::make_pair(createCXLPMU(s, SPR_CXLCM_BOX_TYPE, pos), createCXLPMU(s, SPR_CXLDP_BOX_TYPE, pos)));
+                            try
+                            {
+                                cxlPMUs[s].push_back(std::make_pair(createCXLPMU(s, SPR_CXLCM_BOX_TYPE, pos), createCXLPMU(s, SPR_CXLDP_BOX_TYPE, pos)));
+                            }
+                            catch (const std::exception& e)
+                            {
+                                std::cerr << "CXL PMU initialization for socket " << s << " at position " << pos << " failed: " << e.what() << std::endl;
+                            }
                         }
                     }
                     break;
@@ -4636,7 +4643,7 @@ void PCM::disableForceRTMAbortMode(const bool silent)
     }
 }
 
-bool PCM::isForceRTMAbortModeAvailable() const
+bool PCM::isForceRTMAbortModeAvailable()
 {
     PCM_CPUID_INFO info;
     pcm_cpuid(7, 0, info); // leaf 7, subleaf 0
