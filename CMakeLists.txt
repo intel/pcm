@@ -10,7 +10,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 
-option(PCM_NO_ASAN "Disable address sanitizer" OFF)
+option(PCM_NO_ASAN "Disable address sanitizer" ON)
 option(PCM_FUZZ "Enable fuzzing" OFF)
 option(PCM_BUILD_EXECUTABLES "Build PCM utilities" ON)
 option(PCM_NO_STATIC_LIBASAN "Disable static address sanitizer library" ON)
@@ -77,7 +77,7 @@ if(UNIX)  # APPLE, LINUX, FREE_BSD
        endif()
 
        if(NOT DEFINED LINUX_SYSTEMD_UNITDIR)
-           set(LINUX_SYSTEMD_UNITDIR /usr/lib/systemd/system)
+         set(LINUX_SYSTEMD_UNITDIR "${CMAKE_INSTALL_LIBDIR}/systemd/system")
        endif()
 
        if(LINUX_SYSTEMD)
