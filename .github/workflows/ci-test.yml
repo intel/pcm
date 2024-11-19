@@ -28,12 +28,13 @@ jobs:
       run: |
         cmake --version
         rm -rf ${{ github.workspace }}/build
-        cmake -B ${{ github.workspace }}/build
+        cmake -B ${{ github.workspace }}/build -DPCM_NO_ASAN=OFF
     - name: Build
       run: |
         g++ --version
         cd ${{ github.workspace }}/build
         make -j$(nproc)
+        ldd bin/pcm
     - name: Test
       run: |
         set -o pipefail
