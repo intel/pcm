@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: BSD-3-Clause
-# Copyright (c) 2022, Intel Corporation
+# Copyright (c) 2022-2024, Intel Corporation
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/tests)
 
@@ -18,7 +18,7 @@ if(UNIX)
 
 endif(UNIX)
 
-if(FUZZ)
+if(PCM_FUZZ)
     find_package(OpenSSL REQUIRED)
     set(SSL_LIBS OpenSSL::SSL OpenSSL::Crypto)
     add_executable(urltest-fuzz urltest-fuzz.cpp)

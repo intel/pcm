@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: BSD-3-Clause
-# Copyright (c) 2022, Intel Corporation
+# Copyright (c) 2022-2024, Intel Corporation
 
 cmake_minimum_required(VERSION 3.5)
 
@@ -145,6 +145,9 @@ if(PCM_FUZZ)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${FUZZER_OPTIONS}")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${FUZZER_OPTIONS}")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${FUZZER_OPTIONS}")
+    message(STATUS "CMAKE_C_FLAGS: ${CMAKE_C_FLAGS}")
+    message(STATUS "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
+    message(STATUS "CMAKE_EXE_LINKER_FLAGS: ${CMAKE_EXE_LINKER_FLAGS}")
 endif(PCM_FUZZ)
 
 #######################

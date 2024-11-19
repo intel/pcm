@@ -15,7 +15,7 @@ export LSAN_OPTIONS=suppressions="pcm_asan_suppression_file"
 
 echo "Running fuzz tests with running time multiplier $factor"
 
-CC=`which clang` CXX=`which clang++` cmake ..  -DCMAKE_BUILD_TYPE=Debug -DFUZZ=1 -DPCM_NO_ASAN=OFF && mkdir -p corpus &&
+CC=`which clang` CXX=`which clang++` cmake ..  -DCMAKE_BUILD_TYPE=Debug -DPCM_FUZZ=ON && mkdir -p corpus &&
 make urltest-fuzz \
      pcm-fuzz \
      pcm-memory-fuzz \
