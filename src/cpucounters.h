@@ -1639,6 +1639,7 @@ public:
             case RPL:
             case MTL:
             case LNL:
+            case ARL:
                 if (topology[coreID].core_type == TopologyEntry::Atom)
                 {
                     return std::make_pair(OFFCORE_RESPONSE_0_EVTNR, event + 1);
@@ -1655,6 +1656,7 @@ public:
        case RPL:
        case MTL:
        case LNL:
+       case ARL:
            useGLCOCREvent = true;
            break;
        }
@@ -1892,6 +1894,8 @@ public:
         RPL_3 =         PCM_CPU_FAMILY_MODEL(6, 0xbe),
         MTL =           PCM_CPU_FAMILY_MODEL(6, 0xAA),
         LNL =           PCM_CPU_FAMILY_MODEL(6, 0xBD),
+        ARL =           PCM_CPU_FAMILY_MODEL(6, 197),
+        ARL_1 =         PCM_CPU_FAMILY_MODEL(6, 198),
         BDX =           PCM_CPU_FAMILY_MODEL(6, 79),
         KNL =           PCM_CPU_FAMILY_MODEL(6, 87),
         SKL =           PCM_CPU_FAMILY_MODEL(6, 94),
@@ -2128,6 +2132,7 @@ public:
         case MTL:
             return 6;
         case LNL:
+        case ARL:
             return 12;
         case SNOWRIDGE:
         case ELKHART_LAKE:
@@ -2477,6 +2482,7 @@ public:
                  || cpu_family_model == PCM::RPL
                  || cpu_family_model == PCM::MTL
                  || cpu_family_model == PCM::LNL
+                 || cpu_family_model == PCM::ARL
                  || cpu_family_model == PCM::SPR
                  || cpu_family_model == PCM::EMR
                  || cpu_family_model == PCM::GNR
@@ -2789,6 +2795,7 @@ public:
             || cpu_family_model == RPL
             || cpu_family_model == MTL
             || cpu_family_model == LNL
+            || cpu_family_model == ARL
             || useSKLPath()
             ;
     }
@@ -4298,6 +4305,7 @@ uint64 getL2CacheMisses(const CounterStateType & before, const CounterStateType 
         || cpu_family_model == PCM::RPL
         || cpu_family_model == PCM::MTL
         || cpu_family_model == PCM::LNL
+        || cpu_family_model == PCM::ARL
         ) {
         return after.Event[BasicCounterState::SKLL2MissPos] - before.Event[BasicCounterState::SKLL2MissPos];
     }
@@ -4413,6 +4421,7 @@ uint64 getL3CacheHitsSnoop(const CounterStateType & before, const CounterStateTy
         || cpu_family_model == PCM::RPL
         || cpu_family_model == PCM::MTL
         || cpu_family_model == PCM::LNL
+        || cpu_family_model == PCM::ARL
         )
     {
         const int64 misses = getL3CacheMisses(before, after);
