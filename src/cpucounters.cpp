@@ -724,6 +724,7 @@ void PCM::initCStateSupportTables()
         case RPL:
         case MTL:
         case LNL:
+        case ARL:
         case SNOWRIDGE:
         case ELKHART_LAKE:
         case JASPER_LAKE:
@@ -803,6 +804,7 @@ void PCM::initCStateSupportTables()
         case RPL:
         case MTL:
         case LNL:
+        case ARL:
         case SNOWRIDGE:
         case ELKHART_LAKE:
         case JASPER_LAKE:
@@ -1662,6 +1664,7 @@ bool PCM::detectNominalFrequency()
                || cpu_family_model == RPL
                || cpu_family_model == MTL
                || cpu_family_model == LNL
+               || cpu_family_model == ARL
                || cpu_family_model == SKX
                || cpu_family_model == ICX
                || cpu_family_model == SPR
@@ -1926,6 +1929,7 @@ void PCM::initUncoreObjects()
            case RPL: // TGLClientBW works fine for RPL
            case MTL: // TGLClientBW works fine for MTL
            case LNL: // TGLClientBW works fine for LNL
+           case ARL: // TGLClientBW works fine for ARL
                clientBW = std::make_shared<TGLClientBW>();
                break;
 /*         Disabled since ADLClientBW requires 2x multiplier for BW on top
@@ -3334,6 +3338,7 @@ bool PCM::isCPUModelSupported(const int model_)
             || model_ == RPL
             || model_ == MTL
             || model_ == LNL
+            || model_ == ARL
             || model_ == SKX
             || model_ == ICX
             || model_ == SPR
@@ -3366,6 +3371,9 @@ bool PCM::checkModel()
             break;
         case CML_1:
             cpu_family_model = CML;
+            break;
+        case ARL_1:
+            cpu_family_model = ARL;
             break;
         case ICL_1:
             cpu_family_model = ICL;
@@ -3510,7 +3518,12 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
         canUsePerf = false;
         if (!silent) std::cerr << "Installed Linux kernel perf does not support hardware top-down level-1 counters. Using direct PMU programming instead.\n";
     }
-    if (canUsePerf && (cpu_family_model == ADL || cpu_family_model == RPL || cpu_family_model == MTL || cpu_family_model == LNL))
+    if (canUsePerf &&    (cpu_family_model == ADL
+                       || cpu_family_model == RPL
+                       || cpu_family_model == MTL
+                       || cpu_family_model == LNL
+                       || cpu_family_model == ARL
+                         ))
     {
         canUsePerf = false;
         if (!silent) std::cerr << "Linux kernel perf rejects an architectural event on your platform. Using direct PMU programming instead.\n";
@@ -3598,6 +3611,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
             case RPL:
             case MTL:
             case LNL:
+            case ARL:
                 LLCArchEventInit(hybridAtomEventDesc);
                 hybridAtomEventDesc[2].event_number = SKL_MEM_LOAD_RETIRED_L2_MISS_EVTNR;
                 hybridAtomEventDesc[2].umask_value = SKL_MEM_LOAD_RETIRED_L2_MISS_UMASK;
@@ -4957,6 +4971,8 @@ const char * PCM::getUArchCodename(const int32 cpu_family_model_param) const
             return "Meteor Lake";
         case LNL:
             return "Lunar Lake";
+        case ARL:
+            return "Arrow Lake";
         case SKX:
             if (cpu_family_model_param >= 0)
             {
