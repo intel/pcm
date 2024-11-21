@@ -64,8 +64,8 @@ int WinPmem::toggle_write_mode() {
 WinPmem::WinPmem():
   suppress_output(FALSE),
   fd_(INVALID_HANDLE_VALUE),
-  out_fd_(INVALID_HANDLE_VALUE),
-  service_name(PMEM_SERVICE_NAME) {
+  out_fd_(INVALID_HANDLE_VALUE) {
+  _tcscpy_s(service_name, PMEM_SERVICE_NAME);
   _tcscpy_s(last_error, TEXT(""));
   max_physical_memory_ = 0;
   }
