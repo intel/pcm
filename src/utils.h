@@ -678,7 +678,7 @@ void restrictDriverAccessNative(LPCTSTR path);
 std::vector<std::string> findPathsFromPattern(const char* pattern);
 #endif
 
-class TemporalThreadAffinity  // speedup trick for Linux, FreeBSD, DragonFlyBSD, Windows
+class TemporalThreadAffinity
 {
     TemporalThreadAffinity(); // forbidden
 #if defined(__FreeBSD__) || (defined(__DragonFly__) && __DragonFly_version >= 400707)
