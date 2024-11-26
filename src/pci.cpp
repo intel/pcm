@@ -142,7 +142,7 @@ int32 PciHandle::write32(uint64 offset, uint32 value)
 
 int32 PciHandle::read64(uint64 offset, uint64 * value)
 {
-    warnAlignment<8>("PciHandle::read64", false, offset);
+    warnAlignment<4>("PciHandle::read64", false, offset);
     if (hDriver != INVALID_HANDLE_VALUE)
     {
         PCICFG_Request req;
@@ -226,7 +226,7 @@ int32 PciHandle::write32(uint64 offset, uint32 value)
 
 int32 PciHandle::read64(uint64 offset, uint64 * value)
 {
-    warnAlignment<8>("PciHandle::read64", false, offset);
+    warnAlignment<4>("PciHandle::read64", false, offset);
     uint32_t pci_address = FORM_PCI_ADDR(bus, device, function, (uint32_t)offset);
     return PCIDriver_read64(pci_address, value);
 }
@@ -336,7 +336,7 @@ int32 PciHandle::write32(uint64 offset, uint32 value)
 
 int32 PciHandle::read64(uint64 offset, uint64 * value)
 {
-    warnAlignment<8>("PciHandle::read64", false, offset);
+    warnAlignment<4>("PciHandle::read64", false, offset);
     struct pci_io pi;
     int32 ret;
 
@@ -437,7 +437,7 @@ int32 PciHandle::write32(uint64 offset, uint32 value)
 
 int32 PciHandle::read64(uint64 offset, uint64 * value)
 {
-    warnAlignment<8>("PciHandle::read64", false, offset);
+    warnAlignment<4>("PciHandle::read64", false, offset);
     size_t res = ::pread(fd, (void *)value, sizeof(uint64), offset);
     if(res != sizeof(uint64))
     {
@@ -557,7 +557,7 @@ int32 PciHandleM::write32(uint64 offset, uint32 value)
 
 int32 PciHandleM::read64(uint64 offset, uint64 * value)
 {
-    warnAlignment<8>("PciHandleM::read64", false, offset);
+    warnAlignment<4>("PciHandleM::read64", false, offset);
     return ::pread(fd, (void *)value, sizeof(uint64), offset + base_addr);
 }
 
@@ -714,7 +714,7 @@ int32 PciHandleMM::write32(uint64 offset, uint32 value)
 
 int32 PciHandleMM::read64(uint64 offset, uint64 * value)
 {
-    warnAlignment<8>("PciHandleMM::read64", false, offset);
+    warnAlignment<4>("PciHandleMM::read64", false, offset);
     read32(offset, (uint32 *)value);
     read32(offset + sizeof(uint32), ((uint32 *)value) + 1);
 
