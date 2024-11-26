@@ -87,7 +87,8 @@ WinPmemMMIORange::WinPmemMMIORange(uint64 baseAddr_, uint64 /* size_ */, bool re
     mutex.unlock();
 }
 
-MMIORange::MMIORange(const uint64 baseAddr_, const uint64 size_, const bool readonly_, const bool silent, const int core)
+MMIORange::MMIORange(const uint64 baseAddr_, const uint64 size_, const bool readonly_, const bool silent_, const int core) :
+    silent(silent_)
 {
     auto hDriver = openMSRDriver();
     if (hDriver != INVALID_HANDLE_VALUE)
@@ -175,9 +176,10 @@ OwnMMIORange::~OwnMMIORange()
 
 #include "PCIDriverInterface.h"
 
-MMIORange::MMIORange(const uint64 physical_address, const uint64 size_, const bool, const bool silent, const int core_) :
+MMIORange::MMIORange(const uint64 physical_address, const uint64 size_, const bool, const bool silent_, const int core_) :
     mmapAddr(NULL),
     size(size_),
+    silent(silent_),
     core(core_)
 {
     if (core_ >= 0)
@@ -199,6 +201,7 @@ MMIORange::MMIORange(const uint64 physical_address, const uint64 size_, const bo
 
 uint32 MMIORange::read32(uint64 offset)
 {
+    warnAlignment<4>("MMIORange::read32", silent, offset);
     uint32 val = 0;
     PCIDriver_readMemory32((uint8_t *)mmapAddr + offset, &val);
     return val;
@@ -206,6 +209,7 @@ uint32 MMIORange::read32(uint64 offset)
 
 uint64 MMIORange::read64(uint64 offset)
 {
+    warnAlignment<8>("MMIORange::read64", silent, offset);
     uint64 val = 0;
     PCIDriver_readMemory64((uint8_t *)mmapAddr + offset, &val);
     return val;
@@ -227,11 +231,12 @@ MMIORange::~MMIORange()
 
 #elif defined(__linux__) || defined(__FreeBSD__) || defined(__DragonFly__)
 
-MMIORange::MMIORange(const uint64 baseAddr_, const uint64 size_, const bool readonly_, const bool silent, const int core_) :
+MMIORange::MMIORange(const uint64 baseAddr_, const uint64 size_, const bool readonly_, const bool silent_, const int core_) :
     fd(-1),
     mmapAddr(NULL),
     size(size_),
     readonly(readonly_),
+    silent(silent_),
     core(core_)
 {
     const int oflag = readonly ? O_RDONLY : O_RDWR;
@@ -269,18 +274,21 @@ MMIORange::MMIORange(const uint64 baseAddr_, const uint64 size_, const bool read
 
 uint32 MMIORange::read32(uint64 offset)
 {
+    warnAlignment<4>("MMIORange::read32", silent, offset);
     CoreAffinityScope _(core);
     return *((uint32 *)(mmapAddr + offset));
 }
 
 uint64 MMIORange::read64(uint64 offset)
 {
+    warnAlignment<8>("MMIORange::read64", silent, offset);
     CoreAffinityScope _(core);
     return *((uint64 *)(mmapAddr + offset));
 }
 
 void MMIORange::write32(uint64 offset, uint32 val)
 {
+    warnAlignment<4>("MMIORange::write32", silent, offset);
     CoreAffinityScope _(core);
     if (readonly)
     {
@@ -291,6 +299,7 @@ void MMIORange::write32(uint64 offset, uint32 val)
 }
 void MMIORange::write64(uint64 offset, uint64 val)
 {
+    warnAlignment<8>("MMIORange::write64", silent, offset);
     CoreAffinityScope _(core);
     if (readonly)
     {

@@ -248,6 +248,15 @@ inline std::string unit_format(IntType n)
 
 void print_cpu_details();
 
+template <unsigned Bytes>
+inline void warnAlignment(const char* call, const bool silent, const uint64 offset)
+{
+    if (silent == false && (offset % Bytes) != 0)
+    {
+        std::cerr << "PCM Warning: " << call << " offset " << offset << " is not " << Bytes << "-byte aligned\n";
+    }
+}
+
 #define PCM_UNUSED(x) (void)(x)
 
 #define PCM_COMPILE_ASSERT(condition) \
