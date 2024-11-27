@@ -316,7 +316,7 @@ int32 PciHandle::read32(uint64 offset, uint32 * value)
 
 int32 PciHandle::write32(uint64 offset, uint32 value)
 {
-    warnAlignment<4>("PciHandle::write32", false, offset)
+    warnAlignment<4>("PciHandle::write32", false, offset);
     struct pci_io pi;
     int ret;
 
