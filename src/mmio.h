@@ -22,9 +22,22 @@
 #endif
 
 #include "mutex.h"
+#include "utils.h"
 #include <memory>
 
 namespace pcm {
+
+    class CoreAffinityScope // sets core affinity if core >= 0, nop otherwise
+    {
+        std::shared_ptr<TemporalThreadAffinity> affinity{nullptr};
+        CoreAffinityScope(const CoreAffinityScope&) = delete;
+        CoreAffinityScope& operator = (const CoreAffinityScope&) = delete;
+    public:
+        CoreAffinityScope(const int core)
+            : affinity((core >= 0) ? std::make_shared<TemporalThreadAffinity>(core) : nullptr)
+        {
+        }
+    };
 
 #ifdef _MSC_VER
 
@@ -98,10 +111,14 @@ class OwnMMIORange : public MMIORangeInterface
 {
     HANDLE hDriver;
     char * mmapAddr;
+    const int core;
     OwnMMIORange(const OwnMMIORange&) = delete;
     OwnMMIORange& operator = (const OwnMMIORange&) = delete;
 public:
-    OwnMMIORange(uint64 baseAddr_, uint64 size_, bool readonly_ = true);
+    OwnMMIORange(   const uint64 baseAddr_,
+                    const uint64 size_,
+                    const bool readonly_ = true,
+                    const int core_ = -1);
     uint32 read32(uint64 offset);
     uint64 read64(uint64 offset);
     void write32(uint64 offset, uint32 val);
@@ -112,24 +129,33 @@ public:
 class MMIORange
 {
     std::shared_ptr<MMIORangeInterface> impl;
+    const bool silent;
     MMIORange(const MMIORange &) = delete;
     MMIORange & operator = (const MMIORange &) = delete;
 public:
-    MMIORange(uint64 baseAddr_, uint64 size_, bool readonly_ = true, bool silent = false);
+    MMIORange(  const uint64 baseAddr_,
+                const uint64 size_,
+                const bool readonly_ = true,
+                const bool silent_ = false,
+                const int core = -1);
     uint32 read32(uint64 offset)
     {
+        warnAlignment<4>("MMIORange::read32", silent, offset);
         return impl->read32(offset);
     }
     uint64 read64(uint64 offset)
     {
+        warnAlignment<8>("MMIORange::read64", silent, offset);
         return impl->read64(offset);
     }
     void write32(uint64 offset, uint32 val)
     {
+        warnAlignment<4>("MMIORange::write32", silent, offset);
         impl->write32(offset, val);
     }
     void write64(uint64 offset, uint64 val)
     {
+        warnAlignment<8>("MMIORange::write64", silent, offset);
         impl->write64(offset, val);
     }
 };
@@ -146,10 +172,16 @@ class MMIORange
 #ifndef __APPLE__
     const bool readonly;
 #endif
+    const bool silent;
+    const int core;
     MMIORange(const MMIORange &) = delete;
     MMIORange & operator = (const MMIORange &) = delete;
 public:
-    MMIORange(uint64 baseAddr_, uint64 size_, bool readonly_ = true, bool silent = false);
+    MMIORange(  const uint64 baseAddr_,
+                const uint64 size_,
+                const bool readonly_ = true,
+                const bool silent_ = false,
+                const int core_ = -1);
     uint32 read32(uint64 offset);
     uint64 read64(uint64 offset);
     void write32(uint64 offset, uint32 val);

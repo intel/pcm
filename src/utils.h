@@ -140,6 +140,7 @@ void set_signal_handlers(void);
 void set_real_time_priority(const bool & silent);
 void restore_signal_handlers(void);
 #ifndef _MSC_VER
+void printBacktrace();
 void sigINT_handler(int signum);
 void sigHUP_handler(int signum);
 void sigUSR_handler(int signum);
@@ -247,6 +248,27 @@ inline std::string unit_format(IntType n)
 }
 
 void print_cpu_details();
+
+
+inline void printDebugCallstack()
+{
+#ifndef _MSC_VER
+    if (safe_getenv("PCM_PRINT_DEBUG_CALLSTACK") == "1")
+    {
+        printBacktrace();
+    }
+#endif
+}
+
+template <unsigned Bytes>
+inline void warnAlignment(const char* call, const bool silent, const uint64 offset)
+{
+    if (silent == false && (offset % Bytes) != 0)
+    {
+        std::cerr << "PCM Warning: " << call << " offset " << offset << " is not " << Bytes << "-byte aligned\n";
+        printDebugCallstack();
+    }
+}
 
 #define PCM_UNUSED(x) (void)(x)
 
@@ -678,7 +700,7 @@ void restrictDriverAccessNative(LPCTSTR path);
 std::vector<std::string> findPathsFromPattern(const char* pattern);
 #endif
 
-class TemporalThreadAffinity  // speedup trick for Linux, FreeBSD, DragonFlyBSD, Windows
+class TemporalThreadAffinity
 {
     TemporalThreadAffinity(); // forbidden
 #if defined(__FreeBSD__) || (defined(__DragonFly__) && __DragonFly_version >= 400707)

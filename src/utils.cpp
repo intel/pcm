@@ -330,16 +330,11 @@ void sigINT_handler(int signum)
     }
 }
 
-/**
- * \brief handles SIGSEGV signals that lead to termination of the program
- * this function specifically works when the client application launched
- * by pcm -- terminates
- */
 constexpr auto BACKTRACE_MAX_STACK_FRAME = 30;
-void sigSEGV_handler(int signum)
+void printBacktrace()
 {
-    void *backtrace_buffer[BACKTRACE_MAX_STACK_FRAME] = {0};
-    char **backtrace_strings = NULL;
+    void* backtrace_buffer[BACKTRACE_MAX_STACK_FRAME] = { 0 };
+    char** backtrace_strings = NULL;
     size_t backtrace_size = 0;
 
     backtrace_size = backtrace(backtrace_buffer, BACKTRACE_MAX_STACK_FRAME);
@@ -357,7 +352,16 @@ void sigSEGV_handler(int signum)
         }
         freeAndNullify(backtrace_strings);
     }
+}
 
+/**
+ * \brief handles SIGSEGV signals that lead to termination of the program
+ * this function specifically works when the client application launched
+ * by pcm -- terminates
+ */
+void sigSEGV_handler(int signum)
+{
+    printBacktrace();
     sigINT_handler(signum);
 }
 

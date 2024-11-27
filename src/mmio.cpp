@@ -87,7 +87,8 @@ WinPmemMMIORange::WinPmemMMIORange(uint64 baseAddr_, uint64 /* size_ */, bool re
     mutex.unlock();
 }
 
-MMIORange::MMIORange(uint64 baseAddr_, uint64 size_, bool readonly_, bool silent)
+MMIORange::MMIORange(const uint64 baseAddr_, const uint64 size_, const bool readonly_, const bool silent_, const int core) :
+    silent(silent_)
 {
     auto hDriver = openMSRDriver();
     if (hDriver != INVALID_HANDLE_VALUE)
@@ -98,7 +99,7 @@ MMIORange::MMIORange(uint64 baseAddr_, uint64 size_, bool readonly_, bool silent
         CloseHandle(hDriver);
         if (status == TRUE && reslength == sizeof(uint64) && result == 1)
         {
-            impl = std::make_shared<OwnMMIORange>(baseAddr_, size_, readonly_);
+            impl = std::make_shared<OwnMMIORange>(baseAddr_, size_, readonly_, core);
             return;
         }
         else
@@ -109,11 +110,18 @@ MMIORange::MMIORange(uint64 baseAddr_, uint64 size_, bool readonly_, bool silent
             }
         }
     }
-
+    if (core >= 0)
+    {
+        throw std::runtime_error("WinPmem does not support core affinity");
+    }
     impl = std::make_shared<WinPmemMMIORange>(baseAddr_, size_, readonly_);
 }
 
-OwnMMIORange::OwnMMIORange(uint64 baseAddr_, uint64 size_, bool /* readonly_ */)
+OwnMMIORange::OwnMMIORange( const uint64 baseAddr_,
+                            const uint64 size_,
+                            const bool /* readonly_ */,
+                            const int core_) :
+    core(core_)
 {
     hDriver = openMSRDriver();
     MMAP_Request req{};
@@ -132,20 +140,24 @@ OwnMMIORange::OwnMMIORange(uint64 baseAddr_, uint64 size_, bool /* readonly_ */)
 
 uint32 OwnMMIORange::read32(uint64 offset)
 {
+    CoreAffinityScope _(core);
     return *((uint32*)(mmapAddr + offset));
 }
 
 uint64 OwnMMIORange::read64(uint64 offset)
 {
+    CoreAffinityScope _(core);
     return *((uint64*)(mmapAddr + offset));
 }
 
 void OwnMMIORange::write32(uint64 offset, uint32 val)
 {
+    CoreAffinityScope _(core);
     *((uint32*)(mmapAddr + offset)) = val;
 }
 void OwnMMIORange::write64(uint64 offset, uint64 val)
 {
+    CoreAffinityScope _(core);
     *((uint64*)(mmapAddr + offset)) = val;
 }
 
@@ -164,10 +176,16 @@ OwnMMIORange::~OwnMMIORange()
 
 #include "PCIDriverInterface.h"
 
-MMIORange::MMIORange(uint64 physical_address, uint64 size_, bool, bool silent) :
+MMIORange::MMIORange(const uint64 physical_address, const uint64 size_, const bool, const bool silent_, const int core_) :
     mmapAddr(NULL),
-    size(size_)
+    size(size_),
+    silent(silent_),
+    core(core_)
 {
+    if (core_ >= 0)
+    {
+        throw std::runtime_error("MMIORange on MacOSX does not support core affinity");
+    }
     if (size > 4096)
     {
         if (!silent)
@@ -183,6 +201,7 @@ MMIORange::MMIORange(uint64 physical_address, uint64 size_, bool, bool silent) :
 
 uint32 MMIORange::read32(uint64 offset)
 {
+    warnAlignment<4>("MMIORange::read32", silent, offset);
     uint32 val = 0;
     PCIDriver_readMemory32((uint8_t *)mmapAddr + offset, &val);
     return val;
@@ -190,6 +209,7 @@ uint32 MMIORange::read32(uint64 offset)
 
 uint64 MMIORange::read64(uint64 offset)
 {
+    warnAlignment<8>("MMIORange::read64", silent, offset);
     uint64 val = 0;
     PCIDriver_readMemory64((uint8_t *)mmapAddr + offset, &val);
     return val;
@@ -211,11 +231,13 @@ MMIORange::~MMIORange()
 
 #elif defined(__linux__) || defined(__FreeBSD__) || defined(__DragonFly__)
 
-MMIORange::MMIORange(uint64 baseAddr_, uint64 size_, bool readonly_, bool silent) :
+MMIORange::MMIORange(const uint64 baseAddr_, const uint64 size_, const bool readonly_, const bool silent_, const int core_) :
     fd(-1),
     mmapAddr(NULL),
     size(size_),
-    readonly(readonly_)
+    readonly(readonly_),
+    silent(silent_),
+    core(core_)
 {
     const int oflag = readonly ? O_RDONLY : O_RDWR;
     int handle = ::open("/dev/mem", oflag);
@@ -252,16 +274,22 @@ MMIORange::MMIORange(uint64 baseAddr_, uint64 size_, bool readonly_, bool silent
 
 uint32 MMIORange::read32(uint64 offset)
 {
+    warnAlignment<4>("MMIORange::read32", silent, offset);
+    CoreAffinityScope _(core);
     return *((uint32 *)(mmapAddr + offset));
 }
 
 uint64 MMIORange::read64(uint64 offset)
 {
+    warnAlignment<8>("MMIORange::read64", silent, offset);
+    CoreAffinityScope _(core);
     return *((uint64 *)(mmapAddr + offset));
 }
 
 void MMIORange::write32(uint64 offset, uint32 val)
 {
+    warnAlignment<4>("MMIORange::write32", silent, offset);
+    CoreAffinityScope _(core);
     if (readonly)
     {
         std::cerr << "PCM Error: attempting to write to a read-only MMIORange\n";
@@ -271,6 +299,8 @@ void MMIORange::write32(uint64 offset, uint32 val)
 }
 void MMIORange::write64(uint64 offset, uint64 val)
 {
+    warnAlignment<8>("MMIORange::write64", silent, offset);
+    CoreAffinityScope _(core);
     if (readonly)
     {
         std::cerr << "PCM Error: attempting to write to a read-only MMIORange\n";
