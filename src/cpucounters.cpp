@@ -1749,6 +1749,12 @@ void PCM::initEnergyMonitoring()
         pp_energy_status.push_back(std::make_shared<CounterWidthExtender>(
             new CounterWidthExtender::MsrHandleCounter(MSR[socketRefCore[0]], MSR_PP1_ENERGY_STATUS), 32, 10000));
     }
+
+    if (systemEnergyMetricAvailable() && MSR.size() && (system_energy_status.get() == nullptr))
+    {
+        system_energy_status = std::make_shared<CounterWidthExtender>(
+            new CounterWidthExtender::MsrHandleCounter(MSR[socketRefCore[0]], MSR_SYS_ENERGY_STATUS, 0x00000000FFFFFFFF), 32, 10000);
+    }
 }
 
 static const uint32 UBOX0_DEV_IDS[] = {
@@ -6963,6 +6969,11 @@ void PCM::getAllCounterStates(SystemCounterState & systemState, std::vector<Sock
     {   // aggregate core counters from sockets into system state and
         // aggregate socket uncore iMC, energy and package C state counters into system
         systemState += socketStates[s];
+    }
+
+    if (systemEnergyMetricAvailable() && system_energy_status.get() != nullptr)
+    {
+        systemState.systemEnergyStatus = system_energy_status->read();
     }
 }
 
