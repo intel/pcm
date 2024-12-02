@@ -506,6 +506,7 @@ constexpr auto MSR_SMI_COUNT = 0x34;
 */
 
 constexpr auto MSR_PKG_ENERGY_STATUS = 0x611;
+constexpr auto MSR_SYS_ENERGY_STATUS = 0x64D;
 constexpr auto MSR_RAPL_POWER_UNIT = 0x606;
 constexpr auto MSR_PKG_POWER_INFO = 0x614;
 

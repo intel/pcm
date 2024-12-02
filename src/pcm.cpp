@@ -336,7 +336,12 @@ void print_output(PCM * m,
         cout << resetColor();
         cout << setNextColor() << "\n Instructions retired: " << unit_format(getInstructionsRetired(sstate1, sstate2)) << " ;"
             << setNextColor() << " Active cycles: " << unit_format(getCycles(sstate1, sstate2)) << " ;"
-            << setNextColor() << " Time (TSC): " << unit_format(getInvariantTSC(cstates1[0], cstates2[0])) << "ticks;\n\n";
+            << setNextColor() << " Time (TSC): " << unit_format(getInvariantTSC(cstates1[0], cstates2[0])) << "ticks;";
+        if (m->systemEnergyMetricAvailable() && systemEnergyStatusValid(sstate1) && systemEnergyStatusValid(sstate2))
+        {
+            cout << setNextColor() << " SYS energy: " << getSystemConsumedJoules(sstate1, sstate2) << " J;";
+        }
+        cout << "\n\n";
 
         cout << resetColor() << setNextColor() << " Core C-state residencies: "<< setNextColor() << "C0 (active,non-halted): " << (getCoreCStateResidency(0, sstate1, sstate2)*100.) << " %;";
         for (int s = 1; s <= PCM::MAX_C_STATE; ++s)
