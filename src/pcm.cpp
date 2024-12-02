@@ -334,19 +334,20 @@ void print_output(PCM * m,
 
         cout << setNextColor() << "     N/A\n";
         cout << resetColor();
-        cout << setNextColor() <<"\n Instructions retired: " << unit_format(getInstructionsRetired(sstate1, sstate2)) << " ;"
-             << setNextColor() <<" Active cycles: " << unit_format(getCycles(sstate1, sstate2)) << " ;"
-             << setNextColor() <<" Time (TSC): " << unit_format(getInvariantTSC(cstates1[0], cstates2[0])) << "ticks ;"
-             << setNextColor() << " C0 (active,non-halted) core residency: " << (getCoreCStateResidency(0, sstate1, sstate2)*100.) << " %\n";
-        cout << "\n";
+        cout << setNextColor() << "\n Instructions retired: " << unit_format(getInstructionsRetired(sstate1, sstate2)) << " ;"
+            << setNextColor() << " Active cycles: " << unit_format(getCycles(sstate1, sstate2)) << " ;"
+            << setNextColor() << " Time (TSC): " << unit_format(getInvariantTSC(cstates1[0], cstates2[0])) << "ticks;\n\n";
+
+        cout << resetColor() << setNextColor() << " Core C-state residencies: "<< setNextColor() << "C0 (active,non-halted): " << (getCoreCStateResidency(0, sstate1, sstate2)*100.) << " %;";
         for (int s = 1; s <= PCM::MAX_C_STATE; ++s)
         {
             if (m->isCoreCStateResidencySupported(s))
             {
-                std::cout << setNextColor() << " C" << s << " core residency: " << (getCoreCStateResidency(s, sstate1, sstate2)*100.) << " %;";
+                std::cout << setNextColor() << " C" << s << ": " << (getCoreCStateResidency(s, sstate1, sstate2)*100.) << " %;";
             }
         }
         cout << "\n" ;
+        cout << resetColor() << setNextColor() << " Package C-state residencies: ";
         std::vector<StackedBarItem> CoreCStateStackedBar, PackageCStateStackedBar;
         for (int s = 0; s <= PCM::MAX_C_STATE; ++s)
         {
@@ -359,7 +360,7 @@ void print_output(PCM * m,
             }
             if (m->isPackageCStateResidencySupported(s))
             {
-                std::cout << setNextColor() << " C" << s << " package residency: " << (getPackageCStateResidency(s, sstate1, sstate2)*100.) << " %;";
+                std::cout << setNextColor() << " C" << s << ": " << (getPackageCStateResidency(s, sstate1, sstate2)*100.) << " %;";
                 PackageCStateStackedBar.push_back(StackedBarItem(getPackageCStateResidency(s, sstate1, sstate2), "", fill));
             }
         }
