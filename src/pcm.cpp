@@ -766,6 +766,8 @@ void print_csv_header(PCM * m,
             print_csv_header_helper(header, 2);
         if (m->dramEnergyMetricsAvailable())
             print_csv_header_helper(header);
+        if (m->systemEnergyMetricAvailable())
+            print_csv_header_helper(header);
         if (m->LLCReadMissLatencyMetricsAvailable())
             print_csv_header_helper(header);
         if (m->uncoreFrequencyMetricAvailable())
@@ -946,6 +948,8 @@ void print_csv_header(PCM * m,
         }
         if (m->dramEnergyMetricsAvailable())
             cout << "DRAM Energy (Joules),";
+        if (m->systemEnergyMetricAvailable())
+            cout << "SYSTEM Energy (Joules),";
         if (m->LLCReadMissLatencyMetricsAvailable())
             cout << "LLCRDMISSLAT (ns),";
         if (m->uncoreFrequencyMetricAvailable())
@@ -1200,6 +1204,8 @@ void print_csv(PCM * m,
             cout << getConsumedJoules(0, sstate1, sstate2) << "," << getConsumedJoules(1, sstate1, sstate2) << ",";
         if (m->dramEnergyMetricsAvailable())
             cout << getDRAMConsumedJoules(sstate1, sstate2) << ",";
+        if (m->systemEnergyMetricAvailable())
+            cout << getSystemConsumedJoules(sstate1, sstate2) << ",";
         if (m->LLCReadMissLatencyMetricsAvailable())
             cout << getLLCReadMissLatency(sstate1, sstate2) << ",";
         if (m->uncoreFrequencyMetricAvailable())
