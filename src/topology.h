@@ -63,7 +63,7 @@ enum Status {
 class HyperThread : public SystemObject
 {
 public:
-    HyperThread( PCM* m, int32 threadID, int32 osID, enum Status status ) : pcm_(m), threadID_(threadID), osID_(osID), status_(status) {}
+    HyperThread( PCM* m, int32 osID, TopologyEntry te, enum Status status ) : pcm_(m), osID_(osID), te_(te), status_(status) {}
     virtual ~HyperThread() { pcm_ = nullptr; }
 
     virtual void accept( Visitor& v ) override {
@@ -77,16 +77,50 @@ public:
         return ccs;
     }
 
+    std::string topologyDataString() const {
+        std::stringstream ss;
+        ss << osID_ << "\t" << te_.socket_id << "\t" << te_.die_grp_id << "\t" << te_.die_id << "\t" << te_.tile_id << "\t" << te_.core_id << "\t" << te_.thread_id << "\t";
+        return ss.str();
+    }
+
+    TopologyEntry topologyEntry() const {
+        return te_;
+    }
+
     void addMSRHandle( std::shared_ptr<SafeMsrHandle> handle ) {
         msrHandle_ = handle;
     }
 
-    int32 threadID() const {
-        return threadID_;
-    }
-
     int32 osID() const {
         return osID_;
+    }
+
+    int32 threadID() const {
+        return te_.thread_id;
+    }
+
+    int32 coreID() const {
+        return te_.core_id;
+    }
+
+    int32 moduleID() const {
+        return te_.module_id;
+    }
+
+    int32 tileID() const {
+        return te_.tile_id;
+    }
+
+    int32 dieID() const {
+        return te_.die_id;
+    }
+
+    int32 dieGroupID() const {
+        return te_.die_grp_id;
+    }
+
+    int32 socketID() const {
+        return te_.socket_id;
     }
 
     // We simply pass by value, this way the refcounting works best and as expected
@@ -99,23 +133,22 @@ public:
     }
 
 private:
-    PCM*   pcm_;
+    PCM*                           pcm_;
     std::shared_ptr<SafeMsrHandle> msrHandle_;
-    int32 threadID_;
-    int32 osID_;
-    enum Status status_;
+    // osID is the expected osID, offlined cores have te.os_id == -1
+    int32                          osID_;
+    TopologyEntry                  te_;
+    enum Status                    status_;
 };
 
 class Core : public SystemObject
 {
-    constexpr static int32 MAX_THREADS_PER_CORE = 4;
-
 public:
-    Core( PCM* m, int32 coreID, int32 tileID, int32 socketID ) {
-        pcm_      = m;
-        coreID_   = coreID;
-        tileID_   = tileID;
-        socketID_ = socketID;
+    Core( PCM* m ) : pcm_(m) {
+        // PCM* m is not 0, we're being called from the PCM constructor
+        // Just before this Core object is constructed, the value for
+        // threads_per_core is determined
+        MAX_THREADS_PER_CORE = pcm_->getThreadsPerCore();
     }
     virtual ~Core() {
         pcm_ = nullptr;
@@ -136,10 +169,10 @@ public:
         return ccs;
     }
 
-    void addHyperThreadInfo( int32 threadID, int32 osID ) {
-        if ( threadID >= MAX_THREADS_PER_CORE ) {
+    void addHyperThreadInfo( int32 osID, TopologyEntry te ) {
+        if ( te.thread_id >= MAX_THREADS_PER_CORE ) {
             std::stringstream ss;
-            ss << "ERROR: Core: threadID cannot be larger than " << MAX_THREADS_PER_CORE << ".\n";
+            ss << "ERROR: Core: thread_id cannot be larger than " << MAX_THREADS_PER_CORE << ".\n";
             throw std::runtime_error( ss.str() );
         }
         if ( threads_.size() == 0 ||
@@ -149,8 +182,8 @@ public:
                 }
            ) == threads_.end() )
         {
-            // std::cerr << "Core::addHyperThreadInfo: " << threadID << ", " << osID << "\n";
-            threads_.push_back( new HyperThread( pcm_, threadID, osID, Status::Online ) );
+            // std::cerr << "Core::addHyperThreadInfo: " << te.thread_id << ", " << te.os_id << "\n";
+            threads_.push_back( new HyperThread( pcm_, osID, te, Status::Online ) );
         }
     }
 
@@ -179,15 +212,39 @@ public:
     }
 
     int32 coreID() const {
-        return coreID_;
+        if ( 0 == threads_.size() )
+            throw std::runtime_error("BUG: No threads yet but asking for a coreID!");
+        return threads_.front()->coreID();
+    }
+
+    int32 moduleID() const {
+        if ( 0 == threads_.size() )
+            throw std::runtime_error("BUG: No threads yet but asking for a moduleID!");
+        return threads_.front()->moduleID();
     }
 
     int32 tileID() const {
-        return tileID_;
+        if ( 0 == threads_.size() )
+            throw std::runtime_error("BUG: No threads yet but asking for a tileID!");
+        return threads_.front()->tileID();
+    }
+
+    int32 dieID() const {
+        if ( 0 == threads_.size() )
+            throw std::runtime_error("BUG: No threads yet but asking for a tileID!");
+        return threads_.front()->dieID();
+    }
+
+    int32 dieGroupID() const {
+        if ( 0 == threads_.size() )
+            throw std::runtime_error("BUG: No threads yet but asking for a tileID!");
+        return threads_.front()->dieGroupID();
     }
 
     int32 socketID() const {
-        return socketID_;
+        if ( 0 == threads_.size() )
+            throw std::runtime_error("BUG: No threads yet but asking for a socketID!");
+        return threads_.front()->socketID();
     }
 
     bool isOnline() const {
@@ -200,9 +257,7 @@ public:
 private:
     PCM*                      pcm_;
     std::vector<HyperThread*> threads_;
-    int32                     coreID_;
-    int32                     tileID_;
-    int32                     socketID_;
+    int32                     MAX_THREADS_PER_CORE;
 };
 
 class Uncore : public SystemObject
@@ -268,12 +323,12 @@ class Socket : public SystemObject {
     Socket(const Socket &) = delete;
     Socket & operator = (const Socket &) = delete;
 public:
-    Socket( PCM* m, int32 apicID, int32 logicalID );
+    Socket( PCM* m, int32 logicalID );
     virtual ~Socket() {
         pcm_ = nullptr;
+        refCore_ = nullptr; // cores_ is owner, set it to null before deleting it one below
         for ( auto& core : cores_ )
             deleteAndNullify(core);
-        refCore_ = nullptr; // cores_ is owner so it is already deleted by here
         deleteAndNullify(uncore_);
     }
 
@@ -305,11 +360,10 @@ public:
 
     SocketCounterState socketCounterState( void ) const;
 
-    Core* findCoreByTileID( int32 tileID ) {
-        for ( auto& core : cores_ ) {
-            if ( core->tileID() == tileID )
+    Core* findCoreByTopologyEntry( TopologyEntry te ) {
+        for ( auto& core : cores_ )
+            if ( core->hyperThread( 0 )->topologyEntry().isSameCore( te ) )
                 return core;
-        }
         return nullptr;
     }
 
@@ -319,10 +373,6 @@ public:
 
     Uncore* uncore( void ) const {
         return uncore_;
-    }
-
-    int32 apicId() const {
-        return apicID_;
     }
 
     int32 socketID() const {
@@ -338,7 +388,6 @@ private:
     PCM*    pcm_;
     Core*   refCore_;
     Uncore* uncore_;
-    int32   apicID_;
     int32   logicalID_;
 };
 
@@ -361,29 +410,29 @@ public:
         v.dispatch( *this );
     }
 
-    void addSocket( int32 apic_id, int32 logical_id ) {
-        Socket* s = new Socket( pcm_, apic_id, logical_id );
+    void addSocket( int32 logical_id ) {
+        Socket* s = new Socket( pcm_, logical_id );
         sockets_.push_back( s );
     }
 
     // osID is the expected os_id, this is used in case te.os_id = -1 (offlined core)
     void addThread( int32 osID, TopologyEntry& te ) {
+        // std::cerr << "SystemRoot::addThread: coreid: " << te.core_id <<  ", module_id: " << te.module_id << ", tile_id: " << te.tile_id << ", die_id: " << te.die_id << ", die_grp_id: " << te.die_grp_id << ", socket_id: " << te.socket_id << ", os_id: " << osID << "\n";
         // quick check during development to see if expected osId == te.os_id for onlined cores
         // assert( te.os_id != -1 && osID == te.os_id );
         bool entryAdded = false;
         for ( auto& socket : sockets_ ) {
-            if ( socket->apicId() == te.socket_id ) {
+            if ( socket->socketID() == te.socket_id ) {
                 Core* core = nullptr;
-                if ( (core = socket->findCoreByTileID( te.tile_id )) == nullptr ) {
-                    // std::cerr << "SystemRoot::addThread: " << te.tile_id << ", " << osID << "\n";
-                    core = new Core( pcm_, te.core_id, te.tile_id, te.socket_id );
+                if ( (core = socket->findCoreByTopologyEntry( te )) == nullptr ) {
+                    core = new Core( pcm_ );
                     // std::cerr << "new Core ThreadID: " << te.thread_id << "\n";
-                    core->addHyperThreadInfo( te.thread_id, osID );
+                    core->addHyperThreadInfo( osID, te );
                     socket->addCore( core );
                     // std::cerr << "Added core " << te.core_id << " with os_id " << osID << ", threadid " << te.thread_id << " and tileid " << te.tile_id << " to socket " << te.socket_id << ".\n";
                 } else {
                     // std::cerr << "existing Core ThreadID: " << te.thread_id << "\n";
-                    core->addHyperThreadInfo( te.thread_id, osID );
+                    core->addHyperThreadInfo( osID, te );
                     // std::cerr << "Augmented core " << te.core_id << " with osID " << osID << " and threadid " << te.thread_id << " for the hyperthread to socket " << te.socket_id << ".\n";
                 }
                 entryAdded = true;
@@ -393,7 +442,7 @@ public:
         if ( !entryAdded ) {
             // if ( te.os_id == -1 )
             //     std::cerr << "TE not added because os_id == -1, core is offline\n";
-            offlinedThreadsAtStart_.push_back( new HyperThread( pcm_, -1, osID, Status::Offline ) );
+            offlinedThreadsAtStart_.push_back( new HyperThread( pcm_, osID, te, Status::Offline ) );
         }
     }
 
@@ -446,7 +495,7 @@ private:
 
 /* Method used here: while walking the tree and iterating the vector
  * elements, collect the counters. Once all elements have been walked
- * the vectors are filled with the aggregates.
+ * the vectors contain the aggregates.
  */
 class Aggregator : Visitor
 {
@@ -546,5 +595,98 @@ private:
     std::vector<std::future<UncoreCounterState>> ucsFutures_;
     std::chrono::steady_clock::time_point dispatchedAt_{};
 };
+
+/* Method used here: while walking the cores in the tree and iterating the
+ * vector elements, print the core related ids into a large string. Once all
+ * cores have been walked the vector of strings contains all ids.
+ */
+class TopologyPrinter : Visitor
+{
+public:
+    TopologyPrinter() : wq_( WorkQueue::getInstance() )
+    {
+        PCM* const pcm = PCM::getInstance();
+        // Resize user provided vectors to the right size
+        threadIDsVector_.resize( pcm->getNumCores() );
+        // Internal use only, need to be the same size as the user provided vectors
+        threadIDsFutures_.resize( pcm->getNumCores() );
+    }
+
+    virtual ~TopologyPrinter() {
+        wq_ = nullptr;
+    }
+
+public:
+    virtual void dispatch( SystemRoot const& syp ) override {
+        // std::cerr << "TopologyPrinter::dispatch( SystemRoot )\n";
+        for ( auto* socket : syp.sockets() )
+            socket->accept( *this );
+
+        auto tidFuturesIter = threadIDsFutures_.begin();
+        auto tidIter = threadIDsVector_.begin();
+        // int i;
+        // i = 0;
+        for ( ; tidFuturesIter != threadIDsFutures_.end() && tidIter != threadIDsVector_.end(); ++tidFuturesIter, ++tidIter ) {
+            // std::cerr << "Works tidFuture: " << ++i << "\n";
+            (*tidIter) = (*tidFuturesIter).get();
+        }
+    }
+
+    virtual void dispatch( Socket* sop ) override {
+        // std::cerr << "TopologyPrinter::dispatch( Socket )\n";
+        // Fetch Topology Data
+        for ( auto* core : sop->cores() )
+            core->accept( *this );
+    }
+
+    virtual void dispatch( Core* cop ) override {
+        // std::cerr << "TopologyPrinter::dispatch( Core )\n";
+        // Loop each HyperThread
+        for ( auto* thread : cop->threads() ) {
+            // Fetch the Topology Data
+            thread->accept( *this );
+        }
+    }
+
+    virtual void dispatch( HyperThread* htp ) override {
+        // std::cerr << "TopologyPrinter::dispatch( HyperThread )\n";
+        // std::cerr << "Dispatch htp with osID=" << htp->osID() << "\n";
+        auto job = new LambdaJob<std::string>(
+            []( HyperThread* h ) -> std::string {
+                DBG( 5, "Lambda fetching Topology Data async" );
+                std::string s;
+                if ( !h->isOnline() )
+                    return s;
+                return h->topologyDataString();
+            }, htp
+        );
+        threadIDsFutures_[ htp->osID() ] = job->getFuture();
+        wq_->addWork( job );
+    }
+
+    virtual void dispatch( ServerUncore* /*sup*/ ) override {
+        // std::cerr << "TopologyPrinter::dispatch( ServerUncore )\n";
+    }
+
+    virtual void dispatch( ClientUncore* /*cup*/ ) override {
+        // std::cerr << "TopologyPrinter::dispatch( ClientUncore )\n";
+    }
+
+    std::vector<std::string> & topologyDataStrings( void ) {
+        return threadIDsVector_;
+    }
+
+    std::chrono::steady_clock::time_point dispatchedAt( void ) const {
+        return dispatchedAt_;
+    }
+
+private:
+    WorkQueue* wq_;
+    std::vector<std::string> threadIDsVector_;
+    std::vector<std::future<std::string>> threadIDsFutures_;
+    std::chrono::steady_clock::time_point dispatchedAt_{};
+};
+
+bool TopologyStringCompare( const std::string& topology1, const std::string& topology2 );
 
 } // namespace pcm
