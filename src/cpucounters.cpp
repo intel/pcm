@@ -1444,29 +1444,19 @@ bool PCM::discoverSystemTopology()
     }
     if(num_sockets == 0) {
         num_sockets = (int32)(std::max)(socketIdMap.size(), (size_t)1);
+        // std::cerr << " num_sockets = " << num_sockets << "\n";
     }
 
     socketIdMap_type::iterator s = socketIdMap.begin();
     for (uint32 sid = 0; s != socketIdMap.end(); ++s)
     {
         s->second = sid++;
-        // first is apic id, second is logical socket id
-        systemTopology->addSocket( s->first, s->second );
     }
-
-    for (int32 cid = 0; cid < num_cores; ++cid)
-    {
-        //std::cerr << "Cid: " << cid << "\n";
-        systemTopology->addThread( cid, topology[cid] );
-    }
-
-    // All threads are here now so we can set the refCore for a socket
-    for ( auto& socket : systemTopology->sockets() )
-        socket->setRefCore();
 
     // use map to change apic socket id to the logical socket id
     for (int i = 0; (i < (int)num_cores) && (!socketIdMap.empty()); ++i)
     {
+        // std::cerr << "socket_id: " << topology[i].socket_id << ", socketIdMap tells me: " << socketIdMap[topology[i].socket_id] << "\n";
         if(isCoreOnline((int32)i))
           topology[i].socket_id = socketIdMap[topology[i].socket_id];
     }
@@ -1483,13 +1473,29 @@ bool PCM::discoverSystemTopology()
     {
         for (int i = 0; i < (int)num_cores; ++i)
         {
-            if (topology[i].socket_id == topology[0].socket_id && topology[i].core_id == topology[0].core_id)
+            if (topology[i].isSameCore( topology[0] ))
                 ++threads_per_core;
         }
         assert(threads_per_core != 0);
     }
     if(num_phys_cores_per_socket == 0 && num_cores == num_online_cores) num_phys_cores_per_socket = num_cores / num_sockets / threads_per_core;
     if(num_online_cores == 0) num_online_cores = num_cores;
+
+    s = socketIdMap.begin();
+    for (; s != socketIdMap.end(); ++s)
+    {
+        systemTopology->addSocket( s->second );
+    }
+
+    for (int32 cid = 0; cid < num_cores; ++cid)
+    {
+        //std::cerr << "Cid: " << cid << "\n";
+        systemTopology->addThread( cid, topology[cid] );
+    }
+
+    // All threads are here now so we can set the refCore for a socket
+    for ( auto& socket : systemTopology->sockets() )
+        socket->setRefCore();
 
     int32 i = 0;
 
@@ -3421,11 +3427,11 @@ void PCM::destroyMSR()
 
 PCM::~PCM()
 {
+    deleteAndNullify(systemTopology);
     if (instance)
     {
         destroyMSR();
         instance = NULL;
-        deleteAndNullify(systemTopology);
     }
 }
 
