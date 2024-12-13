@@ -67,6 +67,24 @@ struct PCM_API TopologyEntry // describes a core
         }
         return "unknown";
     }
+    bool isSameSocket( TopologyEntry& te ) {
+        return this->socket_id == te.socket_id;
+    }
+    bool isSameDieGroup( TopologyEntry& te ) {
+        return this->die_grp_id == te.die_grp_id && isSameSocket(te);
+    }
+    bool isSameDie( TopologyEntry& te ) {
+        return this->die_id == te.die_id && isSameDieGroup(te);
+    }
+    bool isSameTile( TopologyEntry& te ) {
+        return this->tile_id == te.tile_id && isSameDie(te);
+    }
+    bool isSameModule( TopologyEntry& te ) {
+        return this->module_id == te.module_id && isSameTile (te);
+    }
+    bool isSameCore( TopologyEntry& te ) {
+        return this->core_id == te.core_id && isSameModule(te);
+    }
 };
 
 inline void fillEntry(TopologyEntry & entry, const uint32 & smtMaskWidth, const uint32 & coreMaskWidth, const uint32 & l2CacheMaskShift, const int apic_id)

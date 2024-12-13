@@ -30,8 +30,8 @@ UncoreCounterState ClientUncore::uncoreCounterState( void ) const
     return ucs;
 }
 
-Socket::Socket( PCM* m, int32 apicID, int32 logicalID )
-    : pcm_(m), refCore_(nullptr), apicID_(apicID), logicalID_(logicalID)
+Socket::Socket( PCM* m, int32 logicalID )
+    : pcm_(m), refCore_(nullptr), logicalID_(logicalID)
 {
     if ( pcm_->isServerCPU() )
         uncore_ = new ServerUncore( pcm_, logicalID );
@@ -100,6 +100,18 @@ void Aggregator::dispatch( SystemRoot const& syp ) {
     pcm->readQPICounters( sycs_ );
     pcm->readAndAggregateCXLCMCounters( sycs_ );
     readAccelCounters(sycs_);
+}
+
+bool TopologyStringCompare( const std::string& topology1, const std::string& topology2 ) {
+    if ( topology1.size() == 0 ) return true;
+    if ( topology2.size() == 0 ) return false;
+
+    int topo1asint, topo2asint;
+    std::stringstream ss1(topology1);
+    std::stringstream ss2(topology2);
+    ss1 >> topo1asint;
+    ss2 >> topo2asint;
+    return topo1asint < topo2asint;
 }
 
 }// namespace pcm

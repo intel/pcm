@@ -645,7 +645,7 @@ public:
     }
 
     virtual void dispatch( Core* c ) override {
-        addToHierarchy( std::string( "core=\"" ) + std::to_string( c->coreID() ) + "\"" );
+        addToHierarchy( std::string( "core=\"" ) + std::to_string( c->dieGroupID()*256 + c->dieID()*64 + c->tileID()*16 + c->moduleID()*4 + c->coreID() ) + "\"" );
         auto vec = c->threads();
         iterateVectorAndCallAccept( vec );
 
@@ -801,6 +801,7 @@ private:
         }
         removeFromHierarchy();
     }
+
     void printSystemCounterState( SystemCounterState const& before, SystemCounterState const& after ) {
         addToHierarchy( "source=\"uncore\"" );
         PCM* pcm = PCM::getInstance();
@@ -3759,6 +3760,7 @@ int mainThrows(int argc, char * argv[]) {
     bool useRealtimePriority = false;
 #endif
     bool forceRTMAbortMode = false;
+    bool printTopology = false;
     unsigned short port = 0;
     unsigned short debug_level = 0;
     std::string certificateFile;
@@ -3774,7 +3776,12 @@ int mainThrows(int argc, char * argv[]) {
     MainLoop mainLoop;
     std::string ev_file_name;
 
-    if ( argc > 1 ) {
+    const char* PPTEnv = std::getenv( "PCMSENSORSERVER_PRINT_TOPOLOGY" );
+    if ( PPTEnv ) {
+        if ( *PPTEnv == '1' ) {
+            printTopology = true;
+        }
+    } else if ( argc > 1 ) {
         std::string arg_value;
 
         for ( int i=1; i < argc; ++i ) {
@@ -3901,7 +3908,7 @@ int mainThrows(int argc, char * argv[]) {
         }
     }
 
-    #ifdef __linux__
+#ifdef __linux__
     // check kernel version for driver dependency.
     if (accel != ACCEL_NOCONFIG)
     {
@@ -4034,6 +4041,17 @@ int mainThrows(int argc, char * argv[]) {
             accs_->setEvents(pcmInstance,accel,specify_evtfile,evtfile);
 
             accs_->programAccelCounters();
+        }
+        if ( printTopology ) {
+            TopologyPrinter* tp = new TopologyPrinter();
+            tp->dispatch( PCM::getInstance()->getSystemTopology() );
+            std::vector<std::string> & tpData = tp->topologyDataStrings();
+            std::sort( tpData.begin(), tpData.end(), TopologyStringCompare );
+            for( auto& line: tpData ) {
+                std::cout << line << "\n";
+            }
+            deleteAndNullify( tp );
+            exit( 0 );
         }
 #if defined (USE_SSL)
         if ( useSSL ) {
