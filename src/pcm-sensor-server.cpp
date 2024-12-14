@@ -1301,10 +1301,10 @@ public:
         SignalHandler* shi = SignalHandler::getInstance();
         shi->setSocket( serverSocket_ );
         shi->ignoreSignal( SIGPIPE ); // Sorry Dennis Ritchie, we do not care about this, we always check return codes
-        #ifndef UNIT_TEST // libFuzzer installs own signal handlers
+#ifndef UNIT_TEST // libFuzzer installs own signal handlers
         shi->installHandler( SignalHandler::handleSignal, SIGTERM );
         shi->installHandler( SignalHandler::handleSignal, SIGINT );
-        #endif
+#endif
     }
     Server( Server const & ) = delete;
     Server & operator = ( Server const & ) = delete;
@@ -1320,26 +1320,26 @@ private:
         if ( port_ == 0 )
             throw std::runtime_error( "Server Constructor: No port specified." );
 
-        int sockfd = ::socket( AF_INET, SOCK_STREAM, 0 );
+        int sockfd = ::socket( AF_INET6, SOCK_STREAM, 0 );
         if ( -1 == sockfd )
             throw std::runtime_error( "Server Constructor: Can´t create socket" );
 
         int retval = 0;
 
-        struct sockaddr_in serv;
-        serv.sin_family = AF_INET;
-        serv.sin_port = htons( port_ );
+        struct sockaddr_in6 serv;
+        serv.sin6_family = AF_INET6;
+        serv.sin6_port = htons( port_ );
         if ( listenIP_.empty() )
-            serv.sin_addr.s_addr = INADDR_ANY;
+            serv.sin6_addr = in6addr_any;
         else {
-            if ( 1 != ::inet_pton( AF_INET, listenIP_.c_str(), &(serv.sin_addr) ) )
+            if ( 1 != ::inet_pton( AF_INET6, listenIP_.c_str(), &(serv.sin6_addr) ) )
             {
                 DBG( 3, "close clientsocketFD" );
                 ::close(sockfd);
                 throw std::runtime_error( "Server Constructor: Cannot convert IP string" );
             }
         }
-        socklen_t len = sizeof( struct sockaddr_in );
+        socklen_t len = sizeof( struct sockaddr_in6 );
         retval = ::bind( sockfd, reinterpret_cast<struct sockaddr*>(&serv), len );
         if ( 0 != retval ) {
             DBG( 3, "close clientsocketFD" );
