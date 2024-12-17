@@ -6370,6 +6370,7 @@ SystemCounterState PCM::getSystemCounterState()
 
         readAndAggregateCXLCMCounters(result);
         readQPICounters(result);
+        readSystemEnergyStatus(result);
 
         result.ThermalHeadroom = static_cast<int32>(PCM_INVALID_THERMAL_HEADROOM); // not available for system
     }
@@ -6977,6 +6978,11 @@ void PCM::getAllCounterStates(SystemCounterState & systemState, std::vector<Sock
         systemState += socketStates[s];
     }
 
+    readSystemEnergyStatus(systemState);
+}
+
+void PCM::readSystemEnergyStatus(SystemCounterState & systemState)
+{
     if (systemEnergyMetricAvailable() && system_energy_status.get() != nullptr)
     {
         systemState.systemEnergyStatus = system_energy_status->read();
@@ -7004,6 +7010,7 @@ void PCM::getUncoreCounterStates(SystemCounterState & systemState, std::vector<S
     }
 
     readQPICounters(systemState);
+    readSystemEnergyStatus(systemState);
 
     for (int32 s = 0; s < num_sockets; ++s)
     {
