@@ -151,6 +151,28 @@ if(PCM_FUZZ)
 endif(PCM_FUZZ)
 
 #######################
+# pugixml dependency
+#######################
+
+add_library(PCM_PUGIXML INTERFACE) # interface library for pugixml
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/pugixml/src/pugixml.cpp")
+    message(STATUS "Local pugixml exists: ${CMAKE_CURRENT_SOURCE_DIR}/src/pugixml/src/pugixml.cpp")
+    set(PCM_PUGIXML_CPP ${CMAKE_CURRENT_SOURCE_DIR}/src/pugixml/src/pugixml.cpp)
+    add_compile_definitions(PCM_PUGIXML_AVAILABLE)
+else()
+    message(STATUS "Local pugixml doesn't exist")
+#    message(WARNING
+#        " ${CMAKE_CURRENT_SOURCE_DIR}/src/pugixml/src/pugixml.cpp doesn't exist\n"
+#        " Use `git clone --recursive` flag when cloning pcm repository to clone pugixml submodule as well or\n"
+#        " update submodule with command 'git submodule update --init --recursive' or\n"
+#        " run 'git clone https//github.com/zeux/pugixml.git' in 'src' directory to get pugixml library")
+endif()
+
+#######################
+# End of pugixml dependency section
+#######################
+
+#######################
 # Install
 #######################
 
