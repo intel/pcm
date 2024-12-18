@@ -1217,6 +1217,7 @@ private:
     template <class CounterStateType>
     void readMSRs(std::shared_ptr<SafeMsrHandle> msr, const RawPMUConfig & msrConfig, CounterStateType & result);
     void readQPICounters(SystemCounterState & counterState);
+    void readSystemEnergyStatus(SystemCounterState & systemState);
     void readPCICFGRegisters(SystemCounterState& result);
     void readMMIORegisters(SystemCounterState& result);
     void readPMTRegisters(SystemCounterState& result);
