@@ -91,6 +91,7 @@ void print_usage(const string & progname)
 
 bool verbose = false;
 double defaultDelay = 1.0; // in seconds
+TelemetryDB telemDB;
 
 PCM::RawEventConfig initCoreConfig()
 {
@@ -973,6 +974,37 @@ AddEventStatus addEvent(PCM::RawPMUConfigs & curPMUConfigs, string eventStr)
     }
     const auto configArray = split(configStr, ',');
     bool fixed = false;
+    std::string lookup;
+    auto pmtAddRecord = [&lookup, &pmuName, &config](const std::vector<TelemetryDB::PMTRecord> & records) -> AddEventStatus
+    {
+        if (pmuName == "pmt")
+        {
+                if (records.empty())
+                {
+                    cerr << "ERROR: lookup \"" << lookup << "\" not found in PMT telemetry database\n";
+                    return AddEventStatus::Failed;
+                }
+                if (records.size() > 1)
+                {
+                    cerr << "ERROR: lookup \"" << lookup << "\" is ambiguous in PMT telemetry database\n\n";
+                    for (const auto & record : records)
+                    {
+                        cerr << "  ";
+                        record.print(cerr);
+                        cerr << "\n";
+                    }
+                    return AddEventStatus::Failed;
+                }
+                config.second = records[0].fullName;
+                assert(records.size() == 1);
+                config.first[PCM::PMTEventPosition::UID] = records[0].uid;
+                config.first[PCM::PMTEventPosition::offset] = records[0].qWordOffset;
+                config.first[PCM::PMTEventPosition::type] = (records[0].sampleType == "Snapshot") ? PCM::MSRType::Static : PCM::MSRType::Freerun;
+                config.first[PCM::PMTEventPosition::lsb] = records[0].lsb;
+                config.first[PCM::PMTEventPosition::msb] = records[0].msb;
+        }
+        return AddEventStatus::OK;
+    };
     for (const auto & item : configArray)
     {
         if (match(item, "config=", &config.first[0]))
@@ -1007,6 +1039,16 @@ AddEventStatus addEvent(PCM::RawPMUConfigs & curPMUConfigs, string eventStr)
         {
             // matched and initialized name
             if (check_for_injections(config.second))
+                return AddEventStatus::Failed;
+        }
+        else if (pcm_sscanf(item) >> s_expect("lookup=") >> setw(255) >> lookup)
+        {
+            if (pmtAddRecord(telemDB.lookup(lookup)) != AddEventStatus::OK)
+                return AddEventStatus::Failed;
+        }
+        else if (pcm_sscanf(item) >> s_expect("ilookup=") >> setw(255) >> lookup)
+        {
+            if (pmtAddRecord(telemDB.ilookup(lookup)) != AddEventStatus::OK)
                 return AddEventStatus::Failed;
         }
         else if (item == "fixed")
@@ -2342,6 +2384,8 @@ int mainThrows(int argc, char * argv[])
     bool forceRTMAbortMode = false;
     bool reset_pmu = false;
     PCM* m = PCM::getInstance();
+
+    telemDB.loadFromXML("Intel-PMT");
 
     parsePID(argc, argv, pid);
 

@@ -8,7 +8,7 @@ set(PROJECT_NAMES pcm pcm-numa pcm-latency pcm-power pcm-msr pcm-memory pcm-tsx 
 
 set(MINIMUM_OPENSSL_VERSION 1.1.1)
 
-file(GLOB COMMON_SOURCES pcm-accel-common.cpp msr.cpp cpucounters.cpp pci.cpp mmio.cpp tpmi.cpp pmt.cpp bw.cpp utils.cpp topology.cpp debug.cpp threadpool.cpp uncore_pmu_discovery.cpp)
+file(GLOB COMMON_SOURCES pcm-accel-common.cpp msr.cpp cpucounters.cpp pci.cpp mmio.cpp tpmi.cpp pmt.cpp bw.cpp utils.cpp topology.cpp debug.cpp threadpool.cpp uncore_pmu_discovery.cpp ${PCM_PUGIXML_CPP})
 
 if (APPLE)
   file(GLOB UNUX_SOURCES dashboard.cpp)
@@ -154,7 +154,7 @@ if((CMAKE_CXX_COMPILER_ID STREQUAL "GNU"   AND CMAKE_CXX_COMPILER_VERSION VERSIO
 endif()
 
 if(SIMDJSON_IS_APPLICABLE)
-    find_package(simdjson QUIET)  # Working form Ububtu 22.04
+    find_package(simdjson QUIET)  # Working form Ubuntu 22.04
     if(simdjson_FOUND)
         message(STATUS "System SIMDJSON is used")
         target_link_libraries(PCM_SIMDJSON INTERFACE simdjson::simdjson)
