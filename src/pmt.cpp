@@ -266,7 +266,7 @@ bool TelemetryDB::loadFromXML(const std::string& pmtXMLPath)
     return true;
 #else
     (void)pmtXMLPath; // suppress warning
-    std::cerr << "Error: pugixml library is not available" << std::endl;
+    std::cerr << "INFO: pugixml library is not available" << std::endl;
     return false;
 #endif
 }
