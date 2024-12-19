@@ -220,8 +220,7 @@ bool TelemetryDB::loadFromXML(const std::string& pmtXMLPath)
             continue;
         }
         if (debug) std::cout << "Found mapping with guid: " << mapping.attribute("guid").value() << std::endl;
-        const auto description = mapping.child("description").text().as_string();
-        if (debug) std::cout << "  Description: " << description << std::endl;
+        if (debug) std::cout << "  Description: " << mapping.child("description").text().as_string() << std::endl;
         const auto xmlset = mapping.child("xmlset");
         const auto basedir = xmlset.child("basedir").text().as_string();
         const auto aggregator = xmlset.child("aggregator").text().as_string();
