@@ -50,7 +50,7 @@ public:
         std::string description;
         void print(std::ostream & os) const
         {
-            os << "uid: " << uid << " fullName: " << fullName << " description: \"" << description << 
+            os << "uid: " << uid << " fullName: " << fullName << " description: \"" << description <<
                 "\" sampleType: " << sampleType << " qWordOffset: " << qWordOffset << " lsb: " << lsb << " msb: " << msb << std::endl;
         }
     };
