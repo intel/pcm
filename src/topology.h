@@ -172,7 +172,7 @@ public:
     void addHyperThreadInfo( int32 osID, TopologyEntry te ) {
         if ( te.thread_id >= MAX_THREADS_PER_CORE ) {
             std::stringstream ss;
-            ss << "ERROR: Core: thread_id cannot be larger than " << MAX_THREADS_PER_CORE << ".\n";
+            ss << "ERROR: Core: thread_id " << te.thread_id << " cannot be larger than " << MAX_THREADS_PER_CORE << ".\n";
             throw std::runtime_error( ss.str() );
         }
         if ( threads_.size() == 0 ||

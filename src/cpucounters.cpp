@@ -1255,9 +1255,9 @@ bool PCM::discoverSystemTopology()
         pi = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)slpi;
         if (pi->Relationship == RelationProcessorCore)
         {
-            threads_per_core = (pi->Processor.Flags == LTP_PC_SMT) ? 2 : 1;
-            // std::cout << "thr per core: " << threads_per_core << "\n";
-            num_cores += threads_per_core;
+            const auto current_threads_per_core = (pi->Processor.Flags == LTP_PC_SMT) ? 2 : 1;
+            // std::cout << "thr per core: " << current_threads_per_core << "\n";
+            num_cores += current_threads_per_core;
         }
     }
     // std::cout << std::flush;
@@ -1372,8 +1372,6 @@ bool PCM::discoverSystemTopology()
             return false;
         }
 
-        if (entry.socket_id == 0 && entry.core_id == 0) ++threads_per_core;
-
         topology.push_back(entry);
         socketIdMap[entry.socket_id] = 0;
     }
@@ -1426,7 +1424,6 @@ bool PCM::discoverSystemTopology()
         socketIdMap[entries[i].socket_id] = 0;
         if(entries[i].os_id >= 0)
         {
-            if(entries[i].core_id == 0 && entries[i].socket_id == 0) ++threads_per_core;
             if (populateHybridEntry(entries[i], i) == false)
             {
                 return false;
