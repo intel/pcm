@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <iostream>
 #include <algorithm>
+#include <cctype>
 
 #ifdef PCM_PUGIXML_AVAILABLE
 #include "pugixml/src/pugixml.hpp"
