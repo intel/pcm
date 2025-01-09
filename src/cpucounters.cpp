@@ -2027,7 +2027,7 @@ void PCM::initUncoreObjects()
 
     //TPMIHandle::setVerbose(true);
     try {
-        if (TPMIHandle::getNumInstances() == (size_t)num_sockets)
+        if (isServerCPU() && TPMIHandle::getNumInstances() == (size_t)num_sockets)
         {
             // std::cerr << "DEBUG: TPMIHandle::getNumInstances(): " << TPMIHandle::getNumInstances() << "\n";
             UFSStatus.resize(num_sockets);
@@ -3159,7 +3159,10 @@ PCM::PCM() :
     std::cerr << "\n";
 #endif
 
-    uncorePMUDiscovery = std::make_shared<UncorePMUDiscovery>();
+    if (isServerCPU())
+    {
+        uncorePMUDiscovery = std::make_shared<UncorePMUDiscovery>();
+    }
 
     initUncoreObjects();
 
