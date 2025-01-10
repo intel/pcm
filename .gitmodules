@@ -4,3 +4,9 @@
 [submodule "perfmon"]
 	path = perfmon
 	url = https://github.com/intel/perfmon
+[submodule "src/pugixml"]
+	path = src/pugixml
+	url = https://github.com/zeux/pugixml.git
+[submodule "Intel-PMT"]
+	path = Intel-PMT
+	url = https://github.com/intel/Intel-PMT.git

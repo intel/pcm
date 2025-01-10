@@ -145,8 +145,14 @@ int32 PciHandle::read64(uint64 offset, uint64 * value)
     warnAlignment<4>("PciHandle::read64", false, offset);
     if (hDriver != INVALID_HANDLE_VALUE)
     {
+        if (offset & 7)
+        {
+            // this driver supports only 8-byte aligned reads
+            // use read32 for unaligned reads
+            uint32* value32Ptr = (uint32*)value;
+            return read32(offset, value32Ptr) + read32(offset + sizeof(uint32), value32Ptr + 1);
+        }
         PCICFG_Request req;
-        // ULONG64 result;
         DWORD reslength = 0;
         req.bus = bus;
         req.dev = device;

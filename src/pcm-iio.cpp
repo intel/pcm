@@ -2240,7 +2240,7 @@ int mainThrows(int argc, char * argv[])
     catch (std::exception & e)
     {
         std::cerr << "Error info:" << e.what() << "\n";
-        std::cerr << "Event configure file have the problem and cause the program exit, please double check it!\n";
+        std::cerr << "The event configuration file (" << ev_file_name << ") cannot be loaded. Please verify the file. Exiting.\n";
         exit(EXIT_FAILURE);
     }
 
