@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright (c) 2022-2025, Intel Corporation
 
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.5)
 
 project(PCM)
 
@@ -158,7 +158,7 @@ add_library(PCM_PUGIXML INTERFACE) # interface library for pugixml
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/pugixml/src/pugixml.cpp")
     message(STATUS "Local pugixml exists: ${CMAKE_CURRENT_SOURCE_DIR}/src/pugixml/src/pugixml.cpp")
     set(PCM_PUGIXML_CPP ${CMAKE_CURRENT_SOURCE_DIR}/src/pugixml/src/pugixml.cpp)
-    add_compile_definitions(PCM_PUGIXML_AVAILABLE)
+    add_compile_options(-DPCM_PUGIXML_AVAILABLE)
 else()
     message(STATUS "Local pugixml doesn't exist")
 #    message(WARNING
