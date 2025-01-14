@@ -123,6 +123,10 @@ public:
         return te_.socket_id;
     }
 
+    int32 socketUniqueCoreID() const {
+        return te_.socket_unique_core_id;
+    }
+
     // We simply pass by value, this way the refcounting works best and as expected
     std::shared_ptr<SafeMsrHandle> msrHandle() const {
         return msrHandle_;
@@ -245,6 +249,12 @@ public:
         if ( 0 == threads_.size() )
             throw std::runtime_error("BUG: No threads yet but asking for a socketID!");
         return threads_.front()->socketID();
+    }
+
+    int32 socketUniqueCoreID() const {
+        if ( 0 == threads_.size() )
+            throw std::runtime_error("BUG: No threads yet but asking for a socketID!");
+        return threads_.front()->socketUniqueCoreID();
     }
 
     bool isOnline() const {

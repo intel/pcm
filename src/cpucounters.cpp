@@ -1193,6 +1193,19 @@ bool PCM::discoverSystemTopology()
             entry.die_id = getID(apic_id, TopologyEntry::DomainTypeID::DieDomain);
             entry.die_grp_id = getID(apic_id, TopologyEntry::DomainTypeID::DieGrpDomain);
             entry.socket_id = getID(apic_id, TopologyEntry::DomainTypeID::SocketPackageDomain);
+
+            auto getDomain = [&topologyDomainMap](const TopologyEntry::DomainTypeID t)
+            {
+                auto di = topologyDomainMap.find(t);
+                if (di != topologyDomainMap.end())
+                {
+                    return di->second;
+                }
+                throw std::runtime_error("DomainType not found");
+            };
+            domain d1 = getDomain( TopologyEntry::DomainTypeID::CoreDomain );
+            domain d2 = getDomain( TopologyEntry::DomainTypeID::SocketPackageDomain );
+            entry.socket_unique_core_id = extract_bits_ui( apic_id, d1.levelShift, d2.levelShift - 1 );
         }
         else
         {
