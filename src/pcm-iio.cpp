@@ -1912,7 +1912,7 @@ ccr* get_ccr(PCM* m, uint64_t& ccr)
     switch (m->getCPUFamilyModel())
     {
         case PCM::SKX:
-            return new skx_ccr(ccr);
+            return new pcm::ccr(ccr, ccr::ccr_type::skx);
         case PCM::ICX:
         case PCM::SNOWRIDGE:
         case PCM::SPR:
@@ -1920,7 +1920,7 @@ ccr* get_ccr(PCM* m, uint64_t& ccr)
         case PCM::GRR:
         case PCM::SRF:
         case PCM::GNR:
-            return new icx_ccr(ccr);
+            return new pcm::ccr(ccr, ccr::ccr_type::icx);
         default:
             cerr << m->getCPUFamilyModelString() << " is not supported! Program aborted" << endl;
             exit(EXIT_FAILURE);
