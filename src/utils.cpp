@@ -114,7 +114,12 @@ void exit_cleanup(void)
     }
 }
 
+
+#ifdef _MSC_VER
 bool colorEnabled = false;
+#else
+bool colorEnabled = true;
+#endif
 
 void setColorEnabled(bool value)
 {
