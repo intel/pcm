@@ -90,6 +90,7 @@ void print_help(const string & prog_name)
     cout << "  -ns   | --nosockets | /ns          => hide socket related output\n";
     cout << "  -nsys | --nosystem  | /nsys        => hide system related output\n";
     cout << "  --color                            => use ASCII colors\n";
+    cout << "  --no-color                         => don't use ASCII colors\n";
     cout << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or\n"
         << "                                        to a file, in case filename is provided\n"
         << "                                        the format used is documented here: https://www.intel.com/content/www/us/en/developer/articles/technical/intel-pcm-column-names-decoder-ring.html\n";
@@ -1473,6 +1474,11 @@ int mainThrows(int argc, char * argv[])
         else if (check_argument_equals(*argv, {"--color"}))
         {
             setColorEnabled();
+            continue;
+        }
+        else if (check_argument_equals(*argv, { "--no-color" }))
+        {
+            setColorEnabled(false);
             continue;
         }
         else if (check_argument_equals(*argv, {"-csv", "/csv"}))
