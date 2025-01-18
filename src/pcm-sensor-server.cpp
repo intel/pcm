@@ -328,8 +328,14 @@ public:
         iterateVectorAndCallAccept( vec );
         endObject( JSONPrinter::LineEndAction::DelimiterAndNewLine, END_LIST );
 
+        // For backward compatibility we use socketUniqueCoreID to create a unique number inside the socket for a core
+        // and introduce HW Core ID as the physical core id inside a module, keep in mind this core id is not unique inside a socket
+        printCounter( "Core ID", c->socketUniqueCoreID() );
+        printCounter( "HW Core ID", c->coreID() );
+        printCounter( "Module ID", c->moduleID() );
         printCounter( "Tile ID", c->tileID() );
-        printCounter( "Core ID", c->coreID() );
+        printCounter( "Die ID", c->dieID() );
+        printCounter( "Die Group ID", c->dieGroupID() );
         printCounter( "Socket ID", c->socketID() );
     }
 
@@ -645,14 +651,9 @@ public:
     }
 
     virtual void dispatch( Core* c ) override {
-        addToHierarchy( std::string( "core=\"" ) + std::to_string( c->dieGroupID()*256 + c->dieID()*64 + c->tileID()*16 + c->moduleID()*4 + c->coreID() ) + "\"" );
+        addToHierarchy( std::string( "core=\"" ) + std::to_string( c->socketUniqueCoreID() ) + "\"" );
         auto vec = c->threads();
         iterateVectorAndCallAccept( vec );
-
-        // Useless?
-        //printCounter( "Tile ID", c->tileID() );
-        //printCounter( "Core ID", c->coreID() );
-        //printCounter( "Socket ID", c->socketID() );
         removeFromHierarchy();
     }
 
