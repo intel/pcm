@@ -1219,6 +1219,7 @@ private:
     void readQPICounters(SystemCounterState & counterState);
     void readSystemEnergyStatus(SystemCounterState & systemState);
     void readPCICFGRegisters(SystemCounterState& result);
+    void readTPMIRegisters(SystemCounterState& result);
     void readMMIORegisters(SystemCounterState& result);
     void readPMTRegisters(SystemCounterState& result);
     void reportQPISpeed() const;
@@ -1521,6 +1522,34 @@ public:
     typedef std::map<std::string, RawPMUConfig> RawPMUConfigs;
     ErrorCode program(const RawPMUConfigs& curPMUConfigs, const bool silent = false, const int pid = -1);
 
+    struct TPMIEventPosition
+    {
+        enum constants
+        {
+            ID = 0,
+            offset = 1,
+            type = 2
+        };
+    };
+    typedef std::shared_ptr<TPMIHandle> TPMIRegisterEncoding; // = TPMIHandle shared ptr
+    struct TPMIRegisterEncodingHash
+    {
+        std::size_t operator()(const RawEventEncoding & e) const
+        {
+            std::size_t h1 = std::hash<uint64>{}(e[TPMIEventPosition::ID]);
+            std::size_t h2 = std::hash<uint64>{}(e[TPMIEventPosition::offset]);
+            return h1 ^ (h2 << 1ULL);
+        }
+    };
+    struct TPMIRegisterEncodingCmp
+    {
+        bool operator ()(const RawEventEncoding& a, const RawEventEncoding& b) const
+        {
+            return a[TPMIEventPosition::ID] == b[TPMIEventPosition::ID]
+                && a[TPMIEventPosition::offset] == b[TPMIEventPosition::offset];
+        }
+    };
+
     struct PCICFGEventPosition
     {
         enum constants
@@ -1619,6 +1648,7 @@ public:
     };
     typedef std::shared_ptr<TelemetryArray> PMTRegisterEncoding; // TelemetryArray shared ptr
 private:
+    std::unordered_map<RawEventEncoding, std::vector<TPMIRegisterEncoding>, TPMIRegisterEncodingHash, TPMIRegisterEncodingCmp> TPMIRegisterLocations{};
     std::unordered_map<RawEventEncoding, std::vector<PCICFGRegisterEncoding>, PCICFGRegisterEncodingHash, PCICFGRegisterEncodingCmp> PCICFGRegisterLocations{};
     std::unordered_map<RawEventEncoding, std::vector<MMIORegisterEncoding>, MMIORegisterEncodingHash, MMIORegisterEncodingCmp> MMIORegisterLocations{};
     std::unordered_map<RawEventEncoding, std::vector<PMTRegisterEncoding>, PMTRegisterEncodingHash, PMTRegisterEncodingCmp> PMTRegisterLocations{};
@@ -1933,7 +1963,7 @@ private:
         }
         return false;
     }
-    RawPMUConfig threadMSRConfig{}, packageMSRConfig{}, pcicfgConfig{}, mmioConfig{}, pmtConfig{};
+    RawPMUConfig threadMSRConfig{}, packageMSRConfig{}, tpmiConfig{}, pcicfgConfig{}, mmioConfig{}, pmtConfig{};
 public:
 
     //! \brief Reads CPU family
@@ -3922,6 +3952,7 @@ public:
 class SystemCounterState : public SocketCounterState
 {
     friend class PCM;
+    friend std::vector<uint64> getTPMIEvent(const PCM::RawEventEncoding& eventEnc, const SystemCounterState& before, const SystemCounterState& after);
     friend std::vector<uint64> getPCICFGEvent(const PCM::RawEventEncoding& eventEnc, const SystemCounterState& before, const SystemCounterState& after);
     friend std::vector<uint64> getMMIOEvent(const PCM::RawEventEncoding& eventEnc, const SystemCounterState& before, const SystemCounterState& after);
     friend std::vector<uint64> getPMTEvent(const PCM::RawEventEncoding& eventEnc, const SystemCounterState& before, const SystemCounterState& after);
@@ -3933,6 +3964,7 @@ class SystemCounterState : public SocketCounterState
     std::vector<std::vector<uint64> > TxL0Cycles;
     uint64 uncoreTSC;
     uint64 systemEnergyStatus;
+    std::unordered_map<PCM::RawEventEncoding, std::vector<uint64> , PCM::TPMIRegisterEncodingHash, PCM::TPMIRegisterEncodingCmp> TPMIValues{};
     std::unordered_map<PCM::RawEventEncoding, std::vector<uint64> , PCM::PCICFGRegisterEncodingHash, PCM::PCICFGRegisterEncodingCmp> PCICFGValues{};
     std::unordered_map<PCM::RawEventEncoding, std::vector<uint64>, PCM::MMIORegisterEncodingHash, PCM::MMIORegisterEncodingCmp> MMIOValues{};
     std::unordered_map<PCM::RawEventEncoding, std::vector<uint64>, PCM::PMTRegisterEncodingHash2> PMTValues{};
@@ -5305,6 +5337,11 @@ inline std::vector<uint64> getRegisterEvent(const PCM::RawEventEncoding& eventEn
         }
     }
     return result;
+}
+
+inline std::vector<uint64> getTPMIEvent(const PCM::RawEventEncoding & eventEnc, const SystemCounterState& before, const SystemCounterState& after)
+{
+    return getRegisterEvent(eventEnc, before.TPMIValues, after.TPMIValues);
 }
 
 inline std::vector<uint64> getPCICFGEvent(const PCM::RawEventEncoding & eventEnc, const SystemCounterState& before, const SystemCounterState& after)

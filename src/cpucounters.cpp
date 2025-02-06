@@ -6171,6 +6171,31 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool sile
             addLocations(pcicfgConfig.programmable);
             addLocations(pcicfgConfig.fixed);
         }
+        else if (type == "tpmi")
+        {
+            tpmiConfig = pmuConfig.second;
+            auto addLocations = [this](const std::vector<RawEventConfig>& configs) {
+                for (const auto& c : configs)
+                {
+                    if (TPMIRegisterLocations.find(c.first) == TPMIRegisterLocations.end())
+                    {
+                        // add locations
+                        std::vector<TPMIRegisterEncoding> locations;
+                        const auto tpmiID = c.first[TPMIEventPosition::ID];
+                        const uint32 offset = (uint32)c.first[TPMIEventPosition::offset];
+                        const auto numInstances = TPMIHandle::getNumInstances();
+                        for (auto instance = 0ULL; instance < numInstances; ++instance)
+                        {
+                            std::shared_ptr<TPMIHandle> tpmiHandle = std::make_shared<TPMIHandle>(instance, tpmiID, offset);
+                            locations.push_back(TPMIRegisterEncoding{ tpmiHandle });
+                        }
+                        TPMIRegisterLocations[c.first] = locations;
+                    }
+                }
+            };
+            addLocations(tpmiConfig.programmable);
+            addLocations(tpmiConfig.fixed);
+        }
         else if (type == "mmio")
         {
             mmioConfig = pmuConfig.second;
@@ -6686,6 +6711,32 @@ void PCM::readPCICFGRegisters(SystemCounterState& systemState)
     }
 }
 
+void PCM::readTPMIRegisters(SystemCounterState& systemState)
+{
+    auto read = [this, &systemState](const RawEventConfig& cfg) {
+        const RawEventEncoding& reEnc = cfg.first;
+        systemState.TPMIValues[reEnc].clear();
+        for (auto& h : TPMIRegisterLocations[reEnc])
+        {
+            if (h.get())
+            {
+                for (auto e = 0ULL; e < h->getNumEntries(); ++e)
+                {
+                    systemState.TPMIValues[reEnc].push_back(h->read64(e));
+                }
+            }
+        }
+    };
+    for (const auto& cfg : tpmiConfig.programmable)
+    {
+        read(cfg);
+    }
+    for (const auto& cfg : tpmiConfig.fixed)
+    {
+        read(cfg);
+    }
+}
+
 void PCM::readMMIORegisters(SystemCounterState& systemState)
 {
     auto read = [this, &systemState](const RawEventConfig& cfg) {
@@ -6974,6 +7025,7 @@ void PCM::getAllCounterStates(SystemCounterState & systemState, std::vector<Sock
         readPCICFGRegisters(systemState);
         readMMIORegisters(systemState);
         readPMTRegisters(systemState);
+        readTPMIRegisters(systemState);
     }
 
     for (auto & ar : asyncCoreResults)
