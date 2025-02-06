@@ -1274,6 +1274,15 @@ std::string getMSREventString(const uint64 & index, const std::string & type, co
     return c.str();
 }
 
+std::string getTPMIEventString(const PCM::RawEventEncoding & eventEnc, const std::string& type)
+{
+    std::stringstream c;
+    c << type << "/TPMI_ID 0x" << std::hex << eventEnc[PCM::TPMIEventPosition::ID]
+              << "/offset 0x" << eventEnc[PCM::TPMIEventPosition::offset] << "/"
+        << getTypeString(eventEnc[PCM::TPMIEventPosition::type]);
+    return c.str();
+}
+
 std::string getPCICFGEventString(const PCM::RawEventEncoding & eventEnc, const std::string& type)
 {
     std::stringstream c;
@@ -1689,6 +1698,10 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
             else if (type == "package_msr")
             {
                 printMSRRows(MSRScope::Package);
+            }
+            else if (type == "tpmi")
+            {
+                printRegisterRows(getTPMIEventString, getTPMIEvent);
             }
             else if (type == "pcicfg")
             {
@@ -2113,6 +2126,10 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs,
         else if (type == "pcicfg")
         {
             printRegisters(getPCICFGEventString, getPCICFGEvent);
+        }
+        else if (type == "tpmi")
+        {
+            printRegisters(getTPMIEventString, getTPMIEvent);
         }
         else if (type == "mmio")
         {
