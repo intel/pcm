@@ -6,10 +6,10 @@ import subprocess
 import csv
 import io
 
-def create_image(text):
+def create_image(text, background_color):
     width = 12 
     height = 12
-    image = Image.new('RGB', (width, height), "blue")
+    image = Image.new('RGB', (width, height), background_color)
     draw = ImageDraw.Draw(image)
 
     # Use the default font and scale it
@@ -86,8 +86,14 @@ def update_icon(icon):
                 print (f"SYSTEM Energy (Joules): {system_energy_joules}")
                 # Convert Joules to Watts
                 power_consumption_watts = system_energy_joules / 3.0
+                if (power_consumption_watts > 30) :
+                    background_color = "red"
+                elif (power_consumption_watts > 20) :
+                    background_color = "darkblue"
+                else:
+                    background_color = "darkgreen"
                 # Update the icon with the current power consumption in Watts
-                icon.icon = create_image(f"{power_consumption_watts:.0f}")
+                icon.icon = create_image(f"{power_consumption_watts:.0f}", background_color)
             except (IndexError, ValueError):
                 continue
 
@@ -103,7 +109,7 @@ def on_quit(icon, item):
 def main():
     # Create the system tray icon
     icon = pystray.Icon("Intel PCM: System Watts")
-    icon.icon = create_image("S")
+    icon.icon = create_image("P", "darkblue")
     icon.title = "Intel PCM: System Watts"
     icon.menu = pystray.Menu(
         pystray.MenuItem("Quit", on_quit)
