@@ -62,7 +62,7 @@ int mainThrows(int argc, char * argv[])
         {
         case 'w':
             write = true;
-            value = (pcm::uint32)read_number(optarg);
+            value = read_number(optarg);
             break;
         case 'd':
             dec = true;
@@ -126,7 +126,7 @@ int mainThrows(int argc, char * argv[])
                 continue;
             }
             TPMIHandle h(i, requestedID, requestedRelativeOffset, !write);
-            auto one = [&](const size_t p)
+            auto one = [&](const size_t p, uint64 value)
             {
                 if (!dec)
                     std::cout << std::hex << std::showbase;
@@ -152,7 +152,7 @@ int mainThrows(int argc, char * argv[])
             {
                 if (p < h.getNumEntries())
                 {
-                    one(p);
+                    one(p, value);
                 }
             }
         }
