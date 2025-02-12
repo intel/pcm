@@ -40,6 +40,7 @@
 #ifdef __linux__
 #include <unistd.h>
 #endif
+
 namespace pcm {
 
     template <class T>
@@ -81,6 +82,7 @@ namespace pcm {
     #define PCM_STRING(x) (x)
 #endif
     void eraseEnvironmentVariables(const std::vector<StringType>& keepList);
+    void setDefaultDebugLevel();
 }
 
 #ifdef _MSC_VER
@@ -103,6 +105,7 @@ int main(int argc, char * argv[]) \
     PCM_SET_DLL_DIR \
     if (pcm::safe_getenv("PCM_NO_MAIN_EXCEPTION_HANDLER") == std::string("1")) return mainThrows(argc, argv); \
     try { \
+        setDefaultDebugLevel(); \
         return mainThrows(argc, argv); \
     } catch(const std::runtime_error & e) \
     { \

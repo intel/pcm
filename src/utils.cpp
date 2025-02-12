@@ -29,6 +29,8 @@ extern char ** environ;
 #include <glob.h>
 #endif
 
+#include "debug.h"
+
 namespace pcm {
 
 
@@ -44,6 +46,17 @@ bool isInKeepList(const StringType& varName, const std::vector<StringType>& keep
         }
     }
     return false;
+}
+
+void setDefaultDebugLevel()
+{
+    auto strDebugLevel = pcm::safe_getenv("PCM_DEBUG_LEVEL");
+    if (strDebugLevel.empty() == false)
+    {
+        auto intDebugLevel = std::stoi(strDebugLevel);
+        debug::dyn_debug_level(intDebugLevel);
+        DBG(0, "Debug level set to ", intDebugLevel);
+    }
 }
 
 #if defined(_MSC_VER)
