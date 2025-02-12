@@ -14,6 +14,8 @@
 */
 
 #include "types.h"
+#include "debug.h"
+#include "utils.h"
 
 #ifdef _MSC_VER
 #include "windows.h"
@@ -157,19 +159,6 @@ public:
 
 #endif
 
-inline void getMCFGRecords(std::vector<MCFGRecord> & mcfg)
-{
-    #ifdef __linux__
-    mcfg = PciHandleMM::getMCFGRecords();
-    #else
-    MCFGRecord segment;
-    segment.PCISegmentGroupNumber = 0;
-    segment.startBusNumber = 0;
-    segment.endBusNumber = 0xff;
-    mcfg.push_back(segment);
-    #endif
-}
-
 template <class F>
 inline void forAllIntelDevices(F f, int requestedDevice = -1, int requestedFunction = -1)
 {
@@ -178,7 +167,7 @@ inline void forAllIntelDevices(F f, int requestedDevice = -1, int requestedFunct
 
     auto probe = [&f](const uint32 group, const uint32 bus, const uint32 device, const uint32 function)
     {
-        // std::cerr << "Probing " << std::hex << group << ":" << bus << ":" << device << ":" << function << " " << std::dec << "\n";
+        DBG(3, "Probing " , std::hex , group , ":" , bus , ":" , device , ":" , function , " " , std::dec);
         uint32 value = 0;
         try
         {
@@ -192,7 +181,7 @@ inline void forAllIntelDevices(F f, int requestedDevice = -1, int requestedFunct
         }
         const uint32 vendor_id = value & 0xffff;
         const uint32 device_id = (value >> 16) & 0xffff;
-        // std::cerr << "Found dev " << std::hex << vendor_id << ":" << device_id << std::dec << "\n";
+        DBG(3, "Found dev " , std::hex , vendor_id , ":" , device_id , std::dec);
         if (vendor_id != PCM_INTEL_PCI_VENDOR_ID)
         {
             return;

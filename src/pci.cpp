@@ -12,7 +12,6 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include "pci.h"
-#include "debug.h"
 
 #ifndef _MSC_VER
 #include <sys/mman.h>
@@ -49,6 +48,7 @@ PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 functi
     function(function_),
     pciAddress(PciBusDevFunc(bus_, device_, function_))
 {
+    DBG(3, "Creating PCI Config space handle at g:b:d:f ", groupnr_, ":", bus_, ":", device_, ":", function_);
     if (groupnr_ != 0 && hDriver == INVALID_HANDLE_VALUE)
     {
         std::cerr << nonZeroGroupErrMsg << '\n';
@@ -63,6 +63,7 @@ PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 functi
 
 bool PciHandle::exists(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 function_)
 {
+    DBG(3, "Checking PCI Config space at g:b:d:f ", groupnr_, ":", bus_, ":", device_, ":", function_);
     HANDLE tempHandle = openMSRDriver();
     if (tempHandle != INVALID_HANDLE_VALUE)
     {
