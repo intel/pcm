@@ -12,6 +12,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include "pci.h"
+#include "debug.h"
 
 #ifndef _MSC_VER
 #include <sys/mman.h>
@@ -105,7 +106,7 @@ int32 PciHandle::read32(uint64 offset, uint32 * value)
         *value = (uint32)result;
         if (!status)
         {
-            //std::cerr << "Error reading PCI Config space at bus "<<bus<<" dev "<< device<<" function "<< function <<" offset "<< offset << " size "<< req.bytes  << ". Windows error: "<<GetLastError()<<"\n";
+            DBG(3, "Error reading PCI Config space at bus ", bus, " dev ", device , " function ", function ," offset ",  offset , " size ", req.bytes  , ". Windows error: ", GetLastError());
         }
         return (int32)reslength;
     }
@@ -136,7 +137,7 @@ int32 PciHandle::write32(uint64 offset, uint32 value)
         BOOL status = DeviceIoControl(hDriver, IO_CTL_PCICFG_WRITE, &req, (DWORD)sizeof(PCICFG_Request), &result, (DWORD)sizeof(uint64), &reslength, NULL);
         if (!status)
         {
-            //std::cerr << "Error writing PCI Config space at bus "<<bus<<" dev "<< device<<" function "<< function <<" offset "<< offset << " size "<< req.bytes  << ". Windows error: "<<GetLastError()<<"\n";
+            DBG(3, "Error writing PCI Config space at bus " , bus, " dev ", device, " function ", function ," offset ", offset , " size ",  req.bytes  , ". Windows error: ", GetLastError());
             return 0;
         }
         return (int32)sizeof(uint32);
@@ -168,7 +169,7 @@ int32 PciHandle::read64(uint64 offset, uint64 * value)
         BOOL status = DeviceIoControl(hDriver, IO_CTL_PCICFG_READ, &req, (DWORD)sizeof(PCICFG_Request), value, (DWORD)sizeof(uint64), &reslength, NULL);
         if (!status)
         {
-            //std::cerr << "Error reading PCI Config space at bus "<<bus<<" dev "<< device<<" function "<< function <<" offset "<< offset << " size "<< req.bytes  << ". Windows error: "<<GetLastError()<<"\n";
+            DBG(3, "Error reading PCI Config space at bus ", bus, " dev ", device, " function ", function ," offset ", offset , " size ", req.bytes  , ". Windows error: ", GetLastError());
         }
         return (int32)reslength;
     }
