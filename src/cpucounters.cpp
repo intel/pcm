@@ -1027,7 +1027,12 @@ public:
     }
     ~QATTelemetryVirtualGeneralConfigRegister()
     {
-        DBG(3, "~QATTelemetryVirtualGeneralConfigRegister.");
+        try {
+            DBG(3, "~QATTelemetryVirtualGeneralConfigRegister.");
+        }
+        catch (...) {
+            // disallow throwing exceptions from the destructor because it will this will result in a call to terminate()
+        }
     }
 };
 
