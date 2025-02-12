@@ -39,31 +39,44 @@ namespace pcm {
 
 extern HMODULE hOpenLibSys;
 
+static char * nonZeroGroupErrMsg = "Non-zero PCI group segments are not supported in Winring0 driver, make sure MSR.sys driver can be used.";
+
 PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 function_) :
-    bus(bus_),
+    hDriver(openMSRDriver()),
+    bus((groupnr_ << 8) | bus_),
     device(device_),
     function(function_),
     pciAddress(PciBusDevFunc(bus_, device_, function_))
 {
-    if (groupnr_ != 0)
+    if (groupnr_ != 0 && hDriver == INVALID_HANDLE_VALUE)
     {
-        std::cerr << "Non-zero PCI group segments are not supported in PCM/Windows\n";
-        throw std::exception();
+        std::cerr << nonZeroGroupErrMsg << '\n';
+        throw std::runtime_error(nonZeroGroupErrMsg);
     }
 
-    hDriver = openMSRDriver();
-
     if (hDriver == INVALID_HANDLE_VALUE && hOpenLibSys == NULL)
-        throw std::exception();
+    {
+        throw std::runtime_error("MSR and Winring0 drivers can't be opened");
+    }
 }
 
 bool PciHandle::exists(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 function_)
 {
+    HANDLE tempHandle = openMSRDriver();
+    if (tempHandle != INVALID_HANDLE_VALUE)
+    {
+        // TODO: check device availability
+
+        CloseHandle(tempHandle);
+        return true;
+    }
+
     if (groupnr_ != 0)
     {
-        std::cerr << "Non-zero PCI group segments are not supported in PCM/Windows\n";
+        std::cerr << nonZeroGroupErrMsg << '\n';
         return false;
     }
+
     if (hOpenLibSys != NULL)
     {
         DWORD addr(PciBusDevFunc(bus_, device_, function_));
@@ -71,15 +84,7 @@ bool PciHandle::exists(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 func
         return ReadPciConfigDwordEx(addr, 0, &result)?true:false;
     }
 
-    HANDLE tempHandle = openMSRDriver();
-    if (tempHandle == INVALID_HANDLE_VALUE)
-        return false;
-
-    // TODO: check device availability
-
-    CloseHandle(tempHandle);
-
-    return true;
+    return false;
 }
 
 int32 PciHandle::read32(uint64 offset, uint32 * value)
