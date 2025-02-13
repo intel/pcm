@@ -22,6 +22,13 @@ if [ "$?" -ne "0" ]; then
    exit 1
 fi
 
+echo Testing pcm with PCM_DEBUG_LEVEL=100
+PCM_DEBUG_LEVEL=100 ./pcm -r -- sleep 1
+if [ "$?" -ne "0" ]; then
+   echo "Error in pcm"
+   exit 1
+fi
+
 echo Testing pcm w/o env vars
 ./pcm -r -- sleep 1
 if [ "$?" -ne "0" ]; then
