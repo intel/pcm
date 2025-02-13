@@ -2335,7 +2335,7 @@ void PCM::initUncorePMUsDirect()
             addPMUsFromDiscoveryRef(uncorePMUs[s][0][PCU_PMU_ID], SPR_PCU_BOX_TYPE, 0xE);
             if (uncorePMUs[s][0][PCU_PMU_ID].empty())
             {
-                std::cerr << "ERROR: PCU PMU not found\n";
+                std::cerr << "WARNING: PCU PMU not found\n";
             }
             break;
         }
@@ -2347,7 +2347,7 @@ void PCM::initUncorePMUsDirect()
             addPMUsFromDiscoveryRef(uncorePMUs[s][0][MDF_PMU_ID], boxType);
             if (uncorePMUs[s][0][MDF_PMU_ID].empty())
             {
-                std::cerr << "ERROR: MDF PMU not found\n";
+                std::cerr << "WARNING: MDF PMU not found\n";
             }
         };
         switch (cpu_family_model)
