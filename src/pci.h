@@ -39,6 +39,9 @@ class PciHandle
     int32 fd;
 #endif
 
+#if defined(__FreeBSD__) || defined(__DragonFly__)
+    uint32 groupnr;
+#endif
     uint32 bus;
     uint32 device;
     uint32 function;
