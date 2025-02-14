@@ -251,16 +251,11 @@ PciHandle::~PciHandle()
 
 PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 function_) :
     fd(-1),
+    groupnr(groupnr_),
     bus(bus_),
     device(device_),
     function(function_)
 {
-    if (groupnr_ != 0)
-    {
-        std::cout << "ERROR: non-zero PCI segment groupnr is not supported in this PciHandle implementation\n";
-        throw std::exception();
-    }
-
     int handle = ::open("/dev/pci", O_RDWR);
     if (handle < 0) throw std::exception();
     fd = handle;
@@ -268,11 +263,6 @@ PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 functi
 
 bool PciHandle::exists(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 function_)
 {
-    if (groupnr_ != 0)
-    {
-        std::cerr << "Non-zero PCI group segments are not supported in PCM/FreeBSD/DragonFlyBSD\n";
-        return false;
-    }
     struct pci_conf_io pc;
     struct pci_match_conf pattern;
     struct pci_conf conf[4];
@@ -284,10 +274,11 @@ bool PciHandle::exists(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 func
 
     bzero(&pc, sizeof(pc));
 
+    pattern.pc_sel.pc_domain = groupnr_;
     pattern.pc_sel.pc_bus = bus_;
     pattern.pc_sel.pc_dev = device_;
     pattern.pc_sel.pc_func = function_;
-    pattern.flags = (pci_getconf_flags)(PCI_GETCONF_MATCH_BUS | PCI_GETCONF_MATCH_DEV | PCI_GETCONF_MATCH_FUNC);
+    pattern.flags = (pci_getconf_flags)(PCI_GETCONF_MATCH_DOMAIN | PCI_GETCONF_MATCH_BUS | PCI_GETCONF_MATCH_DEV | PCI_GETCONF_MATCH_FUNC);
 
     pc.pat_buf_len = sizeof(pattern);
     pc.patterns = &pattern;
@@ -313,7 +304,7 @@ int32 PciHandle::read32(uint64 offset, uint32 * value)
     struct pci_io pi;
     int ret;
 
-    pi.pi_sel.pc_domain = 0;
+    pi.pi_sel.pc_domain = groupnr;
     pi.pi_sel.pc_bus = bus;
     pi.pi_sel.pc_dev = device;
     pi.pi_sel.pc_func = function;
@@ -333,7 +324,7 @@ int32 PciHandle::write32(uint64 offset, uint32 value)
     struct pci_io pi;
     int ret;
 
-    pi.pi_sel.pc_domain = 0;
+    pi.pi_sel.pc_domain = groupnr;
     pi.pi_sel.pc_bus = bus;
     pi.pi_sel.pc_dev = device;
     pi.pi_sel.pc_func = function;
@@ -353,7 +344,7 @@ int32 PciHandle::read64(uint64 offset, uint64 * value)
     struct pci_io pi;
     int32 ret;
 
-    pi.pi_sel.pc_domain = 0;
+    pi.pi_sel.pc_domain = groupnr;
     pi.pi_sel.pc_bus = bus;
     pi.pi_sel.pc_dev = device;
     pi.pi_sel.pc_func = function;
