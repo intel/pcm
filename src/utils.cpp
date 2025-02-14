@@ -68,23 +68,11 @@ void getMCFGRecords(std::vector<MCFGRecord>& mcfg)
     segment.startBusNumber = 0;
     segment.endBusNumber = 0xff;
     auto maxSegments = 1;
-#ifdef _MSC_VER
-    auto pcm = PCM::getInstance();
-    switch (pcm->getCPUFamilyModel())
+#if defined (_MSC_VER) || defined(__FreeBSD__) || defined(__DragonFly__)
+    switch (PCM::getCPUFamilyModelFromCPUID())
     {
     case PCM::GNR:
-        maxSegments = pcm->getNumSockets();
-        break;
-    }
-#else
-    auto pcm = PCM::getInstance();
-    switch (pcm->getCPUFamilyModel())
-    {
-    case PCM::GNR:
-        if (pcm->getNumSockets() > 2)
-        {
-            std::cerr << "WARNING: more than 2 sockets are not supported on your OS\n";
-        }
+        maxSegments = 4;
         break;
     }
 #endif
