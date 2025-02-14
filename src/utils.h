@@ -602,6 +602,7 @@ typedef enum{
     EVT_LINE_COMPLETE
 }evt_cb_type;
 
+void getMCFGRecords(std::vector<MCFGRecord>& mcfg);
 std::string dos2unix(std::string in);
 bool isRegisterEvent(const std::string & pmu);
 std::string a_title (const std::string &init, const std::string &name);

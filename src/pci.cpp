@@ -39,31 +39,46 @@ namespace pcm {
 
 extern HMODULE hOpenLibSys;
 
+static char * nonZeroGroupErrMsg = "Non-zero PCI group segments are not supported in Winring0 driver, make sure MSR.sys driver can be used.";
+
 PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 function_) :
-    bus(bus_),
+    hDriver(openMSRDriver()),
+    bus((groupnr_ << 8) | bus_),
     device(device_),
     function(function_),
     pciAddress(PciBusDevFunc(bus_, device_, function_))
 {
-    if (groupnr_ != 0)
+    DBG(3, "Creating PCI Config space handle at g:b:d:f ", groupnr_, ":", bus_, ":", device_, ":", function_);
+    if (groupnr_ != 0 && hDriver == INVALID_HANDLE_VALUE)
     {
-        std::cerr << "Non-zero PCI group segments are not supported in PCM/Windows\n";
-        throw std::exception();
+        std::cerr << nonZeroGroupErrMsg << '\n';
+        throw std::runtime_error(nonZeroGroupErrMsg);
     }
 
-    hDriver = openMSRDriver();
-
     if (hDriver == INVALID_HANDLE_VALUE && hOpenLibSys == NULL)
-        throw std::exception();
+    {
+        throw std::runtime_error("MSR and Winring0 drivers can't be opened");
+    }
 }
 
 bool PciHandle::exists(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 function_)
 {
+    DBG(3, "Checking PCI Config space at g:b:d:f ", groupnr_, ":", bus_, ":", device_, ":", function_);
+    HANDLE tempHandle = openMSRDriver();
+    if (tempHandle != INVALID_HANDLE_VALUE)
+    {
+        // TODO: check device availability
+
+        CloseHandle(tempHandle);
+        return true;
+    }
+
     if (groupnr_ != 0)
     {
-        std::cerr << "Non-zero PCI group segments are not supported in PCM/Windows\n";
+        std::cerr << nonZeroGroupErrMsg << '\n';
         return false;
     }
+
     if (hOpenLibSys != NULL)
     {
         DWORD addr(PciBusDevFunc(bus_, device_, function_));
@@ -71,15 +86,7 @@ bool PciHandle::exists(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 func
         return ReadPciConfigDwordEx(addr, 0, &result)?true:false;
     }
 
-    HANDLE tempHandle = openMSRDriver();
-    if (tempHandle == INVALID_HANDLE_VALUE)
-        return false;
-
-    // TODO: check device availability
-
-    CloseHandle(tempHandle);
-
-    return true;
+    return false;
 }
 
 int32 PciHandle::read32(uint64 offset, uint32 * value)
@@ -100,7 +107,7 @@ int32 PciHandle::read32(uint64 offset, uint32 * value)
         *value = (uint32)result;
         if (!status)
         {
-            //std::cerr << "Error reading PCI Config space at bus "<<bus<<" dev "<< device<<" function "<< function <<" offset "<< offset << " size "<< req.bytes  << ". Windows error: "<<GetLastError()<<"\n";
+            DBG(3, "Error reading PCI Config space at bus ", bus, " dev ", device , " function ", function ," offset ",  offset , " size ", req.bytes  , ". Windows error: ", GetLastError());
         }
         return (int32)reslength;
     }
@@ -131,7 +138,7 @@ int32 PciHandle::write32(uint64 offset, uint32 value)
         BOOL status = DeviceIoControl(hDriver, IO_CTL_PCICFG_WRITE, &req, (DWORD)sizeof(PCICFG_Request), &result, (DWORD)sizeof(uint64), &reslength, NULL);
         if (!status)
         {
-            //std::cerr << "Error writing PCI Config space at bus "<<bus<<" dev "<< device<<" function "<< function <<" offset "<< offset << " size "<< req.bytes  << ". Windows error: "<<GetLastError()<<"\n";
+            DBG(3, "Error writing PCI Config space at bus " , bus, " dev ", device, " function ", function ," offset ", offset , " size ",  req.bytes  , ". Windows error: ", GetLastError());
             return 0;
         }
         return (int32)sizeof(uint32);
@@ -163,7 +170,7 @@ int32 PciHandle::read64(uint64 offset, uint64 * value)
         BOOL status = DeviceIoControl(hDriver, IO_CTL_PCICFG_READ, &req, (DWORD)sizeof(PCICFG_Request), value, (DWORD)sizeof(uint64), &reslength, NULL);
         if (!status)
         {
-            //std::cerr << "Error reading PCI Config space at bus "<<bus<<" dev "<< device<<" function "<< function <<" offset "<< offset << " size "<< req.bytes  << ". Windows error: "<<GetLastError()<<"\n";
+            DBG(3, "Error reading PCI Config space at bus ", bus, " dev ", device, " function ", function ," offset ", offset , " size ", req.bytes  , ". Windows error: ", GetLastError());
         }
         return (int32)reslength;
     }
@@ -244,16 +251,11 @@ PciHandle::~PciHandle()
 
 PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 function_) :
     fd(-1),
+    groupnr(groupnr_),
     bus(bus_),
     device(device_),
     function(function_)
 {
-    if (groupnr_ != 0)
-    {
-        std::cout << "ERROR: non-zero PCI segment groupnr is not supported in this PciHandle implementation\n";
-        throw std::exception();
-    }
-
     int handle = ::open("/dev/pci", O_RDWR);
     if (handle < 0) throw std::exception();
     fd = handle;
@@ -261,11 +263,6 @@ PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 functi
 
 bool PciHandle::exists(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 function_)
 {
-    if (groupnr_ != 0)
-    {
-        std::cerr << "Non-zero PCI group segments are not supported in PCM/FreeBSD/DragonFlyBSD\n";
-        return false;
-    }
     struct pci_conf_io pc;
     struct pci_match_conf pattern;
     struct pci_conf conf[4];
@@ -277,10 +274,11 @@ bool PciHandle::exists(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 func
 
     bzero(&pc, sizeof(pc));
 
+    pattern.pc_sel.pc_domain = groupnr_;
     pattern.pc_sel.pc_bus = bus_;
     pattern.pc_sel.pc_dev = device_;
     pattern.pc_sel.pc_func = function_;
-    pattern.flags = (pci_getconf_flags)(PCI_GETCONF_MATCH_BUS | PCI_GETCONF_MATCH_DEV | PCI_GETCONF_MATCH_FUNC);
+    pattern.flags = (pci_getconf_flags)(PCI_GETCONF_MATCH_DOMAIN | PCI_GETCONF_MATCH_BUS | PCI_GETCONF_MATCH_DEV | PCI_GETCONF_MATCH_FUNC);
 
     pc.pat_buf_len = sizeof(pattern);
     pc.patterns = &pattern;
@@ -306,7 +304,7 @@ int32 PciHandle::read32(uint64 offset, uint32 * value)
     struct pci_io pi;
     int ret;
 
-    pi.pi_sel.pc_domain = 0;
+    pi.pi_sel.pc_domain = groupnr;
     pi.pi_sel.pc_bus = bus;
     pi.pi_sel.pc_dev = device;
     pi.pi_sel.pc_func = function;
@@ -326,7 +324,7 @@ int32 PciHandle::write32(uint64 offset, uint32 value)
     struct pci_io pi;
     int ret;
 
-    pi.pi_sel.pc_domain = 0;
+    pi.pi_sel.pc_domain = groupnr;
     pi.pi_sel.pc_bus = bus;
     pi.pi_sel.pc_dev = device;
     pi.pi_sel.pc_func = function;
@@ -346,7 +344,7 @@ int32 PciHandle::read64(uint64 offset, uint64 * value)
     struct pci_io pi;
     int32 ret;
 
-    pi.pi_sel.pc_domain = 0;
+    pi.pi_sel.pc_domain = groupnr;
     pi.pi_sel.pc_bus = bus;
     pi.pi_sel.pc_dev = device;
     pi.pi_sel.pc_func = function;

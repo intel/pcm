@@ -59,6 +59,42 @@ void setDefaultDebugLevel()
     }
 }
 
+void getMCFGRecords(std::vector<MCFGRecord>& mcfg)
+{
+#ifdef __linux__
+    mcfg = PciHandleMM::getMCFGRecords();
+#else
+    MCFGRecord segment;
+    segment.startBusNumber = 0;
+    segment.endBusNumber = 0xff;
+    auto maxSegments = 1;
+#ifdef _MSC_VER
+    auto pcm = PCM::getInstance();
+    switch (pcm->getCPUFamilyModel())
+    {
+    case PCM::GNR:
+        maxSegments = pcm->getNumSockets();
+        break;
+    }
+#else
+    auto pcm = PCM::getInstance();
+    switch (pcm->getCPUFamilyModel())
+    {
+    case PCM::GNR:
+        if (pcm->getNumSockets() > 2)
+        {
+            std::cerr << "WARNING: more than 2 sockets are not supported on your OS\n";
+        }
+        break;
+    }
+#endif
+    for (segment.PCISegmentGroupNumber = 0; segment.PCISegmentGroupNumber < maxSegments; ++(segment.PCISegmentGroupNumber))
+    {
+        mcfg.push_back(segment);
+    }
+#endif
+}
+
 #if defined(_MSC_VER)
 
 void eraseEnvironmentVariables(const std::vector<std::wstring>& keepList) {

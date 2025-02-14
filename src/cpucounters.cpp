@@ -2335,7 +2335,7 @@ void PCM::initUncorePMUsDirect()
             addPMUsFromDiscoveryRef(uncorePMUs[s][0][PCU_PMU_ID], SPR_PCU_BOX_TYPE, 0xE);
             if (uncorePMUs[s][0][PCU_PMU_ID].empty())
             {
-                std::cerr << "ERROR: PCU PMU not found\n";
+                std::cerr << "WARNING: PCU PMU not found\n";
             }
             break;
         }
@@ -2347,7 +2347,7 @@ void PCM::initUncorePMUsDirect()
             addPMUsFromDiscoveryRef(uncorePMUs[s][0][MDF_PMU_ID], boxType);
             if (uncorePMUs[s][0][MDF_PMU_ID].empty())
             {
-                std::cerr << "ERROR: MDF PMU not found\n";
+                std::cerr << "WARNING: MDF PMU not found\n";
             }
         };
         switch (cpu_family_model)
@@ -10090,11 +10090,7 @@ PciHandleType * getDeviceHandle(uint32 vendorId, uint32 deviceId)
     const std::vector<MCFGRecord> & mcfg = PciHandleMM::getMCFGRecords();
     #else
     std::vector<MCFGRecord> mcfg;
-    MCFGRecord segment;
-    segment.PCISegmentGroupNumber = 0;
-    segment.startBusNumber = 0;
-    segment.endBusNumber = 0xff;
-    mcfg.push_back(segment);
+    getMCFGRecords(mcfg);
     #endif
 
     for(uint32 s = 0; s < (uint32)mcfg.size(); ++s)
