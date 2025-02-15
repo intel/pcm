@@ -94,6 +94,7 @@ double getNormalizedPCUCounter(uint32 unit, uint32 counter, const ServerUncoreCo
 namespace PERF_LIMIT_REASON_TPMI
 {
     // from https://github.com/intel/tpmi_power_management
+    //      https://github.com/intel/tpmi_power_management/blob/main/TPMI_Perf_Limit_reasons_rev3.pdf
     const auto PERF_LIMIT_REASON_TPMI_ID = 0xC;
     const auto PERF_LIMIT_REASON_TPMI_HEADER            = 0x0;
     const auto PERF_LIMIT_REASON_TPMI_MAILBOX_INTERFACE = 0x8;
@@ -234,16 +235,16 @@ namespace PERF_LIMIT_REASON_TPMI
         MAX = 10
     };
     const char * Coarse_Grained_PLR_Bit_Definition_Strings[] = {
-        "FREQUENCY",
-        "CURRENT",
-        "POWER",
-        "THERMAL",
-        "PLATFORM",
-        "MCP",
-        "RAS",
-        "MISC",
-        "QOS",
-        "DFC"
+        "FREQUENCY", // Limitation due to Turbo Ratio Limit (TRL)
+        "CURRENT",   // Package ICCmax or MT-Pmax
+        "POWER",     // Socket or Platform RAPL
+        "THERMAL",   // Thermal Throttling
+        "PLATFORM",  // Prochot or Hot VR
+        "MCP",       // freq limit due to a companion die like PCH
+        "RAS",       // freq limit due to RAS
+        "MISC",      // Freq limit from out-of-band SW (e.g. BMC)
+        "QOS",       // SST-CP, SST-BF, SST-TF
+        "DFC"        // Freq limitation due to Dynamic Freq Capping
     };
     enum Fine_Grained_PLR_Bit_Definition
     {
@@ -286,14 +287,14 @@ namespace PERF_LIMIT_REASON_TPMI
         FGData(const char * n, int c) : name(n), coarse_grained_mapping(c) {}
     };
     const FGData Fine_Grained_PLR_Bit_Definition_Data[] = {
-        FGData("CDYN0", FREQUENCY),
-        FGData("CDYN1", FREQUENCY),
-        FGData("CDYN2", FREQUENCY),
-        FGData("CDYN3", FREQUENCY),
-        FGData("CDYN4", FREQUENCY),
-        FGData("CDYN5", FREQUENCY),
-        FGData("FCT", FREQUENCY),
-        FGData("PCS_TRL", FREQUENCY),
+        FGData("TRL/CDYN0", FREQUENCY), // Turbo Ratio Limit 0
+        FGData("TRL/CDYN1", FREQUENCY), // Turbo Ratio Limit 1
+        FGData("TRL/CDYN2", FREQUENCY), // Turbo Ratio Limit 2
+        FGData("TRL/CDYN3", FREQUENCY), // Turbo Ratio Limit 3
+        FGData("TRL/CDYN4", FREQUENCY), // Turbo Ratio Limit 4
+        FGData("TRL/CDYN5", FREQUENCY), // Turbo Ratio Limit 5
+        FGData("FCT", FREQUENCY),       // Favored Core Turbo
+        FGData("PCS_TRL", FREQUENCY),   // Turbo Ratio Limit from out-of-band (BMC)
         FGData("MTPMAX", CURRENT),
         FGData("FAST_RAPL", POWER),
         FGData("PKG_PL1_MSR_TPMI", POWER),
@@ -309,8 +310,8 @@ namespace PERF_LIMIT_REASON_TPMI
         FGData("PLATFORM_PL2_MMIO", POWER),
         FGData("PLATFORM_PL2_PCS", POWER),
         FGData("RSVD", POWER),
-        FGData("PER_CORE_THERMAL", THERMAL),
-        FGData("UFS_DFC", DFC),
+        FGData("PER_CORE_THERMAL", THERMAL), // Thermal Throttling
+        FGData("UFS_DFC", DFC),              // Dynamic Freq Capping
         FGData("XXPROCHOT", PLATFORM),
         FGData("HOT_VR", PLATFORM),
         FGData("RSVD2", PLATFORM),
