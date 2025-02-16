@@ -1581,7 +1581,7 @@ inline uint32 build_bit_ui(uint32 beg, uint32 end)
     return myll;
 }
 
-inline uint32 extract_bits_ui(uint32 myin, uint32 beg, uint32 end)
+inline uint32 extract_bits_32(uint32 myin, uint32 beg, uint32 end)
 {
     uint32 myll = 0;
     uint32 beg1, end1;
