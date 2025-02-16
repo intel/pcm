@@ -113,10 +113,15 @@ namespace PERF_LIMIT_REASON_TPMI
             TPMIHandle h(i, PERF_LIMIT_REASON_TPMI_ID, PERF_LIMIT_REASON_TPMI_HEADER);
             for (uint32 j = 0; j < h.getNumEntries(); ++j)
             {
-                if (h.read64(j) == ~0ULL)
+                const auto header = h.read64(j);
+                if (header == ~0ULL)
                 {
                     return false;
                 }
+                const auto version =      extract_bits_64(header, 7, 0);
+                const auto majorVersion = extract_bits_64(header, 7, 5);
+                const auto minorVersion = extract_bits_64(header, 4, 0);
+                DBG(1, "PLR_HEADER.INTERFACE_VERSION instance ", i, " die ", j, " version ", version, " (major version ", majorVersion, " minor version ", minorVersion, ")");
                 PERF_LIMIT_REASON_TPMI_Supported = true;
             }
         }
