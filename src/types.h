@@ -1642,6 +1642,11 @@ inline uint64 extract_bits(uint64 myin, uint32 beg, uint32 end)
     return myll;
 }
 
+inline uint64 extract_bits_64(uint64 myin, uint32 beg, uint32 end)
+{
+    return extract_bits(myin, beg, end);
+}
+
 union PCM_CPUID_INFO
 {
     int array[4];
