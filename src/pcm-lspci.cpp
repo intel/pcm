@@ -124,8 +124,8 @@ int mainThrows(int /*argc*/, char * /*argv*/[])
                     PciHandleType h(0, bus, device, function);
                     uint32 value = 0;
                     h.read32(0, &value);
-                    const uint32 vendor = extract_bits_ui(value, 0, 15);
-                    const uint32 deviceID = extract_bits_ui(value, 16, 31);
+                    const uint32 vendor = extract_bits_32(value, 0, 15);
+                    const uint32 deviceID = extract_bits_32(value, 16, 31);
                     std::cout << "0:" << bus << ":" << device << ":" << function << " vendor 0x" << std::hex << vendor << " device 0x" << deviceID << std::dec << "\n";
                 }
             }
