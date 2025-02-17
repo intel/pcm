@@ -14,6 +14,7 @@
 #include <fstream>
 #include <time.h>
 #include "types.h"
+#include "debug.h"
 #include <vector>
 #include <list>
 #include <chrono>
@@ -504,7 +505,7 @@ public:
     void operator ()(const Body & body)
     {
         unsigned int i = 1;
-        // std::cerr << "DEBUG: numberOfIterations: " << numberOfIterations << "\n";
+        DBG(1, "numberOfIterations: " , numberOfIterations);
         while ((i <= numberOfIterations) || (numberOfIterations == 0))
         {
             if (body() == false)
@@ -602,6 +603,7 @@ typedef enum{
     EVT_LINE_COMPLETE
 }evt_cb_type;
 
+void getMCFGRecords(std::vector<MCFGRecord>& mcfg);
 std::string dos2unix(std::string in);
 bool isRegisterEvent(const std::string & pmu);
 std::string a_title (const std::string &init, const std::string &name);

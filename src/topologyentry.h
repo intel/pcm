@@ -96,10 +96,10 @@ struct PCM_API TopologyEntry // describes a core
 
 inline void fillEntry(TopologyEntry & entry, const uint32 & smtMaskWidth, const uint32 & coreMaskWidth, const uint32 & l2CacheMaskShift, const int apic_id)
 {
-    entry.thread_id = smtMaskWidth ? extract_bits_ui(apic_id, 0, smtMaskWidth - 1) : 0;
-    entry.core_id = (smtMaskWidth + coreMaskWidth) ? extract_bits_ui(apic_id, smtMaskWidth, smtMaskWidth + coreMaskWidth - 1) : 0;
-    entry.socket_id = extract_bits_ui(apic_id, smtMaskWidth + coreMaskWidth, 31);
-    entry.tile_id = extract_bits_ui(apic_id, l2CacheMaskShift, 31);
+    entry.thread_id = smtMaskWidth ? extract_bits_32(apic_id, 0, smtMaskWidth - 1) : 0;
+    entry.core_id = (smtMaskWidth + coreMaskWidth) ? extract_bits_32(apic_id, smtMaskWidth, smtMaskWidth + coreMaskWidth - 1) : 0;
+    entry.socket_id = extract_bits_32(apic_id, smtMaskWidth + coreMaskWidth, 31);
+    entry.tile_id = extract_bits_32(apic_id, l2CacheMaskShift, 31);
     entry.socket_unique_core_id = entry.core_id;
 }
 
@@ -121,8 +121,8 @@ inline bool initCoreMasks(uint32 & smtMaskWidth, uint32 & coreMaskWidth, uint32 
             { // if EBX ==0 then this subleaf is not valid, we can exit the loop
                 break;
             }
-            levelType = extract_bits_ui(cpuid_args.array[2], 8, 15);
-            levelShift = extract_bits_ui(cpuid_args.array[0], 0, 4);
+            levelType = extract_bits_32(cpuid_args.array[2], 8, 15);
+            levelShift = extract_bits_32(cpuid_args.array[0], 0, 4);
             switch (levelType)
             {
             case 1: //level type is SMT, so levelShift is the SMT_Mask_Width
@@ -160,7 +160,7 @@ inline bool initCoreMasks(uint32 & smtMaskWidth, uint32 & coreMaskWidth, uint32 
         uint32 l2CacheMaskWidth;
 
         pcm_cpuid(0x4, 2, cpuid_args); // get ID for L2 cache
-        l2CacheMaskWidth = 1 + extract_bits_ui(cpuid_args.array[0],14,25); // number of APIC IDs sharing L2 cache
+        l2CacheMaskWidth = 1 + extract_bits_32(cpuid_args.array[0],14,25); // number of APIC IDs sharing L2 cache
     #ifdef PCM_DEBUG_TOPOLOGY
         threadsSharingL2 = l2CacheMaskWidth;
     #endif

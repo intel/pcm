@@ -59,6 +59,30 @@ void setDefaultDebugLevel()
     }
 }
 
+void getMCFGRecords(std::vector<MCFGRecord>& mcfg)
+{
+#ifdef __linux__
+    mcfg = PciHandleMM::getMCFGRecords();
+#else
+    MCFGRecord segment;
+    segment.startBusNumber = 0;
+    segment.endBusNumber = 0xff;
+    auto maxSegments = 1;
+#if defined (_MSC_VER) || defined(__FreeBSD__) || defined(__DragonFly__)
+    switch (PCM::getCPUFamilyModelFromCPUID())
+    {
+    case PCM::GNR:
+        maxSegments = 4;
+        break;
+    }
+#endif
+    for (segment.PCISegmentGroupNumber = 0; segment.PCISegmentGroupNumber < maxSegments; ++(segment.PCISegmentGroupNumber))
+    {
+        mcfg.push_back(segment);
+    }
+#endif
+}
+
 #if defined(_MSC_VER)
 
 void eraseEnvironmentVariables(const std::vector<std::wstring>& keepList) {
@@ -822,7 +846,7 @@ int calibratedSleep(const double delay, const char* sysCmd, const MainLoop& main
     {
         if (delay_ms > 0)
         {
-            // std::cerr << "DEBUG: sleeping for " << std::dec << delay_ms << " ms...\n";
+            DBG(1, "sleeping for " , std::dec , delay_ms , " ms...");
             MySleepMs(delay_ms);
         }
     }
@@ -1237,7 +1261,7 @@ int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
                         nameMap[h_name] = nameMap_value;
                     }
                     ctr.h_id = (uint32_t)nameMap.size() - 1;
-                    //cout << "h_name:" << ctr.h_event_name << "h_id: "<< ctr.h_id << "\n";
+                    DBG(2, "h_name:" , ctr.h_event_name , "h_id: ", ctr.h_id);
                     break;
                 case PCM::V_EVENT_NAME:
                     {
@@ -1249,7 +1273,7 @@ int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
                         if (v_nameMap.find(v_name) == v_nameMap.end())
                         {
                             v_nameMap[v_name] = (unsigned int)v_nameMap.size() - 1;
-                            //cout << "v_name(" << v_name << ")="<< v_nameMap[v_name] << "\n";
+                            DBG(2, "v_name(" , v_name , ")=", v_nameMap[v_name]);
                         }
                         else
                         {
@@ -1258,7 +1282,7 @@ int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
                             throw std::invalid_argument(err_msg);
                         }
                         ctr.v_id = (uint32_t)v_nameMap.size() - 1;
-                        //cout << "h_name:" << ctr.h_event_name << ",hid=" << ctr.h_id << ",v_name:" << ctr.v_event_name << ",v_id: "<< ctr.v_id << "\n";
+                        DBG(2, "h_name:" , ctr.h_event_name , ",hid=" , ctr.h_id , ",v_name:" , ctr.v_event_name , ",v_id: ", ctr.v_id);
                         break;
                     }
                 //TODO: double type for multiplier. drop divider variable
@@ -1283,7 +1307,7 @@ int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
             }
         }
 
-        //std::cout << "Finish parsing: " << line << "\n";
+        DBG(2, "Finished parsing: " , line);
         if (pfn_evtcb(EVT_LINE_COMPLETE, evtcb_ctx, ctr, ofm, "", 0))
         {
             in.close();
@@ -1307,7 +1331,7 @@ int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
 
 bool get_cpu_bus(uint32 msmDomain, uint32 msmBus, uint32 msmDev, uint32 msmFunc, uint32 &cpuBusValid, std::vector<uint32> &cpuBusNo, int &cpuPackageId)
 {
-    //std::cout << "get_cpu_bus: d=" << std::hex << msmDomain << ",b=" << msmBus << ",d=" << msmDev << ",f=" << msmFunc << std::dec << " \n";
+    DBG(2, "get_cpu_bus: d=" , std::hex , msmDomain , ",b=" , msmBus , ",d=" , msmDev , ",f=" , msmFunc , std::dec );
     try
     {
         PciHandleType h(msmDomain, msmBus, msmDev, msmFunc);
@@ -1459,7 +1483,7 @@ bool readMapFromSysFS(const char * path, std::unordered_map<std::string, uint32>
         std::istringstream iss2(value);
         iss2 >> std::setbase(0) >> numValue;
         result.insert(std::pair<std::string, uint32>(key, numValue));
-        //std::cerr << "readMapFromSysFS:" << key << "=" << numValue << ".\n";
+        DBG(3, "readMapFromSysFS:" , key , "=" , numValue , ".");
     }
 
     fclose(f);

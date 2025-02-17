@@ -91,6 +91,240 @@ double getNormalizedPCUCounter(uint32 unit, uint32 counter, const ServerUncoreCo
     return double(getUncoreCounter(PCM::PCU_PMU_ID, unit, counter, before, after)) / double(PCUClocks);
 }
 
+namespace PERF_LIMIT_REASON_TPMI
+{
+    // from https://github.com/intel/tpmi_power_management
+    //      https://github.com/intel/tpmi_power_management/blob/main/TPMI_Perf_Limit_reasons_rev3.pdf
+    const auto PERF_LIMIT_REASON_TPMI_ID = 0xC;
+    const auto PERF_LIMIT_REASON_TPMI_HEADER            = 0x0;
+    const auto PERF_LIMIT_REASON_TPMI_MAILBOX_INTERFACE = 0x8;
+    const auto PERF_LIMIT_REASON_TPMI_MAILBOX_DATA      = 0x10;
+    const auto PERF_LIMIT_REASON_TPMI_DIE_LEVEL         = 0x18;
+    const auto PERF_LIMIT_REASON_TPMI_MAILBOX_INTERFACE_COMMAND_WRITE = 1ULL;
+    const auto PERF_LIMIT_REASON_TPMI_MAILBOX_INTERFACE_ID_SHIFT = 12ULL;
+    const auto PERF_LIMIT_REASON_TPMI_MAILBOX_INTERFACE_RUN_BUSY = (1ULL << 63ULL);
+
+    bool isSupported()
+    {
+        bool PERF_LIMIT_REASON_TPMI_Supported = false;
+        auto numTPMIInstances = TPMIHandle::getNumInstances();
+        for (size_t i = 0; i < numTPMIInstances; ++i)
+        {
+            TPMIHandle h(i, PERF_LIMIT_REASON_TPMI_ID, PERF_LIMIT_REASON_TPMI_HEADER);
+            for (uint32 j = 0; j < h.getNumEntries(); ++j)
+            {
+                const auto header = h.read64(j);
+                if (header == ~0ULL)
+                {
+                    return false;
+                }
+                const auto version =      extract_bits_64(header, 7, 0);
+                const auto majorVersion = extract_bits_64(header, 7, 5);
+                const auto minorVersion = extract_bits_64(header, 4, 0);
+                DBG(1, "PLR_HEADER.INTERFACE_VERSION instance ", i, " die ", j, " version ", version, " (major version ", majorVersion, " minor version ", minorVersion, ")");
+                PERF_LIMIT_REASON_TPMI_Supported = true;
+            }
+        }
+        return PERF_LIMIT_REASON_TPMI_Supported;
+    }
+
+    int getMaxPMModuleID(const PCM * m)
+    {
+        int max_pm_module_id = -1;
+        for (unsigned int core = 0; core < m->getNumCores(); ++core)
+        {
+            if (m->isCoreOnline(core) == false)
+                continue;
+
+            MsrHandle msr(core);
+            uint64 val = 0;
+            constexpr auto MSR_PM_LOGICAL_ID = 0x54;
+            msr.read(MSR_PM_LOGICAL_ID, &val);
+            const auto module_id = (int)extract_bits(val, 10, 3);
+            max_pm_module_id = (std::max)(max_pm_module_id, module_id);
+        }
+        return max_pm_module_id;
+    }
+
+    void reset(const size_t max_pm_modules)
+    {
+        auto numTPMIInstances = TPMIHandle::getNumInstances();
+        for (size_t i = 0; i < numTPMIInstances; ++i)
+        {
+            TPMIHandle die_level(i, PERF_LIMIT_REASON_TPMI_ID, PERF_LIMIT_REASON_TPMI_DIE_LEVEL, false);
+            for (uint32 j = 0; j < die_level.getNumEntries(); ++j)
+            {
+                die_level.write64(j, 0);
+            }
+            for (size_t module = 0; module < max_pm_modules; ++module)
+            {
+                TPMIHandle mailbox_data(i, PERF_LIMIT_REASON_TPMI_ID, PERF_LIMIT_REASON_TPMI_MAILBOX_DATA, false);
+                TPMIHandle mailbox_interface(i, PERF_LIMIT_REASON_TPMI_ID, PERF_LIMIT_REASON_TPMI_MAILBOX_INTERFACE, false);
+                assert(mailbox_data.getNumEntries() == mailbox_interface.getNumEntries());
+                for (uint32 j = 0; j < mailbox_data.getNumEntries(); ++j)
+                {
+                    mailbox_data.write64(j, 0);
+                    const uint64 value =    PERF_LIMIT_REASON_TPMI_MAILBOX_INTERFACE_COMMAND_WRITE |
+                                            (module << PERF_LIMIT_REASON_TPMI_MAILBOX_INTERFACE_ID_SHIFT) |
+                                            PERF_LIMIT_REASON_TPMI_MAILBOX_INTERFACE_RUN_BUSY ;
+                    mailbox_interface.write64(j, value);
+                    while (mailbox_interface.read64(j) & PERF_LIMIT_REASON_TPMI_MAILBOX_INTERFACE_RUN_BUSY)
+                    {
+                        // wait for the command to be processed
+                    }
+                }
+            }
+        }
+    };
+
+    std::vector<std::vector<uint64>> readDies()
+    {
+        auto numTPMIInstances = TPMIHandle::getNumInstances();
+        std::vector<std::vector<uint64>> data;
+        for (size_t i = 0; i < numTPMIInstances; ++i)
+        {
+            std::vector<uint64> instanceData;
+            TPMIHandle die_level(i, PERF_LIMIT_REASON_TPMI_ID, PERF_LIMIT_REASON_TPMI_DIE_LEVEL);
+            for (uint32 j = 0; j < die_level.getNumEntries(); ++j)
+            {
+                instanceData.push_back(die_level.read64(j));
+            }
+            data.push_back(instanceData);
+        }
+        return data;
+    };
+
+    std::vector<std::vector<std::vector<uint64>>> readModules(const size_t max_pm_modules)
+    {
+        auto numTPMIInstances = TPMIHandle::getNumInstances();
+        std::vector<std::vector<std::vector<uint64>>> data;
+        for (size_t i = 0; i < numTPMIInstances; ++i)
+        {
+            std::vector<std::vector<uint64>> moduleData;
+            for (size_t module = 0; module < max_pm_modules; ++module)
+            {
+                std::vector<uint64> instanceData;
+                TPMIHandle mailbox_data(i, PERF_LIMIT_REASON_TPMI_ID, PERF_LIMIT_REASON_TPMI_MAILBOX_DATA);
+                TPMIHandle mailbox_interface(i, PERF_LIMIT_REASON_TPMI_ID, PERF_LIMIT_REASON_TPMI_MAILBOX_INTERFACE, false);
+                assert(mailbox_data.getNumEntries() == mailbox_interface.getNumEntries());
+                for (uint32 j = 0; j < mailbox_data.getNumEntries(); ++j)
+                {
+                    const uint64 value =    (module << PERF_LIMIT_REASON_TPMI_MAILBOX_INTERFACE_ID_SHIFT) |
+                                            PERF_LIMIT_REASON_TPMI_MAILBOX_INTERFACE_RUN_BUSY ;
+                    mailbox_interface.write64(j, value);
+                    while (mailbox_interface.read64(j) & PERF_LIMIT_REASON_TPMI_MAILBOX_INTERFACE_RUN_BUSY)
+                    {
+                        // wait for the command to be processed
+                    }
+                    instanceData.push_back(mailbox_data.read64(j));
+                }
+                moduleData.push_back(instanceData);
+            }
+            data.push_back(moduleData);
+        }
+        return data;
+    };
+
+    enum Coarse_Grained_PLR_Bit_Definition
+    {
+        FREQUENCY = 0,
+        CURRENT = 1,
+        POWER = 2,
+        THERMAL = 3,
+        PLATFORM = 4,
+        MCP = 5,
+        RAS = 6,
+        MISC = 7,
+        QOS = 8,
+        DFC = 9,
+        MAX = 10
+    };
+    const char * Coarse_Grained_PLR_Bit_Definition_Strings[] = {
+        "FREQUENCY", // Limitation due to Turbo Ratio Limit (TRL)
+        "CURRENT",   // Package ICCmax or MT-Pmax
+        "POWER",     // Socket or Platform RAPL
+        "THERMAL",   // Thermal Throttling
+        "PLATFORM",  // Prochot or Hot VR
+        "MCP",       // freq limit due to a companion die like PCH
+        "RAS",       // freq limit due to RAS
+        "MISC",      // Freq limit from out-of-band SW (e.g. BMC)
+        "QOS",       // SST-CP, SST-BF, SST-TF
+        "DFC"        // Freq limitation due to Dynamic Freq Capping
+    };
+    enum Fine_Grained_PLR_Bit_Definition
+    {
+        CDYN0 = 0,
+        CDYN1 = 1,
+        CDYN2 = 2,
+        CDYN3 = 3,
+        CDYN4 = 4,
+        CDYN5 = 5,
+        FCT = 6,
+        PCS_TRL = 7,
+        MTPMAX = 8,
+        FAST_RAPL = 9,
+        PKG_PL1_MSR_TPMI = 10,
+        PKG_PL1_MMIO = 11,
+        PKG_PL1_PCS = 12,
+        PKG_PL2_MSR_TPMI = 13,
+        PKG_PL2_MMIO = 14,
+        PKG_PL2_PCS = 15,
+        PLATFORM_PL1_MSR_TPMI = 16,
+        PLATFORM_PL1_MMIO = 17,
+        PLATFORM_PL1_PCS = 18,
+        PLATFORM_PL2_MSR_TPMI = 19,
+        PLATFORM_PL2_MMIO = 20,
+        PLATFORM_PL2_PCS = 21,
+        RSVD = 22,
+        PER_CORE_THERMAL = 23,
+        UFS_DFC = 24,
+        XXPROCHOT = 25,
+        HOT_VR = 26,
+        RSVD2 = 27,
+        RSVD3 = 28,
+        PCS_PSTATE = 29,
+        MAX_FINE = 30
+    };
+    struct FGData
+    {
+        const char * name;
+        int coarse_grained_mapping;
+        FGData(const char * n, int c) : name(n), coarse_grained_mapping(c) {}
+    };
+    const FGData Fine_Grained_PLR_Bit_Definition_Data[] = {
+        FGData("TRL/CDYN0", FREQUENCY), // Turbo Ratio Limit 0
+        FGData("TRL/CDYN1", FREQUENCY), // Turbo Ratio Limit 1
+        FGData("TRL/CDYN2", FREQUENCY), // Turbo Ratio Limit 2
+        FGData("TRL/CDYN3", FREQUENCY), // Turbo Ratio Limit 3
+        FGData("TRL/CDYN4", FREQUENCY), // Turbo Ratio Limit 4
+        FGData("TRL/CDYN5", FREQUENCY), // Turbo Ratio Limit 5
+        FGData("FCT", FREQUENCY),       // Favored Core Turbo
+        FGData("PCS_TRL", FREQUENCY),   // Turbo Ratio Limit from out-of-band (BMC)
+        FGData("MTPMAX", CURRENT),
+        FGData("FAST_RAPL", POWER),
+        FGData("PKG_PL1_MSR_TPMI", POWER),
+        FGData("PKG_PL1_MMIO", POWER),
+        FGData("PKG_PL1_PCS", POWER),
+        FGData("PKG_PL2_MSR_TPMI", POWER),
+        FGData("PKG_PL2_MMIO", POWER),
+        FGData("PKG_PL2_PCS", POWER),
+        FGData("PLATFORM_PL1_MSR_TPMI", POWER),
+        FGData("PLATFORM_PL1_MMIO", POWER),
+        FGData("PLATFORM_PL1_PCS", POWER),
+        FGData("PLATFORM_PL2_MSR_TPMI", POWER),
+        FGData("PLATFORM_PL2_MMIO", POWER),
+        FGData("PLATFORM_PL2_PCS", POWER),
+        FGData("RSVD", POWER),
+        FGData("PER_CORE_THERMAL", THERMAL), // Thermal Throttling
+        FGData("UFS_DFC", DFC),              // Dynamic Freq Capping
+        FGData("XXPROCHOT", PLATFORM),
+        FGData("HOT_VR", PLATFORM),
+        FGData("RSVD2", PLATFORM),
+        FGData("RSVD3", PLATFORM),
+        FGData("PCS_PSTATE", MISC)
+    };
+};
+
 int default_freq_band[3] = { 12, 20, 40 };
 int freq_band[3];
 
@@ -331,6 +565,13 @@ int mainThrows(int argc, char * argv[])
 
     if (delay <= 0.0) delay = PCM_DELAY_DEFAULT;
 
+    const bool PERF_LIMIT_REASON_TPMI_Supported = PERF_LIMIT_REASON_TPMI::isSupported();
+
+    const size_t max_pm_modules = PERF_LIMIT_REASON_TPMI_Supported ? (size_t)(PERF_LIMIT_REASON_TPMI::getMaxPMModuleID(m) + 1) : 0;
+    DBG(1, "max_pm_modules = ", max_pm_modules);
+    std::vector<std::vector<uint64>> PERF_LIMIT_REASON_TPMI_dies_data;
+    std::vector<std::vector<std::vector<uint64>>> PERF_LIMIT_REASON_TPMI_modules_data;
+
     uint32 i = 0;
 
     for (i = 0; i < numSockets; ++i)
@@ -358,6 +599,8 @@ int mainThrows(int argc, char * argv[])
 
     const auto uncoreFreqFactor = double(m->getNumOnlineSockets()) / double(m->getNumOnlineCores());
 
+    if (PERF_LIMIT_REASON_TPMI_Supported) PERF_LIMIT_REASON_TPMI::reset(max_pm_modules);
+
     mainLoop([&]()
     {
         cout << "----------------------------------------------------------------------------------------------\n";
@@ -371,6 +614,13 @@ int mainThrows(int argc, char * argv[])
             AfterState[i] = m->getServerUncoreCounterState(i);
 
         m->getAllCounterStates(dummySystemState, afterSocketState, dummyCoreStates, false);
+
+        if (PERF_LIMIT_REASON_TPMI_Supported)
+        {
+            PERF_LIMIT_REASON_TPMI_dies_data = PERF_LIMIT_REASON_TPMI::readDies();
+            PERF_LIMIT_REASON_TPMI_modules_data = PERF_LIMIT_REASON_TPMI::readModules(max_pm_modules);
+            PERF_LIMIT_REASON_TPMI::reset(max_pm_modules);
+        }
 
         cout << "Time elapsed: " << AfterTime - BeforeTime << " ms\n";
         cout << "Called sleep function for " << delay_ms << " ms\n";
@@ -578,6 +828,63 @@ int mainThrows(int argc, char * argv[])
                       << "; Consumed DRAM Joules: " << getDRAMConsumedJoules(BeforeState[socket], AfterState[socket])
                       << "; DRAM Watts: " << 1000. * getDRAMConsumedJoules(BeforeState[socket], AfterState[socket]) / double(AfterTime - BeforeTime)
                       << "\n";
+        }
+        for (auto instance = 0ULL; instance < PERF_LIMIT_REASON_TPMI_dies_data.size(); ++instance)
+        {
+            for (auto die = 0ULL; die < PERF_LIMIT_REASON_TPMI_dies_data[instance].size(); ++die)
+            {
+                cout << "S" << instance << "D" << die << "; PERF LIMIT REASONS (DIE LEVEL): ";
+                const auto data = PERF_LIMIT_REASON_TPMI_dies_data[instance][die];
+                for (auto l = 0; l < PERF_LIMIT_REASON_TPMI::Coarse_Grained_PLR_Bit_Definition::MAX; ++l)
+                {
+                    if (extract_bits(data, l, l))  cout << PERF_LIMIT_REASON_TPMI::Coarse_Grained_PLR_Bit_Definition_Strings[l] << "; ";
+                }
+                cout << "\n";
+            }
+        }
+        for (auto instance = 0ULL; instance < PERF_LIMIT_REASON_TPMI_modules_data.size(); ++instance)
+        {
+            assert(PERF_LIMIT_REASON_TPMI_modules_data[instance].size());
+            std::vector<std::array<uint64, 32>> coarseGrainedData, fineGrainedData;
+            std::array<uint64, 32> empty;
+            empty.fill(0);
+            coarseGrainedData.resize(PERF_LIMIT_REASON_TPMI_modules_data[instance][0].size(), empty);
+            fineGrainedData.resize(coarseGrainedData.size(), empty);
+
+            for (auto module = 0ULL; module < PERF_LIMIT_REASON_TPMI_modules_data[instance].size(); ++module)
+            {
+                assert(PERF_LIMIT_REASON_TPMI_modules_data[instance][module].size() == coarseGrainedData.size());
+                for (auto die = 0ULL; die < PERF_LIMIT_REASON_TPMI_modules_data[instance][module].size(); ++die)
+                {
+                    const auto data = PERF_LIMIT_REASON_TPMI_modules_data[instance][module][die];
+                    DBG(1, "S", instance, "M", module, "D", die, " data = ", data);
+                    for (auto l = 0; l < PERF_LIMIT_REASON_TPMI::Coarse_Grained_PLR_Bit_Definition::MAX; ++l)
+                    {
+                        if (extract_bits(data, l, l))  ++(coarseGrainedData[die][l]);
+                    }
+                    for (auto l = 0; l < PERF_LIMIT_REASON_TPMI::Fine_Grained_PLR_Bit_Definition::MAX_FINE; ++l)
+                    {
+                        if (extract_bits(data, 32 + l, 32 + l))  ++(fineGrainedData[die][l]);
+                    }
+                }
+            }
+            for (auto die = 0ULL; die < coarseGrainedData.size(); ++die)
+            {
+                cout << "S" << instance << "D" << die << "; PERF LIMIT REASONS (#CORE MODULES): ";
+                for (auto l = 0; l < PERF_LIMIT_REASON_TPMI::Coarse_Grained_PLR_Bit_Definition::MAX; ++l)
+                {
+                    if (coarseGrainedData[die][l]) cout << PERF_LIMIT_REASON_TPMI::Coarse_Grained_PLR_Bit_Definition_Strings[l] << ": " << coarseGrainedData[die][l] << "; ";
+                }
+                for (auto l = 0; l < PERF_LIMIT_REASON_TPMI::Fine_Grained_PLR_Bit_Definition::MAX_FINE; ++l)
+                {
+                    if (fineGrainedData[die][l])
+                    {
+                        cout << PERF_LIMIT_REASON_TPMI::Coarse_Grained_PLR_Bit_Definition_Strings[PERF_LIMIT_REASON_TPMI::Fine_Grained_PLR_Bit_Definition_Data[l].coarse_grained_mapping] 
+                                                    << "." << PERF_LIMIT_REASON_TPMI::Fine_Grained_PLR_Bit_Definition_Data[l].name << ": " << fineGrainedData[die][l] << "; ";
+                    }
+                }
+                cout << "\n";
+            }
         }
         swap(BeforeState, AfterState);
         swap(BeforeTime, AfterTime);

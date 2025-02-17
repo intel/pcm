@@ -253,13 +253,13 @@ void PCM::readCoreCounterConfig(const bool complainAboutMSR)
         // get counter related info
         PCM_CPUID_INFO cpuinfo;
         pcm_cpuid(0xa, cpuinfo);
-        perfmon_version = extract_bits_ui(cpuinfo.array[0], 0, 7);
-        core_gen_counter_num_max = extract_bits_ui(cpuinfo.array[0], 8, 15);
-        core_gen_counter_width = extract_bits_ui(cpuinfo.array[0], 16, 23);
+        perfmon_version = extract_bits_32(cpuinfo.array[0], 0, 7);
+        core_gen_counter_num_max = extract_bits_32(cpuinfo.array[0], 8, 15);
+        core_gen_counter_width = extract_bits_32(cpuinfo.array[0], 16, 23);
         if (perfmon_version > 1)
         {
-            core_fixed_counter_num_max = extract_bits_ui(cpuinfo.array[3], 0, 4);
-            core_fixed_counter_width = extract_bits_ui(cpuinfo.array[3], 5, 12);
+            core_fixed_counter_num_max = extract_bits_32(cpuinfo.array[3], 0, 4);
+            core_fixed_counter_width = extract_bits_32(cpuinfo.array[3], 5, 12);
         }
         else if (1 == perfmon_version)
         {
@@ -321,7 +321,7 @@ bool PCM::isFixedCounterSupported(unsigned c)
     {
         PCM_CPUID_INFO cpuinfo;
         pcm_cpuid(0xa, cpuinfo);
-        return extract_bits_ui(cpuinfo.reg.ecx, c, c) || (extract_bits_ui(cpuinfo.reg.edx, 4, 0) > c);
+        return extract_bits_32(cpuinfo.reg.ecx, c, c) || (extract_bits_32(cpuinfo.reg.edx, 4, 0) > c);
     }
     return false;
 }
@@ -340,7 +340,7 @@ bool PCM::isHWTMAL1Supported() const
         supported = 0;
         PCM_CPUID_INFO cpuinfo;
         pcm_cpuid(1, cpuinfo);
-        if (extract_bits_ui(cpuinfo.reg.ecx, 15, 15) && MSR.size())
+        if (extract_bits_32(cpuinfo.reg.ecx, 15, 15) && MSR.size())
         {
             uint64 perf_cap;
             if (MSR[0]->read(MSR_PERF_CAPABILITIES, &perf_cap) == sizeof(uint64))
@@ -1125,12 +1125,12 @@ bool PCM::discoverSystemTopology()
             {
                 pcm_cpuid(0x1F, subleaf, cpuid_args);
                 domain d;
-                d.type = (TopologyEntry::DomainTypeID)extract_bits_ui(cpuid_args.reg.ecx, 8, 15);
+                d.type = (TopologyEntry::DomainTypeID)extract_bits_32(cpuid_args.reg.ecx, 8, 15);
                 if (d.type == TopologyEntry::DomainTypeID::InvalidDomainTypeID)
                 {
                     break;
                 }
-                d.nextLevelShift = extract_bits_ui(cpuid_args.reg.eax, 0, 4);
+                d.nextLevelShift = extract_bits_32(cpuid_args.reg.eax, 0, 4);
                 d.levelShift = topologyDomains.empty() ? 0 : topologyDomains.back().nextLevelShift;
                 d.width = d.nextLevelShift - d.levelShift;
                 topologyDomains.push_back(d);
@@ -1182,11 +1182,11 @@ bool PCM::discoverSystemTopology()
                 if (di != topologyDomainMap.end())
                 {
                     const auto & d = di->second;
-                    return extract_bits_ui(apic_id, d.levelShift, d.nextLevelShift - 1);
+                    return extract_bits_32(apic_id, d.levelShift, d.nextLevelShift - 1);
                 }
                 return 0U;
             };
-            entry.tile_id = extract_bits_ui(getAPICID(0xb), l2CacheMaskShift, 31);
+            entry.tile_id = extract_bits_32(getAPICID(0xb), l2CacheMaskShift, 31);
             const int apic_id = getAPICID(0x1F);
             entry.thread_id = getID(apic_id, TopologyEntry::DomainTypeID::LogicalProcessorDomain);
             entry.core_id = getID(apic_id, TopologyEntry::DomainTypeID::CoreDomain);
@@ -1210,7 +1210,7 @@ bool PCM::discoverSystemTopology()
             };
             domain d1 = getDomain( TopologyEntry::DomainTypeID::CoreDomain );
             domain d2 = getDomain( TopologyEntry::DomainTypeID::SocketPackageDomain );
-            entry.socket_unique_core_id = extract_bits_ui( apic_id, d1.levelShift, d2.levelShift - 1 );
+            entry.socket_unique_core_id = extract_bits_32( apic_id, d1.levelShift, d2.levelShift - 1 );
         }
         else
         {
@@ -1233,8 +1233,8 @@ bool PCM::discoverSystemTopology()
         (void)core;
         return false;
 #endif
-        entry.native_cpu_model = extract_bits_ui(cpuid_args.reg.eax, 0, 23);
-        entry.core_type = (TopologyEntry::CoreType) extract_bits_ui(cpuid_args.reg.eax, 24, 31);
+        entry.native_cpu_model = extract_bits_32(cpuid_args.reg.eax, 0, 23);
+        entry.core_type = (TopologyEntry::CoreType) extract_bits_32(cpuid_args.reg.eax, 24, 31);
         return true;
     };
 
@@ -1654,7 +1654,7 @@ bool PCM::detectNominalFrequency()
         {
             PCM_CPUID_INFO cpuinfo;
             pcm_cpuid(0x16, cpuinfo);
-            nominal_frequency = uint64(extract_bits_ui(cpuinfo.reg.eax, 0, 15)) * 1000000ULL;;
+            nominal_frequency = uint64(extract_bits_32(cpuinfo.reg.eax, 0, 15)) * 1000000ULL;;
         }
         if (!nominal_frequency)
         {
@@ -2335,7 +2335,7 @@ void PCM::initUncorePMUsDirect()
             addPMUsFromDiscoveryRef(uncorePMUs[s][0][PCU_PMU_ID], SPR_PCU_BOX_TYPE, 0xE);
             if (uncorePMUs[s][0][PCU_PMU_ID].empty())
             {
-                std::cerr << "ERROR: PCU PMU not found\n";
+                std::cerr << "WARNING: PCU PMU not found\n";
             }
             break;
         }
@@ -2347,7 +2347,7 @@ void PCM::initUncorePMUsDirect()
             addPMUsFromDiscoveryRef(uncorePMUs[s][0][MDF_PMU_ID], boxType);
             if (uncorePMUs[s][0][MDF_PMU_ID].empty())
             {
-                std::cerr << "ERROR: MDF PMU not found\n";
+                std::cerr << "WARNING: MDF PMU not found\n";
             }
         };
         switch (cpu_family_model)
@@ -6224,7 +6224,7 @@ PCM::ErrorCode PCM::program(const RawPMUConfigs& curPMUConfigs_, const bool sile
                                             const auto pcicfgOffset = extract_bits(membarBits, 0, 15);
                                             uint32 memBarOffset = 0;
                                             pciHandle.read32(pcicfgOffset, &memBarOffset);
-                                            return size_t(extract_bits_ui(memBarOffset, srcPos, srcPos + numBits - 1)) << destPos;
+                                            return size_t(extract_bits_32(memBarOffset, srcPos, srcPos + numBits - 1)) << destPos;
                                         }
                                         return 0;
                                     };
@@ -6686,7 +6686,7 @@ void PCM::readPCICFGRegisters(SystemCounterState& systemState)
                 {
                 case 16:
                     h->read32(offset, &value32);
-                    value = (uint64)extract_bits_ui(value32, 0, 15);
+                    value = (uint64)extract_bits_32(value32, 0, 15);
                     break;
                 case 32:
                     h->read32(offset, &value32);
@@ -6756,7 +6756,7 @@ void PCM::readMMIORegisters(SystemCounterState& systemState)
                 {
                 case 16:
                     value32 = h->read32(offset);
-                    value = (uint64)extract_bits_ui(value32, 0, 15);
+                    value = (uint64)extract_bits_32(value32, 0, 15);
                     break;
                 case 32:
                     value32 = h->read32(offset);
@@ -9867,7 +9867,7 @@ uint64 ServerUncorePMUs::computeQPISpeed(const uint32 core_nr, const int cpufami
                uint32 value = 0;
                if (reg.read32(UPI_SPEED_REGISTER_OFFSET, &value) == sizeof(uint32))
                {
-                   const size_t speedMT = UPISpeedMap[extract_bits_ui(value, regBits.first, regBits.second)];
+                   const size_t speedMT = UPISpeedMap[extract_bits_32(value, regBits.first, regBits.second)];
                    if (false)
                    {
                        std::cerr << "speedMT: " << speedMT << "\n";
@@ -10090,11 +10090,7 @@ PciHandleType * getDeviceHandle(uint32 vendorId, uint32 deviceId)
     const std::vector<MCFGRecord> & mcfg = PciHandleMM::getMCFGRecords();
     #else
     std::vector<MCFGRecord> mcfg;
-    MCFGRecord segment;
-    segment.PCISegmentGroupNumber = 0;
-    segment.startBusNumber = 0;
-    segment.endBusNumber = 0xff;
-    mcfg.push_back(segment);
+    getMCFGRecords(mcfg);
     #endif
 
     for(uint32 s = 0; s < (uint32)mcfg.size(); ++s)
@@ -10579,11 +10575,11 @@ void PCM::programIDXAccelCounters(uint32 accel, std::vector<uint64_t> &events, s
                 *ctrl_reg = 0x0;
             }
 
-            *filter_wq_reg = extract_bits_ui(filters_wq.at(i), 0, 15);            
-            *filter_eng_reg = extract_bits_ui(filters_eng.at(i), 0, 15);
-            *filter_tc_reg = extract_bits_ui(filters_tc.at(i), 0, 7);
-            *filter_pgsz_reg = extract_bits_ui(filters_pgsz.at(i), 0, 7);
-            *filter_xfersz_reg = extract_bits_ui(filters_xfersz.at(i), 0, 7);
+            *filter_wq_reg = extract_bits_32(filters_wq.at(i), 0, 15);            
+            *filter_eng_reg = extract_bits_32(filters_eng.at(i), 0, 15);
+            *filter_tc_reg = extract_bits_32(filters_tc.at(i), 0, 7);
+            *filter_pgsz_reg = extract_bits_32(filters_pgsz.at(i), 0, 7);
+            *filter_xfersz_reg = extract_bits_32(filters_xfersz.at(i), 0, 7);
 
             if (pmu.getPERFMode() == false)
             {
