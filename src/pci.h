@@ -269,8 +269,7 @@ void processDVSEC(MatchFunc matchFunc, ProcessFunc processFunc)
                 {
                     return;
                 }
-                DBG(2, "offset 0x" , std::hex , offset , " header.fields.cap_id: 0x" , header.fields.cap_id , std::dec );
-                DBG(2, ".. found entryID: 0x" , std::hex , header.fields.entryID , std::dec);
+                DBG(2, "offset 0x" , std::hex , offset , " cap_id: 0x" , header.fields.cap_id , " vsec_id: 0x", header.fields.vsec_id, " entryID: 0x" , std::hex , header.fields.entryID , std::dec);
                 if (matchFunc(header))
                 {
                     DBG(2, ".... found match");
