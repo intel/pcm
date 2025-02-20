@@ -248,15 +248,15 @@ union VSEC {
 template <class MatchFunc, class ProcessFunc>
 void processDVSEC(MatchFunc matchFunc, ProcessFunc processFunc)
 {
-    forAllIntelDevices([&](const uint32 group, const uint32 bus, const uint32 device, const uint32 function, const uint32 /* device_id */)
+    forAllIntelDevices([&](const uint32 group, const uint32 bus, const uint32 device, const uint32 function, const uint32 device_id)
     {
-        // std::cerr << "Intel device scan. found " << std::hex << group << ":" << bus << ":" << device << ":" << function << " " << device_id << std::dec;
+        DBG(2, "Intel device scan.found " , std::hex , group , ":" , bus , " : " , device , " : " , function , " " , device_id);
         uint32 status{0};
         PciHandleType h(group, bus, device, function);
         h.read32(4, &status); // read status
         if (status & 0x100000) // has capability list
         {
-            // std::cerr << "Intel device scan. found "<< std::hex << group << ":" << bus << ":" << device << ":" << function << " " << device_id << " with capability list\n" << std::dec;
+            DBG(2, "Intel device scan. found ", std::hex , group , ":" , bus , ":" , device , ":" , function , " " , device_id , " with capability list");
             VSEC header;
             uint64 offset = 0x100;
             do
@@ -269,11 +269,10 @@ void processDVSEC(MatchFunc matchFunc, ProcessFunc processFunc)
                 {
                     return;
                 }
-                // std::cerr << "offset 0x" << std::hex << offset << " header.fields.cap_id: 0x" << header.fields.cap_id << std::dec << "\n";
-                // std::cerr << ".. found entryID: 0x" << std::hex << header.fields.entryID << std::dec << "\n";
+                DBG(2, "offset 0x" , std::hex , offset , " cap_id: 0x" , header.fields.cap_id , " vsec_id: 0x", header.fields.vsec_id, " entryID: 0x" , std::hex , header.fields.entryID , std::dec);
                 if (matchFunc(header))
                 {
-                    // std::cerr << ".... found match\n";
+                    DBG(2, ".... found match");
                     auto barOffset = 0x10 + header.fields.tBIR * 4;
                     uint32 bar = 0;
                     if (h.read32(barOffset, &bar) == sizeof(uint32) && bar != 0) // read bar
@@ -290,6 +289,7 @@ void processDVSEC(MatchFunc matchFunc, ProcessFunc processFunc)
                 offset = header.fields.cap_next & ~3;
                 if (lastOffset == offset) // the offset did not change
                 {
+                    DBG(2, " lastOffset == offset ", lastOffset , "==", offset);
                     return; // deadlock protection
                 }
             } while (1);
