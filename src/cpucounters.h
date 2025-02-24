@@ -1253,6 +1253,7 @@ private:
                 case SPR:
                 case EMR:
                 case GNR:
+                case GNR_D:
                 case GRR:
                 case SRF:
                     *ctrl = *curEvent;
@@ -2038,6 +2039,7 @@ public:
         case SPR:
         case EMR:
         case GNR:
+        case GNR_D:
         case GRR:
         case SRF:
             return (serverUncorePMUs.size() && serverUncorePMUs[0].get()) ? (serverUncorePMUs[0]->getNumQPIPorts()) : 0;
@@ -2066,6 +2068,7 @@ public:
         case SPR:
         case EMR:
         case GNR:
+        case GNR_D:
         case GRR:
         case SRF:
         case BDX:
@@ -2096,6 +2099,7 @@ public:
         case SPR:
         case EMR:
         case GNR:
+        case GNR_D:
         case GRR:
         case SRF:
         case BDX:
@@ -2129,6 +2133,7 @@ public:
         case SPR:
         case EMR:
         case GNR:
+        case GNR_D:
         case GRR:
         case SRF:
         case BDX:
@@ -2196,6 +2201,7 @@ public:
         case SPR:
         case EMR:
         case GNR:
+        case GNR_D:
         case GRR:
         case SRF:
             return 6;
@@ -2250,6 +2256,7 @@ public:
         case SPR:
         case EMR:
         case GNR:
+        case GNR_D:
         case GRR:
         case SRF:
         case KNL:
@@ -2518,6 +2525,7 @@ public:
                  || cpu_family_model == PCM::SPR
                  || cpu_family_model == PCM::EMR
                  || cpu_family_model == PCM::GNR
+                 || cpu_family_model == PCM::GNR_D
                  || cpu_family_model == PCM::SRF
                  || cpu_family_model == PCM::GRR
                );
@@ -2537,6 +2545,7 @@ public:
           || cpu_family_model == PCM::SPR
           || cpu_family_model == PCM::EMR
           || cpu_family_model == PCM::GNR
+          || cpu_family_model == PCM::GNR_D
           || cpu_family_model == PCM::SRF
           || cpu_family_model == PCM::GRR
           );
@@ -2625,6 +2634,7 @@ public:
         return (
                cpu_family_model == PCM::SRF
             || cpu_family_model == PCM::GNR
+            || cpu_family_model == PCM::GNR_D
             );
     }
     
@@ -2667,6 +2677,7 @@ public:
             || cpu_family_model == PCM::GRR
             || cpu_family_model == PCM::SRF
             || cpu_family_model == PCM::GNR
+            || cpu_family_model == PCM::GNR_D
         );
     }
 
@@ -2676,6 +2687,7 @@ public:
                 && getMaxNumOfUncorePMUs(UBOX_PMU_ID) > 0ULL
                 && getNumCores() == getNumOnlineCores()
                 && PCM::GNR != cpu_family_model
+                && PCM::GNR_D != cpu_family_model
                 && PCM::SRF != cpu_family_model
             ;
     }
@@ -2769,6 +2781,7 @@ public:
             || cpu_family_model == PCM::SPR
             || cpu_family_model == PCM::EMR
             || cpu_family_model == PCM::GNR
+            || cpu_family_model == PCM::GNR_D
             || cpu_family_model == PCM::SRF
             || cpu_family_model == PCM::GRR
             || cpu_family_model == PCM::BDX
@@ -2816,6 +2829,7 @@ public:
          || cpu_family_model == PCM::SPR
          || cpu_family_model == PCM::EMR
          || cpu_family_model == PCM::GNR
+         || cpu_family_model == PCM::GNR_D
          || cpu_family_model == PCM::SRF
          || cpu_family_model == PCM::GRR
                );
@@ -2833,6 +2847,7 @@ public:
                || PCM::SPR == cpu_family_model
                || PCM::EMR == cpu_family_model
                || PCM::GNR == cpu_family_model
+               || PCM::GNR_D == cpu_family_model
                ;
     }
 
@@ -3548,6 +3563,7 @@ double getDRAMConsumedJoules(const CounterStateType & before, const CounterState
         || PCM::SKX == cpu_family_model
         || PCM::ICX == cpu_family_model
         || PCM::GNR == cpu_family_model
+        || PCM::GNR_D == cpu_family_model
         || PCM::SRF == cpu_family_model
         || PCM::GRR == cpu_family_model
         || PCM::KNL == cpu_family_model
