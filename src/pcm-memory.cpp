@@ -426,6 +426,7 @@ void printSocketBWFooter(PCM *m, uint32 no_columns, uint32 skt, const memdata_t 
     if (    md->metrics == PartialWrites
         &&  m->getCPUFamilyModel() != PCM::SRF
         &&  m->getCPUFamilyModel() != PCM::GNR
+        &&  m->getCPUFamilyModel() != PCM::GNR_D
         &&  m->getCPUFamilyModel() != PCM::GRR
         )
     {
@@ -735,6 +736,7 @@ void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 /*elapsedTime*/, const 
         {
             if (    md->metrics == PartialWrites
                 &&  m->getCPUFamilyModel() != PCM::GNR
+                &&  m->getCPUFamilyModel() != PCM::GNR_D
                 &&  m->getCPUFamilyModel() != PCM::SRF
                 &&  m->getCPUFamilyModel() != PCM::GRR
                 )
@@ -996,6 +998,7 @@ void calculate_bandwidth(PCM *m,
                 switch (cpu_family_model)
                 {
                 case PCM::GNR:
+                case PCM::GNR_D:
                 case PCM::GRR:
                 case PCM::SRF:
                     reads += getMCCounter(channel, ServerUncorePMUs::EventPosition::READ2, uncState1[skt], uncState2[skt]);
@@ -1061,6 +1064,7 @@ void calculate_bandwidth(PCM *m,
                 }
                 else if (
                    cpu_family_model != PCM::GNR
+                && cpu_family_model != PCM::GNR_D
                 && cpu_family_model != PCM::SRF
                 && cpu_family_model != PCM::GRR
                     )

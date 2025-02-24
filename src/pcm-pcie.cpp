@@ -97,6 +97,7 @@ IPlatform *IPlatform::getPlatform(PCM *m, bool csv, bool print_bandwidth, bool p
 {
     switch (m->getCPUFamilyModel()) {
         case PCM::GNR:
+        case PCM::GNR_D:
         case PCM::SRF:
             return new BirchStreamPlatform(m, csv, print_bandwidth, print_additional_info, delay);
         case PCM::GRR:
