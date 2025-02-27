@@ -10,7 +10,7 @@ usage() {
   echo
   echo "Alternative usage: $0 filename"
   echo
-  echo "Specify filename containing target_address:port in each line"
+  echo "Specify filename containing http(s)://target_address:port in each line"
   echo
   exit 1
 }
