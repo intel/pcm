@@ -405,20 +405,22 @@ inline void choose(const CsvOutputType outputType, H1 h1Func, H2 h2Func, D dataF
     }
 }
 
-inline void printDateForCSV(const CsvOutputType outputType, std::string separator = std::string(","))
+inline void printDateForCSV(const CsvOutputType outputType, std::string separator = std::string(","), std::string * out = nullptr)
 {
+    std::ostringstream strstr;
+    std::ostream & stdcout = out ? strstr : std::cout;
     choose(outputType,
-        [&separator]() {
-            std::cout << separator << separator; // Time
+        [&separator, &stdcout]() {
+            stdcout << separator << separator; // Time
         },
-        [&separator]() {
-            std::cout << "Date" << separator << "Time" << separator;
+        [&separator, &stdcout]() {
+            stdcout << "Date" << separator << "Time" << separator;
         },
-        [&separator]() {
+        [&separator, &stdcout]() {
             std::pair<tm, uint64> tt{ pcm_localtime() };
-            std::cout.precision(3);
-            char old_fill = std::cout.fill('0');
-            std::cout <<
+            stdcout.precision(3);
+            char old_fill = stdcout.fill('0');
+            stdcout <<
                 std::setw(4) <<  1900 + tt.first.tm_year << '-' <<
                 std::setw(2) << 1 + tt.first.tm_mon << '-' <<
                 std::setw(2) << tt.first.tm_mday << separator <<
@@ -426,10 +428,14 @@ inline void printDateForCSV(const CsvOutputType outputType, std::string separato
                 std::setw(2) << tt.first.tm_min << ':' <<
                 std::setw(2) << tt.first.tm_sec << '.' <<
                 std::setw(3) << tt.second << separator; // milliseconds
-            std::cout.fill(old_fill);
-            std::cout.setf(std::ios::fixed);
-            std::cout.precision(2);
+            stdcout.fill(old_fill);
+            stdcout.setf(std::ios::fixed);
+            stdcout.precision(2);
         });
+        if (out)
+        {
+            *out = strstr.str();
+        }
 }
 
 inline void printDateForJson(const std::string& separator, const std::string &jsonSeparator)
