@@ -676,6 +676,14 @@ vector<string> build_csv(vector<struct iio_stacks_on_socket>& iios, vector<struc
     if (show_root_port)
         header.insert(header.begin(), "Root Port");
     header.insert(header.begin(), "Socket");
+    auto insertDateTime = [&csv_delimiter](vector<string> & out, CsvOutputType type) {
+        std::string dateTime;
+        printDateForCSV(type, csv_delimiter, &dateTime);
+        // remove last delimiter
+        dateTime.pop_back();
+        out.insert(out.begin(), dateTime);
+    };
+    insertDateTime(header, CsvOutputType::Header2);
     result.push_back(build_csv_row(header, csv_delimiter));
     std::map<uint32_t,map<uint32_t,struct iio_counter*>> v_sort;
     //re-organize data collection to be row wise
@@ -721,6 +729,7 @@ vector<string> build_csv(vector<struct iio_stacks_on_socket>& iios, vector<struc
                     uint64_t raw_data = hunit->second->data[0][socket->socket_id][stack_id][std::pair<h_id,v_id>(hh_id,vv_id)];
                     current_row.push_back(human_readable ? unit_format(raw_data) : std::to_string(raw_data));
                 }
+                insertDateTime(current_row, CsvOutputType::Data);
                 result.push_back(build_csv_row(current_row, csv_delimiter));
             }
         }
