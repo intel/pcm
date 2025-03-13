@@ -7,6 +7,9 @@ Usage: topotop [options]
 Options:
   -h, --help            print help.
   -d, --delay SECONDS   delay between updates. The default is "1.0".
+  -l, --largest-share   show largest share of each busy CPU that a
+                        single process got. The top dot stands for
+                        at least 99 % CPU. Requires "bpftrace".
   -m, --memory          include memory bandwidth, requires "pcm-memory".
   -u, --upi             include UPI traffic, requires "pcm".
 """
@@ -144,6 +147,57 @@ class Bitmap:
                     nocolor = "\x1b[0m"
                 braille[y4].append(color + brbits2chr(braille_char_bits) + nocolor)
         return '\n'.join(''.join(c for c in line) for line in braille)
+
+_bpftrace_cpu_pid_process = None
+def cpu_pid_stats():
+    global _bpftrace_cpu_pid_process
+    if _bpftrace_cpu_pid_process is None:
+        bpfprog = (
+            "tracepoint:sched:sched_stat_runtime{ if (@active[0]==0) { @run0[cpu,args->pid]+=args->runtime; } else { @run1[cpu,args->pid]+=args->runtime; } }" + # @run: {(cpu, pid): runtime}
+            "interval:ms:%d{ @active[0]=1-@active[0]; if (@active[0]==1) { print(@run0); clear(@run0); } else { print(@run1); clear(@run1); } print(\"---\"); }" % (int(opt_delay * 1000),)
+        )
+        _bpftrace_cpu_pid_process = subprocess.Popen(
+            ["bpftrace", "-e", bpfprog],
+            bufsize=0,
+            universal_newlines=True,
+            stdout=subprocess.PIPE)
+    # @MAP0[cpu,pid]: count
+    stat_cpu_pid = {
+        "run": {},
+    }
+    while True:
+        line = _bpftrace_cpu_pid_process.stdout.readline().strip()
+        if line == "":
+            raise Exception("bpftrace exited")
+        if line == "---":
+            break
+        if line.startswith("@"):
+            stat = line[1:4]
+            cpu_pid_value = stat_cpu_pid[stat]
+            cpu_pid, count = line.split(":")
+            # cpu_pid: "@XXX0[cpu, pid]"
+            cpu = int(cpu_pid.split(",")[0][6:]) # cut "@XXX0["
+            pid = int(cpu_pid.split(",")[1][:-1]) # cut "]"
+            if not cpu in cpu_pid_value:
+                cpu_pid_value[cpu] = {}
+            cpu_pid_value[cpu][pid] = int(count.strip())
+    return stat_cpu_pid
+
+def cpu_lshare(stat_cpu_pid, cpu_usage):
+    """Return largest share (lshare) that the most running process got from a CPU"""
+    cpu_lshare = {}
+    for cpu, pid_runtime in stat_cpu_pid["run"].items():
+        # show largest share only on CPUs with at least 25 % usage
+        if cpu_usage.get(cpu, 0) < 0.25:
+            cpu_lshare[cpu] = 0
+            continue
+        max_time = max(pid_runtime.values())
+        sum_time = sum(pid_runtime.values())
+        if sum_time == 0:
+            cpu_lshare[cpu] = 0
+            continue
+        cpu_lshare[cpu] = max_time / sum_time
+    return cpu_lshare
 
 _cpu_load_total, _cpu_load_idle = {}, {}
 def cpu_usage_from_proc():
@@ -439,12 +493,11 @@ def print_sysmbw_usage(data):
     bm.set_line(-1, write_bar)
     print(f"sysR+W {rgbps+wgbps:6.1f} GB/s{bm.to_braille()} {_max_sys_bw:6.1f} GB/s")
 
-def print_cpu_load2(pkg, cpus, cpu_usage):
+def print_cpu_load2(pkg, cpus, cpu_usage, cpu_ls):
     try:
         width = os.get_terminal_size().columns
     except:
         width = 72
-
     height_pts = 8 # resolution in braille points
     lines = []
     prev_pkg = None
@@ -453,6 +506,7 @@ def print_cpu_load2(pkg, cpus, cpu_usage):
         line1 = []
         line2 = []
         usage = []
+        lshare = [] # largest share that any process got on a CPU
         for cpu in cpus:
             if cpu[0] != node or cpu[1] != pkg:
                 continue
@@ -466,12 +520,29 @@ def print_cpu_load2(pkg, cpus, cpu_usage):
                 line2.append(f"coreid")
             vcpu = cpu[-1]
             usage.append(round(height_pts * cpu_usage[vcpu]))
+            if cpu_ls:
+                # 99 % CPU usage is shown as 100 % in the braille,
+                # anything lower than that lacks the last braille dot.
+                lshare.append(int(height_pts * min(1.0, .01 + cpu_ls.get(vcpu, 0))))
             if len(usage) == 2:
                 bm = Bitmap()
-                bm.add_col([0]*height_pts)
+                if cpu_ls and lshare:
+                    lshare_col0 = [0]*height_pts
+                    if lshare[0] > 0:
+                        lshare_col0[height_pts-lshare[0]] = 1
+                    bm.add_col(lshare_col0)
+                else:
+                    bm.add_col([0]*height_pts)
                 for u in usage:
                     coldata =  [0]*(height_pts-u) + [1]*u
                     bm.add_col(coldata)
+                if cpu_ls and len(lshare) == 2:
+                    lshare_col1 = [0]*height_pts
+                    if lshare[1] > 0:
+                        lshare_col1[height_pts-lshare[1]] = 1
+                    bm.add_col(lshare_col1)
+                else:
+                    bm.add_col([0]*height_pts)
                 s = bm.to_braille()
                 if cpu[-2] % 4 == 0:
                     bgon = "\x1b[48;5;14m"
@@ -483,6 +554,7 @@ def print_cpu_load2(pkg, cpus, cpu_usage):
                 line1.append(bgon + (s.split("\n")[1]) + bgoff)
                 line2.append(bgon + (" " + str(cpu[-2]))[-2:] + bgoff)
                 usage = []
+                lshare = []
         if line0:
             lines.append(line0)
             lines.append(line1)
@@ -494,11 +566,13 @@ if __name__ == "__main__":
     opt_delay = 1.0
     opt_memory = False
     opt_upi = False
+    opt_largest_share = False
 
+    # get stats on cpu pid events
     try:
         opts, remainder = getopt.gnu_getopt(
-            sys.argv[1:], 'hd:mu',
-            ['help', 'delay=', 'memory', 'upi'])
+            sys.argv[1:], 'hd:lmu',
+            ['help', 'delay=', 'largest-share', 'memory', 'upi'])
     except Exception as e:
         error(str(e))
     for opt, arg in opts:
@@ -510,18 +584,27 @@ if __name__ == "__main__":
                 opt_delay = float(arg)
             except:
                 error("invalid delay: %s" % (arg,))
+        elif opt in ["-l", "--largest-share"]:
+            opt_largest_share = True
         elif opt in ["-m", "--memory"]:
             opt_memory = True
         elif opt in ["-u", "--upi"]:
             opt_upi = True
         else:
-            error("unknown option: %s" % (opt,))
+            error("internal error: unhandled option: %s" % (opt,))
 
     cpus = read_topology()
     add_numa_info_to_pkg(cpus)
     max_pkg = max([cpu[1] for cpu in cpus])
     membw_usage, upi_usage = None, None
     cpu_usage_from_proc() # read initial values
+
+    if opt_largest_share:
+        print("starting bpftrace")
+        try:
+            cpu_pid_stats()
+        except Exception as err:
+            error("cannot run bpftrace to show -l/--largest-share data: %s" % (err,))
 
     if opt_upi:
         print("starting pcm")
@@ -545,6 +628,7 @@ if __name__ == "__main__":
     else:
         membw_from_pcm = lambda: time.sleep(opt_delay)
 
+    cpu_ls = {}
     # clear terminal
     print("\x1b[2J", end="")
     while True:
@@ -560,8 +644,11 @@ if __name__ == "__main__":
             print()
 
         cpu_usage = cpu_usage_from_proc()
+        if opt_largest_share:
+            cps = cpu_pid_stats()
+            cpu_ls = cpu_lshare(cps, cpu_usage)
 
-        print_cpu_load2(0, cpus, cpu_usage)
+        print_cpu_load2(0, cpus, cpu_usage, cpu_ls)
 
         if max_pkg > 0:
             if opt_upi:
@@ -570,7 +657,7 @@ if __name__ == "__main__":
                 print()
                 if opt_upi:
                     print_upi_usage(pkg, upi_usage, "\u2191")
-                print_cpu_load2(pkg, cpus, cpu_usage)
+                print_cpu_load2(pkg, cpus, cpu_usage, cpu_ls)
 
             if membw_usage:
                 for pkg in range(1, max_pkg + 1):
