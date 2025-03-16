@@ -9,6 +9,7 @@
 #include "msr.h"
 #include "ntdef.h"
 #include <wdm.h>
+#include <wdmsec.h>
 
 
 /*!     \file msrmain.cpp
