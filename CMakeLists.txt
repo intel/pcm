@@ -180,7 +180,9 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
 add_subdirectory(src)
+if(NOT LINUX)
 add_subdirectory(examples)
+endif()
 add_subdirectory(tests)
 
 message(STATUS "Install directory: ${CMAKE_INSTALL_PREFIX}")
