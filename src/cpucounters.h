@@ -3576,7 +3576,6 @@ double getDRAMConsumedJoules(const CounterStateType & before, const CounterState
  */
         dram_joules_per_energy_unit = m->getJoulesPerEnergyUnit();
     }
-    DBG(3, "dram_joules_per_energy_unit = ", dram_joules_per_energy_unit);
     return double(getDRAMConsumedEnergy(before, after)) * dram_joules_per_energy_unit;
 }
 
