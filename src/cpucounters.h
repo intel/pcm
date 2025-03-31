@@ -3562,10 +3562,6 @@ double getDRAMConsumedJoules(const CounterStateType & before, const CounterState
         || PCM::BDX == cpu_family_model
         || PCM::SKX == cpu_family_model
         || PCM::ICX == cpu_family_model
-        || PCM::GNR == cpu_family_model
-        || PCM::GNR_D == cpu_family_model
-        || PCM::SRF == cpu_family_model
-        || PCM::GRR == cpu_family_model
         || PCM::KNL == cpu_family_model
         ) {
 /* as described in sections 5.3.2 (DRAM_POWER_INFO) and 5.3.3 (DRAM_ENERGY_STATUS) of
