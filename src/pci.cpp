@@ -67,10 +67,11 @@ bool PciHandle::exists(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 func
     HANDLE tempHandle = openMSRDriver();
     if (tempHandle != INVALID_HANDLE_VALUE)
     {
-        // TODO: check device availability
-
         CloseHandle(tempHandle);
-        return true;
+
+        PciHandle tempHandle(groupnr_, bus_, device_, function_);
+        uint32 value = 0;
+        return tempHandle.read32(0, &value) == sizeof(uint32);
     }
 
     if (groupnr_ != 0)
