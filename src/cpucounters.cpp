@@ -5032,7 +5032,7 @@ const char * PCM::getUArchCodename(const int32 cpu_family_model_param) const
         case EMR:
             return "Emerald Rapids-SP";
         case GNR:
-            return "Granite Rapids-SP";
+            return "Granite Rapids";
         case GNR_D:
             return "Granite Rapids-D";
         case GRR:
