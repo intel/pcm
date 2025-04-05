@@ -1858,8 +1858,15 @@ bool getIDXDevBAR(std::vector<std::pair<uint32, uint32> > & socket2bus, uint32 d
         PciHandleType IDXHandle(s2bus.first, s2bus.second, dev, func);
         IDXHandle.read64(SPR_IDX_ACCEL_BAR0_OFFSET, &memBar);
         IDXHandle.read32(SPR_IDX_ACCEL_PCICMD_OFFSET, &pciCmd);
-        IDXHandle.read32(SPR_IDX_ACCEL_PMCSR_OFFSET, &pmCsr);      
-        if (memBar == 0x0 || (pciCmd & 0x02) == 0x0) //Check BAR0 is valid or NOT.
+        IDXHandle.read32(SPR_IDX_ACCEL_PMCSR_OFFSET, &pmCsr);
+        DBG(1, "IDX - BAR0 of B:0x", std::hex, s2bus.second, ",D:0x", std::hex, dev, ",F:0x", std::hex, func, " is (memBar=0x",
+            std::hex, memBar, ", pciCmd=0x", std::hex, pciCmd, ")", std::dec);
+        if (memBar == 0x0
+#ifndef _MSC_VER
+            // on Windows the driver does not set the bit: do not check
+            || (pciCmd & 0x02) == 0x0
+#endif
+            ) //Check BAR0 is valid or NOT.
         {
             std::cerr << "Warning: IDX - BAR0 of B:0x" << std::hex << s2bus.second << ",D:0x" << std::hex << dev << ",F:0x" << std::hex << func
                 << " is invalid(memBar=0x" << std::hex << memBar << ", pciCmd=0x" << std::hex << pciCmd <<"), skipped." << std::dec << std::endl;
@@ -5032,7 +5039,7 @@ const char * PCM::getUArchCodename(const int32 cpu_family_model_param) const
         case EMR:
             return "Emerald Rapids-SP";
         case GNR:
-            return "Granite Rapids-SP";
+            return "Granite Rapids";
         case GNR_D:
             return "Granite Rapids-D";
         case GRR:
