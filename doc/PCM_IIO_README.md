@@ -25,7 +25,11 @@ IOMMU metrics:
 * 2M Cache Hit: Second Level Page Walk Cache Hits to a 2M page per second
 * IOMMU Mem Access: IOMMU memory accesses per second
 
+Sample output:
+
+![image](https://github.com/user-attachments/assets/e8cce396-b210-49d5-ac95-dc43f9ae69d3)
+
 ## Event config file:
 
-pcm-iio tool allows the user to customize the performance events with the config file as a an advanced feature. The event config files are opCode-x-y.txt where x/y is cpu family is model id, for example 6/143 for Sapphire Rapids.
+pcm-iio tool allows the user to customize the performance events with a config file as an advanced feature. The event config files are in opCode-x-y.txt files where x/y is cpu family is model id, for example 6/143 for Sapphire Rapids.
 
