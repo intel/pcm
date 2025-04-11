@@ -25,12 +25,12 @@ jobs:
         submodules: recursive
     - name: clang scan build in FreeBSD VM
       id: clang-scan-build
-      uses: cross-platform-actions/action@cdc9ee69ef84a5f2e59c9058335d9c57bcb4ac86 # v0.25.0
+      uses: cross-platform-actions/action@2d97d42e1972a17b045fd709a422f7e55a86230d
       with:
         memory: 2048
         shell: sh
         operating_system: freebsd
-        version: '14.1'
+        version: '14.2'
         run: |
           sudo mkdir -p /usr/local/etc/pkg/repos
           sudo sh -c 'echo "FreeBSD: { url: \"https://pkg.FreeBSD.org/\${ABI}/quarterly\", mirror_type: \"srv\", enabled: yes }" > /usr/local/etc/pkg/repos/FreeBSD.conf'

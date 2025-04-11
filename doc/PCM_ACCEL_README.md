@@ -1,12 +1,10 @@
 ## Purpose:
 
-Intel® Xeon® Scalable Processors UNCORE accelerator(start from 4th Gen Intel® Xeon® Scalable Processor (codenamed Sapphire Rapids)) including Intel® In-Memory Analytics Accelerator (Intel® IAA), Intel® Data Streaming Accelerator (Intel® DSA) and Intel® QuickAssist Technology (Intel® QAT), etc are key feature of Intel® Xeon® Scalable Processors that can benefit the Intel architecture platform performance in the data center industry.
+Intel® Xeon® Scalable Processors, starting from the 4th Generation (codenamed Sapphire Rapids), feature accelerators, which include the Intel® In-Memory Analytics Accelerator (Intel® IAA), Intel® Data Streaming Accelerator (Intel® DSA), and Intel® QuickAssist Technology (Intel® QAT), among others. These accelerators are essential components that can enhance the performance of Intel architecture platforms.
 
-The accelerator and related software stack can be a key contributor to data center system performance,  but sometimes it’s NOT easy for customer/user to get/understand the performance data of the accelerator like utilization, throughput, etc since low level hardware event sets is complex to understand without the deep knowledge of the accelerator hardware/software architecture.
+Although these accelerators and their associated software stacks can significantly contribute to data center system performance, customers and users often find it challenging to access and understand performance data such as utilization and throughput. This difficulty arises from the complexity of low-level hardware event sets, which require a deep understanding of the accelerator's hardware and software architecture.
 
-This pcm-accel tool will sample the performance data from accelerator hardware and show it to end user in an easy-to-understanding format.
-
-The goal is to help the user to quickly and accurately see a high-level performance picture or identify issues related to accelerator with or without solid knowledge of it.
+The pcm-accel tool addresses this challenge by sampling performance data from the accelerator hardware and presenting it to end users in an easy-to-understand format. Its goal is to enable users to quickly and accurately gain a high-level overview of performance or identify issues related to the accelerator, regardless of their level of expertise in the underlying technology.
 
 ## Command syntax:
 
