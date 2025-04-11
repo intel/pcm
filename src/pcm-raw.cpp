@@ -461,8 +461,8 @@ AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEven
         cerr << "ERROR: PMU Event map can not be initialized\n";
         return AddEventStatus::Failed;
     }
-    // cerr << "Parsing event " << fullEventStr << "\n";
-    // cerr << "size: " << fullEventStr.size() << "\n";
+    DBG(2,  "Parsing event " , fullEventStr);
+    DBG(2,  "size: " , fullEventStr.size());
     while (fullEventStr.empty() == false && fullEventStr.back() == ' ')
     {
         fullEventStr.resize(fullEventStr.size() - 1); // remove trailing spaces
@@ -482,7 +482,7 @@ AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEven
 
     const auto eventStr = EventTokens[0];
 
-    // cerr << "size: " << eventStr.size() << "\n";
+    DBG(2, "size: " , eventStr.size());
     PCM::RawEventConfig config = { {0,0,0,0,0}, "" };
     std::string pmuName;
 
@@ -636,7 +636,7 @@ AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEven
     {
         std::string unit = EventMap::getField(eventStr, "Unit");
         lowerCase(unit);
-        // std::cout << eventStr << " is uncore event for unit " << unit << "\n";
+        DBG(2, eventStr , " is uncore event for unit " , unit);
         pmuName = (pmuNameMap.find(unit) == pmuNameMap.end()) ? unit : pmuNameMap[unit];
     }
 
@@ -644,9 +644,9 @@ AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEven
 
     if (1)
     {
-        // cerr << "pmuName: " << pmuName << " full event "<< fullEventStr << " \n";
+        DBG(2, "pmuName: " , pmuName , " full event ", fullEventStr);
         std::string CounterStr = EventMap::getField(eventStr, "Counter");
-        // cout << "Counter: " << CounterStr << "\n";
+        DBG(2, "Counter: " , CounterStr);
         int fixedCounter = -1;
         fixed = (pcm_sscanf(CounterStr) >> s_expect("Fixed counter ") >> fixedCounter) ? true : false;
         if (!fixed){
@@ -720,15 +720,15 @@ AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEven
             };
             for (const auto & registerKeyValue : PMUDeclObj)
             {
-                // cout << "Setting " << registerKeyValue.key << " : " << registerKeyValue.value << "\n";
+                DBG(2, "Setting " , registerKeyValue.key , " : " , registerKeyValue.value);
                 simdjson::dom::object fieldDescriptionObj = registerKeyValue.value;
-                // cout << "   config: " << uint64_t(fieldDescriptionObj["Config"]) << "\n";
-                // cout << "   Position: " << uint64_t(fieldDescriptionObj["Position"]) << "\n";
+                DBG(2, "   config: " , uint64_t(fieldDescriptionObj["Config"]));
+                DBG(2, "   Position: " , uint64_t(fieldDescriptionObj["Position"]));
                 const std::string fieldNameStr{ registerKeyValue.key.begin(), registerKeyValue.key.end() };
                 if (fieldNameStr == "MSRIndex")
                 {
                     string fieldValueStr = EventMap::getField(eventStr, fieldNameStr);
-                    // cout << "MSR field " << fieldNameStr << " value is " << fieldValueStr << " (" << read_number(fieldValueStr.c_str()) << ") offcore=" << offcore << "\n";
+                    DBG(2, "MSR field " , fieldNameStr , " value is " , fieldValueStr , " (" , read_number(fieldValueStr.c_str()) , ") offcore=" , offcore);;
                     lowerCase(fieldValueStr);
                     if (fieldValueStr == "0" || fieldValueStr == "0x00")
                     {
@@ -745,7 +745,7 @@ AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEven
                         }
                         MSRIndexStr = MSRIndexes[offcoreEventIndex];
                     }
-                    // cout << " MSR field " << fieldNameStr << " value is " << MSRIndexStr << " (" << read_number(MSRIndexStr.c_str()) << ") offcore=" << offcore << "\n";
+                    DBG(2, " MSR field " , fieldNameStr , " value is " , MSRIndexStr , " (" , read_number(MSRIndexStr.c_str()) , ") offcore=" , offcore);
                     MSRObject = registerKeyValue.value[MSRIndexStr];
                     const string msrValueStr = EventMap::getField(eventStr, "MSRValue");
                     setMSRValue(msrValueStr);
@@ -758,7 +758,7 @@ AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEven
                 }
                 if (!EventMap::isField(eventStr, fieldNameStr))
                 {
-                    // cerr << fieldNameStr << " not found\n";
+                    DBG(2, fieldNameStr , " not found");
                     if (fieldDescriptionObj["DefaultValue"].error() == NO_SUCH_FIELD)
                     {
                         cerr << "ERROR: DefaultValue not provided for field \"" << fieldNameStr << "\" in " << path << "\n";
@@ -786,7 +786,7 @@ AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEven
                         }
                         fieldValueStr = offcoreCodes[offcoreEventIndex];
                     }
-                    // cout << " field " << fieldNameStr << " value is " << fieldValueStr << " (" << read_number(fieldValueStr.c_str()) << ") offcore=" << offcore << "\n";
+                    DBG(2, " field " , fieldNameStr , " value is " , fieldValueStr , " (" , read_number(fieldValueStr.c_str()) , ") offcore=" , offcore);
                     setConfig(config, fieldDescriptionObj, read_number(fieldValueStr.c_str()), position);
                 }
             }
@@ -933,13 +933,6 @@ AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEven
             return AddEventStatus::Failed;
         }
     }
-
-    /*
-    for (const auto& keyValue : eventObj)
-    {
-        cout << keyValue.key << " : " << keyValue.value << "\n";
-    }
-    */
 
     printEvent(pmuName, fixed, config);
 
@@ -2748,9 +2741,6 @@ int mainThrows(int argc, char * argv[])
                     AfterUncoreState[s] = m->getServerUncoreCounterState(s);
                 }
                 m->globalUnfreezeUncoreCounters();
-
-                //cout << "Time elapsed: " << dec << fixed << AfterTime - BeforeTime << " ms\n";
-                //cout << "Called sleep function for " << dec << fixed << delay_ms << " ms\n";
 
                 printAll(group, m, SysBeforeState, SysAfterState, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, PMUConfigs, groupNr == nGroups);
                 if (nGroups == 1)
