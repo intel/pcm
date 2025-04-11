@@ -264,12 +264,12 @@ bool initPMUEventMap()
         cerr << "Can't read first line from " << mapfile << " \n";
         return false;
     }
-    // cout << FMSPos << " " << FilenamePos << " " << EventTypetPos << "\n";
+    DBG(1, FMSPos , " " , FilenamePos , " " , EventTypetPos);
     assert(FMSPos >= 0);
     assert(FilenamePos >= 0);
     assert(EventTypetPos >= 0);
     const std::string ourFMS = PCM::getInstance()->getCPUFamilyModelString();
-    // cout << "Our FMS: " << ourFMS << "\n";
+    DBG(1, "Our FMS: " , ourFMS);
     std::multimap<std::string, std::string> eventFiles;
     cerr << "Matched event files:\n";
     while (std::getline(in, line))
@@ -460,7 +460,25 @@ public:
                 }
             }
         }
+    }
 
+    static void print_event_debug(const std::string &eventStr, const int debugLevel = 1) {
+        if (PMUEventMapJSON.find(eventStr) != PMUEventMapJSON.end()) {
+            const auto eventObj = PMUEventMapJSON[eventStr];
+            for (const auto & keyValue : eventObj)
+                DBG(debugLevel, "JSON " , keyValue.key , " : " , keyValue.value);
+        }
+
+        for (auto &EventMapTSV : PMUEventMapsTSV) {
+            if (EventMapTSV.find(eventStr) != EventMapTSV.end()) {
+                const auto &col_names = EventMapTSV["COL_NAMES"];
+                const auto event = EventMapTSV[eventStr];
+                if (EventMapTSV.find(eventStr) != EventMapTSV.end()) {
+                    for (size_t i = 0 ; i < col_names.size() ; i++)
+                        DBG(debugLevel, "TSV " , col_names[i] , " : " , event[i]);
+                }
+            }
+        }
     }
 };
 
@@ -506,6 +524,8 @@ AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEven
     ++mod;
 
     const auto eventStr = EventTokens[0];
+
+    EventMap::print_event_debug(eventStr);
 
     DBG(2, "size: " , eventStr.size());
     PCM::RawEventConfig config = { {0,0,0,0,0}, "" };
