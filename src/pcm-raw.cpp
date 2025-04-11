@@ -65,6 +65,7 @@ void print_usage(const string & progname)
     cout << "                             -e cha/config=0,name=UNC_CHA_CLOCKTICKS/ -e imc/fixed,name=DRAM_CLOCKS/\n";
 #ifdef PCM_SIMDJSON_AVAILABLE
     cout << "                             -e NAME where the NAME is an event from https://github.com/intel/perfmon event lists\n";
+    cout << "   -? | /?                               => print all events that can be monitored on the host platform along with a description\n";
     cout << "  -ep path | /ep path                    => path to event list directory (default is the current directory)\n";
 #endif
     cout << "  -yc   | --yescores  | /yc              => enable specific cores to output\n";
@@ -217,16 +218,24 @@ bool initPMUEventMap()
     inited = true;
     const auto mapfile = "mapfile.csv";
     const auto mapfilePath = eventFileLocationPrefix + "/"  + mapfile;
+    const auto mapfilePathAlt = getInstallPathPrefix() + "perfmon/" + mapfile;
     std::ifstream in(mapfilePath);
     std::string line, item;
 
     if (!in.is_open())
     {
-        cerr << "ERROR: File " << mapfilePath << " can't be open. \n";
-        cerr << "       Use -ep <pcm_source_directory>/perfmon option if you cloned PCM source repository recursively with submodules,\n";
-        cerr << "       or run 'git clone https://github.com/intel/perfmon' to download the perfmon event repository and use -ep <perfmon_directory> option\n";
-        cerr << "       or download the file from https://raw.githubusercontent.com/intel/perfmon/main/" << mapfile << " \n";
-        return false;
+        in.open(mapfilePathAlt);
+        if (!in.is_open())
+        {
+            cerr << "ERROR: File " << mapfilePath << " or " << mapfilePathAlt << " can't be open. \n";
+            #ifndef _MSC_VER
+            cerr << "       run 'make install' in the pcm build directory if you cloned PCM source repository recursively with submodules, or\n";
+            #endif
+            cerr << "       use -ep <pcm_source_directory>/perfmon option if you cloned PCM source repository recursively with submodules,\n";
+            cerr << "       or run 'git clone https://github.com/intel/perfmon' to download the perfmon event repository and use -ep <perfmon_directory> option\n";
+            cerr << "       or download the file from https://raw.githubusercontent.com/intel/perfmon/main/" << mapfile << " \n";
+            return false;
+        }
     }
     int32 FMSPos = -1;
     int32 FilenamePos = -1;
@@ -255,12 +264,12 @@ bool initPMUEventMap()
         cerr << "Can't read first line from " << mapfile << " \n";
         return false;
     }
-    // cout << FMSPos << " " << FilenamePos << " " << EventTypetPos << "\n";
+    DBG(1, FMSPos , " " , FilenamePos , " " , EventTypetPos);
     assert(FMSPos >= 0);
     assert(FilenamePos >= 0);
     assert(EventTypetPos >= 0);
     const std::string ourFMS = PCM::getInstance()->getCPUFamilyModelString();
-    // cout << "Our FMS: " << ourFMS << "\n";
+    DBG(1, "Our FMS: " , ourFMS);
     std::multimap<std::string, std::string> eventFiles;
     cerr << "Matched event files:\n";
     while (std::getline(in, line))
@@ -300,6 +309,7 @@ bool initPMUEventMap()
             {
                 const std::string path1 = eventFileLocationPrefix + evfile.second;
                 const std::string path2 = eventFileLocationPrefix + evfile.second.substr(evfile.second.rfind('/'));
+                const std::string path3 = getInstallPathPrefix() + "perfmon" + evfile.second;
 
                 if (std::ifstream(path1).good())
                 {
@@ -309,9 +319,13 @@ bool initPMUEventMap()
                 {
                     path = path2;
                 }
+                else if (std::ifstream(path3).good())
+                {
+                    path = path3;
+                }
                 else
                 {
-                    std::cerr << "ERROR: Can't open event file at location " << path1 << " or " << path2 << "\n";
+                    std::cerr << "ERROR: Can't open event file at location " << path1 << " or " << path2 << " or " << path3 << "\n";
                     printError();
                     return false;
                 }
@@ -351,7 +365,7 @@ bool initPMUEventMap()
         catch (std::exception& e)
         {
             cerr << "Error while opening and/or parsing " << path << " : " << e.what() << "\n";
-           printError();
+            printError();
             return false;
         }
     }
@@ -418,6 +432,15 @@ public:
         return res;
     }
 
+    static void print_event_description(const std::string &eventStr) {
+        if (PMUEventMapJSON.find(eventStr) != PMUEventMapJSON.end()) {
+            const auto eventObj = PMUEventMapJSON[eventStr];
+            for (const auto & key : {"BriefDescription", "PublicDescription"})
+                std::cout << key << " : " << eventObj[key] << "\n";
+            return;
+        }
+    }
+
     static void print_event(const std::string &eventStr) {
         if (PMUEventMapJSON.find(eventStr) != PMUEventMapJSON.end()) {
             const auto eventObj = PMUEventMapJSON[eventStr];
@@ -437,9 +460,42 @@ public:
                 }
             }
         }
+    }
 
+    static void print_event_debug(const std::string &eventStr, const int debugLevel = 1) {
+        if (PMUEventMapJSON.find(eventStr) != PMUEventMapJSON.end()) {
+            const auto eventObj = PMUEventMapJSON[eventStr];
+            for (const auto & keyValue : eventObj)
+                DBG(debugLevel, "JSON " , keyValue.key , " : " , keyValue.value);
+        }
+
+        for (auto &EventMapTSV : PMUEventMapsTSV) {
+            if (EventMapTSV.find(eventStr) != EventMapTSV.end()) {
+                const auto &col_names = EventMapTSV["COL_NAMES"];
+                const auto event = EventMapTSV[eventStr];
+                if (EventMapTSV.find(eventStr) != EventMapTSV.end()) {
+                    for (size_t i = 0 ; i < col_names.size() ; i++)
+                        DBG(debugLevel, "TSV " , col_names[i] , " : " , event[i]);
+                }
+            }
+        }
     }
 };
+
+void printAllEventDescriptions()
+{
+    if (initPMUEventMap() == false)
+    {
+        cerr << "ERROR: PMU Event map can not be initialized\n";
+        return;
+    }
+    for (const auto& event : PMUEventMapJSON)
+    {
+        std::cout << event.first << "\n";
+        EventMap::print_event_description(event.first);
+        std::cout << "\n";
+    }
+}
 
 AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
 {
@@ -448,8 +504,8 @@ AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEven
         cerr << "ERROR: PMU Event map can not be initialized\n";
         return AddEventStatus::Failed;
     }
-    // cerr << "Parsing event " << fullEventStr << "\n";
-    // cerr << "size: " << fullEventStr.size() << "\n";
+    DBG(2,  "Parsing event " , fullEventStr);
+    DBG(2,  "size: " , fullEventStr.size());
     while (fullEventStr.empty() == false && fullEventStr.back() == ' ')
     {
         fullEventStr.resize(fullEventStr.size() - 1); // remove trailing spaces
@@ -469,7 +525,9 @@ AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEven
 
     const auto eventStr = EventTokens[0];
 
-    // cerr << "size: " << eventStr.size() << "\n";
+    EventMap::print_event_debug(eventStr);
+
+    DBG(2, "size: " , eventStr.size());
     PCM::RawEventConfig config = { {0,0,0,0,0}, "" };
     std::string pmuName;
 
@@ -623,7 +681,7 @@ AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEven
     {
         std::string unit = EventMap::getField(eventStr, "Unit");
         lowerCase(unit);
-        // std::cout << eventStr << " is uncore event for unit " << unit << "\n";
+        DBG(2, eventStr , " is uncore event for unit " , unit);
         pmuName = (pmuNameMap.find(unit) == pmuNameMap.end()) ? unit : pmuNameMap[unit];
     }
 
@@ -631,9 +689,9 @@ AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEven
 
     if (1)
     {
-        // cerr << "pmuName: " << pmuName << " full event "<< fullEventStr << " \n";
+        DBG(2, "pmuName: " , pmuName , " full event ", fullEventStr);
         std::string CounterStr = EventMap::getField(eventStr, "Counter");
-        // cout << "Counter: " << CounterStr << "\n";
+        DBG(2, "Counter: " , CounterStr);
         int fixedCounter = -1;
         fixed = (pcm_sscanf(CounterStr) >> s_expect("Fixed counter ") >> fixedCounter) ? true : false;
         if (!fixed){
@@ -707,15 +765,15 @@ AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEven
             };
             for (const auto & registerKeyValue : PMUDeclObj)
             {
-                // cout << "Setting " << registerKeyValue.key << " : " << registerKeyValue.value << "\n";
+                DBG(2, "Setting " , registerKeyValue.key , " : " , registerKeyValue.value);
                 simdjson::dom::object fieldDescriptionObj = registerKeyValue.value;
-                // cout << "   config: " << uint64_t(fieldDescriptionObj["Config"]) << "\n";
-                // cout << "   Position: " << uint64_t(fieldDescriptionObj["Position"]) << "\n";
+                DBG(2, "   config: " , uint64_t(fieldDescriptionObj["Config"]));
+                DBG(2, "   Position: " , uint64_t(fieldDescriptionObj["Position"]));
                 const std::string fieldNameStr{ registerKeyValue.key.begin(), registerKeyValue.key.end() };
                 if (fieldNameStr == "MSRIndex")
                 {
                     string fieldValueStr = EventMap::getField(eventStr, fieldNameStr);
-                    // cout << "MSR field " << fieldNameStr << " value is " << fieldValueStr << " (" << read_number(fieldValueStr.c_str()) << ") offcore=" << offcore << "\n";
+                    DBG(2, "MSR field " , fieldNameStr , " value is " , fieldValueStr , " (" , read_number(fieldValueStr.c_str()) , ") offcore=" , offcore);;
                     lowerCase(fieldValueStr);
                     if (fieldValueStr == "0" || fieldValueStr == "0x00")
                     {
@@ -732,7 +790,7 @@ AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEven
                         }
                         MSRIndexStr = MSRIndexes[offcoreEventIndex];
                     }
-                    // cout << " MSR field " << fieldNameStr << " value is " << MSRIndexStr << " (" << read_number(MSRIndexStr.c_str()) << ") offcore=" << offcore << "\n";
+                    DBG(2, " MSR field " , fieldNameStr , " value is " , MSRIndexStr , " (" , read_number(MSRIndexStr.c_str()) , ") offcore=" , offcore);
                     MSRObject = registerKeyValue.value[MSRIndexStr];
                     const string msrValueStr = EventMap::getField(eventStr, "MSRValue");
                     setMSRValue(msrValueStr);
@@ -745,7 +803,7 @@ AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEven
                 }
                 if (!EventMap::isField(eventStr, fieldNameStr))
                 {
-                    // cerr << fieldNameStr << " not found\n";
+                    DBG(2, fieldNameStr , " not found");
                     if (fieldDescriptionObj["DefaultValue"].error() == NO_SUCH_FIELD)
                     {
                         cerr << "ERROR: DefaultValue not provided for field \"" << fieldNameStr << "\" in " << path << "\n";
@@ -773,7 +831,7 @@ AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEven
                         }
                         fieldValueStr = offcoreCodes[offcoreEventIndex];
                     }
-                    // cout << " field " << fieldNameStr << " value is " << fieldValueStr << " (" << read_number(fieldValueStr.c_str()) << ") offcore=" << offcore << "\n";
+                    DBG(2, " field " , fieldNameStr , " value is " , fieldValueStr , " (" , read_number(fieldValueStr.c_str()) , ") offcore=" , offcore);
                     setConfig(config, fieldDescriptionObj, read_number(fieldValueStr.c_str()), position);
                 }
             }
@@ -920,13 +978,6 @@ AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEven
             return AddEventStatus::Failed;
         }
     }
-
-    /*
-    for (const auto& keyValue : eventObj)
-    {
-        cout << keyValue.key << " : " << keyValue.value << "\n";
-    }
-    */
 
     printEvent(pmuName, fixed, config);
 
@@ -2475,6 +2526,13 @@ int mainThrows(int argc, char * argv[])
             extendPrintout = true;
             continue;
         }
+#if PCM_SIMDJSON_AVAILABLE
+        else if (check_argument_equals(*argv, {"-?", "/?"}))
+        {
+            printAllEventDescriptions();
+            return 0;
+        }
+#endif
         else if (check_argument_equals(*argv, {"-single-header", "/single-header"}))
         {
             singleHeader = true;
@@ -2735,9 +2793,6 @@ int mainThrows(int argc, char * argv[])
                     AfterUncoreState[s] = m->getServerUncoreCounterState(s);
                 }
                 m->globalUnfreezeUncoreCounters();
-
-                //cout << "Time elapsed: " << dec << fixed << AfterTime - BeforeTime << " ms\n";
-                //cout << "Called sleep function for " << dec << fixed << delay_ms << " ms\n";
 
                 printAll(group, m, SysBeforeState, SysAfterState, BeforeState, AfterState, BeforeUncoreState, AfterUncoreState, BeforeSocketState, AfterSocketState, PMUConfigs, groupNr == nGroups);
                 if (nGroups == 1)
