@@ -217,16 +217,24 @@ bool initPMUEventMap()
     inited = true;
     const auto mapfile = "mapfile.csv";
     const auto mapfilePath = eventFileLocationPrefix + "/"  + mapfile;
+    const auto mapfilePathAlt = getInstallPathPrefix() + "perfmon/" + mapfile;
     std::ifstream in(mapfilePath);
     std::string line, item;
 
     if (!in.is_open())
     {
-        cerr << "ERROR: File " << mapfilePath << " can't be open. \n";
-        cerr << "       Use -ep <pcm_source_directory>/perfmon option if you cloned PCM source repository recursively with submodules,\n";
-        cerr << "       or run 'git clone https://github.com/intel/perfmon' to download the perfmon event repository and use -ep <perfmon_directory> option\n";
-        cerr << "       or download the file from https://raw.githubusercontent.com/intel/perfmon/main/" << mapfile << " \n";
-        return false;
+        in.open(mapfilePathAlt);
+        if (!in.is_open())
+        {
+            cerr << "ERROR: File " << mapfilePath << " or " << mapfilePathAlt << " can't be open. \n";
+            #ifndef _MSC_VER
+            cerr << "       run 'make install' in the pcm build directory if you cloned PCM source repository recursively with submodules, or\n";
+            #endif
+            cerr << "       use -ep <pcm_source_directory>/perfmon option if you cloned PCM source repository recursively with submodules,\n";
+            cerr << "       or run 'git clone https://github.com/intel/perfmon' to download the perfmon event repository and use -ep <perfmon_directory> option\n";
+            cerr << "       or download the file from https://raw.githubusercontent.com/intel/perfmon/main/" << mapfile << " \n";
+            return false;
+        }
     }
     int32 FMSPos = -1;
     int32 FilenamePos = -1;
@@ -300,6 +308,7 @@ bool initPMUEventMap()
             {
                 const std::string path1 = eventFileLocationPrefix + evfile.second;
                 const std::string path2 = eventFileLocationPrefix + evfile.second.substr(evfile.second.rfind('/'));
+                const std::string path3 = getInstallPathPrefix() + "perfmon" + evfile.second;
 
                 if (std::ifstream(path1).good())
                 {
@@ -309,9 +318,13 @@ bool initPMUEventMap()
                 {
                     path = path2;
                 }
+                else if (std::ifstream(path3).good())
+                {
+                    path = path3;
+                }
                 else
                 {
-                    std::cerr << "ERROR: Can't open event file at location " << path1 << " or " << path2 << "\n";
+                    std::cerr << "ERROR: Can't open event file at location " << path1 << " or " << path2 << " or " << path3 << "\n";
                     printError();
                     return false;
                 }
