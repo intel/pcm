@@ -65,6 +65,7 @@ void print_usage(const string & progname)
     cout << "                             -e cha/config=0,name=UNC_CHA_CLOCKTICKS/ -e imc/fixed,name=DRAM_CLOCKS/\n";
 #ifdef PCM_SIMDJSON_AVAILABLE
     cout << "                             -e NAME where the NAME is an event from https://github.com/intel/perfmon event lists\n";
+    cout << "   -? | /?                               => print all events that can be monitored on the host platform along with a description\n";
     cout << "  -ep path | /ep path                    => path to event list directory (default is the current directory)\n";
 #endif
     cout << "  -yc   | --yescores  | /yc              => enable specific cores to output\n";
@@ -364,7 +365,7 @@ bool initPMUEventMap()
         catch (std::exception& e)
         {
             cerr << "Error while opening and/or parsing " << path << " : " << e.what() << "\n";
-           printError();
+            printError();
             return false;
         }
     }
@@ -431,6 +432,15 @@ public:
         return res;
     }
 
+    static void print_event_description(const std::string &eventStr) {
+        if (PMUEventMapJSON.find(eventStr) != PMUEventMapJSON.end()) {
+            const auto eventObj = PMUEventMapJSON[eventStr];
+            for (const auto & key : {"BriefDescription", "PublicDescription"})
+                std::cout << key << " : " << eventObj[key] << "\n";
+            return;
+        }
+    }
+
     static void print_event(const std::string &eventStr) {
         if (PMUEventMapJSON.find(eventStr) != PMUEventMapJSON.end()) {
             const auto eventObj = PMUEventMapJSON[eventStr];
@@ -453,6 +463,21 @@ public:
 
     }
 };
+
+void printAllEventDescriptions()
+{
+    if (initPMUEventMap() == false)
+    {
+        cerr << "ERROR: PMU Event map can not be initialized\n";
+        return;
+    }
+    for (const auto& event : PMUEventMapJSON)
+    {
+        std::cout << event.first << "\n";
+        EventMap::print_event_description(event.first);
+        std::cout << "\n";
+    }
+}
 
 AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEventStr)
 {
@@ -2481,6 +2506,13 @@ int mainThrows(int argc, char * argv[])
             extendPrintout = true;
             continue;
         }
+#if PCM_SIMDJSON_AVAILABLE
+        else if (check_argument_equals(*argv, {"-?", "/?"}))
+        {
+            printAllEventDescriptions();
+            return 0;
+        }
+#endif
         else if (check_argument_equals(*argv, {"-single-header", "/single-header"}))
         {
             singleHeader = true;
