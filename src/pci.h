@@ -49,7 +49,6 @@ class PciHandle
     DWORD pciAddress;
 #endif
 
-    friend class PciHandleM;
     friend class PciHandleMM;
 
     PciHandle();                                // forbidden
@@ -79,40 +78,7 @@ typedef PciHandle PciHandleType;
 typedef PciHandle PciHandleType;
 #elif defined(__FreeBSD__) || defined(__DragonFly__)
 typedef PciHandle PciHandleType;
-#else
-
-// read/write PCI config space using physical memory
-class PciHandleM
-{
-#ifdef _MSC_VER
-
-#else
-    int32 fd;
-#endif
-
-    uint32 bus;
-    uint32 device;
-    uint32 function;
-    uint64 base_addr;
-
-    PciHandleM() = delete;             // forbidden
-    PciHandleM(PciHandleM &) = delete; // forbidden
-    PciHandleM & operator = (PciHandleM &) = delete; // forbidden
-
-public:
-    PciHandleM(uint32 bus_, uint32 device_, uint32 function_);
-
-    static bool exists(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 function_);
-
-    int32 read32(uint64 offset, uint32 * value);
-    int32 write32(uint64 offset, uint32 value);
-
-    int32 read64(uint64 offset, uint64 * value);
-
-    virtual ~PciHandleM();
-};
-
-#ifndef _MSC_VER
+#elif defined(__linux__)
 
 // read/write PCI config space using physical memory using mmapped file I/O
 class PciHandleMM
@@ -125,11 +91,9 @@ class PciHandleMM
     uint32 function;
     uint64 base_addr;
 
-#ifdef __linux__
     static MCFGHeader mcfgHeader;
     static std::vector<MCFGRecord> mcfgRecords;
     static void readMCFG();
-#endif
 
     PciHandleMM() = delete;             // forbidden
     PciHandleMM(const PciHandleMM &) = delete; // forbidden
@@ -147,9 +111,7 @@ public:
 
     virtual ~PciHandleMM();
 
-#ifdef __linux__
     static const std::vector<MCFGRecord> & getMCFGRecords();
-#endif
 };
 
 #ifdef PCM_USE_PCI_MM_LINUX
@@ -158,8 +120,8 @@ public:
 #define PciHandleType PciHandle
 #endif
 
-#endif //  _MSC_VER
-
+#else
+#error "Platform not supported"
 #endif
 
 template <class F>
