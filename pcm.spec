@@ -30,7 +30,9 @@ Intel(r) Performance Counter Monitor (Intel(r) PCM) is an application programmin
 
 %prep
 %setup -n pcm-master
-ls /home/abuild/rpmbuild/SOURCES/
+rm -rf perfmon
+unzip /home/abuild/rpmbuild/SOURCES/main.zip
+mv perfmon-main perfmon
 
 %build
 mkdir build
