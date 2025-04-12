@@ -15,7 +15,6 @@ BuildRequires:   gcc
 BuildRequires:   make
 BuildRequires:   gcc-c++
 BuildRequires:   cmake
-BuildRequires:   git
 %if 0%{?suse_version}
 BuildRequires:   libopenssl-devel
 %else
