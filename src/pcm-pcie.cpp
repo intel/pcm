@@ -150,7 +150,7 @@ int mainThrows(int argc, char * argv[])
     double delay = -1.0;
     bool csv = false;
     bool print_bandwidth = false;
-	bool print_additional_info = false;
+    bool print_additional_info = false;
     char * sysCmd = NULL;
     char ** sysArgv = NULL;
     MainLoop mainLoop;
