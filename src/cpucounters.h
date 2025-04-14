@@ -1685,6 +1685,7 @@ public:
        {
        case SPR:
        case EMR:
+       case GNR:
        case ADL: // ADL big core (GLC)
        case RPL:
        case MTL:
