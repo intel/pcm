@@ -3768,11 +3768,10 @@ int mainThrows(int argc, char * argv[]) {
     unsigned short debug_level = 0;
     std::string certificateFile;
     std::string privateKeyFile;
-    AcceleratorCounterState *accs_;
-    accs_ = AcceleratorCounterState::getInstance();
+    AcceleratorCounterState *accs_ = AcceleratorCounterState::getInstance();
     null_stream nullStream;
     check_and_set_silent(argc, argv, nullStream);
-    ACCEL_IP accel=ACCEL_NOCONFIG; //default is IAA
+    ACCEL_IP accel=ACCEL_NOCONFIG; //default is no device
     bool evtfile = false;
     std::string specify_evtfile;
     // ACCEL_DEV_LOC_MAPPING loc_map = SOCKET_MAP; //default is socket mapping
@@ -4032,6 +4031,7 @@ int mainThrows(int argc, char * argv[]) {
 
         //TODO: check return value when its implemented  
         pcmInstance->programCXLCM();
+
         if (pcmInstance->getAccel()!=ACCEL_NOCONFIG)
         {
             if (pcmInstance->supportIDXAccelDev() == false)
@@ -4044,6 +4044,7 @@ int mainThrows(int argc, char * argv[]) {
 
             accs_->programAccelCounters();
         }
+
         if ( printTopology ) {
             TopologyPrinter* tp = new TopologyPrinter();
             tp->dispatch( PCM::getInstance()->getSystemTopology() );
@@ -4053,7 +4054,8 @@ int mainThrows(int argc, char * argv[]) {
                 std::cout << line << "\n";
             }
             deleteAndNullify( tp );
-            exit( 0 );
+            delete pcmInstance;
+            return( 0 );
         }
 
         std::vector<struct iio_stacks_on_socket> iios;
@@ -4062,9 +4064,14 @@ int mainThrows(int argc, char * argv[]) {
         // Map with metrics names.
         PCIeEventNameMap_t nameMap;
 
+        // TODO: add check for IIO support before trying to initialize the pmu
         if ( !initializeIIOCounters( iios, evt_ctx, nameMap ) )
+        {
+            std::cerr << "Error: IIO is NOT supported with this platform! Program aborted\n";
             exit(EXIT_FAILURE);
+        }
 
+        // Now that everything is set we can start the http(s) server
 #if defined (USE_SSL)
         if ( useSSL ) {
             if ( port == 0 )
@@ -4083,7 +4090,6 @@ int mainThrows(int argc, char * argv[]) {
     } else if ( pid > 0 ) {
         /* Parent, just leave */
         DBG( 2, "Child pid: ", pid );
-        return 0;
     } else {
         /* Error */
         DBG( 2, "Error forking. " );

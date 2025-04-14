@@ -239,6 +239,7 @@ struct pci {
 
     bool isIntelDevice() const { return (vendor_id == PCM_INTEL_PCI_VENDOR_ID); }
 };
+
 struct iio_skx {
     struct {
         struct {
@@ -288,7 +289,7 @@ void probe_capability_pci_express(struct pci *p, uint32_t cap_ptr);
 bool probe_pci(struct pci *p);
 
 /*
-  first : [vendorID] -> vencor name
+  first : [vendorID] -> vendor name
   second : [vendorID][deviceID] -> device name
  */
 typedef std::pair< std::map<int, std::string> ,std::map< int, std::map<int, std::string> > > PCIDB;
