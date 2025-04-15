@@ -1194,28 +1194,20 @@ bool BirchStreamPlatform::birchStreamAcceleratorStackProbe(int unit, const struc
         return false;
     };
 
-    {
+    auto add_pci_part = [&](int domainno, int busno, int devno, int part_number) {
         struct iio_bifurcated_part part;
-        if (process_pci_dev(address.domainno, address.busno, 1, SRF_DSA_IAX_PART_NUMBER, part) ||
-            process_pci_dev(address.domainno, address.busno, 2, SRF_DSA_IAX_PART_NUMBER, part)) {
+        if (process_pci_dev(domainno, busno, devno, part_number, part)) {
             stack.parts.push_back(part);
         }
-    }
+    };
 
-    {
-        struct iio_bifurcated_part part;
-        if (process_pci_dev(address.domainno, address.busno + 1, 0, SRF_QAT_PART_NUMBER, part)) {
-            stack.parts.push_back(part);
-        }
-    }
+    add_pci_part(address.domainno, address.busno, 1, SRF_DSA_IAX_PART_NUMBER);
+    add_pci_part(address.domainno, address.busno, 2, SRF_DSA_IAX_PART_NUMBER);
 
-    {
-        /* Bus number for HQM is higher on 3 than DSA bus number */
-        struct iio_bifurcated_part part;
-        if (process_pci_dev(address.domainno, address.busno + 3, 0, SRF_HQM_PART_NUMBER, part)) {
-            stack.parts.push_back(part);
-        }
-    }
+    add_pci_part(address.domainno, address.busno + 1, 0, SRF_QAT_PART_NUMBER);
+
+    /* Bus number for HQM is higher on 3 than DSA bus number */
+    add_pci_part(address.domainno, address.busno + 3, 0, SRF_HQM_PART_NUMBER);
 
     if (!stack.parts.empty()) {
         iio_on_socket.stacks.push_back(stack);
