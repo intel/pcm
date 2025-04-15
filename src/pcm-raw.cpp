@@ -784,7 +784,7 @@ AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEven
                         if (offcoreEventIndex >= MSRIndexes.size())
                         {
                             std::cerr << "ERROR: too many offcore events specified (max is " << MSRIndexes.size() << "). MSRIndex string:" << MSRIndexStr << " Ignoring " << fullEventStr << " event\n";
-                            return AddEventStatus::OK;
+                            return AddEventStatus::FailedTooManyEvents;
                         }
                         MSRIndexStr = MSRIndexes[offcoreEventIndex];
                     }
