@@ -1664,6 +1664,7 @@ public:
     std::pair<unsigned, unsigned> getOCREventNr(const int event, const unsigned coreID) const
     {
        assert (coreID < topology.size());
+       const auto eCoreOCREvent = std::make_pair(OFFCORE_RESPONSE_0_EVTNR, event + 1);
        if (hybrid)
        {
             switch (cpu_family_model)
@@ -1675,7 +1676,7 @@ public:
             case ARL:
                 if (topology[coreID].core_type == TopologyEntry::Atom)
                 {
-                    return std::make_pair(OFFCORE_RESPONSE_0_EVTNR, event + 1);
+                    return eCoreOCREvent;
                 }
                 break;
             }
@@ -1693,6 +1694,22 @@ public:
        case ARL:
            useGLCOCREvent = true;
            break;
+
+       case ATOM:
+       case ATOM_2:
+       case CENTERTON:
+       case BAYTRAIL:
+       case AVOTON:
+       case CHERRYTRAIL:
+       case APOLLO_LAKE:
+       case GEMINI_LAKE:
+       case DENVERTON:
+       case SNOWRIDGE:
+       case ELKHART_LAKE:
+       case JASPER_LAKE:
+       case SRF:
+       case GRR:
+            return eCoreOCREvent;
        }
        switch (event)
        {
