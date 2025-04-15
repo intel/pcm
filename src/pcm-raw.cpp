@@ -816,11 +816,14 @@ AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEven
                 }
                 else
                 {
-                    std::string fieldValueStr = EventMap::getField(eventStr, fieldNameStr);
-
-                    // remove all double quote characters from the fieldValueStr string
-                    fieldValueStr.erase(std::remove(fieldValueStr.begin(), fieldValueStr.end(), '\"'), fieldValueStr.end());
-                    const auto fieldValueArray = split(fieldValueStr,',');
+                    auto getFieldValueArray = [&eventStr](const std::string & fieldNameStr)
+                    {
+                        std::string fieldValueStr = EventMap::getField(eventStr, fieldNameStr);
+                        // remove all double quote characters from the fieldValueStr string
+                        fieldValueStr.erase(std::remove(fieldValueStr.begin(), fieldValueStr.end(), '\"'), fieldValueStr.end());
+                        return split(fieldValueStr, ',');
+                    };
+                    const auto fieldValueArray = getFieldValueArray(fieldNameStr);
                     // print all fieldValueArray values
                     DBG(2, " field " , fieldNameStr , " offcore=" , offcore, " size=" , fieldValueArray.size(), " values:");
                     for (const auto& fieldValue : fieldValueArray)
@@ -834,10 +837,11 @@ AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEven
                         DBG(2, "offcoreEventIndex: " , offcoreEventIndex);
                         if (offcoreEventIndex >= offcoreCodes.size())
                         {
-                            std::cerr << "ERROR: too many offcore events specified (max is " << offcoreCodes.size() << "). " << fieldNameStr << " string: " << fieldValueStr << " Ignoring " << fullEventStr << " event\n";
+                            std::cerr << "ERROR: too many offcore events specified (max is " << offcoreCodes.size() << "). " << fieldNameStr << " string: " << EventMap::getField(eventStr, fieldNameStr)
+                                << " Ignoring " << fullEventStr << " event\n";
                             return AddEventStatus::OK;
                         }
-                        fieldValueStr = offcoreCodes[offcoreEventIndex];
+                        const auto fieldValueStr = offcoreCodes[offcoreEventIndex];
                         DBG(2, "Setting field " , fieldNameStr , " value is " , fieldValueStr , " (" , read_number(fieldValueStr.c_str()) , ")");
                         setConfig(config, fieldDescriptionObj, read_number(fieldValueStr.c_str()), position);
                     }
