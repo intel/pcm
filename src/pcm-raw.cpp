@@ -767,8 +767,6 @@ AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEven
             {
                 DBG(2, "Setting " , registerKeyValue.key , " : " , registerKeyValue.value);
                 simdjson::dom::object fieldDescriptionObj = registerKeyValue.value;
-                DBG(2, "   config: " , uint64_t(fieldDescriptionObj["Config"]));
-                DBG(2, "   Position: " , uint64_t(fieldDescriptionObj["Position"]));
                 const std::string fieldNameStr{ registerKeyValue.key.begin(), registerKeyValue.key.end() };
                 if (fieldNameStr == "MSRIndex")
                 {
@@ -785,7 +783,7 @@ AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEven
                         const auto MSRIndexes = split(MSRIndexStr, ',');
                         if (offcoreEventIndex >= MSRIndexes.size())
                         {
-                            std::cerr << "ERROR: too many offcore events specified (max is " << MSRIndexes.size() << "). Ignoring " << fullEventStr << " event\n";
+                            std::cerr << "ERROR: too many offcore events specified (max is " << MSRIndexes.size() << "). MSRIndex string:" << MSRIndexStr << " Ignoring " << fullEventStr << " event\n";
                             return AddEventStatus::OK;
                         }
                         MSRIndexStr = MSRIndexes[offcoreEventIndex];
@@ -820,19 +818,34 @@ AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEven
                 {
                     std::string fieldValueStr = EventMap::getField(eventStr, fieldNameStr);
 
+                    // remove all double quote characters from the fieldValueStr string
                     fieldValueStr.erase(std::remove(fieldValueStr.begin(), fieldValueStr.end(), '\"'), fieldValueStr.end());
+                    const auto fieldValueArray = split(fieldValueStr,',');
+                    // print all fieldValueArray values
+                    DBG(2, " field " , fieldNameStr , " offcore=" , offcore, " size=" , fieldValueArray.size(), " values:");
+                    for (const auto& fieldValue : fieldValueArray)
+                    {
+                        DBG(2, "Field value: " , fieldValue, " (" , read_number(fieldValue.c_str()) , ")");
+                    }
+                    assert(fieldValueArray.size() >= 1);
                     if (offcore && fieldNameStr == "EventCode")
                     {
-                        const auto offcoreCodes = split(fieldValueStr,',');
+                        const auto offcoreCodes = fieldValueArray;
+                        DBG(2, "offcoreEventIndex: " , offcoreEventIndex);
                         if (offcoreEventIndex >= offcoreCodes.size())
                         {
-                            std::cerr << "ERROR: too many offcore events specified (max is " << offcoreCodes.size() << "). Ignoring " << fullEventStr << " event\n";
+                            std::cerr << "ERROR: too many offcore events specified (max is " << offcoreCodes.size() << "). " << fieldNameStr << " string: " << fieldValueStr << " Ignoring " << fullEventStr << " event\n";
                             return AddEventStatus::OK;
                         }
                         fieldValueStr = offcoreCodes[offcoreEventIndex];
+                        DBG(2, "Setting field " , fieldNameStr , " value is " , fieldValueStr , " (" , read_number(fieldValueStr.c_str()) , ")");
+                        setConfig(config, fieldDescriptionObj, read_number(fieldValueStr.c_str()), position);
                     }
-                    DBG(2, " field " , fieldNameStr , " value is " , fieldValueStr , " (" , read_number(fieldValueStr.c_str()) , ") offcore=" , offcore);
-                    setConfig(config, fieldDescriptionObj, read_number(fieldValueStr.c_str()), position);
+                    else
+                    {
+                        DBG(2, "Setting field " , fieldNameStr , " value is " , fieldValueArray[0] , " (" , read_number(fieldValueArray[0].c_str()) , ")");
+                        setConfig(config, fieldDescriptionObj, read_number(fieldValueArray[0].c_str()), position);
+                    }
                 }
             }
 
