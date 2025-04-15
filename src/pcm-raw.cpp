@@ -847,6 +847,11 @@ AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEven
                     }
                     else
                     {
+                        if (fieldValueArray.size() > 1)
+                        {
+                            std::cout << "WARNING: multiple field values specified for field " << fieldNameStr << " for event " << fullEventStr << ": " << EventMap::getField(eventStr, fieldNameStr)
+                               << ", choosing the first one...\n";
+                        }
                         DBG(2, "Setting field " , fieldNameStr , " value is " , fieldValueArray[0] , " (" , read_number(fieldValueArray[0].c_str()) , ")");
                         setConfig(config, fieldDescriptionObj, read_number(fieldValueArray[0].c_str()), position);
                     }
