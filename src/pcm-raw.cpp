@@ -838,9 +838,10 @@ AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEven
                         DBG(2, "offcoreEventIndex: " , offcoreEventIndex);
                         if (offcoreEventIndex >= offcoreCodes.size())
                         {
-                            if (offcoreEventIndex >= getFieldValueArray(secondField).size())
+                            const auto adjustedMaxSize = getFieldValueArray(secondField).size();
+                            if (offcoreEventIndex >= adjustedMaxSize)
                             {
-                                std::cerr << "ERROR: too many offcore events specified (max is " << offcoreCodes.size() << "). " << fieldNameStr << " string: " << EventMap::getField(eventStr, fieldNameStr)
+                                std::cerr << "ERROR: too many offcore events specified (max is " << adjustedMaxSize << "). " << fieldNameStr << " string: " << EventMap::getField(eventStr, fieldNameStr)
                                     << " for " << fullEventStr << " event\n";
                                 return AddEventStatus::FailedTooManyEvents;
                             }
