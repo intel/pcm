@@ -238,6 +238,8 @@ struct pci {
     bool hasChildDevices() const { return (child_pci_devs.size() != 0); }
 
     bool isIntelDevice() const { return (vendor_id == PCM_INTEL_PCI_VENDOR_ID); }
+
+    bool isIntelDeviceById(uint16_t device_id) const { return (isIntelDevice() && (this->device_id == device_id)); }
 };
 
 struct iio_skx {

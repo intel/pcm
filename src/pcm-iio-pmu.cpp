@@ -253,10 +253,8 @@ void PurleyPlatformMapping::getUboxBusNumbers(std::vector<uint32_t>& ubox)
                 pci_dev.bdf.busno = (uint8_t)bus;
                 pci_dev.bdf.devno = device;
                 pci_dev.bdf.funcno = function;
-                if (probe_pci(&pci_dev)) {
-                    if (pci_dev.isIntelDevice() && (pci_dev.device_id == SKX_SOCKETID_UBOX_DID)) {
-                        ubox.push_back(bus);
-                    }
+                if (probe_pci(&pci_dev) && pci_dev.isIntelDeviceById(SKX_SOCKETID_UBOX_DID)) {
+                    ubox.push_back(bus);
                 }
             }
         }
@@ -337,7 +335,7 @@ bool IPlatformMapping10Nm::getSadIdRootBusMap(uint32_t socket_id, std::map<uint8
                 pci_dev.bdf.busno = (uint8_t)bus;
                 pci_dev.bdf.devno = device;
                 pci_dev.bdf.funcno = function;
-                if (probe_pci(&pci_dev) && pci_dev.isIntelDevice() && (pci_dev.device_id == SNR_ICX_MESH2IIO_MMAP_DID)) {
+                if (probe_pci(&pci_dev) && pci_dev.isIntelDeviceById(SNR_ICX_MESH2IIO_MMAP_DID)) {
 
                     PciHandleType h(0, bus, device, function);
                     std::uint32_t sad_ctrl_cfg;
@@ -642,12 +640,10 @@ bool EagleStreamPlatformMapping::setChopValue()
 {
     for (uint16_t b = 0; b < 256; b++) {
         struct pci pci_dev(0, b, SPR_PCU_CR3_REG_DEVICE, SPR_PCU_CR3_REG_FUNCTION);
-        if (!probe_pci(&pci_dev)) {
+        if (!(probe_pci(&pci_dev) && pci_dev.isIntelDeviceById(SPR_PCU_CR3_DID))) {
             continue;
         }
-        if (!(pci_dev.isIntelDevice() && (pci_dev.device_id == SPR_PCU_CR3_DID))) {
-            continue;
-        }
+
         std::uint32_t capid4;
         PciHandleType h(0, b, SPR_PCU_CR3_REG_DEVICE, SPR_PCU_CR3_REG_FUNCTION);
         h.read32(SPR_CAPID4_OFFSET, &capid4);
@@ -682,7 +678,7 @@ bool EagleStreamPlatformMapping::getRootBuses(std::map<int, std::map<int, struct
                     if (!probe_pci(&pci_dev)) {
                         break;
                     }
-                    if (!(pci_dev.isIntelDevice() && (pci_dev.device_id == SPR_MSM_DEV_ID))) {
+                    if (!pci_dev.isIntelDeviceById(SPR_MSM_DEV_ID)) {
                         continue;
                     }
 
@@ -940,22 +936,20 @@ bool LoganvillePlatform::loganvilleDlbStackProbe(struct iio_stacks_on_socket& ii
 
     for (uint8_t bus = root_bus; bus < 255; bus++) {
         struct pci pci_dev(bus, 0x00, 0x00);
-        if (probe_pci(&pci_dev)) {
-            if ((pci_dev.isIntelDevice()) && (pci_dev.device_id == HQMV25_DID)) {
-                dlb_part.root_pci_dev = pci_dev;
-                // Check Virtual RPs for DLB
-                for (uint8_t device = 0; device < 2; device++) {
-                    for (uint8_t function = 0; function < 8; function++) {
-                        struct pci child_pci_dev(bus, device, function);
-                        if (probe_pci(&child_pci_dev)) {
-                            dlb_part.child_pci_devs.push_back(child_pci_dev);
-                        }
+        if (probe_pci(&pci_dev) && pci_dev.isIntelDeviceById(HQMV25_DID)) {
+            dlb_part.root_pci_dev = pci_dev;
+            // Check Virtual RPs for DLB
+            for (uint8_t device = 0; device < 2; device++) {
+                for (uint8_t function = 0; function < 8; function++) {
+                    struct pci child_pci_dev(bus, device, function);
+                    if (probe_pci(&child_pci_dev)) {
+                        dlb_part.child_pci_devs.push_back(child_pci_dev);
                     }
                 }
-                stack.parts.push_back(dlb_part);
-                iio_on_socket.stacks.push_back(stack);
-                return true;
             }
+            stack.parts.push_back(dlb_part);
+            iio_on_socket.stacks.push_back(stack);
+            return true;
         }
     }
 
@@ -1077,7 +1071,7 @@ bool Xeon6thNextGenPlatform::getRootBuses(std::map<int, std::map<int, struct bdf
                     if (!probe_pci(&pci_dev)) {
                         break;
                     }
-                    if (!(pci_dev.isIntelDevice() && (pci_dev.device_id == SPR_MSM_DEV_ID))) {
+                    if (!pci_dev.isIntelDeviceById(SPR_MSM_DEV_ID)) {
                         continue;
                     }
 
