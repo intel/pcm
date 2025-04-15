@@ -4192,10 +4192,18 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
 
     if (EXT_CUSTOM_CORE_EVENTS == mode_ && pExtDesc)
     {
-        if (pExtDesc->OffcoreResponseMsrValue[0]) // still need to do also if perf API is used due to a bug in perf
+        if (pExtDesc->OffcoreResponseMsrValue[0]) // still need to do also if perf API is used due to a bug in perf in some kernels
+        {
+            DBG(3, "programming offcore response 0x", std::hex , pExtDesc->OffcoreResponseMsrValue[0] ,
+                    " into MSR 0x" , MSR_OFFCORE_RSP0 , std::dec , " for core ", i);
             MSR[i]->write(MSR_OFFCORE_RSP0, pExtDesc->OffcoreResponseMsrValue[0]);
+        }
         if (pExtDesc->OffcoreResponseMsrValue[1])
+        {
+            DBG(3, "programming offcore response 0x", std::hex , pExtDesc->OffcoreResponseMsrValue[1] ,
+                    " into MSR 0x" , MSR_OFFCORE_RSP1 , std::dec , " for core ", i);
             MSR[i]->write(MSR_OFFCORE_RSP1, pExtDesc->OffcoreResponseMsrValue[1]);
+        }
 
         if (pExtDesc->LoadLatencyMsrValue != ExtendedCustomCoreEventDescription::invalidMsrValue())
         {
@@ -4268,9 +4276,19 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
             if (pExtDesc != nullptr)
             {
                 if (event_select_reg.fields.event_select == getOCREventNr(0, i).first && event_select_reg.fields.umask == getOCREventNr(0, i).second)
+                {
+                    DBG(3, "writing offcore response 0x", std::hex , pExtDesc->OffcoreResponseMsrValue[0] ,
+                            " into perf config1 for core ", std::dec , i, std::hex ," event 0x", event_select_reg.fields.event_select, " umask 0x", event_select_reg.fields.umask ,
+                            " on counter ", std::dec , j);
                     e.config1 = pExtDesc->OffcoreResponseMsrValue[0];
+                }
                 if (event_select_reg.fields.event_select == getOCREventNr(1, i).first && event_select_reg.fields.umask == getOCREventNr(1, i).second)
+                {
+                    DBG(3, "writing offcore response 0x", std::hex , pExtDesc->OffcoreResponseMsrValue[1] ,
+                            " into perf config1 for core ", std::dec , i, std::hex , " event 0x", event_select_reg.fields.event_select, " umask 0x", event_select_reg.fields.umask ,
+                            " on counter ", std::dec , j);
                     e.config1 = pExtDesc->OffcoreResponseMsrValue[1];
+                }
 
                 if (event_select_reg.fields.event_select == LOAD_LATENCY_EVTNR && event_select_reg.fields.umask == LOAD_LATENCY_UMASK)
                 {
