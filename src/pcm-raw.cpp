@@ -831,19 +831,44 @@ AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEven
                         DBG(2, "Field value: " , fieldValue, " (" , read_number(fieldValue.c_str()) , ")");
                     }
                     assert(fieldValueArray.size() >= 1);
-                    if (offcore && fieldNameStr == "EventCode")
+                    auto setOffcoreConfig = [&](const std::string & secondField)
                     {
                         const auto offcoreCodes = fieldValueArray;
+                        std::string fieldValueStr{};
                         DBG(2, "offcoreEventIndex: " , offcoreEventIndex);
                         if (offcoreEventIndex >= offcoreCodes.size())
                         {
-                            std::cerr << "ERROR: too many offcore events specified (max is " << offcoreCodes.size() << "). " << fieldNameStr << " string: " << EventMap::getField(eventStr, fieldNameStr)
-                                << " Ignoring " << fullEventStr << " event\n";
-                            return AddEventStatus::OK;
+                            if (offcoreEventIndex >= getFieldValueArray(secondField).size())
+                            {
+                                std::cerr << "ERROR: too many offcore events specified (max is " << offcoreCodes.size() << "). " << fieldNameStr << " string: " << EventMap::getField(eventStr, fieldNameStr)
+                                    << " for " << fullEventStr << " event\n";
+                                return AddEventStatus::FailedTooManyEvents;
+                            }
+                            fieldValueStr = offcoreCodes[0];
                         }
-                        const auto fieldValueStr = offcoreCodes[offcoreEventIndex];
+                        else
+                        {
+                            fieldValueStr = offcoreCodes[offcoreEventIndex];
+                        }
+                        assert(!fieldValueStr.empty());
                         DBG(2, "Setting field " , fieldNameStr , " value is " , fieldValueStr , " (" , read_number(fieldValueStr.c_str()) , ")");
                         setConfig(config, fieldDescriptionObj, read_number(fieldValueStr.c_str()), position);
+                        return AddEventStatus::OK;
+                    };
+                    if (offcore && fieldNameStr == "EventCode")
+                    {
+                        const auto status = setOffcoreConfig("UMask");
+                        if (status != AddEventStatus::OK)
+                        {
+                            return status;
+                        }
+                    } else if (offcore && fieldNameStr == "UMask")
+                    {
+                        const auto status = setOffcoreConfig("EventCode");
+                        if (status != AddEventStatus::OK)
+                        {
+                            return status;
+                        }
                     }
                     else
                     {
