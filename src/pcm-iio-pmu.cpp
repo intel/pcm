@@ -1279,7 +1279,7 @@ const std::string generate_stack_str(const int unit)
     ss << stack_str << std::setw(2) << unit;
     return ss.str();
 }
- 
+
 bool KasseyvillePlatform::stackProbe(int unit, const struct bdf &address, struct iio_stacks_on_socket &iio_on_socket)
 {
     // Skip UBOX buses
@@ -1416,7 +1416,7 @@ int iio_evt_parse_handler(evt_cb_type cb_type, void *cb_ctx, counter &base_ctr, 
                 return -1;
         }
     }
-    else if(cb_type == EVT_LINE_COMPLETE) //this event will be called every line(end)
+    else if (cb_type == EVT_LINE_COMPLETE) //this event will be called every line(end)
     {
         context->ctr.h_event_name = base_ctr.h_event_name;
         context->ctr.v_event_name = base_ctr.v_event_name;
@@ -1478,7 +1478,8 @@ void collect_data(PCM *m, const double delay, vector<struct iio_stacks_on_socket
     }
 }
 
-void initializeIIOStructure( std::vector<struct iio_stacks_on_socket>& iios ) {
+void initializeIIOStructure( std::vector<struct iio_stacks_on_socket>& iios )
+{
     PCM * m = PCM::getInstance();
     auto mapping = IPlatformMapping::getPlatformMapping(m->getCPUFamilyModel(), m->getNumSockets());
     if (!mapping) {
@@ -1491,7 +1492,8 @@ void initializeIIOStructure( std::vector<struct iio_stacks_on_socket>& iios ) {
     }
 }
 
-void fillOpcodeFieldMapForPCIeEvents(map<string,uint32_t>& opcodeFieldMap) {
+void fillOpcodeFieldMapForPCIeEvents(map<string,uint32_t>& opcodeFieldMap)
+{
     opcodeFieldMap["opcode"] = PCM::OPCODE;
     opcodeFieldMap["ev_sel"] = PCM::EVENT_SELECT;
     opcodeFieldMap["umask"] = PCM::UMASK;
@@ -1511,7 +1513,8 @@ void fillOpcodeFieldMapForPCIeEvents(map<string,uint32_t>& opcodeFieldMap) {
     opcodeFieldMap["ctr"] = PCM::COUNTER_INDEX;
 }
 
-void setupPCIeEventContextAndNameMap( iio_evt_parse_context& evt_ctx, PCIeEventNameMap_t& nameMap) {
+void setupPCIeEventContextAndNameMap( iio_evt_parse_context& evt_ctx, PCIeEventNameMap_t& nameMap)
+{
     PCM * m = PCM::getInstance();
 
     string ev_file_name;
@@ -1537,7 +1540,8 @@ void setupPCIeEventContextAndNameMap( iio_evt_parse_context& evt_ctx, PCIeEventN
     results.resize(m->getNumSockets(), stack_content(m->getMaxNumOfIIOStacks(), ctr_data()));
 }
 
-bool initializeIIOCounters( std::vector<struct iio_stacks_on_socket>& iios, iio_evt_parse_context& evt_ctx, PCIeEventNameMap_t& nameMap ) {
+bool initializeIIOCounters( std::vector<struct iio_stacks_on_socket>& iios, iio_evt_parse_context& evt_ctx, PCIeEventNameMap_t& nameMap )
+{
     PCM * m = PCM::getInstance();
     if (!m->IIOEventsAvailable())
     {

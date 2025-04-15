@@ -615,10 +615,10 @@ protected:
 public:
     Xeon6thNextGenPlatform(int cpu_model, uint32_t sockets_count) : IPlatformMapping(cpu_model, sockets_count) {}
     virtual ~Xeon6thNextGenPlatform() = default;
- 
+
     bool pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios) override;
 };
-  
+
 class BirchStreamPlatform: public Xeon6thNextGenPlatform {
 private:
     bool isPcieStack(int unit);
