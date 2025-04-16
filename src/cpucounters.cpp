@@ -4641,7 +4641,7 @@ std::string PCM::getCPUFamilyModelString(const uint32 cpu_family_, const uint32 
 {
     char buffer[sizeof(int)*4*3+6];
     std::fill(buffer, buffer + sizeof(buffer), 0);
-    std::snprintf(buffer,sizeof(buffer),"GenuineIntel-%d-%2X-%X", cpu_family_, internal_cpu_model_, cpu_stepping_);
+    std::snprintf(buffer,sizeof(buffer),"GenuineIntel-%u-%2X-%X", cpu_family_, internal_cpu_model_, cpu_stepping_);
     std::string result(buffer);
     return result;
 }

@@ -198,6 +198,7 @@ PciHandle::~PciHandle()
 #elif __APPLE__
 
 PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 function_) :
+    fd(-1),
     bus(bus_),
     device(device_),
     function(function_)
