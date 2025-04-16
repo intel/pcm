@@ -366,7 +366,7 @@ inline std::pair<tm, uint64> pcm_localtime() // returns <tm, milliseconds>
     const auto durationSinceEpoch = std::chrono::system_clock::now().time_since_epoch();
     const auto durationSinceEpochInSeconds = std::chrono::duration_cast<std::chrono::seconds>(durationSinceEpoch);
     time_t now = durationSinceEpochInSeconds.count();
-    tm result;
+    tm result{};
 #ifdef _MSC_VER
     localtime_s(&result, &now);
 #else
