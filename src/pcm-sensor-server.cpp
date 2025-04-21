@@ -3724,7 +3724,7 @@ void printHelpText( std::string const & programName ) {
 #if defined (USE_SSL)
     std::cout << "    -s                   : Use https protocol (default port " << DEFAULT_HTTPS_PORT << ")\n";
 #endif
-    std::cout << "    -l bind ip           : Bind to ip address. (default ip is 0.0.0.0)\n";
+    std::cout << "    -l bind ip6          : Bind to ip6 address. (default ip6 is ::)\n";
     std::cout << "    -p portnumber        : Run on port <portnumber> (default port is " << DEFAULT_HTTP_PORT << ")\n";
     std::cout << "    -r|--reset           : Reset programming of the performance counters.\n";
     std::cout << "    -D|--debug level     : level = 0: no debug info, > 0 increase verbosity.\n";
