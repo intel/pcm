@@ -28,8 +28,19 @@ std::vector<std::string> urls{
     "http://ww\x00\x00\x00rstmark\x0a"
 };
 
+std::vector<std::string> headers{
+    "Content-Encoding text/html", // Invalid header no colon found
+    "       Content-Encoding   :    text/html      ", // Valid header, should clean up the whitespace before and after
+    " H o s t : my.host.com", // Valid, spaces in header name should be accepted and silenty removed
+    "MyUnknownHeaderType : value", // Valid, MyUnknownHeaderType is considered a custom header type
+    " Host : \"my.host.com" // Invalid, header value not properly quoted
+};
+
 int main( int, char** ) {
-    int errors = 0;
+    // httpheader::debugPrint uses dbg(3), picking 5 for future changes
+    debug::dyn_debug_level( 5 );
+
+    int errors = 0, errors2 = 0;
     for ( auto & s : urls ) {
         try {
             std::cout << s << "\n";
@@ -40,5 +51,12 @@ int main( int, char** ) {
 	    ++errors;
         }
     }
-    return errors;
+    for ( auto & h : headers ) {
+        std::cout << h << "\n";
+        HTTPHeader hh = HTTPHeader::parse( h );
+        hh.debugPrint();
+        if ( hh.type() == HeaderType::Invalid )
+            ++errors2;
+    }
+    return errors+errors2;
 }

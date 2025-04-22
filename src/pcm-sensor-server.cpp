@@ -2218,9 +2218,9 @@ private:
         while ( ss.good() ) {
             std::getline( ss, s, listSeparatorChar );
             // Remove leading whitespace
-            s.erase( s.begin(), std::find_if( s.begin(), s.end(), std::bind1st( std::not_equal_to<char>(), ' ' ) ) );
+            s.erase( s.begin(), std::find_if( s.begin(), s.end(), []( char c ){ return c != ' '; } ) );
             // Remove trailing whitespace
-            s.erase( std::find_if( s.rbegin(), s.rend(), std::bind1st( std::not_equal_to<char>(), ' ') ).base(), s.end() );
+            s.erase( std::find_if( s.rbegin(), s.rend(), []( char c ){ return c != ' '; } ).base(), s.end() );
             elementList.push_back( s );
         }
         return elementList;
