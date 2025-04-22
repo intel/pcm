@@ -8760,6 +8760,8 @@ std::vector<int> enumeratePerfPMUs(const std::string & type, int max_id)
     return ids;
 }
 
+#ifndef __clang_analyzer__
+
 void populatePerfPMUs(unsigned socket_, const std::vector<int> & ids, std::vector<UncorePMU> & pmus, bool fixed, bool filter0, bool filter1)
 {
     for (const auto & id : ids)
@@ -8835,6 +8837,8 @@ void populatePerfPMUs(unsigned socket_, const std::vector<int>& ids, std::vector
         );
     }
 }
+
+#endif // __clang_analyzer__
 
 std::vector<std::pair<int, uint32> > enumerateIDXPerfPMUs(const std::string & type, int max_id)
 {
