@@ -601,27 +601,8 @@ int mainThrows(int argc, char * argv[])
 
     if (PERF_LIMIT_REASON_TPMI_Supported) PERF_LIMIT_REASON_TPMI::reset(max_pm_modules);
 
-    mainLoop([&]()
+    auto printAll = [&](const int delay_ms)
     {
-        cout << "----------------------------------------------------------------------------------------------\n";
-
-        if (!csv) cout << flush;
-
-        const auto delay_ms = calibratedSleep(delay, sysCmd, mainLoop, m);
-
-        AfterTime = m->getTickCount();
-        for (i = 0; i < numSockets; ++i)
-            AfterState[i] = m->getServerUncoreCounterState(i);
-
-        m->getAllCounterStates(dummySystemState, afterSocketState, dummyCoreStates, false);
-
-        if (PERF_LIMIT_REASON_TPMI_Supported)
-        {
-            PERF_LIMIT_REASON_TPMI_dies_data = PERF_LIMIT_REASON_TPMI::readDies();
-            PERF_LIMIT_REASON_TPMI_modules_data = PERF_LIMIT_REASON_TPMI::readModules(max_pm_modules);
-            PERF_LIMIT_REASON_TPMI::reset(max_pm_modules);
-        }
-
         cout << "Time elapsed: " << AfterTime - BeforeTime << " ms\n";
         cout << "Called sleep function for " << delay_ms << " ms\n";
         for (uint32 socket = 0; socket < numSockets; ++socket)
@@ -886,6 +867,31 @@ int mainThrows(int argc, char * argv[])
                 cout << "\n";
             }
         }
+    };
+
+    mainLoop([&]()
+    {
+        cout << "----------------------------------------------------------------------------------------------\n";
+
+        if (!csv) cout << flush;
+
+        const auto delay_ms = calibratedSleep(delay, sysCmd, mainLoop, m);
+
+        AfterTime = m->getTickCount();
+        for (i = 0; i < numSockets; ++i)
+            AfterState[i] = m->getServerUncoreCounterState(i);
+
+        m->getAllCounterStates(dummySystemState, afterSocketState, dummyCoreStates, false);
+
+        if (PERF_LIMIT_REASON_TPMI_Supported)
+        {
+            PERF_LIMIT_REASON_TPMI_dies_data = PERF_LIMIT_REASON_TPMI::readDies();
+            PERF_LIMIT_REASON_TPMI_modules_data = PERF_LIMIT_REASON_TPMI::readModules(max_pm_modules);
+            PERF_LIMIT_REASON_TPMI::reset(max_pm_modules);
+        }
+
+        printAll(delay_ms);
+
         swap(BeforeState, AfterState);
         swap(BeforeTime, AfterTime);
         swap(beforeSocketState, afterSocketState);
