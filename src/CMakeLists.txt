@@ -8,12 +8,12 @@ set(PROJECT_NAMES pcm pcm-numa pcm-latency pcm-power pcm-msr pcm-memory pcm-tsx 
 
 set(MINIMUM_OPENSSL_VERSION 1.1.1)
 
-file(GLOB COMMON_SOURCES pcm-accel-common.cpp msr.cpp cpucounters.cpp pci.cpp mmio.cpp tpmi.cpp pmt.cpp bw.cpp utils.cpp topology.cpp debug.cpp threadpool.cpp uncore_pmu_discovery.cpp ${PCM_PUGIXML_CPP})
+file(GLOB COMMON_SOURCES pcm-accel-common.cpp msr.cpp cpucounters.cpp pci.cpp mmio.cpp tpmi.cpp pmt.cpp bw.cpp utils.cpp topology.cpp debug.cpp threadpool.cpp uncore_pmu_discovery.cpp pcm-iio-pmu.cpp lspci.cpp ${PCM_PUGIXML_CPP})
 
 if (APPLE)
-  file(GLOB UNUX_SOURCES dashboard.cpp)
+  file(GLOB UNIX_SOURCES dashboard.cpp)
 else()
-  file(GLOB UNUX_SOURCES dashboard.cpp resctrl.cpp)
+  file(GLOB UNIX_SOURCES dashboard.cpp resctrl.cpp)
 endif()
 
 if (LINUX)
@@ -49,11 +49,11 @@ if(UNIX)  # LINUX, FREE_BSD, APPLE
     list(APPEND PROJECT_NAMES pcm-sensor)
 
     # libpcm.a
-    add_library(PCM_STATIC STATIC ${COMMON_SOURCES} ${UNUX_SOURCES})
+    add_library(PCM_STATIC STATIC ${COMMON_SOURCES} ${UNIX_SOURCES})
     set_target_properties(PCM_STATIC PROPERTIES OUTPUT_NAME pcm)
 
     # libpcm.a with -DPCM_SILENT for Release*
-    add_library(PCM_STATIC_SILENT STATIC ${COMMON_SOURCES} ${UNUX_SOURCES})
+    add_library(PCM_STATIC_SILENT STATIC ${COMMON_SOURCES} ${UNIX_SOURCES})
     target_compile_definitions(PCM_STATIC_SILENT PRIVATE
       $<$<CONFIG:Release>:PCM_SILENT>
       $<$<CONFIG:MinSizeRel>:PCM_SILENT>

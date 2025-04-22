@@ -4,7 +4,7 @@ _For support of systems with more than _**_64_**_ logical cores you need to comp
 
 ## Command-line utility
 
-1. Follow [Compile the windows MSR driver](#compile-the-windows-msr-driver) to compile the windows MSR driver (msr.sys). For Windows 7 and later versions you have to sign the msr.sys driver additionally ([http://msdn.microsoft.com/en-us/library/ms537361(VS.85).aspx](http://msdn.microsoft.com/en-us/library/ms537361(VS.85).aspx)). To enable loading test signed drivers on the system: in administrator cmd console run `bcdedit /set testsigning on` and reboot.
+1. Follow [Compile the Windows MSR driver](#compile-the-windows-msr-driver) to compile the Windows MSR driver (msr.sys). For Windows 7 and later versions you have to sign the msr.sys driver additionally ([http://msdn.microsoft.com/en-us/library/ms537361(VS.85).aspx](http://msdn.microsoft.com/en-us/library/ms537361(VS.85).aspx)). To enable loading test-signed drivers on the system: in administrator cmd console run `bcdedit /set testsigning on` and reboot.
 
 2. Build the *pcm.exe* utility:
    ```
@@ -17,7 +17,7 @@ _For support of systems with more than _**_64_**_ logical cores you need to comp
 4. As Administrator copy the msr.sys driver and pcm.exe into the PCM directory
 5. Run pcm.exe utility from the PCM directory as Administrator
 
-For Windows 7+ and Windows Server 2008+ R2 the PCM utilities need to be run as administrator:
+For Windows 7+ and Windows Server 2008+ R2 the PCM utilities need to be run as Administrator:
 
 Alternatively you can achieve the same using the “Properties” Windows menu of the executable (“Privilege level” setting in the “Compatibility” tab): Right mouse click -&gt; Properties -&gt; Compatibility -&gt; Privilege level -&gt; Set “Run this program as an administrator”.
 
@@ -47,13 +47,14 @@ Unhandled Exception: System.NotSupportedException: This method implicitly uses C
 
 8. Start perfmon and find new PCM\* counters
 
-If you do not want or cannot compile the msr.sys driver you might use a third-party open source WinRing0 driver instead. Instructions:
+If you do not want or cannot compile the msr.sys driver you might use a third-party open source WinRing0 driver instead (experimental only, for testing environments only).
+Instructions:
 
 1. Download the free RealTemp utility package from [http://www.techpowerup.com/realtemp/](http://www.techpowerup.com/realtemp/) or any other free utility that uses the open-source WinRing0 driver (like OpenHardwareMonitor [http://code.google.com/p/open-hardware-monitor/downloads/list](http://code.google.com/p/open-hardware-monitor/downloads/list)).
 2. Copy WinRing0.dll, WinRing0.sys, WinRing0x64.dll, WinRing0x64.sys files from there into the PCM.exe binary location, into the PCM-Service.exe location and into c:\windows\system32
 3. Run the PCM.exe tool and/or go to step 6 (perfmon utility).
 
-## Compile the windows MSR driver
+## Compile the Windows MSR driver
 
 1. Download Visual Studio ([Visual Studio download](https://visualstudio.microsoft.com/downloads/)).
 When you install Visual Studio, also install related packages:
