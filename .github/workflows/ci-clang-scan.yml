@@ -28,8 +28,8 @@ jobs:
       run: |
         cmake --version
         rm -rf ${{ github.workspace }}/build
-        scan-build cmake -B ${{ github.workspace }}/build
+        scan-build-18 cmake -B ${{ github.workspace }}/build
     - name: Scan build
       run: |
         cd ${{ github.workspace }}/build
-        scan-build --exclude src/simdjson --status-bugs make -j
+        scan-build-18 --exclude src/simdjson --status-bugs make -j
