@@ -803,7 +803,7 @@ std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int
     }
     auto upi = [&](const std::string & m, const bool utilization)
     {
-        for (size_t s = 0; s < NumSockets; ++s)
+        for (size_t s = 0; s < NumSockets && NumUPILinksPerSocket > 0; ++s)
         {
             const auto S = std::to_string(s);
             auto panel = std::make_shared<TimeSeriesPanel>(0, y, width, height, std::string("Socket") + S + " " + pcm->xPI() + " " + m, utilization?"%": "MByte/sec", false);
