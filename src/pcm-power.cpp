@@ -374,7 +374,7 @@ void print_usage(const string & progname)
 
 struct Metric
 {
-    typedef std::variant<double, uint64, int64, int32> ValueType;
+    typedef std::variant<double, uint64, int64, int32, bool> ValueType;
     std::string name{};
     ValueType value{};
     std::string unit{};
@@ -382,11 +382,38 @@ struct Metric
     Metric() = default;
 };
 
-void printMetrics(const std::string & header, const std::vector<Metric> & metrics)
+void printMetrics(const std::string & header, const std::vector<Metric> & metrics, const bool skipZeroValues = false)
 {
     cout << header << "; ";
     for (const auto & metric : metrics)
     {
+        if (skipZeroValues)
+        {
+            if (std::holds_alternative<uint64>(metric.value) && std::get<uint64>(metric.value) == 0)
+            {
+                continue;
+            }
+            if (std::holds_alternative<double>(metric.value) && std::get<double>(metric.value) == 0.0)
+            {
+                continue;
+            }
+            if (std::holds_alternative<int64>(metric.value) && std::get<int64>(metric.value) == 0)
+            {
+                continue;
+            }
+            if (std::holds_alternative<int32>(metric.value) && std::get<int32>(metric.value) == 0)
+            {
+                continue;
+            }
+        }
+        if (std::holds_alternative<bool>(metric.value))
+        {
+            if (std::get<bool>(metric.value))
+            {
+                cout << metric.name << ";";
+            }
+            continue;
+        }
         cout << metric.name << ": ";
         if (std::holds_alternative<uint64>(metric.value))
         {
@@ -417,14 +444,14 @@ void printMetrics(const std::string & header, const std::vector<Metric> & metric
     cout << "\n";
 }
 
-void printMetrics(const std::string & header, const std::initializer_list<Metric> & metrics)
+void printMetrics(const std::string & header, const std::initializer_list<Metric> & metrics, const bool skipZeroValues = false)
 {
     std::vector<Metric> metricsVec;
     for (const auto & metric : metrics)
     {
         metricsVec.push_back(metric);
     }
-    printMetrics(header, metricsVec);
+    printMetrics(header, metricsVec, skipZeroValues);
 }
 
 PCM_MAIN_NOTHROW;
@@ -737,7 +764,7 @@ int mainThrows(int argc, char * argv[])
                 case 0:
                     if (cpu_family_model == PCM::HASWELLX || cpu_family_model == PCM::BDX_DE || cpu_family_model == PCM::SKX)
                         break;
-                    
+
                     printMetrics(getHeader(),
                     {
                         Metric("PCUClocks", getPCUClocks(u, BeforeState[socket], AfterState[socket]), ""),
@@ -886,13 +913,13 @@ int mainThrows(int argc, char * argv[])
         {
             for (auto die = 0ULL; die < PERF_LIMIT_REASON_TPMI_dies_data[instance].size(); ++die)
             {
-                cout << "S" << instance << "D" << die << "; PERF LIMIT REASONS (DIE LEVEL): ";
+                std::vector<Metric> metrics;
                 const auto data = PERF_LIMIT_REASON_TPMI_dies_data[instance][die];
                 for (auto l = 0; l < PERF_LIMIT_REASON_TPMI::Coarse_Grained_PLR_Bit_Definition::MAX; ++l)
                 {
-                    if (extract_bits(data, l, l))  cout << PERF_LIMIT_REASON_TPMI::Coarse_Grained_PLR_Bit_Definition_Strings[l] << "; ";
+                    metrics.push_back(Metric(PERF_LIMIT_REASON_TPMI::Coarse_Grained_PLR_Bit_Definition_Strings[l], extract_bits(data, l, l) ? true : false, ""));
                 }
-                cout << "\n";
+                printMetrics("S" + std::to_string(instance) + "D" + std::to_string(die) + " PERF LIMIT REASONS (DIE LEVEL)", metrics);
             }
         }
         for (auto instance = 0ULL; instance < PERF_LIMIT_REASON_TPMI_modules_data.size(); ++instance)
@@ -923,20 +950,17 @@ int mainThrows(int argc, char * argv[])
             }
             for (auto die = 0ULL; die < coarseGrainedData.size(); ++die)
             {
-                cout << "S" << instance << "D" << die << "; PERF LIMIT REASONS (#CORE MODULES): ";
+                std::vector<Metric> metrics;
                 for (auto l = 0; l < PERF_LIMIT_REASON_TPMI::Coarse_Grained_PLR_Bit_Definition::MAX; ++l)
                 {
-                    if (coarseGrainedData[die][l]) cout << PERF_LIMIT_REASON_TPMI::Coarse_Grained_PLR_Bit_Definition_Strings[l] << ": " << coarseGrainedData[die][l] << "; ";
+                    metrics.push_back(Metric(PERF_LIMIT_REASON_TPMI::Coarse_Grained_PLR_Bit_Definition_Strings[l], coarseGrainedData[die][l], ""));
                 }
                 for (auto l = 0; l < PERF_LIMIT_REASON_TPMI::Fine_Grained_PLR_Bit_Definition::MAX_FINE; ++l)
                 {
-                    if (fineGrainedData[die][l])
-                    {
-                        cout << PERF_LIMIT_REASON_TPMI::Coarse_Grained_PLR_Bit_Definition_Strings[PERF_LIMIT_REASON_TPMI::Fine_Grained_PLR_Bit_Definition_Data[l].coarse_grained_mapping] 
-                                                    << "." << PERF_LIMIT_REASON_TPMI::Fine_Grained_PLR_Bit_Definition_Data[l].name << ": " << fineGrainedData[die][l] << "; ";
-                    }
+                    metrics.push_back(Metric(std::string(PERF_LIMIT_REASON_TPMI::Coarse_Grained_PLR_Bit_Definition_Strings[PERF_LIMIT_REASON_TPMI::Fine_Grained_PLR_Bit_Definition_Data[l].coarse_grained_mapping]) + "." +
+                        PERF_LIMIT_REASON_TPMI::Fine_Grained_PLR_Bit_Definition_Data[l].name, fineGrainedData[die][l], ""));
                 }
-                cout << "\n";
+                printMetrics("S" + std::to_string(instance) + "D" + std::to_string(die) + " PERF LIMIT REASONS (#CORE MODULES)", metrics, true);
             }
         }
     };
