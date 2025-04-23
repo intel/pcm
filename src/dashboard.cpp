@@ -803,6 +803,8 @@ std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int
     }
     auto upi = [&](const std::string & m, const bool utilization)
     {
+        // For UPI we need a minimum of 2 sockets
+        if ( 1 >= NumSockets ) return;
         for (size_t s = 0; s < NumSockets; ++s)
         {
             const auto S = std::to_string(s);
