@@ -767,8 +767,6 @@ AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEven
             {
                 DBG(2, "Setting " , registerKeyValue.key , " : " , registerKeyValue.value);
                 simdjson::dom::object fieldDescriptionObj = registerKeyValue.value;
-                DBG(2, "   config: " , uint64_t(fieldDescriptionObj["Config"]));
-                DBG(2, "   Position: " , uint64_t(fieldDescriptionObj["Position"]));
                 const std::string fieldNameStr{ registerKeyValue.key.begin(), registerKeyValue.key.end() };
                 if (fieldNameStr == "MSRIndex")
                 {
@@ -785,8 +783,8 @@ AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEven
                         const auto MSRIndexes = split(MSRIndexStr, ',');
                         if (offcoreEventIndex >= MSRIndexes.size())
                         {
-                            std::cerr << "ERROR: too many offcore events specified (max is " << MSRIndexes.size() << "). Ignoring " << fullEventStr << " event\n";
-                            return AddEventStatus::OK;
+                            std::cerr << "ERROR: too many offcore events specified (max is " << MSRIndexes.size() << "). MSRIndex string:" << MSRIndexStr << " Ignoring " << fullEventStr << " event\n";
+                            return AddEventStatus::FailedTooManyEvents;
                         }
                         MSRIndexStr = MSRIndexes[offcoreEventIndex];
                     }
@@ -818,21 +816,71 @@ AddEventStatus addEventFromDB(PCM::RawPMUConfigs& curPMUConfigs, string fullEven
                 }
                 else
                 {
-                    std::string fieldValueStr = EventMap::getField(eventStr, fieldNameStr);
-
-                    fieldValueStr.erase(std::remove(fieldValueStr.begin(), fieldValueStr.end(), '\"'), fieldValueStr.end());
-                    if (offcore && fieldNameStr == "EventCode")
+                    auto getFieldValueArray = [&eventStr](const std::string & fieldNameStr)
                     {
-                        const auto offcoreCodes = split(fieldValueStr,',');
+                        std::string fieldValueStr = EventMap::getField(eventStr, fieldNameStr);
+                        // remove all double quote characters from the fieldValueStr string
+                        fieldValueStr.erase(std::remove(fieldValueStr.begin(), fieldValueStr.end(), '\"'), fieldValueStr.end());
+                        return split(fieldValueStr, ',');
+                    };
+                    const auto fieldValueArray = getFieldValueArray(fieldNameStr);
+                    // print all fieldValueArray values
+                    DBG(2, " field " , fieldNameStr , " offcore=" , offcore, " size=" , fieldValueArray.size(), " values:");
+                    for (const auto& fieldValue : fieldValueArray)
+                    {
+                        DBG(2, "Field value: " , fieldValue, " (" , read_number(fieldValue.c_str()) , ")");
+                    }
+                    assert(fieldValueArray.size() >= 1);
+                    auto setOffcoreConfig = [&](const std::string & secondField)
+                    {
+                        const auto offcoreCodes = fieldValueArray;
+                        std::string fieldValueStr{};
+                        DBG(2, "offcoreEventIndex: " , offcoreEventIndex);
                         if (offcoreEventIndex >= offcoreCodes.size())
                         {
-                            std::cerr << "ERROR: too many offcore events specified (max is " << offcoreCodes.size() << "). Ignoring " << fullEventStr << " event\n";
-                            return AddEventStatus::OK;
+                            const auto adjustedMaxSize = getFieldValueArray(secondField).size();
+                            if (offcoreEventIndex >= adjustedMaxSize)
+                            {
+                                std::cerr << "ERROR: too many offcore events specified (max is " << adjustedMaxSize << "). " << fieldNameStr << " string: " << EventMap::getField(eventStr, fieldNameStr)
+                                    << " for " << fullEventStr << " event\n";
+                                return AddEventStatus::FailedTooManyEvents;
+                            }
+                            fieldValueStr = offcoreCodes[0];
                         }
-                        fieldValueStr = offcoreCodes[offcoreEventIndex];
+                        else
+                        {
+                            fieldValueStr = offcoreCodes[offcoreEventIndex];
+                        }
+                        assert(!fieldValueStr.empty());
+                        DBG(2, "Setting field " , fieldNameStr , " value is " , fieldValueStr , " (" , read_number(fieldValueStr.c_str()) , ")");
+                        setConfig(config, fieldDescriptionObj, read_number(fieldValueStr.c_str()), position);
+                        return AddEventStatus::OK;
+                    };
+                    if (offcore && fieldNameStr == "EventCode")
+                    {
+                        const auto status = setOffcoreConfig("UMask");
+                        if (status != AddEventStatus::OK)
+                        {
+                            return status;
+                        }
+                    } else if (offcore && fieldNameStr == "UMask")
+                    {
+                        const auto status = setOffcoreConfig("EventCode");
+                        if (status != AddEventStatus::OK)
+                        {
+                            return status;
+                        }
                     }
-                    DBG(2, " field " , fieldNameStr , " value is " , fieldValueStr , " (" , read_number(fieldValueStr.c_str()) , ") offcore=" , offcore);
-                    setConfig(config, fieldDescriptionObj, read_number(fieldValueStr.c_str()), position);
+                    else
+                    {
+                        if (fieldValueArray.size() > 1)
+                        {
+                            std::cout << "WARNING: multiple field values specified for field " << fieldNameStr << " for event " << fullEventStr << ": " << EventMap::getField(eventStr, fieldNameStr)
+                               << ", choosing the first one...\n";
+                        }
+                        DBG(2, "Setting field " , fieldNameStr , " value is " , fieldValueArray[0] , " (" , read_number(fieldValueArray[0].c_str()) , ")");
+                        setConfig(config, fieldDescriptionObj, read_number(fieldValueArray[0].c_str()), position);
+                    }
                 }
             }
 

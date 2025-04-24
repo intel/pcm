@@ -141,7 +141,7 @@ inline void forAllIntelDevices(F f, int requestedDevice = -1, int requestedFunct
 
         } catch(...)
         {
-            // invalid bus:devicei:function
+            // invalid bus:device:function
             return;
         }
         const uint32 vendor_id = value & 0xffff;
