@@ -3765,7 +3765,7 @@ int mainThrows(int argc, char * argv[]) {
 #endif
     bool forceRTMAbortMode = false;
     bool printTopology = false;
-    std::string host = "";
+    std::string ip6Address = "";
     unsigned short port = 0;
     unsigned short debug_level = 0;
     std::string certificateFile;
@@ -3793,7 +3793,7 @@ int mainThrows(int argc, char * argv[]) {
             else if ( check_argument_equals( argv[i], {"-l"} ) )
             {
                     if ( (++i) < argc ) {
-                        host = argv[i];
+                        ip6Address = argv[i];
                     } else {
                         throw std::runtime_error( "main: Error no bind ip argument given" );
                     }
@@ -4082,20 +4082,20 @@ int mainThrows(int argc, char * argv[]) {
         }
 
         // Now that everything is set we can start the http(s) server
-        const auto hostString = host.length() > 0 ? host : "localhost";
+        const auto formattedIp6Address = ip6Address.length() > 0 ? "[" + ip6Address + "]" : "localhost";
 #if defined (USE_SSL)
         if ( useSSL ) {
             if ( port == 0 )
                 port = DEFAULT_HTTPS_PORT;
-            std::cerr << "Starting SSL enabled server on https://" << hostString << ":" << port << "/\n";
-            startHTTPSServer( host, port, certificateFile, privateKeyFile );
+            std::cerr << "Starting SSL enabled server on https://" << formattedIp6Address << ":" << port << "/\n";
+            startHTTPSServer( ip6Address, port, certificateFile, privateKeyFile );
         } else
 #endif
         {
             if ( port == 0 )
                 port = DEFAULT_HTTP_PORT;
-            std::cerr << "Starting plain HTTP server on http://" << hostString << ":" << port << "/\n";
-            startHTTPServer( host, port );
+            std::cerr << "Starting plain HTTP server on http://" << formattedIp6Address << ":" << port << "/\n";
+            startHTTPServer( ip6Address, port );
         }
         delete pcmInstance;
     } else if ( pid > 0 ) {
