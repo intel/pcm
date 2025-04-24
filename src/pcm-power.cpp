@@ -621,10 +621,10 @@ int mainThrows(int argc, char * argv[])
     std::vector<SocketCounterState> beforeSocketState, afterSocketState;
     uint64 BeforeTime = 0, AfterTime = 0;
 
-    cerr << dec << "\n";
+    cerr << dec;
     cerr.precision(2);
     cerr << fixed;
-    cout << dec << "\n";
+    cout << dec;
     cout.precision(2);
     cout << fixed;
     cerr << "\nMC counter group: " << imc_profile << "\n";
