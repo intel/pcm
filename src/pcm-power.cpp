@@ -341,8 +341,8 @@ void print_usage(const string & progname)
     cout << "  -silent                            => silence information output and print only measurements\n";
     cout << "  --version                          => print application version\n";
     cout << "  -i[=number] | /i[=number]          => allow to determine number of iterations\n";
-//    cout << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or\n"
-//         << "                                        to a file, in case filename is provided\n";
+    cout << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or\n"
+         << "                                        to a file, in case filename is provided\n";
     cout << "  [-m imc_profile] [-p pcu_profile] [-a freq_band0] [-b freq_band1] [-c freq_band2]\n\n";
     cout << " Where: imc_profile, pcu_profile, freq_band0, freq_band1 and freq_band2 are the following:\n";
     cout << "  <imc_profile>      - profile (counter group) for IMC PMU. Possible values are: 0,1,2,3,4,-1 \n";
@@ -382,8 +382,64 @@ struct Metric
     Metric() = default;
 };
 
-void printMetrics(const std::string & header, const std::vector<Metric> & metrics, const bool skipZeroValues = false)
+bool csv = false;
+bool csv_header = false;
+
+void printMetrics(const std::string & header, const std::vector<Metric> & metrics, const CsvOutputType outputType, const bool skipZeroValues = false)
 {
+    if (csv)
+    {
+        const auto numMetrics = metrics.size();
+        choose(outputType,
+            [&]() {
+                for (size_t i = 0; i < numMetrics; ++i)
+                {
+                    cout << header << ',';
+                }
+            },
+            [&]() {
+                for (size_t i = 0; i < numMetrics; ++i)
+                {
+                    cout << metrics[i].name;
+                    if (!metrics[i].unit.empty())
+                    {
+                        cout << '(' << metrics[i].unit << ')';
+                    }
+                    cout << ',';
+                }
+            },
+            [&]() {
+                for (size_t i = 0; i < numMetrics; ++i)
+                {
+                    if (std::holds_alternative<uint64>(metrics[i].value))
+                    {
+                        cout << std::get<uint64>(metrics[i].value);
+                    }
+                    else if (std::holds_alternative<double>(metrics[i].value))
+                    {
+                        cout << std::get<double>(metrics[i].value);
+                    }
+                    else if (std::holds_alternative<int64>(metrics[i].value))
+                    {
+                        cout << std::get<int64>(metrics[i].value);
+                    }
+                    else if (std::holds_alternative<int32>(metrics[i].value))
+                    {
+                        cout << std::get<int32>(metrics[i].value);
+                    }
+                    else if (std::holds_alternative<bool>(metrics[i].value))
+                    {
+                        cout << (std::get<bool>(metrics[i].value) ? '1' : '0');
+                    }
+                    else
+                    {
+                        assert(false && "Unknown metric type");
+                    }
+                    cout << ',';
+                }
+            });
+        return;
+    }
     cout << header << "; ";
     for (const auto & metric : metrics)
     {
@@ -444,14 +500,14 @@ void printMetrics(const std::string & header, const std::vector<Metric> & metric
     cout << "\n";
 }
 
-void printMetrics(const std::string & header, const std::initializer_list<Metric> & metrics, const bool skipZeroValues = false)
+void printMetrics(const std::string & header, const std::initializer_list<Metric> & metrics, const CsvOutputType outputType, const bool skipZeroValues = false)
 {
     std::vector<Metric> metricsVec;
     for (const auto & metric : metrics)
     {
         metricsVec.push_back(metric);
     }
-    printMetrics(header, metricsVec, skipZeroValues);
+    printMetrics(header, metricsVec, outputType, skipZeroValues);
 }
 
 PCM_MAIN_NOTHROW;
@@ -479,7 +535,6 @@ int mainThrows(int argc, char * argv[])
     freq_band[1] = default_freq_band[1];
     freq_band[2] = default_freq_band[2];
 
-    bool csv = false;
     MainLoop mainLoop;
     string program = string(argv[0]);
 
@@ -504,10 +559,12 @@ int mainThrows(int argc, char * argv[])
             else if (check_argument_equals(*argv, {"-csv", "/csv"}))
             {
                 csv = true;
+                csv_header = true;
             }
             else if (extract_argument_value(*argv, {"-csv", "/csv"}, arg_value))
             {
                 csv = true;
+                csv_header = true;
                 if (!arg_value.empty()) {
                     m->setOutput(arg_value);
                 }
@@ -684,10 +741,17 @@ int mainThrows(int argc, char * argv[])
 
     if (PERF_LIMIT_REASON_TPMI_Supported) PERF_LIMIT_REASON_TPMI::reset(max_pm_modules);
 
-    auto printAll = [&](const int delay_ms)
+    auto printAll = [&](const int delay_ms, const CsvOutputType outputType)
     {
-        cout << "Time elapsed: " << AfterTime - BeforeTime << " ms\n";
-        cout << "Called sleep function for " << delay_ms << " ms\n";
+        if (csv)
+        {
+            printDateForCSV(outputType);
+        }
+        else
+        {
+            cout << "Time elapsed: " << AfterTime - BeforeTime << " ms\n";
+            cout << "Called sleep function for " << delay_ms << " ms\n";
+        }
         for (uint32 socket = 0; socket < numSockets; ++socket)
         {
             if (nCorePowerLicenses)
@@ -699,7 +763,7 @@ int mainThrows(int argc, char * argv[])
                 {
                     metrics.push_back(Metric("Core Power License " + std::to_string(l), getPowerLicenseResidency(l, beforeSocketState[socket], afterSocketState[socket]), "%"));
                 }
-                printMetrics("S" + std::to_string(socket), metrics);
+                printMetrics("S" + std::to_string(socket), metrics, outputType);
             }
             for (uint32 port = 0; port < m->getQPILinksPerSocket(); ++port)
             {
@@ -708,7 +772,7 @@ int mainThrows(int argc, char * argv[])
                         Metric(std::string(m->xPI()) + " Clocks", getQPIClocks(port, BeforeState[socket], AfterState[socket]), ""),
                         Metric("L0p Tx Cycles", 100. * getNormalizedQPIL0pTxCycles(port, BeforeState[socket], AfterState[socket]), "%"),
                         Metric("L1 Cycles", 100. * getNormalizedQPIL1Cycles(port, BeforeState[socket], AfterState[socket]), "%")
-                    });
+                    }, outputType);
             }
             for (uint32 channel = 0; channel < m->getMCChannelsPerSocket(); ++channel)
             {
@@ -723,7 +787,7 @@ int mainThrows(int argc, char * argv[])
                                getCKEOffAverageCycles(channel, getFirstRank(imc_profile), BeforeState[socket], AfterState[socket]), ""),
                         Metric("Rank" + std::to_string(getFirstRank(imc_profile)) + " Cycles per transition", 
                                getCyclesPerTransition(channel, getFirstRank(imc_profile), BeforeState[socket], AfterState[socket]), "")
-                    });
+                    }, outputType);
 
                     printMetrics("S" + std::to_string(socket) + "CH" + std::to_string(channel),
                     {
@@ -734,7 +798,7 @@ int mainThrows(int argc, char * argv[])
                                getCKEOffAverageCycles(channel, getSecondRank(imc_profile), BeforeState[socket], AfterState[socket]), ""),
                         Metric("Rank" + std::to_string(getSecondRank(imc_profile)) + " Cycles per transition", 
                                getCyclesPerTransition(channel, getSecondRank(imc_profile), BeforeState[socket], AfterState[socket]), "")
-                    });
+                    }, outputType);
                 } else if (imc_profile == 4)
                 {
                     printMetrics("S" + std::to_string(socket) + "CH" + std::to_string(channel),
@@ -743,21 +807,17 @@ int mainThrows(int argc, char * argv[])
                         Metric("Self-refresh cycles", getSelfRefreshCycles(channel, BeforeState[socket], AfterState[socket]), ""),
                         Metric("Self-refresh transitions", getSelfRefreshTransitions(channel, BeforeState[socket], AfterState[socket]), ""),
                         Metric("PPD cycles", getPPDCycles(channel, BeforeState[socket], AfterState[socket]), "")
-                    });
+                    }, outputType);
                 }
             }
 
             for (uint32 u = 0; u < m->getMaxNumOfUncorePMUs(PCM::PCU_PMU_ID); ++u)
             {
-                auto getHeader = [&socket,&m,&u, &BeforeState, &AfterState] ()
+                std::string header = "S" + std::to_string(socket);
+                if (m->getMaxNumOfUncorePMUs(PCM::PCU_PMU_ID) > 1)
                 {
-                    std::string header = "S" + std::to_string(socket);
-                    if (m->getMaxNumOfUncorePMUs(PCM::PCU_PMU_ID) > 1)
-                    {
-                        header += "U" + std::to_string(u);
-                    }
-                    return header;
-                };
+                    header += "U" + std::to_string(u);
+                }
                 std::vector<Metric> metrics;
                 switch (pcu_profile)
                 {
@@ -765,33 +825,33 @@ int mainThrows(int argc, char * argv[])
                     if (cpu_family_model == PCM::HASWELLX || cpu_family_model == PCM::BDX_DE || cpu_family_model == PCM::SKX)
                         break;
 
-                    printMetrics(getHeader(),
+                    printMetrics(header,
                     {
                         Metric("PCUClocks", getPCUClocks(u, BeforeState[socket], AfterState[socket]), ""),
                         Metric("Freq band 0 cycles", 100. * getNormalizedPCUCounter(u, 1, BeforeState[socket], AfterState[socket]), "%"),
                         Metric("Freq band 1 cycles", 100. * getNormalizedPCUCounter(u, 2, BeforeState[socket], AfterState[socket]), "%"),
                         Metric("Freq band 2 cycles", 100. * getNormalizedPCUCounter(u, 3, BeforeState[socket], AfterState[socket]), "%")
-                    });
+                    }, outputType);
                     break;
 
                 case 1:
-                    printMetrics(getHeader(),
+                    printMetrics(header,
                     {
                         Metric("PCUClocks", getPCUClocks(u, BeforeState[socket], AfterState[socket]), ""),
                         Metric(cpu_family_model == PCM::SKX ? "C0_1-state residency" : "C0-state residency", getNormalizedPCUCounter(u, 1, BeforeState[socket], AfterState[socket]), ""),
                         Metric("C3-state residency", getNormalizedPCUCounter(u, 2, BeforeState[socket], AfterState[socket]), ""),
                         Metric(cpu_family_model == PCM::SKX ? "C6_7-state residency" : "C6-state residency", getNormalizedPCUCounter(u, 3, BeforeState[socket], AfterState[socket]), "")
-                    });
+                    }, outputType);
                     break;
 
                 case 2:
-                    printMetrics(getHeader(),
+                    printMetrics(header,
                     {
                         Metric("PCUClocks", getPCUClocks(u, BeforeState[socket], AfterState[socket]), ""),
                         Metric("Internal prochot cycles", 100. * getNormalizedPCUCounter(u, 1, BeforeState[socket], AfterState[socket]), "%"),
                         Metric("External prochot cycles", 100. * getNormalizedPCUCounter(u, 2, BeforeState[socket], AfterState[socket]), "%"),
                         Metric("Thermal freq limit cycles", 100. * getNormalizedPCUCounter(u, 3, BeforeState[socket], AfterState[socket]), "%")
-                    });
+                    }, outputType);
                     break;
 
                 case 3:
@@ -809,7 +869,7 @@ int mainThrows(int argc, char * argv[])
                     {
                         metrics.push_back(Metric("Clipped freq limit cycles", 100. * getNormalizedPCUCounter(u, 3, BeforeState[socket], AfterState[socket]), "%"));
                     }
-                    printMetrics(getHeader(), metrics);
+                    printMetrics(header, metrics, outputType);
                     break;
 
                 case 4:
@@ -826,13 +886,13 @@ int mainThrows(int argc, char * argv[])
                         cout << "This PCU profile is not supported on your processor\n";
                         break;
                     }
-                    printMetrics(getHeader(),
+                    printMetrics(header,
                     {
                         Metric("PCUClocks", getPCUClocks(u, BeforeState[socket], AfterState[socket]), ""),
                         Metric("OS freq limit cycles", 100. * getNormalizedPCUCounter(u, 1, BeforeState[socket], AfterState[socket]), "%"),
                         Metric("Power freq limit cycles", 100. * getNormalizedPCUCounter(u, 2, BeforeState[socket], AfterState[socket]), "%"),
                         Metric("Clipped freq limit cycles", 100. * getNormalizedPCUCounter(u, 3, BeforeState[socket], AfterState[socket]), "%")
-                    });
+                    }, outputType);
                     break;
                 case 5:
                     metrics.push_back(Metric("PCUClocks", getPCUClocks(u, BeforeState[socket], AfterState[socket]), ""));
@@ -843,7 +903,7 @@ int mainThrows(int argc, char * argv[])
                         metrics.push_back(Metric("UFS transition count", getUncoreCounter(PCM::PCU_PMU_ID, u, 3, BeforeState[socket], AfterState[socket]), ""));
                         metrics.push_back(Metric("UFS transition cycles", 100. * getNormalizedPCUCounter(u, 0, BeforeState[socket], AfterState[socket], m), "%"));
                     }
-                    printMetrics(getHeader(), metrics);
+                    printMetrics(header, metrics, outputType);
                     break;
                 case 6:
                     if (cpu_family_model == PCM::HASWELLX || PCM::BDX_DE == cpu_family_model)
@@ -871,25 +931,25 @@ int mainThrows(int argc, char * argv[])
                         metrics.push_back(Metric("PC6 transitions", getUncoreCounter(PCM::PCU_PMU_ID, u, 3, BeforeState[socket], AfterState[socket]), ""));
                         break;
                     }
-                    printMetrics(getHeader(), metrics);
+                    printMetrics(header, metrics, outputType);
                     break;
                 case 7:
                     if (PCM::HASWELLX == cpu_family_model || PCM::BDX_DE == cpu_family_model || PCM::BDX == cpu_family_model) {
-                        printMetrics(getHeader(),
+                        printMetrics(header,
                         {
                             Metric("UFS_TRANSITIONS_PERF_P_LIMIT", getNormalizedPCUCounter(u, 0, BeforeState[socket], AfterState[socket], m) * 100., "%"),
                             Metric("UFS_TRANSITIONS_IO_P_LIMIT", getNormalizedPCUCounter(u, 1, BeforeState[socket], AfterState[socket], m) * 100., "%"),
                             Metric("UFS_TRANSITIONS_UP_RING_TRAFFIC", getNormalizedPCUCounter(u, 2, BeforeState[socket], AfterState[socket], m) * 100., "%"),
                             Metric("UFS_TRANSITIONS_UP_STALL_CYCLES", getNormalizedPCUCounter(u, 3, BeforeState[socket], AfterState[socket], m) * 100., "%")
-                        });
+                        }, outputType);
                     }
                     break;
                 case 8:
                     if (PCM::HASWELLX == cpu_family_model || PCM::BDX_DE == cpu_family_model || PCM::BDX == cpu_family_model) {
-                        printMetrics(getHeader(),
+                        printMetrics(header,
                         {
                             Metric("UFS_TRANSITIONS_DOWN", getNormalizedPCUCounter(u, 0, BeforeState[socket], AfterState[socket], m) * 100., "%")
-                        });
+                        }, outputType);
                     }
                     break;
                 }
@@ -901,13 +961,13 @@ int mainThrows(int argc, char * argv[])
                     Metric("Consumed Joules", getConsumedJoules(BeforeState[socket], AfterState[socket]), ""),
                     Metric("Watts", 1000. * getConsumedJoules(BeforeState[socket], AfterState[socket]) / double(AfterTime - BeforeTime), ""),
                     Metric("Thermal headroom below TjMax", AfterState[socket].getPackageThermalHeadroom(), "°C")
-                });
+                }, outputType);
             printMetrics("S" + std::to_string(socket),
                 {
                     Metric("Consumed DRAM energy units", getDRAMConsumedEnergy(BeforeState[socket], AfterState[socket]), ""),
                     Metric("Consumed DRAM Joules", getDRAMConsumedJoules(BeforeState[socket], AfterState[socket]), ""),
                     Metric("DRAM Watts", 1000. * getDRAMConsumedJoules(BeforeState[socket], AfterState[socket]) / double(AfterTime - BeforeTime), "")
-                });
+                }, outputType);
         }
         for (auto instance = 0ULL; instance < PERF_LIMIT_REASON_TPMI_dies_data.size(); ++instance)
         {
@@ -919,7 +979,7 @@ int mainThrows(int argc, char * argv[])
                 {
                     metrics.push_back(Metric(PERF_LIMIT_REASON_TPMI::Coarse_Grained_PLR_Bit_Definition_Strings[l], extract_bits(data, l, l) ? true : false, ""));
                 }
-                printMetrics("S" + std::to_string(instance) + "D" + std::to_string(die) + " PERF LIMIT REASONS (DIE LEVEL)", metrics);
+                printMetrics("S" + std::to_string(instance) + "D" + std::to_string(die) + " PERF LIMIT REASONS (DIE LEVEL)", metrics, outputType);
             }
         }
         for (auto instance = 0ULL; instance < PERF_LIMIT_REASON_TPMI_modules_data.size(); ++instance)
@@ -960,16 +1020,27 @@ int mainThrows(int argc, char * argv[])
                     metrics.push_back(Metric(std::string(PERF_LIMIT_REASON_TPMI::Coarse_Grained_PLR_Bit_Definition_Strings[PERF_LIMIT_REASON_TPMI::Fine_Grained_PLR_Bit_Definition_Data[l].coarse_grained_mapping]) + "." +
                         PERF_LIMIT_REASON_TPMI::Fine_Grained_PLR_Bit_Definition_Data[l].name, fineGrainedData[die][l], ""));
                 }
-                printMetrics("S" + std::to_string(instance) + "D" + std::to_string(die) + " PERF LIMIT REASONS (#CORE MODULES)", metrics, true);
+                printMetrics("S" + std::to_string(instance) + "D" + std::to_string(die) + " PERF LIMIT REASONS (#CORE MODULES)", metrics, outputType, true);
             }
         }
+        if (csv)
+        {
+            cout << "\n";
+        }
+    };
+
+    auto printLine = []()
+    {
+        cout << "----------------------------------------------------------------------------------------------\n";
     };
 
     mainLoop([&]()
     {
-        cout << "----------------------------------------------------------------------------------------------\n";
-
-        if (!csv) cout << flush;
+        if (!csv)
+        {
+            printLine();
+            cout << flush;
+        }
 
         const auto delay_ms = calibratedSleep(delay, sysCmd, mainLoop, m);
 
@@ -986,14 +1057,23 @@ int mainThrows(int argc, char * argv[])
             PERF_LIMIT_REASON_TPMI::reset(max_pm_modules);
         }
 
-        printAll(delay_ms);
+        if (csv_header)
+        {
+            printAll(delay_ms, Header1);
+            printAll(delay_ms, Header2);
+            csv_header = false;
+        }
+        printAll(delay_ms, Data);
 
         swap(BeforeState, AfterState);
         swap(BeforeTime, AfterTime);
         swap(beforeSocketState, afterSocketState);
 
         if (m->isBlocked()) {
-            cout << "----------------------------------------------------------------------------------------------\n";
+            if (!csv)
+            {
+                printLine();
+            }
             // in case PCM was blocked after spawning child application: break monitoring loop here
             return false;
         }
