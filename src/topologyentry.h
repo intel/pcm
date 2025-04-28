@@ -4,6 +4,7 @@
 #pragma once
 
 #include "types.h"
+#include "debug.h"
 
 namespace pcm
 {
@@ -25,6 +26,7 @@ struct PCM_API TopologyEntry // describes a core
     int32 die_grp_id;
     int32 socket_id;
     int32 socket_unique_core_id;
+    int32 l3_cache_id = -1;
     int32 native_cpu_model = -1;
     enum DomainTypeID
     {
@@ -103,7 +105,7 @@ inline void fillEntry(TopologyEntry & entry, const uint32 & smtMaskWidth, const 
     entry.socket_unique_core_id = entry.core_id;
 }
 
-inline bool initCoreMasks(uint32 & smtMaskWidth, uint32 & coreMaskWidth, uint32 & l2CacheMaskShift)
+inline bool initCoreMasks(uint32 & smtMaskWidth, uint32 & coreMaskWidth, uint32 & l2CacheMaskShift, uint32 & l3CacheMaskShift)
 {
     // init constants for CPU topology leaf 0xB
     // adapted from Topology Enumeration Reference code for Intel 64 Architecture
@@ -154,24 +156,62 @@ inline bool initCoreMasks(uint32 & smtMaskWidth, uint32 & coreMaskWidth, uint32 
 
         (void) coreMaskWidth; // to suppress warnings on MacOS (unused vars)
 
-    #ifdef PCM_DEBUG_TOPOLOGY
-        uint32 threadsSharingL2;
-    #endif
-        uint32 l2CacheMaskWidth;
+        uint32 threadsSharingL2 = 0;
+        uint32 l2CacheMaskWidth = 0;
 
         pcm_cpuid(0x4, 2, cpuid_args); // get ID for L2 cache
         l2CacheMaskWidth = 1 + extract_bits_32(cpuid_args.array[0],14,25); // number of APIC IDs sharing L2 cache
-    #ifdef PCM_DEBUG_TOPOLOGY
         threadsSharingL2 = l2CacheMaskWidth;
-    #endif
         for( ; l2CacheMaskWidth > 1; l2CacheMaskWidth >>= 1)
         {
             l2CacheMaskShift++;
         }
-    #ifdef PCM_DEBUG_TOPOLOGY
-        std::cerr << "DEBUG: Number of threads sharing L2 cache = " << threadsSharingL2
-                << " [the most significant bit = " << l2CacheMaskShift << "]\n";
-    #endif
+        DBG(1, "Number of threads sharing L2 cache = " , threadsSharingL2, " [the most significant bit = " , l2CacheMaskShift , "]");
+
+        uint32 threadsSharingL3 = 0;
+        uint32 l3CacheMaskWidth = 0;
+
+        pcm_cpuid(0x4, 3, cpuid_args); // get ID for L3 cache
+        l3CacheMaskWidth = 1 + extract_bits_32(cpuid_args.array[0], 14, 25); // number of APIC IDs sharing L3 cache
+        threadsSharingL3 = l3CacheMaskWidth;
+        for( ; l3CacheMaskWidth > 1; l3CacheMaskWidth >>= 1)
+        {
+            l3CacheMaskShift++;
+        }
+        DBG(1, "Number of threads sharing L3 cache = " , threadsSharingL3, " [the most significant bit = " , l3CacheMaskShift , "]");
+
+        uint32 it = 0;
+
+        for (int i = 0; i < 100; ++i)
+        {
+            uint32 threadsSharingCache = 0;
+            uint32 CacheMaskWidth = 0;
+            uint32 CacheMaskShift = 0;
+            pcm_cpuid(0x4, it, cpuid_args);
+            const auto cacheType = extract_bits_32(cpuid_args.array[0], 0, 4);
+            if (cacheType == 0)
+            {
+                break; // no more caches
+            }
+            const char * cacheTypeStr = nullptr;
+            switch (cacheType)
+            {
+                case 1: cacheTypeStr = "data"; break;
+                case 2: cacheTypeStr = "instruction"; break;
+                case 3: cacheTypeStr = "unified"; break;
+                default: cacheTypeStr = "unknown"; break;
+            }
+            const auto level = extract_bits_32(cpuid_args.array[0], 5, 7);
+            CacheMaskWidth = 1 + extract_bits_32(cpuid_args.array[0], 14, 25); // number of APIC IDs sharing cache
+            threadsSharingCache = CacheMaskWidth;
+            for( ; CacheMaskWidth > 1; CacheMaskWidth >>= 1)
+            {
+                CacheMaskShift++;
+            }
+            DBG(1, "Max number of threads sharing L" , level , " " , cacheTypeStr , " cache = " , threadsSharingCache, " [the most significant bit = " , CacheMaskShift , "]",
+                " shift = " , CacheMaskShift);
+            ++it;
+        }
     }
     return true;
 }

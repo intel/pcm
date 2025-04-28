@@ -1101,6 +1101,7 @@ bool PCM::discoverSystemTopology()
     uint32 smtMaskWidth = 0;
     uint32 coreMaskWidth = 0;
     uint32 l2CacheMaskShift = 0;
+    uint32 l3CacheMaskShift = 0;
 
     struct domain
     {
@@ -1111,7 +1112,7 @@ bool PCM::discoverSystemTopology()
     {
         TemporalThreadAffinity aff0(0);
 
-        if (initCoreMasks(smtMaskWidth, coreMaskWidth, l2CacheMaskShift) == false)
+        if (initCoreMasks(smtMaskWidth, coreMaskWidth, l2CacheMaskShift, l3CacheMaskShift) == false)
         {
             std::cerr << "ERROR: Major problem? No leaf 0 under cpuid function 11.\n";
             return false;
@@ -1151,20 +1152,18 @@ bool PCM::discoverSystemTopology()
             for (size_t l = 0; l < topologyDomains.size(); ++l)
             {
                 topologyDomainMap[topologyDomains[l].type] = topologyDomains[l];
-#if 0
-                std::cerr << "Topology level: " << l <<
-                                      " type: " << topologyDomains[l].type <<
-                                      " (" << TopologyEntry::getDomainTypeStr(topologyDomains[l].type) << ")" <<
-                                      " width: " << topologyDomains[l].width <<
-                                      " levelShift: " << topologyDomains[l].levelShift <<
-                                      " nextLevelShift: " << topologyDomains[l].nextLevelShift << "\n";
-#endif
+                DBG(1 , "Topology level: " , l ,
+                                      " type: " , topologyDomains[l].type ,
+                                      " (" , TopologyEntry::getDomainTypeStr(topologyDomains[l].type) , ")" ,
+                                      " width: " , topologyDomains[l].width ,
+                                      " levelShift: " , topologyDomains[l].levelShift ,
+                                      " nextLevelShift: " , topologyDomains[l].nextLevelShift);
             }
         }
     }
 
 #ifndef __APPLE__
-    auto populateEntry = [&topologyDomainMap,&smtMaskWidth, &coreMaskWidth, &l2CacheMaskShift](TopologyEntry& entry)
+    auto populateEntry = [&topologyDomainMap,&smtMaskWidth, &coreMaskWidth, &l2CacheMaskShift, &l3CacheMaskShift](TopologyEntry& entry)
     {
         auto getAPICID = [&](const uint32 leaf)
         {
@@ -1218,6 +1217,7 @@ bool PCM::discoverSystemTopology()
         {
             fillEntry(entry, smtMaskWidth, coreMaskWidth, l2CacheMaskShift, getAPICID(0xb));
         }
+        entry.l3_cache_id = extract_bits_32(getAPICID(0xb), l3CacheMaskShift, 31);
     };
 #endif
 
@@ -3231,7 +3231,7 @@ void PCM::printDetailedSystemTopology(const int detailLevel)
         std::cerr << "Tile_Id         ";
         if (detailLevel > 0) std::cerr << "Die_Id          Die_Group_Id    ";
         std::cerr << "Package_Id      Core_Type       Native_CPU_Model\n";
-        std::map<uint32, std::vector<uint32> > os_id_by_core, os_id_by_tile, core_id_by_socket;
+        std::map<uint32, std::vector<uint32> > os_id_by_core, os_id_by_tile, core_id_by_socket, os_id_by_l3_cache;
         size_t counter = 0;
         for (auto it = topology.begin(); it != topology.end(); ++it)
         {
@@ -3252,6 +3252,7 @@ void PCM::printDetailedSystemTopology(const int detailLevel)
             // add socket offset to distinguish cores and tiles from different sockets
             os_id_by_core[(it->socket_id << 15) + it->core_id].push_back(it->os_id);
             os_id_by_tile[(it->socket_id << 15) + it->tile_id].push_back(it->os_id);
+            os_id_by_l3_cache[(it->socket_id << 15) + it->l3_cache_id].push_back(it->os_id);
 
             ++counter;
         }
@@ -3280,6 +3281,16 @@ void PCM::printDetailedSystemTopology(const int detailLevel)
         }
         std::cerr << "\nTile / L2$ ";
         for (auto core = os_id_by_tile.begin(); core != os_id_by_tile.end(); ++core)
+        {
+            auto os_id = core->second.begin();
+            std::cerr << "(" << *os_id;
+            for (++os_id; os_id != core->second.end(); ++os_id) {
+                std::cerr << "," << *os_id;
+            }
+            std::cerr << ")";
+        }
+        std::cerr << "\nL3$ ";
+        for (auto core = os_id_by_l3_cache.begin(); core != os_id_by_l3_cache.end(); ++core)
         {
             auto os_id = core->second.begin();
             std::cerr << "(" << *os_id;
