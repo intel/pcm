@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright (c) 2022-2024, Intel Corporation
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/tests)
+set(CMAKE_TEST_BINARY_DIR ${CMAKE_BINARY_DIR}/bin/tests)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_TEST_BINARY_DIR})
 
 if(UNIX)
 
@@ -34,3 +35,5 @@ if(PCM_FUZZ)
     target_link_libraries(pcm-fuzz Threads::Threads PCM_STATIC)
     target_link_libraries(pcm-memory-fuzz Threads::Threads PCM_STATIC)
 endif()
+
+add_subdirectory(utests)

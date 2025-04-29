@@ -184,7 +184,6 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 add_subdirectory(src)
 add_subdirectory(examples)
 add_subdirectory(tests)
-add_subdirectory(utests)
 add_subdirectory(googletest)
 
 message(STATUS "Install directory: ${CMAKE_INSTALL_PREFIX}")
