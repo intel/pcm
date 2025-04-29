@@ -33,3 +33,4 @@ latex/
 .idea/
 build
 src/simdjson
+.vscode/
