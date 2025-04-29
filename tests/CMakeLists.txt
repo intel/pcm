@@ -17,6 +17,7 @@ if(UNIX)
         target_link_libraries(urltest Threads::Threads PCM_STATIC)
     endif(LINUX)
 
+    add_subdirectory(utests)
 endif(UNIX)
 
 if(PCM_FUZZ)
@@ -35,5 +36,3 @@ if(PCM_FUZZ)
     target_link_libraries(pcm-fuzz Threads::Threads PCM_STATIC)
     target_link_libraries(pcm-memory-fuzz Threads::Threads PCM_STATIC)
 endif()
-
-add_subdirectory(utests)
