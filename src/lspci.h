@@ -170,11 +170,28 @@ struct bdf {
     uint8_t busno;
     uint8_t devno;
     uint8_t funcno;
+
     bdf() : domainno(0), busno(0), devno(0), funcno(0) {}
     bdf(uint32_t domain, uint8_t bus, uint8_t device, uint8_t function) :
         domainno(domain), busno(bus), devno(device), funcno(function) {}
     bdf(uint8_t bus, uint8_t device, uint8_t function) :
         domainno(0), busno(bus), devno(device), funcno(function) {}
+
+    std::string to_string() const {
+        std::ostringstream oss;
+        oss << std::hex << std::uppercase << std::setfill('0')
+            << std::setw(DOMAIN_WIDTH) << domainno << ":"
+            << std::setw(BUS_WIDTH) << static_cast<int>(busno) << ":"
+            << std::setw(DEVICE_WIDTH) << static_cast<int>(devno) << "."
+            << std::setw(FUNCTION_WIDTH) << static_cast<int>(funcno);
+        return oss.str();
+    }
+
+    private:
+        static const int DOMAIN_WIDTH = 4;
+        static const int BUS_WIDTH = 2;
+        static const int DEVICE_WIDTH = 2;
+        static const int FUNCTION_WIDTH = 1;
 };
 
 struct pci {
