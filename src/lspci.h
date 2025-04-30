@@ -242,20 +242,6 @@ struct pci {
     bool isIntelDeviceById(uint16_t device_id) const { return (isIntelDevice() && (this->device_id == device_id)); }
 };
 
-struct iio_skx {
-    struct {
-        struct {
-            struct pci root_pci_dev;   /* single device represent root port */
-            std::vector<struct pci> child_pci_devs; /* Contain child switch and end-point devices */
-        } parts[4]{}; /* part 0, 1, 2, 3 */
-        uint8_t busno{}; /* holding busno for each IIO stack */
-        std::string stack_name{};
-        std::vector<uint64_t> values{};
-        bool flipped = false;
-    } stacks[6]; /* iio stack 0, 1, 2, 3, 4, 5 */
-    uint32_t socket_id{};
-};
-
 struct iio_bifurcated_part {
     int part_id{0};
     /* single device represent root port */
@@ -295,8 +281,6 @@ bool probe_pci(struct pci *p);
   second : [vendorID][deviceID] -> device name
  */
 typedef std::pair< std::map<int, std::string> ,std::map< int, std::map<int, std::string> > > PCIDB;
-
-void print_pci(struct pci p, const PCIDB & pciDB);
 
 void load_PCIDB(PCIDB & pciDB);
 

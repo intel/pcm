@@ -4,7 +4,7 @@
 include(FindOpenSSL)
 
 # All pcm-* executables
-set(PROJECT_NAMES pcm pcm-numa pcm-latency pcm-power pcm-msr pcm-memory pcm-tsx pcm-pcie pcm-core pcm-iio pcm-lspci pcm-pcicfg pcm-mmio pcm-tpmi pcm-raw pcm-accel)
+set(PROJECT_NAMES pcm pcm-numa pcm-latency pcm-power pcm-msr pcm-memory pcm-tsx pcm-pcie pcm-core pcm-iio pcm-pcicfg pcm-mmio pcm-tpmi pcm-raw pcm-accel)
 
 set(MINIMUM_OPENSSL_VERSION 1.1.1)
 
