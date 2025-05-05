@@ -7571,14 +7571,23 @@ void PCM::getPCICFGPMUsFromDiscovery(const unsigned int BoxType, const size_t s,
             {
                 std::vector<std::shared_ptr<HWRegister> > CounterControlRegs, CounterValueRegs;
                 const auto n_regs = uncorePMUDiscovery->getBoxNumRegs(BoxType, s, pos);
-                auto makeRegister = [](const uint64 rawAddr)
+                auto makeRegister = [&pos, &numBoxes, &BoxType, &s](const uint64 rawAddr)
                 {
 #ifndef PCI_ENABLE
                     constexpr auto PCI_ENABLE = 0x80000000ULL;
 #endif
                     UncorePMUDiscovery::PCICFGAddress Addr;
                     Addr.raw = rawAddr;
-                    assert(Addr.raw & PCI_ENABLE);
+                    if ((Addr.raw & PCI_ENABLE) == 0)
+                    {
+                        std::cerr << "PCM Error: PCI_ENABLE bit not set in address 0x" << std::hex << Addr.raw << std::dec << "\n";
+                        std::cerr << "This is likely a bug in the uncore PMU discovery BIOS table. Contact your BIOS vendor.\n";
+                        std::cerr << "Socket: " << s << "\n";
+                        std::cerr << "Box type: " << BoxType << "\n";
+                        std::cerr << "Box position: " << pos << "/" << numBoxes << "\n";
+                        std::cerr << "Address: " << Addr.getStr() << "\n";
+                        return std::shared_ptr<PCICFGRegister64>();
+                    }
                     try {
                         auto handle = std::make_shared<PciHandleType>(0, (uint32)Addr.fields.bus,
                                                                         (uint32)Addr.fields.device,
