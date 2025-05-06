@@ -107,6 +107,8 @@ inline void fillEntry(TopologyEntry & entry, const uint32 & smtMaskWidth, const 
     entry.socket_unique_core_id = entry.core_id;
 }
 
+#ifndef KERNEL
+
 inline bool initCoreMasks(uint32 & smtMaskWidth, uint32 & coreMaskWidth, uint32 & l2CacheMaskShift, uint32 & l3CacheMaskShift)
 {
     // init constants for CPU topology leaf 0xB
@@ -232,6 +234,8 @@ inline bool initCoreMasks(uint32 & smtMaskWidth, uint32 & coreMaskWidth, uint32 
     }
     return true;
 }
+
+#endif
 
 }
 
