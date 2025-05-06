@@ -107,8 +107,6 @@ inline void fillEntry(TopologyEntry & entry, const uint32 & smtMaskWidth, const 
     entry.socket_unique_core_id = entry.core_id;
 }
 
-#ifndef USER_KERNEL_SHARED
-
 inline bool initCoreMasks(uint32 & smtMaskWidth, uint32 & coreMaskWidth, uint32 & l2CacheMaskShift, uint32 & l3CacheMaskShift)
 {
     // init constants for CPU topology leaf 0xB
@@ -170,7 +168,10 @@ inline bool initCoreMasks(uint32 & smtMaskWidth, uint32 & coreMaskWidth, uint32 
         {
             l2CacheMaskShift++;
         }
+
+#ifndef USER_KERNEL_SHARED
         DBG(1, "Number of threads sharing L2 cache = " , threadsSharingL2, " [the most significant bit = " , l2CacheMaskShift , "]");
+#endif
 
         uint32 threadsSharingL3 = 0;
         uint32 l3CacheMaskWidth = 0;
@@ -182,7 +183,11 @@ inline bool initCoreMasks(uint32 & smtMaskWidth, uint32 & coreMaskWidth, uint32 
         {
             l3CacheMaskShift++;
         }
+
+#ifndef USER_KERNEL_SHARED
         DBG(1, "Number of threads sharing L3 cache = " , threadsSharingL3, " [the most significant bit = " , l3CacheMaskShift , "]");
+#endif
+
         // Validate l3CacheMaskShift and ensure the bit range is correct
         if (l3CacheMaskShift > 31)
         {
@@ -217,14 +222,16 @@ inline bool initCoreMasks(uint32 & smtMaskWidth, uint32 & coreMaskWidth, uint32 
             {
                 CacheMaskShift++;
             }
+
+#ifndef USER_KERNEL_SHARED
             DBG(1, "Max number of threads sharing L" , level , " " , cacheTypeStr , " cache = " , threadsSharingCache, " [the most significant bit = " , CacheMaskShift , "]",
                 " shift = " , CacheMaskShift);
+#endif
             ++it;
         }
     }
     return true;
 }
-#endif
 
 }
 
