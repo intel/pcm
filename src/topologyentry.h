@@ -107,8 +107,6 @@ inline void fillEntry(TopologyEntry & entry, const uint32 & smtMaskWidth, const 
     entry.socket_unique_core_id = entry.core_id;
 }
 
-#ifndef KERNEL
-
 inline bool initCoreMasks(uint32 & smtMaskWidth, uint32 & coreMaskWidth, uint32 & l2CacheMaskShift, uint32 & l3CacheMaskShift)
 {
     // init constants for CPU topology leaf 0xB
@@ -193,7 +191,10 @@ inline bool initCoreMasks(uint32 & smtMaskWidth, uint32 & coreMaskWidth, uint32 
         // Validate l3CacheMaskShift and ensure the bit range is correct
         if (l3CacheMaskShift > 31)
         {
-            throw std::runtime_error("Invalid bit range for L3 cache ID extraction");
+#ifndef USER_KERNEL_SHARED
+            DBG(0, "Invalid bit range for L3 cache ID extraction = ", l3CacheMaskShift);
+#endif
+            return false;
         }
 
         uint32 it = 0;
@@ -234,8 +235,6 @@ inline bool initCoreMasks(uint32 & smtMaskWidth, uint32 & coreMaskWidth, uint32 
     }
     return true;
 }
-
-#endif
 
 }
 
