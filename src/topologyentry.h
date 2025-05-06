@@ -183,6 +183,11 @@ inline bool initCoreMasks(uint32 & smtMaskWidth, uint32 & coreMaskWidth, uint32 
             l3CacheMaskShift++;
         }
         DBG(1, "Number of threads sharing L3 cache = " , threadsSharingL3, " [the most significant bit = " , l3CacheMaskShift , "]");
+        // Validate l3CacheMaskShift and ensure the bit range is correct
+        if (l3CacheMaskShift > 31)
+        {
+            throw std::runtime_error("Invalid bit range for L3 cache ID extraction");
+        }
 
         uint32 it = 0;
 
