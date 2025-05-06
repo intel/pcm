@@ -4,7 +4,9 @@
 #pragma once
 
 #include "types.h"
+#ifndef USER_KERNEL_SHARED
 #include "debug.h"
+#endif
 
 namespace pcm
 {
@@ -104,6 +106,8 @@ inline void fillEntry(TopologyEntry & entry, const uint32 & smtMaskWidth, const 
     entry.tile_id = extract_bits_32(apic_id, l2CacheMaskShift, 31);
     entry.socket_unique_core_id = entry.core_id;
 }
+
+#ifndef USER_KERNEL_SHARED
 
 inline bool initCoreMasks(uint32 & smtMaskWidth, uint32 & coreMaskWidth, uint32 & l2CacheMaskShift, uint32 & l3CacheMaskShift)
 {
@@ -215,6 +219,7 @@ inline bool initCoreMasks(uint32 & smtMaskWidth, uint32 & coreMaskWidth, uint32 
     }
     return true;
 }
+#endif
 
 }
 
