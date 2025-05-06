@@ -4,7 +4,9 @@
 #pragma once
 
 #include "types.h"
+#ifndef USER_KERNEL_SHARED
 #include "debug.h"
+#endif
 
 namespace pcm
 {
@@ -166,7 +168,10 @@ inline bool initCoreMasks(uint32 & smtMaskWidth, uint32 & coreMaskWidth, uint32 
         {
             l2CacheMaskShift++;
         }
+
+#ifndef USER_KERNEL_SHARED
         DBG(1, "Number of threads sharing L2 cache = " , threadsSharingL2, " [the most significant bit = " , l2CacheMaskShift , "]");
+#endif
 
         uint32 threadsSharingL3 = 0;
         uint32 l3CacheMaskWidth = 0;
@@ -178,8 +183,24 @@ inline bool initCoreMasks(uint32 & smtMaskWidth, uint32 & coreMaskWidth, uint32 
         {
             l3CacheMaskShift++;
         }
-        DBG(1, "Number of threads sharing L3 cache = " , threadsSharingL3, " [the most significant bit = " , l3CacheMaskShift , "]");
 
+#ifndef USER_KERNEL_SHARED
+        DBG(1, "Number of threads sharing L3 cache = " , threadsSharingL3, " [the most significant bit = " , l3CacheMaskShift , "]");
+#endif
+
+        (void) threadsSharingL2; // to suppress warnings on MacOS (unused vars)
+        (void) threadsSharingL3; // to suppress warnings on MacOS (unused vars)
+
+        // Validate l3CacheMaskShift and ensure the bit range is correct
+        if (l3CacheMaskShift > 31)
+        {
+#ifndef USER_KERNEL_SHARED
+            DBG(0, "Invalid bit range for L3 cache ID extraction = ", l3CacheMaskShift);
+#endif
+            return false;
+        }
+
+#ifndef USER_KERNEL_SHARED
         uint32 it = 0;
 
         for (int i = 0; i < 100; ++i)
@@ -212,6 +233,7 @@ inline bool initCoreMasks(uint32 & smtMaskWidth, uint32 & coreMaskWidth, uint32 
                 " shift = " , CacheMaskShift);
             ++it;
         }
+#endif
     }
     return true;
 }

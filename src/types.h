@@ -19,6 +19,8 @@
 #include <istream>
 #include <sstream>
 #include <iomanip>
+#include <stdexcept>
+#include <string>
 #include <string.h>
 #include <assert.h>
 #include <limits>
