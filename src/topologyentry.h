@@ -188,6 +188,9 @@ inline bool initCoreMasks(uint32 & smtMaskWidth, uint32 & coreMaskWidth, uint32 
         DBG(1, "Number of threads sharing L3 cache = " , threadsSharingL3, " [the most significant bit = " , l3CacheMaskShift , "]");
 #endif
 
+        (void) threadsSharingL2; // to suppress warnings on MacOS (unused vars)
+        (void) threadsSharingL3; // to suppress warnings on MacOS (unused vars)
+
         // Validate l3CacheMaskShift and ensure the bit range is correct
         if (l3CacheMaskShift > 31)
         {
@@ -197,6 +200,7 @@ inline bool initCoreMasks(uint32 & smtMaskWidth, uint32 & coreMaskWidth, uint32 
             return false;
         }
 
+#ifndef USER_KERNEL_SHARED
         uint32 it = 0;
 
         for (int i = 0; i < 100; ++i)
@@ -225,13 +229,11 @@ inline bool initCoreMasks(uint32 & smtMaskWidth, uint32 & coreMaskWidth, uint32 
             {
                 CacheMaskShift++;
             }
-
-#ifndef USER_KERNEL_SHARED
             DBG(1, "Max number of threads sharing L" , level , " " , cacheTypeStr , " cache = " , threadsSharingCache, " [the most significant bit = " , CacheMaskShift , "]",
                 " shift = " , CacheMaskShift);
-#endif
             ++it;
         }
+#endif
     }
     return true;
 }
