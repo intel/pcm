@@ -1217,6 +1217,15 @@ bool PCM::discoverSystemTopology()
         {
             fillEntry(entry, smtMaskWidth, coreMaskWidth, l2CacheMaskShift, getAPICID(0xb));
         }
+        // Validate l3CacheMaskShift and ensure the bit range is correct
+        if (l3CacheMaskShift < 0 || l3CacheMaskShift > 31)
+        {
+            throw std::runtime_error("Invalid l3CacheMaskShift: must be between 0 and 31");
+        }
+        if (l3CacheMaskShift > 31)
+        {
+            throw std::runtime_error("Invalid bit range for L3 cache ID extraction");
+        }
         entry.l3_cache_id = extract_bits_32(getAPICID(0xb), l3CacheMaskShift, 31);
     };
 #endif
