@@ -55,7 +55,7 @@ string build_pci_header(const PCIDB & pciDB, uint32_t column_width, const struct
         for (auto& part : p.parts_no) {
             s += std::to_string(part) + ", ";
         }
-        s += "\b\b ";
+        s.erase(s.size() - 2);
     }
 
     /* row with data */

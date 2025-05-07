@@ -94,26 +94,6 @@ bool probe_pci(struct pci *p)
     return p->exist;
 }
 
-void print_pci(struct pci p, const PCIDB & pciDB)
-{
-    printf("Parent bridge info:");
-    printf("%x:%x.%d [%04x:%04x] %s %s %d P:%x S:%x S:%x ",
-            p.bdf.busno, p.bdf.devno, p.bdf.funcno,
-            p.vendor_id, p.device_id,
-            (pciDB.first.count(p.vendor_id) > 0)?pciDB.first.at(p.vendor_id).c_str():"unknown vendor",
-            (pciDB.second.count(p.vendor_id) > 0 && pciDB.second.at(p.vendor_id).count(p.device_id) > 0)?pciDB.second.at(p.vendor_id).at(p.device_id).c_str():"unknown device",
-            p.header_type,
-            p.primary_bus_number, p.secondary_bus_number, p.subordinate_bus_number);
-    printf("Device info:");
-    printf("%x:%x.%d [%04x:%04x] %s %s %d Gen%d x%d\n",
-            p.bdf.busno, p.bdf.devno, p.bdf.funcno,
-            p.vendor_id, p.device_id,
-            (pciDB.first.count(p.vendor_id) > 0)?pciDB.first.at(p.vendor_id).c_str():"unknown vendor",
-            (pciDB.second.count(p.vendor_id) > 0 && pciDB.second.at(p.vendor_id).count(p.device_id) > 0)?pciDB.second.at(p.vendor_id).at(p.device_id).c_str():"unknown device",
-            p.header_type,
-            p.link_speed, p.link_width);
-}
-
 void load_PCIDB(PCIDB & pciDB)
 {
     std::ifstream in(PCI_IDS_PATH);

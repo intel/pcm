@@ -72,7 +72,6 @@ rm -rf $RPM_BUILD_ROOT
 %{_sbindir}/pcm-core
 %{_sbindir}/pcm-iio
 %{_sbindir}/pcm-latency
-%{_sbindir}/pcm-lspci
 %{_sbindir}/pcm-memory
 %{_sbindir}/pcm-msr
 %{_sbindir}/pcm-mmio

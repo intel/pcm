@@ -64,10 +64,13 @@ void cpuGetTopoData(void* pTopos){
     uint32 smtMaskWidth = 0;
     uint32 coreMaskWidth = 0;
     uint32 l2CacheMaskShift = 0;
-    initCoreMasks(smtMaskWidth, coreMaskWidth, l2CacheMaskShift);
+    uint32 l3CacheMaskShift = 0;
+    initCoreMasks(smtMaskWidth, coreMaskWidth, l2CacheMaskShift, l3CacheMaskShift);
     PCM_CPUID_INFO cpuid_args;
     pcm_cpuid(0xb, 0x0, cpuid_args);
-    fillEntry(entry, smtMaskWidth, coreMaskWidth, l2CacheMaskShift, cpuid_args.array[3]);
+    const auto apic_id = cpuid_args.array[3];
+    fillEntry(entry, smtMaskWidth, coreMaskWidth, l2CacheMaskShift, apic_id);
+    entry.l3_cache_id = extract_bits_32(apic_id, l3CacheMaskShift, 31);
 }
 
 OSDefineMetaClassAndStructors(com_intel_driver_PcmMsr, IOService)

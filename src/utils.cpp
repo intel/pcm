@@ -1342,6 +1342,16 @@ bool get_cpu_bus(uint32 msmDomain, uint32 msmBus, uint32 msmDev, uint32 msmFunc,
             return false;
         }
 
+        if (!cpuBusValid)
+        {
+            /**
+             * Return true because an unexpected device might appear in the OS due to specific configurations.
+             * This ensures the function does not fail in such cases and allows further processing.
+             */
+            std::cerr << "CPUBUSNO_VALID is 0" << std::endl;
+            return true;
+        }
+
         cpuBusNo.resize(8);
         for (int i = 0; i < 4; ++i) {
             h.read32(SPR_MSM_REG_CPUBUSNO0_OFFSET + i * 4, &cpuBusNo[i]);
