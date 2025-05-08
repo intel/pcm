@@ -194,7 +194,7 @@ if(PCM_BUILD_EXECUTABLES)
         endif(MSVC)
 
         if(UNIX)
-            target_link_options(${PROJECT_NAME} PRIVATE "-fPIE")
+            set(LIBS ${LIBS} "-fPIE")
         endif(UNIX)
 
         if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
@@ -258,15 +258,13 @@ if(UNIX) # APPLE, LINUX, FREE_BSD
         # Daemon & client
         file(GLOB DAEMON_SOURCES "daemon/*.cpp")
         add_executable(daemon ${DAEMON_SOURCES})
-        target_link_options(daemon PRIVATE "-fPIE")
-        target_link_libraries(daemon PRIVATE PCM_STATIC Threads::Threads)
+        target_link_libraries(daemon PRIVATE PCM_STATIC Threads::Threads "-fPIE")
         set_target_properties(daemon PROPERTIES OUTPUT_NAME "pcm-daemon")
         install(TARGETS daemon DESTINATION ${CMAKE_INSTALL_SBINDIR})
 
         file(GLOB CLIENT_SOURCES "client/*.cpp")
         add_executable(client ${CLIENT_SOURCES})
-        target_link_options(client PRIVATE "-fPIE")
-        target_link_libraries(client PRIVATE Threads::Threads)
+        target_link_libraries(client PRIVATE Threads::Threads "-fPIE")
         set_target_properties(client PROPERTIES OUTPUT_NAME "pcm-client")
         install(TARGETS client DESTINATION ${CMAKE_INSTALL_BINDIR})
     endif(LINUX)
