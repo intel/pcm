@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: BSD-3-Clause
-# Copyright (c) 2022, Intel Corporation
+# Copyright (c) 2022-2025, Intel Corporation
 
 include(FindOpenSSL)
 
@@ -60,6 +60,7 @@ if(UNIX)  # LINUX, FREE_BSD, APPLE
       $<$<CONFIG:RelWithDebInfo>:PCM_SILENT>
     )
 
+    set_target_properties(PCM_STATIC PROPERTIES POSITION_INDEPENDENT_CODE ON)
     set_target_properties(PCM_STATIC_SILENT PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
     # libpcm.so
@@ -192,6 +193,10 @@ if(PCM_BUILD_EXECUTABLES)
             target_compile_options(${PROJECT_NAME} PRIVATE "${PCM_MSVC_RUNTIME_LIBRARY_OPTIONS}")
         endif(MSVC)
 
+        if(UNIX)
+            target_link_options(${PROJECT_NAME} PRIVATE "-fPIE")
+        endif(UNIX)
+
         if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
             set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "${PCM_STATIC_ASAN}")
         endif()
@@ -253,12 +258,14 @@ if(UNIX) # APPLE, LINUX, FREE_BSD
         # Daemon & client
         file(GLOB DAEMON_SOURCES "daemon/*.cpp")
         add_executable(daemon ${DAEMON_SOURCES})
+        target_link_options(daemon PRIVATE "-fPIE")
         target_link_libraries(daemon PRIVATE PCM_STATIC Threads::Threads)
         set_target_properties(daemon PROPERTIES OUTPUT_NAME "pcm-daemon")
         install(TARGETS daemon DESTINATION ${CMAKE_INSTALL_SBINDIR})
 
         file(GLOB CLIENT_SOURCES "client/*.cpp")
         add_executable(client ${CLIENT_SOURCES})
+        target_link_options(client PRIVATE "-fPIE")
         target_link_libraries(client PRIVATE Threads::Threads)
         set_target_properties(client PROPERTIES OUTPUT_NAME "pcm-client")
         install(TARGETS client DESTINATION ${CMAKE_INSTALL_BINDIR})
