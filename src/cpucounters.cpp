@@ -1805,7 +1805,7 @@ bool initRootBusMap(std::map<int, int> &rootbus_map)
     for (auto & s2bus : socket2MSMbus)
     {
         uint32 cpuBusValid = 0x0;
-        int cpuBusPackageId;
+        int cpuBusPackageId = 0;
         std::vector<uint32> cpuBusNo;
 
         if (get_cpu_bus(s2bus.first, s2bus.second, SPR_MSM_DEV_ADDR, SPR_MSM_FUNC_ADDR, cpuBusValid, cpuBusNo, cpuBusPackageId) == false)
