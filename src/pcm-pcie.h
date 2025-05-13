@@ -69,12 +69,13 @@ protected:
 void IPlatform::init()
 {
     print_cpu_details();
-
+/*
     if (m_pcm->isSomeCoreOfflined())
     {
         cerr << "Core offlining is not supported. Program aborted\n";
         exit(EXIT_FAILURE);
     }
+*/
 }
 
 IPlatform::IPlatform(PCM *m, bool csv, bool bandwidth, bool verbose) :
