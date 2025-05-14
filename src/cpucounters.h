@@ -584,6 +584,11 @@ typedef SimpleCounterState IDXCounterState;
 
 typedef std::vector<uint64> eventGroup_t;
 
+inline constexpr int PCM_CPU_FAMILY_MODEL(int family_, int model_)
+{
+    return ((family_) << 8) + (model_);
+}
+
 class PerfVirtualControlRegister;
 
 /*!
@@ -1895,8 +1900,6 @@ public:
     *   \return cpu family and model id number (model id is in the lower 8 bits, family id is in the next 8 bits)
     */
     static int getCPUFamilyModelFromCPUID();
-
-    #define PCM_CPU_FAMILY_MODEL(family_, model_) (((family_) << 8) + (model_))
 
     //! \brief Identifiers of supported CPU models
     enum SupportedCPUModels
