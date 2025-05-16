@@ -70,9 +70,19 @@ void IPlatform::init()
 {
     print_cpu_details();
 
-    if (m_pcm->isSomeCoreOfflined())
+    if (m_pcm->isMaxNumOfCBoxesBasedOnCoreCount() &&  m_pcm->isSomeCoreOfflined())
     {
-        cerr << "Core offlining is not supported. Program aborted\n";
+        /*
+            The bandwwidth metrics can be calculated correctly only if we aggregate
+            the event counts from all CHAs (CBoxes) in the socket. For this need to
+            know the number of CBoxes in the socket. For some processors we do not
+            have access to a register containing the CHA count but on those processors
+            the number of CBoxes is equal to the number of cores. On such systems if
+            the cores are offlined then the number of CBoxes can't be determined.
+            pcm-pcie does not support such systems because the bandwidth can't be
+            computed correctly.
+        */
+        cerr << "Core offlining is not supported on your processor. Program aborted\n";
         exit(EXIT_FAILURE);
     }
 }

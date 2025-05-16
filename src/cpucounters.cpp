@@ -10283,6 +10283,7 @@ uint32 PCM::getMaxNumOfCBoxesInternal() const
         break;
     case SNOWRIDGE:
         num = (uint32)num_phys_cores_per_socket / 4;
+        maxNumOfCBoxesBasedOnCoreCount = true;
         break;
     default:
         /*
@@ -10291,6 +10292,7 @@ uint32 PCM::getMaxNumOfCBoxesInternal() const
          *  value to be returned.
          */
         num = (uint32)num_phys_cores_per_socket;
+        maxNumOfCBoxesBasedOnCoreCount = true;
     }
 #ifdef PCM_USE_PERF
     if (num <= 0)

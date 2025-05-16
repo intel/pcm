@@ -624,6 +624,7 @@ class PCM_API PCM
     int32 num_phys_cores_per_socket;
     int32 num_online_cores;
     int32 num_online_sockets;
+    mutable bool maxNumOfCBoxesBasedOnCoreCount{false};
     uint32 accel;
     uint32 accel_counters_num_max;
     uint32 core_gen_counter_num_max;
@@ -1885,6 +1886,12 @@ public:
      * \return true iff max_lcores_per_socket == number of cores per socket detected
      */
     bool isSomeCoreOfflined();
+
+    //! \brief Returns true if the CBox or CHA PMU count detection relies on physical core count
+    bool isMaxNumOfCBoxesBasedOnCoreCount() const
+    {
+        return maxNumOfCBoxesBasedOnCoreCount;
+    }
 
     /*! \brief Returns the maximum number of custom (general-purpose) core events supported by CPU
     */
