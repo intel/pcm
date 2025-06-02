@@ -70,6 +70,12 @@ void IPlatform::init()
 {
     print_cpu_details();
 
+    if (m_pcm->getMaxNumOfUncorePMUs(PCM::CBO_PMU_ID) == 0) // CHAs (CBoxes) PMUs are not available
+    {
+        cerr << "Your processor/system does not support CHA PCIe performance counters. Program aborted\n";
+        exit(EXIT_FAILURE);
+    }
+
     if (m_pcm->isMaxNumOfCBoxesBasedOnCoreCount() &&  m_pcm->isSomeCoreOfflined())
     {
         /*
