@@ -408,5 +408,25 @@ if [ "$?" -ne "0" ]; then
 fi
 online_offline_cores 1
 
+# Below is UT part
+
+echo "Running Unit Tests"
+failed=()
+for test_binary in ./tests/utests/*; do
+    if [ -x "$test_binary" ]; then
+        echo "Running $test_binary"
+        "$test_binary"
+        if [ "$?" -ne "0" ]; then
+            failed+=("$test_binary")
+        fi
+    else
+        echo "Skipping $test_binary (not executable)"
+    fi
+done
+
+if [ "${#failed[@]}" -ne "0" ]; then
+    echo "Failed test programs: ${failed[@]}"
+    exit 1
+fi
 
 popd
