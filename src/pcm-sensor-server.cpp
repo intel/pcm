@@ -4065,11 +4065,12 @@ int mainThrows(int argc, char * argv[]) {
         PCIeEventNameMap_t nameMap;
 
         // TODO: add check for IIO support before trying to initialize the pmu
-        if ( !initializeIIOCounters( iios, evt_ctx, nameMap ) )
-        {
-            std::cerr << "Error: IIO is NOT supported with this platform! Program aborted\n";
-            exit(EXIT_FAILURE);
-        }
+// Otto: re-add this check when there is support for IIO and do it properly, seems to fail for some reason, see #788
+//        if ( !initializeIIOCounters( iios, evt_ctx, nameMap ) )
+//        {
+//            std::cerr << "Error: IIO is NOT supported with this platform! Program aborted\n";
+//            exit(EXIT_FAILURE);
+//        }
 
         // Now that everything is set we can start the http(s) server
 #if defined (USE_SSL)

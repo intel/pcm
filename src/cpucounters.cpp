@@ -1805,7 +1805,7 @@ bool initRootBusMap(std::map<int, int> &rootbus_map)
     for (auto & s2bus : socket2MSMbus)
     {
         uint32 cpuBusValid = 0x0;
-        int cpuBusPackageId;
+        int cpuBusPackageId = 0;
         std::vector<uint32> cpuBusNo;
 
         if (get_cpu_bus(s2bus.first, s2bus.second, SPR_MSM_DEV_ADDR, SPR_MSM_FUNC_ADDR, cpuBusValid, cpuBusNo, cpuBusPackageId) == false)
@@ -10283,6 +10283,7 @@ uint32 PCM::getMaxNumOfCBoxesInternal() const
         break;
     case SNOWRIDGE:
         num = (uint32)num_phys_cores_per_socket / 4;
+        maxNumOfCBoxesBasedOnCoreCount = true;
         break;
     default:
         /*
@@ -10291,6 +10292,7 @@ uint32 PCM::getMaxNumOfCBoxesInternal() const
          *  value to be returned.
          */
         num = (uint32)num_phys_cores_per_socket;
+        maxNumOfCBoxesBasedOnCoreCount = true;
     }
 #ifdef PCM_USE_PERF
     if (num <= 0)

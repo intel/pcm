@@ -584,6 +584,11 @@ typedef SimpleCounterState IDXCounterState;
 
 typedef std::vector<uint64> eventGroup_t;
 
+inline constexpr int PCM_CPU_FAMILY_MODEL(int family_, int model_)
+{
+    return ((family_) << 8) + (model_);
+}
+
 class PerfVirtualControlRegister;
 
 /*!
@@ -619,6 +624,7 @@ class PCM_API PCM
     int32 num_phys_cores_per_socket;
     int32 num_online_cores;
     int32 num_online_sockets;
+    mutable bool maxNumOfCBoxesBasedOnCoreCount{false};
     uint32 accel;
     uint32 accel_counters_num_max;
     uint32 core_gen_counter_num_max;
@@ -1881,6 +1887,12 @@ public:
      */
     bool isSomeCoreOfflined();
 
+    //! \brief Returns true if the CBox or CHA PMU count detection relies on physical core count
+    bool isMaxNumOfCBoxesBasedOnCoreCount() const
+    {
+        return maxNumOfCBoxesBasedOnCoreCount;
+    }
+
     /*! \brief Returns the maximum number of custom (general-purpose) core events supported by CPU
     */
     int32 getMaxCustomCoreEvents();
@@ -1895,8 +1907,6 @@ public:
     *   \return cpu family and model id number (model id is in the lower 8 bits, family id is in the next 8 bits)
     */
     static int getCPUFamilyModelFromCPUID();
-
-    #define PCM_CPU_FAMILY_MODEL(family_, model_) (((family_) << 8) + (model_))
 
     //! \brief Identifiers of supported CPU models
     enum SupportedCPUModels
