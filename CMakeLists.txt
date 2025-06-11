@@ -185,10 +185,6 @@ add_subdirectory(src)
 add_subdirectory(examples)
 add_subdirectory(tests)
 
-if(UNIX)
-    add_subdirectory(googletest)
-endif(UNIX)
-
 message(STATUS "Install directory: ${CMAKE_INSTALL_PREFIX}")
 
 #######################

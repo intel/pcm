@@ -17,7 +17,14 @@ if(UNIX)
         target_link_libraries(urltest Threads::Threads PCM_STATIC)
     endif(LINUX)
 
-    add_subdirectory(utests)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/googletest/googletest/include/gtest/gtest.h")
+        add_subdirectory(googletest)
+        add_subdirectory(utests)
+    else()
+        message(WARNING
+            "Local googletest does not exist - unit tests will not be built.\n"
+            "If you need unit tests, please update submodules with the command: 'git submodule update --init --recursive'.\n")
+    endif()
 endif(UNIX)
 
 if(PCM_FUZZ)
