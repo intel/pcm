@@ -2304,9 +2304,9 @@ public:
     }
     //! \brief Return TSC timer value in time units
     //! \param multiplier use 1 for seconds, 1000 for ms, 1000000 for mks, etc (default is 1000: ms)
-    //! \param core core to read on-chip TSC value (default is 0)
+    //! \param core core to read on-chip TSC value (default is -1: socketRefCore[0])
     //! \return time counter value
-    uint64 getTickCount(uint64 multiplier = 1000 /* ms */, uint32 core = 0);
+    uint64 getTickCount(uint64 multiplier = 1000 /* ms */, int32 core = -1);
 
     uint64 getInvariantTSC_Fast(uint32 core = 0);
 

@@ -359,7 +359,7 @@ bool PCM::isHWTMAL1Supported() const
 void PCM::readCPUMicrocodeLevel()
 {
     if (MSR.empty()) return;
-    const int ref_core = 0;
+    const int32 ref_core = socketRefCore[0];
     TemporalThreadAffinity affinity(ref_core);
     if (affinity.supported() && isCoreOnline(ref_core))
     {   // see "Update Signature and Verification" and "Determining the Signature"
@@ -1110,8 +1110,6 @@ bool PCM::discoverSystemTopology()
     };
     std::unordered_map<int, domain> topologyDomainMap;
     {
-        TemporalThreadAffinity aff0(0);
-
         if (initCoreMasks(smtMaskWidth, coreMaskWidth, l2CacheMaskShift, l3CacheMaskShift) == false)
         {
             std::cerr << "ERROR: Major problem? No leaf 0 under cpuid function 11.\n";
@@ -4637,7 +4635,7 @@ uint64 RDTSC();
 
 void PCM::computeNominalFrequency()
 {
-    const int ref_core = 0;
+    const int32 ref_core = socketRefCore[0];
     const uint64 before = getInvariantTSC_Fast(ref_core);
     MySleepMs(100);
     const uint64 after = getInvariantTSC_Fast(ref_core);
@@ -4809,11 +4807,11 @@ void PCM::computeQPISpeedBeckton(int core_nr)
     MSR[core_nr]->read(R_MSR_PMON_CTR0, &startFlits);
 
     const uint64 timerGranularity = 1000000ULL; // mks
-    uint64 startTSC = getTickCount(timerGranularity, (uint32) core_nr);
+    uint64 startTSC = getTickCount(timerGranularity, core_nr);
     uint64 endTSC;
     do
     {
-        endTSC = getTickCount(timerGranularity, (uint32) core_nr);
+        endTSC = getTickCount(timerGranularity, core_nr);
     } while (endTSC - startTSC < 200000ULL); // spin for 200 ms
 
     uint64 endFlits = 0;
@@ -5401,8 +5399,9 @@ int convertUnknownToInt(size_t size, char* value)
 #endif
 
 
-uint64 PCM::getTickCount(uint64 multiplier, uint32 core)
+uint64 PCM::getTickCount(uint64 multiplier, int32 core)
 {
+    if (core == -1) core = socketRefCore[0];
     return (multiplier * getInvariantTSC_Fast(core)) / getNominalFrequency();
 }
 
