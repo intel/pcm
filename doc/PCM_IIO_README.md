@@ -11,8 +11,8 @@ Inbound (PCIe device DMA into system) metrics:
 
 Outbound (CPU MMIO to the PCIe device) metrics:
 
-* OB read (outbound write): the number of bytes per second that the CPU requested to write to the PCIe device through MMIO (Memory-mapped I/O)
-* OB write (outbound read): the number of bytes per second that the CPU requested to read from the PCIe device through MMIO
+* OB read (outbound read): the number of bytes per second that the CPU requested to read from the PCIe device through MMIO (memory-mapped I/O)
+* OB write (outbound write): the number of bytes per second that the CPU requested to write to the PCIe device through MMIO (memory-mapped I/O)
 
 IOMMU metrics:
 
