@@ -3686,8 +3686,8 @@ void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & re
     }
 }
 
-int startHTTPServer( unsigned short port ) {
-    HTTPServer server( "", port );
+int startHTTPServer( std::string const & ip, unsigned short port ) {
+    HTTPServer server( ip, port );
     try {
         // HEAD is GET without body, we will remove the body in execute()
         server.registerCallback( HTTPRequestMethod::GET,  my_get_callback );
@@ -3701,8 +3701,8 @@ int startHTTPServer( unsigned short port ) {
 }
 
 #if defined (USE_SSL)
-int startHTTPSServer( unsigned short port, std::string const & cFile, std::string const & pkFile) {
-    HTTPSServer server( "", port );
+int startHTTPSServer( std::string const & ip, unsigned short port, std::string const & cFile, std::string const & pkFile) {
+    HTTPSServer server( ip, port );
     try {
         server.setPrivateKeyFile ( pkFile );
         server.setCertificateFile( cFile );
@@ -3726,6 +3726,7 @@ void printHelpText( std::string const & programName ) {
 #if defined (USE_SSL)
     std::cout << "    -s                   : Use https protocol (default port " << DEFAULT_HTTPS_PORT << ")\n";
 #endif
+    std::cout << "    -l bind ip6          : Bind to ip6 address. (default ip6 is ::)\n";
     std::cout << "    -p portnumber        : Run on port <portnumber> (default port is " << DEFAULT_HTTP_PORT << ")\n";
     std::cout << "    -r|--reset           : Reset programming of the performance counters.\n";
     std::cout << "    -D|--debug level     : level = 0: no debug info, > 0 increase verbosity.\n";
@@ -3764,6 +3765,7 @@ int mainThrows(int argc, char * argv[]) {
 #endif
     bool forceRTMAbortMode = false;
     bool printTopology = false;
+    std::string ip6Address = "";
     unsigned short port = 0;
     unsigned short debug_level = 0;
     std::string certificateFile;
@@ -3788,6 +3790,14 @@ int mainThrows(int argc, char * argv[]) {
         for ( int i=1; i < argc; ++i ) {
             if ( check_argument_equals( argv[i], {"-d"} ) )
                 daemonMode = true;
+            else if ( check_argument_equals( argv[i], {"-l"} ) )
+            {
+                    if ( (++i) < argc ) {
+                        ip6Address = argv[i];
+                    } else {
+                        throw std::runtime_error( "main: Error no bind ip argument given" );
+                    }
+            }    
             else if ( check_argument_equals( argv[i], {"-p"} ) )
             {
                 if ( (++i) < argc ) {
@@ -4073,19 +4083,20 @@ int mainThrows(int argc, char * argv[]) {
 //        }
 
         // Now that everything is set we can start the http(s) server
+        const auto formattedIp6Address = ip6Address.length() > 0 ? "[" + ip6Address + "]" : "localhost";
 #if defined (USE_SSL)
         if ( useSSL ) {
             if ( port == 0 )
                 port = DEFAULT_HTTPS_PORT;
-            std::cerr << "Starting SSL enabled server on https://localhost:" << port << "/\n";
-            startHTTPSServer( port, certificateFile, privateKeyFile );
+            std::cerr << "Starting SSL enabled server on https://" << formattedIp6Address << ":" << port << "/\n";
+            startHTTPSServer( ip6Address, port, certificateFile, privateKeyFile );
         } else
 #endif
         {
             if ( port == 0 )
                 port = DEFAULT_HTTP_PORT;
-            std::cerr << "Starting plain HTTP server on http://localhost:" << port << "/\n";
-            startHTTPServer( port );
+            std::cerr << "Starting plain HTTP server on http://" << formattedIp6Address << ":" << port << "/\n";
+            startHTTPServer( ip6Address, port );
         }
         delete pcmInstance;
     } else if ( pid > 0 ) {
