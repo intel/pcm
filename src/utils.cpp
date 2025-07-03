@@ -1395,9 +1395,18 @@ std::pair<int64,int64> parseBitsParameter(const char * param)
 {
     std::pair<int64,int64> bits{-1, -1};
     const auto bitsArray = pcm::split(std::string(param),':');
-    assert(bitsArray.size() == 2);
-    bits.first = (int64)read_number(bitsArray[0].c_str());
-    bits.second = (int64)read_number(bitsArray[1].c_str());
+    switch ( bitsArray.size() ) {
+    case 1:
+        bits.first  = (int64)read_number(bitsArray[0].c_str());
+        bits.second = bits.first;
+        break;
+    case 2:
+        bits.first = (int64)read_number(bitsArray[0].c_str());
+        bits.second = (int64)read_number(bitsArray[1].c_str());
+        break;
+    default:
+        assert(bitsArray.size() == 1 || bitsArray.size() == 2);
+    }
     assert(bits.first >= 0);
     assert(bits.second >= 0);
     assert(bits.first < 64);
