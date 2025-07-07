@@ -10,8 +10,18 @@ enable_testing()
 include_directories(${CMAKE_SOURCE_DIR}/src/)
 include_directories("${GMOCK_DIR}/include")
 
+if(APPLE)
+    include_directories("${CMAKE_SOURCE_DIR}/src/MacMSRDriver") # target_include_directories doesn't work
+endif()
+
 file(GLOB LSPCI_TEST_FILES lspci-utest.cpp ${CMAKE_SOURCE_DIR}/src/lspci.cpp)
-set(LIBS Threads::Threads PCM_STATIC)
+
+if(APPLE)
+    set(LIBS PcmMsr Threads::Threads PCM_STATIC)
+else()
+    set(LIBS Threads::Threads PCM_STATIC)
+endif()
+
 add_executable(lspci-utest ${LSPCI_TEST_FILES})
 
 target_link_libraries(
