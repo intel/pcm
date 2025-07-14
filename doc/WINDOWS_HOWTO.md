@@ -82,7 +82,6 @@ $pwd = Read-Host -Prompt "Enter the password for the PFX file" -AsSecureString
 Export-PfxCertificate -Cert $cert -FilePath TestCert.pfx -Password $pwd
 $plainPwd = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($pwd))
 signtool sign /fd SHA256 /f TestCert.pfx /p $plainPwd /t http://timestamp.digicert.com MSR.sys
-[Runtime.InteropServices.Marshal]::ZeroFreeBSTR([Runtime.InteropServices.Marshal]::SecureStringToBSTR($pwd))
 ```
 
 Afterwards, double-click `TestCert.pfx`. Install to "Current User" and when able to pick "Place all ...", browse for "Trusted Root Certification Authorities".
