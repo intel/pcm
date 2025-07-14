@@ -74,7 +74,7 @@ When you install Visual Studio, also install related packages:
 
 ## Sign the Windows MSR driver
 
-Run the following in Powershell, in the directory where `MSR.sys` is located:
+Run the following in PowerShell, in the directory where `MSR.sys` is located:
 
 ```
 $cert = New-SelfSignedCertificate -Type CodeSigning -Subject "CN=TestCert" -CertStoreLocation "Cert:\CurrentUser\My" -KeyExportPolicy Exportable
