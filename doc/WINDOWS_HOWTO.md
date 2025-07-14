@@ -78,9 +78,11 @@ Run the following in Powershell, in the directory where `MSR.sys` is located:
 
 ```
 $cert = New-SelfSignedCertificate -Type CodeSigning -Subject "CN=TestCert" -CertStoreLocation "Cert:\CurrentUser\My" -KeyExportPolicy Exportable
-$pwd = ConvertTo-SecureString -String "password" -Force -AsPlainText
+$pwd = Read-Host -Prompt "Enter the password for the PFX file" -AsSecureString
 Export-PfxCertificate -Cert $cert -FilePath TestCert.pfx -Password $pwd
-signtool sign /fd SHA256 /f TestCert.pfx /p password /t http://timestamp.digicert.com MSR.sys
+$plainPwd = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($pwd))
+signtool sign /fd SHA256 /f TestCert.pfx /p $plainPwd /t http://timestamp.digicert.com MSR.sys
+[Runtime.InteropServices.Marshal]::ZeroFreeBSTR([Runtime.InteropServices.Marshal]::SecureStringToBSTR($pwd))
 ```
 
 Afterwards, double-click `TestCert.pfx`. Install to "Current User", use "password" when asked and pick "Place all ..." and browse for "Trusted Root Certification Authorities".
