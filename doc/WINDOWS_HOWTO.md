@@ -85,7 +85,7 @@ signtool sign /fd SHA256 /f TestCert.pfx /p $plainPwd /t http://timestamp.digice
 [Runtime.InteropServices.Marshal]::ZeroFreeBSTR([Runtime.InteropServices.Marshal]::SecureStringToBSTR($pwd))
 ```
 
-Afterwards, double-click `TestCert.pfx`. Install to "Current User", use "password" when asked and pick "Place all ..." and browse for "Trusted Root Certification Authorities".
+Afterwards, double-click `TestCert.pfx`. Install to "Current User" and when able to pick "Place all ...", browse for "Trusted Root Certification Authorities".
 
 ## Known limitations
 
