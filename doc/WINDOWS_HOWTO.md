@@ -4,7 +4,7 @@ _For support of systems with more than _**_64_**_ logical cores you need to comp
 
 ## Command-line utility
 
-1. Follow [Compile the Windows MSR driver](#compile-the-windows-msr-driver) to compile the Windows MSR driver (msr.sys). For Windows 7 and later versions you have to sign the msr.sys driver additionally ([http://msdn.microsoft.com/en-us/library/ms537361(VS.85).aspx](http://msdn.microsoft.com/en-us/library/ms537361(VS.85).aspx)). To enable loading test-signed drivers on the system: in administrator cmd console run `bcdedit /set testsigning on` and reboot.
+1. Follow [Compile the Windows MSR driver](#compile-the-windows-msr-driver) to compile the Windows MSR driver (msr.sys). For Windows 7 and later versions you have to [sign the msr.sys driver additionally](#sign-the-windows-msr-driver). To enable loading test-signed drivers on the system: in administrator cmd console run `bcdedit /set testsigning on` and reboot.
 
 2. Build the *pcm.exe* utility:
    ```
@@ -71,6 +71,19 @@ When you install Visual Studio, also install related packages:
     ```
     MSBuild.exe MSR.vcxproj -property:Configuration=Release -property:Platform=x64
     ```
+
+## Sign the Windows MSR driver
+
+Run the following in PowerShell, in the directory where `MSR.sys` is located:
+
+```
+$cert = New-SelfSignedCertificate -Type CodeSigning -Subject "CN=TestCert" -CertStoreLocation "Cert:\CurrentUser\My" -KeyExportPolicy Exportable
+$pwd = Read-Host -Prompt "Enter the password for the PFX file" -AsSecureString
+Export-PfxCertificate -Cert $cert -FilePath TestCert.pfx -Password $pwd
+signtool sign /fd SHA256 /f TestCert.pfx /p ([Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($pwd))) /t http://timestamp.digicert.com MSR.sys
+```
+
+Afterwards, double-click `TestCert.pfx`. Install to "Current User" and when able to pick "Place all ...", browse for "Trusted Root Certification Authorities".
 
 ## Known limitations
 
