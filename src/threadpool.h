@@ -102,7 +102,14 @@ public:
 
 private:
     void addThread() {
-        threads_.push_back( std::thread( std::bind( &this->execute, this ) ) );
+        try {
+            threads_.push_back( std::thread( std::bind( &this->execute, this ) ) );
+        } catch (const std::exception& e) {
+            std::cerr << "PCM Error. Exception in ThreadPool::addThread: " << e.what()
+                      << ". Possible causes: insufficient system resources, thread limit reached, or invalid thread function."
+                      << " Suggested actions: check system resource availability, verify thread pool configuration, and ensure the thread function is valid.\n";
+            throw;
+        }
     }
 
     // Executes work items from a std::thread, do not call manually
