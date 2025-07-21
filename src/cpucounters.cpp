@@ -3033,6 +3033,8 @@ void enableNMIWatchdog(const bool silent)
 }
 #endif
 
+constexpr const char* threadCreateErrorMessage = "This might be due to a too low limit for the number of threads per process. Try to increase it\n";
+
 class CoreTaskQueue
 {
     std::queue<std::packaged_task<void()> > wQueue;
@@ -3043,28 +3045,38 @@ class CoreTaskQueue
     CoreTaskQueue(CoreTaskQueue &) = delete;
     CoreTaskQueue & operator = (CoreTaskQueue &) = delete;
 public:
-    CoreTaskQueue(int32 core) :
-        worker([=]() {
+    CoreTaskQueue(int32 core)
+    {
         try {
-            TemporalThreadAffinity tempThreadAffinity(core, false);
-            std::unique_lock<std::mutex> lock(m);
-            while (1) {
-                while (wQueue.empty()) {
-                    condVar.wait(lock);
+            worker = std::thread([=]() {
+                try {
+                    TemporalThreadAffinity tempThreadAffinity(core, false);
+                    std::unique_lock<std::mutex> lock(m);
+                    while (1) {
+                        while (wQueue.empty()) {
+                            condVar.wait(lock);
+                        }
+                        while (!wQueue.empty()) {
+                            wQueue.front()();
+                            wQueue.pop();
+                        }
+                    }
                 }
-                while (!wQueue.empty()) {
-                    wQueue.front()();
-                    wQueue.pop();
+                catch (const std::exception& e)
+                {
+                    std::cerr << "PCM Error. Exception in CoreTaskQueue worker function: " << e.what() << "\n";
                 }
-            }
+
+            });
         }
-        catch (const std::exception & e)
+        catch (const std::exception& e)
         {
-            std::cerr << "PCM Error. Exception in CoreTaskQueue worker function: " << e.what() << "\n";
+            std::cerr << "PCM Error: caught exception " << e.what() << " while creating thread for core task queue " << core << "\n" <<
+                threadCreateErrorMessage;
+            throw; // re-throw
         }
 
-        })
-    {}
+    }
     void push(std::packaged_task<void()> & task)
     {
         std::unique_lock<std::mutex> lock(m);
@@ -10939,15 +10951,23 @@ CounterWidthExtender::CounterWidthExtender(AbstractRawCounter * raw_counter_, ui
     last_raw_value = (*raw_counter)();
     extended_value = last_raw_value;
     DBG(3, "Initial Value " , extended_value);
-    UpdateThread = new std::thread(
-        [&]() {
-        while (1)
-        {
-            MySleepMs(static_cast<int>(this->watchdog_delay_ms));
-            /* uint64 dummy = */ this->read();
+    try {
+        UpdateThread = new std::thread(
+            [&]() {
+            while (1)
+            {
+                MySleepMs(static_cast<int>(this->watchdog_delay_ms));
+                /* uint64 dummy = */ this->read();
+            }
         }
+        );
     }
-    );
+    catch (const std::exception& e)
+    {
+        std::cerr << "PCM Error: caught exception " << e.what() << " while creating thread for a CounterWidthExtender\n" <<
+            threadCreateErrorMessage;
+        throw; // re-throw
+    }
 }
 CounterWidthExtender::~CounterWidthExtender()
 {
