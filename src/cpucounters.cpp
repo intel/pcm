@@ -7330,7 +7330,14 @@ ServerUncoreCounterState PCM::getServerUncoreCounterState(uint32 socket)
 
         result.UncClocks = getUncoreClocks(socket);
 
-        for (size_t p = 0; p < getNumCXLPorts(socket); ++p)
+        const auto numCXLPorts = getNumCXLPorts(socket);
+
+        assert(numCXLPorts <= result.CXLCMCounter.size() && "Number of CXL ports exceeds CXLCMCounter array size");
+        assert(numCXLPorts <= result.CXLDPCounter.size() && "Number of CXL ports exceeds CXLDPCounter array size");
+
+        const auto maxPorts = (std::min)(numCXLPorts, (std::min)(result.CXLCMCounter.size(), result.CXLDPCounter.size()));
+
+        for (size_t p = 0; p < maxPorts; ++p)
         {
             for (int i = 0; i < ServerUncoreCounterState::maxCounters && socket < cxlPMUs.size() && size_t(i) < cxlPMUs[socket][p].first.size(); ++i)
             {
