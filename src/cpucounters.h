@@ -3790,7 +3790,7 @@ public:
         maxChannels = 32,
         maxXPILinks = 6,
         maxIIOStacks = 16,
-        maxCXLPorts = 6,
+        maxCXLPorts = 16,
         maxCounters = UncorePMU::maxCounters
     };
     enum EventPosition
