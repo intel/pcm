@@ -93,6 +93,7 @@ void print_help(const string & prog_name)
     cout << "  -mixed                             => monitor PMM mixed mode (AppDirect + Memory Mode).\n";
     cout << "  -partial                           => monitor partial writes instead of PMM (default on systems without PMM support).\n";
     cout << "  -nc   | --nochannel | /nc          => suppress output for individual channels.\n";
+    cout << "  --nocxl                            => suppress output for CXL ports.\n";
     cout << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or\n"
          << "                                        to a file, in case filename is provided\n";
     cout << "  -columns=X | /columns=X            => Number of columns to display the NUMA Nodes, defaults to 2.\n";
@@ -446,7 +447,7 @@ void printSocketBWFooter(PCM *m, uint32 no_columns, uint32 skt, const memdata_t 
     cout << "\n";
 }
 
-void display_bandwidth(PCM *m, memdata_t *md, const uint32 no_columns, const bool show_channel_output, const bool print_update, const float CXL_Read_BW)
+void display_bandwidth(PCM *m, memdata_t *md, const uint32 no_columns, const bool show_channel_output, const bool print_update, const float CXL_Read_BW, const bool show_cxl_bandwidth)
 {
     float sysReadDRAM = 0.0, sysWriteDRAM = 0.0, sysReadPMM = 0.0, sysWritePMM = 0.0;
     uint32 numSockets = m->getNumSockets();
@@ -533,13 +534,16 @@ void display_bandwidth(PCM *m, memdata_t *md, const uint32 no_columns, const boo
                 sysWriteDRAM += (md->iMC_Wr_socket[skt] + md->EDC_Wr_socket[skt]);
                 skt += 1;
             };
-        auto printRow = [&skt,&show_channel_output,&m,&md,&sysReadDRAM,&sysWriteDRAM, &sysReadPMM, &sysWritePMM](const uint32 no_columns)
+        auto printRow = [&skt,&show_channel_output,&m,&md,&sysReadDRAM,&sysWriteDRAM, &sysReadPMM, &sysWritePMM, &show_cxl_bandwidth](const uint32 no_columns)
         {
             printSocketBWHeader(no_columns, skt, show_channel_output);
             if (show_channel_output)
                 printSocketChannelBW(m, md, no_columns, skt);
             printSocketBWFooter(m, no_columns, skt, md);
-            printSocketCXLBW(m, md, no_columns, skt);
+            if (show_cxl_bandwidth)
+            {
+                printSocketCXLBW(m, md, no_columns, skt);
+            }
             for (uint32 i = skt; i < (skt + no_columns); i++)
             {
                 sysReadDRAM += md->iMC_Rd_socket[i];
@@ -588,7 +592,7 @@ void display_bandwidth(PCM *m, memdata_t *md, const uint32 no_columns, const boo
 
 constexpr float CXLBWWrScalingFactor = 0.5;
 
-void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 /*elapsedTime*/, const bool show_channel_output, const CsvOutputType outputType, const float CXL_Read_BW)
+void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 /*elapsedTime*/, const bool show_channel_output, const CsvOutputType outputType, const float CXL_Read_BW, const bool show_cxl_output)
 {
     const uint32 numSockets = m->getNumSockets();
     printDateForCSV(outputType);
@@ -810,41 +814,44 @@ void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 /*elapsedTime*/, const 
                        sysWriteDRAM += md->EDC_Wr_socket[skt];
                    });
         }
-        for (uint64 port = 0; port < m->getNumCXLPorts(skt); ++port)
+        if (show_cxl_output)
         {
-            choose(outputType,
-                [printSKT, &md]() {
-                    printSKT((md->BHS)? 4 : 2 );
-                },
-                [&port,&md]() {
-                    if (md->BHS)
-                    {
-                        cout << "CXL.mem_P" << port << "Read,"
-                            << "CXL.mem_P" << port << "Write,"
-                            << "CXL.cache_P" << port << "dv->hst,"
-                            << "CXL.cache_P" << port << "hst->dv,";
-                    }
-                    else
-                    {
-                        cout
-                            << "CXL.mem_P" << port << "Write,"
-                            << "CXL.cache_P" << port << "hst->dv,";
-                    }
-                },
-                    [&md, &skt, &port]() {
-                    if (md->BHS)
-                    {
-                        cout << setw(8) << md->CXLMEM_Rd_socket_port[skt][port] << ','
-                             << setw(8) << md->CXLMEM_Wr_socket_port[skt][port] << ','
-                             << setw(8) << md->CXLCACHE_Rd_socket_port[skt][port] << ','
-                             << setw(8) << md->CXLCACHE_Wr_socket_port[skt][port] << ',';
-                    }
-                    else
-                    {
-                        cout << setw(8) << md->CXLMEM_Wr_socket_port[skt][port] << ','
-                             << setw(8) << md->CXLCACHE_Wr_socket_port[skt][port] << ',';
-                    }
-                });
+            for (uint64 port = 0; port < m->getNumCXLPorts(skt); ++port)
+            {
+                choose(outputType,
+                    [printSKT, &md]() {
+                        printSKT((md->BHS)? 4 : 2 );
+                    },
+                    [&port,&md]() {
+                        if (md->BHS)
+                        {
+                            cout << "CXL.mem_P" << port << "Read,"
+                                << "CXL.mem_P" << port << "Write,"
+                                << "CXL.cache_P" << port << "dv->hst,"
+                                << "CXL.cache_P" << port << "hst->dv,";
+                        }
+                        else
+                        {
+                            cout
+                                << "CXL.mem_P" << port << "Write,"
+                                << "CXL.cache_P" << port << "hst->dv,";
+                        }
+                    },
+                        [&md, &skt, &port]() {
+                        if (md->BHS)
+                        {
+                            cout << setw(8) << md->CXLMEM_Rd_socket_port[skt][port] << ','
+                                << setw(8) << md->CXLMEM_Wr_socket_port[skt][port] << ','
+                                << setw(8) << md->CXLCACHE_Rd_socket_port[skt][port] << ','
+                                << setw(8) << md->CXLCACHE_Wr_socket_port[skt][port] << ',';
+                        }
+                        else
+                        {
+                            cout << setw(8) << md->CXLMEM_Wr_socket_port[skt][port] << ','
+                                << setw(8) << md->CXLCACHE_Wr_socket_port[skt][port] << ',';
+                        }
+                    });
+            }
         }
     }
 
@@ -903,7 +910,8 @@ void calculate_bandwidth(PCM *m,
     const ServerUncoreMemoryMetrics & metrics,
     const bool show_channel_output,
     const bool print_update,
-    const uint64 SPR_CHA_CXL_Count)
+    const uint64 SPR_CHA_CXL_Count,
+    const bool show_cxl_output)
 {
     //const uint32 num_imc_channels = m->getMCChannelsPerSocket();
     //const uint32 num_edc_channels = m->getEDCChannelsPerSocket();
@@ -1156,15 +1164,15 @@ void calculate_bandwidth(PCM *m,
     {
         if (csvheader)
         {
-            display_bandwidth_csv(m, &md, elapsedTime, show_channel_output, Header1, CXL_Read_BW);
-            display_bandwidth_csv(m, &md, elapsedTime, show_channel_output, Header2, CXL_Read_BW);
+            display_bandwidth_csv(m, &md, elapsedTime, show_channel_output, Header1, CXL_Read_BW, show_cxl_output);
+            display_bandwidth_csv(m, &md, elapsedTime, show_channel_output, Header2, CXL_Read_BW, show_cxl_output);
             csvheader = false;
         }
-        display_bandwidth_csv(m, &md, elapsedTime, show_channel_output, Data, CXL_Read_BW);
+        display_bandwidth_csv(m, &md, elapsedTime, show_channel_output, Data, CXL_Read_BW, show_cxl_output);
     }
     else
     {
-        display_bandwidth(m, &md, no_columns, show_channel_output, print_update, CXL_Read_BW);
+        display_bandwidth(m, &md, no_columns, show_channel_output, print_update, CXL_Read_BW, show_cxl_output);
     }
 }
 
@@ -1367,6 +1375,7 @@ int mainThrows(int argc, char * argv[])
 
     double delay = -1.0;
     bool csv = false, csvheader = false, show_channel_output = true, print_update = false;
+    bool show_cxl_output = true;
     uint32 no_columns = DEFAULT_DISPLAY_COLUMNS; // Default number of columns is 2
     char * sysCmd = NULL;
     char ** sysArgv = NULL;
@@ -1454,6 +1463,11 @@ int mainThrows(int argc, char * argv[])
         else if (check_argument_equals(*argv, {"--nochannel", "/nc", "-nc"}))
         {
             show_channel_output = false;
+            continue;
+        }
+        else if (check_argument_equals(*argv, {"--nocxl"}))
+        {
+            show_cxl_output = false;
             continue;
         }
         else if (check_argument_equals(*argv, {"-pmm", "/pmm", "-pmem", "/pmem"}))
@@ -1640,7 +1654,7 @@ int mainThrows(int argc, char * argv[])
           calculate_bandwidth_rank(m,BeforeState, AfterState, AfterTime - BeforeTime, csv, csvheader, no_columns, rankA, rankB);
         else
           calculate_bandwidth(m,BeforeState,AfterState,AfterTime-BeforeTime,csv,csvheader, no_columns, metrics,
-                show_channel_output, print_update, SPR_CHA_CXL_Event_Count);
+                show_channel_output, print_update, SPR_CHA_CXL_Event_Count, show_cxl_output);
 
         swap(BeforeTime, AfterTime);
         swap(BeforeState, AfterState);
