@@ -45,9 +45,9 @@ void print_events()
     cout << "     RFO*      - Demand Data RFO\n";
     cout << "     CRd*      - Demand Code Read\n";
     cout << "     DRd       - Demand Data Read\n";
-    cout << "     PCIeNSWr  - PCIe Non-snoop write transfer (partial cache line)\n";
+    cout << "     PCIeNSRd  - PCIe Non-snoop read transfer\n";
     cout << "   PCIe write events (PCI devices writing to memory - application reads from disk/network/PCIe device):\n";
-    cout << "     PCIeWiLF  - PCIe Write transfer (non-allocating) (full cache line)\n";
+    cout << "     PCIeWiLF  - PCIe MMIO Write transfer (non-allocating) (full cache line)\n";
     cout << "     PCIeItoM  - PCIe Write transfer (allocating) (full cache line)\n";
     cout << "     PCIeNSWr  - PCIe Non-snoop write transfer (partial cache line)\n";
     cout << "     PCIeNSWrF - PCIe Non-snoop write transfer (full cache line)\n";
