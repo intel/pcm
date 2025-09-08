@@ -382,20 +382,6 @@ int32 PCM::getMaxCustomCoreEvents()
     return core_gen_counter_num_max;
 }
 
-/*
-int PCM::getCPUModelFromCPUID()
-{
-    static int result = -1;
-    if (result < 0)
-    {
-        PCM_CPUID_INFO cpuinfo;
-        pcm_cpuid(1, cpuinfo);
-        result = (((cpuinfo.array[0]) & 0xf0) >> 4) | ((cpuinfo.array[0] & 0xf0000) >> 12);
-    }
-    return result;
-}
-*/
-
 int PCM::getCPUFamilyModelFromCPUID()
 {
     static int result = -1;
@@ -403,8 +389,14 @@ int PCM::getCPUFamilyModelFromCPUID()
     {
         PCM_CPUID_INFO cpuinfo;
         pcm_cpuid(1, cpuinfo);
-        const auto cpu_family_ = (((cpuinfo.array[0]) >> 8) & 0xf) | ((cpuinfo.array[0] & 0xf00000) >> 16);
-        const auto cpu_model_ = (((cpuinfo.array[0]) & 0xf0) >> 4) | ((cpuinfo.array[0] & 0xf0000) >> 12);
+        // follow https://www.felixcloutier.com/x86/cpuid#fig-3-6
+        unsigned int Family_ID          = (cpuinfo.array[0] >> 8) & 0xF;
+        unsigned int Extended_Family_ID = (cpuinfo.array[0] >> 20) & 0xFF;
+        unsigned int Model_ID           = (cpuinfo.array[0] >> 4) & 0xF;
+        unsigned int Extended_Model_ID  = (cpuinfo.array[0] >> 16) & 0xF;
+        const auto cpu_family_ = (Family_ID != 0x0F) ? Family_ID : (Extended_Family_ID + Family_ID);
+        const auto cpu_model_ = (Family_ID == 0x06 || Family_ID == 0x0F) ? (Model_ID + (Extended_Model_ID << 4)) : Model_ID;
+
         result = PCM_CPU_FAMILY_MODEL(cpu_family_, cpu_model_);
     }
     return result;
@@ -432,9 +424,11 @@ bool PCM::detectModel()
     max_cpuid = cpuinfo.array[0];
 
     pcm_cpuid(1, cpuinfo);
-    cpu_family = (((cpuinfo.array[0]) >> 8) & 0xf) | ((cpuinfo.array[0] & 0xf00000) >> 16);
-    cpu_model_private = (((cpuinfo.array[0]) & 0xf0) >> 4) | ((cpuinfo.array[0] & 0xf0000) >> 12);
-    cpu_family_model = PCM_CPU_FAMILY_MODEL(cpu_family, cpu_model_private);
+
+    DBG(2 , "cpuinfo.array[0]: 0x" , std::hex , cpuinfo.array[0] , std::dec);
+    cpu_family_model = getCPUFamilyModelFromCPUID();
+    cpu_family = (cpu_family_model >> 8) & 0xff;
+    cpu_model_private = cpu_family_model & 0xff;
     cpu_stepping = cpuinfo.array[0] & 0x0f;
 
     if (cpuinfo.reg.ecx & (1UL << 31UL)) {
