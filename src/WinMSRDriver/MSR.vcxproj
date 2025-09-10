@@ -159,6 +159,13 @@
   <ItemGroup>
     <ClCompile Include="msrmain.c" />
   </ItemGroup>
+  <ItemGroup>
+    <Inf Include="MSR.inf">
+      <SpecifyArchitecture>true</SpecifyArchitecture>
+      <Architecture>amd64</Architecture>
+      <CatalogFileName>MSR.cat</CatalogFileName>
+    </Inf>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
