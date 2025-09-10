@@ -1,0 +1,30 @@
+name: Build Windows Driver
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: windows-2022
+    strategy:
+      matrix:
+        configuration: [Release]
+        platform: [x64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v2
+
+      - name: Restore packages
+        run: nuget restore src\WinMSRDriver\MSR.vcxproj
+
+      - name: Build
+        run: msbuild src\WinMSRDriver\MSR.vcxproj /m /t:Build ^
+             /p:Configuration=${{ matrix.configuration }} ^
+             /p:Platform=${{ matrix.platform }}
