@@ -16,6 +16,7 @@ target_include_directories(PcmMsrDriver PRIVATE
         ${CMAKE_OSX_SYSROOT}/System/Library/Frameworks/Kernel.framework/PrivateHeaders
         ${CMAKE_OSX_SYSROOT}/System/Library/Frameworks/Kernel.framework/Headers
         ${CMAKE_OSX_SYSROOT}/System/Library/Frameworks/Kernel.framework/Versions/A/Headers
+        /Applications/Xcode_15.2.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks/IOKit.framework/Headers
 )
 target_compile_definitions(PcmMsrDriver PRIVATE
         -DKERNEL
