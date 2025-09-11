@@ -6,6 +6,8 @@ configuration: Release
 platform: x64
 before_build:
 - cmd: >-
+    nuget restore src\WinMSRDriver\MSR.vcxproj
+
     cmake --version
 
     cmake -B build
@@ -13,9 +15,11 @@ before_build:
 
 build_script:
 - cmake --build build --config Release --parallel
+- msbuild src\WinMSRDriver\MSR.vcxproj /m /t:Build /p:Configuration=Release /p:Platform=x64
 
 after_build:
-- cmd: 7z a pcm-all.zip %APPVEYOR_BUILD_FOLDER%\build\bin\Release\*.exe %APPVEYOR_BUILD_FOLDER%\build\bin\Release\*.dll %APPVEYOR_BUILD_FOLDER%\build\src\Release\*.lib %APPVEYOR_BUILD_FOLDER%\build\src\Release\*.exp %APPVEYOR_BUILD_FOLDER%\src\windows\PCM-Service.exe.config
+- cmd: 7z a pcm-all.zip %APPVEYOR_BUILD_FOLDER%\build\bin\Release\*.exe %APPVEYOR_BUILD_FOLDER%\build\bin\Release\*.dll %APPVEYOR_BUILD_FOLDER%\build\src\Release\*.lib %APPVEYOR_BUILD_FOLDER%\build\src\Release\*.exp %APPVEYOR_BUILD_FOLDER%\src\windows\PCM-Service.exe.config %APPVEYOR_BUILD_FOLDER%\src\WinMSRDriver\x64\Release\MSR\msr.*
 artifacts:
 - path: pcm-all.zip
   name: pcm-all
+
