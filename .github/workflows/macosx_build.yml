@@ -24,6 +24,20 @@ jobs:
       with:
         xcode-version: '14.3.1'
 
+      # Optional: pin the Xcode you want, if multiple are installed on the runner.
+    - name: Select Xcode 14.3.1
+      run: sudo xcode-select -s /Applications/Xcode_14.3.1.app/Contents/Developer
+
+    - name: Set SDKROOT and verify kernel headers
+      shell: bash
+      run: |
+          SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
+          echo "SDKROOT=$SDKROOT" >> "$GITHUB_ENV"
+          test -f "$SDKROOT/System/Library/Frameworks/Kernel.framework/Headers/IOKit/IOLib.h" || {
+            echo "Kernel IOLib.h not found under SDK: $SDKROOT" >&2
+            exit 1
+          }
+
     - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       with:
         submodules: recursive
