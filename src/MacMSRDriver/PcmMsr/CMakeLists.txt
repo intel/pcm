@@ -15,6 +15,7 @@ set_target_properties(PcmMsrDriver PROPERTIES BUNDLE_EXTENSION kext MACOSX_BUNDL
 target_include_directories(PcmMsrDriver PRIVATE
         ${CMAKE_OSX_SYSROOT}/System/Library/Frameworks/Kernel.framework/PrivateHeaders
         ${CMAKE_OSX_SYSROOT}/System/Library/Frameworks/Kernel.framework/Headers
+        ${CMAKE_OSX_SYSROOT}/System/Library/Frameworks/Kernel.framework/Versions/A/Headers
 )
 target_compile_definitions(PcmMsrDriver PRIVATE
         -DKERNEL
