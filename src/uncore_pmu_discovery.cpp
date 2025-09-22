@@ -46,7 +46,7 @@ UncorePMUDiscovery::UncorePMUDiscovery()
             }
             boxPMUs.push_back(boxPMUMap);
         }
-        catch (std::exception & e)
+        catch (const std::exception & e)
         {
             std::cerr << "WARNING: enumeration of devices in UncorePMUDiscovery failed on bar 0x"
                 << std::hex << bar << "\n" << e.what() << "\n" <<
