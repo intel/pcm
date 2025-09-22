@@ -15,35 +15,55 @@ UncorePMUDiscovery::UncorePMUDiscovery()
     {
         return;
     }
-    auto processTables = [this](const uint64 bar, const VSEC &)
+    auto processTables = [this](const uint64 bar, const VSEC & vsec)
     {
-        constexpr size_t UncoreDiscoverySize = 3UL;
-        union UncoreGlobalDiscovery {
-            GlobalPMU pmu;
-            uint64 table[UncoreDiscoverySize];
-        };
-        UncoreGlobalDiscovery global;
-        mmio_memcpy(global.table, bar, UncoreDiscoverySize * sizeof(uint64), true);
-        globalPMUs.push_back(global.pmu);
-        union UncoreUnitDiscovery {
-            BoxPMU pmu;
-            uint64 table[UncoreDiscoverySize];
-        };
-        UncoreUnitDiscovery unit;
-        const auto step = global.pmu.stride * 8;
-        BoxPMUMap boxPMUMap;
-        for (size_t u = 0; u < global.pmu.maxUnits; ++u)
-        {
-            mmio_memcpy(unit.table, bar + (u+1) * step, UncoreDiscoverySize * sizeof(uint64), true);
-            if (unit.table[0] == 0 && unit.table[1] == 0)
+        try {
+            constexpr size_t UncoreDiscoverySize = 3UL;
+            union UncoreGlobalDiscovery {
+                GlobalPMU pmu;
+                uint64 table[UncoreDiscoverySize];
+            };
+            UncoreGlobalDiscovery global;
+            mmio_memcpy(global.table, bar, UncoreDiscoverySize * sizeof(uint64), true);
+            globalPMUs.push_back(global.pmu);
+            union UncoreUnitDiscovery {
+                BoxPMU pmu;
+                uint64 table[UncoreDiscoverySize];
+            };
+            UncoreUnitDiscovery unit;
+            const auto step = global.pmu.stride * 8;
+            BoxPMUMap boxPMUMap;
+            for (size_t u = 0; u < global.pmu.maxUnits; ++u)
             {
-                // invalid entry
-                continue;
+                mmio_memcpy(unit.table, bar + (u + 1) * step, UncoreDiscoverySize * sizeof(uint64), true);
+                if (unit.table[0] == 0 && unit.table[1] == 0)
+                {
+                    // invalid entry
+                    continue;
+                }
+                // unit.pmu.print();
+                boxPMUMap[unit.pmu.boxType].push_back(unit.pmu);
             }
-            // unit.pmu.print();
-            boxPMUMap[unit.pmu.boxType].push_back(unit.pmu);
+            boxPMUs.push_back(boxPMUMap);
         }
-        boxPMUs.push_back(boxPMUMap);
+        catch (std::exception & e)
+        {
+            std::cerr << "WARNING: enumeration of devices in UncorePMUDiscovery failed on bar 0x"
+                << std::hex << bar << "\n" << e.what() << "\n" <<
+                " CAP_ID: 0x" << vsec.fields.cap_id << "\n" <<
+                " CAP_VERSION: 0x" << vsec.fields.cap_version << "\n" <<
+                " CAP_NEXT: 0x" << vsec.fields.cap_next << "\n" <<
+                " VSEC_ID: 0x" << vsec.fields.vsec_id << "\n" <<
+                " VSEC_VERSION: 0x" << vsec.fields.vsec_version << "\n" <<
+                " VSEC_LENGTH: 0x" << vsec.fields.vsec_length << "\n" <<
+                " ENTRY_ID: 0x" << vsec.fields.entryID << "\n" <<
+                " NUM_ENTRIES: 0x" << vsec.fields.NumEntries << "\n" <<
+                " ENTRY_SIZE: 0x" << vsec.fields.EntrySize << "\n" <<
+                " TBIR: 0x" << vsec.fields.tBIR << "\n" <<
+                " ADDRESS: 0x" << vsec.fields.Address <<
+                std::dec << "\n";
+            std::cerr << "INFO: discovery has " << boxPMUs.size() << " entries\n";
+        }
     };
     try {
         processDVSEC([](const VSEC & vsec)
