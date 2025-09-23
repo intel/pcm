@@ -1877,10 +1877,11 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
             }
             else if (type == "ubox")
             {
+                const auto numPMUs = (uint32)m->getMaxNumOfUncorePMUs(PCM::UBOX_PMU_ID);
                 choose(outputType,
-                    [&]() { printUncoreRows(nullptr, 1U, ""); },
-                    [&]() { printUncoreRows(nullptr, 1U, type); },
-                    [&]() { printUncoreRows([](const uint32, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getUncoreCounter(PCM::UBOX_PMU_ID, 0, i, before, after); }, 1U,
+                    [&]() { printUncoreRows(nullptr, numPMUs, ""); },
+                    [&]() { printUncoreRows(nullptr, numPMUs, type); },
+                    [&]() { printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getUncoreCounter(PCM::UBOX_PMU_ID, u, i, before, after); }, numPMUs,
                             "UncoreClocks", [](const uint32, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getUncoreClocks(before, after); });
                     });
             }
@@ -2260,14 +2261,17 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs,
                         [&fixedEvents]() { cout << "UncoreClocks" << fixedEvents[0].second << separator; },
                         [&]() { cout << getUncoreClocks(BeforeUncoreState[s], AfterUncoreState[s]) << separator; });
                 }
-                int i = 0;
-                for (auto& event : events)
+                for (uint32 u = 0; u < m->getMaxNumOfUncorePMUs(PCM::UBOX_PMU_ID); ++u)
                 {
-                    choose(outputType,
-                        [s]() { cout << "SKT" << s << separator; },
-                        [&event, &i]() { if (event.second.empty()) cout << "UBOXEvent" << i << separator;  else cout << event.second << separator; },
-                        [&]() { cout << getUncoreCounter(PCM::UBOX_PMU_ID, 0, i, BeforeUncoreState[s], AfterUncoreState[s]) << separator; });
-                    ++i;
+                    int i = 0;
+                    for (auto& event : events)
+                    {
+                        choose(outputType,
+                            [s, u]() { cout << "SKT" << s << "U" << u << separator; },
+                            [&event, &i]() { if (event.second.empty()) cout << "UBOXEvent" << i << separator;  else cout << event.second << separator; },
+                            [&]() { cout << getUncoreCounter(PCM::UBOX_PMU_ID, u, i, BeforeUncoreState[s], AfterUncoreState[s]) << separator; });
+                        ++i;
+                    }
                 }
             }
         }
