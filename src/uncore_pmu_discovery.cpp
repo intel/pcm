@@ -15,9 +15,12 @@ UncorePMUDiscovery::UncorePMUDiscovery()
     {
         return;
     }
-    auto processTables = [this](const uint64 bar, const VSEC & vsec)
+    const auto debug = (safe_getenv("PCM_DEBUG_PMU_DISCOVERY") == std::string("1"));
+
+    auto processTables = [this, &debug](const uint64 bar, const VSEC & vsec)
     {
         try {
+            DBG(2, "Uncore discovery detection. Reading from bar 0x", std::hex, bar, std::dec);
             constexpr size_t UncoreDiscoverySize = 3UL;
             union UncoreGlobalDiscovery {
                 GlobalPMU pmu;
@@ -26,6 +29,12 @@ UncorePMUDiscovery::UncorePMUDiscovery()
             UncoreGlobalDiscovery global;
             mmio_memcpy(global.table, bar, UncoreDiscoverySize * sizeof(uint64), true);
             globalPMUs.push_back(global.pmu);
+            if (debug)
+            {
+                std::cerr << "Read global.pmu from 0x" << std::hex << bar << std::dec << "\n";
+                global.pmu.print();
+                std::cout.flush();
+            }
             union UncoreUnitDiscovery {
                 BoxPMU pmu;
                 uint64 table[UncoreDiscoverySize];
@@ -36,8 +45,18 @@ UncorePMUDiscovery::UncorePMUDiscovery()
             for (size_t u = 0; u < global.pmu.maxUnits; ++u)
             {
                 mmio_memcpy(unit.table, bar + (u + 1) * step, UncoreDiscoverySize * sizeof(uint64), true);
+                if (debug)
+                {
+                    std::cerr << "Read unit.pmu " << u << " from 0x" << std::hex << (bar + (u + 1) * step) << std::dec << "\n";
+                    unit.pmu.print();
+                    std::cout.flush();
+                }
                 if (unit.table[0] == 0 && unit.table[1] == 0)
                 {
+                    if (debug)
+                    {
+                        std::cerr << "Invalid entry\n";
+                    }
                     // invalid entry
                     continue;
                 }
