@@ -92,6 +92,9 @@ protected:
             " globalCtrl: 0x" << std::hex << globalCtrlAddr;
             UncorePMUDiscovery::printHelper((accessTypeEnum)accessType, globalCtrlAddr);
             std::cout << " stride: " << std::dec <<  stride
+                      << " maxUnits: " << maxUnits
+                      << " statusOffset: " << statusOffset
+                      << " numStatus: " << numStatus
             << "\n";
         }
     };
