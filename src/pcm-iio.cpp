@@ -138,7 +138,7 @@ int mainThrows(int argc, char * argv[])
         output = &file_stream;
     }
 
-    if ( !initializePCIeBWCounters( config.pmu_config.iios, config.pmu_config.evt_ctx, config.pmu_config.pcieEventNameMap ) )
+    if (!initializePCIeBWCounters(config.pmu_config))
         exit(EXIT_FAILURE);
 
     load_PCIDB(config.pciDB);

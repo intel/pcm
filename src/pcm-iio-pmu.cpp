@@ -1524,7 +1524,7 @@ void setupPCIeEventContextAndNameMap( iio_evt_parse_context& evt_ctx, PCIeEventN
     results.resize(m->getNumSockets(), stack_content(m->getMaxNumOfIIOStacks(), ctr_data()));
 }
 
-bool initializePCIeBWCounters( std::vector<struct iio_stacks_on_socket>& iios, iio_evt_parse_context& evt_ctx, PCIeEventNameMap& nameMap )
+bool initializePCIeBWCounters(struct pcm_iio_pmu_config& pmu_config)
 {
     PCM * m = PCM::getInstance();
     if (!m->IIOEventsAvailable())
@@ -1533,9 +1533,9 @@ bool initializePCIeBWCounters( std::vector<struct iio_stacks_on_socket>& iios, i
         return false;
     }
 
-    initializeIIOStructure( iios );
+    initializeIIOStructure(pmu_config.iios);
 
-    setupPCIeEventContextAndNameMap( evt_ctx, nameMap );
+    setupPCIeEventContextAndNameMap(pmu_config.evt_ctx, pmu_config.pcieEventNameMap);
 
     return true;
 }
