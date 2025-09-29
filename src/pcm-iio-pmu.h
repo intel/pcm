@@ -698,7 +698,7 @@ int iio_evt_parse_handler(evt_cb_type cb_type, void *cb_ctx, counter &base_ctr, 
 
 result_content get_IIO_Samples(PCM *m, const std::vector<struct iio_stacks_on_socket>& iios, const struct iio_counter & ctr, uint32_t delay_ms);
 
-void collect_data(PCM *m, const double delay, vector<struct iio_stacks_on_socket>& iios, vector<struct iio_counter>& ctrs);
+void collect_data(PCM *m, struct pcm_iio_pmu_config& config);
 
 void initializeIIOStructure( std::vector<struct iio_stacks_on_socket>& iios );
 

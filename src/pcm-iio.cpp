@@ -161,7 +161,7 @@ int mainThrows(int argc, char * argv[])
 
     mainLoop([&]()
     {
-        collect_data(m, config.pmu_config.delay, config.pmu_config.iios, config.pmu_config.evt_ctx.ctrs);
+        collect_data(m, config.pmu_config);
         vector<string> display_buffer = displayBuilder->buildDisplayBuffer();
         display(display_buffer, *output);
         return true;

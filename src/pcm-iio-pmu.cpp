@@ -1453,12 +1453,12 @@ result_content get_IIO_Samples(PCM *m, const std::vector<struct iio_stacks_on_so
     return results;
 }
 
-void collect_data(PCM *m, const double delay, vector<struct iio_stacks_on_socket>& iios, vector<struct iio_counter>& ctrs)
+void collect_data(PCM *m, struct pcm_iio_pmu_config& config)
 {
-    const uint32_t delay_ms = uint32_t(delay * 1000 / ctrs.size());
-    for (auto counter = ctrs.begin(); counter != ctrs.end(); ++counter) {
+    const uint32_t delay_ms = uint32_t(config.delay * 1000 / config.evt_ctx.ctrs.size());
+    for (auto counter = config.evt_ctx.ctrs.begin(); counter != config.evt_ctx.ctrs.end(); ++counter) {
         counter->data.clear();
-        result_content sample = get_IIO_Samples(m, iios, *counter, delay_ms);
+        result_content sample = get_IIO_Samples(m, config.iios, *counter, delay_ms);
         counter->data.push_back(sample);
     }
 }
