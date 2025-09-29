@@ -25,7 +25,7 @@ protected:
 
     std::map<std::string, uint32_t> opcodeFieldMap;
     iio_evt_parse_context evt_ctx;
-    PCIeEventNameMap_t nameMap;
+    PCIeEventNameMap nameMap;
 };
 
 // Structure to hold expected event data from file

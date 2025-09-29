@@ -1152,19 +1152,19 @@ void display(const std::vector<std::string> &buff, std::ostream& stream)
     stream << std::flush;
 }
 
-void print_nameMap(std::map<std::string,std::pair<uint32_t,std::map<std::string,uint32_t>>>& nameMap)
+void print_nameMap(const PCIeEventNameMap& nameMap)
 {
-    for (std::map<std::string,std::pair<uint32_t,std::map<std::string,uint32_t>>>::const_iterator iunit = nameMap.begin(); iunit != nameMap.end(); ++iunit)
+    for (const auto& iunit : nameMap)
     {
-        std::string h_name = iunit->first;
-        std::pair<uint32_t,std::map<std::string,uint32_t>> value = iunit->second;
+        const std::string& h_name = iunit.first;
+        const auto& value = iunit.second;
         uint32_t hid = value.first;
-        std::map<std::string,uint32_t> vMap = value.second;
+        const auto& vMap = value.second;
         std::cout << "H name: " << h_name << " id =" << hid << " vMap size:" << vMap.size() << "\n";
-        for (std::map<std::string,uint32_t>::const_iterator junit = vMap.begin(); junit != vMap.end(); ++junit)
+        for (const auto& junit : vMap)
         {
-            std::string v_name = junit->first;
-            uint32_t vid = junit->second;
+            const std::string& v_name = junit.first;
+            uint32_t vid = junit.second;
             std::cout << "V name: " << v_name << " id =" << vid << "\n";
         }
     }
@@ -1187,7 +1187,7 @@ void print_nameMap(std::map<std::string,std::pair<uint32_t,std::map<std::string,
 //! \return -1 means fail with app exit, 0 means success or fail with continue.
 int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
                 int (*pfn_evtcb)(evt_cb_type, void *, counter &, std::map<std::string, uint32_t> &, std::string, uint64),
-                void *evtcb_ctx, std::map<std::string,std::pair<uint32_t,std::map<std::string,uint32_t>>> &nameMap)
+                void *evtcb_ctx, PCIeEventNameMap& nameMap)
 {
     struct counter ctr;
 
@@ -1226,11 +1226,9 @@ int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
         }
 
         /* Ignore anyline with # */
-        if (line.find("#") != std::string::npos)
-            continue;
+        if (line.find("#") != std::string::npos) continue;
         /* If line does not have any deliminator, we ignore it as well */
-        if (line.find("=") == std::string::npos)
-            continue;
+        if (line.find("=") == std::string::npos) continue;
 
         std::string h_name, v_name;
         std::istringstream iss(line);
@@ -1256,11 +1254,11 @@ int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
                     if (nameMap.find(h_name) == nameMap.end())
                     {
                         /* It's a new horizontal event name */
-                        uint32_t next_h_id = (uint32_t)nameMap.size();
-                        std::pair<uint32_t,std::map<std::string,uint32_t>> nameMap_value(next_h_id, std::map<std::string,uint32_t>());
+                        auto next_h_id = static_cast<uint32_t>(nameMap.size());
+                        auto nameMap_value = std::make_pair(next_h_id, CounterValueMap());
                         nameMap[h_name] = nameMap_value;
                     }
-                    ctr.h_id = (uint32_t)nameMap.size() - 1;
+                    ctr.h_id = static_cast<uint32_t>(nameMap.size()) - 1;
                     DBG(2, "h_name:" , ctr.h_event_name , "h_id: ", ctr.h_id);
                     break;
                 case PCM::V_EVENT_NAME:
@@ -1269,10 +1267,10 @@ int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
                         ctr.v_event_name = v_name;
                         //XXX: If h_name comes after v_name, we'll have a problem.
                         //XXX: It's very weird, I forgot to assign nameMap[h_name] = nameMap_value earlier (:298), but this part still works?
-                        std::map<std::string,uint32_t> &v_nameMap = nameMap[h_name].second;
+                        auto& v_nameMap = nameMap[h_name].second;
                         if (v_nameMap.find(v_name) == v_nameMap.end())
                         {
-                            v_nameMap[v_name] = (unsigned int)v_nameMap.size() - 1;
+                            v_nameMap[v_name] = static_cast<uint32_t>(v_nameMap.size()) - 1;
                             DBG(2, "v_name(" , v_name , ")=", v_nameMap[v_name]);
                         }
                         else
@@ -1325,7 +1323,7 @@ int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
                 int (*pfn_evtcb)(evt_cb_type, void *, counter &, std::map<std::string, uint32_t> &, std::string, uint64),
                 void *evtcb_ctx)
 {
-    std::map<std::string,std::pair<uint32_t,std::map<std::string,uint32_t>>> nm;
+    PCIeEventNameMap nm;
     return load_events(fn, ofm, pfn_evtcb, evtcb_ctx, nm);
 }
 

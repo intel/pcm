@@ -495,20 +495,56 @@ typedef struct
     vector<struct iio_counter> ctrs;
 } iio_evt_parse_context;
 
-vector<string> combine_stack_name_and_counter_names(string stack_name, const map<string,std::pair<h_id,std::map<string,v_id>>> &nameMap);
+vector<string> combine_stack_name_and_counter_names(string stack_name, const PCIeEventNameMap& nameMap);
 
 string build_pci_header(const PCIDB & pciDB, uint32_t column_width, const struct pci &p, int part = -1, uint32_t level = 0);
 
 void build_pci_tree(vector<string> &buffer, const PCIDB & pciDB, uint32_t column_width, const struct pci &p, int part, uint32_t level = 0);
 
-vector<string> build_display(vector<struct iio_stacks_on_socket>& iios, vector<struct iio_counter>& ctrs, const PCIDB& pciDB,
-                             const map<string,std::pair<h_id,std::map<string,v_id>>> &nameMap);
-
 std::string get_root_port_dev(const bool show_root_port, int part_id,  const pcm::iio_stack *stack);
 
-vector<string> build_csv(vector<struct iio_stacks_on_socket>& iios, vector<struct iio_counter>& ctrs,
-                         const bool human_readable, const bool show_root_port, const std::string& csv_delimiter,
-                         const map<string,std::pair<h_id,std::map<string,v_id>>> &nameMap);
+class PcmIioOutputBuilder {
+public:
+    PcmIioOutputBuilder(vector<struct iio_stacks_on_socket>& iios, vector<struct iio_counter>& ctrs, const PCIeEventNameMap& nameMap)
+        : m_iios(iios), m_ctrs(ctrs), m_nameMap(nameMap) {}
+
+    virtual ~PcmIioOutputBuilder() = default;
+
+    virtual vector<string> buildDisplayBuffer() = 0;
+protected:
+    vector<struct iio_stacks_on_socket>& m_iios;
+    vector<struct iio_counter>& m_ctrs;
+    const PCIeEventNameMap& m_nameMap;
+};
+
+class PcmIioCsvBuilder : public PcmIioOutputBuilder {
+public:
+    PcmIioCsvBuilder(vector<struct iio_stacks_on_socket>& iios, vector<struct iio_counter>& ctrs, const PCIeEventNameMap& nameMap,
+               const bool human_readable, const bool show_root_port, const std::string& csv_delimiter)
+        : PcmIioOutputBuilder(iios, ctrs, nameMap), m_human_readable(human_readable), m_show_root_port(show_root_port), m_csv_delimiter(csv_delimiter) {}
+
+    ~PcmIioCsvBuilder() = default;
+
+    vector<string> buildDisplayBuffer() override;
+private:
+    void insertTimeStamp(vector<string> & out, CsvOutputType type);
+
+    bool m_human_readable;
+    bool m_show_root_port;
+    std::string m_csv_delimiter;
+};
+
+class PcmIioDisplayBuilder : public PcmIioOutputBuilder {
+public:
+    PcmIioDisplayBuilder(vector<struct iio_stacks_on_socket>& iios, vector<struct iio_counter>& ctrs, PCIDB& pciDB,
+                         const PCIeEventNameMap& nameMap) : PcmIioOutputBuilder(iios, ctrs, nameMap), m_pciDB(pciDB) {}
+
+    ~PcmIioDisplayBuilder() = default;
+
+    vector<string> buildDisplayBuffer() override;
+private:
+    PCIDB& m_pciDB;
+};
 
 class IPlatformMapping {
 private:
@@ -657,9 +693,7 @@ void initializeIIOStructure( std::vector<struct iio_stacks_on_socket>& iios );
 
 void fillOpcodeFieldMapForPCIeEvents(map<string,uint32_t>& opcodeFieldMap);
 
-typedef map<string,std::pair<h_id,std::map<string,v_id>>> PCIeEventNameMap_t;
+void setupPCIeEventContextAndNameMap( iio_evt_parse_context& evt_ctx, PCIeEventNameMap& nameMap);
 
-void setupPCIeEventContextAndNameMap( iio_evt_parse_context& evt_ctx, PCIeEventNameMap_t& nameMap);
-
-bool initializePCIeBWCounters( std::vector<struct iio_stacks_on_socket>& iios, iio_evt_parse_context& evt_ctx, PCIeEventNameMap_t& nameMap );
+bool initializePCIeBWCounters( std::vector<struct iio_stacks_on_socket>& iios, iio_evt_parse_context& evt_ctx, PCIeEventNameMap& nameMap );
 

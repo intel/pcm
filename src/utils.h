@@ -609,6 +609,13 @@ typedef enum{
     EVT_LINE_COMPLETE
 }evt_cb_type;
 
+using EventName = std::string;
+using CounterName = std::string;
+
+using CounterValueMap = std::unordered_map<CounterName, uint32_t>;
+using EventDefinition = std::pair<uint32_t, CounterValueMap>;
+using PCIeEventNameMap = std::unordered_map<EventName, EventDefinition>;
+
 void getMCFGRecords(std::vector<MCFGRecord>& mcfg);
 std::string dos2unix(std::string in);
 bool isRegisterEvent(const std::string & pmu);
@@ -620,10 +627,10 @@ std::string build_csv_row(const std::vector<std::string>& chunks, const std::str
 std::vector<struct data> prepare_data(const std::vector<uint64_t> &values, const std::vector<std::string> &headers);
 void display(const std::vector<std::string> &buff, std::ostream& stream);
 
-void print_nameMap(std::map<std::string,std::pair<uint32_t,std::map<std::string,uint32_t>>>& nameMap);
+void print_nameMap(const PCIeEventNameMap& nameMap);
 int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
                 int (*p_fn_evtcb)(evt_cb_type, void *, counter &, std::map<std::string, uint32_t> &, std::string, uint64),
-                void *evtcb_ctx, std::map<std::string,std::pair<uint32_t,std::map<std::string,uint32_t>>> &nameMap);
+                void *evtcb_ctx, PCIeEventNameMap& nameMap);
 int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
                 int (*pfn_evtcb)(evt_cb_type, void *, counter &, std::map<std::string, uint32_t> &, std::string, uint64),
                 void *evtcb_ctx);

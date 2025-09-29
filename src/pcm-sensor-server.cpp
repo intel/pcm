@@ -4061,10 +4061,10 @@ int mainThrows(int argc, char * argv[]) {
         std::vector<struct iio_stacks_on_socket> iios;
         iio_evt_parse_context evt_ctx;
         std::string ev_file_name;
-        // Map with metrics names.
-        PCIeEventNameMap_t nameMap;
 
         // TODO: add check for IIO support before trying to initialize the pmu
+        // Map with metrics names.
+        // PCIeEventNameMap nameMap;
 // Otto: re-add this check when there is support for IIO and do it properly, seems to fail for some reason, see #788
 //        if ( !initializePCIeBWCounters( iios, evt_ctx, nameMap ) )
 //        {

@@ -143,7 +143,7 @@ int mainThrows(int argc, char * argv[])
     std::vector<struct iio_stacks_on_socket> iios;
     iio_evt_parse_context evt_ctx;
     // Map with metrics names.
-    PCIeEventNameMap_t nameMap;
+    PCIeEventNameMap nameMap;
 
     if ( !initializePCIeBWCounters( iios, evt_ctx, nameMap ) )
         exit(EXIT_FAILURE);
@@ -160,12 +160,17 @@ int mainThrows(int argc, char * argv[])
     print_nameMap(nameMap);
 #endif
 
+    std::unique_ptr<PcmIioOutputBuilder> displayBuilder;
+    if (csv) {
+        displayBuilder = std::make_unique<PcmIioCsvBuilder>(iios, evt_ctx.ctrs, nameMap, human_readable, show_root_port, csv_delimiter);
+    } else {
+        displayBuilder = std::make_unique<PcmIioDisplayBuilder>(iios, evt_ctx.ctrs, pciDB, nameMap);
+    }
+
     mainLoop([&]()
     {
         collect_data(m, delay, iios, evt_ctx.ctrs);
-        vector<string> display_buffer = csv ?
-            build_csv(iios, evt_ctx.ctrs, human_readable, show_root_port, csv_delimiter, nameMap) :
-            build_display(iios, evt_ctx.ctrs, pciDB, nameMap);
+        vector<string> display_buffer = displayBuilder->buildDisplayBuffer();
         display(display_buffer, *output);
         return true;
     });
