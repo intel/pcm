@@ -486,8 +486,6 @@ struct iio_counter : public counter {
   std::vector<result_content> data;
 };
 
-extern result_content results;
-
 typedef struct
 {
     PCM *m;
