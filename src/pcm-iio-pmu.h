@@ -661,5 +661,5 @@ typedef map<string,std::pair<h_id,std::map<string,v_id>>> PCIeEventNameMap_t;
 
 void setupPCIeEventContextAndNameMap( iio_evt_parse_context& evt_ctx, PCIeEventNameMap_t& nameMap);
 
-bool initializeIIOCounters( std::vector<struct iio_stacks_on_socket>& iios, iio_evt_parse_context& evt_ctx, PCIeEventNameMap_t& nameMap );
+bool initializePCIeBWCounters( std::vector<struct iio_stacks_on_socket>& iios, iio_evt_parse_context& evt_ctx, PCIeEventNameMap_t& nameMap );
 

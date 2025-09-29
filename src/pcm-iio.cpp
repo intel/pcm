@@ -145,7 +145,7 @@ int mainThrows(int argc, char * argv[])
     // Map with metrics names.
     PCIeEventNameMap_t nameMap;
 
-    if ( !initializeIIOCounters( iios, evt_ctx, nameMap ) )
+    if ( !initializePCIeBWCounters( iios, evt_ctx, nameMap ) )
         exit(EXIT_FAILURE);
 
     PCIDB pciDB;
@@ -155,7 +155,6 @@ int mainThrows(int argc, char * argv[])
         print_PCIeMapping(iios, pciDB, *output);
         return 0;
     }
-
 
 #ifdef PCM_DEBUG
     print_nameMap(nameMap);

@@ -4066,7 +4066,7 @@ int mainThrows(int argc, char * argv[]) {
 
         // TODO: add check for IIO support before trying to initialize the pmu
 // Otto: re-add this check when there is support for IIO and do it properly, seems to fail for some reason, see #788
-//        if ( !initializeIIOCounters( iios, evt_ctx, nameMap ) )
+//        if ( !initializePCIeBWCounters( iios, evt_ctx, nameMap ) )
 //        {
 //            std::cerr << "Error: IIO is NOT supported with this platform! Program aborted\n";
 //            exit(EXIT_FAILURE);
