@@ -1494,7 +1494,7 @@ result_content PcmIioDataCollector::get_IIO_Samples(const struct iio_counter & c
     return results;
 }
 
-void initializeIIOStructure( std::vector<struct iio_stacks_on_socket>& iios )
+void initializeIOStacksStructure( std::vector<struct iio_stacks_on_socket>& iios )
 {
     PCM * m = PCM::getInstance();
     auto mapping = IPlatformMapping::getPlatformMapping(m->getCPUFamilyModel(), m->getNumSockets());
@@ -1564,7 +1564,7 @@ bool initializePCIeBWCounters(struct pcm_iio_pmu_config& pmu_config)
         return false;
     }
 
-    initializeIIOStructure(pmu_config.iios);
+    initializeIOStacksStructure(pmu_config.iios);
 
     setupPCIeEventContextAndNameMap(pmu_config.evt_ctx, pmu_config.pcieEventNameMap);
 

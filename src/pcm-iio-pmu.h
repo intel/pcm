@@ -691,7 +691,7 @@ private:
     result_content get_IIO_Samples(const struct iio_counter & ctr, uint32_t delay_ms);
 };
 
-void initializeIIOStructure( std::vector<struct iio_stacks_on_socket>& iios );
+void initializeIOStacksStructure( std::vector<struct iio_stacks_on_socket>& iios );
 
 void fillOpcodeFieldMapForPCIeEvents(map<string,uint32_t>& opcodeFieldMap);
 
