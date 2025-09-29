@@ -537,25 +537,7 @@ protected:
     struct pcm_iio_config& m_config;
 };
 
-class PcmIioCsvBuilder : public PcmIioOutputBuilder {
-public:
-    PcmIioCsvBuilder(struct pcm_iio_config& config) : PcmIioOutputBuilder(config) {}
-
-    ~PcmIioCsvBuilder() = default;
-
-    vector<string> buildDisplayBuffer() override;
-private:
-    void insertTimeStamp(vector<string> & out, CsvOutputType type);
-};
-
-class PcmIioDisplayBuilder : public PcmIioOutputBuilder {
-public:
-    PcmIioDisplayBuilder(struct pcm_iio_config& config) : PcmIioOutputBuilder(config) {}
-
-    ~PcmIioDisplayBuilder() = default;
-
-    vector<string> buildDisplayBuffer() override;
-};
+std::unique_ptr<PcmIioOutputBuilder> getDisplayBuilder(struct pcm_iio_config& config);
 
 class IPlatformMapping {
 private:

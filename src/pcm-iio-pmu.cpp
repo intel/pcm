@@ -103,6 +103,17 @@ std::string get_root_port_dev(const bool show_root_port, int part_id,  const pcm
 
 }
 
+class PcmIioCsvBuilder : public PcmIioOutputBuilder {
+public:
+    PcmIioCsvBuilder(struct pcm_iio_config& config) : PcmIioOutputBuilder(config) {}
+
+    ~PcmIioCsvBuilder() = default;
+
+    vector<string> buildDisplayBuffer() override;
+private:
+    void insertTimeStamp(vector<string> & out, CsvOutputType type);
+};
+
 void PcmIioCsvBuilder::insertTimeStamp(vector<string> & out, CsvOutputType type)
 {
     std::string dateTime;
@@ -175,6 +186,15 @@ vector<string> PcmIioCsvBuilder::buildDisplayBuffer()
     return result;
 }
 
+class PcmIioDisplayBuilder : public PcmIioOutputBuilder {
+public:
+    PcmIioDisplayBuilder(struct pcm_iio_config& config) : PcmIioOutputBuilder(config) {}
+
+    ~PcmIioDisplayBuilder() = default;
+
+    vector<string> buildDisplayBuffer() override;
+};
+
 vector<string> PcmIioDisplayBuilder::buildDisplayBuffer()
 {
     vector<string> buffer;
@@ -241,6 +261,17 @@ vector<string> PcmIioDisplayBuilder::buildDisplayBuffer()
         }
     }
     return buffer;
+}
+
+std::unique_ptr<PcmIioOutputBuilder> getDisplayBuilder(struct pcm_iio_config& config)
+{
+    std::unique_ptr<PcmIioOutputBuilder> displayBuilder;
+    if (config.display.csv) {
+        displayBuilder = std::make_unique<PcmIioCsvBuilder>(config);
+    } else {
+        displayBuilder = std::make_unique<PcmIioDisplayBuilder>(config);
+    }
+    return displayBuilder;
 }
 
 void PurleyPlatformMapping::getUboxBusNumbers(std::vector<uint32_t>& ubox)

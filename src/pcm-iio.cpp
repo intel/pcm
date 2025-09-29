@@ -152,12 +152,7 @@ int mainThrows(int argc, char * argv[])
     print_nameMap(config.pmu_config.nameMap);
 #endif
 
-    std::unique_ptr<PcmIioOutputBuilder> displayBuilder;
-    if (config.display.csv) {
-        displayBuilder = std::make_unique<PcmIioCsvBuilder>(config);
-    } else {
-        displayBuilder = std::make_unique<PcmIioDisplayBuilder>(config);
-    }
+    auto displayBuilder = getDisplayBuilder(config);
 
     mainLoop([&]()
     {
