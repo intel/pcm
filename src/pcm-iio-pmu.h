@@ -503,47 +503,58 @@ void build_pci_tree(vector<string> &buffer, const PCIDB & pciDB, uint32_t column
 
 std::string get_root_port_dev(const bool show_root_port, int part_id,  const pcm::iio_stack *stack);
 
+struct pcm_iio_display_config {
+    bool csv            = false;
+    bool human_readable = false;
+    bool show_root_port = false;
+    bool list           = false;
+    std::string csv_delimiter = ",";
+    std::string output_file   = "";
+};
+
+struct pcm_iio_pmu_config {
+    double delay = PCM_DELAY_DEFAULT;
+    // Map with metrics names.
+    PCIeEventNameMap pcieEventNameMap;
+    vector<struct iio_stacks_on_socket> iios;
+    iio_evt_parse_context evt_ctx;
+};
+
+struct pcm_iio_config {
+    struct pcm_iio_display_config display;
+    struct pcm_iio_pmu_config pmu_config;
+    PCIDB pciDB;
+};
+
 class PcmIioOutputBuilder {
 public:
-    PcmIioOutputBuilder(vector<struct iio_stacks_on_socket>& iios, vector<struct iio_counter>& ctrs, const PCIeEventNameMap& nameMap)
-        : m_iios(iios), m_ctrs(ctrs), m_nameMap(nameMap) {}
+    PcmIioOutputBuilder(struct pcm_iio_config& config) : m_config(config) {}
 
     virtual ~PcmIioOutputBuilder() = default;
 
     virtual vector<string> buildDisplayBuffer() = 0;
 protected:
-    vector<struct iio_stacks_on_socket>& m_iios;
-    vector<struct iio_counter>& m_ctrs;
-    const PCIeEventNameMap& m_nameMap;
+    struct pcm_iio_config& m_config;
 };
 
 class PcmIioCsvBuilder : public PcmIioOutputBuilder {
 public:
-    PcmIioCsvBuilder(vector<struct iio_stacks_on_socket>& iios, vector<struct iio_counter>& ctrs, const PCIeEventNameMap& nameMap,
-               const bool human_readable, const bool show_root_port, const std::string& csv_delimiter)
-        : PcmIioOutputBuilder(iios, ctrs, nameMap), m_human_readable(human_readable), m_show_root_port(show_root_port), m_csv_delimiter(csv_delimiter) {}
+    PcmIioCsvBuilder(struct pcm_iio_config& config) : PcmIioOutputBuilder(config) {}
 
     ~PcmIioCsvBuilder() = default;
 
     vector<string> buildDisplayBuffer() override;
 private:
     void insertTimeStamp(vector<string> & out, CsvOutputType type);
-
-    bool m_human_readable;
-    bool m_show_root_port;
-    std::string m_csv_delimiter;
 };
 
 class PcmIioDisplayBuilder : public PcmIioOutputBuilder {
 public:
-    PcmIioDisplayBuilder(vector<struct iio_stacks_on_socket>& iios, vector<struct iio_counter>& ctrs, PCIDB& pciDB,
-                         const PCIeEventNameMap& nameMap) : PcmIioOutputBuilder(iios, ctrs, nameMap), m_pciDB(pciDB) {}
+    PcmIioDisplayBuilder(struct pcm_iio_config& config) : PcmIioOutputBuilder(config) {}
 
     ~PcmIioDisplayBuilder() = default;
 
     vector<string> buildDisplayBuffer() override;
-private:
-    PCIDB& m_pciDB;
 };
 
 class IPlatformMapping {

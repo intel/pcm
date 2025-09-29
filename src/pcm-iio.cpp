@@ -78,13 +78,7 @@ int mainThrows(int argc, char * argv[])
 
     string program = string(argv[0]);
 
-    bool csv = false;
-    bool human_readable = false;
-    bool show_root_port = false;
-    std::string csv_delimiter = ",";
-    std::string output_file;
-    double delay = PCM_DELAY_DEFAULT;
-    bool list = false;
+    struct pcm_iio_config config;
     MainLoop mainLoop;
 
     while (argc > 1) {
@@ -100,29 +94,29 @@ int mainThrows(int argc, char * argv[])
             continue;
         }
         else if (extract_argument_value(*argv, {"-csv-delimiter", "/csv-delimiter"}, arg_value)) {
-            csv_delimiter = std::move(arg_value);
+            config.display.csv_delimiter = std::move(arg_value);
         }
         else if (check_argument_equals(*argv, {"-csv", "/csv"})) {
-            csv = true;
+            config.display.csv = true;
         }
         else if (extract_argument_value(*argv, {"-csv", "/csv"}, arg_value)) {
-            csv = true;
-            output_file = std::move(arg_value);
+            config.display.csv = true;
+            config.display.output_file = std::move(arg_value);
         }
         else if (check_argument_equals(*argv, {"-human-readable", "/human-readable"})) {
-            human_readable = true;
+            config.display.human_readable = true;
         }
         else if (check_argument_equals(*argv, {"-list", "--list"})) {
-            list = true;
+            config.display.list = true;
         }
         else if (check_argument_equals(*argv, {"-root-port", "/root-port"})) {
-            show_root_port = true;
+            config.display.show_root_port = true;
         }
         else if (mainLoop.parseArg(*argv)) {
             continue;
         }
         else {
-            delay = parse_delay(*argv, program, (print_usage_func)print_usage);
+            config.pmu_config.delay = parse_delay(*argv, program, (print_usage_func)print_usage);
             continue;
         }
     }
@@ -135,41 +129,35 @@ int mainThrows(int argc, char * argv[])
 
     std::ostream* output = &std::cout;
     std::fstream file_stream;
-    if (!output_file.empty()) {
-        file_stream.open(output_file.c_str(), std::ios_base::out);
+    if (!config.display.output_file.empty()) {
+        file_stream.open(config.display.output_file.c_str(), std::ios_base::out);
         output = &file_stream;
     }
 
-    std::vector<struct iio_stacks_on_socket> iios;
-    iio_evt_parse_context evt_ctx;
-    // Map with metrics names.
-    PCIeEventNameMap nameMap;
-
-    if ( !initializePCIeBWCounters( iios, evt_ctx, nameMap ) )
+    if ( !initializePCIeBWCounters( config.pmu_config.iios, config.pmu_config.evt_ctx, config.pmu_config.pcieEventNameMap ) )
         exit(EXIT_FAILURE);
 
-    PCIDB pciDB;
-    load_PCIDB(pciDB);
+    load_PCIDB(config.pciDB);
 
-    if (list) {
-        print_PCIeMapping(iios, pciDB, *output);
+    if (config.display.list) {
+        print_PCIeMapping(config.pmu_config.iios, config.pciDB, *output);
         return 0;
     }
 
 #ifdef PCM_DEBUG
-    print_nameMap(nameMap);
+    print_nameMap(config.pmu_config.nameMap);
 #endif
 
     std::unique_ptr<PcmIioOutputBuilder> displayBuilder;
-    if (csv) {
-        displayBuilder = std::make_unique<PcmIioCsvBuilder>(iios, evt_ctx.ctrs, nameMap, human_readable, show_root_port, csv_delimiter);
+    if (config.display.csv) {
+        displayBuilder = std::make_unique<PcmIioCsvBuilder>(config);
     } else {
-        displayBuilder = std::make_unique<PcmIioDisplayBuilder>(iios, evt_ctx.ctrs, pciDB, nameMap);
+        displayBuilder = std::make_unique<PcmIioDisplayBuilder>(config);
     }
 
     mainLoop([&]()
     {
-        collect_data(m, delay, iios, evt_ctx.ctrs);
+        collect_data(m, config.pmu_config.delay, config.pmu_config.iios, config.pmu_config.evt_ctx.ctrs);
         vector<string> display_buffer = displayBuilder->buildDisplayBuffer();
         display(display_buffer, *output);
         return true;

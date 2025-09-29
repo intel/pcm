@@ -106,7 +106,7 @@ std::string get_root_port_dev(const bool show_root_port, int part_id,  const pcm
 void PcmIioCsvBuilder::insertTimeStamp(vector<string> & out, CsvOutputType type)
 {
     std::string dateTime;
-    printDateForCSV(type, m_csv_delimiter, &dateTime);
+    printDateForCSV(type, m_config.display.csv_delimiter, &dateTime);
     // remove last delimiter
     dateTime.pop_back();
     out.insert(out.begin(), dateTime);
@@ -116,27 +116,27 @@ vector<string> PcmIioCsvBuilder::buildDisplayBuffer()
 {
     vector<string> result;
     vector<string> current_row;
-    auto header = combine_stack_name_and_counter_names("Part", m_nameMap);
+    auto header = combine_stack_name_and_counter_names("Part", m_config.pmu_config.pcieEventNameMap);
     header.insert(header.begin(), "Name");
-    if (m_show_root_port)
+    if (m_config.display.show_root_port)
         header.insert(header.begin(), "Root Port");
     header.insert(header.begin(), "Socket");
     insertTimeStamp(header, CsvOutputType::Header2);
-    result.push_back(build_csv_row(header, m_csv_delimiter));
+    result.push_back(build_csv_row(header, m_config.display.csv_delimiter));
     std::map<uint32_t,map<uint32_t,struct iio_counter*>> v_sort;
     //re-organize data collection to be row wise
     size_t max_name_width = 0;
-    for (auto counter = m_ctrs.begin(); counter != m_ctrs.end(); ++counter) {
+    for (auto counter = m_config.pmu_config.evt_ctx.ctrs.begin(); counter != m_config.pmu_config.evt_ctx.ctrs.end(); ++counter) {
         v_sort[counter->v_id][counter->h_id] = &(*counter);
         max_name_width = (std::max)(max_name_width, counter->v_event_name.size());
     }
 
-    for (auto socket = m_iios.cbegin(); socket != m_iios.cend(); ++socket) {
+    for (auto socket = m_config.pmu_config.iios.cbegin(); socket != m_config.pmu_config.iios.cend(); ++socket) {
         for (auto stack = socket->stacks.cbegin(); stack != socket->stacks.cend(); ++stack) {
             const std::string socket_name = "Socket" + std::to_string(socket->socket_id);
 
             std::string stack_name = stack->stack_name;
-            if (!m_human_readable) {
+            if (!m_config.display.human_readable) {
                 stack_name.erase(stack_name.find_last_not_of(' ') + 1);
             }
 
@@ -150,14 +150,14 @@ vector<string> PcmIioCsvBuilder::buildDisplayBuffer()
                 uint32_t vv_id = vunit->first;
                 vector<uint64_t> h_data;
                 string v_name = h_array[0]->v_event_name;
-                if (m_human_readable) {
+                if (m_config.display.human_readable) {
                     v_name += string(max_name_width - (v_name.size()), ' ');
                 }
 
                 current_row.clear();
                 current_row.push_back(socket_name);
-                if (m_show_root_port) {
-                    auto pci_dev = get_root_port_dev(m_show_root_port, part_id, &(*stack));
+                if (m_config.display.show_root_port) {
+                    auto pci_dev = get_root_port_dev(m_config.display.show_root_port, part_id, &(*stack));
                     current_row.push_back(pci_dev);
                 }
                 current_row.push_back(stack_name);
@@ -165,10 +165,10 @@ vector<string> PcmIioCsvBuilder::buildDisplayBuffer()
                 for (map<uint32_t,struct iio_counter*>::const_iterator hunit = h_array.cbegin(); hunit != h_array.cend(); ++hunit) {
                     uint32_t hh_id = hunit->first;
                     uint64_t raw_data = hunit->second->data[0][socket->socket_id][stack_id][std::pair<h_id,v_id>(hh_id,vv_id)];
-                    current_row.push_back(m_human_readable ? unit_format(raw_data) : std::to_string(raw_data));
+                    current_row.push_back(m_config.display.human_readable ? unit_format(raw_data) : std::to_string(raw_data));
                 }
                 insertTimeStamp(current_row, CsvOutputType::Data);
-                result.push_back(build_csv_row(current_row, m_csv_delimiter));
+                result.push_back(build_csv_row(current_row, m_config.display.csv_delimiter));
             }
         }
     }
@@ -182,11 +182,11 @@ vector<string> PcmIioDisplayBuilder::buildDisplayBuffer()
     vector<struct data> data;
     uint64_t header_width;
     string row;
-    for (auto socket = m_iios.cbegin(); socket != m_iios.cend(); ++socket) {
+    for (auto socket = m_config.pmu_config.iios.cbegin(); socket != m_config.pmu_config.iios.cend(); ++socket) {
         buffer.push_back("Socket" + std::to_string(socket->socket_id));
         for (auto stack = socket->stacks.cbegin(); stack != socket->stacks.cend(); ++stack) {
             auto stack_id = stack->iio_unit_id;
-            headers = combine_stack_name_and_counter_names(stack->stack_name, m_nameMap);
+            headers = combine_stack_name_and_counter_names(stack->stack_name, m_config.pmu_config.pcieEventNameMap);
             //Print first row
             row = std::accumulate(headers.begin(), headers.end(), string(" "), a_header_footer);
             header_width = row.size();
@@ -200,7 +200,7 @@ vector<string> PcmIioDisplayBuilder::buildDisplayBuffer()
             //Print data
             std::map<uint32_t,map<uint32_t,struct iio_counter*>> v_sort;
             //re-organize data collection to be row wise
-            for (std::vector<struct iio_counter>::iterator counter = m_ctrs.begin(); counter != m_ctrs.end(); ++counter) {
+            for (std::vector<struct iio_counter>::iterator counter = m_config.pmu_config.evt_ctx.ctrs.begin(); counter != m_config.pmu_config.evt_ctx.ctrs.end(); ++counter) {
                 v_sort[counter->v_id][counter->h_id] = &(*counter);
             }
             for (std::map<uint32_t,map<uint32_t,struct iio_counter*>>::const_iterator vunit = v_sort.cbegin(); vunit != v_sort.cend(); ++vunit) {
@@ -226,10 +226,10 @@ vector<string> PcmIioDisplayBuilder::buildDisplayBuffer()
             for (const auto& part : stack->parts) {
                 uint8_t level = 1;
                 for (const auto& pci_device : part.child_pci_devs) {
-                    row = build_pci_header(m_pciDB, (uint32_t)header_width, pci_device, -1, level);
+                    row = build_pci_header(m_config.pciDB, (uint32_t)header_width, pci_device, -1, level);
                     buffer.push_back(row);
                     if (pci_device.hasChildDevices()) {
-                        build_pci_tree(buffer, m_pciDB, (uint32_t)header_width, pci_device, -1, level + 1);
+                        build_pci_tree(buffer, m_config.pciDB, (uint32_t)header_width, pci_device, -1, level + 1);
                     } else if (pci_device.header_type == 1) {
                             level++;
                     }
