@@ -1450,47 +1450,51 @@ int iio_evt_parse_handler(evt_cb_type cb_type, void *cb_ctx, counter &base_ctr, 
     return 0;
 }
 
-void PcmIioDataCollector::collect_data()
+PcmIioDataCollector::PcmIioDataCollector(struct pcm_iio_pmu_config& config) : m_config(config)
 {
-    const uint32_t delay_ms = uint32_t(m_config.delay * 1000 / m_config.evt_ctx.ctrs.size());
-    for (auto counter = m_config.evt_ctx.ctrs.begin(); counter != m_config.evt_ctx.ctrs.end(); ++counter) {
-        counter->data.clear();
-        result_content sample = get_IIO_Samples(*counter, delay_ms);
-        counter->data.push_back(sample);
+    m_pcm = PCM::getInstance();
+    m_delay_ms = static_cast<uint32_t>(m_config.delay * 1000 / m_config.evt_ctx.ctrs.size());
+    m_stacks_count = m_pcm->getMaxNumOfIIOStacks();
+    m_time_scaling_factor = 1000.0 / m_delay_ms;
+
+    m_before = std::make_unique<SimpleCounterState[]>(m_config.iios.size() * m_stacks_count);
+    m_after = std::make_unique<SimpleCounterState[]>(m_config.iios.size() * m_stacks_count);
+}
+
+void PcmIioDataCollector::collectData()
+{
+    for (auto& counter : m_config.evt_ctx.ctrs) {
+        counter.data.clear();
+        result_content sample = getSample(counter);
+        counter.data.push_back(sample);
     }
 }
 
-result_content PcmIioDataCollector::get_IIO_Samples(const struct iio_counter & ctr, uint32_t delay_ms)
+result_content PcmIioDataCollector::getSample(struct iio_counter & ctr)
 {
-    IIOCounterState *before, *after;
-    uint64 rawEvents[4] = {0};
-    std::unique_ptr<ccr> pccr(get_ccr(m_pcm, const_cast<struct iio_counter&>(ctr).ccr));
+    uint64 rawEvents[COUNTERS_NUMBER] = {0};
+    std::unique_ptr<ccr> pccr(get_ccr(m_pcm, ctr.ccr));
     rawEvents[ctr.idx] = pccr->get_ccr_value();
-    const int stacks_count = (int)m_pcm->getMaxNumOfIIOStacks();
-    before = new IIOCounterState[m_config.iios.size() * stacks_count];
-    after = new IIOCounterState[m_config.iios.size() * stacks_count];
 
     m_pcm->programIIOCounters(rawEvents);
-    for (auto socket = m_config.iios.cbegin(); socket != m_config.iios.cend(); ++socket) {
-        for (auto stack = socket->stacks.cbegin(); stack != socket->stacks.cend(); ++stack) {
-            auto iio_unit_id = stack->iio_unit_id;
-            uint32_t idx = (uint32_t)stacks_count * socket->socket_id + iio_unit_id;
-            before[idx] = m_pcm->getIIOCounterState(socket->socket_id, iio_unit_id, ctr.idx);
+    for (const auto& socket : m_config.iios) {
+        for (const auto& stack : socket.stacks) {
+            auto iio_unit_id = stack.iio_unit_id;
+            uint32_t idx = m_stacks_count * socket.socket_id + iio_unit_id;
+            m_before[idx] = m_pcm->getIIOCounterState(socket.socket_id, iio_unit_id, ctr.idx);
         }
     }
-    MySleepMs(delay_ms);
-    for (auto socket = m_config.iios.cbegin(); socket != m_config.iios.cend(); ++socket) {
-        for (auto stack = socket->stacks.cbegin(); stack != socket->stacks.cend(); ++stack) {
-            auto iio_unit_id = stack->iio_unit_id;
-            uint32_t idx = (uint32_t)stacks_count * socket->socket_id + iio_unit_id;
-            after[idx] = m_pcm->getIIOCounterState(socket->socket_id, iio_unit_id, ctr.idx);
-            uint64_t raw_result = getNumberOfEvents(before[idx], after[idx]);
-            uint64_t trans_result = uint64_t (raw_result * ctr.multiplier / (double) ctr.divider * (1000 / (double) delay_ms));
-            results[socket->socket_id][iio_unit_id][std::pair<h_id,v_id>(ctr.h_id,ctr.v_id)] = trans_result;
+    MySleepMs(m_delay_ms);
+    for (const auto& socket : m_config.iios) {
+        for (const auto& stack : socket.stacks) {
+            auto iio_unit_id = stack.iio_unit_id;
+            uint32_t idx = m_stacks_count * socket.socket_id + iio_unit_id;
+            m_after[idx] = m_pcm->getIIOCounterState(socket.socket_id, iio_unit_id, ctr.idx);
+            uint64_t raw_result = getNumberOfEvents(m_before[idx], m_after[idx]);
+            uint64_t trans_result = static_cast<uint64_t>(raw_result * ctr.multiplier / (double) ctr.divider * m_time_scaling_factor);
+            results[socket.socket_id][iio_unit_id][std::pair<h_id,v_id>(ctr.h_id, ctr.v_id)] = trans_result;
         }
     }
-    deleteAndNullifyArray(before);
-    deleteAndNullifyArray(after);
     return results;
 }
 

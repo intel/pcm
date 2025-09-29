@@ -680,15 +680,22 @@ int iio_evt_parse_handler(evt_cb_type cb_type, void *cb_ctx, counter &base_ctr, 
 
 class PcmIioDataCollector {
 public:
-    PcmIioDataCollector(struct pcm_iio_pmu_config& config) : m_config(config) {}
+    PcmIioDataCollector(struct pcm_iio_pmu_config& config);
     ~PcmIioDataCollector() = default;
 
-    void collect_data();
+    void collectData();
 private:
     struct pcm_iio_pmu_config& m_config;
     PCM *m_pcm;
+    uint32_t m_delay_ms;
+    uint32_t m_stacks_count;
+    double m_time_scaling_factor;
+    std::unique_ptr<SimpleCounterState[]> m_before;
+    std::unique_ptr<SimpleCounterState[]> m_after;
 
-    result_content get_IIO_Samples(const struct iio_counter & ctr, uint32_t delay_ms);
+    result_content getSample(struct iio_counter & ctr);
+
+    static constexpr int COUNTERS_NUMBER = 4;
 };
 
 void initializeIOStacksStructure( std::vector<struct iio_stacks_on_socket>& iios );

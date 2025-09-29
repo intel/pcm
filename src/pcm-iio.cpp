@@ -129,8 +129,6 @@ int mainThrows(int argc, char * argv[])
 
     print_cpu_details();
 
-    PCM * m = PCM::getInstance();
-
     std::ostream* output = &std::cout;
     std::fstream file_stream;
     if (!config.display.output_file.empty()) {
@@ -157,7 +155,7 @@ int mainThrows(int argc, char * argv[])
 
     mainLoop([&]()
     {
-        collector->collect_data();
+        collector->collectData();
         vector<string> display_buffer = displayBuilder->buildDisplayBuffer();
         display(display_buffer, *output);
         return true;
