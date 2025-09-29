@@ -690,6 +690,7 @@ private:
     double m_time_scaling_factor;
     std::unique_ptr<SimpleCounterState[]> m_before;
     std::unique_ptr<SimpleCounterState[]> m_after;
+    result_content m_results;
 
     result_content getSample(struct iio_counter & ctr);
 

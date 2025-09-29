@@ -7,8 +7,6 @@
 
 #include "pcm-iio-pmu.h"
 
-result_content results;
-
 vector<string> combine_stack_name_and_counter_names(string stack_name, const PCIeEventNameMap& nameMap)
 {
     vector<string> v;
@@ -1459,6 +1457,8 @@ PcmIioDataCollector::PcmIioDataCollector(struct pcm_iio_pmu_config& config) : m_
 
     m_before = std::make_unique<SimpleCounterState[]>(m_config.iios.size() * m_stacks_count);
     m_after = std::make_unique<SimpleCounterState[]>(m_config.iios.size() * m_stacks_count);
+
+    m_results.resize(m_pcm->getNumSockets(), stack_content(m_stacks_count, ctr_data()));
 }
 
 void PcmIioDataCollector::collectData()
@@ -1492,10 +1492,10 @@ result_content PcmIioDataCollector::getSample(struct iio_counter & ctr)
             m_after[idx] = m_pcm->getIIOCounterState(socket.socket_id, iio_unit_id, ctr.idx);
             uint64_t raw_result = getNumberOfEvents(m_before[idx], m_after[idx]);
             uint64_t trans_result = static_cast<uint64_t>(raw_result * ctr.multiplier / (double) ctr.divider * m_time_scaling_factor);
-            results[socket.socket_id][iio_unit_id][std::pair<h_id,v_id>(ctr.h_id, ctr.v_id)] = trans_result;
+            m_results[socket.socket_id][iio_unit_id][std::pair<h_id,v_id>(ctr.h_id, ctr.v_id)] = trans_result;
         }
     }
-    return results;
+    return m_results;
 }
 
 void initializeIOStacksStructure( std::vector<struct iio_stacks_on_socket>& iios )
@@ -1555,8 +1555,6 @@ void setupPCIeEventContextAndNameMap( iio_evt_parse_context& evt_ctx, PCIeEventN
         std::cerr << "The event configuration file (" << ev_file_name << ") cannot be loaded. Please verify the file. Exiting.\n";
         exit(EXIT_FAILURE);
     }
-
-    results.resize(m->getNumSockets(), stack_content(m->getMaxNumOfIIOStacks(), ctr_data()));
 }
 
 bool initializePCIeBWCounters(struct pcm_iio_pmu_config& pmu_config)
