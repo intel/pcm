@@ -63,24 +63,9 @@ void print_usage(const string& progname)
     cout << "\n";
 }
 
-PCM_MAIN_NOTHROW;
-
-int mainThrows(int argc, char * argv[])
+void parse_arguments(int argc, char * argv[], struct pcm_iio_config& config, MainLoop& mainLoop)
 {
-    if (print_version(argc, argv))
-        exit(EXIT_SUCCESS);
-
-    null_stream nullStream;
-    check_and_set_silent(argc, argv, nullStream);
-
-    std::cout << "\n Intel(r) Performance Counter Monitor " << PCM_VERSION << "\n";
-    std::cout << "\n This utility measures IIO information\n\n";
-
-    string program = string(argv[0]);
-
-    struct pcm_iio_config config;
-    MainLoop mainLoop;
-
+    const string program = string(argv[0]);
     while (argc > 1) {
         argv++;
         argc--;
@@ -120,6 +105,25 @@ int mainThrows(int argc, char * argv[])
             continue;
         }
     }
+}
+
+PCM_MAIN_NOTHROW;
+
+int mainThrows(int argc, char * argv[])
+{
+    if (print_version(argc, argv))
+        exit(EXIT_SUCCESS);
+
+    null_stream nullStream;
+    check_and_set_silent(argc, argv, nullStream);
+
+    std::cout << "\n Intel(r) Performance Counter Monitor " << PCM_VERSION << "\n";
+    std::cout << "\n This utility measures IIO information\n\n";
+
+    struct pcm_iio_config config;
+    MainLoop mainLoop;
+
+    parse_arguments(argc, argv, config, mainLoop);
 
     set_signal_handlers();
 
