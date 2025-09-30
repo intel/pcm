@@ -1398,6 +1398,9 @@ public:
     //! \brief Returns the number of IIO stacks per socket
     uint32 getMaxNumOfIIOStacks() const;
 
+    //! \brief Returns the number of IO stacks per socket
+    uint32 getMaxNumOfIOStacks() const;
+
     /*! \brief Returns the number of IDX accel devs
         \param accel index of IDX accel
     */

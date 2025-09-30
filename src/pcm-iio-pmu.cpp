@@ -1502,7 +1502,7 @@ PcmIioDataCollector::PcmIioDataCollector(struct pcm_iio_pmu_config& config) :
 {
     m_pcm = PCM::getInstance();
     m_delay_ms = static_cast<uint32_t>(m_config.delay * 1000 / m_config.evt_ctx.ctrs.size());
-    m_stacks_count = m_pcm->getMaxNumOfIIOStacks();
+    m_stacks_count = m_pcm->getMaxNumOfIOStacks();
     m_time_scaling_factor = 1000.0 / m_delay_ms;
 
     m_before = std::make_unique<SimpleCounterState[]>(m_config.iios.size() * m_stacks_count);
