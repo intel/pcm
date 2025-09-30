@@ -7,8 +7,6 @@
 //            and others
 #pragma once
 
-#include "cpucounters.h"
-
 #ifdef _MSC_VER
     #include <windows.h>
     #include "windows/windriver.h"
@@ -26,6 +24,7 @@
 
 #include "lspci.h"
 #include "utils.h"
+#include "cpucounters.h"
 
 using namespace std;
 using namespace pcm;

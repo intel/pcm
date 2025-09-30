@@ -5,6 +5,7 @@
 //            Aaron Cruz
 //            Alexander Antonov
 //            and others
+#include <numeric>
 
 #include "pcm-iio-pmu.h"
 #include "pcm-iio-topology.h"
