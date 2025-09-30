@@ -1449,7 +1449,57 @@ int iio_evt_parse_handler(evt_cb_type cb_type, void *cb_ctx, counter &base_ctr, 
     return 0;
 }
 
-PcmIioDataCollector::PcmIioDataCollector(struct pcm_iio_pmu_config& config) : m_config(config)
+class CounterHandlerStrategy {
+public:
+    CounterHandlerStrategy(PCM* pcm) : m_pcm(pcm) {}
+    virtual ~CounterHandlerStrategy() = default;
+
+    virtual void programCounters(uint64 rawEvents[4]) = 0;
+
+    virtual SimpleCounterState getCounterState(uint32_t socket_id, uint32_t unit_id, uint32_t counter_idx) = 0;
+
+protected:
+    PCM* m_pcm;
+};
+
+class IIOCounterStrategy : public CounterHandlerStrategy {
+public:
+    IIOCounterStrategy(PCM* pcm) : CounterHandlerStrategy(pcm) {}
+
+    void programCounters(uint64 rawEvents[4]) override
+    {
+        m_pcm->programIIOCounters(rawEvents);
+    }
+
+    SimpleCounterState getCounterState(uint32_t socket_id, uint32_t unit_id, uint32_t counter_idx) override
+    {
+        return m_pcm->getIIOCounterState(socket_id, unit_id, counter_idx);
+    }
+};
+
+std::shared_ptr<CounterHandlerStrategy> createCounterStrategy(PCM* pcm, CounterType type)
+{
+    switch (type)
+    {
+    case CounterType::iio:
+        return std::make_shared<IIOCounterStrategy>(pcm);
+    default:
+        std::cerr << "Unsupported counter type: " << static_cast<int>(type) << std::endl;
+        exit(EXIT_FAILURE);
+    }
+}
+
+void PcmIioDataCollector::initializeCounterHandlers()
+{
+    for (const auto& counter : m_config.evt_ctx.ctrs) {
+        if (!m_strategies[static_cast<size_t>(counter.type)]) {
+            m_strategies[static_cast<size_t>(counter.type)] = createCounterStrategy(m_pcm, counter.type);
+        }
+    }
+}
+
+PcmIioDataCollector::PcmIioDataCollector(struct pcm_iio_pmu_config& config) :
+    m_config(config), m_strategies(static_cast<size_t>(CounterType::COUNTER_TYPES_COUNT), nullptr)
 {
     m_pcm = PCM::getInstance();
     m_delay_ms = static_cast<uint32_t>(m_config.delay * 1000 / m_config.evt_ctx.ctrs.size());
@@ -1460,6 +1510,8 @@ PcmIioDataCollector::PcmIioDataCollector(struct pcm_iio_pmu_config& config) : m_
     m_after = std::make_unique<SimpleCounterState[]>(m_config.iios.size() * m_stacks_count);
 
     m_results.resize(m_pcm->getNumSockets(), stack_content(m_stacks_count, ctr_data()));
+
+    initializeCounterHandlers();
 }
 
 void PcmIioDataCollector::collectData()
@@ -1477,12 +1529,14 @@ result_content PcmIioDataCollector::getSample(struct iio_counter & ctr)
     std::unique_ptr<ccr> pccr(get_ccr(m_pcm, ctr.ccr));
     rawEvents[ctr.idx] = pccr->get_ccr_value();
 
-    m_pcm->programIIOCounters(rawEvents);
+    auto strategy = m_strategies[static_cast<size_t>(ctr.type)];
+
+    strategy->programCounters(rawEvents);
     for (const auto& socket : m_config.iios) {
         for (const auto& stack : socket.stacks) {
             auto iio_unit_id = stack.iio_unit_id;
             uint32_t idx = m_stacks_count * socket.socket_id + iio_unit_id;
-            m_before[idx] = m_pcm->getIIOCounterState(socket.socket_id, iio_unit_id, ctr.idx);
+            m_before[idx] = strategy->getCounterState(socket.socket_id, iio_unit_id, ctr.idx);
         }
     }
     MySleepMs(m_delay_ms);
@@ -1490,7 +1544,7 @@ result_content PcmIioDataCollector::getSample(struct iio_counter & ctr)
         for (const auto& stack : socket.stacks) {
             auto iio_unit_id = stack.iio_unit_id;
             uint32_t idx = m_stacks_count * socket.socket_id + iio_unit_id;
-            m_after[idx] = m_pcm->getIIOCounterState(socket.socket_id, iio_unit_id, ctr.idx);
+            m_after[idx] = strategy->getCounterState(socket.socket_id, iio_unit_id, ctr.idx);
             uint64_t raw_result = getNumberOfEvents(m_before[idx], m_after[idx]);
             uint64_t trans_result = static_cast<uint64_t>(raw_result * ctr.multiplier / (double) ctr.divider * m_time_scaling_factor);
             m_results[socket.socket_id][iio_unit_id][std::pair<h_id,v_id>(ctr.h_id, ctr.v_id)] = trans_result;

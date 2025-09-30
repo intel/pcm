@@ -676,6 +676,8 @@ public:
 
 int iio_evt_parse_handler(evt_cb_type cb_type, void *cb_ctx, counter &base_ctr, std::map<std::string, uint32_t> &ofm, std::string key, uint64 numValue);
 
+class CounterHandlerStrategy;
+
 class PcmIioDataCollector {
 public:
     PcmIioDataCollector(struct pcm_iio_pmu_config& config);
@@ -691,8 +693,10 @@ private:
     std::unique_ptr<SimpleCounterState[]> m_before;
     std::unique_ptr<SimpleCounterState[]> m_after;
     result_content m_results;
+    std::vector<std::shared_ptr<CounterHandlerStrategy>> m_strategies;
 
     result_content getSample(struct iio_counter & ctr);
+    void initializeCounterHandlers();
 
     static constexpr int COUNTERS_NUMBER = 4;
 };
