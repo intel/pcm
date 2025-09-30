@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: BSD-3-Clause
-// Copyright (c) 2017-2022, Intel Corporation
+// Copyright (c) 2017-2025, Intel Corporation
 
 // written by Patrick Lu,
-//            Aaron Cruz
+//            Aaron Cruz,
+//            Alexander Antonov
 //            and others
 
 #include "pcm-iio-pmu.h"

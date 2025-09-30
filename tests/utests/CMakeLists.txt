@@ -15,7 +15,7 @@ if(APPLE)
 endif()
 
 file(GLOB LSPCI_TEST_FILES lspci-utest.cpp ${CMAKE_SOURCE_DIR}/src/lspci.cpp)
-file(GLOB PCM_IIO_TEST_FILES pcm-iio-utest.cpp ${CMAKE_SOURCE_DIR}/src/pcm-iio-pmu.cpp)
+file(GLOB PCM_IIO_TEST_FILES pcm-iio-utest.cpp ${CMAKE_SOURCE_DIR}/src/pcm-iio-pmu.cpp ${CMAKE_SOURCE_DIR}/src/pcm-iio-topology.cpp)
 
 if(APPLE)
     set(LIBS PcmMsr Threads::Threads PCM_STATIC)
