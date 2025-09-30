@@ -313,7 +313,7 @@ public:
     std::vector<HWRegisterPtr> counterFilterENG;
     std::vector<HWRegisterPtr> counterFilterTC;
     std::vector<HWRegisterPtr> counterFilterPGSZ;
-    std::vector<HWRegisterPtr> counterFilterXFERSZ; 
+    std::vector<HWRegisterPtr> counterFilterXFERSZ;
 
     IDX_PMU(const bool perfMode_,
         const uint32 numaNode_,
@@ -570,7 +570,6 @@ class SimpleCounterState
     friend uint64 getNumberOfEvents(const T & before, const T & after);
     friend class PCM;
     uint64 data;
-
 public:
     SimpleCounterState() : data(0)
     { }
@@ -1757,7 +1756,7 @@ public:
 
             One needs to call this method when your program finishes or/and you are not going to use the
             performance counting routines anymore.
-*/
+    */
     void cleanup(const bool silent = false);
 
     /*! \brief Forces PMU reset
@@ -1835,7 +1834,7 @@ public:
             \return Number of sockets in the system
     */
     uint32 getNumSockets() const;
-    
+
     /*! \brief Reads  the accel type in the system
         \return acceltype
     */
@@ -1853,7 +1852,7 @@ public:
 
     /*! \brief Sets the Number of AccelCounters in the system
         \return number of counters
-    */          
+    */
     void setNumberofAccelCounters(uint32 input);
 
     /*! \brief Reads number of online sockets (CPUs) in the system
@@ -2426,18 +2425,17 @@ public:
 
     //! \brief Control QAT telemetry service
     //! \param dev device index
-    //! \param operation control code 
+    //! \param operation control code
     void controlQATTelemetry(uint32 dev, uint32 operation);
 
     //! \brief Program IDX events
     //! \param events config of event to program
-    //! \param filters_wq filters(work queue) of event to program 
-    //! \param filters_eng filters(engine) of event to program 
-    //! \param filters_tc filters(traffic class) of event to program 
-    //! \param filters_pgsz filters(page size) of event to program 
-    //! \param filters_xfersz filters(transfer size) of event to program 
+    //! \param filters_wq filters(work queue) of event to program
+    //! \param filters_eng filters(engine) of event to program
+    //! \param filters_tc filters(traffic class) of event to program
+    //! \param filters_pgsz filters(page size) of event to program
+    //! \param filters_xfersz filters(transfer size) of event to program
     void programIDXAccelCounters(uint32 accel, std::vector<uint64_t> &events, std::vector<uint32> &filters_wq, std::vector<uint32> &filters_eng, std::vector<uint32> &filters_tc, std::vector<uint32> &filters_pgsz, std::vector<uint32> &filters_xfersz);
-
 
     //! \brief Get the state of IIO counter
     //! \param socket socket of the IIO stack
@@ -2672,7 +2670,7 @@ public:
             || cpu_family_model == PCM::GNR_D
             );
     }
-    
+
     bool memoryTrafficMetricsAvailable() const
     {
         return (!(isAtom() || cpu_family_model == PCM::CLARKDALE))
