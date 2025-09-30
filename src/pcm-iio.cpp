@@ -153,10 +153,11 @@ int mainThrows(int argc, char * argv[])
 #endif
 
     auto displayBuilder = getDisplayBuilder(config);
+    auto collector = std::make_unique<PcmIioDataCollector>(config.pmu_config);
 
     mainLoop([&]()
     {
-        collect_data(m, config.pmu_config);
+        collector->collect_data();
         vector<string> display_buffer = displayBuilder->buildDisplayBuffer();
         display(display_buffer, *output);
         return true;

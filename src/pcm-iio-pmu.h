@@ -678,9 +678,18 @@ public:
 
 int iio_evt_parse_handler(evt_cb_type cb_type, void *cb_ctx, counter &base_ctr, std::map<std::string, uint32_t> &ofm, std::string key, uint64 numValue);
 
-result_content get_IIO_Samples(PCM *m, const std::vector<struct iio_stacks_on_socket>& iios, const struct iio_counter & ctr, uint32_t delay_ms);
+class PcmIioDataCollector {
+public:
+    PcmIioDataCollector(struct pcm_iio_pmu_config& config) : m_config(config) {}
+    ~PcmIioDataCollector() = default;
 
-void collect_data(PCM *m, struct pcm_iio_pmu_config& config);
+    void collect_data();
+private:
+    struct pcm_iio_pmu_config& m_config;
+    PCM *m_pcm;
+
+    result_content get_IIO_Samples(const struct iio_counter & ctr, uint32_t delay_ms);
+};
 
 void initializeIIOStructure( std::vector<struct iio_stacks_on_socket>& iios );
 
