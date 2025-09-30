@@ -1436,13 +1436,12 @@ int iio_evt_parse_handler(evt_cb_type cb_type, void *cb_ctx, counter &base_ctr, 
         context->ctr.v_event_name = base_ctr.v_event_name;
         context->ctr.idx = base_ctr.idx;
         context->ctr.multiplier = base_ctr.multiplier;
-        context->ctr.divider = base_ctr.divider;
         context->ctr.h_id = base_ctr.h_id;
         context->ctr.v_id = base_ctr.v_id;
         context->ctr.type = base_ctr.type;
         DBG(4, "line parse OK, ctrcfg=0x", std::hex, context->ctr.ccr, ", h_event_name=",  base_ctr.h_event_name, ", v_event_name=", base_ctr.v_event_name);
         DBG(4, ", h_id=0x", std::hex, base_ctr.h_id, ", v_id=0x", std::hex, base_ctr.v_id);
-        DBG(4, ", idx=0x", std::hex, base_ctr.idx, ", multiplier=0x", std::hex, base_ctr.multiplier, ", divider=0x", std::hex, base_ctr.divider, std::dec, ", counter type = ", static_cast<int>(base_ctr.type), "\n");
+        DBG(4, ", idx=0x", std::hex, base_ctr.idx, ", multiplier=0x", std::hex, base_ctr.multiplier, std::dec, ", counter type = ", static_cast<int>(base_ctr.type), "\n");
         context->ctrs.push_back(context->ctr);
     }
 
@@ -1546,7 +1545,7 @@ result_content PcmIioDataCollector::getSample(struct iio_counter & ctr)
             uint32_t idx = m_stacks_count * socket.socket_id + iio_unit_id;
             m_after[idx] = strategy->getCounterState(socket.socket_id, iio_unit_id, ctr.idx);
             uint64_t raw_result = getNumberOfEvents(m_before[idx], m_after[idx]);
-            uint64_t trans_result = static_cast<uint64_t>(raw_result * ctr.multiplier / (double) ctr.divider * m_time_scaling_factor);
+            uint64_t trans_result = static_cast<uint64_t>(raw_result * ctr.multiplier * m_time_scaling_factor);
             m_results[socket.socket_id][iio_unit_id][std::pair<h_id,v_id>(ctr.h_id, ctr.v_id)] = trans_result;
         }
     }
@@ -1584,7 +1583,6 @@ void fillOpcodeFieldMapForPCIeEvents(map<string,uint32_t>& opcodeFieldMap)
     opcodeFieldMap["hname"] = PCM::H_EVENT_NAME;
     opcodeFieldMap["vname"] = PCM::V_EVENT_NAME;
     opcodeFieldMap["multiplier"] = PCM::MULTIPLIER;
-    opcodeFieldMap["divider"] = PCM::DIVIDER;
     opcodeFieldMap["ctr"] = PCM::COUNTER_INDEX;
     opcodeFieldMap["unit"] = PCM::UNIT_TYPE;
 }

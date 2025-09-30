@@ -36,7 +36,6 @@ struct ExpectedEvent {
     uint32_t ch_mask;
     uint32_t fc_mask;
     int multiplier;
-    int divider;
     std::string hname;
     std::string vname;
     CounterType type;
@@ -48,8 +47,7 @@ struct ExpectedEvent {
             ctr == actual.idx &&
             hname == actual.h_event_name &&
             vname == actual.v_event_name &&
-            multiplier == actual.multiplier &&
-            divider == actual.divider;
+            multiplier == actual.multiplier;
 
         // Check if ev_sel and umask were properly encoded in CCR
         bool ev_sel_match = (actual.ccr & 0xFF) == ev_sel;
@@ -93,54 +91,54 @@ TEST_F(LoadEventsTest, TestVerifyAllFieldsFromOpcodeFile)
     // 1. Define expected events directly (hardcoded values from opCode-6-174.txt)
     std::vector<ExpectedEvent> expectedEvents = {
         // IB write events
-        {0, 0x83, 0x1, 1, 0x7, 4, 1, "IB write", "Part0", CounterType::iio},
-        {1, 0x83, 0x1, 2, 0x7, 4, 1, "IB write", "Part1", CounterType::iio},
-        {0, 0x83, 0x1, 4, 0x7, 4, 1, "IB write", "Part2", CounterType::iio},
-        {1, 0x83, 0x1, 8, 0x7, 4, 1, "IB write", "Part3", CounterType::iio},
-        {0, 0x83, 0x1, 16, 0x7, 4, 1, "IB write", "Part4", CounterType::iio},
-        {1, 0x83, 0x1, 32, 0x7, 4, 1, "IB write", "Part5", CounterType::iio},
-        {0, 0x83, 0x1, 64, 0x7, 4, 1, "IB write", "Part6", CounterType::iio},
-        {1, 0x83, 0x1, 128, 0x7, 4, 1, "IB write", "Part7", CounterType::iio},
+        {0, 0x83, 0x1, 1,  0x7,  4, "IB write", "Part0", CounterType::iio},
+        {1, 0x83, 0x1, 2,  0x7,  4, "IB write", "Part1", CounterType::iio},
+        {0, 0x83, 0x1, 4,  0x7,  4, "IB write", "Part2", CounterType::iio},
+        {1, 0x83, 0x1, 8,  0x7,  4, "IB write", "Part3", CounterType::iio},
+        {0, 0x83, 0x1, 16, 0x7,  4, "IB write", "Part4", CounterType::iio},
+        {1, 0x83, 0x1, 32, 0x7,  4, "IB write", "Part5", CounterType::iio},
+        {0, 0x83, 0x1, 64, 0x7,  4, "IB write", "Part6", CounterType::iio},
+        {1, 0x83, 0x1, 128, 0x7, 4, "IB write", "Part7", CounterType::iio},
 
         // IB read events
-        {0, 0x83, 0x4, 1, 0x7, 4, 1, "IB read", "Part0", CounterType::iio},
-        {1, 0x83, 0x4, 2, 0x7, 4, 1, "IB read", "Part1", CounterType::iio},
-        {0, 0x83, 0x4, 4, 0x7, 4, 1, "IB read", "Part2", CounterType::iio},
-        {1, 0x83, 0x4, 8, 0x7, 4, 1, "IB read", "Part3", CounterType::iio},
-        {0, 0x83, 0x4, 16, 0x7, 4, 1, "IB read", "Part4", CounterType::iio},
-        {1, 0x83, 0x4, 32, 0x7, 4, 1, "IB read", "Part5", CounterType::iio},
-        {0, 0x83, 0x4, 64, 0x7, 4, 1, "IB read", "Part6", CounterType::iio},
-        {1, 0x83, 0x4, 128, 0x7, 4, 1, "IB read", "Part7", CounterType::iio},
+        {0, 0x83, 0x4, 1,   0x7, 4, "IB read", "Part0", CounterType::iio},
+        {1, 0x83, 0x4, 2,   0x7, 4, "IB read", "Part1", CounterType::iio},
+        {0, 0x83, 0x4, 4,   0x7, 4, "IB read", "Part2", CounterType::iio},
+        {1, 0x83, 0x4, 8,   0x7, 4, "IB read", "Part3", CounterType::iio},
+        {0, 0x83, 0x4, 16,  0x7, 4, "IB read", "Part4", CounterType::iio},
+        {1, 0x83, 0x4, 32,  0x7, 4, "IB read", "Part5", CounterType::iio},
+        {0, 0x83, 0x4, 64,  0x7, 4, "IB read", "Part6", CounterType::iio},
+        {1, 0x83, 0x4, 128, 0x7, 4, "IB read", "Part7", CounterType::iio},
 
         // OB read events
-        {2, 0xc0, 0x4, 1, 0x7, 4, 1, "OB read", "Part0", CounterType::iio},
-        {3, 0xc0, 0x4, 2, 0x7, 4, 1, "OB read", "Part1", CounterType::iio},
-        {2, 0xc0, 0x4, 4, 0x7, 4, 1, "OB read", "Part2", CounterType::iio},
-        {3, 0xc0, 0x4, 8, 0x7, 4, 1, "OB read", "Part3", CounterType::iio},
-        {2, 0xc0, 0x4, 16, 0x7, 4, 1, "OB read", "Part4", CounterType::iio},
-        {3, 0xc0, 0x4, 32, 0x7, 4, 1, "OB read", "Part5", CounterType::iio},
-        {2, 0xc0, 0x4, 64, 0x7, 4, 1, "OB read", "Part6", CounterType::iio},
-        {3, 0xc0, 0x4, 128, 0x7, 4, 1, "OB read", "Part7", CounterType::iio},
+        {2, 0xc0, 0x4, 1,   0x7, 4, "OB read", "Part0", CounterType::iio},
+        {3, 0xc0, 0x4, 2,   0x7, 4, "OB read", "Part1", CounterType::iio},
+        {2, 0xc0, 0x4, 4,   0x7, 4, "OB read", "Part2", CounterType::iio},
+        {3, 0xc0, 0x4, 8,   0x7, 4, "OB read", "Part3", CounterType::iio},
+        {2, 0xc0, 0x4, 16,  0x7, 4, "OB read", "Part4", CounterType::iio},
+        {3, 0xc0, 0x4, 32,  0x7, 4, "OB read", "Part5", CounterType::iio},
+        {2, 0xc0, 0x4, 64,  0x7, 4, "OB read", "Part6", CounterType::iio},
+        {3, 0xc0, 0x4, 128, 0x7, 4, "OB read", "Part7", CounterType::iio},
 
         // OB write events
-        {2, 0xc0, 0x1, 1, 0x7, 4, 1, "OB write", "Part0", CounterType::iio},
-        {3, 0xc0, 0x1, 2, 0x7, 4, 1, "OB write", "Part1", CounterType::iio},
-        {2, 0xc0, 0x1, 4, 0x7, 4, 1, "OB write", "Part2", CounterType::iio},
-        {3, 0xc0, 0x1, 8, 0x7, 4, 1, "OB write", "Part3", CounterType::iio},
-        {2, 0xc0, 0x1, 16, 0x7, 4, 1, "OB write", "Part4", CounterType::iio},
-        {3, 0xc0, 0x1, 32, 0x7, 4, 1, "OB write", "Part5", CounterType::iio},
-        {2, 0xc0, 0x1, 64, 0x7, 4, 1, "OB write", "Part6", CounterType::iio},
-        {3, 0xc0, 0x1, 128, 0x7, 4, 1, "OB write", "Part7", CounterType::iio},
+        {2, 0xc0, 0x1, 1,   0x7, 4, "OB write", "Part0", CounterType::iio},
+        {3, 0xc0, 0x1, 2,   0x7, 4, "OB write", "Part1", CounterType::iio},
+        {2, 0xc0, 0x1, 4,   0x7, 4, "OB write", "Part2", CounterType::iio},
+        {3, 0xc0, 0x1, 8,   0x7, 4, "OB write", "Part3", CounterType::iio},
+        {2, 0xc0, 0x1, 16,  0x7, 4, "OB write", "Part4", CounterType::iio},
+        {3, 0xc0, 0x1, 32,  0x7, 4, "OB write", "Part5", CounterType::iio},
+        {2, 0xc0, 0x1, 64,  0x7, 4, "OB write", "Part6", CounterType::iio},
+        {3, 0xc0, 0x1, 128, 0x7, 4, "OB write", "Part7", CounterType::iio},
 
         // IOMMU events
-        {0, 0x40, 0x01, 0x0, 0x0, 1, 1, "IOTLB Lookup", "Total", CounterType::iio},
-        {1, 0x40, 0x20, 0x0, 0x0, 1, 1, "IOTLB Miss", "Total", CounterType::iio},
-        {2, 0x40, 0x80, 0x0, 0x0, 1, 1, "Ctxt Cache Hit", "Total", CounterType::iio},
-        {3, 0x41, 0x10, 0x0, 0x0, 1, 1, "256T Cache Hit", "Total", CounterType::iio},
-        {0, 0x41, 0x08, 0x0, 0x0, 1, 1, "512G Cache Hit", "Total", CounterType::iio},
-        {1, 0x41, 0x04, 0x0, 0x0, 1, 1, "1G Cache Hit", "Total", CounterType::iio},
-        {2, 0x41, 0x02, 0x0, 0x0, 1, 1, "2M Cache Hit", "Total", CounterType::iio},
-        {3, 0x41, 0xc0, 0x0, 0x0, 1, 1, "IOMMU Mem Access", "Total", CounterType::iio},
+        {0, 0x40, 0x01, 0x0, 0x0, 1, "IOTLB Lookup",     "Total", CounterType::iio},
+        {1, 0x40, 0x20, 0x0, 0x0, 1, "IOTLB Miss",       "Total", CounterType::iio},
+        {2, 0x40, 0x80, 0x0, 0x0, 1, "Ctxt Cache Hit",   "Total", CounterType::iio},
+        {3, 0x41, 0x10, 0x0, 0x0, 1, "256T Cache Hit",   "Total", CounterType::iio},
+        {0, 0x41, 0x08, 0x0, 0x0, 1, "512G Cache Hit",   "Total", CounterType::iio},
+        {1, 0x41, 0x04, 0x0, 0x0, 1, "1G Cache Hit",     "Total", CounterType::iio},
+        {2, 0x41, 0x02, 0x0, 0x0, 1, "2M Cache Hit",     "Total", CounterType::iio},
+        {3, 0x41, 0xc0, 0x0, 0x0, 1, "IOMMU Mem Access", "Total", CounterType::iio},
     };
 
     // 2. Load events using the existing function
@@ -188,10 +186,6 @@ TEST_F(LoadEventsTest, TestVerifyAllFieldsFromOpcodeFile)
 
                 EXPECT_EQ(expectedEvents[i].multiplier, actualEvt.multiplier)
                     << "Multiplier mismatch for " << actualEvt.h_event_name
-                    << "/" << actualEvt.v_event_name;
-
-                EXPECT_EQ(expectedEvents[i].divider, actualEvt.divider)
-                    << "Divider mismatch for " << actualEvt.h_event_name
                     << "/" << actualEvt.v_event_name;
 
                 EXPECT_EQ(expectedEvents[i].type, actualEvt.type)
