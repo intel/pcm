@@ -587,6 +587,12 @@ inline void parsePID(int argc, char* argv[], int& pid)
     parseParam(argc, argv, "pid", [&pid](const char* p) { if (p) pid = atoi(p); });
 }
 
+enum class CounterType {
+    COUNTER_TYPE_INVALID = -1,
+    iio = 0,
+    COUNTER_TYPES_COUNT
+};
+
 struct counter {
     std::string h_event_name = "";
     std::string v_event_name = "";
@@ -596,6 +602,7 @@ struct counter {
     int divider = 0;
     uint32_t h_id = 0;
     uint32_t v_id = 0;
+    CounterType type = CounterType::COUNTER_TYPE_INVALID;
 };
 
 struct data{

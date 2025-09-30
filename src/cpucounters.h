@@ -957,6 +957,7 @@ public:
         THRESH,
         CH_MASK,
         FC_MASK,
+        UNIT_TYPE,
         /* Below are not part of perfmon definition */
         H_EVENT_NAME,
         V_EVENT_NAME,

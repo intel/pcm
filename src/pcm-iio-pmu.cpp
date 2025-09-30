@@ -1439,9 +1439,10 @@ int iio_evt_parse_handler(evt_cb_type cb_type, void *cb_ctx, counter &base_ctr, 
         context->ctr.divider = base_ctr.divider;
         context->ctr.h_id = base_ctr.h_id;
         context->ctr.v_id = base_ctr.v_id;
+        context->ctr.type = base_ctr.type;
         DBG(4, "line parse OK, ctrcfg=0x", std::hex, context->ctr.ccr, ", h_event_name=",  base_ctr.h_event_name, ", v_event_name=", base_ctr.v_event_name);
         DBG(4, ", h_id=0x", std::hex, base_ctr.h_id, ", v_id=0x", std::hex, base_ctr.v_id);
-        DBG(4, ", idx=0x", std::hex, base_ctr.idx, ", multiplier=0x", std::hex, base_ctr.multiplier, ", divider=0x", std::hex, base_ctr.divider, std::dec, "\n");
+        DBG(4, ", idx=0x", std::hex, base_ctr.idx, ", multiplier=0x", std::hex, base_ctr.multiplier, ", divider=0x", std::hex, base_ctr.divider, std::dec, ", counter type = ", static_cast<int>(base_ctr.type), "\n");
         context->ctrs.push_back(context->ctr);
     }
 
@@ -1531,6 +1532,7 @@ void fillOpcodeFieldMapForPCIeEvents(map<string,uint32_t>& opcodeFieldMap)
     opcodeFieldMap["multiplier"] = PCM::MULTIPLIER;
     opcodeFieldMap["divider"] = PCM::DIVIDER;
     opcodeFieldMap["ctr"] = PCM::COUNTER_INDEX;
+    opcodeFieldMap["unit"] = PCM::UNIT_TYPE;
 }
 
 void setupPCIeEventContextAndNameMap( iio_evt_parse_context& evt_ctx, PCIeEventNameMap& nameMap)

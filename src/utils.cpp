@@ -1279,21 +1279,35 @@ int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
                             const auto err_msg = std::string("Detect duplicated v_name:") + v_name + "\n";
                             throw std::invalid_argument(err_msg);
                         }
-                        ctr.v_id = (uint32_t)v_nameMap.size() - 1;
+                        ctr.v_id = static_cast<uint32_t>(v_nameMap.size()) - 1;
                         DBG(2, "h_name:" , ctr.h_event_name , ",hid=" , ctr.h_id , ",v_name:" , ctr.v_event_name , ",v_id: ", ctr.v_id);
                         break;
                     }
                 //TODO: double type for multiplier. drop divider variable
                 case PCM::MULTIPLIER:
-                    ctr.multiplier = (int)numValue;
+                    ctr.multiplier = static_cast<int>(numValue);
                     break;
                 case PCM::DIVIDER:
-                    ctr.divider = (int)numValue;
+                    ctr.divider = static_cast<int>(numValue);
                     break;
                 case PCM::COUNTER_INDEX:
-                    ctr.idx = (int)numValue;
+                    ctr.idx = static_cast<int>(numValue);
                     break;
-
+                case PCM::UNIT_TYPE:
+                    {
+                        auto typeString = dos2unix(value);
+                        if (typeString == std::string("iio"))
+                        {
+                            ctr.type = CounterType::iio;
+                        }
+                        else
+                        {
+                            in.close();
+                            const auto err_msg = std::string("event line processing(end) fault.\n");
+                            throw std::invalid_argument(err_msg);
+                        }
+                    }
+                    break;
                 default:
                     if (pfn_evtcb(EVT_LINE_FIELD, evtcb_ctx, ctr, ofm, key, numValue))
                     {
