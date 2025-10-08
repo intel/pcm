@@ -454,7 +454,7 @@ result_content PcmIioDataCollector::getSample(struct iio_counter & ctr)
     for (const auto& socket : m_config.iios) {
         for (const auto& stack : socket.stacks) {
             auto iio_unit_id = stack.iio_unit_id;
-            uint32_t idx = m_stacks_count * socket.socket_id + iio_unit_id;
+            uint32_t idx = getStackIndex(socket.socket_id, iio_unit_id);
             m_before[idx] = strategy->getCounterState(socket.socket_id, iio_unit_id, ctr.idx);
         }
     }
@@ -462,7 +462,7 @@ result_content PcmIioDataCollector::getSample(struct iio_counter & ctr)
     for (const auto& socket : m_config.iios) {
         for (const auto& stack : socket.stacks) {
             auto iio_unit_id = stack.iio_unit_id;
-            uint32_t idx = m_stacks_count * socket.socket_id + iio_unit_id;
+            uint32_t idx = getStackIndex(socket.socket_id, iio_unit_id);
             m_after[idx] = strategy->getCounterState(socket.socket_id, iio_unit_id, ctr.idx);
             uint64_t raw_result = getNumberOfEvents(m_before[idx], m_after[idx]);
             uint64_t trans_result = static_cast<uint64_t>(raw_result * ctr.multiplier * m_time_scaling_factor);

@@ -110,6 +110,8 @@ private:
     result_content getSample(struct iio_counter & ctr);
     void initializeCounterHandlers();
 
+    uint32_t getStackIndex(uint32_t socket_id, uint32_t io_unit_id) const { return m_stacks_count * socket_id + io_unit_id; }
+
     static constexpr int COUNTERS_NUMBER = 4;
 };
 
