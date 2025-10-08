@@ -1196,6 +1196,7 @@ int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
     if (!in.is_open())
     {
         const auto alt_fn = getInstallPathPrefix() + fn;
+        std::cout << "INFO: Couldn't load event config file " << fn << ", trying to load it from PCM install path: " << alt_fn << std::endl;
         in.open(alt_fn);
         if (!in.is_open())
         {
