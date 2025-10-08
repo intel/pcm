@@ -37,7 +37,7 @@ struct iio_counter : public counter {
 
 typedef struct
 {
-    PCM *m;
+    uint32 cpu_family_model;
     iio_counter ctr;
     vector<struct iio_counter> ctrs;
 } iio_evt_parse_context;

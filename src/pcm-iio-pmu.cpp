@@ -275,9 +275,9 @@ std::unique_ptr<PcmIioOutputBuilder> getDisplayBuilder(struct pcm_iio_config& co
     return displayBuilder;
 }
 
-ccr* get_ccr(PCM* m, uint64_t& ccr)
+ccr* get_ccr(uint32 cpu_family_model, uint64_t& ccr)
 {
-    switch (m->getCPUFamilyModel())
+    switch (cpu_family_model)
     {
         case PCM::SKX:
             return new pcm::ccr(ccr, ccr::ccr_type::skx);
@@ -291,7 +291,7 @@ ccr* get_ccr(PCM* m, uint64_t& ccr)
         case PCM::GNR_D:
             return new pcm::ccr(ccr, ccr::ccr_type::icx);
         default:
-            cerr << m->getCPUFamilyModelString() << " is not supported! Program aborted" << endl;
+            std::cerr << PCM::cpuFamilyModelToUArchCodename(cpu_family_model) << " is not supported! Program aborted" << std::endl;
             exit(EXIT_FAILURE);
     }
 }
@@ -299,7 +299,6 @@ ccr* get_ccr(PCM* m, uint64_t& ccr)
 int iio_evt_parse_handler(evt_cb_type cb_type, void *cb_ctx, counter &base_ctr, std::map<std::string, uint32_t> &ofm, std::string key, uint64 numValue)
 {
     iio_evt_parse_context *context = (iio_evt_parse_context *)cb_ctx;
-    PCM *m = context->m;
 
     if (cb_type == EVT_LINE_START) //this event will be called per line(start)
     {
@@ -307,7 +306,7 @@ int iio_evt_parse_handler(evt_cb_type cb_type, void *cb_ctx, counter &base_ctr, 
     }
     else if (cb_type == EVT_LINE_FIELD) //this event will be called per field of line
     {
-        std::unique_ptr<ccr> pccr(get_ccr(m, context->ctr.ccr));
+        std::unique_ptr<ccr> pccr(get_ccr(context->cpu_family_model, context->ctr.ccr));
         switch (ofm[key])
         {
             case PCM::OPCODE:
@@ -445,7 +444,7 @@ void PcmIioDataCollector::collectData()
 result_content PcmIioDataCollector::getSample(struct iio_counter & ctr)
 {
     uint64 rawEvents[COUNTERS_NUMBER] = {0};
-    std::unique_ptr<ccr> pccr(get_ccr(m_pcm, ctr.ccr));
+    std::unique_ptr<ccr> pccr(get_ccr(m_pcm->getCPUFamilyModel(), ctr.ccr));
     rawEvents[ctr.idx] = pccr->get_ccr_value();
 
     auto strategy = m_strategies[static_cast<size_t>(ctr.type)];
@@ -502,7 +501,7 @@ void setupPCIeEventContextAndNameMap( iio_evt_parse_context& evt_ctx, PCIeEventN
     map<string,uint32_t> opcodeFieldMap;
     fillOpcodeFieldMapForPCIeEvents( opcodeFieldMap );
 
-    evt_ctx.m = m;
+    evt_ctx.cpu_family_model = m->getCPUFamilyModel();
     evt_ctx.ctrs.clear();//fill the ctrs by evt_handler call back func.
 
     try

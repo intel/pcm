@@ -16,10 +16,8 @@ class LoadEventsTest : public ::testing::Test {
 protected:
     void SetUp() override
     {
-
         fillOpcodeFieldMapForPCIeEvents(opcodeFieldMap);
 
-        evt_ctx.m = PCM::getInstance();
         evt_ctx.ctrs.clear();
     }
 
@@ -66,6 +64,8 @@ struct ExpectedEvent {
 TEST_F(LoadEventsTest, TestLoadEventsAlternateVersion)
 {
     const std::string eventFile = "opCode-6-174.txt";
+
+    evt_ctx.cpu_family_model = PCM_CPU_FAMILY_MODEL(6, 174);
 
     // Test the alternate version of load_events without nameMap
     ASSERT_NO_THROW({
@@ -140,6 +140,8 @@ TEST_F(LoadEventsTest, TestVerifyAllFieldsFromOpcodeFile)
         {2, 0x41, 0x02, 0x0, 0x0, 1, "2M Cache Hit",     "Total", CounterType::iio},
         {3, 0x41, 0xc0, 0x0, 0x0, 1, "IOMMU Mem Access", "Total", CounterType::iio},
     };
+
+    evt_ctx.cpu_family_model = PCM_CPU_FAMILY_MODEL(6, 174);
 
     // 2. Load events using the existing function
     evt_ctx.ctrs.clear();
