@@ -1281,9 +1281,14 @@ private:
     void programCXLCM(const uint64* events);
     void cleanupUncorePMUs(const bool silent = false);
 
+    static bool isCLX(int cpu_family_model_, int cpu_stepping_)
+    {
+        return (PCM::SKX == cpu_family_model_) && (cpu_stepping_ > 4 && cpu_stepping_ < 8);
+    }
+
     bool isCLX() const // Cascade Lake-SP
     {
-        return (PCM::SKX == cpu_family_model) && (cpu_stepping > 4 && cpu_stepping < 8);
+        return isCLX(cpu_family_model, cpu_stepping);
     }
 
     static bool isCPX(int cpu_family_model_, int cpu_stepping_) // Cooper Lake
@@ -2466,6 +2471,11 @@ public:
     //! \brief Get a string describing the codename of the processor microarchitecture
     //! \param cpu_family_model_ cpu model (if no parameter provided the codename of the detected CPU is returned)
     const char * getUArchCodename(const int32 cpu_family_model_ = -1) const;
+
+    //! \brief Convert CPU Family/Model/Stepping to microarchitecture codename
+    //! \param cpu_family_model_ cpu family model
+    //! \param cpu_stepping necessary for some CPU models to distinguish between different microarchitectures
+    static const char * cpuFamilyModelToUArchCodename(const int32 cpu_family_model_, const int32 cpu_stepping_ = -1);
 
     //! \brief Get Brand string of processor
     static std::string getCPUBrandString();

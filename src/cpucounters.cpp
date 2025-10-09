@@ -4980,12 +4980,8 @@ bool PCM::PMUinUse()
     return false;
 }
 
-const char * PCM::getUArchCodename(const int32 cpu_family_model_param) const
+const char * PCM::cpuFamilyModelToUArchCodename(const int32 cpu_family_model_, const int32 cpu_stepping_)
 {
-    auto cpu_family_model_ = cpu_family_model_param;
-    if(cpu_family_model_ < 0)
-        cpu_family_model_ = this->cpu_family_model;
-
     switch(cpu_family_model_)
     {
         case CENTERTON:
@@ -5068,16 +5064,16 @@ const char * PCM::getUArchCodename(const int32 cpu_family_model_param) const
         case ARL:
             return "Arrow Lake";
         case SKX:
-            if (cpu_family_model_param >= 0)
+            if (cpu_stepping_ < 0)
             {
-                // query for specified cpu_family_model_param, stepping not provided
+                // Stepping is not provided
                 return "Skylake-SP, Cascade Lake-SP";
             }
-            if (isCLX())
+            if (isCLX(cpu_family_model_, cpu_stepping_))
             {
                 return "Cascade Lake-SP";
             }
-            if (isCPX())
+            if (isCPX(cpu_family_model_, cpu_stepping_))
             {
                 return "Cooper Lake";
             }
@@ -5098,6 +5094,18 @@ const char * PCM::getUArchCodename(const int32 cpu_family_model_param) const
             return "Sierra Forest";
     }
     return "unknown";
+}
+
+const char * PCM::getUArchCodename(const int32 cpu_family_model_param) const
+{
+    auto cpu_family_model_ = cpu_family_model_param;
+    auto cpu_stepping_ = -1;
+    if (cpu_family_model_ < 0) {
+        cpu_family_model_ = this->cpu_family_model;
+        cpu_stepping_ = this->cpu_stepping;
+    }
+
+    return cpuFamilyModelToUArchCodename(cpu_family_model_, cpu_stepping_);
 }
 
 #ifdef PCM_USE_PERF
