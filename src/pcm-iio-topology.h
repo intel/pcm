@@ -42,9 +42,9 @@ public:
     IPlatformMapping(int cpu_model, uint32_t sockets_count) : m_sockets(sockets_count), m_model(cpu_model) {}
     IPlatformMapping(int cpu_model, uint32_t sockets_count, uint32_t stacks_count) :
         m_sockets(sockets_count), m_model(cpu_model), m_stacks(stacks_count) {}
-    virtual ~IPlatformMapping() {};
+    virtual ~IPlatformMapping() {}
     static std::unique_ptr<IPlatformMapping> getPlatformMapping(int cpu_model, uint32_t sockets_count, uint32_t stacks_count);
     virtual bool pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios);
-};
 
-bool initializeIOStacksStructure( std::vector<struct iio_stacks_on_socket>& iios );
+    static bool initializeIOStacksStructure( std::vector<struct iio_stacks_on_socket>& iios );
+};

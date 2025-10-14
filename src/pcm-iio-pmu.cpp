@@ -527,7 +527,7 @@ bool initializePCIeBWCounters(struct pcm_iio_pmu_config& pmu_config)
         return false;
     }
 
-    if (!initializeIOStacksStructure(pmu_config.iios)) return false;
+    if (!IPlatformMapping::initializeIOStacksStructure(pmu_config.iios)) return false;
 
     return setupPCIeEventContextAndNameMap(pmu_config.evt_ctx, pmu_config.pcieEventNameMap);
 }

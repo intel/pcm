@@ -1644,13 +1644,13 @@ std::unique_ptr<IPlatformMapping> IPlatformMapping::getPlatformMapping(int cpu_f
     }
 }
 
-bool initializeIOStacksStructure( std::vector<struct iio_stacks_on_socket>& iios )
+bool IPlatformMapping::initializeIOStacksStructure( std::vector<struct iio_stacks_on_socket>& iios )
 {
     std::unique_ptr<IPlatformMapping> mapping = nullptr;
     try
     {
         PCM * pcm = PCM::getInstance();
-        mapping = IPlatformMapping::getPlatformMapping(pcm->getCPUFamilyModel(), pcm->getNumSockets(), pcm->getMaxNumOfIOStacks());
+        mapping = getPlatformMapping(pcm->getCPUFamilyModel(), pcm->getNumSockets(), pcm->getMaxNumOfIOStacks());
     }
     catch (const std::exception & e)
     {
