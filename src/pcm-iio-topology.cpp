@@ -1629,6 +1629,27 @@ void IPlatformMapping::probeDeviceRange(std::vector<struct pci> &pci_devs, int d
     }
 }
 
+bool IPlatformMapping::pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios)
+{
+    const auto pcm = PCM::getInstance();
+    int stacksNumber = static_cast<int>(pcm->getMaxNumOfIOStacks());
+    for (uint32_t socket = 0; socket < socketsCount(); socket++)
+    {
+        struct iio_stacks_on_socket iio_on_socket;
+        iio_on_socket.socket_id = socket;
+        for (int unit = 0; unit < stacksNumber; unit++)
+        {
+            struct iio_stack stack;
+            stack.iio_unit_id = unit;
+            stack.stack_name = generate_stack_str(unit);
+            iio_on_socket.stacks.push_back(stack);
+        }
+        iios.push_back(iio_on_socket);
+    }
+
+    return true;
+}
+
 std::unique_ptr<IPlatformMapping> IPlatformMapping::getPlatformMapping(int cpu_family_model, uint32_t sockets_count)
 {
     switch (cpu_family_model) {
@@ -1650,7 +1671,8 @@ std::unique_ptr<IPlatformMapping> IPlatformMapping::getPlatformMapping(int cpu_f
         std::cerr << "Warning: Only initial support (without attribution to PCIe devices) for Graniterapids-D is provided" << std::endl;
         return std::unique_ptr<IPlatformMapping>{new KasseyvillePlatform(cpu_family_model, sockets_count)};
     default:
-        return nullptr;
+        std::cerr << "Warning: Only initial support (without attribution to PCIe devices) for " << PCM::cpuFamilyModelToUArchCodename(cpu_family_model) << " is provided" << std::endl;
+        return std::unique_ptr<IPlatformMapping>{new IPlatformMapping(cpu_family_model, sockets_count)};
     }
 }
 

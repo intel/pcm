@@ -37,7 +37,7 @@ public:
     IPlatformMapping(int cpu_model, uint32_t sockets_count) : m_sockets(sockets_count), m_model(cpu_model) {}
     virtual ~IPlatformMapping() {};
     static std::unique_ptr<IPlatformMapping> getPlatformMapping(int cpu_model, uint32_t sockets_count);
-    virtual bool pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios) = 0;
+    virtual bool pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios);
 
     uint32_t socketsCount() const { return m_sockets; }
     uint32_t cpuId() const { return m_model; }
