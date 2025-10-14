@@ -39,14 +39,14 @@ protected:
     uint32_t cpuId() const { return m_model; }
     uint32_t stacksCount() const { return m_stacks; }
 
-    IPlatformMapping(int model, uint32_t sockets) : m_sockets(sockets), m_model(model) {}
-    IPlatformMapping(int model, uint32_t sockets, uint32_t stacks) :
+    IPlatformMapping(uint32_t model, uint32_t sockets) : m_sockets(sockets), m_model(model) {}
+    IPlatformMapping(uint32_t model, uint32_t sockets, uint32_t stacks) :
         m_sockets(sockets), m_model(model), m_stacks(stacks) {}
 
     virtual bool pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios) = 0;
-    static std::unique_ptr<IPlatformMapping> getPlatformMapping(int model, uint32_t sockets, uint32_t stacks);
+    static std::unique_ptr<IPlatformMapping> getPlatformMapping(uint32_t model, uint32_t sockets, uint32_t stacks);
 public:
     virtual ~IPlatformMapping() {}
 
-    static bool initializeIOStacksStructure(std::vector<struct iio_stacks_on_socket>& iios, int model, uint32_t sockets, uint32_t stacks);
+    static bool initializeIOStacksStructure(std::vector<struct iio_stacks_on_socket>& iios, uint32_t model, uint32_t sockets, uint32_t stacks);
 };

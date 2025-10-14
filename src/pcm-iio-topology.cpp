@@ -180,7 +180,7 @@ private:
 protected:
     bool pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios) override;
 public:
-    PurleyPlatformMapping(int model, uint32_t sockets) : IPlatformMapping(model, sockets) {}
+    PurleyPlatformMapping(uint32_t model, uint32_t sockets) : IPlatformMapping(model, sockets) {}
     ~PurleyPlatformMapping() = default;
 };
 
@@ -269,7 +269,7 @@ bool PurleyPlatformMapping::pciTreeDiscover(std::vector<struct iio_stacks_on_soc
 class IPlatformMapping10Nm: public IPlatformMapping {
 private:
 public:
-    IPlatformMapping10Nm(int model, uint32_t sockets) : IPlatformMapping(model, sockets) {}
+    IPlatformMapping10Nm(uint32_t model, uint32_t sockets) : IPlatformMapping(model, sockets) {}
     ~IPlatformMapping10Nm() = default;
     bool getSadIdRootBusMap(uint32_t socket_id, std::map<uint8_t, uint8_t>& sad_id_bus_map);
 };
@@ -355,8 +355,8 @@ private:
 protected:
     bool pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios) override;
 public:
-    WhitleyPlatformMapping(int model, uint32_t sockets) : IPlatformMapping10Nm(model, sockets),
-        icx_d(PCM::getInstance()->getCPUFamilyModelFromCPUID() == PCM::ICX_D),
+    WhitleyPlatformMapping(uint32_t model, uint32_t sockets) : IPlatformMapping10Nm(model, sockets),
+        icx_d(model == PCM::ICX_D),
         sad_to_pmu_id_mapping(icx_d ? icx_d_sad_to_pmu_id_mapping : icx_sad_to_pmu_id_mapping),
         iio_stack_names(icx_d ? icx_d_iio_stack_names : icx_iio_stack_names)
     {
@@ -501,7 +501,7 @@ private:
 protected:
     bool pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios) override;
 public:
-    JacobsvillePlatformMapping(int model, uint32_t sockets) : IPlatformMapping10Nm(model, sockets) {}
+    JacobsvillePlatformMapping(uint32_t model, uint32_t sockets) : IPlatformMapping10Nm(model, sockets) {}
     ~JacobsvillePlatformMapping() = default;
     bool JacobsvilleAccelerators(const std::pair<uint8_t, uint8_t>& sad_id_bus_pair, struct iio_stack& stack);
 };
@@ -843,7 +843,7 @@ private:
 protected:
     bool pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios) override;
 public:
-    EagleStreamPlatformMapping(int model, uint32_t sockets) : IPlatformMapping(model, sockets), m_chop(0), m_es_type(estype::esInvalid) {}
+    EagleStreamPlatformMapping(uint32_t model, uint32_t sockets) : IPlatformMapping(model, sockets), m_chop(0), m_es_type(estype::esInvalid) {}
     ~EagleStreamPlatformMapping() = default;
     bool setChopValue();
     bool isXccPlatform() const { return m_chop == kXccChop; }
@@ -1139,7 +1139,7 @@ private:
 protected:
     bool pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios) override;
 public:
-    LoganvillePlatform(int model, uint32_t sockets) : IPlatformMapping10Nm(model, sockets) {}
+    LoganvillePlatform(uint32_t model, uint32_t sockets) : IPlatformMapping10Nm(model, sockets) {}
     ~LoganvillePlatform() = default;
 };
 
@@ -1307,7 +1307,7 @@ protected:
     virtual bool stackProbe(int unit, const struct bdf &address, struct iio_stacks_on_socket &iio_on_socket) = 0;
     virtual bool pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios) override;
 public:
-    Xeon6thNextGenPlatform(int model, uint32_t sockets) : IPlatformMapping(model, sockets) {}
+    Xeon6thNextGenPlatform(uint32_t model, uint32_t sockets) : IPlatformMapping(model, sockets) {}
     virtual ~Xeon6thNextGenPlatform() = default;
 };
 
@@ -1439,7 +1439,7 @@ private:
 protected:
     bool stackProbe(int unit, const struct bdf &address, struct iio_stacks_on_socket &iio_on_socket) override;
 public:
-    BirchStreamPlatform(int model, uint32_t sockets) : Xeon6thNextGenPlatform(model, sockets) {}
+    BirchStreamPlatform(uint32_t model, uint32_t sockets) : Xeon6thNextGenPlatform(model, sockets) {}
     ~BirchStreamPlatform() = default;
 };
 
@@ -1587,7 +1587,7 @@ protected:
 
     bool pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios) override;
 public:
-    DefaultPlatformMapping(int model, uint32_t sockets, uint32_t stacks)
+    DefaultPlatformMapping(uint32_t model, uint32_t sockets, uint32_t stacks)
         : IPlatformMapping(model, sockets, stacks) {}
 };
 
@@ -1631,7 +1631,7 @@ void IPlatformMapping::probeDeviceRange(std::vector<struct pci> &pci_devs, int d
     }
 }
 
-std::unique_ptr<IPlatformMapping> IPlatformMapping::getPlatformMapping(int model, uint32_t sockets, uint32_t stacks)
+std::unique_ptr<IPlatformMapping> IPlatformMapping::getPlatformMapping(uint32_t model, uint32_t sockets, uint32_t stacks)
 {
     switch (model) {
     case PCM::SKX:
@@ -1654,7 +1654,7 @@ std::unique_ptr<IPlatformMapping> IPlatformMapping::getPlatformMapping(int model
     }
 }
 
-bool IPlatformMapping::initializeIOStacksStructure(std::vector<struct iio_stacks_on_socket>& iios, int model, uint32_t sockets, uint32_t stacks)
+bool IPlatformMapping::initializeIOStacksStructure(std::vector<struct iio_stacks_on_socket>& iios, uint32_t model, uint32_t sockets, uint32_t stacks)
 {
     std::unique_ptr<IPlatformMapping> mapping = nullptr;
     try
