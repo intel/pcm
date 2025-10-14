@@ -1604,13 +1604,11 @@ void IPlatformMapping::probeDeviceRange(std::vector<struct pci> &pci_devs, int d
 
 bool IPlatformMapping::pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios)
 {
-    const auto pcm = PCM::getInstance();
-    int stacksNumber = static_cast<int>(pcm->getMaxNumOfIOStacks());
     for (uint32_t socket = 0; socket < socketsCount(); socket++)
     {
         struct iio_stacks_on_socket iio_on_socket;
         iio_on_socket.socket_id = socket;
-        for (int unit = 0; unit < stacksNumber; unit++)
+        for (uint32_t unit = 0; unit < stacksCount(); unit++)
         {
             struct iio_stack stack;
             stack.iio_unit_id = unit;
@@ -1623,7 +1621,7 @@ bool IPlatformMapping::pciTreeDiscover(std::vector<struct iio_stacks_on_socket>&
     return true;
 }
 
-std::unique_ptr<IPlatformMapping> IPlatformMapping::getPlatformMapping(int cpu_family_model, uint32_t sockets_count)
+std::unique_ptr<IPlatformMapping> IPlatformMapping::getPlatformMapping(int cpu_family_model, uint32_t sockets_count, uint32_t stacks_count)
 {
     switch (cpu_family_model) {
     case PCM::SKX:
@@ -1642,14 +1640,14 @@ std::unique_ptr<IPlatformMapping> IPlatformMapping::getPlatformMapping(int cpu_f
         return std::make_unique<BirchStreamPlatform>(cpu_family_model, sockets_count);
     default:
         std::cerr << "Warning: Only initial support (without attribution to PCIe devices) for " << PCM::cpuFamilyModelToUArchCodename(cpu_family_model) << " is provided" << std::endl;
-        return std::make_unique<IPlatformMapping>(cpu_family_model, sockets_count);
+        return std::make_unique<IPlatformMapping>(cpu_family_model, sockets_count, stacks_count);
     }
 }
 
 void initializeIOStacksStructure( std::vector<struct iio_stacks_on_socket>& iios )
 {
-    PCM * m = PCM::getInstance();
-    auto mapping = IPlatformMapping::getPlatformMapping(m->getCPUFamilyModel(), m->getNumSockets());
+    PCM * pcm = PCM::getInstance();
+    auto mapping = IPlatformMapping::getPlatformMapping(pcm->getCPUFamilyModel(), pcm->getNumSockets(), pcm->getMaxNumOfIOStacks());
     if (!mapping) {
         cerr << "Failed to discover pci tree: unknown platform" << endl;
         exit(EXIT_FAILURE);

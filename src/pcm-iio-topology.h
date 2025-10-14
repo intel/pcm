@@ -31,15 +31,19 @@ class IPlatformMapping {
 private:
     uint32_t m_sockets;
     uint32_t m_model;
+    uint32_t m_stacks = 0;
 protected:
     void probeDeviceRange(std::vector<struct pci> &child_pci_devs, int domain, int secondary, int subordinate);
 
     uint32_t socketsCount() const { return m_sockets; }
     uint32_t cpuId() const { return m_model; }
+    uint32_t stacksCount() const { return m_stacks; }
 public:
     IPlatformMapping(int cpu_model, uint32_t sockets_count) : m_sockets(sockets_count), m_model(cpu_model) {}
+    IPlatformMapping(int cpu_model, uint32_t sockets_count, uint32_t stacks_count) :
+        m_sockets(sockets_count), m_model(cpu_model), m_stacks(stacks_count) {}
     virtual ~IPlatformMapping() {};
-    static std::unique_ptr<IPlatformMapping> getPlatformMapping(int cpu_model, uint32_t sockets_count);
+    static std::unique_ptr<IPlatformMapping> getPlatformMapping(int cpu_model, uint32_t sockets_count, uint32_t stacks_count);
     virtual bool pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios);
 };
 
