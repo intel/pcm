@@ -1627,22 +1627,22 @@ std::unique_ptr<IPlatformMapping> IPlatformMapping::getPlatformMapping(int cpu_f
 {
     switch (cpu_family_model) {
     case PCM::SKX:
-        return std::unique_ptr<IPlatformMapping>{new PurleyPlatformMapping(cpu_family_model, sockets_count)};
+        return std::make_unique<PurleyPlatformMapping>(cpu_family_model, sockets_count);
     case PCM::ICX:
-        return std::unique_ptr<IPlatformMapping>{new WhitleyPlatformMapping(cpu_family_model, sockets_count)};
+        return std::make_unique<WhitleyPlatformMapping>(cpu_family_model, sockets_count);
     case PCM::SNOWRIDGE:
-        return std::unique_ptr<IPlatformMapping>{new JacobsvillePlatformMapping(cpu_family_model, sockets_count)};
+        return std::make_unique<JacobsvillePlatformMapping>(cpu_family_model, sockets_count);
     case PCM::SPR:
     case PCM::EMR:
-        return std::unique_ptr<IPlatformMapping>{new EagleStreamPlatformMapping(cpu_family_model, sockets_count)};
+        return std::make_unique<EagleStreamPlatformMapping>(cpu_family_model, sockets_count);
     case PCM::GRR:
-        return std::unique_ptr<IPlatformMapping>{new LoganvillePlatform(cpu_family_model, sockets_count)};
+        return std::make_unique<LoganvillePlatform>(cpu_family_model, sockets_count);
     case PCM::SRF:
     case PCM::GNR:
-        return std::unique_ptr<IPlatformMapping>{new BirchStreamPlatform(cpu_family_model, sockets_count)};
+        return std::make_unique<BirchStreamPlatform>(cpu_family_model, sockets_count);
     default:
         std::cerr << "Warning: Only initial support (without attribution to PCIe devices) for " << PCM::cpuFamilyModelToUArchCodename(cpu_family_model) << " is provided" << std::endl;
-        return std::unique_ptr<IPlatformMapping>{new IPlatformMapping(cpu_family_model, sockets_count)};
+        return std::make_unique<IPlatformMapping>(cpu_family_model, sockets_count);
     }
 }
 
