@@ -180,7 +180,7 @@ private:
 protected:
     bool pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios) override;
 public:
-    PurleyPlatformMapping(int cpu_model, uint32_t sockets_count) : IPlatformMapping(cpu_model, sockets_count) {}
+    PurleyPlatformMapping(int model, uint32_t sockets) : IPlatformMapping(model, sockets) {}
     ~PurleyPlatformMapping() = default;
 };
 
@@ -269,7 +269,7 @@ bool PurleyPlatformMapping::pciTreeDiscover(std::vector<struct iio_stacks_on_soc
 class IPlatformMapping10Nm: public IPlatformMapping {
 private:
 public:
-    IPlatformMapping10Nm(int cpu_model, uint32_t sockets_count) : IPlatformMapping(cpu_model, sockets_count) {}
+    IPlatformMapping10Nm(int model, uint32_t sockets) : IPlatformMapping(model, sockets) {}
     ~IPlatformMapping10Nm() = default;
     bool getSadIdRootBusMap(uint32_t socket_id, std::map<uint8_t, uint8_t>& sad_id_bus_map);
 };
@@ -355,7 +355,7 @@ private:
 protected:
     bool pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios) override;
 public:
-    WhitleyPlatformMapping(int cpu_model, uint32_t sockets_count) : IPlatformMapping10Nm(cpu_model, sockets_count),
+    WhitleyPlatformMapping(int model, uint32_t sockets) : IPlatformMapping10Nm(model, sockets),
         icx_d(PCM::getInstance()->getCPUFamilyModelFromCPUID() == PCM::ICX_D),
         sad_to_pmu_id_mapping(icx_d ? icx_d_sad_to_pmu_id_mapping : icx_sad_to_pmu_id_mapping),
         iio_stack_names(icx_d ? icx_d_iio_stack_names : icx_iio_stack_names)
@@ -501,7 +501,7 @@ private:
 protected:
     bool pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios) override;
 public:
-    JacobsvillePlatformMapping(int cpu_model, uint32_t sockets_count) : IPlatformMapping10Nm(cpu_model, sockets_count) {}
+    JacobsvillePlatformMapping(int model, uint32_t sockets) : IPlatformMapping10Nm(model, sockets) {}
     ~JacobsvillePlatformMapping() = default;
     bool JacobsvilleAccelerators(const std::pair<uint8_t, uint8_t>& sad_id_bus_pair, struct iio_stack& stack);
 };
@@ -843,7 +843,7 @@ private:
 protected:
     bool pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios) override;
 public:
-    EagleStreamPlatformMapping(int cpu_model, uint32_t sockets_count) : IPlatformMapping(cpu_model, sockets_count), m_chop(0), m_es_type(estype::esInvalid) {}
+    EagleStreamPlatformMapping(int model, uint32_t sockets) : IPlatformMapping(model, sockets), m_chop(0), m_es_type(estype::esInvalid) {}
     ~EagleStreamPlatformMapping() = default;
     bool setChopValue();
     bool isXccPlatform() const { return m_chop == kXccChop; }
@@ -1139,7 +1139,7 @@ private:
 protected:
     bool pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios) override;
 public:
-    LoganvillePlatform(int cpu_model, uint32_t sockets_count) : IPlatformMapping10Nm(cpu_model, sockets_count) {}
+    LoganvillePlatform(int model, uint32_t sockets) : IPlatformMapping10Nm(model, sockets) {}
     ~LoganvillePlatform() = default;
 };
 
@@ -1307,7 +1307,7 @@ protected:
     virtual bool stackProbe(int unit, const struct bdf &address, struct iio_stacks_on_socket &iio_on_socket) = 0;
     virtual bool pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios) override;
 public:
-    Xeon6thNextGenPlatform(int cpu_model, uint32_t sockets_count) : IPlatformMapping(cpu_model, sockets_count) {}
+    Xeon6thNextGenPlatform(int model, uint32_t sockets) : IPlatformMapping(model, sockets) {}
     virtual ~Xeon6thNextGenPlatform() = default;
 };
 
@@ -1439,7 +1439,7 @@ private:
 protected:
     bool stackProbe(int unit, const struct bdf &address, struct iio_stacks_on_socket &iio_on_socket) override;
 public:
-    BirchStreamPlatform(int cpu_model, uint32_t sockets_count) : Xeon6thNextGenPlatform(cpu_model, sockets_count) {}
+    BirchStreamPlatform(int model, uint32_t sockets) : Xeon6thNextGenPlatform(model, sockets) {}
     ~BirchStreamPlatform() = default;
 };
 
@@ -1587,8 +1587,8 @@ protected:
 
     bool pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios) override;
 public:
-    DefaultPlatformMapping(int cpu_model, uint32_t sockets_count, uint32_t stacks_count)
-        : IPlatformMapping(cpu_model, sockets_count, stacks_count) {}
+    DefaultPlatformMapping(int model, uint32_t sockets, uint32_t stacks)
+        : IPlatformMapping(model, sockets, stacks) {}
 };
 
 bool DefaultPlatformMapping::pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios)
@@ -1631,36 +1631,35 @@ void IPlatformMapping::probeDeviceRange(std::vector<struct pci> &pci_devs, int d
     }
 }
 
-std::unique_ptr<IPlatformMapping> IPlatformMapping::getPlatformMapping(int cpu_family_model, uint32_t sockets_count, uint32_t stacks_count)
+std::unique_ptr<IPlatformMapping> IPlatformMapping::getPlatformMapping(int model, uint32_t sockets, uint32_t stacks)
 {
-    switch (cpu_family_model) {
+    switch (model) {
     case PCM::SKX:
-        return std::make_unique<PurleyPlatformMapping>(cpu_family_model, sockets_count);
+        return std::make_unique<PurleyPlatformMapping>(model, sockets);
     case PCM::ICX:
-        return std::make_unique<WhitleyPlatformMapping>(cpu_family_model, sockets_count);
+        return std::make_unique<WhitleyPlatformMapping>(model, sockets);
     case PCM::SNOWRIDGE:
-        return std::make_unique<JacobsvillePlatformMapping>(cpu_family_model, sockets_count);
+        return std::make_unique<JacobsvillePlatformMapping>(model, sockets);
     case PCM::SPR:
     case PCM::EMR:
-        return std::make_unique<EagleStreamPlatformMapping>(cpu_family_model, sockets_count);
+        return std::make_unique<EagleStreamPlatformMapping>(model, sockets);
     case PCM::GRR:
-        return std::make_unique<LoganvillePlatform>(cpu_family_model, sockets_count);
+        return std::make_unique<LoganvillePlatform>(model, sockets);
     case PCM::SRF:
     case PCM::GNR:
-        return std::make_unique<BirchStreamPlatform>(cpu_family_model, sockets_count);
+        return std::make_unique<BirchStreamPlatform>(model, sockets);
     default:
-        std::cerr << "Warning: Only initial support (without attribution to PCIe devices) for " << PCM::cpuFamilyModelToUArchCodename(cpu_family_model) << " is provided" << std::endl;
-        return std::make_unique<DefaultPlatformMapping>(cpu_family_model, sockets_count, stacks_count);
+        std::cerr << "Warning: Only initial support (without attribution to PCIe devices) for " << PCM::cpuFamilyModelToUArchCodename(model) << " is provided" << std::endl;
+        return std::make_unique<DefaultPlatformMapping>(model, sockets, stacks);
     }
 }
 
-bool IPlatformMapping::initializeIOStacksStructure(std::vector<struct iio_stacks_on_socket>& iios)
+bool IPlatformMapping::initializeIOStacksStructure(std::vector<struct iio_stacks_on_socket>& iios, int model, uint32_t sockets, uint32_t stacks)
 {
     std::unique_ptr<IPlatformMapping> mapping = nullptr;
     try
     {
-        PCM * pcm = PCM::getInstance();
-        mapping = getPlatformMapping(pcm->getCPUFamilyModel(), pcm->getNumSockets(), pcm->getMaxNumOfIOStacks());
+        mapping = getPlatformMapping(model, sockets, stacks);
     }
     catch (const std::exception & e)
     {
