@@ -47,4 +47,4 @@ public:
     virtual bool pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios);
 };
 
-void initializeIOStacksStructure( std::vector<struct iio_stacks_on_socket>& iios );
+bool initializeIOStacksStructure( std::vector<struct iio_stacks_on_socket>& iios );

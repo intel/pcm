@@ -492,7 +492,7 @@ void fillOpcodeFieldMapForPCIeEvents(map<string,uint32_t>& opcodeFieldMap)
     opcodeFieldMap["unit"] = PCM::UNIT_TYPE;
 }
 
-void setupPCIeEventContextAndNameMap( iio_evt_parse_context& evt_ctx, PCIeEventNameMap& nameMap)
+bool setupPCIeEventContextAndNameMap( iio_evt_parse_context& evt_ctx, PCIeEventNameMap& nameMap)
 {
     PCM * m = PCM::getInstance();
 
@@ -508,12 +508,14 @@ void setupPCIeEventContextAndNameMap( iio_evt_parse_context& evt_ctx, PCIeEventN
     {
         load_events(ev_file_name, opcodeFieldMap, iio_evt_parse_handler, (void *)&evt_ctx, nameMap);
     }
-    catch (std::exception & e)
+    catch (const std::exception & e)
     {
-        std::cerr << "Error info:" << e.what() << "\n";
-        std::cerr << "The event configuration file (" << ev_file_name << ") cannot be loaded. Please verify the file. Exiting.\n";
-        exit(EXIT_FAILURE);
+        std::cerr << "Error info:" << e.what() << std::endl;
+        std::cerr << "The event configuration file (" << ev_file_name << ") cannot be loaded. Please verify the file. Exiting." << std::endl;
+        return false;
     }
+
+    return true;
 }
 
 bool initializePCIeBWCounters(struct pcm_iio_pmu_config& pmu_config)
@@ -525,9 +527,7 @@ bool initializePCIeBWCounters(struct pcm_iio_pmu_config& pmu_config)
         return false;
     }
 
-    initializeIOStacksStructure(pmu_config.iios);
+    if (!initializeIOStacksStructure(pmu_config.iios)) return false;
 
-    setupPCIeEventContextAndNameMap(pmu_config.evt_ctx, pmu_config.pcieEventNameMap);
-
-    return true;
+    return setupPCIeEventContextAndNameMap(pmu_config.evt_ctx, pmu_config.pcieEventNameMap);
 }

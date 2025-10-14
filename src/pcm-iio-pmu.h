@@ -117,7 +117,5 @@ private:
 
 void fillOpcodeFieldMapForPCIeEvents(map<string,uint32_t>& opcodeFieldMap);
 
-void setupPCIeEventContextAndNameMap( iio_evt_parse_context& evt_ctx, PCIeEventNameMap& nameMap);
-
 bool initializePCIeBWCounters(struct pcm_iio_pmu_config& pmu_config);
 

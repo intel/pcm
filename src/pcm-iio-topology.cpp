@@ -1644,16 +1644,19 @@ std::unique_ptr<IPlatformMapping> IPlatformMapping::getPlatformMapping(int cpu_f
     }
 }
 
-void initializeIOStacksStructure( std::vector<struct iio_stacks_on_socket>& iios )
+bool initializeIOStacksStructure( std::vector<struct iio_stacks_on_socket>& iios )
 {
-    PCM * pcm = PCM::getInstance();
-    auto mapping = IPlatformMapping::getPlatformMapping(pcm->getCPUFamilyModel(), pcm->getNumSockets(), pcm->getMaxNumOfIOStacks());
-    if (!mapping) {
-        cerr << "Failed to discover pci tree: unknown platform" << endl;
-        exit(EXIT_FAILURE);
+    std::unique_ptr<IPlatformMapping> mapping = nullptr;
+    try
+    {
+        PCM * pcm = PCM::getInstance();
+        mapping = IPlatformMapping::getPlatformMapping(pcm->getCPUFamilyModel(), pcm->getNumSockets(), pcm->getMaxNumOfIOStacks());
+    }
+    catch (const std::exception & e)
+    {
+        std::cerr << "Error info:" << e.what() << std::endl;
+        return false;
     }
 
-    if (!mapping->pciTreeDiscover(iios)) {
-        exit(EXIT_FAILURE);
-    }
+    return mapping->pciTreeDiscover(iios);
 }
