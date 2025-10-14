@@ -1581,33 +1581,6 @@ const std::string generate_stack_str(const int unit)
     return ss.str();
 }
 
-class KasseyvillePlatform: public Xeon6thNextGenPlatform {
-private:
-    bool stackProbe(int unit, const struct bdf &address, struct iio_stacks_on_socket &iio_on_socket);
-    bool isUboxStack(int unit)
-    {
-        return SRF_UBOXA_SAD_BUS_ID == unit || SRF_UBOXB_SAD_BUS_ID == unit;
-    }
-public:
-    KasseyvillePlatform(int cpu_model, uint32_t sockets_count) : Xeon6thNextGenPlatform(cpu_model, sockets_count) {}
-    ~KasseyvillePlatform() = default;
-};
-
-bool KasseyvillePlatform::stackProbe(int unit, const struct bdf &address, struct iio_stacks_on_socket &iio_on_socket)
-{
-    // Skip UBOX buses
-    if (isUboxStack(unit)) return true;
-
-    // To suppress compilation warning
-    (void)address;
-
-    struct iio_stack stack;
-    stack.iio_unit_id = unit;
-    stack.stack_name = generate_stack_str(unit);
-    iio_on_socket.stacks.push_back(stack);
-    return true;
-}
-
 void IPlatformMapping::probeDeviceRange(std::vector<struct pci> &pci_devs, int domain, int secondary, int subordinate)
 {
     for (uint8_t bus = secondary; int(bus) <= subordinate; bus++) {
@@ -1667,9 +1640,6 @@ std::unique_ptr<IPlatformMapping> IPlatformMapping::getPlatformMapping(int cpu_f
     case PCM::SRF:
     case PCM::GNR:
         return std::unique_ptr<IPlatformMapping>{new BirchStreamPlatform(cpu_family_model, sockets_count)};
-    case PCM::GNR_D:
-        std::cerr << "Warning: Only initial support (without attribution to PCIe devices) for Graniterapids-D is provided" << std::endl;
-        return std::unique_ptr<IPlatformMapping>{new KasseyvillePlatform(cpu_family_model, sockets_count)};
     default:
         std::cerr << "Warning: Only initial support (without attribution to PCIe devices) for " << PCM::cpuFamilyModelToUArchCodename(cpu_family_model) << " is provided" << std::endl;
         return std::unique_ptr<IPlatformMapping>{new IPlatformMapping(cpu_family_model, sockets_count)};
