@@ -41,18 +41,15 @@ struct ExpectedEvent {
 
     bool operator==(const struct iio_counter& actual) const
     {
-        // Check if actual counter matches this expected event
         bool basic_match =
             ctr == actual.idx &&
             hname == actual.h_event_name &&
             vname == actual.v_event_name &&
             multiplier == actual.multiplier;
 
-        // Check if ev_sel and umask were properly encoded in CCR
         bool ev_sel_match = (actual.ccr & 0xFF) == ev_sel;
         bool umask_match = ((actual.ccr >> 8) & 0xFF) == umask;
 
-        // Check ch_mask and fc_mask fields
         bool ch_mask_match = (((actual.ccr >> 36) & 0xFFF) == ch_mask);
         bool fc_mask_match = (((actual.ccr >> 48) & 0x7) == fc_mask);
 
@@ -68,12 +65,10 @@ TEST_F(LoadEventsTest, TestLoadEventsAlternateVersion)
 
     evt_ctx.cpu_family_model = PCM_CPU_FAMILY_MODEL(6, 174);
 
-    // Test the alternate version of load_events without nameMap
     ASSERT_NO_THROW({
         load_events(eventFile, opcodeFieldMap, iio_evt_parse_handler, &evt_ctx);
     });
 
-    // Verify events were loaded
     ASSERT_FALSE(evt_ctx.ctrs.empty()) << "No events were loaded from the file";
 
     // Verify at least one counter was properly initialized
@@ -89,7 +84,6 @@ TEST_F(LoadEventsTest, TestLoadEventsAlternateVersion)
 
 TEST_F(LoadEventsTest, TestVerifyAllFieldsFromOpcodeFile)
 {
-    // 1. Define expected events directly (hardcoded values from opCode-6-174.txt)
     std::vector<ExpectedEvent> expectedEvents = {
         // IB write events
         {0, 0x83, 0x1, 1,  0x7,  4, "IB write", "Part0", CounterType::iio},
@@ -144,17 +138,14 @@ TEST_F(LoadEventsTest, TestVerifyAllFieldsFromOpcodeFile)
 
     evt_ctx.cpu_family_model = PCM_CPU_FAMILY_MODEL(6, 174);
 
-    // 2. Load events using the existing function
     evt_ctx.ctrs.clear();
     ASSERT_NO_THROW({
         load_events("opCode-6-174.txt", opcodeFieldMap, iio_evt_parse_handler, &evt_ctx);
     });
 
-    // 3. Verify that all loaded events match the expected events
     ASSERT_EQ(expectedEvents.size(), evt_ctx.ctrs.size())
         << "Number of loaded events doesn't match expected count";
 
-    // Create a copy of expected events that we'll mark as found
     std::vector<bool> foundEvents(expectedEvents.size(), false);
 
     // For each loaded event, find and verify the matching expected event
@@ -165,7 +156,6 @@ TEST_F(LoadEventsTest, TestVerifyAllFieldsFromOpcodeFile)
                 foundEvents[i] = true;
                 found = true;
 
-                // Additional verification of specific fields
                 EXPECT_EQ(expectedEvents[i].ctr, actualEvt.idx)
                     << "Counter index mismatch for " << actualEvt.h_event_name
                     << "/" << actualEvt.v_event_name;
@@ -178,7 +168,6 @@ TEST_F(LoadEventsTest, TestVerifyAllFieldsFromOpcodeFile)
                     << "UMASK mismatch for " << actualEvt.h_event_name
                     << "/" << actualEvt.v_event_name;
 
-                // Checks for ch_mask and fc_mask
                 EXPECT_EQ(expectedEvents[i].ch_mask, ((actualEvt.ccr >> 36) & 0xFFF))
                     << "CH_MASK mismatch for " << actualEvt.h_event_name
                     << "/" << actualEvt.v_event_name;
