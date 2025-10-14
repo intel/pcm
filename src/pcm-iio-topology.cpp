@@ -177,10 +177,11 @@ private:
         "IIO Stack 4 - MCP0           ",
         "IIO Stack 5 - MCP1           "
     };
+protected:
+    bool pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios) override;
 public:
     PurleyPlatformMapping(int cpu_model, uint32_t sockets_count) : IPlatformMapping(cpu_model, sockets_count) {}
     ~PurleyPlatformMapping() = default;
-    bool pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios) override;
 };
 
 void PurleyPlatformMapping::getUboxBusNumbers(std::vector<uint32_t>& ubox)
@@ -351,6 +352,8 @@ private:
         { 4,                    3 },
         { 5,                    4 }
     };
+protected:
+    bool pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios) override;
 public:
     WhitleyPlatformMapping(int cpu_model, uint32_t sockets_count) : IPlatformMapping10Nm(cpu_model, sockets_count),
         icx_d(PCM::getInstance()->getCPUFamilyModelFromCPUID() == PCM::ICX_D),
@@ -359,7 +362,6 @@ public:
     {
     }
     ~WhitleyPlatformMapping() = default;
-    bool pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios) override;
 };
 
 bool WhitleyPlatformMapping::pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios)
@@ -496,10 +498,11 @@ private:
         "IIO Stack 3 - HQM            ",
         "IIO Stack 4 - PCIe           "
     };
+protected:
+    bool pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios) override;
 public:
     JacobsvillePlatformMapping(int cpu_model, uint32_t sockets_count) : IPlatformMapping10Nm(cpu_model, sockets_count) {}
     ~JacobsvillePlatformMapping() = default;
-    bool pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios) override;
     bool JacobsvilleAccelerators(const std::pair<uint8_t, uint8_t>& sad_id_bus_pair, struct iio_stack& stack);
 };
 
@@ -837,6 +840,8 @@ private:
         {estype::esSprMcc, spr_mcc_sad_to_pmu_id_mapping},
         {estype::esEmrXcc, emr_sad_to_pmu_id_mapping    },
     };
+protected:
+    bool pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios) override;
 public:
     EagleStreamPlatformMapping(int cpu_model, uint32_t sockets_count) : IPlatformMapping(cpu_model, sockets_count), m_chop(0), m_es_type(estype::esInvalid) {}
     ~EagleStreamPlatformMapping() = default;
@@ -845,8 +850,6 @@ public:
 
     const std::uint32_t kXccChop = 0b11;
     const std::uint32_t kMccChop = 0b01;
-
-    bool pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios) override;
 };
 
 bool EagleStreamPlatformMapping::setChopValue()
@@ -1133,10 +1136,11 @@ private:
         { GRR_DLB_SAD_ID,          GRR_DLB_PMON_ID          },
         { GRR_NIS_QAT_SAD_ID,      GRR_NIS_QAT_PMON_ID      },
     };
+protected:
+    bool pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios) override;
 public:
     LoganvillePlatform(int cpu_model, uint32_t sockets_count) : IPlatformMapping10Nm(cpu_model, sockets_count) {}
     ~LoganvillePlatform() = default;
-    bool pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios) override;
 };
 
 bool LoganvillePlatform::loganvillePchDsaPciStackProbe(struct iio_stacks_on_socket& iio_on_socket, int root_bus, int stack_pmon_id)
@@ -1301,11 +1305,10 @@ private:
     bool getRootBuses(std::map<int, std::map<int, struct bdf>> &root_buses);
 protected:
     virtual bool stackProbe(int unit, const struct bdf &address, struct iio_stacks_on_socket &iio_on_socket) = 0;
+    virtual bool pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios) override;
 public:
     Xeon6thNextGenPlatform(int cpu_model, uint32_t sockets_count) : IPlatformMapping(cpu_model, sockets_count) {}
     virtual ~Xeon6thNextGenPlatform() = default;
-
-    virtual bool pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios) override;
 };
 
 bool Xeon6thNextGenPlatform::getRootBuses(std::map<int, std::map<int, struct bdf>> &root_buses)
@@ -1581,11 +1584,11 @@ protected:
         snprintf(buffer, sizeof(buffer), "Stack %2d", unit);
         return std::string(buffer);
     }
+
+    bool pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios) override;
 public:
     DefaultPlatformMapping(int cpu_model, uint32_t sockets_count, uint32_t stacks_count)
         : IPlatformMapping(cpu_model, sockets_count, stacks_count) {}
-
-    bool pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios) override;
 };
 
 bool DefaultPlatformMapping::pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios)
