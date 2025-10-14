@@ -1573,12 +1573,38 @@ bool BirchStreamPlatform::stackProbe(int unit, const struct bdf &address, struct
     return false;
 }
 
-const std::string generate_stack_str(const int unit)
+class DefaultPlatformMapping : public IPlatformMapping {
+protected:
+    const std::string stackIdToString(const int unit)
+    {
+        char buffer[64];
+        snprintf(buffer, sizeof(buffer), "Stack %2d", unit);
+        return std::string(buffer);
+    }
+public:
+    DefaultPlatformMapping(int cpu_model, uint32_t sockets_count, uint32_t stacks_count)
+        : IPlatformMapping(cpu_model, sockets_count, stacks_count) {}
+
+    bool pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios) override;
+};
+
+bool DefaultPlatformMapping::pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios)
 {
-    static const std::string stack_str = "Stack ";
-    std::stringstream ss;
-    ss << stack_str << std::setw(2) << unit;
-    return ss.str();
+    for (uint32_t socket = 0; socket < socketsCount(); socket++)
+    {
+        struct iio_stacks_on_socket iio_on_socket;
+        iio_on_socket.socket_id = socket;
+        for (uint32_t unit = 0; unit < stacksCount(); unit++)
+        {
+            struct iio_stack stack;
+            stack.iio_unit_id = unit;
+            stack.stack_name = stackIdToString(unit);
+            iio_on_socket.stacks.push_back(stack);
+        }
+        iios.push_back(iio_on_socket);
+    }
+
+    return true;
 }
 
 void IPlatformMapping::probeDeviceRange(std::vector<struct pci> &pci_devs, int domain, int secondary, int subordinate)
@@ -1602,25 +1628,6 @@ void IPlatformMapping::probeDeviceRange(std::vector<struct pci> &pci_devs, int d
     }
 }
 
-bool IPlatformMapping::pciTreeDiscover(std::vector<struct iio_stacks_on_socket>& iios)
-{
-    for (uint32_t socket = 0; socket < socketsCount(); socket++)
-    {
-        struct iio_stacks_on_socket iio_on_socket;
-        iio_on_socket.socket_id = socket;
-        for (uint32_t unit = 0; unit < stacksCount(); unit++)
-        {
-            struct iio_stack stack;
-            stack.iio_unit_id = unit;
-            stack.stack_name = generate_stack_str(unit);
-            iio_on_socket.stacks.push_back(stack);
-        }
-        iios.push_back(iio_on_socket);
-    }
-
-    return true;
-}
-
 std::unique_ptr<IPlatformMapping> IPlatformMapping::getPlatformMapping(int cpu_family_model, uint32_t sockets_count, uint32_t stacks_count)
 {
     switch (cpu_family_model) {
@@ -1640,11 +1647,11 @@ std::unique_ptr<IPlatformMapping> IPlatformMapping::getPlatformMapping(int cpu_f
         return std::make_unique<BirchStreamPlatform>(cpu_family_model, sockets_count);
     default:
         std::cerr << "Warning: Only initial support (without attribution to PCIe devices) for " << PCM::cpuFamilyModelToUArchCodename(cpu_family_model) << " is provided" << std::endl;
-        return std::make_unique<IPlatformMapping>(cpu_family_model, sockets_count, stacks_count);
+        return std::make_unique<DefaultPlatformMapping>(cpu_family_model, sockets_count, stacks_count);
     }
 }
 
-bool IPlatformMapping::initializeIOStacksStructure( std::vector<struct iio_stacks_on_socket>& iios )
+bool IPlatformMapping::initializeIOStacksStructure(std::vector<struct iio_stacks_on_socket>& iios)
 {
     std::unique_ptr<IPlatformMapping> mapping = nullptr;
     try
