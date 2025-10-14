@@ -9,6 +9,7 @@
 #include <iostream>
 #include "utils.h"
 #include "pcm-iio-pmu.h"
+#include "pcm-iio-topology.h"
 
 using namespace pcm;
 
@@ -213,5 +214,39 @@ TEST_F(LoadEventsTest, TestVerifyAllFieldsFromOpcodeFile)
     for (size_t i = 0; i < foundEvents.size(); ++i) {
         EXPECT_TRUE(foundEvents[i]) << "Expected event " << expectedEvents[i].hname
                                 << "/" << expectedEvents[i].vname << " was not loaded";
+    }
+}
+
+class PcmIioTopologyTestBase: public ::testing::Test
+{
+};
+
+TEST_F(PcmIioTopologyTestBase, DefaultTopologyTest)
+{
+    // Use invalid value to trigger default platform mapping
+    const uint32_t model = PCM::END_OF_MODEL_LIST;
+    const uint32_t sockets = 2;
+    const uint32_t stacks = 12;
+
+    const std::vector<std::string> expectedStackNames =
+    {
+        "Stack  0", "Stack  1", "Stack  2",
+        "Stack  3", "Stack  4", "Stack  5",
+        "Stack  6", "Stack  7", "Stack  8",
+        "Stack  9", "Stack 10", "Stack 11"
+    };
+
+    std::vector<struct iio_stacks_on_socket> iios;
+    ASSERT_TRUE(IPlatformMapping::initializeIOStacksStructure(iios, model, sockets, stacks)) << "Failed to initialize IIO stacks structure";
+
+    ASSERT_EQ(iios.size(), sockets) << "Number of sockets mismatch";
+    for (const auto &iio_on_socket : iios)
+    {
+        ASSERT_EQ(iio_on_socket.stacks.size(), stacks) << "Number of stacks per socket mismatch";
+        for (uint32_t unit = 0; unit < stacks; unit++)
+        {
+            ASSERT_EQ(iio_on_socket.stacks[unit].iio_unit_id, unit) << "Stack ID mismatch";
+            EXPECT_EQ(iio_on_socket.stacks[unit].stack_name, expectedStackNames[unit]) << "Stack name mismatch";
+        }
     }
 }
