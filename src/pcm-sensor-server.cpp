@@ -16,6 +16,8 @@ constexpr unsigned int DEFAULT_HTTPS_PORT = DEFAULT_HTTP_PORT;
 
 // Platform-specific includes
 #ifdef _WIN32
+// Must include winsock2.h before windows.h to avoid conflicts
+#define WIN32_LEAN_AND_MEAN  // Exclude rarely-used stuff from Windows headers
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <windows.h>
@@ -37,8 +39,8 @@ inline int close(SOCKET s) { return closesocket(s); }
 #include <arpa/inet.h>
 #include <sched.h>
 typedef int socket_t;
-#define INVALID_SOCKET -1
-#define SOCKET_ERROR -1
+#define INVALID_SOCKET (-1)
+#define SOCKET_ERROR (-1)
 #endif
 
 #include <cstring>
