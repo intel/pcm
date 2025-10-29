@@ -108,7 +108,7 @@ Starting from this release, **pcm-sensor-server** is now supported on Windows. T
 
 ### Building pcm-sensor-server on Windows
 
-1. Follow steps 1-2 from [Compile the Windows MSR driver](#compile-the-windows-msr-driver) to compile and install the MSR driver
+1. Follow the **Compile the Windows MSR driver** and **Sign the Windows MSR driver** sections above to compile, sign, and install the MSR driver (`msr.sys`)
 
 2. Build pcm-sensor-server:
    ```
@@ -122,7 +122,7 @@ Starting from this release, **pcm-sensor-server** is now supported on Windows. T
 
 ### Running pcm-sensor-server on Windows
 
-1. Copy `msr.sys` and `pcm-sensor-server.exe` to the PCM directory (e.g., `C:\Program Files (x86)\PCM\`)
+1. Choose or create a directory for PCM (e.g., `C:\Program Files\PCM\` or `C:\Program Files (x86)\PCM\`). Copy `msr.sys` and `pcm-sensor-server.exe` to this directory.
 
 2. Run as Administrator (required for MSR access):
    ```
