@@ -3902,7 +3902,8 @@ void printHelpText( std::string const & programName ) {
     print_help_force_rtm_abort_mode(25, ":");
 }
 
-#if not defined( UNIT_TEST )
+#ifndef UNIT_TEST
+
 /* Main */
 PCM_MAIN_NOTHROW;
 
