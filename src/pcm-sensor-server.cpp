@@ -1811,16 +1811,16 @@ private:
     };
 };
 
-// This HTTPUrl class tries to follow RFC 3986
+// This URL class tries to follow RFC 3986
 // the updates in 6874 and 8820 are not taken into account
-struct HTTPUrl {
+struct URL {
 public:
-    HTTPUrl() : scheme_( "" ), user_( "" ), passwd_( "" ), host_( "" ), path_( "" ), fragment_( "" ), port_( 0 ),
+    URL() : scheme_( "" ), user_( "" ), passwd_( "" ), host_( "" ), path_( "" ), fragment_( "" ), port_( 0 ),
             hasScheme_( false ), hasUser_ ( false ), hasPasswd_( false ), hasHost_( false ), hasPort_( false ),
             hasQuery_( false ), hasFragment_( false ), pathIsStar_( false ) {}
-    HTTPUrl( HTTPUrl const & ) = default;
-    ~HTTPUrl() = default;
-    HTTPUrl& operator=( HTTPUrl const & ) = default;
+    URL( URL const & ) = default;
+    ~URL() = default;
+    URL& operator=( URL const & ) = default;
 
 private:
     int charToNumber( std::string::value_type c ) const {
@@ -1857,11 +1857,11 @@ public:
             int n = 0;
             if ( '%' == c ) {
                 if ( ++ci == s.end() )
-                    throw std::runtime_error( "Malformed HTTPUrl, percent found but no next char" );
+                    throw std::runtime_error( "Malformed URL, percent found but no next char" );
                 n += charToNumber(*ci);
                 n *= 16;
                 if ( ++ci == s.end() )
-                    throw std::runtime_error( "Malformed HTTPUrl, percent found but no next next char" ); // better error message needed :-)
+                    throw std::runtime_error( "Malformed URL, percent found but no next next char" ); // better error message needed :-)
                 n += charToNumber(*ci);
                 r << (unsigned char)n;
                 continue;
@@ -1871,9 +1871,9 @@ public:
         return r.str();
     }
 
-    static HTTPUrl parse( std::string fullURL ) {
+    static URL parse( std::string fullURL ) {
         DBG( 3, "fullURL: '", fullURL, "'" );
-        HTTPUrl url;
+        URL url;
         size_t pathBeginPos = 0;
         size_t pathEndPos = std::string::npos;
         size_t questionMarkPos = 0;
@@ -1906,7 +1906,7 @@ public:
                 url.scheme_ = scheme;
                 url.hasScheme_ = true;
             } else
-                throw std::runtime_error( "HTTPUrl does not start with / and has no scheme" );
+                throw std::runtime_error( "URL does not start with / and has no scheme" );
 
             size_t authorityPos = fullURL.find( "//", schemeColonPos+1 );
             size_t authorityEndPos;
@@ -2007,7 +2007,7 @@ public:
                             }
                         }
                         if ( port >= 65536 )
-                            throw std::runtime_error( "HTTPUrl::parse: port too large" );
+                            throw std::runtime_error( "URL::parse: port too large" );
                         url.port_ = (unsigned short)port;
                         url.hasPort_ = true;
                         DBG( 3, "port: ", port );
@@ -2038,7 +2038,7 @@ public:
 
             if ( queryString.empty() ) {
                 url.hasQuery_ = false;
-                throw std::runtime_error( "Invalid HTTPUrl: query not found after question mark" );
+                throw std::runtime_error( "Invalid URL: query not found after question mark" );
             }
             else {
                 url.hasQuery_ = true;
@@ -2071,11 +2071,11 @@ public:
             DBG( 3, "path: '", url.path_, "'" );
         }
 
-        // Now make sure the HTTPUrl does not contain %xx values
+        // Now make sure the URL does not contain %xx values
         size_t percentPos = url.path_.find( '%' );
         if ( std::string::npos != percentPos ) {
             // throwing an error mentioning a dev issue
-            throw std::runtime_error( std::string("DEV: Some HTTPUrl component still contains percent encoded values, please report the HTTPUrl: ") + url.path_ );
+            throw std::runtime_error( std::string("DEV: Some URL component still contains percent encoded values, please report the URL: ") + url.path_ );
         }
 
         // Done!
@@ -2083,7 +2083,7 @@ public:
     }
 
     void printURL( std::ostream& os ) const {
-        DBG( 3, "HTTPUrl::printURL: debug level 3 to see more" );
+        DBG( 3, "URL::printURL: debug level 3 to see more" );
         std::stringstream ss;
         DBG( 3, " hasScheme_: ", hasScheme_, ", scheme_: ", scheme_ );
         if ( hasScheme_ ) {
@@ -2131,7 +2131,7 @@ public:
             ss << '#' << fragment_;
         }
         os << ss.str() << "\n";
-        DBG( 3, "HTTPUrl::printURL: done" );
+        DBG( 3, "URL::printURL: done" );
     }
 
 public:
@@ -2153,7 +2153,7 @@ public:
     bool pathIsStar_;
 };
 
-std::ostream& operator<<(  std::ostream& os, HTTPUrl const & url ) {
+std::ostream& operator<<(  std::ostream& os, URL const & url ) {
     url.printURL( os );
     return os;
 }
@@ -2513,14 +2513,14 @@ public:
         return method_;
     }
 
-    HTTPUrl const & url() const {
+    URL const & url() const {
         return url_;
     }
 
     void debugPrint() {
         DBG( 3, "HTTPRequest::debugPrint:" );
         DBG( 3, "Method  : \"", method_, "\"" );
-        DBG( 3, "HTTPUrl     : \"", url_, "\"" );
+        DBG( 3, "URL     : \"", url_, "\"" );
         DBG( 3, "Protocol: \"", protocol_, "\"" );
         for ( auto& header: headers_ )
             DBG( 3, "Header : \"", header.first, "\" ==> \"", header.second.headerValueAsString(), "\"" );
@@ -2529,7 +2529,7 @@ public:
 
 private:
     enum HTTPRequestMethod method_;
-    HTTPUrl url_;
+    URL url_;
 };
 
 class HTTPResponse : public HTTPMessage {
@@ -2735,7 +2735,7 @@ basic_socketstream<CharT, Traits>& operator>>( basic_socketstream<CharT, Traits>
         url = requestLine.substr( firstSpace+1, secondSpace-firstSpace-1 );
         DBG( 3, "url: ", url );
         if ( url.size() == 0 )
-            throw std::runtime_error( "Not a valid request string: HTTPUrl is empty" );
+            throw std::runtime_error( "Not a valid request string: URL is empty" );
         protocol = requestLine.substr( secondSpace+1, std::string::npos );
         DBG( 3, "protocol: ", protocol );
         if ( protocol.size() == 0 )
@@ -2746,7 +2746,7 @@ basic_socketstream<CharT, Traits>& operator>>( basic_socketstream<CharT, Traits>
 
     m.setProtocol( protocol );
     m.method_ = HTTPMethodProperties::getMethodAsEnum( method );
-    m.url_    = HTTPUrl::parse( url );
+    m.url_    = URL::parse( url );
     m.setInitialized();
 
     // m.debugPrint();
@@ -3693,7 +3693,7 @@ void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & re
     }
     format = mimeTypeToOutputFormat[ mt ];
 
-    HTTPUrl url;
+    URL url;
     url = req.url();
 
     DBG( 3, "PATH=\"", url.path_, "\", size=", url.path_.size() );
@@ -3809,7 +3809,7 @@ void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & re
             }
         }
     } else if ( 8 == url.path_.size() && 0 == url.path_.find( "/metrics", 0 ) ) {
-        DBG( 3, "Special snowflake prometheus wants a /metrics HTTPUrl, it can't be bothered to use its own mimetype in the Accept header" );
+        DBG( 3, "Special snowflake prometheus wants a /metrics URL, it can't be bothered to use its own mimetype in the Accept header" );
         format = Prometheus_0_0_4;
         aggregatorPair = getNullAndCurrentAggregator();
     } else {
