@@ -5,7 +5,10 @@
 #include <memory>
 #include <mutex>
 
-#ifndef _MSC_VER
+#ifdef _MSC_VER
+#include <winsock2.h>
+#pragma comment(lib, "ws2_32.lib")
+#else
 #include <unistd.h>
 #endif
 
