@@ -132,6 +132,9 @@ if(MSVC)
     set_target_properties(pcm-service PROPERTIES LINK_FLAGS "/INCREMENTAL:NO" COMMON_LANGUAGE_RUNTIME "")
     set_property(TARGET pcm-service PROPERTY VS_DOTNET_REFERENCES "System;System.Configuration.Install;System.Data;System.Management;System.ServiceProcess;System.Xml")
     target_link_libraries(pcm-service pcm-lib)
+    
+    # pcm-sensor-server now also supported on Windows
+    list(APPEND PROJECT_NAMES pcm-sensor-server)
 
 endif(MSVC)
 

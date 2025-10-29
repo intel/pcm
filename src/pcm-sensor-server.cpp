@@ -12,15 +12,34 @@ constexpr unsigned int DEFAULT_HTTPS_PORT = DEFAULT_HTTP_PORT;
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include<string>
 
+// Platform-specific includes
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <windows.h>
+#pragma comment(lib, "ws2_32.lib")
+// Define UNIX-like types for Windows
+typedef SOCKET socket_t;
+#define SHUT_RDWR SD_BOTH
+#define MSG_NOSIGNAL 0
+// errno values
+#define EAGAIN WSAEWOULDBLOCK
+#define EWOULDBLOCK WSAEWOULDBLOCK
+inline int close(SOCKET s) { return closesocket(s); }
+#else
+#include <unistd.h>
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sched.h>
+typedef int socket_t;
+#define INVALID_SOCKET -1
+#define SOCKET_ERROR -1
+#endif
 
 #include <cstring>
 #include <fstream>
@@ -216,9 +235,13 @@ public:
         return &instance;
     }
 
+#ifdef _WIN32
+    static BOOL WINAPI handleSignal( DWORD signum );
+#else
     static void handleSignal( int signum );
+#endif
 
-    void setSocket( int s ) {
+    void setSocket( socket_t s ) {
         networkSocket_ = s;
     }
 
@@ -227,19 +250,31 @@ public:
     }
 
     void ignoreSignal( int signum ) {
+#ifdef _WIN32
+        // On Windows, ignoring signals is handled differently
+        // SIGPIPE doesn't exist on Windows, so this is a no-op
+#else
         struct sigaction sa;
         sigemptyset(&sa.sa_mask);
         sa.sa_handler = SIG_IGN;
         sa.sa_flags = 0;
         sigaction( signum, &sa, 0 );
+#endif
     }
 
     void installHandler( void (*handler)(int), int signum ) {
+#ifdef _WIN32
+        // On Windows, use SetConsoleCtrlHandler for CTRL+C and CTRL+BREAK
+        (void)handler; // unused on Windows
+        (void)signum;  // unused on Windows
+        SetConsoleCtrlHandler((PHANDLER_ROUTINE)handleSignal, TRUE);
+#else
         struct sigaction sa;
         sigemptyset(&sa.sa_mask);
         sa.sa_handler = handler;
         sa.sa_flags = 0;
         sigaction( signum, &sa, 0 );
+#endif
     }
 
     SignalHandler( SignalHandler const & ) = delete;
@@ -250,11 +285,11 @@ private:
     SignalHandler() = default;
 
 private:
-    static int networkSocket_;
+    static socket_t networkSocket_;
     static HTTPServer* httpServer_;
 };
 
-int SignalHandler::networkSocket_ = 0;
+socket_t SignalHandler::networkSocket_ = INVALID_SOCKET;
 HTTPServer* SignalHandler::httpServer_ = nullptr;
 
 class JSONPrinter : Visitor
@@ -887,7 +922,7 @@ void PrometheusPrinter::iterateVectorAndCallAccept(Vector const& v) {
 };
 
 #if defined (USE_SSL)
-void closeSSLConnectionAndFD( int fd, SSL* ssl ) {
+void closeSSLConnectionAndFD( socket_t fd, SSL* ssl ) {
     int ret;
 
     if ( (ret = SSL_shutdown( ssl )) == 0 ) {
@@ -916,13 +951,17 @@ public:
     using int_type    = typename Base::int_type;
     using traits_type = typename Base::traits_type;
 
-    basic_socketbuf( std::string dbg_ = std::string("Server: ") ): socketFD_(0), dbg(dbg_) {
+    basic_socketbuf( std::string dbg_ = std::string("Server: ") ): socketFD_(INVALID_SOCKET), dbg(dbg_) {
         // According to http://en.cppreference.com/w/cpp/io/basic_streambuf
         // epptr and egptr point beyond the buffer, so start + SIZE
         Base::setp( outputBuffer_, outputBuffer_ + SIZE );
         Base::setg( inputBuffer_, inputBuffer_, inputBuffer_ );
         // Default timeout of 10 seconds and 0 microseconds
+#ifdef _WIN32
+        timeout_ = 10000; // Windows uses milliseconds
+#else
         timeout_ = { 10, 0 };
+#endif
 #if defined (USE_SSL)
         // I guess one could say that the instantiation of the ptr in this object will always be 0, i just want this to be explicit for now
         // cppcheck-suppress uselessAssignmentPtrArg
@@ -935,28 +974,47 @@ public:
         DBG( 3, dbg, "socketbuf destructor finished" );
     }
 
-    int socket() {
+    socket_t socket() {
         return socketFD_;
     }
 
-    void setSocket( int socketFD ) {
+    void setSocket( socket_t socketFD ) {
         socketFD_ = socketFD;
-        if( 0 == socketFD )  // avoid work with 0 socket after closure socket and set value to 0
+        if( INVALID_SOCKET == socketFD )  // avoid work with invalid socket after closure
             return;
         // When receiving the socket descriptor, set the timeout
+#ifdef _WIN32
+        DWORD timeout_ms = timeout_;
+        const auto res = setsockopt( socketFD_, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout_ms, sizeof(DWORD) );
+#else
         const auto res = setsockopt( socketFD_, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout_, sizeof(struct timeval) );
+#endif
         if (res != 0)
         {
+#ifdef _WIN32
+            std::cerr << "setsockopt failed while setting timeout value, error: " << WSAGetLastError() << "\n";
+#else
             std::cerr << "setsockopt failed while setting timeout value, " << strerror( errno ) << "\n";
+#endif
         }
     }
 
+#ifdef _WIN32
+    void setTimeout( DWORD t ) {
+        timeout_ = t;
+        const auto res = setsockopt( socketFD_, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout_, sizeof(DWORD) );
+#else
     void setTimeout( struct timeval t ) {
         timeout_ = t;
         const auto res = setsockopt( socketFD_, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout_, sizeof(struct timeval) );
+#endif
         if (res != 0)
         {
+#ifdef _WIN32
+            std::cerr << "setsockopt failed while setting timeout value, error: " << WSAGetLastError() << "\n";
+#else
             std::cerr << "setsockopt failed while setting timeout value, " << strerror( errno ) << "\n";
+#endif
         }
     }
 
@@ -984,25 +1042,34 @@ public:
             ssl_ = nullptr;
         }
 #endif
-        if ( 0 != socketFD_ ) {
+        if ( INVALID_SOCKET != socketFD_ ) {
             DBG( 3, dbg, "close clientsocketFD" );
             ::close( socketFD_ );
+            socketFD_ = INVALID_SOCKET;
         }
     }
 
 protected:
     int_type writeToSocket() {
         size_t bytesToSend;
-        ssize_t bytesSent;
+        int bytesSent;
         bytesToSend = (char*)Base::pptr() - (char*)Base::pbase();
         DBG( 3, dbg, "wts: Bytes to send: ", bytesToSend );
 
 #if defined (USE_SSL)
         if ( nullptr == ssl_ ) {
 #endif
+#ifdef _WIN32
+            bytesSent= ::send( socketFD_, (const char*)outputBuffer_, static_cast<int>(bytesToSend), MSG_NOSIGNAL );
+#else
             bytesSent= ::send( socketFD_, (void*)outputBuffer_, bytesToSend, MSG_NOSIGNAL );
-            if ( -1 == bytesSent ) {
+#endif
+            if ( SOCKET_ERROR == bytesSent ) {
+#ifdef _WIN32
+                DBG( 3, "bytesSent == SOCKET_ERROR: WSAGetLastError: ", WSAGetLastError(), ", returning eof..." );
+#else
                 DBG( 3, "bytesSent == -1: strerror( ", errno, " ): ", strerror( errno ), ", returning eof..." );
+#endif
                 return traits_type::eof();
             }
 #if defined (USE_SSL)
@@ -1052,7 +1119,7 @@ protected:
 
     int sync() override {
         DBG( 3, dbg, "sync socketFD_: ", socketFD_ );
-        if ( 0 == socketFD_ ) // Socket is closed already
+        if ( INVALID_SOCKET == socketFD_ ) // Socket is closed already
             return 0;
 
         DBG( 3, dbg, "sync: Calling writeToSocket()" );
@@ -1078,21 +1145,31 @@ protected:
 
     virtual int_type underflow() override {
         std::fill(inputBuffer_, inputBuffer_ + SIZE, 0);
-        ssize_t bytesReceived;
+        int bytesReceived;
 
 #if defined (USE_SSL)
         if ( nullptr == ssl_ ) {
 #endif
             DBG( 3, dbg, "Socketbuf: Read from socket:" );
+#ifdef _WIN32
+            bytesReceived = ::recv( socketFD_, static_cast<char*>(inputBuffer_), SIZE * sizeof( char_type ), 0 );
+#else
             bytesReceived = ::read( socketFD_, static_cast<char*>(inputBuffer_), SIZE * sizeof( char_type ) );
+#endif
             if ( 0 == bytesReceived ) {
                 // Client closed the socket normally, we will do the same
                 close();
                 return traits_type::eof();
             }
-            if ( -1 == bytesReceived ) {
+            if ( SOCKET_ERROR == bytesReceived ) {
+#ifdef _WIN32
+                int err = WSAGetLastError();
+                if ( err )
+                    DBG( 3, dbg, "WSAError: ", err );
+#else
                 if ( errno )
                     DBG( 3, dbg, "Errno: ", errno, ", (", strerror( errno ) , ")" );
+#endif
                 close();
                 Base::setg( nullptr, nullptr, nullptr );
                 return traits_type::eof();
@@ -1173,8 +1250,12 @@ protected:
 protected:
     CharT outputBuffer_[SIZE];
     CharT inputBuffer_[SIZE];
-    int   socketFD_;
+    socket_t socketFD_;
+#ifdef _WIN32
+    DWORD timeout_;
+#else
     struct timeval timeout_;
+#endif
     std::string dbg;
 #if defined (USE_SSL)
     SSL*  ssl_;
@@ -1195,11 +1276,11 @@ public:
     basic_socketstream & operator = (const basic_socketstream &) = delete;
     basic_socketstream() : stream_type( &socketBuffer_ ) {}
 #if defined (USE_SSL)
-    basic_socketstream( int socketFD, SSL* ssl, std::string dbg_ = "Server: " ) : stream_type( &socketBuffer_ ), dbg( dbg_ ), socketBuffer_( dbg_ ) {
+    basic_socketstream( socket_t socketFD, SSL* ssl, std::string dbg_ = "Server: " ) : stream_type( &socketBuffer_ ), dbg( dbg_ ), socketBuffer_( dbg_ ) {
         DBG( 3, dbg, "socketFD = ", socketFD );
-        if ( 0 == socketFD ) {
-            DBG( 3, dbg, "Trying to set socketFD to 0 which is not allowed!" );
-            throw std::runtime_error( "Trying to set socketFD to 0 on basic_socketstream level which is not allowed." );
+        if ( INVALID_SOCKET == socketFD ) {
+            DBG( 3, dbg, "Trying to set socketFD to INVALID_SOCKET which is not allowed!" );
+            throw std::runtime_error( "Trying to set socketFD to INVALID_SOCKET on basic_socketstream level which is not allowed." );
         }
         socketBuffer_.setSocket( socketFD );
 
@@ -1208,11 +1289,11 @@ public:
     }
 #endif
 
-    basic_socketstream( int socketFD ) : stream_type( &socketBuffer_ ) {
+    basic_socketstream( socket_t socketFD ) : stream_type( &socketBuffer_ ) {
         DBG( 3, dbg, "socketFD = ", socketFD );
-        if ( 0 == socketFD ) {
-            DBG( 3, dbg, "Trying to set socketFD to 0 which is not allowed!" );
-            throw std::runtime_error( "Trying to set socketFD to 0 on basic_socketstream level which is not allowed." );
+        if ( INVALID_SOCKET == socketFD ) {
+            DBG( 3, dbg, "Trying to set socketFD to INVALID_SOCKET which is not allowed!" );
+            throw std::runtime_error( "Trying to set socketFD to INVALID_SOCKET on basic_socketstream level which is not allowed." );
         }
         socketBuffer_.setSocket( socketFD );
     }
@@ -1276,7 +1357,7 @@ public:
     }
 
     void putLine( std::string& line ) {
-        if ( !socketBuffer_.socket() )
+        if ( INVALID_SOCKET == socketBuffer_.socket() )
             throw std::runtime_error( "The socket is not or no longer open!" );
         DBG( 3, dbg, "socketstream::putLine: putting \"", line, "\" into the socket." );
         Base::write( line.c_str(), line.size() );
@@ -1300,32 +1381,55 @@ public:
     Server() = delete;
     Server( const std::string & listenIP, uint16_t port ) noexcept( false ) : listenIP_(listenIP), wq_( WorkQueue::getInstance() ), port_( port ) {
         DBG( 3, "Initializing Server" );
+#ifdef _WIN32
+        // Initialize Winsock on Windows
+        WSADATA wsaData;
+        int result = WSAStartup(MAKEWORD(2, 2), &wsaData);
+        if (result != 0) {
+            throw std::runtime_error(std::string("WSAStartup failed: ") + std::to_string(result));
+        }
+#endif
         serverSocket_ = initializeServerSocket();
         SignalHandler* shi = SignalHandler::getInstance();
         shi->setSocket( serverSocket_ );
+#ifndef _WIN32
         shi->ignoreSignal( SIGPIPE ); // Sorry Dennis Ritchie, we do not care about this, we always check return codes
+#endif
 #ifndef UNIT_TEST // libFuzzer installs own signal handlers
+#ifndef _WIN32
         shi->installHandler( SignalHandler::handleSignal, SIGTERM );
         shi->installHandler( SignalHandler::handleSignal, SIGINT );
+#else
+        shi->installHandler( nullptr, 0 ); // Windows uses SetConsoleCtrlHandler
+#endif
 #endif
     }
     Server( Server const & ) = delete;
     Server & operator = ( Server const & ) = delete;
     virtual ~Server() {
         wq_ = nullptr;
+#ifdef _WIN32
+        WSACleanup();
+#endif
     }
 
 public:
     virtual void run() = 0;
 
 private:
-    int initializeServerSocket() {
+    socket_t initializeServerSocket() {
         if ( port_ == 0 )
             throw std::runtime_error( "Server Constructor: No port specified." );
 
-        int sockfd = ::socket( AF_INET6, SOCK_STREAM, 0 );
-        if ( -1 == sockfd )
+        socket_t sockfd = ::socket( AF_INET6, SOCK_STREAM, 0 );
+        if ( INVALID_SOCKET == sockfd )
+        {
+#ifdef _WIN32
+            throw std::runtime_error( std::string("Server Constructor: Can´t create socket: ") + std::to_string(WSAGetLastError()) );
+#else
             throw std::runtime_error( "Server Constructor: Can´t create socket" );
+#endif
+        }
 
         int retval = 0;
 
@@ -1363,7 +1467,7 @@ private:
 protected:
     std::string  listenIP_;
     WorkQueue*   wq_;
-    int          serverSocket_;
+    socket_t     serverSocket_;
     uint16_t     port_;
 };
 
@@ -2880,11 +2984,11 @@ class HTTPConnection : public Work {
 public:
     HTTPConnection() = delete;
 #if defined (USE_SSL)
-    HTTPConnection( HTTPServer* hs, int socketFD, struct sockaddr_in /* clientAddr */, std::vector<http_callback> const & cl, SSL* ssl = nullptr ) : hs_( hs ), socketStream_( socketFD, ssl ), /* clientAddress_( clientAddr ), */ callbackList_( cl ) {
+    HTTPConnection( HTTPServer* hs, socket_t socketFD, struct sockaddr_in /* clientAddr */, std::vector<http_callback> const & cl, SSL* ssl = nullptr ) : hs_( hs ), socketStream_( socketFD, ssl ), /* clientAddress_( clientAddr ), */ callbackList_( cl ) {
         DBG( 3, "HTTPConnection Constructor called..." );
     }
 #else
-    HTTPConnection( HTTPServer* hs, int socketFD, struct sockaddr_in /* clientAddr */, std::vector<http_callback> const & cl ) : hs_( hs ), socketStream_( socketFD ), /* clientAddress_( clientAddr ), */ callbackList_( cl ) {}
+    HTTPConnection( HTTPServer* hs, socket_t socketFD, struct sockaddr_in /* clientAddr */, std::vector<http_callback> const & cl ) : hs_( hs ), socketStream_( socketFD ), /* clientAddress_( clientAddr ), */ callbackList_( cl ) {}
 #endif
     HTTPConnection( HTTPConnection const & ) = delete;
     void operator=( HTTPConnection const & ) = delete;
@@ -3110,11 +3214,19 @@ public:
         return ret;
     }
 
-    bool checkForIncomingSSLConnection( int fd ) {
+    bool checkForIncomingSSLConnection( socket_t fd ) {
         char ch = ' ';
+#ifdef _WIN32
+        int bytes = ::recv( fd, &ch, 1, MSG_PEEK );
+#else
         ssize_t bytes = ::recv( fd, &ch, 1, MSG_PEEK );
-        if ( bytes == -1 ) {
+#endif
+        if ( SOCKET_ERROR == bytes ) {
+#ifdef _WIN32
+            DBG( 1, "recv call to peek for the first incoming character failed, WSAGetLastError = ", WSAGetLastError() );
+#else
             DBG( 1, "recv call to peek for the first incoming character failed, errno = ", errno, ", strerror: ", strerror(errno) );
+#endif
             throw std::runtime_error( "recv to peek first char failed" );
         } else if ( bytes == 0 ) {
             DBG( 0, "Connection was properly closed by the client, no bytes to read" );
@@ -3149,6 +3261,23 @@ protected:
 };
 
 // Here to break dependency on HTTPServer
+#ifdef _WIN32
+BOOL WINAPI SignalHandler::handleSignal( DWORD signum )
+{
+    // Clean up, close socket and such
+    std::cerr << "handleSignal: signal " << signum << " caught.\n";
+    std::cerr << "handleSignal: closing socket " << networkSocket_ << "\n";
+    ::close( networkSocket_ );
+    std::cerr << "Stopping HTTPServer\n";
+    if (httpServer_)
+        httpServer_->stop();
+    std::cerr << "Cleaning up PMU:\n";
+    PCM::getInstance()->cleanup();
+    std::cerr << "handleSignal: exiting with exit code 1...\n";
+    exit(1);
+    return TRUE;
+}
+#else
 void SignalHandler::handleSignal( int signum )
 {
     // Clean up, close socket and such
@@ -3162,6 +3291,7 @@ void SignalHandler::handleSignal( int signum )
     std::cerr << "handleSignal: exiting with exit code 1...\n";
     exit(1);
 }
+#endif
 
 void PeriodicCounterFetcher::execute() {
     using namespace std::chrono;
@@ -3193,13 +3323,17 @@ void PeriodicCounterFetcher::execute() {
 void HTTPServer::run() {
     struct sockaddr_in clientAddress;
     clientAddress.sin_family = AF_INET;
-    int clientSocketFD = 0;
+    socket_t clientSocketFD = INVALID_SOCKET;
     while ( ! stopped_ ) {
         // Listen on socket for incoming requests
         socklen_t sa_len = sizeof( struct sockaddr_in );
-        int retval = ::accept( serverSocket_, (struct sockaddr*)&clientAddress, &sa_len );
-        if ( -1 == retval ) {
+        socket_t retval = ::accept( serverSocket_, (struct sockaddr*)&clientAddress, &sa_len );
+        if ( INVALID_SOCKET == retval ) {
+#ifdef _WIN32
+            DBG( 3, "Accept returned INVALID_SOCKET, WSAGetLastError: ", WSAGetLastError() );
+#else
             DBG( 3, "Accept returned -1, errno: ", strerror( errno ) );
+#endif
             continue;
         }
         clientSocketFD = retval;
@@ -3227,7 +3361,11 @@ void HTTPServer::run() {
         std::fill(ipbuf, ipbuf + INET_ADDRSTRLEN, 0);
         char const * resbuf = ::inet_ntop( AF_INET, &(clientAddress.sin_addr), ipbuf, INET_ADDRSTRLEN );
         if ( nullptr == resbuf ) {
+#ifdef _WIN32
+            DBG( 3, "inet_ntop returned nullptr, WSAGetLastError: ", WSAGetLastError() );
+#else
             DBG( 3, "inet_ntop returned -1, strerror: ", strerror( errno ) );
+#endif
             DBG( 3, "close clientsocketFD" );
             ::close( clientSocketFD );
             continue;
@@ -3319,7 +3457,7 @@ private:
 void HTTPSServer::run() {
     struct sockaddr_in clientAddress;
     clientAddress.sin_family = AF_INET;
-    int clientSocketFD = 0;
+    socket_t clientSocketFD = INVALID_SOCKET;
     // Check SSL CTX for validity
     if ( nullptr == sslCTX_ )
         throw std::runtime_error( "No SSL_CTX created" );
@@ -3327,10 +3465,14 @@ void HTTPSServer::run() {
     while ( ! stopped_ ) {
         // Listen on socket for incoming requests, same as for regular connection
         socklen_t sa_len = sizeof( struct sockaddr_in );
-        int retval = ::accept( serverSocket_, (struct sockaddr*)&clientAddress, &sa_len );
-        DBG( 3, "RegularAccept: (if not -1 it is client socket descriptor) ", retval );
-        if ( -1 == retval ) {
+        socket_t retval = ::accept( serverSocket_, (struct sockaddr*)&clientAddress, &sa_len );
+        DBG( 3, "RegularAccept: (if not INVALID_SOCKET it is client socket descriptor) ", retval );
+        if ( INVALID_SOCKET == retval ) {
+#ifdef _WIN32
+            DBG( 3, "Accept failed: WSAGetLastError( ): ", WSAGetLastError() );
+#else
             DBG( 3, "Accept failed: strerror( ", errno, " ): ", strerror( errno ) );
+#endif
             continue;
         }
         clientSocketFD = retval;
@@ -3420,7 +3562,11 @@ void HTTPSServer::run() {
         memset( ipbuf, 0, 16 );
         char const * resbuf = ::inet_ntop( AF_INET, &(clientAddress.sin_addr), ipbuf, INET_ADDRSTRLEN );
         if ( nullptr == resbuf ) {
+#ifdef _WIN32
+            DBG( 3, "inet_ntop returned an error: ", WSAGetLastError(), "\n");
+#else
             DBG( 3, "inet_ntop returned an error: ", errno, ", error string: ", strerror( errno ), "\n");
+#endif
             ERR_clear_error();
             SSL_free( ssl ); // Free the SSL structure to prevent memory leaks
             ssl = nullptr;
@@ -3722,18 +3868,20 @@ int startHTTPSServer( unsigned short port, std::string const & cFile, std::strin
 void printHelpText( std::string const & programName ) {
     std::cout << "Usage: " << programName << " [OPTION]\n\n";
     std::cout << "Valid Options:\n";
+#ifndef _WIN32
     std::cout << "    -d                   : Run in the background\n";
+#endif
 #if defined (USE_SSL)
     std::cout << "    -s                   : Use https protocol (default port " << DEFAULT_HTTPS_PORT << ")\n";
 #endif
     std::cout << "    -p portnumber        : Run on port <portnumber> (default port is " << DEFAULT_HTTP_PORT << ")\n";
     std::cout << "    -r|--reset           : Reset programming of the performance counters.\n";
     std::cout << "    -D|--debug level     : level = 0: no debug info, > 0 increase verbosity.\n";
-#ifndef __APPLE__
+#if !defined(__APPLE__) && !defined(_WIN32)
     std::cout << "    -R|--real-time       : If possible the daemon will run with real time\n";
-#endif
     std::cout << "                           priority, could be useful under heavy load to \n";
     std::cout << "                           stabilize the async counter fetching.\n";
+#endif
 #if defined (USE_SSL)
     std::cout << "    -C|--certificateFile : \n";
     std::cout << "    -P|--privateKeyFile  : \n";
@@ -3955,7 +4103,7 @@ int mainThrows(int argc, char * argv[]) {
     }
 #endif
 
-#ifndef __APPLE__
+#if !defined(__APPLE__) && !defined(_WIN32)
     if ( useRealtimePriority ) {
         int priority = sched_get_priority_min( SCHED_RR );
         if ( priority == -1 ) {
@@ -3975,14 +4123,23 @@ int mainThrows(int argc, char * argv[]) {
     }
 #endif
 
+#ifdef _WIN32
+    // Windows doesn't support fork(), so daemon mode is not available
+    if ( daemonMode ) {
+        std::cerr << "Daemon mode is not supported on Windows. Starting in foreground mode.\n";
+        daemonMode = false;
+    }
+    const int pid = 0; // Always run in foreground on Windows
+#else
     pid_t pid;
     if ( daemonMode )
         pid = fork();
     else
         pid = 0;
+#endif
 
     if ( pid == 0 ) {
-        /* child */
+        /* child (or Windows foreground mode) */
         // Default programming is to use normal core counters and memory bandwidth counters
         // and if pmem is available to also show this instead of partial writes
         // A HTTP interface to change the programming is planned
