@@ -3,7 +3,11 @@
 
 #include <vector>
 #include <memory>
+#include <mutex>
+
+#ifndef _MSC_VER
 #include <unistd.h>
+#endif
 
 #include "pcm-accel-common.h"
 #include "dashboard.h"
