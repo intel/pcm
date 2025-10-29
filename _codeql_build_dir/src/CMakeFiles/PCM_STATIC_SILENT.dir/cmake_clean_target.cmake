@@ -1,3 +1,0 @@
-file(REMOVE_RECURSE
-  "libPCM_STATIC_SILENT.a"
-)
