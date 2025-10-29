@@ -297,7 +297,7 @@ private:
 socket_t SignalHandler::networkSocket_ = INVALID_SOCKET;
 HTTPServer* SignalHandler::httpServer_ = nullptr;
 
-namespace {  // Anonymous namespace to avoid symbol conflicts on Windows
+namespace pcm {
 
 class JSONPrinter : Visitor
 {
@@ -1917,7 +1917,7 @@ public:
                     throw std::runtime_error( "Something between : and //" );
 
                 pathBeginPos = fullURL.find( '/', authorityPos+2 );
-                authorityEndPos = std::min( { pathBeginPos, questionMarkPos, numberPos } );
+                authorityEndPos = (std::min)( { pathBeginPos, questionMarkPos, numberPos } );
                 authority = fullURL.substr( authorityPos+2, authorityEndPos - (authorityPos + 2) );
                 DBG( 3, "authority: '", authority, "'" );
 
@@ -2023,7 +2023,7 @@ public:
             }
         }
 
-        pathEndPos = std::min( {questionMarkPos, numberPos} );
+        pathEndPos = (std::min)( {questionMarkPos, numberPos} );
         if ( std::string::npos != pathBeginPos ) {
             url.path_ = fullURL.substr( pathBeginPos, pathEndPos - pathBeginPos );
         } else {
@@ -3214,7 +3214,7 @@ public:
             throw std::runtime_error("BUG: getAggregator: both indices are equal. Fix the code!" );
 
         // simply wait until we have enough samples to return
-        while( agVector_.size() < ( std::max( index, index2 ) + 1 ) )
+        while( agVector_.size() < ( (std::max)( index, index2 ) + 1 ) )
             std::this_thread::sleep_for(std::chrono::seconds(1));
 
         agVectorMutex_.lock();
