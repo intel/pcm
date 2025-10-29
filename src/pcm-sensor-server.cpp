@@ -33,6 +33,8 @@ typedef SOCKET socket_t;
 #define EAGAIN WSAEWOULDBLOCK
 #define EWOULDBLOCK WSAEWOULDBLOCK
 inline int close(SOCKET s) { return closesocket(s); }
+// Undefine Windows macros that conflict with our code
+#undef DELETE  // Conflicts with HTTPRequestMethod::DELETE enum
 #else
 #include <unistd.h>
 #include <signal.h>
