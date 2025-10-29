@@ -4,7 +4,7 @@
 include(FindOpenSSL)
 
 # All pcm-* executables
-set(PROJECT_NAMES pcm pcm-numa pcm-latency pcm-power pcm-msr pcm-memory pcm-tsx pcm-pcie pcm-core pcm-iio pcm-pcicfg pcm-mmio pcm-tpmi pcm-raw pcm-accel)
+set(PROJECT_NAMES pcm pcm-numa pcm-latency pcm-power pcm-msr pcm-memory pcm-tsx pcm-pcie pcm-core pcm-iio pcm-pcicfg pcm-mmio pcm-tpmi pcm-raw pcm-accel pcm-sensor-server)
 
 set(MINIMUM_OPENSSL_VERSION 1.1.1)
 
@@ -43,7 +43,6 @@ if(UNIX)  # LINUX, FREE_BSD, APPLE
     if (NOT APPLE)
       set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS} -s")  # --strip-unneeded for packaging
     endif()
-    list(APPEND PROJECT_NAMES pcm-sensor-server)
     list(APPEND PROJECT_NAMES pcm-sensor)
 
     # libpcm.a
@@ -130,9 +129,6 @@ if(MSVC)
     set_target_properties(pcm-service PROPERTIES LINK_FLAGS "/INCREMENTAL:NO" COMMON_LANGUAGE_RUNTIME "")
     set_property(TARGET pcm-service PROPERTY VS_DOTNET_REFERENCES "System;System.Configuration.Install;System.Data;System.Management;System.ServiceProcess;System.Xml")
     target_link_libraries(pcm-service pcm-lib)
-    
-    # pcm-sensor-server now also supported on Windows
-    list(APPEND PROJECT_NAMES pcm-sensor-server)
 
 endif(MSVC)
 
