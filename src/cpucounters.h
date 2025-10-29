@@ -1967,7 +1967,7 @@ public:
         MTL =           PCM_CPU_FAMILY_MODEL(6, 0xAA),
         LNL =           PCM_CPU_FAMILY_MODEL(6, 0xBD),
         ARL =           PCM_CPU_FAMILY_MODEL(6, 197),
-        ARL_1 =         PCM_CPU_FAMILY_MODEL(6, 204),
+        ARL_1 =         PCM_CPU_FAMILY_MODEL(6, 198),
         BDX =           PCM_CPU_FAMILY_MODEL(6, 79),
         KNL =           PCM_CPU_FAMILY_MODEL(6, 87),
         SKL =           PCM_CPU_FAMILY_MODEL(6, 94),
