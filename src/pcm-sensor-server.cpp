@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2016-2022, Intel Corporation
 
+// Windows: Define WIN32_LEAN_AND_MEAN before ANY includes to prevent winsock.h conflicts
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#endif
+
 // Use port allocated for PCM in prometheus:
 // https://github.com/prometheus/prometheus/wiki/Default-port-allocations
 constexpr unsigned int DEFAULT_HTTP_PORT = 9738;
@@ -16,11 +21,9 @@ constexpr unsigned int DEFAULT_HTTPS_PORT = DEFAULT_HTTP_PORT;
 
 // Platform-specific includes
 #ifdef _WIN32
-// Must include winsock2.h before windows.h to avoid conflicts
-#define WIN32_LEAN_AND_MEAN  // Exclude rarely-used stuff from Windows headers
+// winsock2.h must be included before windows.h (already included by pcm-accel-common.h -> cpucounters.h -> types.h)
 #include <winsock2.h>
 #include <ws2tcpip.h>
-#include <windows.h>
 #pragma comment(lib, "ws2_32.lib")
 // Define UNIX-like types for Windows
 typedef SOCKET socket_t;
