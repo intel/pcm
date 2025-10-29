@@ -297,6 +297,8 @@ private:
 socket_t SignalHandler::networkSocket_ = INVALID_SOCKET;
 HTTPServer* SignalHandler::httpServer_ = nullptr;
 
+namespace {  // Anonymous namespace to avoid symbol conflicts on Windows
+
 class JSONPrinter : Visitor
 {
 public:
@@ -925,6 +927,8 @@ void PrometheusPrinter::iterateVectorAndCallAccept(Vector const& v) {
         vecElem->accept( *this );
     }
 };
+
+}  // end anonymous namespace
 
 #if defined (USE_SSL)
 void closeSSLConnectionAndFD( socket_t fd, SSL* ssl ) {
