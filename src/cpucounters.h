@@ -1690,6 +1690,7 @@ public:
             case MTL:
             case LNL:
             case ARL:
+            case PTL:
                 if (topology[coreID].core_type == TopologyEntry::Atom)
                 {
                     return eCoreOCREvent;
@@ -1709,6 +1710,7 @@ public:
        case MTL:
        case LNL:
        case ARL:
+       case PTL:
            useGLCOCREvent = true;
            break;
 
@@ -1968,6 +1970,7 @@ public:
         LNL =           PCM_CPU_FAMILY_MODEL(6, 0xBD),
         ARL =           PCM_CPU_FAMILY_MODEL(6, 197),
         ARL_1 =         PCM_CPU_FAMILY_MODEL(6, 198),
+        PTL =           PCM_CPU_FAMILY_MODEL(6, 204),
         BDX =           PCM_CPU_FAMILY_MODEL(6, 79),
         KNL =           PCM_CPU_FAMILY_MODEL(6, 87),
         SKL =           PCM_CPU_FAMILY_MODEL(6, 94),
@@ -2209,6 +2212,7 @@ public:
             return 6;
         case LNL:
         case ARL:
+        case PTL:
             return 12;
         case SNOWRIDGE:
         case ELKHART_LAKE:
@@ -2565,6 +2569,7 @@ public:
                  || cpu_family_model == PCM::MTL
                  || cpu_family_model == PCM::LNL
                  || cpu_family_model == PCM::ARL
+                 || cpu_family_model == PCM::PTL
                  || cpu_family_model == PCM::SPR
                  || cpu_family_model == PCM::EMR
                  || cpu_family_model == PCM::GNR
@@ -2605,6 +2610,7 @@ public:
             || cpu_family_model == PCM::MTL
             || cpu_family_model == PCM::LNL
             || cpu_family_model == PCM::ARL
+            || cpu_family_model == PCM::PTL
             || cpu_family_model == PCM::SPR
             || cpu_family_model == PCM::EMR
             || cpu_family_model == PCM::GNR
@@ -2905,6 +2911,7 @@ public:
             || cpu_family_model == MTL
             || cpu_family_model == LNL
             || cpu_family_model == ARL
+            || cpu_family_model == PTL
             || useSKLPath()
             ;
     }
@@ -4470,6 +4477,7 @@ uint64 getL2CacheMisses(const CounterStateType & before, const CounterStateType 
         || cpu_family_model == PCM::MTL
         || cpu_family_model == PCM::LNL
         || cpu_family_model == PCM::ARL
+        || cpu_family_model == PCM::PTL
         ) {
         return after.Event[BasicCounterState::SKLL2MissPos] - before.Event[BasicCounterState::SKLL2MissPos];
     }
@@ -4586,6 +4594,7 @@ uint64 getL3CacheHitsSnoop(const CounterStateType & before, const CounterStateTy
         || cpu_family_model == PCM::MTL
         || cpu_family_model == PCM::LNL
         || cpu_family_model == PCM::ARL
+        || cpu_family_model == PCM::PTL
         )
     {
         const int64 misses = getL3CacheMisses(before, after);
