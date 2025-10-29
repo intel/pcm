@@ -1,0 +1,57 @@
+{
+    "core" : {
+        "programmable" : {
+            "EventCode":   {"Config": 0, "Position": 0, "Width": 8},
+            "UMask":       {"Config": 0, "Position": 8, "Width": 8},
+            "User":        {"Config": 0, "Position": 16, "Width": 1, "DefaultValue": 1},
+            "OS":          {"Config": 0, "Position": 17, "Width": 1, "DefaultValue": 1},
+            "EdgeDetect":  {"Config": 0, "Position": 18, "Width": 1},
+            "PinControl":  {"Config": 0, "Position": 19, "Width": 1, "DefaultValue": 0},
+            "APICInt":     {"Config": 0, "Position": 20, "Width": 1, "DefaultValue": 0},
+            "AnyThread":   {"Config": 0, "Position": 21, "Width": 1},
+            "Enable":      {"Config": 0, "Position": 22, "Width": 1, "DefaultValue": 1},
+            "Invert":      {"Config": 0, "Position": 23, "Width": 1},
+            "CounterMask": {"Config": 0, "Position": 24, "Width": 8},
+            "InTX":        {"Config": 0, "Position": 32, "Width": 1, "DefaultValue": 0},
+            "MSRIndex": {
+                    "0x1a6" : {"Config": 1, "Position": 0, "Width": 64},
+                    "0x1a7" : {"Config": 2, "Position": 0, "Width": 64},
+                    "0x3f6" : {"Config": 3, "Position": 0, "Width": 64},
+                    "0x3f7" : {"Config": 4, "Position": 0, "Width": 64}
+                }
+        },
+        "fixed0" : {
+            "OS":          {"Config": 0, "Position": 0, "Width": 1, "DefaultValue": 1},
+            "User":        {"Config": 0, "Position": 1, "Width": 1, "DefaultValue": 1},
+            "AnyThread":   {"Config": 0, "Position": 2, "Width": 1},
+            "EnablePMI":   {"Config": 0, "Position": 3, "Width": 1, "DefaultValue": 0},
+            "EventCode":   {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
+            "UMask":       {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
+            "EdgeDetect":  {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
+            "Invert":      {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
+            "CounterMask": {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"}
+        },
+        "fixed1" : {
+            "OS":          {"Config": 0, "Position": 4, "Width": 1, "DefaultValue": 1},
+            "User":        {"Config": 0, "Position": 5, "Width": 1, "DefaultValue": 1},
+            "AnyThread":   {"Config": 0, "Position": 6, "Width": 1},
+            "EnablePMI":   {"Config": 0, "Position": 7, "Width": 1, "DefaultValue": 0},
+            "EventCode":   {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
+            "UMask":       {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
+            "EdgeDetect":  {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
+            "Invert":      {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
+            "CounterMask": {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"}
+        },
+        "fixed2" : {
+            "OS":          {"Config": 0, "Position": 8, "Width": 1, "DefaultValue": 1},
+            "User":        {"Config": 0, "Position": 9, "Width": 1, "DefaultValue": 1},
+            "AnyThread":   {"Config": 0, "Position": 10, "Width": 1},
+            "EnablePMI":   {"Config": 0, "Position": 11, "Width": 1, "DefaultValue": 0},
+            "EventCode":   {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
+            "UMask":       {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
+            "EdgeDetect":  {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
+            "Invert":      {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
+            "CounterMask": {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"}
+        }
+    }
+}

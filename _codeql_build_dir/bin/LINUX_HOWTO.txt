@@ -1,0 +1,7 @@
+Refer to the main README ("Building PCM Tools" or "Downloading Pre-Compiled PCM Tools") sections
+
+Running tests:
+
+* build PCM
+* as root run "sh test/test.sh"
+  - Automated CI test workflow: https://github.com/intel/pcm/blob/03ad6b0228c9e8a8eb022708b53a61875b9447bc/.github/workflows/ci-test.yml#L40
