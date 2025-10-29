@@ -1,0 +1,64 @@
+Building and Installing
+
+Note: xcode is required to build the driver and dynamic library.
+
+Requirements
+____________
+Building and installing requires make, cmake, gcc, and xcode.
+It has been tested on the following system configurations:
+    OS X 12.0.1, Xcode 13.1, Apple LLVM compiler 13.0.0
+
+Build PCM and MacMSRDriver
+-----------------
+  mkdir build && cd build
+  cmake .. && cmake --build .
+
+PCM utilities will be located in build/bin folder, libraries libpcm.dylib and libPcmMsr.dylib - in build/lib.
+
+Automatic Install
+-----------------
+  cd build
+  sudo make install
+
+Install command loads the driver, installs the library into /usr/lib and installs the library headers into /usr/include.
+Also PCM utilities are installing to /usr/local/sbin.
+
+Manual Install
+--------------
+Build steps are the same.
+To install do the following:
+    1) load the driver by running src/MacMSRDriver/kextload.sh
+    2) copy build/lib/libPcmMsr.dylib to a location on your path (auto-install uses /usr/lib)
+    3) copy src/MacMSRDriver/MSRKernel.h to a location on your path (auto-install uses /usr/include)
+    4) copy src/MacMSRDriver/MSRAccessorPublic.h as MSRAccessor.h to a location on your path (auto-install uses /usr/include)
+
+kext Signatures
+---------------
+As of OS X El Capitan, kexts must be signed. So after building the kext, kextload.sh may fail with:
+
+  /System/Library/Extensions/PcmMsrDriver.kext failed to load - (libkern/kext) not loadable (reason unspecified); check the system/kernel logs for errors or try kextutil(8).
+
+In this event, you will need to either disable System Integrity Protection or sign the kext.
+You can disable SIP by rebooting into Recovery (reboot, command-option-R), opening a shell, csrutil disable and reboot again.
+Signing a kext is more involved. You can't self-sign and will first need to obtain a Developer ID from Apple:
+
+  https://developer.apple.com/contact/kext/
+
+With this ID, you can then sign your kext with codesign.
+
+PCM Execution
+----------------------
+Now you can run ./pcm utility.
+See description of other built utilities in LINUX_HOWTO.txt
+
+Logging/Debugging
+----------------------
+
+Sometimes you will get errors while running utilities that may come from the kernel, and you can use something like this DTrace script to correlate it with user-land behavior:
+
+$ sudo dtrace -n 'fbt:mach_kernel:_ZN*IOUser*:return /execname == "pcm"/ { @hgram[probefunc, arg1, ustack(20)] = count(); }' -c ./pcm
+
+Various commands that can help diagnose errors:
+
+$ kmutil log stream
+$ kmutil inspect -b com.intel.driver.PcmMsr
