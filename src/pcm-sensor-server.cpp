@@ -56,6 +56,7 @@ typedef int socket_t;
 #include "debug.h"
 #include "topology.h"
 #include "dashboard.h"
+#include "utils.h"
 
 #define PCMWebServerVersion "0.1"
 #if defined (USE_SSL)
