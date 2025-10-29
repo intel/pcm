@@ -34,6 +34,7 @@
 #include <cmath>
 #else
 #include <intrin.h>
+#include <tchar.h>  // For _T macro used in PCM_SET_DLL_DIR
 #endif
 #include <map>
 #include <unordered_map>
