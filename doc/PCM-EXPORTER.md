@@ -3,6 +3,8 @@
 
 pcm-sensor-server is a collector exposing Intel processor metrics over http in JSON or Prometheus (exporter text based) format. Also [available as a docker container](DOCKER_README.md).
 
+**NEW**: pcm-sensor-server is now supported on Windows! See [Windows-specific instructions](#windows-support) below.
+
 Installation on target system to be analyzed:
 1.  [Build](https://github.com/intel/pcm#building-pcm-tools) or [download](https://github.com/intel/pcm#downloading-pre-compiled-pcm-tools) pcm tools
 2.  As root, start pcm-sensor-server: `sudo ./pcm-sensor-server` or as non-root https://github.com/intel/pcm#executing-pcm-tools-under-non-root-user-on-linux 
@@ -16,14 +18,31 @@ $ ./pcm-sensor-server --help
 Usage: ./pcm-sensor-server [OPTION]
 
 Valid Options:
-    -d                   : Run in the background
+    -d                   : Run in the background (Linux/macOS only)
     -p portnumber        : Run on port <portnumber> (default port is 9738)
     -r|--reset           : Reset programming of the performance counters.
     -D|--debug level     : level = 0: no debug info, > 0 increase verbosity.
     -R|--real-time       : If possible the daemon will run with real time
                            priority, could be useful under heavy load to
-                           stabilize the async counter fetching.
+                           stabilize the async counter fetching. (Linux only)
     -h|--help            : This information
+```
+
+## Windows Support
+
+pcm-sensor-server now runs natively on Windows. Key points:
+
+- **Requirements**: Windows 7+ or Windows Server 2008+ R2, Administrator privileges, MSR driver installed
+- **Build instructions**: See [WINDOWS_HOWTO.md](WINDOWS_HOWTO.md#pcm-sensor-server-httphttps-server-for-grafana-integration)
+- **Limitations**: 
+  - Daemon mode (`-d`) not available - runs in foreground only
+  - Real-time priority (`-R`) not available
+  - Use Ctrl+C to stop the server
+
+Example on Windows:
+```
+# Run as Administrator
+pcm-sensor-server.exe -p 9738
 ```
 
 The default output of pcm-sensor-server endpoint in a browser:
