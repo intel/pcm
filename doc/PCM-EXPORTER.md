@@ -32,7 +32,7 @@ Valid Options:
 
 pcm-sensor-server now runs natively on Windows. Key points:
 
-- **Requirements**: Windows 7+ or Windows Server 2008+ R2, Administrator privileges, MSR driver installed
+- **Requirements**: Windows 10+ or Windows Server 2016+ (earlier versions may work but are no longer officially supported), Administrator privileges, MSR driver installed
 - **Build instructions**: See [WINDOWS_HOWTO.md](WINDOWS_HOWTO.md#pcm-sensor-server-httphttps-server-for-grafana-integration)
 - **Limitations**: 
   - Daemon mode (`-d`) not available - runs in foreground only
