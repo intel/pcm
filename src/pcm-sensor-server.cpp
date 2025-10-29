@@ -33,8 +33,6 @@ typedef SOCKET socket_t;
 #define EAGAIN WSAEWOULDBLOCK
 #define EWOULDBLOCK WSAEWOULDBLOCK
 inline int close(SOCKET s) { return closesocket(s); }
-// Undefine Windows macros that conflict with our code
-#undef DELETE  // Conflicts with HTTPRequestMethod::DELETE enum
 #else
 #include <unistd.h>
 #include <signal.h>
@@ -1487,7 +1485,7 @@ enum HTTPRequestMethod {
     HEAD,
     POST,
     PUT,
-    DELETE,
+    HTTP_DELETE,  // Renamed from DELETE to avoid conflict with Windows macro
     CONNECT,
     OPTIONS,
     TRACE,
@@ -1624,15 +1622,15 @@ private:
     }
 
     std::vector<struct HTTPMethodProperty> const httpMethodProperties = {
-        { GET,     "GET",     HTTPRequestHasBody::No,       true  },
-        { HEAD,    "HEAD",    HTTPRequestHasBody::No,       false },
-        { POST,    "POST",    HTTPRequestHasBody::Required, true  },
-        { PUT,     "PUT",     HTTPRequestHasBody::Required, true  },
-        { DELETE,  "DELETE",  HTTPRequestHasBody::No,       true  },
-        { CONNECT, "CONNECT", HTTPRequestHasBody::Required, true  },
-        { OPTIONS, "OPTIONS", HTTPRequestHasBody::Optional, true  },
-        { TRACE,   "TRACE",   HTTPRequestHasBody::No,       true  },
-        { PATCH,   "PATCH",   HTTPRequestHasBody::Required, true  }
+        { GET,         "GET",     HTTPRequestHasBody::No,       true  },
+        { HEAD,        "HEAD",    HTTPRequestHasBody::No,       false },
+        { POST,        "POST",    HTTPRequestHasBody::Required, true  },
+        { PUT,         "PUT",     HTTPRequestHasBody::Required, true  },
+        { HTTP_DELETE, "DELETE",  HTTPRequestHasBody::No,       true  },
+        { CONNECT,     "CONNECT", HTTPRequestHasBody::Required, true  },
+        { OPTIONS,     "OPTIONS", HTTPRequestHasBody::Optional, true  },
+        { TRACE,       "TRACE",   HTTPRequestHasBody::No,       true  },
+        { PATCH,       "PATCH",   HTTPRequestHasBody::Required, true  }
     };
 };
 
