@@ -34,3 +34,4 @@ latex/
 build
 src/simdjson
 .vscode/
+_codeql_build_dir/
