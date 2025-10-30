@@ -1397,6 +1397,12 @@ public:
         if (result != 0) {
             throw std::runtime_error(std::string("WSAStartup failed: ") + std::to_string(result));
         }
+        // Verify that Winsock 2.2 or higher is available
+        if (LOBYTE(wsaData.wVersion) < 2 || (LOBYTE(wsaData.wVersion) == 2 && HIBYTE(wsaData.wVersion) < 2)) {
+            WSACleanup();
+            throw std::runtime_error(std::string("Winsock 2.2 or higher required. Found version: ") + 
+                                   std::to_string(LOBYTE(wsaData.wVersion)) + "." + std::to_string(HIBYTE(wsaData.wVersion)));
+        }
 #endif
         serverSocket_ = initializeServerSocket();
         SignalHandler* shi = SignalHandler::getInstance();
