@@ -1438,26 +1438,20 @@ private:
 
         bool useIPv4 = false;
 #ifdef _WIN32
-        // On Windows, explicitly specify IPPROTO_TCP for better compatibility
-        socket_t sockfd = ::socket( AF_INET6, SOCK_STREAM, IPPROTO_TCP );
-#else
-        socket_t sockfd = ::socket( AF_INET6, SOCK_STREAM, 0 );
-#endif
+        // On Windows, use IPv4 by default for better compatibility
+        socket_t sockfd = ::socket( AF_INET, SOCK_STREAM, IPPROTO_TCP );
         if ( INVALID_SOCKET == sockfd )
         {
-#ifdef _WIN32
-            // On Windows, IPv6 might not be enabled. Try IPv4 as fallback.
-            std::cerr << "IPv6 socket creation failed (WSAGetLastError: " << WSAGetLastError() << "), trying IPv4..." << std::endl;
-            sockfd = ::socket( AF_INET, SOCK_STREAM, IPPROTO_TCP );
-            if ( INVALID_SOCKET == sockfd )
-            {
-                throw std::runtime_error( std::string("Server Constructor: Can't create socket (IPv4 or IPv6). WSAGetLastError: ") + std::to_string(WSAGetLastError()) );
-            }
-            useIPv4 = true;
-#else
-            throw std::runtime_error( "Server Constructor: Can't create socket" );
-#endif
+            throw std::runtime_error( std::string("Server Constructor: Can't create socket. WSAGetLastError: ") + std::to_string(WSAGetLastError()) );
         }
+        useIPv4 = true;
+#else
+        socket_t sockfd = ::socket( AF_INET6, SOCK_STREAM, 0 );
+        if ( INVALID_SOCKET == sockfd )
+        {
+            throw std::runtime_error( "Server Constructor: Can't create socket" );
+        }
+#endif
 
         int retval = 0;
 
