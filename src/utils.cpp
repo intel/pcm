@@ -813,10 +813,75 @@ std::vector<std::string> split(const std::string & str, const char delim)
 
 uint64 read_number(const char* str)
 {
-    std::istringstream stream(str);
-    if (strstr(str, "x")) stream >> std::hex;
+    if (str == nullptr || *str == '\0')
+    {
+        throw std::invalid_argument("Input string is null or empty");
+    }
+
+    std::string input(str);
+    // Trim leading and trailing whitespace
+    size_t start = input.find_first_not_of(" \t\n\r");
+    size_t end = input.find_last_not_of(" \t\n\r");
+    
+    if (start == std::string::npos)
+    {
+        throw std::invalid_argument("Input string contains only whitespace");
+    }
+    
+    input = input.substr(start, end - start + 1);
+    
+    std::istringstream stream(input);
     uint64 result = 0;
-    stream >> result;
+    
+    // Check if the input is hexadecimal (starts with 0x or 0X)
+    if (input.length() >= 2 && input[0] == '0' && (input[1] == 'x' || input[1] == 'X'))
+    {
+        if (input.length() == 2)
+        {
+            throw std::invalid_argument("Invalid hexadecimal number: no digits after 0x");
+        }
+        
+        // Validate that all characters after 0x are valid hex digits
+        for (size_t i = 2; i < input.length(); ++i)
+        {
+            char c = input[i];
+            if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')))
+            {
+                throw std::invalid_argument("Invalid hexadecimal number: contains non-hex characters");
+            }
+        }
+        
+        stream >> std::hex >> result;
+    }
+    else
+    {
+        // Validate that all characters are valid decimal digits
+        for (size_t i = 0; i < input.length(); ++i)
+        {
+            char c = input[i];
+            if (!(c >= '0' && c <= '9'))
+            {
+                throw std::invalid_argument("Invalid decimal number: contains non-digit characters");
+            }
+        }
+        
+        stream >> result;
+    }
+    
+    // Check if the stream operation failed or if there are remaining characters
+    if (stream.fail())
+    {
+        throw std::invalid_argument("Failed to parse number from input string");
+    }
+    
+    // Check if there are any remaining characters in the stream
+    std::string remaining;
+    stream >> remaining;
+    if (!remaining.empty())
+    {
+        throw std::invalid_argument("Input string contains extra characters after the number");
+    }
+    
     return result;
 }
 
