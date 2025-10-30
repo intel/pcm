@@ -1436,11 +1436,19 @@ private:
         if ( port_ == 0 )
             throw std::runtime_error( "Server Constructor: No port specified." );
 
+        bool useIPv4 = false;
         socket_t sockfd = ::socket( AF_INET6, SOCK_STREAM, 0 );
         if ( INVALID_SOCKET == sockfd )
         {
 #ifdef _WIN32
-            throw std::runtime_error( std::string("Server Constructor: Can't create socket. WSAGetLastError: ") + std::to_string(WSAGetLastError()) );
+            // On Windows, IPv6 might not be enabled. Try IPv4 as fallback.
+            std::cerr << "IPv6 socket creation failed (WSAGetLastError: " << WSAGetLastError() << "), trying IPv4..." << std::endl;
+            sockfd = ::socket( AF_INET, SOCK_STREAM, 0 );
+            if ( INVALID_SOCKET == sockfd )
+            {
+                throw std::runtime_error( std::string("Server Constructor: Can't create socket (IPv4 or IPv6). WSAGetLastError: ") + std::to_string(WSAGetLastError()) );
+            }
+            useIPv4 = true;
 #else
             throw std::runtime_error( "Server Constructor: Can't create socket" );
 #endif
@@ -1448,21 +1456,44 @@ private:
 
         int retval = 0;
 
-        struct sockaddr_in6 serv;
-        serv.sin6_family = AF_INET6;
-        serv.sin6_port = htons( port_ );
-        if ( listenIP_.empty() )
-            serv.sin6_addr = in6addr_any;
-        else {
-            if ( 1 != ::inet_pton( AF_INET6, listenIP_.c_str(), &(serv.sin6_addr) ) )
-            {
-                DBG( 3, "close clientsocketFD" );
-                ::close(sockfd);
-                throw std::runtime_error( "Server Constructor: Cannot convert IP string" );
+        if (useIPv4) {
+#ifdef _WIN32
+            // Use IPv4
+            struct sockaddr_in serv4;
+            memset(&serv4, 0, sizeof(serv4));
+            serv4.sin_family = AF_INET;
+            serv4.sin_port = htons( port_ );
+            if ( listenIP_.empty() )
+                serv4.sin_addr.s_addr = INADDR_ANY;
+            else {
+                if ( 1 != ::inet_pton( AF_INET, listenIP_.c_str(), &(serv4.sin_addr) ) )
+                {
+                    DBG( 3, "close clientsocketFD" );
+                    ::close(sockfd);
+                    throw std::runtime_error( "Server Constructor: Cannot convert IP string" );
+                }
             }
+            socklen_t len = sizeof( struct sockaddr_in );
+            retval = ::bind( sockfd, reinterpret_cast<struct sockaddr*>(&serv4), len );
+#endif
+        } else {
+            // Use IPv6
+            struct sockaddr_in6 serv;
+            serv.sin6_family = AF_INET6;
+            serv.sin6_port = htons( port_ );
+            if ( listenIP_.empty() )
+                serv.sin6_addr = in6addr_any;
+            else {
+                if ( 1 != ::inet_pton( AF_INET6, listenIP_.c_str(), &(serv.sin6_addr) ) )
+                {
+                    DBG( 3, "close clientsocketFD" );
+                    ::close(sockfd);
+                    throw std::runtime_error( "Server Constructor: Cannot convert IP string" );
+                }
+            }
+            socklen_t len = sizeof( struct sockaddr_in6 );
+            retval = ::bind( sockfd, reinterpret_cast<struct sockaddr*>(&serv), len );
         }
-        socklen_t len = sizeof( struct sockaddr_in6 );
-        retval = ::bind( sockfd, reinterpret_cast<struct sockaddr*>(&serv), len );
         if ( 0 != retval ) {
             DBG( 3, "close clientsocketFD" );
             ::close( sockfd );
