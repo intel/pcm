@@ -1434,9 +1434,9 @@ private:
         if ( INVALID_SOCKET == sockfd )
         {
 #ifdef _WIN32
-            throw std::runtime_error( std::string("Server Constructor: Can´t create socket: ") + std::to_string(WSAGetLastError()) );
+            throw std::runtime_error( std::string("Server Constructor: Can't create socket. WSAGetLastError: ") + std::to_string(WSAGetLastError()) );
 #else
-            throw std::runtime_error( "Server Constructor: Can´t create socket" );
+            throw std::runtime_error( "Server Constructor: Can't create socket" );
 #endif
         }
 
