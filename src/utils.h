@@ -97,7 +97,7 @@ int mainThrows(int argc, char * argv[]); \
 int main(int argc, char * argv[]) \
 { \
     try { \
-       eraseEnvironmentVariables({PCM_STRING("POSIXLY_CORRECT")}); \
+       eraseEnvironmentVariables({PCM_STRING("POSIXLY_CORRECT"), PCM_STRING("SystemRoot")}); \
     } catch(const std::exception & e) \
     { \
         std::cerr << "PCM ERROR. Exception in eraseEnvironmentVariables: " << e.what() << "\n"; \
