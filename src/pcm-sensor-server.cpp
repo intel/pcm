@@ -1492,7 +1492,11 @@ private:
                 if ( 1 != ::inet_pton( AF_INET6, listenIP_.c_str(), &(serv.sin6_addr) ) )
                 {
                     DBG( 3, "close clientsocketFD" );
+#ifdef _WIN32
+                    closesocket(sockfd);
+#else
                     ::close(sockfd);
+#endif
                     throw std::runtime_error( "Server Constructor: Cannot convert IP string" );
                 }
             }
@@ -1501,14 +1505,22 @@ private:
         }
         if ( 0 != retval ) {
             DBG( 3, "close clientsocketFD" );
+#ifdef _WIN32
+            closesocket( sockfd );
+#else
             ::close( sockfd );
+#endif
             throw std::runtime_error( std::string("Server Constructor: Cannot bind to port ") + std::to_string(port_) );
         }
 
         retval = listen( sockfd, 64 );
         if ( 0 != retval ) {
             DBG( 3, "close clientsocketFD" );
+#ifdef _WIN32
+            closesocket( sockfd );
+#else
             ::close( sockfd );
+#endif
             throw std::runtime_error( "Server Constructor: Cannot listen on socket" );
         }
         // Here everything should be fine, return socket fd
