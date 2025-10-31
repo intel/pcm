@@ -3325,11 +3325,11 @@ BOOL WINAPI SignalHandler::handleSignal( DWORD signum )
     std::cerr << "handleSignal: signal " << signum << " caught.\n";
     std::cerr << "handleSignal: closing socket " << networkSocket_ << "\n";
     ::close( networkSocket_ );
+    std::cerr << "Cleaning up PMU:\n";
+    PCM::getInstance()->cleanup();
     std::cerr << "Stopping HTTPServer\n";
     if (httpServer_)
         httpServer_->stop();
-    std::cerr << "Cleaning up PMU:\n";
-    PCM::getInstance()->cleanup();
     std::cerr << "handleSignal: exiting with exit code 1...\n";
     exit(1);
     return TRUE;
