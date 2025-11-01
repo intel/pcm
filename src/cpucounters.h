@@ -313,7 +313,7 @@ public:
     std::vector<HWRegisterPtr> counterFilterENG;
     std::vector<HWRegisterPtr> counterFilterTC;
     std::vector<HWRegisterPtr> counterFilterPGSZ;
-    std::vector<HWRegisterPtr> counterFilterXFERSZ; 
+    std::vector<HWRegisterPtr> counterFilterXFERSZ;
 
     IDX_PMU(const bool perfMode_,
         const uint32 numaNode_,
@@ -570,7 +570,6 @@ class SimpleCounterState
     friend uint64 getNumberOfEvents(const T & before, const T & after);
     friend class PCM;
     uint64 data;
-
 public:
     SimpleCounterState() : data(0)
     { }
@@ -957,6 +956,7 @@ public:
         THRESH,
         CH_MASK,
         FC_MASK,
+        UNIT_TYPE,
         /* Below are not part of perfmon definition */
         H_EVENT_NAME,
         V_EVENT_NAME,
@@ -1281,9 +1281,14 @@ private:
     void programCXLCM(const uint64* events);
     void cleanupUncorePMUs(const bool silent = false);
 
+    static bool isCLX(int cpu_family_model_, int cpu_stepping_)
+    {
+        return (PCM::SKX == cpu_family_model_) && (cpu_stepping_ > 4 && cpu_stepping_ < 8);
+    }
+
     bool isCLX() const // Cascade Lake-SP
     {
-        return (PCM::SKX == cpu_family_model) && (cpu_stepping > 4 && cpu_stepping < 8);
+        return isCLX(cpu_family_model, cpu_stepping);
     }
 
     static bool isCPX(int cpu_family_model_, int cpu_stepping_) // Cooper Lake
@@ -1396,6 +1401,9 @@ public:
 
     //! \brief Returns the number of IIO stacks per socket
     uint32 getMaxNumOfIIOStacks() const;
+
+    //! \brief Returns the number of IO stacks per socket
+    uint32 getMaxNumOfIOStacks() const;
 
     /*! \brief Returns the number of IDX accel devs
         \param accel index of IDX accel
@@ -1682,6 +1690,7 @@ public:
             case MTL:
             case LNL:
             case ARL:
+            case PTL:
                 if (topology[coreID].core_type == TopologyEntry::Atom)
                 {
                     return eCoreOCREvent;
@@ -1701,6 +1710,7 @@ public:
        case MTL:
        case LNL:
        case ARL:
+       case PTL:
            useGLCOCREvent = true;
            break;
 
@@ -1753,7 +1763,7 @@ public:
 
             One needs to call this method when your program finishes or/and you are not going to use the
             performance counting routines anymore.
-*/
+    */
     void cleanup(const bool silent = false);
 
     /*! \brief Forces PMU reset
@@ -1831,7 +1841,7 @@ public:
             \return Number of sockets in the system
     */
     uint32 getNumSockets() const;
-    
+
     /*! \brief Reads  the accel type in the system
         \return acceltype
     */
@@ -1849,7 +1859,7 @@ public:
 
     /*! \brief Sets the Number of AccelCounters in the system
         \return number of counters
-    */          
+    */
     void setNumberofAccelCounters(uint32 input);
 
     /*! \brief Reads number of online sockets (CPUs) in the system
@@ -1960,6 +1970,7 @@ public:
         LNL =           PCM_CPU_FAMILY_MODEL(6, 0xBD),
         ARL =           PCM_CPU_FAMILY_MODEL(6, 197),
         ARL_1 =         PCM_CPU_FAMILY_MODEL(6, 198),
+        PTL =           PCM_CPU_FAMILY_MODEL(6, 204),
         BDX =           PCM_CPU_FAMILY_MODEL(6, 79),
         KNL =           PCM_CPU_FAMILY_MODEL(6, 87),
         SKL =           PCM_CPU_FAMILY_MODEL(6, 94),
@@ -2201,6 +2212,7 @@ public:
             return 6;
         case LNL:
         case ARL:
+        case PTL:
             return 12;
         case SNOWRIDGE:
         case ELKHART_LAKE:
@@ -2422,18 +2434,17 @@ public:
 
     //! \brief Control QAT telemetry service
     //! \param dev device index
-    //! \param operation control code 
+    //! \param operation control code
     void controlQATTelemetry(uint32 dev, uint32 operation);
 
     //! \brief Program IDX events
     //! \param events config of event to program
-    //! \param filters_wq filters(work queue) of event to program 
-    //! \param filters_eng filters(engine) of event to program 
-    //! \param filters_tc filters(traffic class) of event to program 
-    //! \param filters_pgsz filters(page size) of event to program 
-    //! \param filters_xfersz filters(transfer size) of event to program 
+    //! \param filters_wq filters(work queue) of event to program
+    //! \param filters_eng filters(engine) of event to program
+    //! \param filters_tc filters(traffic class) of event to program
+    //! \param filters_pgsz filters(page size) of event to program
+    //! \param filters_xfersz filters(transfer size) of event to program
     void programIDXAccelCounters(uint32 accel, std::vector<uint64_t> &events, std::vector<uint32> &filters_wq, std::vector<uint32> &filters_eng, std::vector<uint32> &filters_tc, std::vector<uint32> &filters_pgsz, std::vector<uint32> &filters_xfersz);
-
 
     //! \brief Get the state of IIO counter
     //! \param socket socket of the IIO stack
@@ -2464,6 +2475,11 @@ public:
     //! \brief Get a string describing the codename of the processor microarchitecture
     //! \param cpu_family_model_ cpu model (if no parameter provided the codename of the detected CPU is returned)
     const char * getUArchCodename(const int32 cpu_family_model_ = -1) const;
+
+    //! \brief Convert CPU Family/Model/Stepping to microarchitecture codename
+    //! \param cpu_family_model_ cpu family model
+    //! \param cpu_stepping necessary for some CPU models to distinguish between different microarchitectures
+    static const char * cpuFamilyModelToUArchCodename(const int32 cpu_family_model_, const int32 cpu_stepping_ = -1);
 
     //! \brief Get Brand string of processor
     static std::string getCPUBrandString();
@@ -2553,6 +2569,7 @@ public:
                  || cpu_family_model == PCM::MTL
                  || cpu_family_model == PCM::LNL
                  || cpu_family_model == PCM::ARL
+                 || cpu_family_model == PCM::PTL
                  || cpu_family_model == PCM::SPR
                  || cpu_family_model == PCM::EMR
                  || cpu_family_model == PCM::GNR
@@ -2593,6 +2610,7 @@ public:
             || cpu_family_model == PCM::MTL
             || cpu_family_model == PCM::LNL
             || cpu_family_model == PCM::ARL
+            || cpu_family_model == PCM::PTL
             || cpu_family_model == PCM::SPR
             || cpu_family_model == PCM::EMR
             || cpu_family_model == PCM::GNR
@@ -2668,7 +2686,7 @@ public:
             || cpu_family_model == PCM::GNR_D
             );
     }
-    
+
     bool memoryTrafficMetricsAvailable() const
     {
         return (!(isAtom() || cpu_family_model == PCM::CLARKDALE))
@@ -2893,6 +2911,7 @@ public:
             || cpu_family_model == MTL
             || cpu_family_model == LNL
             || cpu_family_model == ARL
+            || cpu_family_model == PTL
             || useSKLPath()
             ;
     }
@@ -4458,6 +4477,7 @@ uint64 getL2CacheMisses(const CounterStateType & before, const CounterStateType 
         || cpu_family_model == PCM::MTL
         || cpu_family_model == PCM::LNL
         || cpu_family_model == PCM::ARL
+        || cpu_family_model == PCM::PTL
         ) {
         return after.Event[BasicCounterState::SKLL2MissPos] - before.Event[BasicCounterState::SKLL2MissPos];
     }
@@ -4574,6 +4594,7 @@ uint64 getL3CacheHitsSnoop(const CounterStateType & before, const CounterStateTy
         || cpu_family_model == PCM::MTL
         || cpu_family_model == PCM::LNL
         || cpu_family_model == PCM::ARL
+        || cpu_family_model == PCM::PTL
         )
     {
         const int64 misses = getL3CacheMisses(before, after);

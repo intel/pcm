@@ -717,6 +717,7 @@ void PCM::initCStateSupportTables()
         case MTL:
         case LNL:
         case ARL:
+        case PTL:
         case SNOWRIDGE:
         case ELKHART_LAKE:
         case JASPER_LAKE:
@@ -798,6 +799,7 @@ void PCM::initCStateSupportTables()
         case MTL:
         case LNL:
         case ARL:
+        case PTL:
         case SNOWRIDGE:
         case ELKHART_LAKE:
         case JASPER_LAKE:
@@ -1695,6 +1697,7 @@ bool PCM::detectNominalFrequency()
                || cpu_family_model == MTL
                || cpu_family_model == LNL
                || cpu_family_model == ARL
+               || cpu_family_model == PTL
                || cpu_family_model == SKX
                || cpu_family_model == ICX
                || cpu_family_model == SPR
@@ -1974,6 +1977,7 @@ void PCM::initUncoreObjects()
            case MTL: // TGLClientBW works fine for MTL
            case LNL: // TGLClientBW works fine for LNL
            case ARL: // TGLClientBW works fine for ARL
+           case PTL: // TGLClientBW works fine for PTL
                clientBW = std::make_shared<TGLClientBW>();
                break;
 /*         Disabled since ADLClientBW requires 2x multiplier for BW on top
@@ -3417,6 +3421,7 @@ bool PCM::isCPUModelSupported(const int model_)
             || model_ == MTL
             || model_ == LNL
             || model_ == ARL
+            || model_ == PTL
             || model_ == SKX
             || model_ == ICX
             || model_ == SPR
@@ -3599,6 +3604,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
                        || cpu_family_model == MTL
                        || cpu_family_model == LNL
                        || cpu_family_model == ARL
+                       || cpu_family_model == PTL
                          ))
     {
         canUsePerf = false;
@@ -3688,6 +3694,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
             case MTL:
             case LNL:
             case ARL:
+            case PTL:
                 LLCArchEventInit(hybridAtomEventDesc);
                 hybridAtomEventDesc[2].event_number = SKL_MEM_LOAD_RETIRED_L2_MISS_EVTNR;
                 hybridAtomEventDesc[2].umask_value = SKL_MEM_LOAD_RETIRED_L2_MISS_UMASK;
@@ -4980,12 +4987,8 @@ bool PCM::PMUinUse()
     return false;
 }
 
-const char * PCM::getUArchCodename(const int32 cpu_family_model_param) const
+const char * PCM::cpuFamilyModelToUArchCodename(const int32 cpu_family_model_, const int32 cpu_stepping_)
 {
-    auto cpu_family_model_ = cpu_family_model_param;
-    if(cpu_family_model_ < 0)
-        cpu_family_model_ = this->cpu_family_model;
-
     switch(cpu_family_model_)
     {
         case CENTERTON:
@@ -5067,17 +5070,19 @@ const char * PCM::getUArchCodename(const int32 cpu_family_model_param) const
             return "Lunar Lake";
         case ARL:
             return "Arrow Lake";
+        case PTL:
+            return "Panther Lake";
         case SKX:
-            if (cpu_family_model_param >= 0)
+            if (cpu_stepping_ < 0)
             {
-                // query for specified cpu_family_model_param, stepping not provided
+                // Stepping is not provided
                 return "Skylake-SP, Cascade Lake-SP";
             }
-            if (isCLX())
+            if (isCLX(cpu_family_model_, cpu_stepping_))
             {
                 return "Cascade Lake-SP";
             }
-            if (isCPX())
+            if (isCPX(cpu_family_model_, cpu_stepping_))
             {
                 return "Cooper Lake";
             }
@@ -5098,6 +5103,18 @@ const char * PCM::getUArchCodename(const int32 cpu_family_model_param) const
             return "Sierra Forest";
     }
     return "unknown";
+}
+
+const char * PCM::getUArchCodename(const int32 cpu_family_model_param) const
+{
+    auto cpu_family_model_ = cpu_family_model_param;
+    auto cpu_stepping_ = -1;
+    if (cpu_family_model_ < 0) {
+        cpu_family_model_ = this->cpu_family_model;
+        cpu_stepping_ = this->cpu_stepping;
+    }
+
+    return cpuFamilyModelToUArchCodename(cpu_family_model_, cpu_stepping_);
 }
 
 #ifdef PCM_USE_PERF
@@ -10346,6 +10363,11 @@ uint32 PCM::getMaxNumOfIIOStacks() const
         return (uint32)iioPMUs[0].size();
     }
     return 0;
+}
+
+uint32 PCM::getMaxNumOfIOStacks() const
+{
+    return getMaxNumOfIIOStacks();
 }
 
 void PCM::programCboOpcodeFilter(const uint32 opc0, UncorePMU & pmu, const uint32 nc_, const uint32 opc1, const uint32 loc, const uint32 rem)

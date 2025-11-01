@@ -8,7 +8,7 @@ set(PROJECT_NAMES pcm pcm-numa pcm-latency pcm-power pcm-msr pcm-memory pcm-tsx 
 
 set(MINIMUM_OPENSSL_VERSION 1.1.1)
 
-file(GLOB COMMON_SOURCES pcm-accel-common.cpp msr.cpp cpucounters.cpp pci.cpp mmio.cpp tpmi.cpp pmt.cpp bw.cpp utils.cpp topology.cpp debug.cpp threadpool.cpp uncore_pmu_discovery.cpp pcm-iio-pmu.cpp lspci.cpp ${PCM_PUGIXML_CPP})
+file(GLOB COMMON_SOURCES pcm-accel-common.cpp msr.cpp cpucounters.cpp pci.cpp mmio.cpp tpmi.cpp pmt.cpp bw.cpp utils.cpp topology.cpp debug.cpp threadpool.cpp uncore_pmu_discovery.cpp pcm-iio-pmu.cpp pcm-iio-topology.cpp lspci.cpp ${PCM_PUGIXML_CPP})
 
 if (APPLE)
   file(GLOB UNIX_SOURCES dashboard.cpp)
