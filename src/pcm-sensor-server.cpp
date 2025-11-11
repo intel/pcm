@@ -3922,6 +3922,27 @@ int startHTTPSServer( const std::string& listenAddr, unsigned short port, std::s
 }
 #endif
 
+// Validate IP address string (IPv4 or IPv6)
+bool isValidIPAddress( const std::string& ipAddress ) {
+    if ( ipAddress.empty() ) {
+        return true;  // Empty string is valid - means bind to all interfaces
+    }
+    
+    // Try IPv4 first
+    struct sockaddr_in sa4;
+    if ( 1 == ::inet_pton( AF_INET, ipAddress.c_str(), &(sa4.sin_addr) ) ) {
+        return true;
+    }
+    
+    // Try IPv6
+    struct sockaddr_in6 sa6;
+    if ( 1 == ::inet_pton( AF_INET6, ipAddress.c_str(), &(sa6.sin6_addr) ) ) {
+        return true;
+    }
+    
+    return false;
+}
+
 void printHelpText( std::string const & programName ) {
     std::cout << "Usage: " << programName << " [OPTION]\n\n";
     std::cout << "Valid Options:\n";
@@ -4014,6 +4035,11 @@ int mainThrows(int argc, char * argv[]) {
             {
                 if ( (++i) < argc ) {
                     listenAddress = argv[i];
+                    if ( !isValidIPAddress( listenAddress ) ) {
+                        std::cerr << "Error: Invalid IP address '" << listenAddress << "'. ";
+                        std::cerr << "Please provide a valid IPv4 or IPv6 address.\n";
+                        exit( 1 );
+                    }
                 } else {
                     throw std::runtime_error( "main: Error no listen address argument given" );
                 }
