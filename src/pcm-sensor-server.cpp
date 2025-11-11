@@ -3889,8 +3889,8 @@ void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & re
     }
 }
 
-int startHTTPServer( unsigned short port ) {
-    HTTPServer server( "", port );
+int startHTTPServer( const std::string& listenAddr, unsigned short port ) {
+    HTTPServer server( listenAddr, port );
     try {
         // HEAD is GET without body, we will remove the body in execute()
         server.registerCallback( HTTPRequestMethod::GET,  my_get_callback );
@@ -3904,8 +3904,8 @@ int startHTTPServer( unsigned short port ) {
 }
 
 #if defined (USE_SSL)
-int startHTTPSServer( unsigned short port, std::string const & cFile, std::string const & pkFile) {
-    HTTPSServer server( "", port );
+int startHTTPSServer( const std::string& listenAddr, unsigned short port, std::string const & cFile, std::string const & pkFile) {
+    HTTPSServer server( listenAddr, port );
     try {
         server.setPrivateKeyFile ( pkFile );
         server.setCertificateFile( cFile );
@@ -3932,6 +3932,7 @@ void printHelpText( std::string const & programName ) {
     std::cout << "    -s                   : Use https protocol (default port " << DEFAULT_HTTPS_PORT << ")\n";
 #endif
     std::cout << "    -p portnumber        : Run on port <portnumber> (default port is " << DEFAULT_HTTP_PORT << ")\n";
+    std::cout << "    -l|--listen address  : Listen on IP address <address> (default: all interfaces)\n";
     std::cout << "    -r|--reset           : Reset programming of the performance counters.\n";
     std::cout << "    -D|--debug level     : level = 0: no debug info, > 0 increase verbosity.\n";
 #if !defined(__APPLE__) && !defined(_WIN32)
@@ -3972,6 +3973,7 @@ int mainThrows(int argc, char * argv[]) {
     bool printTopology = false;
     unsigned short port = 0;
     unsigned short debug_level = 0;
+    std::string listenAddress = "";  // Empty string means listen on all interfaces
     std::string certificateFile;
     std::string privateKeyFile;
     AcceleratorCounterState *accs_ = AcceleratorCounterState::getInstance();
@@ -4006,6 +4008,14 @@ int mainThrows(int argc, char * argv[]) {
                     }
                 } else {
                     throw std::runtime_error( "main: Error no port argument given" );
+                }
+            }
+            else if ( check_argument_equals( argv[i], {"-l", "--listen"} ) )
+            {
+                if ( (++i) < argc ) {
+                    listenAddress = argv[i];
+                } else {
+                    throw std::runtime_error( "main: Error no listen address argument given" );
                 }
             }
 #if defined (USE_SSL)
@@ -4292,15 +4302,17 @@ int mainThrows(int argc, char * argv[]) {
         if ( useSSL ) {
             if ( port == 0 )
                 port = DEFAULT_HTTPS_PORT;
-            std::cerr << "Starting SSL enabled server on https://localhost:" << port << "/\n";
-            startHTTPSServer( port, certificateFile, privateKeyFile );
+            std::string displayAddr = listenAddress.empty() ? "all interfaces" : listenAddress;
+            std::cerr << "Starting SSL enabled server on https://" << displayAddr << ":" << port << "/\n";
+            startHTTPSServer( listenAddress, port, certificateFile, privateKeyFile );
         } else
 #endif
         {
             if ( port == 0 )
                 port = DEFAULT_HTTP_PORT;
-            std::cerr << "Starting plain HTTP server on http://localhost:" << port << "/\n";
-            startHTTPServer( port );
+            std::string displayAddr = listenAddress.empty() ? "all interfaces" : listenAddress;
+            std::cerr << "Starting plain HTTP server on http://" << displayAddr << ":" << port << "/\n";
+            startHTTPServer( listenAddress, port );
         }
         delete pcmInstance;
     } else if ( pid > 0 ) {
