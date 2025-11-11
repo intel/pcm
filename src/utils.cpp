@@ -71,6 +71,7 @@ void getMCFGRecords(std::vector<MCFGRecord>& mcfg)
 #if defined (_MSC_VER) || defined(__FreeBSD__) || defined(__DragonFly__)
     switch (PCM::getCPUFamilyModelFromCPUID())
     {
+    case PCM::SPR:
     case PCM::GNR:
         maxSegments = 4;
         break;
