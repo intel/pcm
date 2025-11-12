@@ -1480,7 +1480,7 @@ private:
                 {
                     DBG( 3, "close clientsocketFD" );
                     ::close(sockfd);
-                    throw std::runtime_error( "Server Constructor: Cannot convert IP string" );
+                    throw std::runtime_error(std::string("Server Constructor: Cannot convert IP string ") + listenIP_ + " to IPv4 address");
                 }
             }
             socklen_t len = sizeof( struct sockaddr_in );
@@ -1502,7 +1502,7 @@ private:
 #else
                     ::close(sockfd);
 #endif
-                    throw std::runtime_error( "Server Constructor: Cannot convert IP string" );
+                    throw std::runtime_error( std::string("Server Constructor: Cannot convert IP string ") + listenIP_ + " to IPv6 address" );
                 }
             }
             socklen_t len = sizeof( struct sockaddr_in6 );
@@ -4350,7 +4350,7 @@ int mainThrows(int argc, char * argv[]) {
         if ( useSSL ) {
             if ( port == 0 )
                 port = DEFAULT_HTTPS_PORT;
-            std::string displayAddr = listenAddress.empty() ? "all interfaces" : listenAddress;
+            std::string displayAddr = listenAddress.empty() ? "localhost" : listenAddress;
             std::cerr << "Starting SSL enabled server on https://" << displayAddr << ":" << port << "/\n";
             startHTTPSServer( listenAddress, port, certificateFile, privateKeyFile, useIPv4 );
         } else
@@ -4358,7 +4358,7 @@ int mainThrows(int argc, char * argv[]) {
         {
             if ( port == 0 )
                 port = DEFAULT_HTTP_PORT;
-            std::string displayAddr = listenAddress.empty() ? "all interfaces" : listenAddress;
+            std::string displayAddr = listenAddress.empty() ? "localhost" : listenAddress;
             std::cerr << "Starting plain HTTP server on http://" << displayAddr << ":" << port << "/\n";
             startHTTPServer( listenAddress, port, useIPv4 );
         }
