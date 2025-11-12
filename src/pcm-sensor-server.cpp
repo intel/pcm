@@ -1388,7 +1388,7 @@ typedef basic_socketstream<wchar_t> wsocketstream;
 class Server {
 public:
     Server() = delete;
-    Server( const std::string & listenIP, uint16_t port ) noexcept( false ) : listenIP_(listenIP), wq_( WorkQueue::getInstance() ), port_( port ) {
+    Server( const std::string & listenIP, uint16_t port, bool useIPv4 = false ) noexcept( false ) : listenIP_(listenIP), wq_( WorkQueue::getInstance() ), port_( port ), useIPv4_( useIPv4 ) {
         DBG( 3, "Initializing Server" );
 #ifdef _WIN32
         // Initialize Winsock on Windows
@@ -1446,10 +1446,21 @@ private:
         }
         useIPv4 = true;
 #else
-        socket_t sockfd = ::socket( AF_INET6, SOCK_STREAM, 0 );
-        if ( INVALID_SOCKET == sockfd )
-        {
-            throw std::runtime_error( "Server Constructor: Can't create socket" );
+        // On non-Windows systems, use IPv6 by default unless IPv4 is explicitly requested
+        useIPv4 = useIPv4_;
+        socket_t sockfd;
+        if ( useIPv4 ) {
+            sockfd = ::socket( AF_INET, SOCK_STREAM, 0 );
+            if ( INVALID_SOCKET == sockfd )
+            {
+                throw std::runtime_error( "Server Constructor: Can't create IPv4 socket" );
+            }
+        } else {
+            sockfd = ::socket( AF_INET6, SOCK_STREAM, 0 );
+            if ( INVALID_SOCKET == sockfd )
+            {
+                throw std::runtime_error( "Server Constructor: Can't create IPv6 socket" );
+            }
         }
 #endif
 
@@ -1526,6 +1537,7 @@ protected:
     WorkQueue*   wq_;
     socket_t     serverSocket_;
     uint16_t     port_;
+    bool         useIPv4_;
 };
 
 enum HTTPRequestMethod {
@@ -3200,7 +3212,7 @@ public:
         SignalHandler::getInstance()->setHTTPServer( this );
     }
 
-    HTTPServer( std::string const & ip, uint16_t port ) : Server( ip, port ), stopped_( false ) {
+    HTTPServer( std::string const & ip, uint16_t port, bool useIPv4 = false ) : Server( ip, port, useIPv4 ), stopped_( false ) {
         DBG( 3, "HTTPServer::HTTPServer( ip=", ip, ", port=", port, " )" );
         callbackList_.resize( 256 );
         createPeriodicCounterFetcher();
@@ -3455,7 +3467,7 @@ void HTTPServer::run() {
 class HTTPSServer : public HTTPServer {
 public:
     HTTPSServer() : HTTPServer( "", 443 ) {}
-    HTTPSServer( std::string const & ip, uint16_t port ) : HTTPServer( ip, port ), sslCTX_( nullptr ) {}
+    HTTPSServer( std::string const & ip, uint16_t port, bool useIPv4 = false ) : HTTPServer( ip, port, useIPv4 ), sslCTX_( nullptr ) {}
     HTTPSServer( HTTPSServer const & ) = delete;
     HTTPSServer & operator = ( HTTPSServer const & ) = delete;
     virtual ~HTTPSServer() {
@@ -3889,8 +3901,8 @@ void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & re
     }
 }
 
-int startHTTPServer( const std::string& listenAddr, unsigned short port ) {
-    HTTPServer server( listenAddr, port );
+int startHTTPServer( const std::string& listenAddr, unsigned short port, bool useIPv4 = false ) {
+    HTTPServer server( listenAddr, port, useIPv4 );
     try {
         // HEAD is GET without body, we will remove the body in execute()
         server.registerCallback( HTTPRequestMethod::GET,  my_get_callback );
@@ -3904,8 +3916,8 @@ int startHTTPServer( const std::string& listenAddr, unsigned short port ) {
 }
 
 #if defined (USE_SSL)
-int startHTTPSServer( const std::string& listenAddr, unsigned short port, std::string const & cFile, std::string const & pkFile) {
-    HTTPSServer server( listenAddr, port );
+int startHTTPSServer( const std::string& listenAddr, unsigned short port, std::string const & cFile, std::string const & pkFile, bool useIPv4 = false ) {
+    HTTPSServer server( listenAddr, port, useIPv4 );
     try {
         server.setPrivateKeyFile ( pkFile );
         server.setCertificateFile( cFile );
@@ -3954,6 +3966,9 @@ void printHelpText( std::string const & programName ) {
 #endif
     std::cout << "    -p portnumber        : Run on port <portnumber> (default port is " << DEFAULT_HTTP_PORT << ")\n";
     std::cout << "    -l|--listen address  : Listen on IP address <address> (default: all interfaces)\n";
+#ifndef _WIN32
+    std::cout << "    -4|--ipv4            : Use IPv4 instead of IPv6 (non-Windows only)\n";
+#endif
     std::cout << "    -r|--reset           : Reset programming of the performance counters.\n";
     std::cout << "    -D|--debug level     : level = 0: no debug info, > 0 increase verbosity.\n";
 #if !defined(__APPLE__) && !defined(_WIN32)
@@ -3992,6 +4007,7 @@ int mainThrows(int argc, char * argv[]) {
 #endif
     bool forceRTMAbortMode = false;
     bool printTopology = false;
+    bool useIPv4 = false;
     unsigned short port = 0;
     unsigned short debug_level = 0;
     std::string listenAddress = "";  // Empty string means listen on all interfaces
@@ -4044,6 +4060,12 @@ int mainThrows(int argc, char * argv[]) {
                     throw std::runtime_error( "main: Error no listen address argument given" );
                 }
             }
+#ifndef _WIN32
+            else if ( check_argument_equals( argv[i], {"-4", "--ipv4"} ) )
+            {
+                useIPv4 = true;
+            }
+#endif
 #if defined (USE_SSL)
             else if ( check_argument_equals( argv[i], {"-s"} ) )
             {
@@ -4330,7 +4352,7 @@ int mainThrows(int argc, char * argv[]) {
                 port = DEFAULT_HTTPS_PORT;
             std::string displayAddr = listenAddress.empty() ? "all interfaces" : listenAddress;
             std::cerr << "Starting SSL enabled server on https://" << displayAddr << ":" << port << "/\n";
-            startHTTPSServer( listenAddress, port, certificateFile, privateKeyFile );
+            startHTTPSServer( listenAddress, port, certificateFile, privateKeyFile, useIPv4 );
         } else
 #endif
         {
@@ -4338,7 +4360,7 @@ int mainThrows(int argc, char * argv[]) {
                 port = DEFAULT_HTTP_PORT;
             std::string displayAddr = listenAddress.empty() ? "all interfaces" : listenAddress;
             std::cerr << "Starting plain HTTP server on http://" << displayAddr << ":" << port << "/\n";
-            startHTTPServer( listenAddress, port );
+            startHTTPServer( listenAddress, port, useIPv4 );
         }
         delete pcmInstance;
     } else if ( pid > 0 ) {
