@@ -1467,7 +1467,6 @@ private:
         int retval = 0;
 
         if (useIPv4) {
-#ifdef _WIN32
             // Use IPv4
             struct sockaddr_in serv4;
             memset(&serv4, 0, sizeof(serv4));
@@ -1479,13 +1478,16 @@ private:
                 if ( 1 != ::inet_pton( AF_INET, listenIP_.c_str(), &(serv4.sin_addr) ) )
                 {
                     DBG( 3, "close clientsocketFD" );
+#ifdef _WIN32
+                    closesocket(sockfd);
+#else
                     ::close(sockfd);
+#endif
                     throw std::runtime_error(std::string("Server Constructor: Cannot convert IP string ") + listenIP_ + " to IPv4 address");
                 }
             }
             socklen_t len = sizeof( struct sockaddr_in );
             retval = ::bind( sockfd, reinterpret_cast<struct sockaddr*>(&serv4), len );
-#endif
         } else {
             // Use IPv6
             struct sockaddr_in6 serv;
