@@ -78,23 +78,39 @@ struct PCM_API TopologyEntry // describes a core
         }
         return "unknown";
     }
-    bool isSameSocket( TopologyEntry& te ) {
+    bool isSameSocket( TopologyEntry& te ) const {
         return this->socket_id == te.socket_id;
     }
-    bool isSameDieGroup( TopologyEntry& te ) {
+    bool isSameDieGroup( TopologyEntry& te ) const {
         return this->die_grp_id == te.die_grp_id && isSameSocket(te);
     }
-    bool isSameDie( TopologyEntry& te ) {
+    bool isSameDie( TopologyEntry& te ) const {
         return this->die_id == te.die_id && isSameDieGroup(te);
     }
-    bool isSameTile( TopologyEntry& te ) {
+    bool isSameTile( TopologyEntry& te ) const {
         return this->tile_id == te.tile_id && isSameDie(te);
     }
-    bool isSameModule( TopologyEntry& te ) {
+    bool isSameModule( TopologyEntry& te ) const {
         return this->module_id == te.module_id && isSameTile (te);
     }
-    bool isSameCore( TopologyEntry& te ) {
+    bool isSameCore( TopologyEntry& te ) const {
         return this->core_id == te.core_id && isSameModule(te);
+    }
+    bool operator <(const TopologyEntry& other) const
+    {
+        if (socket_id != other.socket_id)
+            return socket_id < other.socket_id;
+        if (die_grp_id != other.die_grp_id)
+            return die_grp_id < other.die_grp_id;
+        if (die_id != other.die_id)
+            return die_id < other.die_id;
+        if (tile_id != other.tile_id)
+            return tile_id < other.tile_id;
+        if (module_id != other.module_id)
+            return module_id < other.module_id;
+        if (core_id != other.core_id)
+            return core_id < other.core_id;
+        return thread_id < other.thread_id;
     }
 };
 
