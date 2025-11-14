@@ -1513,7 +1513,7 @@ bool PCM::discoverSystemTopology()
     }
     assert(currentCore != sortedTopology.end());
     int current_threads_per_core = 0;
-    for (auto firstCore = *currentCore;currentCore != sortedTopology.end(); ++currentCore)
+    for (auto firstCore = *currentCore; currentCore != sortedTopology.end(); ++currentCore)
     {
         DBG(3, "Examining core: os_id=", currentCore->os_id, ", core_id=", currentCore->core_id, ", socket_id=", currentCore->socket_id);
         if (currentCore->isSameCore(firstCore))
