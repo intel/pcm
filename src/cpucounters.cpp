@@ -1495,15 +1495,40 @@ bool PCM::discoverSystemTopology()
         std::cerr << topology[i].socket_id << " " << topology[i].os_id << " " << topology[i].core_id << "\n";
     }
 #endif
-    if (threads_per_core == 0)
+    assert(threads_per_core == 0); // make sure it is not initialized yet
+    // copy the topology array to a temp object
+    auto sortedTopology = topology;
+    std::sort(sortedTopology.begin(), sortedTopology.end());
+    // find out max number of threads per core given that the topologyCopy is sorted now
+    assert(sortedTopology.size() > 0);
+    auto currentCore = sortedTopology.begin();
+    while (currentCore != sortedTopology.end())
     {
-        for (int i = 0; i < (int)num_cores; ++i)
+        if (currentCore->os_id == -1 || currentCore->core_id == -1 || currentCore->socket_id == -1) // offlined core
         {
-            if (topology[i].isSameCore( topology[0] ))
-                ++threads_per_core;
+            ++currentCore;
+            continue;
         }
-        assert(threads_per_core != 0);
+        break;
     }
+    assert(currentCore != sortedTopology.end());
+    int current_threads_per_core = 0;
+    for (auto firstCore = *currentCore;currentCore != sortedTopology.end(); ++currentCore)
+    {
+        DBG(3, "Examining core: os_id=", currentCore->os_id, ", core_id=", currentCore->core_id, ", socket_id=", currentCore->socket_id);
+        if (currentCore->isSameCore(firstCore))
+        {
+            ++current_threads_per_core;
+        }
+        else
+        {
+            threads_per_core = (std::max)(threads_per_core, current_threads_per_core);
+            firstCore = *currentCore;
+            current_threads_per_core = 1;
+        }
+    }
+    threads_per_core = (std::max)(threads_per_core, current_threads_per_core);
+    assert(threads_per_core != 0);
     if(num_phys_cores_per_socket == 0 && num_cores == num_online_cores) num_phys_cores_per_socket = num_cores / num_sockets / threads_per_core;
     if(num_online_cores == 0) num_online_cores = num_cores;
 
