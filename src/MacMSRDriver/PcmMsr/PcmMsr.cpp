@@ -16,6 +16,12 @@ asm volatile ("\trdmsr\n" : "=a" (lo), "=d" (hi) : "c" (msr))
 extern "C" {
     extern void mp_rendezvous_no_intrs(void (*func)(void *),
                                        void *arg);
+    extern void mp_rendezvous(void (*setup_func)(void *),
+                              void (*action_func)(void *),
+                              void (*teardown_func)(void *),
+                              void *arg);
+
+
     extern int cpu_number(void);
 }
 
@@ -189,7 +195,10 @@ IOReturn PcmMsrDriverClassName::buildTopology(TopologyEntry* odata, uint32_t inp
         return kIOReturnNoMemory;
     }
 
-    mp_rendezvous_no_intrs(cpuGetTopoData, (void*)topologies);
+    mp_rendezvous(nullptr,
+                  cpuGetTopoData,
+                  nullptr,
+                  (void*)topologies);
 
     for(uint32_t i = 0; i < num_cores && i < input_num_cores; i++)
     {
