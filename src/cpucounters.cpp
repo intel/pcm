@@ -7508,6 +7508,7 @@ void initSocket2Bus(std::vector<std::pair<uint32, uint32> > & socket2bus, uint32
     Mutex::Scope _(socket2busMutex);
     if(!socket2bus.empty()) return;
 
+    try {
     forAllIntelDevices(
         [&devIdsSize,&DEV_IDS, &socket2bus](const uint32 group, const uint32 bus, const uint32 /* device */, const uint32 /* function */, const uint32 device_id)
         {
@@ -7522,6 +7523,11 @@ void initSocket2Bus(std::vector<std::pair<uint32, uint32> > & socket2bus, uint32
                 }
             }
         }, device, function);
+    } catch (const std::exception & e)
+    {
+           std::cerr << "Error in initSocket2Bus: " << e.what() << "\n";
+           socket2bus.clear();
+    }
 }
 
 int getBusFromSocket(const uint32 socket)
