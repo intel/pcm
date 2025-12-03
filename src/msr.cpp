@@ -258,13 +258,17 @@ int32 MsrHandle::write(uint64 msr_number, uint64 value)
     std::cout << "DEBUG: writing MSR 0x" << std::hex << msr_number << " value 0x" << value << " on cpu " << std::dec << cpu_id << std::endl;
 #endif
     if (fd < 0) return 0;
+    DBG(4, "core_id = ", cpu_id, " writing MSR 0x", std::hex, msr_number, " value 0x", value, std::dec);
     return ::pwrite(fd, (const void *)&value, sizeof(uint64), msr_number);
 }
 
 int32 MsrHandle::read(uint64 msr_number, uint64 * value)
 {
     if (fd < 0) return 0;
-    return ::pread(fd, (void *)value, sizeof(uint64), msr_number);
+    assert(value);
+    const auto ret = ::pread(fd, (void *)value, sizeof(uint64), msr_number);
+    DBG(4, "core_id = ", cpu_id, " reading MSR 0x", std::hex, msr_number, " value 0x", *value, std::dec);
+    return ret;
 }
 
 #endif

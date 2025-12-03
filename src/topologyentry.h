@@ -116,11 +116,13 @@ struct PCM_API TopologyEntry // describes a core
 
 inline void fillEntry(TopologyEntry & entry, const uint32 & smtMaskWidth, const uint32 & coreMaskWidth, const uint32 & l2CacheMaskShift, const int apic_id)
 {
+    DBG(1, "entry.os_id = ", entry.os_id, " apic_id = ", apic_id);
     entry.thread_id = smtMaskWidth ? extract_bits_32(apic_id, 0, smtMaskWidth - 1) : 0;
     entry.core_id = (smtMaskWidth + coreMaskWidth) ? extract_bits_32(apic_id, smtMaskWidth, smtMaskWidth + coreMaskWidth - 1) : 0;
     entry.socket_id = extract_bits_32(apic_id, smtMaskWidth + coreMaskWidth, 31);
     entry.tile_id = extract_bits_32(apic_id, l2CacheMaskShift, 31);
     entry.socket_unique_core_id = entry.core_id;
+    DBG(1, "entry.os_id = ", entry.os_id, " apic_id = ", apic_id, " entry.thread_id = ", entry.thread_id, " entry.core_id = ", entry.core_id, " entry.socket_id = ", entry.socket_id , " entry.tile_id = ", entry.tile_id, " entry.socket_unique_core_id = ", entry.socket_unique_core_id);
 }
 
 inline bool initCoreMasks(uint32 & smtMaskWidth, uint32 & coreMaskWidth, uint32 & l2CacheMaskShift, uint32 & l3CacheMaskShift)
@@ -143,6 +145,7 @@ inline bool initCoreMasks(uint32 & smtMaskWidth, uint32 & coreMaskWidth, uint32 
             }
             levelType = extract_bits_32(cpuid_args.array[2], 8, 15);
             levelShift = extract_bits_32(cpuid_args.array[0], 0, 4);
+           DBG(1, "levelType = ", levelType, " levelShift = ", levelShift);
             switch (levelType)
             {
             case 1: //level type is SMT, so levelShift is the SMT_Mask_Width
@@ -251,6 +254,7 @@ inline bool initCoreMasks(uint32 & smtMaskWidth, uint32 & coreMaskWidth, uint32 
         }
 #endif
     }
+    DBG(1, "smtMaskWidth = ", smtMaskWidth, " coreMaskWidth = ", coreMaskWidth, " l2CacheMaskShift = ", l2CacheMaskShift, " l3CacheMaskShift = ", l3CacheMaskShift);
     return true;
 }
 
