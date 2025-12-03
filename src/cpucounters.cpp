@@ -1140,6 +1140,7 @@ bool PCM::discoverSystemTopology()
                 pcm_cpuid(0x1F, subleaf, cpuid_args);
                 domain d;
                 d.type = (TopologyEntry::DomainTypeID)extract_bits_32(cpuid_args.reg.ecx, 8, 15);
+               DBG(1 , "pcm_cpuid 0x1F cpuid_args.reg.ecx = " , cpuid_args.reg.ecx , " d.type = ", d.type);
                 if (d.type == TopologyEntry::DomainTypeID::InvalidDomainTypeID)
                 {
                     break;
@@ -4413,6 +4414,7 @@ PCM::ErrorCode PCM::programCoreCounters(const int i /* core */,
 
         MSR[i]->write(IA32_PERF_GLOBAL_OVF_CTRL, value);
         MSR[i]->write(IA32_CR_PERF_GLOBAL_CTRL, value);
+       DBG(3, "core_id = ", i, " wrote IA32_PERF_GLOBAL_OVF_CTRL and IA32_CR_PERF_GLOBAL_CTRL = 0x", std::hex, value, std::dec);
     }
 #ifdef PCM_USE_PERF
     else
@@ -5679,7 +5681,7 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
     {
         {
             msr->read(IA32_PERF_GLOBAL_STATUS, &overflows); // read overflows
-            DBG(3,  "Debug " , core_id , " IA32_PERF_GLOBAL_STATUS: " , overflows);
+            DBG(3,  "core_id = " , core_id , " IA32_PERF_GLOBAL_STATUS: " , overflows);
 
             msr->read(INST_RETIRED_ADDR, &cInstRetiredAny);
             msr->read(CPU_CLK_UNHALTED_THREAD_ADDR, &cCpuClkUnhaltedThread);
@@ -5698,6 +5700,7 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
             msr->lock();
             msr->read(PERF_METRICS_ADDR, &perfMetrics);
             msr->read(TOPDOWN_SLOTS_ADDR, &slots);
+           DBG(3,  "core_id = " , core_id , " PERF_METRICS = ", perfMetrics, " TOPDOWN_SLOTS = ", slots);
             msr->write(PERF_METRICS_ADDR, 0);
             msr->write(TOPDOWN_SLOTS_ADDR, 0);
             cFrontendBoundSlots = extract_bits(perfMetrics, 16, 23);
