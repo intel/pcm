@@ -1483,7 +1483,8 @@ bool PCM::discoverSystemTopology()
     // use map to change apic socket id to the logical socket id
     for (int i = 0; (i < (int)num_cores) && (!socketIdMap.empty()); ++i)
     {
-        DBG(2, "socket_id: ", topology[i].socket_id, ", socketIdMap tells me: ", socketIdMap[topology[i].socket_id]);
+       DBG(2, "socket_id: ", topology[i].socket_id, ", socketIdMap tells me: ",
+                        (socketIdMap.find(topology[i].socket_id) == socketIdMap.end()) ? (std::string("N/A")): std::to_string(socketIdMap[topology[i].socket_id]));
         if(isCoreOnline((int32)i))
           topology[i].socket_id = socketIdMap[topology[i].socket_id];
     }
@@ -5715,22 +5716,22 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
                 cHeavyOpsSlots = extract_bits(perfMetrics,    32 + 0*8, 32 + 0*8 + 7);
             }
             const double total = double(cFrontendBoundSlots + cBadSpeculationSlots + cBackendBoundSlots + cRetiringSlots);
-            if (total != 0)
+            if (true)
             {
-                cFrontendBoundSlots = m->FrontendBoundSlots[core_id] += uint64((double(cFrontendBoundSlots) / total) * double(slots));
-                cBadSpeculationSlots = m->BadSpeculationSlots[core_id] += uint64((double(cBadSpeculationSlots) / total) * double(slots));
-                cBackendBoundSlots = m->BackendBoundSlots[core_id] += uint64((double(cBackendBoundSlots) / total) * double(slots));
-                cRetiringSlots = m->RetiringSlots[core_id] += uint64((double(cRetiringSlots) / total) * double(slots));
+                cFrontendBoundSlots = m->FrontendBoundSlots[core_id] += (total != 0) ? uint64((double(cFrontendBoundSlots) / total) * double(slots)) : 0;
+                cBadSpeculationSlots = m->BadSpeculationSlots[core_id] += (total != 0) ? uint64((double(cBadSpeculationSlots) / total) * double(slots)) : 0;
+                cBackendBoundSlots = m->BackendBoundSlots[core_id] += (total != 0) ? uint64((double(cBackendBoundSlots) / total) * double(slots)) : 0;
+                cRetiringSlots = m->RetiringSlots[core_id] += (total != 0) ? uint64((double(cRetiringSlots) / total) * double(slots)) : 0;
                 if (m->isHWTMAL2Supported())
                 {
-                    cMemBoundSlots = m->MemBoundSlots[core_id] += uint64((double(cMemBoundSlots) / total) * double(slots));
-                    cFetchLatSlots = m->FetchLatSlots[core_id] += uint64((double(cFetchLatSlots) / total) * double(slots));
-                    cBrMispredSlots = m->BrMispredSlots[core_id] += uint64((double(cBrMispredSlots) / total) * double(slots));
-                    cHeavyOpsSlots = m->HeavyOpsSlots[core_id] += uint64((double(cHeavyOpsSlots) / total) * double(slots));
+                    cMemBoundSlots = m->MemBoundSlots[core_id] += (total != 0) ? uint64((double(cMemBoundSlots) / total) * double(slots)) : 0;
+                    cFetchLatSlots = m->FetchLatSlots[core_id] += (total != 0) ? uint64((double(cFetchLatSlots) / total) * double(slots)) : 0;
+                    cBrMispredSlots = m->BrMispredSlots[core_id] += (total != 0) ? uint64((double(cBrMispredSlots) / total) * double(slots)) : 0;
+                    cHeavyOpsSlots = m->HeavyOpsSlots[core_id] += (total != 0) ? uint64((double(cHeavyOpsSlots) / total) * double(slots)) : 0;
                 }
             }
             cAllSlotsRaw = m->AllSlotsRaw[core_id] += slots;
-            DBG(3, slots , " " , cFrontendBoundSlots , " " , cBadSpeculationSlots , " " , cBackendBoundSlots , " " , cRetiringSlots);
+            DBG(3, "HWTMAL1: ", slots , " " , cFrontendBoundSlots , " " , cBadSpeculationSlots , " " , cBackendBoundSlots , " " , cRetiringSlots);
             msr->unlock();
         }
     }
