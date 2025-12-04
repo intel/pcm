@@ -17,7 +17,7 @@ Below are the PCM statistics from a system operating in Latency Optimized Mode:
 
 The BIOS option for selecting the Optimized Power Mode or Latency Optimized Mode can typically be located in the following menus, depending on the BIOS version and OEM vendor:
 - **Socket Configuration** -> **Advanced Power Management** -> **CPU – Advanced PM Tuning** -> **Latency Optimized Mode** (Disabled or Enabled)
-- **System Utilities** -> **System Configuration** -> **BIOS/Platform Configuration (RBSU)** -> **Power and Performance Options** -> **Advanced Power Options** -> **Efficiency Latency Control** (Default (Optimized Power Mode) or Latency Optimized mode)
+- **System Utilities** -> **System Configuration** -> **BIOS/Platform Configuration (RBSU)** -> **Power and Performance Options** -> **Advanced Power Options** -> **Efficiency Latency Control** (Default (Optimized Power Mode) or Latency Optimized Mode)
 
 Should this BIOS option be unavailable or if there is a preference to change the mode during runtime, the PCM repository provides scripts for changing this mode.
 
