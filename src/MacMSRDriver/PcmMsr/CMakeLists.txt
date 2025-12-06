@@ -18,7 +18,11 @@ if(APPLE)
         COMMAND xcrun --sdk macosx --show-sdk-path
         OUTPUT_VARIABLE MACOSX_SDK_PATH
         OUTPUT_STRIP_TRAILING_WHITESPACE
+        RESULT_VARIABLE XCRUN_RESULT
     )
+    if(NOT XCRUN_RESULT EQUAL 0 OR NOT MACOSX_SDK_PATH)
+        message(FATAL_ERROR "Failed to find macOS SDK path using xcrun")
+    endif()
     message(STATUS "Using SDK for KEXT: ${MACOSX_SDK_PATH}")
 endif()
 
