@@ -2307,27 +2307,30 @@ void PCM::initUncorePMUsDirect()
         {
             if (uncorePMUDiscovery.get())
             {
-                for (size_t box = 0; box < uncorePMUDiscovery->getNumBoxes(pmuType, s); ++box)
+                for (size_t die = 0; die < uncorePMUDiscovery->getNumDies(s); ++die)
                 {
-                    if (uncorePMUDiscovery->getBoxAccessType(pmuType, s, box) == UncorePMUDiscovery::accessTypeEnum::MSR
-                        && uncorePMUDiscovery->getBoxNumRegs(pmuType, s, box) >= 4)
+                    for (size_t box = 0; box < uncorePMUDiscovery->getNumBoxes(pmuType, s, die); ++box)
                     {
-                        out.push_back(
-                            std::make_shared<UncorePMU>(
-                                std::make_shared<MSRRegister>(handle, uncorePMUDiscovery->getBoxCtlAddr(pmuType, s, box)),
-                                std::make_shared<MSRRegister>(handle, uncorePMUDiscovery->getBoxCtlAddr(pmuType, s, box, 0)),
-                                std::make_shared<MSRRegister>(handle, uncorePMUDiscovery->getBoxCtlAddr(pmuType, s, box, 1)),
-                                std::make_shared<MSRRegister>(handle, uncorePMUDiscovery->getBoxCtlAddr(pmuType, s, box, 2)),
-                                std::make_shared<MSRRegister>(handle, uncorePMUDiscovery->getBoxCtlAddr(pmuType, s, box, 3)),
-                                std::make_shared<MSRRegister>(handle, uncorePMUDiscovery->getBoxCtrAddr(pmuType, s, box, 0)),
-                                std::make_shared<MSRRegister>(handle, uncorePMUDiscovery->getBoxCtrAddr(pmuType, s, box, 1)),
-                                std::make_shared<MSRRegister>(handle, uncorePMUDiscovery->getBoxCtrAddr(pmuType, s, box, 2)),
-                                std::make_shared<MSRRegister>(handle, uncorePMUDiscovery->getBoxCtrAddr(pmuType, s, box, 3)),
-                                std::shared_ptr<MSRRegister>(),
-                                std::shared_ptr<MSRRegister>(),
-                                (filter0 < 0) ? std::shared_ptr<MSRRegister>() : std::make_shared<MSRRegister>(handle, uncorePMUDiscovery->getBoxCtlAddr(pmuType, s, box) + filter0) // filters not supported by discovery
-                            )
-                        );
+                        if (uncorePMUDiscovery->getBoxAccessType(pmuType, s, die, box) == UncorePMUDiscovery::accessTypeEnum::MSR
+                            && uncorePMUDiscovery->getBoxNumRegs(pmuType, s, die, box) >= 4)
+                        {
+                            out.push_back(
+                                std::make_shared<UncorePMU>(
+                                    std::make_shared<MSRRegister>(handle, uncorePMUDiscovery->getBoxCtlAddr(pmuType, s, die, box)),
+                                    std::make_shared<MSRRegister>(handle, uncorePMUDiscovery->getBoxCtlAddr(pmuType, s, die, box, 0)),
+                                    std::make_shared<MSRRegister>(handle, uncorePMUDiscovery->getBoxCtlAddr(pmuType, s, die, box, 1)),
+                                    std::make_shared<MSRRegister>(handle, uncorePMUDiscovery->getBoxCtlAddr(pmuType, s, die, box, 2)),
+                                    std::make_shared<MSRRegister>(handle, uncorePMUDiscovery->getBoxCtlAddr(pmuType, s, die, box, 3)),
+                                    std::make_shared<MSRRegister>(handle, uncorePMUDiscovery->getBoxCtrAddr(pmuType, s, die, box, 0)),
+                                    std::make_shared<MSRRegister>(handle, uncorePMUDiscovery->getBoxCtrAddr(pmuType, s, die, box, 1)),
+                                    std::make_shared<MSRRegister>(handle, uncorePMUDiscovery->getBoxCtrAddr(pmuType, s, die, box, 2)),
+                                    std::make_shared<MSRRegister>(handle, uncorePMUDiscovery->getBoxCtrAddr(pmuType, s, die, box, 3)),
+                                    std::shared_ptr<MSRRegister>(),
+                                    std::shared_ptr<MSRRegister>(),
+                                    (filter0 < 0) ? std::shared_ptr<MSRRegister>() : std::make_shared<MSRRegister>(handle, uncorePMUDiscovery->getBoxCtlAddr(pmuType, s, die, box) + filter0) // filters not supported by discovery
+                                )
+                            );
+                        }
                     }
                 }
             }
@@ -2918,17 +2921,17 @@ void PCM::initUncorePMUsDirect()
         {
             if (uncorePMUDiscovery.get())
             {
-                auto createCXLPMU = [this](const uint32 s, const unsigned BoxType, const size_t pos) -> UncorePMU
+                auto createCXLPMU = [this](const uint32 s, const size_t die, const unsigned BoxType, const size_t pos) -> UncorePMU
                 {
                     std::vector<std::shared_ptr<HWRegister> > CounterControlRegs, CounterValueRegs;
-                    const auto n_regs = uncorePMUDiscovery->getBoxNumRegs(BoxType, s, pos);
-                    const auto unitControlAddr = uncorePMUDiscovery->getBoxCtlAddr(BoxType, s, pos);
+                    const auto n_regs = uncorePMUDiscovery->getBoxNumRegs(BoxType, s, die, pos);
+                    const auto unitControlAddr = uncorePMUDiscovery->getBoxCtlAddr(BoxType, s, die, pos);
                     const auto unitControlAddrAligned = unitControlAddr & ~4095ULL;
                     auto handle = std::make_shared<MMIORange>(unitControlAddrAligned, CXL_PMON_SIZE, false);
                     for (size_t r = 0; r < n_regs; ++r)
                     {
-                        CounterControlRegs.push_back(std::make_shared<MMIORegister64>(handle, uncorePMUDiscovery->getBoxCtlAddr(BoxType, s, pos, r) - unitControlAddrAligned));
-                        CounterValueRegs.push_back(std::make_shared<MMIORegister64>(handle, uncorePMUDiscovery->getBoxCtrAddr(BoxType, s, pos, r) - unitControlAddrAligned));
+                        CounterControlRegs.push_back(std::make_shared<MMIORegister64>(handle, uncorePMUDiscovery->getBoxCtlAddr(BoxType, s, die, pos, r) - unitControlAddrAligned));
+                        CounterValueRegs.push_back(std::make_shared<MMIORegister64>(handle, uncorePMUDiscovery->getBoxCtrAddr(BoxType, s, die, pos, r) - unitControlAddrAligned));
                     }
                     return UncorePMU(std::make_shared<MMIORegister64>(handle, unitControlAddr - unitControlAddrAligned), CounterControlRegs, CounterValueRegs);
                 };
@@ -2940,18 +2943,19 @@ void PCM::initUncorePMUsDirect()
                     case PCM::GNR:
                     case PCM::GNR_D:
                     case PCM::SRF:
+                    for (size_t die = 0; die < uncorePMUDiscovery->getNumDies(s); ++die)
                     {
-                        const auto n_units = (std::min)(uncorePMUDiscovery->getNumBoxes(SPR_CXLCM_BOX_TYPE, s),
-                            uncorePMUDiscovery->getNumBoxes(SPR_CXLDP_BOX_TYPE, s));
+                        const auto n_units = (std::min)(uncorePMUDiscovery->getNumBoxes(SPR_CXLCM_BOX_TYPE, s, die),
+                            uncorePMUDiscovery->getNumBoxes(SPR_CXLDP_BOX_TYPE, s, die));
                         for (size_t pos = 0; pos < n_units; ++pos)
                         {
                             try
                             {
-                                cxlPMUs[s].push_back(std::make_pair(createCXLPMU(s, SPR_CXLCM_BOX_TYPE, pos), createCXLPMU(s, SPR_CXLDP_BOX_TYPE, pos)));
+                                cxlPMUs[s].push_back(std::make_pair(createCXLPMU(s, die, SPR_CXLCM_BOX_TYPE, pos), createCXLPMU(s, die, SPR_CXLDP_BOX_TYPE, pos)));
                             }
                             catch (const std::exception& e)
                             {
-                                std::cerr << "CXL PMU initialization for socket " << s << " at position " << pos << " failed: " << e.what() << std::endl;
+                                std::cerr << "CXL PMU initialization for socket " << s << " die " << die << " at position " << pos << " failed: " << e.what() << std::endl;
                             }
                         }
                     }
@@ -7645,53 +7649,56 @@ void PCM::getPCICFGPMUsFromDiscovery(const unsigned int BoxType, const size_t s,
 {
     if (uncorePMUDiscovery.get())
     {
-        const auto numBoxes = uncorePMUDiscovery->getNumBoxes(BoxType, s);
-        for (size_t pos = 0; pos < numBoxes; ++pos)
+        for (size_t die = 0; die < uncorePMUDiscovery->getNumDies(s); ++die)
         {
-            if (uncorePMUDiscovery->getBoxAccessType(BoxType, s, pos) == UncorePMUDiscovery::accessTypeEnum::PCICFG)
+            const auto numBoxes = uncorePMUDiscovery->getNumBoxes(BoxType, s, die);
+            for (size_t pos = 0; pos < numBoxes; ++pos)
             {
-                std::vector<std::shared_ptr<HWRegister> > CounterControlRegs, CounterValueRegs;
-                const auto n_regs = uncorePMUDiscovery->getBoxNumRegs(BoxType, s, pos);
-                auto makeRegister = [&pos, &numBoxes, &BoxType, &s](const uint64 rawAddr)
+                if (uncorePMUDiscovery->getBoxAccessType(BoxType, s, die, pos) == UncorePMUDiscovery::accessTypeEnum::PCICFG)
                 {
-#ifndef PCI_ENABLE
-                    constexpr auto PCI_ENABLE = 0x80000000ULL;
-#endif
-                    UncorePMUDiscovery::PCICFGAddress Addr;
-                    Addr.raw = rawAddr;
-                    if ((Addr.raw & PCI_ENABLE) == 0)
+                    std::vector<std::shared_ptr<HWRegister> > CounterControlRegs, CounterValueRegs;
+                    const auto n_regs = uncorePMUDiscovery->getBoxNumRegs(BoxType, s, die, pos);
+                    auto makeRegister = [&pos, &numBoxes, &BoxType, &s](const uint64 rawAddr)
                     {
-                        std::cerr << "PCM Error: PCI_ENABLE bit not set in address 0x" << std::hex << Addr.raw << std::dec << "\n";
-                        std::cerr << "This is likely a bug in the uncore PMU discovery BIOS table. Contact your BIOS vendor.\n";
-                        std::cerr << "Socket: " << s << "\n";
-                        std::cerr << "Box type: " << BoxType << "\n";
-                        std::cerr << "Box position: " << pos << "/" << numBoxes << "\n";
-                        std::cerr << "Address: " << Addr.getStr() << "\n";
+    #ifndef PCI_ENABLE
+                        constexpr auto PCI_ENABLE = 0x80000000ULL;
+    #endif
+                        UncorePMUDiscovery::PCICFGAddress Addr;
+                        Addr.raw = rawAddr;
+                        if ((Addr.raw & PCI_ENABLE) == 0)
+                        {
+                            std::cerr << "PCM Error: PCI_ENABLE bit not set in address 0x" << std::hex << Addr.raw << std::dec << "\n";
+                            std::cerr << "This is likely a bug in the uncore PMU discovery BIOS table. Contact your BIOS vendor.\n";
+                            std::cerr << "Socket: " << s << "\n";
+                            std::cerr << "Box type: " << BoxType << "\n";
+                            std::cerr << "Box position: " << pos << "/" << numBoxes << "\n";
+                            std::cerr << "Address: " << Addr.getStr() << "\n";
+                            return std::shared_ptr<PCICFGRegister64>();
+                        }
+                        try {
+                            auto handle = std::make_shared<PciHandleType>(0, (uint32)Addr.fields.bus,
+                                                                            (uint32)Addr.fields.device,
+                                                                            (uint32)Addr.fields.function);
+                            assert(handle.get());
+                            DBG(3, "opened bdf ", Addr.getStr());
+                            return std::make_shared<PCICFGRegister64>(handle, (size_t)Addr.fields.offset);
+                        }
+                        catch (...)
+                        {
+                            DBG(3,  "error opening bdf ", Addr.getStr());
+                        }
                         return std::shared_ptr<PCICFGRegister64>();
-                    }
-                    try {
-                        auto handle = std::make_shared<PciHandleType>(0, (uint32)Addr.fields.bus,
-                                                                        (uint32)Addr.fields.device,
-                                                                        (uint32)Addr.fields.function);
-                        assert(handle.get());
-                        DBG(3, "opened bdf ", Addr.getStr());
-                        return std::make_shared<PCICFGRegister64>(handle, (size_t)Addr.fields.offset);
-                    }
-                    catch (...)
+                    };
+                    auto boxCtlRegister = makeRegister(uncorePMUDiscovery->getBoxCtlAddr(BoxType, s, die, pos));
+                    if (boxCtlRegister.get())
                     {
-                        DBG(3,  "error opening bdf ", Addr.getStr());
+                        for (size_t r = 0; r < n_regs; ++r)
+                        {
+                            CounterControlRegs.push_back(makeRegister(uncorePMUDiscovery->getBoxCtlAddr(BoxType, s, die, pos, r)));
+                            CounterValueRegs.push_back(makeRegister(uncorePMUDiscovery->getBoxCtrAddr(BoxType, s, die, pos, r)));
+                        }
+                        f(UncorePMU(boxCtlRegister, CounterControlRegs, CounterValueRegs));
                     }
-                    return std::shared_ptr<PCICFGRegister64>();
-                };
-                auto boxCtlRegister = makeRegister(uncorePMUDiscovery->getBoxCtlAddr(BoxType, s, pos));
-                if (boxCtlRegister.get())
-                {
-                    for (size_t r = 0; r < n_regs; ++r)
-                    {
-                        CounterControlRegs.push_back(makeRegister(uncorePMUDiscovery->getBoxCtlAddr(BoxType, s, pos, r)));
-                        CounterValueRegs.push_back(makeRegister(uncorePMUDiscovery->getBoxCtrAddr(BoxType, s, pos, r)));
-                    }
-                    f(UncorePMU(boxCtlRegister, CounterControlRegs, CounterValueRegs));
                 }
             }
         }
@@ -8276,48 +8283,51 @@ void ServerUncorePMUs::initDirect(uint32 socket_, const PCM * pcm)
                     const auto BoxType = SPR_IMC_BOX_TYPE;
                     if (uncorePMUDiscovery.get())
                     {
-                        const auto numBoxes = uncorePMUDiscovery->getNumBoxes(BoxType, socket_);
-                        for (size_t pos = 0; pos < numBoxes; ++pos)
+                        for (size_t die = 0; die < uncorePMUDiscovery->getNumDies(socket_); ++die)
                         {
-                            if (uncorePMUDiscovery->getBoxAccessType(BoxType, socket_, pos) == UncorePMUDiscovery::accessTypeEnum::MMIO)
+                            const auto numBoxes = uncorePMUDiscovery->getNumBoxes(BoxType, socket_, die);
+                            for (size_t pos = 0; pos < numBoxes; ++pos)
                             {
-                                std::vector<std::shared_ptr<HWRegister> > CounterControlRegs, CounterValueRegs;
-                                const auto n_regs = uncorePMUDiscovery->getBoxNumRegs(BoxType, socket_, pos);
-                                auto makeRegister = [](const uint64 rawAddr, const uint32 bits) -> std::shared_ptr<HWRegister>
+                                if (uncorePMUDiscovery->getBoxAccessType(BoxType, socket_, die, pos) == UncorePMUDiscovery::accessTypeEnum::MMIO)
                                 {
-                                    const auto mapSize = SERVER_MC_CH_PMON_SIZE;
-                                    const auto alignedAddr = rawAddr & ~4095ULL;
-                                    const auto alignDelta = rawAddr & 4095ULL;
-                                    try {
-                                        auto handle = std::make_shared<MMIORange>(alignedAddr, mapSize, false);
-                                        assert(handle.get());
-                                        switch (bits)
-                                        {
-                                            case 32:
-                                                return std::make_shared<MMIORegister32>(handle, (size_t)alignDelta);
-                                            case 64:
-                                                return std::make_shared<MMIORegister64>(handle, (size_t)alignDelta);
+                                    std::vector<std::shared_ptr<HWRegister> > CounterControlRegs, CounterValueRegs;
+                                    const auto n_regs = uncorePMUDiscovery->getBoxNumRegs(BoxType, socket_, die, pos);
+                                    auto makeRegister = [](const uint64 rawAddr, const uint32 bits) -> std::shared_ptr<HWRegister>
+                                    {
+                                        const auto mapSize = SERVER_MC_CH_PMON_SIZE;
+                                        const auto alignedAddr = rawAddr & ~4095ULL;
+                                        const auto alignDelta = rawAddr & 4095ULL;
+                                        try {
+                                            auto handle = std::make_shared<MMIORange>(alignedAddr, mapSize, false);
+                                            assert(handle.get());
+                                            switch (bits)
+                                            {
+                                                case 32:
+                                                    return std::make_shared<MMIORegister32>(handle, (size_t)alignDelta);
+                                                case 64:
+                                                    return std::make_shared<MMIORegister64>(handle, (size_t)alignDelta);
+                                            }
                                         }
-                                    }
-                                    catch (...)
-                                    {
-                                    }
-                                    return std::shared_ptr<HWRegister>();
-                                };
+                                        catch (...)
+                                        {
+                                        }
+                                        return std::shared_ptr<HWRegister>();
+                                    };
 
-                                auto boxCtlRegister = makeRegister(uncorePMUDiscovery->getBoxCtlAddr(BoxType, socket_, pos), 32);
-                                if (boxCtlRegister.get())
-                                {
-                                    for (size_t r = 0; r < n_regs; ++r)
+                                    auto boxCtlRegister = makeRegister(uncorePMUDiscovery->getBoxCtlAddr(BoxType, socket_, die, pos), 32);
+                                    if (boxCtlRegister.get())
                                     {
-                                        CounterControlRegs.push_back(makeRegister(uncorePMUDiscovery->getBoxCtlAddr(BoxType, socket_, pos, r), 32));
-                                        CounterValueRegs.push_back(makeRegister(uncorePMUDiscovery->getBoxCtrAddr(BoxType, socket_, pos, r), 64));
+                                        for (size_t r = 0; r < n_regs; ++r)
+                                        {
+                                            CounterControlRegs.push_back(makeRegister(uncorePMUDiscovery->getBoxCtlAddr(BoxType, socket_, die, pos, r), 32));
+                                            CounterValueRegs.push_back(makeRegister(uncorePMUDiscovery->getBoxCtrAddr(BoxType, socket_, die, pos, r), 64));
+                                        }
+                                        imcPMUs.push_back(UncorePMU(boxCtlRegister,
+                                            CounterControlRegs,
+                                            CounterValueRegs,
+                                            makeRegister(uncorePMUDiscovery->getBoxCtlAddr(BoxType, socket_, die, pos) + SERVER_MC_CH_PMON_FIXED_CTL_OFFSET, 32),
+                                            makeRegister(uncorePMUDiscovery->getBoxCtlAddr(BoxType, socket_, die, pos) + SERVER_MC_CH_PMON_FIXED_CTR_OFFSET, 64)));
                                     }
-                                    imcPMUs.push_back(UncorePMU(boxCtlRegister,
-                                        CounterControlRegs,
-                                        CounterValueRegs,
-                                        makeRegister(uncorePMUDiscovery->getBoxCtlAddr(BoxType, socket_, pos) + SERVER_MC_CH_PMON_FIXED_CTL_OFFSET, 32),
-                                        makeRegister(uncorePMUDiscovery->getBoxCtlAddr(BoxType, socket_, pos) + SERVER_MC_CH_PMON_FIXED_CTR_OFFSET, 64)));
                                 }
                             }
                         }

@@ -16,8 +16,10 @@ UncorePMUDiscovery::UncorePMUDiscovery()
         return;
     }
     const auto debug = (safe_getenv("PCM_DEBUG_PMU_DISCOVERY") == std::string("1"));
+    
+    size_t socket = 0;
 
-    auto processTables = [this, &debug](const uint64 bar, const VSEC & vsec)
+    auto processTables = [this, &debug, &socket](const uint64 bar, const VSEC & vsec)
     {
         try {
             DBG(2, "Uncore discovery detection. Reading from bar 0x", std::hex, bar, std::dec);
@@ -28,7 +30,8 @@ UncorePMUDiscovery::UncorePMUDiscovery()
             };
             UncoreGlobalDiscovery global;
             mmio_memcpy(global.table, bar, UncoreDiscoverySize * sizeof(uint64), true);
-            globalPMUs.push_back(global.pmu);
+            globalPMUs.resize(socket + 1);
+            globalPMUs[socket].push_back(global.pmu);
             if (debug)
             {
                 std::cerr << "Read global.pmu from 0x" << std::hex << bar << std::dec << "\n";
@@ -63,7 +66,9 @@ UncorePMUDiscovery::UncorePMUDiscovery()
                 // unit.pmu.print();
                 boxPMUMap[unit.pmu.boxType].push_back(unit.pmu);
             }
-            boxPMUs.push_back(boxPMUMap);
+            boxPMUs.resize(socket + 1);
+            boxPMUs[socket].push_back(boxPMUMap);
+            ++socket;
         }
         catch (const std::exception & e)
         {
@@ -100,18 +105,21 @@ UncorePMUDiscovery::UncorePMUDiscovery()
     {
         for (size_t s = 0; s < boxPMUs.size(); ++s)
         {
-            std::cout << "Socket " << s << " global PMU:\n";
-            std::cout << "    ";
-            globalPMUs[s].print();
-            std::cout << "Socket " << s << " unit PMUs:\n";
-            for (const auto & pmuType : boxPMUs[s])
+            for (size_t die = 0; die < boxPMUs[s].size(); ++die)
             {
-                const auto n = pmuType.second.size();
-                std::cout << "   PMU type " << pmuType.first << " (" << n << " boxes)"<<  "\n";
-                for (size_t i = 0; i < n ; ++i)
+                std::cout << "Socket " << s << " die " << die << " global PMU:\n";
+                std::cout << "    ";
+                globalPMUs[s][die].print();
+                std::cout << "Socket " << s << " die " << die << " unit PMUs:\n";
+                for (const auto& pmuType : boxPMUs[s][die])
                 {
-                    std::cout << "        ";
-                    pmuType.second[i].print();
+                    const auto n = pmuType.second.size();
+                    std::cout << "   PMU type " << pmuType.first << " (" << n << " boxes)" << "\n";
+                    for (size_t i = 0; i < n; ++i)
+                    {
+                        std::cout << "        ";
+                        pmuType.second[i].print();
+                    }
                 }
             }
         }
