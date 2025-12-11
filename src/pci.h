@@ -253,9 +253,7 @@ void processDVSEC(MatchFunc matchFunc, ProcessFunc processFunc)
                                 uint32 bar_high = 0;
                                 if (h.read32(barOffset + 4, &bar_high) == sizeof(uint32))
                                 {
-                                    uint64 full_bar = uint64(bar_high);
-                                    full_bar <<= 32;
-                                    full_bar |= uint64(bar);
+                                    uint64 full_bar = (uint64(bar_high) << 32) | uint64(bar);
                                     full_bar &= ~0xfull;
                                     DBG(2, " full_bar = 0x", std::hex, full_bar, std::dec);
                                     processFunc(full_bar, header);
