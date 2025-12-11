@@ -265,7 +265,7 @@ void processDVSEC(MatchFunc matchFunc, ProcessFunc processFunc)
                             }
                             else
                             {
-                                std::cerr << "Error: unknown bar type " << type << " \n";
+                                std::cerr << "Error: unknown bar type " << type << " at bar offset " << barOffset << " \n";
                             }
                         }
                     }
