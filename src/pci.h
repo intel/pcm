@@ -260,18 +260,18 @@ void processDVSEC(MatchFunc matchFunc, ProcessFunc processFunc)
                                 }
                                 else
                                 {
-                                    std::cerr << "Error: can't read high part of 64-bit bar from offset " << (barOffset + 4) << " \n";
+                                    std::cerr << "Error: can't read high part of 64-bit bar from offset 0x" << std::hex << (barOffset + 4) << std::dec << " \n";
                                 }
                             }
                             else
                             {
-                                std::cerr << "Error: unknown bar type " << type << " at bar offset " << barOffset << " \n";
+                                std::cerr << "Error: unknown bar type " << type << " at bar offset 0x" << std::hex << barOffset << std::dec << " \n";
                             }
                         }
                     }
                     else
                     {
-                        std::cerr << "Error: can't read bar from offset " << barOffset << " \n";
+                        std::cerr << "Error: can't read bar from offset 0x" << std::hex << barOffset << std::dec << " \n";
                     }
                 }
                 const uint64 lastOffset = offset;
