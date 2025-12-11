@@ -265,6 +265,8 @@ void processDVSEC(MatchFunc matchFunc, ProcessFunc processFunc)
                             }
                             else
                             {
+                                // BAR type 1 is reserved by the PCI specification and is not valid.
+                                // Any unknown BAR type (including type 1) is treated as an error.
                                 std::cerr << "Error: unknown bar type " << type << " at bar offset 0x" << std::hex << barOffset << std::dec << " \n";
                             }
                         }
