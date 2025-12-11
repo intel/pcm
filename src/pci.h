@@ -234,13 +234,42 @@ void processDVSEC(MatchFunc matchFunc, ProcessFunc processFunc)
                 DBG(2, "offset 0x" , std::hex , offset , " cap_id: 0x" , header.fields.cap_id , " vsec_id: 0x", header.fields.vsec_id, " entryID: 0x" , std::hex , header.fields.entryID , std::dec);
                 if (matchFunc(header))
                 {
-                    DBG(2, ".... found match");
+                    DBG(2, ".... found match.  tBIR = ", header.fields.tBIR);
                     auto barOffset = 0x10 + header.fields.tBIR * 4;
                     uint32 bar = 0;
                     if (h.read32(barOffset, &bar) == sizeof(uint32) && bar != 0) // read bar
                     {
-                        bar &= ~4095;
-                        processFunc(bar, header);
+                        DBG(2, "bar = 0x", std::hex, bar, std::dec);
+                        if (extract_bits_32(bar, 0, 0) == 0) // memory space
+                        {
+                            auto type = extract_bits_32(bar, 2, 1);
+                            if (type == 0) // 32-bit address
+                            {
+                                bar &= ~0xfull;
+                                processFunc(bar, header);
+                            }
+                            else if (type == 2) // 64-bit address
+                            {
+                                uint32 bar_high = 0;
+                                if (h.read32(barOffset + 4, &bar_high) == sizeof(uint32))
+                                {
+                                    uint64 full_bar = uint64(bar_high);
+                                    full_bar <<= 32;
+                                    full_bar |= uint64(bar);
+                                    full_bar &= ~0xfull;
+                                    DBG(2, " full_bar = 0x", std::hex, full_bar, std::dec);
+                                    processFunc(full_bar, header);
+                                }
+                                else
+                                {
+                                    std::cerr << "Error: can't read high part of 64-bit bar from offset " << (barOffset + 4) << " \n";
+                                }
+                            }
+                            else
+                            {
+                                std::cerr << "Error: unknown bar type " << type << " \n";
+                            }
+                        }
                     }
                     else
                     {
