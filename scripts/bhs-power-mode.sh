@@ -5,7 +5,7 @@ echo "Birch Stream Power Mode Utility"
 echo ""
 
 echo " Options:"
-echo " --default                : set default power mode"
+echo " --optimized-power-mode   : set optimized power mode"
 echo " --latency-optimized-mode : set latency optimized mode"
 echo
 
@@ -29,8 +29,8 @@ while read -r line; do
     fi
 done <<< "$output"
 
-if [ "$1" == "--default" ]; then
-	echo "Setting default mode..."
+if [ "$1" == "--optimized-power-mode" ]; then
+	echo "Setting optimized power mode..."
 
     for die in "${io_dies[@]}"; do
         # EFFICIENCY_LATENCY_CTRL_RATIO (Uncore IO)

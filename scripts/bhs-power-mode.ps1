@@ -3,7 +3,7 @@ Write-Output "Birch Stream Power Mode Utility"
 Write-Output ""
 
 Write-Output " Options:"
-Write-Output " --default                : set default power mode"
+Write-Output " --optimized-power-mode   : set optimized power mode"
 Write-Output " --latency-optimized-mode : set latency optimized mode"
 Write-Output ""
 
@@ -29,8 +29,8 @@ $output -split "`n" | ForEach-Object {
     }
 }
 
-if ($args[0] -eq "--default") {
-    Write-Output "Setting default mode..."
+if ($args[0] -eq "--optimized-power-mode") {
+    Write-Output "Setting optimized power mode..."
 
     foreach ($die in $io_dies) {
         # EFFICIENCY_LATENCY_CTRL_RATIO (Uncore IO)

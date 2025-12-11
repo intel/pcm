@@ -8,16 +8,16 @@ The hardware monitors the average CPU utilization across all cores at regular in
 
 The screenshot above presents real-time data on uncore frequency statistics, measured in GHz, from a dual-socket platform (represented by two rows). Each socket includes five dies (organized into five columns). The first three dies contain CORes (COR), Last Level Cache (LLC), and Memory controllers (M), collectively referred to as CORLLCM. The final two dies are IO dies.
 
-The ELC control has parameters that can be adjusted either through BIOS or software tools. The default parameter configuration is optimized for performance per watt, ensuring power efficiency. The alternative configuration, known as Latency Optimized Mode, prioritizes maximum performance.
+The ELC control has parameters that can be adjusted either through BIOS or software tools. The default parameter configuration can be optimized for performance per watt, ensuring power efficiency. The alternative configuration, known as Latency Optimized Mode, prioritizes maximum performance.
 Below are the PCM statistics from a system operating in Latency Optimized Mode:
 
 ![Uncore Frequency Statistics Latency Optimized Mode](https://github.com/user-attachments/assets/70310bbc-725b-4450-af7a-1db2c04291dd)
 
 ## BIOS Options for Latency Optimized Mode
 
-The BIOS option for selecting the Default or Latency Optimized Mode can typically be located in the following menus, depending on the BIOS version and OEM vendor:
+The BIOS option for selecting the Optimized Power Mode or Latency Optimized Mode can typically be located in the following menus, depending on the BIOS version and OEM vendor:
 - **Socket Configuration** -> **Advanced Power Management** -> **CPU – Advanced PM Tuning** -> **Latency Optimized Mode** (Disabled or Enabled)
-- **System Utilities** -> **System Configuration** -> **BIOS/Platform Configuration (RBSU)** -> **Power and Performance Options** -> **Advanced Power Options** -> **Efficiency Latency Control** (Default or Latency Optimized mode)
+- **System Utilities** -> **System Configuration** -> **BIOS/Platform Configuration (RBSU)** -> **Power and Performance Options** -> **Advanced Power Options** -> **Efficiency Latency Control** (Default (Optimized Power Mode) or Latency Optimized Mode)
 
 Should this BIOS option be unavailable or if there is a preference to change the mode during runtime, the PCM repository provides scripts for changing this mode.
 
@@ -46,16 +46,16 @@ Windows:
 .\bhs-power-mode.ps1 --latency-optimized-mode
 ```
 
-### Restoring the Default Mode
+### Setting Optimized Power Mode
 
 Linux/FreeBSD/UNIX:
 ```
-bash bhs-power-mode.sh --default
+bash bhs-power-mode.sh --optimized-power-mode
 ```
 
 Windows:
 ```
-.\bhs-power-mode.ps1 --default
+.\bhs-power-mode.ps1 --optimized-power-mode
 ```
 
 
