@@ -36,6 +36,7 @@ spec:
         jobLabel: pcm
     spec:
       automountServiceAccountToken: false
+      hostUsers: true
       containers:
       - image: ghcr.io/intel/pcm:latest
         env:
