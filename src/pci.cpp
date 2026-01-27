@@ -46,6 +46,8 @@ namespace pcm {
 
 #ifdef _MSC_VER
 
+void readSRATTable(std::unordered_map<uint64_t, uint32_t>& pciToNuma);
+
 extern HMODULE hOpenLibSys;
 
 static char * nonZeroGroupErrMsg = "Non-zero PCI group segments are not supported in Winring0 driver, make sure MSR.sys driver can be used.";
@@ -429,7 +431,7 @@ static void readSRATTable(std::unordered_map<uint64_t, uint32_t>& pciToNuma)
     
     // Skip ACPI header (36 bytes) + Reserved fields (12 bytes) = 48 bytes
     const BYTE* ptr = tableBuffer.data() + 48;
-    const BYTE* endPtr = tableBuffer.data() + std::min((uint32_t)tableSize, tableLength);
+    const BYTE* endPtr = tableBuffer.data() + (std::min)((uint32_t)tableSize, tableLength);
     
     while (ptr + 2 <= endPtr)
     {
