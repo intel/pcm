@@ -16,6 +16,7 @@
 #include <fcntl.h>
 #include <cstring>
 #include <vector>
+#include <unordered_map>
 #include "pci.h"
 #include "cpucounters.h"
 
@@ -69,16 +70,34 @@ PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 functi
 
 int32 PciHandle::getNUMANode() const
 {
-    // Windows implementation: use GetNumaProcessorNodeEx or query device properties
-    // Return -1 if not available or on error
+    // Windows implementation: read SRAT ACPI table to map PCI devices to NUMA nodes
+    static std::unordered_map<uint64_t, uint32_t> pciToNuma;
+    static bool initialized = false;
+    
+    if (!initialized)
+    {
+        readSRATTable(pciToNuma);
+        initialized = true;
+    }
+    
     // The bus field contains (groupnr << 8) | bus_, so we need to extract them
     const uint32 groupnr = (bus >> 8);
     const uint32 actual_bus = bus & 0xFF;
     
-    // Construct PCI location string for WMI query or use Windows device APIs
-    // For now, return -1 as NUMA node information requires Windows-specific APIs
-    // that may not be available on all Windows versions
-    DBG(2, "getNUMANode not fully implemented on Windows, returning -1");
+    // Construct key matching SRAT format: segment(16) | bus(8) | device(5) | function(3)
+    uint64_t key = ((uint64_t)groupnr << 16) | ((uint64_t)actual_bus << 8) | 
+                  ((uint64_t)device << 3) | function;
+    
+    auto it = pciToNuma.find(key);
+    if (it != pciToNuma.end())
+    {
+        DBG(3, "Found NUMA node ", it->second, " for PCI device ", std::hex, 
+            groupnr, ":", actual_bus, ":", device, ".", function, std::dec);
+        return (int32)it->second;
+    }
+    
+    DBG(2, "No NUMA affinity found in SRAT for PCI device ", std::hex, 
+        groupnr, ":", actual_bus, ":", device, ".", function, std::dec);
     return -1;
 }
 
@@ -343,6 +362,113 @@ void PciHandle::readMCFGRecords(std::vector<MCFGRecord>& mcfg)
         mcfg.push_back(record);
         recordPtr += sizeof(MCFGRecord);
     }
+}
+
+// Windows implementation to read SRAT ACPI table and build PCI device to NUMA node mapping
+static void readSRATTable(std::unordered_map<uint64_t, uint32_t>& pciToNuma)
+{
+    pciToNuma.clear();
+    
+    const DWORD acpiSignature = 'ACPI';
+    // SRAT table signature (note: stored in reverse byte order in ACPI tables)
+    const DWORD sratSignature = 'TARS'; // 'SRAT' in reverse
+    
+    // Try to get the SRAT table size first
+    UINT tableSize = GetSystemFirmwareTable(acpiSignature, sratSignature, nullptr, 0);
+    
+    if (tableSize == 0)
+    {
+        DBG(1, "SRAT table not available, NUMA node information will not be available");
+        return;
+    }
+    
+    // Allocate buffer for the SRAT table
+    std::vector<BYTE> tableBuffer(tableSize);
+    
+    // Read the actual table
+    UINT bytesRead = GetSystemFirmwareTable(acpiSignature, sratSignature, tableBuffer.data(), tableSize);
+    
+    if (bytesRead == 0 || bytesRead != tableSize)
+    {
+        DBG(1, "Failed to read SRAT table from firmware");
+        return;
+    }
+    
+    // SRAT table structure:
+    // - ACPI header (36 bytes): Signature(4) + Length(4) + Revision(1) + Checksum(1) + OEMID(6) + 
+    //                           OEM Table ID(8) + OEM Revision(4) + Creator ID(4) + Creator Revision(4)
+    // - Reserved(4) + Reserved(8)
+    // - Followed by variable-length subtable structures
+    
+    if (tableSize < 36)
+    {
+        DBG(1, "SRAT table too small");
+        return;
+    }
+    
+    // Verify signature
+    if (std::memcmp(tableBuffer.data(), "SRAT", 4) != 0)
+    {
+        DBG(1, "Invalid SRAT table signature");
+        return;
+    }
+    
+    // Get table length from header
+    uint32_t tableLength = *reinterpret_cast<uint32_t*>(tableBuffer.data() + 4);
+    
+    DBG(2, "SRAT table found, length: ", tableLength);
+    
+    // Skip ACPI header (36 bytes) + Reserved fields (12 bytes) = 48 bytes
+    const BYTE* ptr = tableBuffer.data() + 48;
+    const BYTE* endPtr = tableBuffer.data() + std::min((uint32_t)tableSize, tableLength);
+    
+    while (ptr + 2 <= endPtr)
+    {
+        uint8_t type = ptr[0];
+        uint8_t length = ptr[1];
+        
+        if (ptr + length > endPtr)
+        {
+            DBG(2, "SRAT subtable extends beyond table boundary, stopping parse");
+            break;
+        }
+        
+        if (type == 2)  // PCI Device Affinity Structure
+        {
+            // Structure format (variable, at least 16 bytes):
+            // Type(1) + Length(1) + Reserved(2) + 
+            // Proximity Domain(4) + PCI Segment(2) + PCI Bus(1) + 
+            // Device/Function(1) + Flags(4) + Reserved(4)
+            
+            if (length < 16)
+            {
+                DBG(2, "SRAT PCI Device Affinity structure too small: ", (int)length);
+                ptr += length;
+                continue;
+            }
+            
+            uint32_t proximityDomain = *reinterpret_cast<const uint32_t*>(ptr + 4);
+            uint16_t pciSegment = *reinterpret_cast<const uint16_t*>(ptr + 8);
+            uint8_t pciBus = ptr[10];
+            uint8_t deviceFunction = ptr[11];
+            uint8_t pciDevice = (deviceFunction >> 3) & 0x1F;
+            uint8_t pciFunction = deviceFunction & 0x07;
+            
+            // Construct unique key: segment(16) | bus(8) | device(5) | function(3)
+            uint64_t key = ((uint64_t)pciSegment << 16) | ((uint64_t)pciBus << 8) | 
+                          ((uint64_t)pciDevice << 3) | pciFunction;
+            
+            pciToNuma[key] = proximityDomain;
+            
+            DBG(2, "SRAT: PCI ", std::hex, pciSegment, ":", (unsigned)pciBus, ":", 
+                (unsigned)pciDevice, ".", (unsigned)pciFunction, 
+                " -> NUMA node ", std::dec, proximityDomain);
+        }
+        
+        ptr += length;
+    }
+    
+    DBG(2, "SRAT parsing complete, found ", pciToNuma.size(), " PCI device entries");
 }
 
 #elif __APPLE__

@@ -56,9 +56,15 @@ if (numa_node >= 0) {
 
 ### Windows
 
-- **Method**: Placeholder implementation (future enhancement)
-- **Return**: -1 (not implemented yet)
-- **Future**: Can use WMI queries or Windows device property APIs
+- **Method**: Reads SRAT (System Resource Affinity Table) from ACPI firmware using `GetSystemFirmwareTable` API
+- **Implementation**: 
+  - Parses SRAT table to extract PCI Device Affinity structures (type 2)
+  - Builds a mapping from PCI device location (segment:bus:device:function) to NUMA node (proximity domain)
+  - Caches the mapping on first call for performance
+- **Return**: 
+  - NUMA node ID (proximity domain) if device is found in SRAT table
+  - -1 if SRAT table is not available or device is not listed
+- **Requirements**: Windows Vista or later (for `GetSystemFirmwareTable` API)
 
 ### FreeBSD / DragonFly
 

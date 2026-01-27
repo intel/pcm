@@ -25,8 +25,11 @@ This implementation adds a new `getNUMANode()` API to the PciHandle and PciHandl
 - Both PciHandle and PciHandleMM use this helper
 
 #### Windows Implementation
-- Returns -1 (placeholder for future enhancement)
-- Can be extended to use WMI or Windows device property APIs
+- Reads SRAT (System Resource Affinity Table) from ACPI firmware
+- Uses `GetSystemFirmwareTable` API to retrieve SRAT table
+- Parses PCI Device Affinity structures (type 2) from SRAT
+- Builds cached mapping from PCI device location to NUMA proximity domain
+- Returns proximity domain as NUMA node ID or -1 if not found
 
 #### FreeBSD/DragonFly Implementation
 - Returns -1 (placeholder for future enhancement)
@@ -59,7 +62,7 @@ This implementation adds a new `getNUMANode()` API to the PciHandle and PciHandl
 | Platform | Status | Return Value |
 |----------|--------|--------------|
 | Linux | ✅ Fully Implemented | NUMA node ID or -1 |
-| Windows | ⚠️ Placeholder | -1 |
+| Windows | ✅ Fully Implemented | NUMA node ID or -1 (via SRAT table) |
 | FreeBSD | ⚠️ Placeholder | -1 |
 | macOS | ⚠️ Not Applicable | -1 |
 
@@ -109,9 +112,8 @@ if (numa_node >= 0) {
 
 For platforms returning -1, future work could include:
 
-1. **Windows**: Implement using WMI queries or Windows device property APIs
-2. **FreeBSD**: Implement using sysctl to query NUMA domain information
-3. **macOS**: May remain -1 as NUMA is not typically exposed
+1. **FreeBSD**: Implement using sysctl to query NUMA domain information
+2. **macOS**: May remain -1 as NUMA is not typically exposed
 
 ## Testing
 
