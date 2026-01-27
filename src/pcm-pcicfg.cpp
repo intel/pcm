@@ -21,11 +21,12 @@ using namespace pcm;
 
 void print_usage(const char * progname)
 {
-    std::cout << "Usage " << progname << " [-w value] [-d] [-i ID] [group bus device function] offset\n\n";
+    std::cout << "Usage " << progname << " [-w value] [-d] [-n] [-i ID] [group bus device function] offset\n\n";
     std::cout << "  Reads/writes 32-bit PCICFG register \n";
     std::cout << "   -w value    : write the value before reading \n";
     std::cout << "   -b low:high : read or write only low..high bits of the register\n";
     std::cout << "   -d          : output all numbers in dec (default is hex)\n";
+    std::cout << "   -n          : print NUMA node of the device\n";
     std::cout << "   -i ID       : specify Intel device ID instead of group bus device function\n";
     std::cout << "   --version   : print application version\n";
     std::cout << "\n";
@@ -51,11 +52,12 @@ int mainThrows(int argc, char * argv[])
     uint32 value = 0;
     bool write = false;
     bool dec = false;
+    bool print_numa = false;
     uint32 deviceID = 0;
     std::pair<int64,int64> bits{-1, -1};
 
     int my_opt = -1;
-    while ((my_opt = getopt(argc, argv, "i:w:db:")) != -1)
+    while ((my_opt = getopt(argc, argv, "i:w:db:n")) != -1)
     {
         switch (my_opt)
         {
@@ -71,6 +73,9 @@ int mainThrows(int argc, char * argv[])
             break;
         case 'd':
             dec = true;
+            break;
+        case 'n':
+            print_numa = true;
             break;
         default:
             print_usage(argv[0]);
@@ -105,12 +110,30 @@ int mainThrows(int argc, char * argv[])
     }
     #endif
 
-    auto one = [&dec,&write,&bits](const uint32 & group, const uint32 & bus, const uint32 & device, const uint32 & function, const uint32 & offset, uint32 value)
+    auto one = [&dec,&write,&bits,&print_numa](const uint32 & group, const uint32 & bus, const uint32 & device, const uint32 & function, const uint32 & offset, uint32 value)
     {
 
         try {
             PciHandleType h(group, bus, device, function);
             if (!dec) std::cout << std::hex << std::showbase;
+            
+            // Print NUMA node if requested
+            if (print_numa)
+            {
+                int32 numa_node = h.getNUMANode();
+                std::cout << "NUMA node: ";
+                if (numa_node >= 0)
+                {
+                    std::cout << std::dec << numa_node;
+                }
+                else
+                {
+                    std::cout << "not available";
+                }
+                std::cout << " for " << group << ":" << bus << ":" << device << ":" << function << "\n";
+                if (!dec) std::cout << std::hex << std::showbase;
+            }
+            
             readOldValueHelper(bits, value, write, [&h, &offset](uint32 & old_value){ h.read32(offset, &old_value); return true; });
             if (write)
             {
