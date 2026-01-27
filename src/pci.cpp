@@ -14,6 +14,7 @@
 #include <cstring>
 #include <vector>
 #include "pci.h"
+#include "cpucounters.h"
 
 #ifndef _MSC_VER
 #include <sys/mman.h>
