@@ -39,6 +39,7 @@
 
 #if defined (__FreeBSD__) || defined(__DragonFly__)
 #include <sys/pciio.h>
+#include <sys/sysctl.h>
 #endif
 
 namespace pcm {
@@ -564,15 +565,62 @@ PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 functi
 
 int32 PciHandle::getNUMANode() const
 {
-    // FreeBSD implementation: query via sysctl for NUMA domain information
+    // FreeBSD implementation: try to query NUMA domain information via sysctl
     // Return -1 if not available or on error
     
-#ifdef __FreeBSD__
-    // FreeBSD may expose NUMA information via sysctl
-    // Try to get CPU affinity/domain info for this PCI device
-    // For now, return -1 as implementation requires specific FreeBSD sysctls
-    DBG(2, "getNUMANode not fully implemented on FreeBSD, returning -1");
+#if defined(__FreeBSD__) || defined(__DragonFly__)
+    // First check if NUMA is enabled on this system
+    int ndomains = 0;
+    size_t len = sizeof(ndomains);
+    
+    if (sysctlbyname("vm.ndomains", &ndomains, &len, nullptr, 0) == 0)
+    {
+        if (ndomains <= 1)
+        {
+            // NUMA not enabled or single domain system
+            DBG(3, "NUMA not enabled on FreeBSD (vm.ndomains = ", ndomains, ")");
+            return -1;
+        }
+    }
+    else
+    {
+        DBG(2, "Cannot query vm.ndomains, assuming NUMA not available");
+        return -1;
+    }
+    
+    // Try platform-specific sysctl path for PCI device NUMA domain
+    // Note: This is not standardized across FreeBSD versions
+    char sysctl_path[256];
+    snprintf(sysctl_path, sizeof(sysctl_path), 
+             "hw.pci.%u.%u.%u.%u.numa_domain",
+             groupnr, bus, device, function);
+    
+    int numa_node = -1;
+    len = sizeof(numa_node);
+    
+    if (sysctlbyname(sysctl_path, &numa_node, &len, nullptr, 0) == 0)
+    {
+        DBG(3, "Found NUMA node ", numa_node, " for PCI device ",
+            std::hex, groupnr, ":", bus, ":", device, ".", function, std::dec);
+        return numa_node;
+    }
+    
+    // Try alternative sysctl format with colon separators
+    snprintf(sysctl_path, sizeof(sysctl_path), 
+             "hw.pci.%u:%u:%u.%u.numa_domain",
+             groupnr, bus, device, function);
+    
+    if (sysctlbyname(sysctl_path, &numa_node, &len, nullptr, 0) == 0)
+    {
+        DBG(3, "Found NUMA node ", numa_node, " for PCI device ",
+            std::hex, groupnr, ":", bus, ":", device, ".", function, std::dec);
+        return numa_node;
+    }
+    
+    DBG(2, "NUMA node information not available for PCI device ",
+        std::hex, groupnr, ":", bus, ":", device, ".", function, std::dec);
 #endif
+    
     return -1;
 }
 

@@ -32,8 +32,11 @@ This implementation adds a new `getNUMANode()` API to the PciHandle and PciHandl
 - Returns proximity domain as NUMA node ID or -1 if not found
 
 #### FreeBSD/DragonFly Implementation
-- Returns -1 (placeholder for future enhancement)
-- Can be extended to use sysctl
+- Queries NUMA domain information via `sysctlbyname()` 
+- Checks if NUMA is enabled via `vm.ndomains` sysctl
+- Attempts multiple sysctl path formats for PCI device NUMA affinity
+- Returns NUMA node ID if available or -1 if not supported/unavailable
+- Note: sysctl paths are not standardized across FreeBSD versions
 
 #### macOS Implementation
 - Returns -1 (NUMA not typically available on macOS)
@@ -63,7 +66,7 @@ This implementation adds a new `getNUMANode()` API to the PciHandle and PciHandl
 |----------|--------|--------------|
 | Linux | ✅ Fully Implemented | NUMA node ID or -1 |
 | Windows | ✅ Fully Implemented | NUMA node ID or -1 (via SRAT table) |
-| FreeBSD | ⚠️ Placeholder | -1 |
+| FreeBSD | ✅ Implemented | NUMA node ID or -1 (via sysctl) |
 | macOS | ⚠️ Not Applicable | -1 |
 
 ## Code Quality
@@ -110,10 +113,14 @@ if (numa_node >= 0) {
 
 ## Future Enhancements
 
-For platforms returning -1, future work could include:
+For platforms with limited support:
 
-1. **FreeBSD**: Implement using sysctl to query NUMA domain information
-2. **macOS**: May remain -1 as NUMA is not typically exposed
+1. **FreeBSD**: Current implementation may not work on all FreeBSD versions due to non-standardized sysctl paths. Could be enhanced with:
+   - Device tree queries
+   - Platform-specific detection of sysctl naming conventions
+   - Integration with FreeBSD's cpuset(2) API for proximity information
+
+2. **macOS**: May remain -1 as NUMA is not typically exposed on macOS systems
 
 ## Testing
 

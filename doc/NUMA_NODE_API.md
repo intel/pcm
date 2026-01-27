@@ -68,9 +68,15 @@ if (numa_node >= 0) {
 
 ### FreeBSD / DragonFly
 
-- **Method**: Placeholder implementation (future enhancement)
-- **Return**: -1 (not implemented yet)
-- **Future**: Can use sysctl to query NUMA domain information
+- **Method**: Queries system via `sysctlbyname()` for NUMA domain information
+- **Implementation**:
+  - First checks if NUMA is enabled via `vm.ndomains` sysctl
+  - Attempts to query PCI device-specific NUMA domain using multiple sysctl path formats
+  - Tries: `hw.pci.X.Y.Z.W.numa_domain` and `hw.pci.X:Y:Z.W.numa_domain`
+- **Return**:
+  - NUMA node ID if available and system has NUMA enabled
+  - -1 if NUMA is disabled, not supported, or device affinity information unavailable
+- **Note**: FreeBSD doesn't have a standardized sysctl path for PCI device NUMA affinity across all versions
 
 ### macOS
 
