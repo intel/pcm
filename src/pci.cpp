@@ -562,16 +562,9 @@ PciHandle::~PciHandle()
 static int32 getNUMANodeLinux(uint32 groupnr, uint32 bus, uint32 device, uint32 function)
 {
     std::ostringstream path;
-    path << std::hex << "/sys/bus/pci/devices/";
-    if (groupnr)
-    {
-        path << std::setw(4) << std::setfill('0') << groupnr << ":";
-    }
-    else
-    {
-        path << "0000:";
-    }
-    path << std::setw(2) << std::setfill('0') << bus << ":"
+    path << std::hex << "/sys/bus/pci/devices/"
+         << std::setw(4) << std::setfill('0') << groupnr << ":"
+         << std::setw(2) << std::setfill('0') << bus << ":"
          << std::setw(2) << std::setfill('0') << device << "."
          << function << "/numa_node";
     
@@ -579,7 +572,8 @@ static int32 getNUMANodeLinux(uint32 groupnr, uint32 bus, uint32 device, uint32 
     std::ifstream numa_file(numa_path);
     if (!numa_file.is_open())
     {
-        // Try alternative path with /pcm prefix
+        // Try alternative path with /pcm prefix (follows existing codebase pattern
+        // for containerized or chroot environments where sysfs may be mounted under /pcm)
         numa_file.open("/pcm" + numa_path);
         if (!numa_file.is_open())
         {
@@ -591,7 +585,8 @@ static int32 getNUMANodeLinux(uint32 groupnr, uint32 bus, uint32 device, uint32 
     int32 numa_node = -1;
     numa_file >> numa_node;
     
-    DBG(3, "NUMA node for ", std::hex, groupnr, ":", bus, ":", device, ":", function, std::dec, " is ", numa_node);
+    DBG(3, "NUMA node for ", std::hex, std::setw(4), std::setfill('0'), groupnr, ":",
+        std::setw(2), bus, ":", std::setw(2), device, ".", function, std::dec, " is ", numa_node);
     
     return numa_node;
 }

@@ -13,6 +13,10 @@ int main()
     std::cout << "Testing getNUMANode() API\n";
     std::cout << "=========================\n\n";
     
+    // Note: Testing with PCI device 0:0:0.0 which is commonly the host bridge
+    // This device may not exist on all systems or may require root permissions to access
+    std::cout << "Attempting to test with PCI device 0:0:0.0 (host bridge)\n";
+    
     try
     {
         // Try to create a PciHandle for a common device
