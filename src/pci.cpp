@@ -558,6 +558,43 @@ PciHandle::~PciHandle()
 
 // Linux implementation
 
+// Helper function to retrieve NUMA node for a PCI device
+static int32 getNUMANodeLinux(uint32 groupnr, uint32 bus, uint32 device, uint32 function)
+{
+    std::ostringstream path;
+    path << std::hex << "/sys/bus/pci/devices/";
+    if (groupnr)
+    {
+        path << std::setw(4) << std::setfill('0') << groupnr << ":";
+    }
+    else
+    {
+        path << "0000:";
+    }
+    path << std::setw(2) << std::setfill('0') << bus << ":"
+         << std::setw(2) << std::setfill('0') << device << "."
+         << function << "/numa_node";
+    
+    std::string numa_path = path.str();
+    std::ifstream numa_file(numa_path);
+    if (!numa_file.is_open())
+    {
+        // Try alternative path with /pcm prefix
+        numa_file.open("/pcm" + numa_path);
+        if (!numa_file.is_open())
+        {
+            DBG(2, "Cannot open NUMA node file: ", numa_path);
+            return -1;
+        }
+    }
+    
+    int32 numa_node = -1;
+    numa_file >> numa_node;
+    
+    DBG(3, "NUMA node for ", std::hex, groupnr, ":", bus, ":", device, ":", function, std::dec, " is ", numa_node);
+    
+    return numa_node;
+}
 
 int openHandle(uint32 groupnr_, uint32 bus, uint32 device, uint32 function)
 {
@@ -605,40 +642,7 @@ PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 functi
 
 int32 PciHandle::getNUMANode() const
 {
-    // Linux implementation: read from /sys/bus/pci/devices/<domain>:<bus>:<device>.<function>/numa_node
-    std::ostringstream path;
-    path << std::hex << "/sys/bus/pci/devices/";
-    if (groupnr)
-    {
-        path << std::setw(4) << std::setfill('0') << groupnr << ":";
-    }
-    else
-    {
-        path << "0000:";
-    }
-    path << std::setw(2) << std::setfill('0') << bus << ":"
-         << std::setw(2) << std::setfill('0') << device << "."
-         << function << "/numa_node";
-    
-    std::string numa_path = path.str();
-    std::ifstream numa_file(numa_path);
-    if (!numa_file.is_open())
-    {
-        // Try alternative path with /pcm prefix
-        numa_file.open("/pcm" + numa_path);
-        if (!numa_file.is_open())
-        {
-            DBG(2, "Cannot open NUMA node file: ", numa_path);
-            return -1;
-        }
-    }
-    
-    int32 numa_node = -1;
-    numa_file >> numa_node;
-    
-    DBG(3, "NUMA node for ", std::hex, groupnr, ":", bus, ":", device, ":", function, std::dec, " is ", numa_node);
-    
-    return numa_node;
+    return getNUMANodeLinux(groupnr, bus, device, function);
 }
 
 
@@ -819,40 +823,7 @@ PciHandleMM::PciHandleMM(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 fu
 
 int32 PciHandleMM::getNUMANode() const
 {
-    // Linux implementation: read from /sys/bus/pci/devices/<domain>:<bus>:<device>.<function>/numa_node
-    std::ostringstream path;
-    path << std::hex << "/sys/bus/pci/devices/";
-    if (groupnr)
-    {
-        path << std::setw(4) << std::setfill('0') << groupnr << ":";
-    }
-    else
-    {
-        path << "0000:";
-    }
-    path << std::setw(2) << std::setfill('0') << bus << ":"
-         << std::setw(2) << std::setfill('0') << device << "."
-         << function << "/numa_node";
-    
-    std::string numa_path = path.str();
-    std::ifstream numa_file(numa_path);
-    if (!numa_file.is_open())
-    {
-        // Try alternative path with /pcm prefix
-        numa_file.open("/pcm" + numa_path);
-        if (!numa_file.is_open())
-        {
-            DBG(2, "Cannot open NUMA node file: ", numa_path);
-            return -1;
-        }
-    }
-    
-    int32 numa_node = -1;
-    numa_file >> numa_node;
-    
-    DBG(3, "NUMA node for ", std::hex, groupnr, ":", bus, ":", device, ":", function, std::dec, " is ", numa_node);
-    
-    return numa_node;
+    return getNUMANodeLinux(groupnr, bus, device, function);
 }
 
 bool PciHandleMM::exists(uint32 /*groupnr_*/, uint32 /*bus_*/, uint32 /*device_*/, uint32 /*function_*/)
