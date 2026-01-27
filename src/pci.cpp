@@ -17,6 +17,7 @@
 #include <cstring>
 #include <vector>
 #include <unordered_map>
+#include <mutex>
 #include "pci.h"
 #include "cpucounters.h"
 
@@ -72,12 +73,18 @@ int32 PciHandle::getNUMANode() const
 {
     // Windows implementation: read SRAT ACPI table to map PCI devices to NUMA nodes
     static std::unordered_map<uint64_t, uint32_t> pciToNuma;
+    static std::mutex initMutex;
     static bool initialized = false;
     
+    // Thread-safe initialization using double-checked locking
     if (!initialized)
     {
-        readSRATTable(pciToNuma);
-        initialized = true;
+        std::lock_guard<std::mutex> lock(initMutex);
+        if (!initialized)
+        {
+            readSRATTable(pciToNuma);
+            initialized = true;
+        }
     }
     
     // The bus field contains (groupnr << 8) | bus_, so we need to extract them
@@ -413,8 +420,9 @@ static void readSRATTable(std::unordered_map<uint64_t, uint32_t>& pciToNuma)
         return;
     }
     
-    // Get table length from header
-    uint32_t tableLength = *reinterpret_cast<uint32_t*>(tableBuffer.data() + 4);
+    // Get table length from header using memcpy to avoid alignment issues
+    uint32_t tableLength;
+    std::memcpy(&tableLength, tableBuffer.data() + 4, sizeof(uint32_t));
     
     DBG(2, "SRAT table found, length: ", tableLength);
     
@@ -447,8 +455,11 @@ static void readSRATTable(std::unordered_map<uint64_t, uint32_t>& pciToNuma)
                 continue;
             }
             
-            uint32_t proximityDomain = *reinterpret_cast<const uint32_t*>(ptr + 4);
-            uint16_t pciSegment = *reinterpret_cast<const uint16_t*>(ptr + 8);
+            // Use memcpy to avoid alignment issues
+            uint32_t proximityDomain;
+            uint16_t pciSegment;
+            std::memcpy(&proximityDomain, ptr + 4, sizeof(uint32_t));
+            std::memcpy(&pciSegment, ptr + 8, sizeof(uint16_t));
             uint8_t pciBus = ptr[10];
             uint8_t deviceFunction = ptr[11];
             uint8_t pciDevice = (deviceFunction >> 3) & 0x1F;
