@@ -287,6 +287,20 @@ void PciHandle::readMCFGRecords(std::vector<MCFGRecord>& mcfg)
         return;
     }
     
+    // Validate header length to prevent integer underflow in nrecords()
+    if (header.length < sizeof(MCFGHeader))
+    {
+        std::cerr << "PCM Error: Invalid MCFG table length (too small)\n";
+        return;
+    }
+    
+    // Validate that the reported length matches the actual table size
+    if (header.length > tableSize)
+    {
+        std::cerr << "PCM Error: MCFG table length mismatch\n";
+        return;
+    }
+    
     // Read MCFG records
     const unsigned segments = header.nrecords();
     const BYTE* recordPtr = tableBuffer.data() + sizeof(MCFGHeader);
