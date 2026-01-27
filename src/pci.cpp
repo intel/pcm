@@ -590,10 +590,23 @@ int32 PciHandle::getNUMANode() const
     
     // Try platform-specific sysctl path for PCI device NUMA domain
     // Note: This is not standardized across FreeBSD versions
-    char sysctl_path[256];
-    snprintf(sysctl_path, sizeof(sysctl_path), 
-             "hw.pci.%u.%u.%u.%u.numa_domain",
-             groupnr, bus, device, function);
+    // Buffer size: "hw.pci." (7) + max domain (10) + "." (1) + max bus (10) + "." (1) + 
+    //              max device (10) + "." (1) + max function (10) + ".numa_domain" (12) + null (1) = 63
+    // Use 128 to be safe
+    constexpr size_t SYSCTL_PATH_MAX = 128;
+    char sysctl_path[SYSCTL_PATH_MAX];
+    int ret;
+    
+    ret = snprintf(sysctl_path, sizeof(sysctl_path), 
+                   "hw.pci.%u.%u.%u.%u.numa_domain",
+                   groupnr, bus, device, function);
+    
+    if (ret < 0 || ret >= (int)sizeof(sysctl_path))
+    {
+        DBG(2, "sysctl path truncated or error for PCI device ", 
+            std::hex, groupnr, ":", bus, ":", device, ".", function, std::dec);
+        return -1;
+    }
     
     int numa_node = -1;
     len = sizeof(numa_node);
@@ -606,9 +619,16 @@ int32 PciHandle::getNUMANode() const
     }
     
     // Try alternative sysctl format with colon separators
-    snprintf(sysctl_path, sizeof(sysctl_path), 
-             "hw.pci.%u:%u:%u.%u.numa_domain",
-             groupnr, bus, device, function);
+    ret = snprintf(sysctl_path, sizeof(sysctl_path), 
+                   "hw.pci.%u:%u:%u.%u.numa_domain",
+                   groupnr, bus, device, function);
+    
+    if (ret < 0 || ret >= (int)sizeof(sysctl_path))
+    {
+        DBG(2, "sysctl path truncated or error for PCI device ", 
+            std::hex, groupnr, ":", bus, ":", device, ".", function, std::dec);
+        return -1;
+    }
     
     if (sysctlbyname(sysctl_path, &numa_node, &len, nullptr, 0) == 0)
     {
