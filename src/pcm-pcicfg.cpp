@@ -121,7 +121,7 @@ int mainThrows(int argc, char * argv[])
             if (print_numa)
             {
                 int32 numa_node = h.getNUMANode();
-                std::cout << "NUMA node: ";
+                std::cout << " NUMA node: ";
                 if (numa_node >= 0)
                 {
                     std::cout << std::dec << numa_node;
