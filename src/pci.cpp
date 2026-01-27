@@ -199,9 +199,10 @@ PciHandle::~PciHandle()
 
 // Windows implementation to read MCFG table from ACPI firmware
 int PciHandle::openMcfgTable() {
-    // On Windows, we cannot return a file handle since ACPI tables are accessed differently
-    // This function is only used on Linux; Windows uses a different approach
-    // Return -1 to indicate this method is not supported on Windows
+    // On Windows, ACPI tables are accessed via GetSystemFirmwareTable API
+    // rather than through file system. This function returns -1 to indicate
+    // the file-based approach is not available on Windows.
+    // See PciHandle::readMCFGRecords() for the Windows implementation.
     return -1;
 }
 
@@ -227,7 +228,7 @@ void PciHandle::readMCFGRecords(std::vector<MCFGRecord>& mcfg)
         MCFGRecord segment;
         segment.startBusNumber = 0;
         segment.endBusNumber = 0xff;
-        segment.baseAddress = 0; // Will be determined dynamically if needed
+        segment.baseAddress = 0; // Actual base address is platform-specific and not available without MCFG table
         
         auto maxSegments = 1;
         switch (PCM::getCPUFamilyModelFromCPUID())
@@ -267,25 +268,27 @@ void PciHandle::readMCFGRecords(std::vector<MCFGRecord>& mcfg)
         return;
     }
     
-    MCFGHeader* header = reinterpret_cast<MCFGHeader*>(tableBuffer.data());
+    // Use memcpy to avoid potential alignment issues
+    MCFGHeader header;
+    std::memcpy(&header, tableBuffer.data(), sizeof(MCFGHeader));
     
 #ifdef PCM_DEBUG
     std::cout << "PCM Debug: MCFG table signature: " 
-              << header->signature[0] << header->signature[1] 
-              << header->signature[2] << header->signature[3] << "\n";
-    std::cout << "PCM Debug: MCFG table length: " << header->length << "\n";
-    std::cout << "PCM Debug: Number of MCFG records: " << header->nrecords() << "\n";
+              << header.signature[0] << header.signature[1] 
+              << header.signature[2] << header.signature[3] << "\n";
+    std::cout << "PCM Debug: MCFG table length: " << header.length << "\n";
+    std::cout << "PCM Debug: Number of MCFG records: " << header.nrecords() << "\n";
 #endif
     
     // Verify signature
-    if (std::strncmp(header->signature, "MCFG", 4) != 0)
+    if (std::strncmp(header.signature, "MCFG", 4) != 0)
     {
         std::cerr << "PCM Error: Invalid MCFG table signature\n";
         return;
     }
     
     // Read MCFG records
-    const unsigned segments = header->nrecords();
+    const unsigned segments = header.nrecords();
     const BYTE* recordPtr = tableBuffer.data() + sizeof(MCFGHeader);
     
     for (unsigned int i = 0; i < segments; ++i)
