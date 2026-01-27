@@ -11,6 +11,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <cstring>
+#include <vector>
 #include "pci.h"
 
 #ifndef _MSC_VER
@@ -193,6 +195,122 @@ int32 PciHandle::read64(uint64 offset, uint64 * value)
 PciHandle::~PciHandle()
 {
     if (hDriver != INVALID_HANDLE_VALUE) CloseHandle(hDriver);
+}
+
+// Windows implementation to read MCFG table from ACPI firmware
+int PciHandle::openMcfgTable() {
+    // On Windows, we cannot return a file handle since ACPI tables are accessed differently
+    // This function is only used on Linux; Windows uses a different approach
+    // Return -1 to indicate this method is not supported on Windows
+    return -1;
+}
+
+// Windows implementation to read MCFG ACPI table using Firmware Table API or physical memory
+void PciHandle::readMCFGRecords(std::vector<MCFGRecord>& mcfg)
+{
+    mcfg.clear();
+    
+    // Signature for ACPI firmware tables
+    const DWORD acpiSignature = 'ACPI';
+    // MCFG table signature (note: stored in reverse byte order in ACPI tables)
+    const DWORD mcfgSignature = 'GFCM'; // 'MCFG' in reverse
+    
+    // Try to get the MCFG table size first
+    UINT tableSize = GetSystemFirmwareTable(acpiSignature, mcfgSignature, nullptr, 0);
+    
+    if (tableSize == 0)
+    {
+        DWORD error = GetLastError();
+        DBG(1, "GetSystemFirmwareTable failed to get MCFG table size. Error: ", error);
+        
+        // Fallback: use default segments for known platforms
+        MCFGRecord segment;
+        segment.startBusNumber = 0;
+        segment.endBusNumber = 0xff;
+        segment.baseAddress = 0; // Will be determined dynamically if needed
+        
+        auto maxSegments = 1;
+        switch (PCM::getCPUFamilyModelFromCPUID())
+        {
+        case PCM::SPR:
+        case PCM::GNR:
+            maxSegments = 4;
+            break;
+        }
+        
+        for (segment.PCISegmentGroupNumber = 0; segment.PCISegmentGroupNumber < maxSegments; ++(segment.PCISegmentGroupNumber))
+        {
+            mcfg.push_back(segment);
+        }
+        
+        std::cerr << "PCM Warning: Could not read MCFG table from firmware, using default segments\n";
+        return;
+    }
+    
+    // Allocate buffer for the MCFG table
+    std::vector<BYTE> tableBuffer(tableSize);
+    
+    // Read the actual table
+    UINT bytesRead = GetSystemFirmwareTable(acpiSignature, mcfgSignature, tableBuffer.data(), tableSize);
+    
+    if (bytesRead == 0 || bytesRead != tableSize)
+    {
+        std::cerr << "PCM Error: Failed to read MCFG table from firmware\n";
+        return;
+    }
+    
+    // Parse the MCFG table
+    // The table format is: ACPI header (variable) + MCFG records
+    if (tableSize < sizeof(MCFGHeader))
+    {
+        std::cerr << "PCM Error: MCFG table too small\n";
+        return;
+    }
+    
+    MCFGHeader* header = reinterpret_cast<MCFGHeader*>(tableBuffer.data());
+    
+#ifdef PCM_DEBUG
+    std::cout << "PCM Debug: MCFG table signature: " 
+              << header->signature[0] << header->signature[1] 
+              << header->signature[2] << header->signature[3] << "\n";
+    std::cout << "PCM Debug: MCFG table length: " << header->length << "\n";
+    std::cout << "PCM Debug: Number of MCFG records: " << header->nrecords() << "\n";
+#endif
+    
+    // Verify signature
+    if (std::strncmp(header->signature, "MCFG", 4) != 0)
+    {
+        std::cerr << "PCM Error: Invalid MCFG table signature\n";
+        return;
+    }
+    
+    // Read MCFG records
+    const unsigned segments = header->nrecords();
+    const BYTE* recordPtr = tableBuffer.data() + sizeof(MCFGHeader);
+    
+    for (unsigned int i = 0; i < segments; ++i)
+    {
+        if (recordPtr + sizeof(MCFGRecord) > tableBuffer.data() + tableSize)
+        {
+            std::cerr << "PCM Error: MCFG record out of bounds\n";
+            break;
+        }
+        
+        MCFGRecord record;
+        std::memcpy(&record, recordPtr, sizeof(MCFGRecord));
+        
+#ifdef PCM_DEBUG
+        std::cout << "PCM Debug: MCFG segment " << i << ": "
+                  << "BaseAddress=0x" << std::hex << record.baseAddress
+                  << " PCISegmentGroupNumber=0x" << record.PCISegmentGroupNumber
+                  << " startBusNumber=0x" << (unsigned)record.startBusNumber
+                  << " endBusNumber=0x" << (unsigned)record.endBusNumber
+                  << std::dec << "\n";
+#endif
+        
+        mcfg.push_back(record);
+        recordPtr += sizeof(MCFGRecord);
+    }
 }
 
 #elif __APPLE__

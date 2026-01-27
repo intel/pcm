@@ -69,6 +69,10 @@ public:
 
 protected:
     static int openMcfgTable();
+#ifdef _MSC_VER
+public:
+    static void readMCFGRecords(std::vector<MCFGRecord>& mcfg);
+#endif
 };
 
 #ifdef _MSC_VER
