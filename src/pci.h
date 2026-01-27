@@ -39,7 +39,7 @@ class PciHandle
     int32 fd;
 #endif
 
-#if defined(__FreeBSD__) || defined(__DragonFly__)
+#if defined(__FreeBSD__) || defined(__DragonFly__) || defined(__linux__)
     uint32 groupnr;
 #endif
     uint32 bus;
@@ -64,6 +64,8 @@ public:
     int32 write32(uint64 offset, uint32 value);
 
     int32 read64(uint64 offset, uint64 * value);
+
+    int32 getNUMANode() const;
 
     virtual ~PciHandle();
 
@@ -90,6 +92,7 @@ class PciHandleMM
     int32 fd;
     char * mmapAddr;
 
+    uint32 groupnr;
     uint32 bus;
     uint32 device;
     uint32 function;
@@ -112,6 +115,8 @@ public:
     int32 write32(uint64 offset, uint32 value);
 
     int32 read64(uint64 offset, uint64 * value);
+
+    int32 getNUMANode() const;
 
     virtual ~PciHandleMM();
 

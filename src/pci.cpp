@@ -6,6 +6,9 @@
 //            Jim Harris (FreeBSD)
 
 #include <iostream>
+#include <fstream>
+#include <sstream>
+#include <iomanip>
 #include <stdexcept>
 #include <stdio.h>
 #include <sys/types.h>
@@ -62,6 +65,21 @@ PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 functi
     {
         throw std::runtime_error("MSR and Winring0 drivers can't be opened");
     }
+}
+
+int32 PciHandle::getNUMANode() const
+{
+    // Windows implementation: use GetNumaProcessorNodeEx or query device properties
+    // Return -1 if not available or on error
+    // The bus field contains (groupnr << 8) | bus_, so we need to extract them
+    const uint32 groupnr = (bus >> 8);
+    const uint32 actual_bus = bus & 0xFF;
+    
+    // Construct PCI location string for WMI query or use Windows device APIs
+    // For now, return -1 as NUMA node information requires Windows-specific APIs
+    // that may not be available on all Windows versions
+    DBG(2, "getNUMANode not fully implemented on Windows, returning -1");
+    return -1;
 }
 
 bool PciHandle::exists(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 function_)
@@ -336,6 +354,13 @@ PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 functi
     function(function_)
 { }
 
+int32 PciHandle::getNUMANode() const
+{
+    // macOS typically doesn't expose NUMA node information for PCI devices
+    // Return -1 to indicate not available
+    return -1;
+}
+
 bool PciHandle::exists(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 function_)
 {
     if (groupnr_ != 0)
@@ -398,6 +423,20 @@ PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 functi
         throw std::exception();
     }
     fd = handle;
+}
+
+int32 PciHandle::getNUMANode() const
+{
+    // FreeBSD implementation: query via sysctl for NUMA domain information
+    // Return -1 if not available or on error
+    
+#ifdef __FreeBSD__
+    // FreeBSD may expose NUMA information via sysctl
+    // Try to get CPU affinity/domain info for this PCI device
+    // For now, return -1 as implementation requires specific FreeBSD sysctls
+    DBG(2, "getNUMANode not fully implemented on FreeBSD, returning -1");
+#endif
+    return -1;
 }
 
 bool PciHandle::exists(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 function_)
@@ -548,6 +587,7 @@ int openHandle(uint32 groupnr_, uint32 bus, uint32 device, uint32 function)
 
 PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 function_) :
     fd(-1),
+    groupnr(groupnr_),
     bus(bus_),
     device(device_),
     function(function_)
@@ -561,6 +601,44 @@ PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 functi
     fd = handle;
 
     // std::cout << "DEBUG: Opened "<< path.str().c_str() << " on handle "<< fd << "\n";
+}
+
+int32 PciHandle::getNUMANode() const
+{
+    // Linux implementation: read from /sys/bus/pci/devices/<domain>:<bus>:<device>.<function>/numa_node
+    std::ostringstream path;
+    path << std::hex << "/sys/bus/pci/devices/";
+    if (groupnr)
+    {
+        path << std::setw(4) << std::setfill('0') << groupnr << ":";
+    }
+    else
+    {
+        path << "0000:";
+    }
+    path << std::setw(2) << std::setfill('0') << bus << ":"
+         << std::setw(2) << std::setfill('0') << device << "."
+         << function << "/numa_node";
+    
+    std::string numa_path = path.str();
+    std::ifstream numa_file(numa_path);
+    if (!numa_file.is_open())
+    {
+        // Try alternative path with /pcm prefix
+        numa_file.open("/pcm" + numa_path);
+        if (!numa_file.is_open())
+        {
+            DBG(2, "Cannot open NUMA node file: ", numa_path);
+            return -1;
+        }
+    }
+    
+    int32 numa_node = -1;
+    numa_file >> numa_node;
+    
+    DBG(3, "NUMA node for ", std::hex, groupnr, ":", bus, ":", device, ":", function, std::dec, " is ", numa_node);
+    
+    return numa_node;
 }
 
 
@@ -689,6 +767,7 @@ void PciHandleMM::readMCFG()
 PciHandleMM::PciHandleMM(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 function_) :
     fd(-1),
     mmapAddr(NULL),
+    groupnr(groupnr_),
     bus(bus_),
     device(device_),
     function(function_),
@@ -736,6 +815,44 @@ PciHandleMM::PciHandleMM(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 fu
         std::cout << "mmap failed: errno is " << errno << "\n";
         throw std::exception();
     }
+}
+
+int32 PciHandleMM::getNUMANode() const
+{
+    // Linux implementation: read from /sys/bus/pci/devices/<domain>:<bus>:<device>.<function>/numa_node
+    std::ostringstream path;
+    path << std::hex << "/sys/bus/pci/devices/";
+    if (groupnr)
+    {
+        path << std::setw(4) << std::setfill('0') << groupnr << ":";
+    }
+    else
+    {
+        path << "0000:";
+    }
+    path << std::setw(2) << std::setfill('0') << bus << ":"
+         << std::setw(2) << std::setfill('0') << device << "."
+         << function << "/numa_node";
+    
+    std::string numa_path = path.str();
+    std::ifstream numa_file(numa_path);
+    if (!numa_file.is_open())
+    {
+        // Try alternative path with /pcm prefix
+        numa_file.open("/pcm" + numa_path);
+        if (!numa_file.is_open())
+        {
+            DBG(2, "Cannot open NUMA node file: ", numa_path);
+            return -1;
+        }
+    }
+    
+    int32 numa_node = -1;
+    numa_file >> numa_node;
+    
+    DBG(3, "NUMA node for ", std::hex, groupnr, ":", bus, ":", device, ":", function, std::dec, " is ", numa_node);
+    
+    return numa_node;
 }
 
 bool PciHandleMM::exists(uint32 /*groupnr_*/, uint32 /*bus_*/, uint32 /*device_*/, uint32 /*function_*/)
