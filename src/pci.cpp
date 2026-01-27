@@ -273,13 +273,11 @@ void PciHandle::readMCFGRecords(std::vector<MCFGRecord>& mcfg)
     MCFGHeader header;
     std::memcpy(&header, tableBuffer.data(), sizeof(MCFGHeader));
     
-#ifdef PCM_DEBUG
-    std::cout << "PCM Debug: MCFG table signature: " 
-              << header.signature[0] << header.signature[1] 
-              << header.signature[2] << header.signature[3] << "\n";
-    std::cout << "PCM Debug: MCFG table length: " << header.length << "\n";
-    std::cout << "PCM Debug: Number of MCFG records: " << header.nrecords() << "\n";
-#endif
+    DBG(1, "MCFG table signature: \"",
+        header.signature[0], header.signature[1],
+        header.signature[2], header.signature[3],
+        "\" MCFG table length: ", header.length,
+        " Number of MCFG records: ", header.nrecords());
     
     // Verify signature
     if (std::strncmp(header.signature, "MCFG", 4) != 0)
@@ -317,14 +315,12 @@ void PciHandle::readMCFGRecords(std::vector<MCFGRecord>& mcfg)
         MCFGRecord record;
         std::memcpy(&record, recordPtr, sizeof(MCFGRecord));
         
-#ifdef PCM_DEBUG
-        std::cout << "PCM Debug: MCFG segment " << i << ": "
-                  << "BaseAddress=0x" << std::hex << record.baseAddress
-                  << " PCISegmentGroupNumber=0x" << record.PCISegmentGroupNumber
-                  << " startBusNumber=0x" << (unsigned)record.startBusNumber
-                  << " endBusNumber=0x" << (unsigned)record.endBusNumber
-                  << std::dec << "\n";
-#endif
+        DBG(1, "MCFG segment " , i , ": ",
+               "BaseAddress=0x" , std::hex , record.baseAddress,
+               " PCISegmentGroupNumber=0x" , record.PCISegmentGroupNumber,
+               " startBusNumber=0x" , (unsigned)record.startBusNumber,
+               " endBusNumber=0x" , (unsigned)record.endBusNumber,
+               std::dec);
         
         mcfg.push_back(record);
         recordPtr += sizeof(MCFGRecord);
