@@ -56,8 +56,8 @@ int main()
         std::cout << "This may be expected on:\n";
         std::cout << "  - Single-socket systems\n";
         std::cout << "  - Systems without NUMA support\n";
-        std::cout << "  - Non-Linux platforms (macOS, FreeBSD)\n";
-        std::cout << "  - Systems where sysfs NUMA information is not available\n";
+        std::cout << "  - macOS (not implemented)\n";
+        std::cout << "  - Systems where NUMA information is not available\n";
     }
     
     std::cout << "\nTest PASSED\n";

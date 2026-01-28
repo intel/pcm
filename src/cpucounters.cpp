@@ -7350,10 +7350,72 @@ int32 PCM::mapNUMANodeToSocket(uint32 numa_node_id) const
     }
     
     return -1;
-#elif defined(__APPLE__) || defined(__FreeBSD__) || defined(__DragonFly__)
-    // On macOS and FreeBSD, NUMA information may not be readily available
+#elif defined(__FreeBSD__) || defined(__DragonFly__)
+    // FreeBSD implementation using vm.ndomains and cpuset APIs
+    
+    // First check if NUMA is enabled on this system
+    int ndomains = 0;
+    size_t len = sizeof(ndomains);
+    
+    if (sysctlbyname("vm.ndomains", &ndomains, &len, nullptr, 0) != 0)
+    {
+        DBG(2, "Cannot query vm.ndomains, NUMA not available");
+        return -1;
+    }
+    
+    if (ndomains <= 1)
+    {
+        // NUMA not enabled or single domain system
+        DBG(3, "NUMA not enabled on FreeBSD (vm.ndomains = ", ndomains, ")");
+        return -1;
+    }
+    
+    // Validate NUMA node ID
+    if (numa_node_id >= (uint32)ndomains)
+    {
+        DBG(2, "Invalid NUMA node ID ", numa_node_id, " (max: ", ndomains - 1, ")");
+        return -1;
+    }
+    
+#if defined(__FreeBSD__) && defined(CPU_WHICH_DOMAIN)
+    // On FreeBSD with CPU_WHICH_DOMAIN support (FreeBSD 12.0+)
+    // Query which CPUs belong to this NUMA domain
+    cpuset_t cpuset;
+    CPU_ZERO(&cpuset);
+    
+    // cpuset_getdomain returns the cpuset for a specific domain
+    if (cpuset_getdomain(CPU_LEVEL_WHICH, CPU_WHICH_DOMAIN, numa_node_id, 
+                         sizeof(cpuset), &cpuset, DOMAINSET_POLICY_PREFER) == 0)
+    {
+        // Find the first CPU in this domain's cpuset
+        for (size_t cpu = 0; cpu < topology.size(); ++cpu)
+        {
+            if (CPU_ISSET(cpu, &cpuset))
+            {
+                int32 socket_id = topology[cpu].socket_id;
+                DBG(3, "NUMA domain ", numa_node_id, " maps to socket ", socket_id);
+                return socket_id;
+            }
+        }
+    }
+    else
+    {
+        DBG(2, "cpuset_getdomain failed for domain ", numa_node_id);
+    }
+#endif
+    
+    // Fallback: try to map NUMA domain to socket using a simple heuristic
+    // On many systems, NUMA domains correspond directly to sockets
+    if (numa_node_id < num_sockets)
+    {
+        DBG(3, "Using fallback: NUMA domain ", numa_node_id, " -> socket ", numa_node_id);
+        return (int32)numa_node_id;
+    }
+    
+    return -1;
+#elif defined(__APPLE__)
+    // On macOS, NUMA information is not readily available
     // For now, return -1 to indicate the mapping is not available
-    // A more sophisticated implementation could use sysctl or other APIs
     (void)numa_node_id; // Suppress unused parameter warning
     return -1;
 #else
