@@ -43,8 +43,10 @@ public:
         {
             return vsec.fields.cap_id == 0xb // Vendor Specific DVSEC
                 && vsec.fields.vsec_id == 0x42; // TPMI PM_Features
-        }, [&](const uint64 bar, const VSEC & vsec)
+        }, [&](const uint64 bar, const VSEC & vsec, const int32 NUMANode)
         {
+            DBG(1, "TPMI detection. Bar 0x", std::hex, bar, std::dec,
+                   " NUMANode: ", NUMANode);
             struct PFS
             {
                 uint64 TPMI_ID:8;

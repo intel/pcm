@@ -19,10 +19,11 @@ UncorePMUDiscovery::UncorePMUDiscovery()
     
     size_t socket = 0;
 
-    auto processTables = [this, &debug, &socket](const uint64 bar, const VSEC & vsec)
+    auto processTables = [this, &debug, &socket](const uint64 bar, const VSEC & vsec, const int32 NUMANode)
     {
         try {
-            DBG(2, "Uncore discovery detection. Reading from bar 0x", std::hex, bar, std::dec);
+            DBG(1, "Uncore discovery detection. Reading from bar 0x", std::hex, bar, std::dec,
+                   " NUMANode: ", NUMANode);
             constexpr size_t UncoreDiscoverySize = 3UL;
             union UncoreGlobalDiscovery {
                 GlobalPMU pmu;

@@ -225,7 +225,8 @@ void processDVSEC(MatchFunc matchFunc, ProcessFunc processFunc)
         DBG(2, "Intel device scan.found " , std::hex , group , ":" , bus , " : " , device , " : " , function , " " , device_id);
         uint32 status{0};
         PciHandleType h(group, bus, device, function);
-        DBG(2, "NUMA node: ", h.getNUMANode());
+        const auto NUMANode = h.getNUMANode();
+        DBG(2, "NUMA node: ", NUMANode);
         h.read32(4, &status); // read status
         if (status & 0x100000) // has capability list
         {
@@ -259,7 +260,7 @@ void processDVSEC(MatchFunc matchFunc, ProcessFunc processFunc)
                             if (type == 0) // 32-bit address
                             {
                                 bar &= ~0xfull;
-                                processFunc(bar, header);
+                                processFunc(bar, header, NUMANode);
                             }
                             else if (type == 2) // 64-bit address
                             {
@@ -269,7 +270,7 @@ void processDVSEC(MatchFunc matchFunc, ProcessFunc processFunc)
                                     uint64 full_bar = (uint64(bar_high) << 32) | uint64(bar);
                                     full_bar &= ~0xfull;
                                     DBG(2, " full_bar = 0x", std::hex, full_bar, std::dec);
-                                    processFunc(full_bar, header);
+                                    processFunc(full_bar, header, NUMANode);
                                 }
                                 else
                                 {
