@@ -80,9 +80,11 @@ int32 PciHandle::getNUMANode() const
     static bool initialized = false;
     
     // Thread-safe initialization using double-checked locking
+    // cppcheck-suppress identicalInnerCondition
     if (!initialized)
     {
         std::lock_guard<std::mutex> lock(initMutex);
+        // cppcheck-suppress identicalInnerCondition
         if (!initialized)
         {
             readSRATTable(pciToNuma);
