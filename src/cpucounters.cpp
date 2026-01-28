@@ -7403,15 +7403,7 @@ int32 PCM::mapNUMANodeToSocket(uint32 numa_node_id) const
         DBG(2, "cpuset_getdomain failed for domain ", numa_node_id);
     }
 #endif
-    
-    // Fallback: try to map NUMA domain to socket using a simple heuristic
-    // On many systems, NUMA domains correspond directly to sockets
-    if (numa_node_id < num_sockets)
-    {
-        DBG(3, "Using fallback: NUMA domain ", numa_node_id, " -> socket ", numa_node_id);
-        return (int32)numa_node_id;
-    }
-    
+
     return -1;
 #elif defined(__APPLE__)
     // On macOS, NUMA information is not readily available
