@@ -146,6 +146,7 @@ inline void forAllIntelDevices(F f, int requestedDevice = -1, int requestedFunct
         try
         {
             PciHandleType h(group, bus, device, function);
+            DBG(3, "NUMA node: ", h.getNUMANode());
             h.read32(0, &value);
 
         } catch(...)
@@ -224,6 +225,7 @@ void processDVSEC(MatchFunc matchFunc, ProcessFunc processFunc)
         DBG(2, "Intel device scan.found " , std::hex , group , ":" , bus , " : " , device , " : " , function , " " , device_id);
         uint32 status{0};
         PciHandleType h(group, bus, device, function);
+        DBG(2, "NUMA node: ", h.getNUMANode());
         h.read32(4, &status); // read status
         if (status & 0x100000) // has capability list
         {
