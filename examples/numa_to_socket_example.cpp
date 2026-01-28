@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-// Copyright (c) 2024, Intel Corporation
+// Copyright (c) 2025, Intel Corporation
 // Example: How to map NUMA node IDs to CPU socket IDs
 
 #include <iostream>

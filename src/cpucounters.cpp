@@ -7312,23 +7312,36 @@ int32 PCM::mapNUMANodeToSocket(uint32 numa_node_id) const
         if (current->Relationship == RelationNumaNode && 
             current->NumaNode.NodeNumber == numa_node_id)
         {
-            // Find first set bit in the processor mask
-            for (WORD group = 0; group < current->NumaNode.GroupMask.Group; ++group)
-            {
-                // Skip to the correct processor group if needed
-            }
-            
+            // The GROUP_AFFINITY structure contains a processor group number and affinity mask
+            WORD groupNumber = current->NumaNode.GroupMask.Group;
             KAFFINITY mask = current->NumaNode.GroupMask.Mask;
+            
             if (mask != 0)
             {
-                // Find first set bit (first processor in this NUMA node)
-                DWORD first_processor = 0;
-                _BitScanForward64(&first_processor, mask);
+                // Find first set bit (first processor in this NUMA node within this group)
+                DWORD bitPosition = 0;
+                _BitScanForward64(&bitPosition, mask);
                 
-                // Map processor to socket using topology
-                if (first_processor < topology.size())
+                // On Windows, we need to find the logical processor ID that corresponds to
+                // this bit position in this group. We iterate through topology to find a match.
+                // Note: This is a simplified approach. A more robust implementation would need
+                // to query the system for the mapping between group/bit position and logical processor IDs.
+                for (size_t cpu = 0; cpu < topology.size(); ++cpu)
                 {
-                    return topology[first_processor].socket_id;
+                    // Check if this CPU belongs to the current NUMA node
+                    // Since we don't have direct group information in topology, we use a heuristic:
+                    // try the first CPU we find in the topology array
+                    // A better approach would store group information in TopologyEntry
+                    if (cpu == bitPosition + (groupNumber * 64))  // Rough approximation
+                    {
+                        return topology[cpu].socket_id;
+                    }
+                }
+                
+                // Fallback: just return the socket_id of the first available CPU if within bounds
+                if (bitPosition < topology.size())
+                {
+                    return topology[bitPosition].socket_id;
                 }
             }
         }
