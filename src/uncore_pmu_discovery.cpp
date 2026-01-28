@@ -30,7 +30,7 @@ UncorePMUDiscovery::UncorePMUDiscovery(PCM & m)
             };
             UncoreGlobalDiscovery global;
             mmio_memcpy(global.table, bar, UncoreDiscoverySize * sizeof(uint64), true);
-            size_t socket = 0;
+            size_t socket = 0; // default socket if NUMA node -> socket mapping fails
             if (NUMANode >= 0)
             {
                 const auto socketFromNUMANode = m.mapNUMANodeToSocket(NUMANode);
