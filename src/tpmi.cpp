@@ -6,6 +6,7 @@
 #include "tpmi.h"
 #include "pci.h"
 #include "utils.h"
+#include "debug.h"
 #include <vector>
 #include <unordered_map>
 #include <assert.h>
@@ -76,6 +77,12 @@ public:
                     "\t Attribute: " << pfs.Attribute <<
                     "\n";
                 }
+                DBG(1, " PFS TPMI_ID: ", pfs.TPMI_ID,
+                    " NumEntries: ", pfs.NumEntries,
+                    " EntrySize: ", pfs.EntrySize,
+                    " CapOffset: ", pfs.CapOffset,
+                    " Attribute: ", pfs.Attribute);
+
                 for (uint64 p = 0; p < pfs.NumEntries; ++p)
                 {
                     uint32 reg0 = 0;
@@ -89,6 +96,7 @@ public:
                             std::cout << "can't read entry " << p << "\n";
                             std::cout << e.what();
                         }
+                        DBG(2, "can't read entry ", p, " error: ", e.what());
                         PFSInstancesSingletonInit->back()[pfs.TPMI_ID].push_back(addr);
                         continue;
                     }
@@ -98,6 +106,7 @@ public:
                         {
                             std::cout << "invalid entry " << p << "\n";
                         }
+                        DBG(2, "invalid entry ", p);
                     }
                     else
                     {
@@ -111,6 +120,13 @@ public:
                                 std::cout << " register "<< i_offset << " = " << reg;
                             }
                             std::cout << std::dec << "\n";
+                        }
+                        DBG(2, "valid entry ", p);
+                        for (uint64 i_offset = 0; i_offset < pfs.EntrySize * sizeof(uint32); i_offset += sizeof(uint64))
+                        {
+                            uint64 reg = 0;
+                            mmio_memcpy(&reg, addr + i_offset, sizeof(uint64), false);
+                            DBG(2, " register 0x", std::hex , i_offset, " = 0x", reg, std::dec);
                         }
                         PFSInstancesSingletonInit->back()[pfs.TPMI_ID].push_back(addr);
                     }
