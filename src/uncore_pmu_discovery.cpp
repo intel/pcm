@@ -6,10 +6,11 @@
 #include "mmio.h"
 #include "iostream"
 #include "utils.h"
+#include "cpucounters.h"
 
 namespace pcm {
 
-UncorePMUDiscovery::UncorePMUDiscovery()
+UncorePMUDiscovery::UncorePMUDiscovery(PCM & m)
 {
     if (safe_getenv("PCM_NO_UNCORE_PMU_DISCOVERY") == std::string("1"))
     {
@@ -17,9 +18,7 @@ UncorePMUDiscovery::UncorePMUDiscovery()
     }
     const auto debug = (safe_getenv("PCM_DEBUG_PMU_DISCOVERY") == std::string("1"));
     
-    size_t socket = 0;
-
-    auto processTables = [this, &debug, &socket](const uint64 bar, const VSEC & vsec, const int32 NUMANode)
+    auto processTables = [this, &debug, &m](const uint64 bar, const VSEC & vsec, const int32 NUMANode)
     {
         try {
             DBG(1, "Uncore discovery detection. Reading from bar 0x", std::hex, bar, std::dec,
@@ -31,7 +30,18 @@ UncorePMUDiscovery::UncorePMUDiscovery()
             };
             UncoreGlobalDiscovery global;
             mmio_memcpy(global.table, bar, UncoreDiscoverySize * sizeof(uint64), true);
-            globalPMUs.resize(socket + 1);
+            size_t socket = 0;
+            if (NUMANode >= 0)
+            {
+                const auto socketFromNUMANode = m.mapNUMANodeToSocket(NUMANode);
+                DBG(1, "Socket of NUMANode: ", socketFromNUMANode);
+                if (socketFromNUMANode >= 0)
+                {
+                    socket = static_cast<size_t>(socketFromNUMANode);
+                }
+            }
+            globalPMUs.resize((std::max)(socket + 1, globalPMUs.size()));
+            assert(socket < globalPMUs.size());
             globalPMUs[socket].push_back(global.pmu);
             if (debug)
             {
@@ -67,9 +77,9 @@ UncorePMUDiscovery::UncorePMUDiscovery()
                 // unit.pmu.print();
                 boxPMUMap[unit.pmu.boxType].push_back(unit.pmu);
             }
-            boxPMUs.resize(socket + 1);
+            boxPMUs.resize((std::max)(socket + 1, boxPMUs.size()));
+            assert(socket < boxPMUs.size());
             boxPMUs[socket].push_back(boxPMUMap);
-            ++socket;
         }
         catch (const std::exception & e)
         {
@@ -110,6 +120,7 @@ UncorePMUDiscovery::UncorePMUDiscovery()
             {
                 std::cout << "Socket " << s << " die " << die << " global PMU:\n";
                 std::cout << "    ";
+                assert(s < globalPMUs.size() && die < globalPMUs[s].size());
                 globalPMUs[s][die].print();
                 std::cout << "Socket " << s << " die " << die << " unit PMUs:\n";
                 for (const auto& pmuType : boxPMUs[s][die])

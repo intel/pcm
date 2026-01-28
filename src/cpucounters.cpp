@@ -3251,7 +3251,8 @@ PCM::PCM() :
 
     if (isServerCPU())
     {
-        uncorePMUDiscovery = std::make_shared<UncorePMUDiscovery>();
+        assert(topology.size());
+        uncorePMUDiscovery = std::make_shared<UncorePMUDiscovery>(*this);
     }
 
     initUncoreObjects();

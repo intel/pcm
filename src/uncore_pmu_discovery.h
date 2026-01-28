@@ -10,6 +10,8 @@
 
 namespace pcm {
 
+class PCM;
+
 constexpr auto SPR_PCU_BOX_TYPE = 4U;
 constexpr auto SPR_IMC_BOX_TYPE = 6U;
 constexpr auto SPR_UPILL_BOX_TYPE = 8U;
@@ -168,8 +170,9 @@ protected:
         }
         return 0;
     }
+    UncorePMUDiscovery() = delete;
 public:
-    UncorePMUDiscovery();
+    UncorePMUDiscovery(PCM &);
 
     size_t getNumDies(const size_t socket) const
     {
