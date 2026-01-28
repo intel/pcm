@@ -2045,6 +2045,10 @@ public:
     //! \return socket identifier
     int32 getSocketId(uint32 core_id) const { return (int32)topology[core_id].socket_id; }
 
+    //! \brief Maps NUMA node ID to CPU socket ID
+    //! \param numa_node_id NUMA node identifier
+    //! \return socket identifier, or -1 if mapping is not available or numa_node_id is invalid
+    int32 mapNUMANodeToSocket(uint32 numa_node_id) const;
 
     size_t getNumCXLPorts(uint32 socket) const
     {

@@ -7235,6 +7235,121 @@ uint32 PCM::getNumSockets() const
     return (uint32)num_sockets;
 }
 
+int32 PCM::mapNUMANodeToSocket(uint32 numa_node_id) const
+{
+#ifdef __linux__
+    // On Linux, read the CPU list for this NUMA node and map to socket
+    std::ostringstream path;
+    path << "/sys/devices/system/node/node" << numa_node_id << "/cpulist";
+    
+    std::ifstream cpulist_file(path.str());
+    if (!cpulist_file.is_open())
+    {
+        // Try alternative path with /pcm prefix (for containerized environments)
+        cpulist_file.open("/pcm" + path.str());
+        if (!cpulist_file.is_open())
+        {
+            DBG(2, "Cannot open NUMA node cpulist file: ", path.str());
+            return -1;
+        }
+    }
+    
+    std::string cpulist;
+    std::getline(cpulist_file, cpulist);
+    
+    if (cpulist.empty())
+    {
+        DBG(2, "Empty CPU list for NUMA node ", numa_node_id);
+        return -1;
+    }
+    
+    // Parse the first CPU from the list (format: "0-15,32-47" or "0" or "0,2,4")
+    size_t first_cpu_end = cpulist.find_first_of(",-");
+    std::string first_cpu_str = (first_cpu_end == std::string::npos) ? cpulist : cpulist.substr(0, first_cpu_end);
+    
+    try
+    {
+        uint32 first_cpu = std::stoul(first_cpu_str);
+        if (first_cpu < topology.size())
+        {
+            int32 socket_id = topology[first_cpu].socket_id;
+            DBG(3, "NUMA node ", numa_node_id, " maps to socket ", socket_id);
+            return socket_id;
+        }
+    }
+    catch (const std::exception& e)
+    {
+        DBG(2, "Failed to parse CPU ID from cpulist: ", cpulist, " error: ", e.what());
+        return -1;
+    }
+    
+    return -1;
+#elif defined(_MSC_VER)
+    // On Windows, use GetLogicalProcessorInformationEx to map NUMA node to processors
+    // and then map processor to socket using topology information
+    DWORD length = 0;
+    GetLogicalProcessorInformationEx(RelationNumaNode, nullptr, &length);
+    if (GetLastError() != ERROR_INSUFFICIENT_BUFFER)
+    {
+        return -1;
+    }
+    
+    std::vector<uint8_t> buffer(length);
+    auto info = reinterpret_cast<PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX>(buffer.data());
+    
+    if (!GetLogicalProcessorInformationEx(RelationNumaNode, info, &length))
+    {
+        return -1;
+    }
+    
+    // Iterate through NUMA nodes
+    DWORD offset = 0;
+    while (offset < length)
+    {
+        auto current = reinterpret_cast<PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX>(
+            reinterpret_cast<uint8_t*>(info) + offset);
+        
+        if (current->Relationship == RelationNumaNode && 
+            current->NumaNode.NodeNumber == numa_node_id)
+        {
+            // Find first set bit in the processor mask
+            for (WORD group = 0; group < current->NumaNode.GroupMask.Group; ++group)
+            {
+                // Skip to the correct processor group if needed
+            }
+            
+            KAFFINITY mask = current->NumaNode.GroupMask.Mask;
+            if (mask != 0)
+            {
+                // Find first set bit (first processor in this NUMA node)
+                DWORD first_processor = 0;
+                _BitScanForward64(&first_processor, mask);
+                
+                // Map processor to socket using topology
+                if (first_processor < topology.size())
+                {
+                    return topology[first_processor].socket_id;
+                }
+            }
+        }
+        
+        offset += current->Size;
+    }
+    
+    return -1;
+#elif defined(__APPLE__) || defined(__FreeBSD__) || defined(__DragonFly__)
+    // On macOS and FreeBSD, NUMA information may not be readily available
+    // For now, return -1 to indicate the mapping is not available
+    // A more sophisticated implementation could use sysctl or other APIs
+    (void)numa_node_id; // Suppress unused parameter warning
+    return -1;
+#else
+    // Unsupported platform
+    (void)numa_node_id; // Suppress unused parameter warning
+    return -1;
+#endif
+}
+
 uint32 PCM::getAccel() const
 {
     return accel;
