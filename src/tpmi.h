@@ -21,6 +21,7 @@ public:
     virtual size_t getNumEntries() const = 0;
     virtual uint64 read64(size_t entryPos) = 0;
     virtual void write64(size_t entryPos, uint64 val) = 0;
+    virtual int32 getNUMANode() = 0;
     virtual ~TPMIHandleInterface() {}
 };
 
@@ -36,6 +37,7 @@ public:
     size_t getNumEntries() const override;
     uint64 read64(size_t entryPos) override;
     void write64(size_t entryPos, uint64 val) override;
+    int32 getNUMANode() override;
 };
 
 } // namespace pcm

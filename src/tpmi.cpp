@@ -25,8 +25,12 @@ class PFSInstances
 public:
     // [TPMI ID][entry] -> base address
     typedef std::unordered_map<size_t, std::vector<size_t> > PFSMapType;
-    // [PFS instance][TPMI ID][entry] -> base address
-    typedef std::vector<PFSMapType> PFSInstancesType;
+    struct PFSInstance
+    {
+        PFSMapType pfsMap{}; // [TPMI ID][entry] -> base address
+        int32 NUMANode{-1};
+    };
+    typedef std::vector<PFSInstance> PFSInstancesType;
 private:
     static std::shared_ptr<PFSInstancesType> PFSInstancesSingleton;
 public:
@@ -66,7 +70,8 @@ public:
                 std::cerr << "Can't read PFS\n";
                 std::cerr << e.what();
             }
-            PFSInstancesSingletonInit->push_back(PFSMapType());
+            PFSInstancesSingletonInit->push_back(PFSInstance());
+            PFSInstancesSingletonInit->back().NUMANode = NUMANode;
             for (const auto & pfs : pfsArray)
             {
                 if (TPMIverbose)
@@ -99,7 +104,7 @@ public:
                             std::cout << e.what();
                         }
                         DBG(2, "can't read entry ", p, " error: ", e.what());
-                        PFSInstancesSingletonInit->back()[pfs.TPMI_ID].push_back(addr);
+                        PFSInstancesSingletonInit->back().pfsMap[pfs.TPMI_ID].push_back(addr);
                         continue;
                     }
                     if (reg0 == TPMIInvalidValue)
@@ -130,7 +135,7 @@ public:
                             mmio_memcpy(&reg, addr + i_offset, sizeof(uint64), false);
                             DBG(2, " register 0x", std::hex , i_offset, " = 0x", reg, std::dec);
                         }
-                        PFSInstancesSingletonInit->back()[pfs.TPMI_ID].push_back(addr);
+                        PFSInstancesSingletonInit->back().pfsMap[pfs.TPMI_ID].push_back(addr);
                     }
                 }
             }
@@ -152,6 +157,7 @@ class TPMIHandleMMIO : public TPMIHandleInterface
         size_t offset;
     };
     std::vector<Entry> entries;
+    int32 numaNode{-1};
 public:
     static size_t getNumInstances();
     static void setVerbose(const bool);
@@ -162,6 +168,10 @@ public:
     }
     uint64 read64(size_t entryPos) override;
     void write64(size_t entryPos, uint64 val) override;
+    int32 getNUMANode() override
+    {
+        return numaNode;
+    }
 };
 
 size_t TPMIHandleMMIO::getNumInstances()
@@ -178,7 +188,8 @@ TPMIHandleMMIO::TPMIHandleMMIO(const size_t instance_, const size_t ID_, const s
 {
     auto & pfsInstances = PFSInstances::get();
     assert(instance_ < pfsInstances.size());
-    for (const auto & addr: pfsInstances[instance_][ID_])
+    numaNode = pfsInstances[instance_].NUMANode;
+    for (const auto & addr: pfsInstances[instance_].pfsMap[ID_])
     {
         const auto requestedAddr = addr + requestedRelativeOffset;
         const auto baseAddr = roundDownTo4K(requestedAddr);
@@ -203,6 +214,9 @@ void TPMIHandleMMIO::write64(size_t entryPos, uint64 val)
 }
 
 #ifdef __linux__
+
+int32 getNUMANodeLinux(uint32 groupnr, uint32 bus, uint32 device, uint32 function);
+
 class TPMIHandleDriver : public TPMIHandleInterface
 {
     TPMIHandleDriver(const TPMIHandleDriver&) = delete;
@@ -215,6 +229,7 @@ class TPMIHandleDriver : public TPMIHandleInterface
     const size_t instance;
     const size_t ID;
     const size_t offset;
+    int32 numaNode{ -1 };
     // const bool readonly; // not used
     size_t nentries;
     struct TPMIEntry {
@@ -298,7 +313,8 @@ public:
     {
         assert(available > 0);
         assert(instance < getNumInstances());
-        const auto entries = readTPMIFile(AllIDPaths[instance][ID]);
+        const auto path = AllIDPaths[instance][ID];
+        const auto entries = readTPMIFile(path);
         for (auto & e: entries)
         {
             if (e.data.empty() == false && e.data[0] != TPMIInvalidValue)
@@ -307,6 +323,30 @@ public:
                 ++nentries;
             }
         }
+        // path is like /sys/kernel/debug/tpmi-0000:80:03.1/tpmi-id-0a
+        // extract the 0000:80:03.1 part:
+        const auto prefix = std::string("/sys/kernel/debug/tpmi-");
+        const auto startPos = path.find(prefix);
+        assert(startPos != std::string::npos);
+        const auto endPos = path.find("/tpmi-id-");
+        assert(endPos != std::string::npos);
+        const auto pciAddress = path.substr(startPos + prefix.size(), endPos - (startPos + prefix.size()));
+        DBG(2, "TPMIHandleDriver: PCI address: ", pciAddress);
+        std::istringstream iss(pciAddress);
+        uint32 segment = 0;
+        char separator{};
+        uint32 bus = 0;
+        uint32 device = 0;
+        uint32 function = 0;
+        iss >> std::hex >> segment >> separator >> std::hex >> bus >> separator >> std::hex;
+        iss >> std::hex >> device;
+        iss >> separator >> std::hex >> function;
+        DBG(2, "TPMIHandleDriver: segment=", segment,
+            " bus=", bus,
+            " device=", device,
+            " function=", function);
+        numaNode = getNUMANodeLinux(segment, bus, device, function);
+        DBG(2, "TPMIHandleDriver: NUMA node: ", numaNode);
     }
     size_t getNumEntries() const override
     {
@@ -337,6 +377,10 @@ public:
         const auto path = AllIDPaths[instance][ID] + "/mem_write";
         writeSysFS(path.c_str(), std::to_string(i) + "," + std::to_string(offset) + "," + std::to_string(out.ui32.low));
         writeSysFS(path.c_str(), std::to_string(i) + "," + std::to_string(offset + 4) + "," + std::to_string(out.ui32.high));
+    }
+    int32 getNUMANode() override
+    {
+        return numaNode;
     }
 };
 
@@ -437,5 +481,10 @@ void TPMIHandle::write64(size_t entryPos, uint64 val)
     impl->write64(entryPos, val);
 }
 
+int32 TPMIHandle::getNUMANode()
+{
+    assert(impl.get());
+    return impl->getNUMANode();
+}
 
 } // namespace pcm
