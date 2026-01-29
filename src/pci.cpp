@@ -52,27 +52,8 @@ extern HMODULE hOpenLibSys;
 
 static char * nonZeroGroupErrMsg = "Non-zero PCI group segments are not supported in Winring0 driver, make sure MSR.sys driver can be used.";
 
-PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 function_) :
-    hDriver(openMSRDriver()),
-    bus((groupnr_ << 8) | bus_),
-    device(device_),
-    function(function_),
-    pciAddress(PciBusDevFunc(bus_, device_, function_))
-{
-    DBG(3, "Creating PCI Config space handle at g:b:d:f ", groupnr_, ":", bus_, ":", device_, ":", function_);
-    if (groupnr_ != 0 && hDriver == INVALID_HANDLE_VALUE)
-    {
-        std::cerr << nonZeroGroupErrMsg << '\n';
-        throw std::runtime_error(nonZeroGroupErrMsg);
-    }
-
-    if (hDriver == INVALID_HANDLE_VALUE && hOpenLibSys == NULL)
-    {
-        throw std::runtime_error("MSR and Winring0 drivers can't be opened");
-    }
-}
-
-int32 PciHandle::getNUMANode() const
+// Helper function to compute NUMA node for Windows
+static int32 getNUMANodeWindows(uint32 groupnr, uint32 actual_bus, uint32 device, uint32 function)
 {
     // Windows implementation: read SRAT ACPI table to map PCI devices to NUMA nodes
     static std::unordered_map<uint64_t, uint32_t> pciToNuma;
@@ -92,10 +73,6 @@ int32 PciHandle::getNUMANode() const
         }
     }
     
-    // The bus field contains (groupnr << 8) | bus_, so we need to extract them
-    const uint32 groupnr = (bus >> 8);
-    const uint32 actual_bus = bus & 0xFF;
-    
     // Construct key matching SRAT format: segment(16) | bus(8) | device(5) | function(3)
     uint64_t key = ((uint64_t)groupnr << 16) | ((uint64_t)actual_bus << 8) | 
                   ((uint64_t)device << 3) | function;
@@ -111,6 +88,37 @@ int32 PciHandle::getNUMANode() const
     DBG(2, "No NUMA affinity found in SRAT for PCI device ", std::hex, 
         groupnr, ":", actual_bus, ":", device, ".", function, std::dec);
     return -1;
+}
+
+PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 function_) :
+    hDriver(openMSRDriver()),
+    bus((groupnr_ << 8) | bus_),
+    device(device_),
+    function(function_),
+    pciAddress(PciBusDevFunc(bus_, device_, function_)),
+    numaNode(-1)
+{
+    DBG(3, "Creating PCI Config space handle at g:b:d:f ", groupnr_, ":", bus_, ":", device_, ":", function_);
+    if (groupnr_ != 0 && hDriver == INVALID_HANDLE_VALUE)
+    {
+        std::cerr << nonZeroGroupErrMsg << '\n';
+        throw std::runtime_error(nonZeroGroupErrMsg);
+    }
+
+    if (hDriver == INVALID_HANDLE_VALUE && hOpenLibSys == NULL)
+    {
+        throw std::runtime_error("MSR and Winring0 drivers can't be opened");
+    }
+    
+    // Initialize NUMA node during construction
+    const uint32 groupnr = (bus >> 8);
+    const uint32 actual_bus = bus & 0xFF;
+    numaNode = getNUMANodeWindows(groupnr, actual_bus, device, function);
+}
+
+int32 PciHandle::getNUMANode() const
+{
+    return numaNode;
 }
 
 bool PciHandle::exists(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 function_)
@@ -493,14 +501,13 @@ PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 functi
     fd(-1),
     bus(bus_),
     device(device_),
-    function(function_)
+    function(function_),
+    numaNode(-1)
 { }
 
 int32 PciHandle::getNUMANode() const
 {
-    // macOS typically doesn't expose NUMA node information for PCI devices
-    // Return -1 to indicate not available
-    return -1;
+    return numaNode;
 }
 
 bool PciHandle::exists(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 function_)
@@ -550,24 +557,8 @@ PciHandle::~PciHandle()
 
 #elif defined (__FreeBSD__) || defined(__DragonFly__)
 
-PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 function_) :
-    fd(-1),
-    groupnr(groupnr_),
-    bus(bus_),
-    device(device_),
-    function(function_)
-{
-    int handle = ::open("/dev/pci", O_RDWR | O_NOFOLLOW);
-    if (handle < 0) {
-        if (errno == ELOOP) {
-            std::cerr << "SDL330 ERROR: Symlink detected at /dev/pci\n";
-        }
-        throw std::exception();
-    }
-    fd = handle;
-}
-
-int32 PciHandle::getNUMANode() const
+// Helper function to compute NUMA node for FreeBSD
+static int32 getNUMANodeFreeBSD(uint32 groupnr, uint32 bus, uint32 device, uint32 function)
 {
     // FreeBSD implementation: try to query NUMA domain information via sysctl
     // Return -1 if not available or on error
@@ -646,6 +637,32 @@ int32 PciHandle::getNUMANode() const
 #endif
     
     return -1;
+}
+
+PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 function_) :
+    fd(-1),
+    groupnr(groupnr_),
+    bus(bus_),
+    device(device_),
+    function(function_),
+    numaNode(-1)
+{
+    int handle = ::open("/dev/pci", O_RDWR | O_NOFOLLOW);
+    if (handle < 0) {
+        if (errno == ELOOP) {
+            std::cerr << "SDL330 ERROR: Symlink detected at /dev/pci\n";
+        }
+        throw std::exception();
+    }
+    fd = handle;
+    
+    // Initialize NUMA node during construction
+    numaNode = getNUMANodeFreeBSD(groupnr, bus, device, function);
+}
+
+int32 PciHandle::getNUMANode() const
+{
+    return numaNode;
 }
 
 bool PciHandle::exists(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 function_)
@@ -831,7 +848,8 @@ PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 functi
     groupnr(groupnr_),
     bus(bus_),
     device(device_),
-    function(function_)
+    function(function_),
+    numaNode(-1)
 {
     int handle = openHandle(groupnr_, bus_, device_, function_);
     if (handle < 0)
@@ -840,13 +858,16 @@ PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 functi
             + std::to_string(groupnr_) + ":" + std::to_string(bus_) + ":" + std::to_string(device_) + ":" + std::to_string(function_));
     }
     fd = handle;
+    
+    // Initialize NUMA node during construction
+    numaNode = getNUMANodeLinux(groupnr, bus, device, function);
 
     // std::cout << "DEBUG: Opened "<< path.str().c_str() << " on handle "<< fd << "\n";
 }
 
 int32 PciHandle::getNUMANode() const
 {
-    return getNUMANodeLinux(groupnr, bus, device, function);
+    return numaNode;
 }
 
 
@@ -979,7 +1000,8 @@ PciHandleMM::PciHandleMM(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 fu
     bus(bus_),
     device(device_),
     function(function_),
-    base_addr(0)
+    base_addr(0),
+    numaNode(-1)
 {
     int handle = ::open("/dev/mem", O_RDWR | O_NOFOLLOW);
     if (handle < 0) {
@@ -1023,11 +1045,14 @@ PciHandleMM::PciHandleMM(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 fu
         std::cout << "mmap failed: errno is " << errno << "\n";
         throw std::exception();
     }
+    
+    // Initialize NUMA node during construction
+    numaNode = getNUMANodeLinux(groupnr, bus, device, function);
 }
 
 int32 PciHandleMM::getNUMANode() const
 {
-    return getNUMANodeLinux(groupnr, bus, device, function);
+    return numaNode;
 }
 
 bool PciHandleMM::exists(uint32 /*groupnr_*/, uint32 /*bus_*/, uint32 /*device_*/, uint32 /*function_*/)

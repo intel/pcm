@@ -48,6 +48,7 @@ class PciHandle
 #ifdef _MSC_VER
     DWORD pciAddress;
 #endif
+    int32 numaNode;
 
     friend class PciHandleMM;
 
@@ -97,6 +98,7 @@ class PciHandleMM
     uint32 device;
     uint32 function;
     uint64 base_addr;
+    int32 numaNode;
 
     static MCFGHeader mcfgHeader;
     static std::vector<MCFGRecord> mcfgRecords;
