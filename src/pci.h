@@ -133,6 +133,11 @@ public:
 #error "Platform not supported"
 #endif
 
+#ifdef __linux__
+// Helper function to retrieve NUMA node for a PCI device (Linux only)
+int32 getNUMANodeLinux(uint32 groupnr, uint32 bus, uint32 device, uint32 function);
+#endif
+
 template <class F>
 inline void forAllIntelDevices(F f, int requestedDevice = -1, int requestedFunction = -1)
 {

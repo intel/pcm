@@ -768,7 +768,7 @@ PciHandle::~PciHandle()
 // Linux implementation
 
 // Helper function to retrieve NUMA node for a PCI device
-static int32 getNUMANodeLinux(uint32 groupnr, uint32 bus, uint32 device, uint32 function)
+int32 getNUMANodeLinux(uint32 groupnr, uint32 bus, uint32 device, uint32 function)
 {
     std::ostringstream path;
     path << std::hex << "/sys/bus/pci/devices/"
