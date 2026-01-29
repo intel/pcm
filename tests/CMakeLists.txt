@@ -15,6 +15,10 @@ if(UNIX)
     add_executable(numa_to_socket_test numa_to_socket_test.cpp)
     target_link_libraries(numa_to_socket_test Threads::Threads PCM_STATIC)
 
+    # cache_verification_test
+    add_executable(cache_verification_test cache_verification_test.cpp)
+    target_link_libraries(cache_verification_test Threads::Threads PCM_STATIC)
+
     # PCM_STATIC + pcm_sensor = urltest
     if(LINUX)
         add_executable(urltest urltest.cpp)

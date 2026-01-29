@@ -43,6 +43,7 @@
 #include <unordered_map>
 #include <string.h>
 #include <assert.h>
+#include "mutex.h"
 
 #ifdef PCM_USE_PERF
 #include <linux/perf_event.h>
@@ -654,6 +655,8 @@ class PCM_API PCM
     std::vector<std::vector<std::shared_ptr<TPMIHandle> > > UFSStatus;
 
     std::vector<TopologyEntry> topology;
+    mutable std::unordered_map<uint32, int32> numaNodeToSocketCache; // Cache for mapNUMANodeToSocket
+    mutable pcm::Mutex numaNodeToSocketCacheMutex; // Mutex to protect cache access
     SystemRoot* systemTopology;
     std::string errorMessage;
 

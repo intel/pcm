@@ -7238,6 +7238,26 @@ uint32 PCM::getNumSockets() const
 
 int32 PCM::mapNUMANodeToSocket(uint32 numa_node_id) const
 {
+    // Check cache (thread-safe read)
+    {
+        pcm::Mutex::Scope lock(numaNodeToSocketCacheMutex);
+        auto it = numaNodeToSocketCache.find(numa_node_id);
+        if (it != numaNodeToSocketCache.end())
+        {
+            return it->second;
+        }
+    }
+    
+    // Cache miss, compute the result
+    int32 socket_id = -1;
+    
+    // Helper lambda to cache the result before returning
+    auto cacheAndReturn = [&](int32 result) -> int32 {
+        pcm::Mutex::Scope lock(numaNodeToSocketCacheMutex);
+        numaNodeToSocketCache[numa_node_id] = result;
+        return result;
+    };
+    
 #ifdef __linux__
     // On Linux, read the CPU list for this NUMA node and map to socket
     std::ostringstream path;
@@ -7251,7 +7271,7 @@ int32 PCM::mapNUMANodeToSocket(uint32 numa_node_id) const
         if (!cpulist_file.is_open())
         {
             DBG(2, "Cannot open NUMA node cpulist file: ", path.str());
-            return -1;
+            return cacheAndReturn(-1);
         }
     }
     
@@ -7261,7 +7281,7 @@ int32 PCM::mapNUMANodeToSocket(uint32 numa_node_id) const
     if (cpulist.empty())
     {
         DBG(2, "Empty CPU list for NUMA node ", numa_node_id);
-        return -1;
+        return cacheAndReturn(-1);
     }
     
     // Parse the first CPU from the list (format: "0-15,32-47" or "0" or "0,2,4")
@@ -7273,18 +7293,18 @@ int32 PCM::mapNUMANodeToSocket(uint32 numa_node_id) const
         uint32 first_cpu = std::stoul(first_cpu_str);
         if (first_cpu < topology.size())
         {
-            int32 socket_id = topology[first_cpu].socket_id;
+            socket_id = topology[first_cpu].socket_id;
             DBG(3, "NUMA node ", numa_node_id, " maps to socket ", socket_id);
-            return socket_id;
+            return cacheAndReturn(socket_id);
         }
     }
     catch (const std::exception& e)
     {
         DBG(2, "Failed to parse CPU ID from cpulist: ", cpulist, " error: ", e.what());
-        return -1;
+        return cacheAndReturn(-1);
     }
     
-    return -1;
+    return cacheAndReturn(-1);
 #elif defined(_MSC_VER)
     // On Windows, use GetLogicalProcessorInformationEx to map NUMA node to processors
     // and then map processor to socket using topology information
@@ -7292,7 +7312,7 @@ int32 PCM::mapNUMANodeToSocket(uint32 numa_node_id) const
     GetLogicalProcessorInformationEx(RelationNumaNode, nullptr, &length);
     if (GetLastError() != ERROR_INSUFFICIENT_BUFFER)
     {
-        return -1;
+        return cacheAndReturn(-1);
     }
     
     std::vector<uint8_t> buffer(length);
@@ -7300,7 +7320,7 @@ int32 PCM::mapNUMANodeToSocket(uint32 numa_node_id) const
     
     if (!GetLogicalProcessorInformationEx(RelationNumaNode, info, &length))
     {
-        return -1;
+        return cacheAndReturn(-1);
     }
     
     // Iterate through NUMA nodes
@@ -7335,14 +7355,16 @@ int32 PCM::mapNUMANodeToSocket(uint32 numa_node_id) const
                     // A better approach would store group information in TopologyEntry
                     if (cpu == bitPosition + (groupNumber * 64))  // Rough approximation
                     {
-                        return topology[cpu].socket_id;
+                        socket_id = topology[cpu].socket_id;
+                        return cacheAndReturn(socket_id);
                     }
                 }
                 
                 // Fallback: just return the socket_id of the first available CPU if within bounds
                 if (bitPosition < topology.size())
                 {
-                    return topology[bitPosition].socket_id;
+                    socket_id = topology[bitPosition].socket_id;
+                    return cacheAndReturn(socket_id);
                 }
             }
         }
@@ -7350,7 +7372,7 @@ int32 PCM::mapNUMANodeToSocket(uint32 numa_node_id) const
         offset += current->Size;
     }
     
-    return -1;
+    return cacheAndReturn(-1);
 #elif defined(__FreeBSD__) || defined(__DragonFly__)
     // FreeBSD implementation using vm.ndomains and cpuset APIs
     
@@ -7361,21 +7383,21 @@ int32 PCM::mapNUMANodeToSocket(uint32 numa_node_id) const
     if (sysctlbyname("vm.ndomains", &ndomains, &len, nullptr, 0) != 0)
     {
         DBG(2, "Cannot query vm.ndomains, NUMA not available");
-        return -1;
+        return cacheAndReturn(-1);
     }
     
     if (ndomains <= 1)
     {
         // NUMA not enabled or single domain system
         DBG(3, "NUMA not enabled on FreeBSD (vm.ndomains = ", ndomains, ")");
-        return -1;
+        return cacheAndReturn(-1);
     }
     
     // Validate NUMA node ID
     if (numa_node_id >= (uint32)ndomains)
     {
         DBG(2, "Invalid NUMA node ID ", numa_node_id, " (max: ", ndomains - 1, ")");
-        return -1;
+        return cacheAndReturn(-1);
     }
     
 #if defined(__FreeBSD__) && defined(CPU_WHICH_DOMAIN)
@@ -7393,9 +7415,9 @@ int32 PCM::mapNUMANodeToSocket(uint32 numa_node_id) const
         {
             if (CPU_ISSET(cpu, &cpuset))
             {
-                int32 socket_id = topology[cpu].socket_id;
+                socket_id = topology[cpu].socket_id;
                 DBG(3, "NUMA domain ", numa_node_id, " maps to socket ", socket_id);
-                return socket_id;
+                return cacheAndReturn(socket_id);
             }
         }
     }
@@ -7405,16 +7427,16 @@ int32 PCM::mapNUMANodeToSocket(uint32 numa_node_id) const
     }
 #endif
 
-    return -1;
+    return cacheAndReturn(-1);
 #elif defined(__APPLE__)
     // On macOS, NUMA information is not readily available
     // For now, return -1 to indicate the mapping is not available
     (void)numa_node_id; // Suppress unused parameter warning
-    return -1;
+    return cacheAndReturn(-1);
 #else
     // Unsupported platform
     (void)numa_node_id; // Suppress unused parameter warning
-    return -1;
+    return cacheAndReturn(-1);
 #endif
 }
 
