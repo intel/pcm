@@ -132,7 +132,7 @@ int mainThrows(int argc, char * argv[])
             // Get NUMA node and socket ID
             int32 numaNode = h.getNUMANode();
             int32 socketId = -1;
-            if (numaNode >= 0 && pcmInstance)
+            if (numaNode >= 0)
             {
                 socketId = pcmInstance->mapNUMANodeToSocket(static_cast<uint32>(numaNode));
             }
