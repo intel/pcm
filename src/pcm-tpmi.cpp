@@ -111,6 +111,8 @@ int mainThrows(int argc, char * argv[])
 
     try
     {
+        auto pcmInstance = PCM::getInstance();
+        
         if (instances.empty())
         {
             for (size_t i = 0; i < TPMIHandle::getNumInstances(); ++i)
@@ -126,6 +128,15 @@ int mainThrows(int argc, char * argv[])
                 continue;
             }
             TPMIHandle h(i, requestedID, requestedRelativeOffset, !write);
+            
+            // Get NUMA node and socket ID
+            int32 numaNode = h.getNUMANode();
+            int32 socketId = -1;
+            if (numaNode >= 0 && pcmInstance)
+            {
+                socketId = pcmInstance->mapNUMANodeToSocket(static_cast<uint32>(numaNode));
+            }
+            
             auto one = [&](const size_t p, uint64 value)
             {
                 if (!dec)
@@ -134,12 +145,22 @@ int mainThrows(int argc, char * argv[])
                 { old_value = h.read64(p); return true; });
                 if (write)
                 {
-                    std::cout << " Writing " << value << " to TPMI ID " << requestedID << "@" << requestedRelativeOffset << " for entry " << p << " in instance " << i << "\n";
+                    std::cout << " Writing " << value << " to TPMI ID " << requestedID << "@" << requestedRelativeOffset << " for entry " << p << " in instance " << i;
+                    if (socketId >= 0)
+                        std::cout << " (socket " << std::dec << socketId << ")";
+                    if (numaNode >= 0)
+                        std::cout << " (NUMA node " << std::dec << numaNode << ")";
+                    std::cout << "\n";
                     h.write64(p, value);
                 }
                 value = h.read64(p);
                 extractBitsPrintHelper(bits, value, dec);
-                std::cout << " from TPMI ID " << requestedID << "@" << requestedRelativeOffset << " for entry " << p << " in instance " << i << "\n\n";
+                std::cout << " from TPMI ID " << requestedID << "@" << requestedRelativeOffset << " for entry " << p << " in instance " << i;
+                if (socketId >= 0)
+                    std::cout << " (socket " << std::dec << socketId << ")";
+                if (numaNode >= 0)
+                    std::cout << " (NUMA node " << std::dec << numaNode << ")";
+                std::cout << "\n\n";
             };
             if (entries.empty())
             {
