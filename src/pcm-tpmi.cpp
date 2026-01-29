@@ -137,6 +137,23 @@ int mainThrows(int argc, char * argv[])
                 socketId = pcmInstance->mapNUMANodeToSocket(static_cast<uint32>(numaNode));
             }
             
+            // Helper lambda to print socket ID and NUMA node information
+            auto printTopologyInfo = [&socketId, &numaNode]() {
+                if (socketId >= 0 || numaNode >= 0)
+                {
+                    // Save stream format state
+                    auto flags = std::cout.flags();
+                    
+                    if (socketId >= 0)
+                        std::cout << " (socket " << std::dec << socketId << ")";
+                    if (numaNode >= 0)
+                        std::cout << " (NUMA node " << std::dec << numaNode << ")";
+                    
+                    // Restore stream format state
+                    std::cout.flags(flags);
+                }
+            };
+            
             auto one = [&](const size_t p, uint64 value)
             {
                 if (!dec)
@@ -146,20 +163,14 @@ int mainThrows(int argc, char * argv[])
                 if (write)
                 {
                     std::cout << " Writing " << value << " to TPMI ID " << requestedID << "@" << requestedRelativeOffset << " for entry " << p << " in instance " << i;
-                    if (socketId >= 0)
-                        std::cout << " (socket " << std::dec << socketId << ")";
-                    if (numaNode >= 0)
-                        std::cout << " (NUMA node " << std::dec << numaNode << ")";
+                    printTopologyInfo();
                     std::cout << "\n";
                     h.write64(p, value);
                 }
                 value = h.read64(p);
                 extractBitsPrintHelper(bits, value, dec);
                 std::cout << " from TPMI ID " << requestedID << "@" << requestedRelativeOffset << " for entry " << p << " in instance " << i;
-                if (socketId >= 0)
-                    std::cout << " (socket " << std::dec << socketId << ")";
-                if (numaNode >= 0)
-                    std::cout << " (NUMA node " << std::dec << numaNode << ")";
+                printTopologyInfo();
                 std::cout << "\n\n";
             };
             if (entries.empty())
