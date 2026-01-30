@@ -111,6 +111,7 @@ int mainThrows(int argc, char * argv[])
 
     try
     {
+        PCM::setQuietMode(true);
         auto pcmInstance = PCM::getInstance();
         
         if (instances.empty())
