@@ -2094,23 +2094,50 @@ void PCM::initUncoreObjects()
 
     //TPMIHandle::setVerbose(true);
     try {
-        if (isServerCPU() && TPMIHandle::getNumInstances() == (size_t)num_sockets)
+        if (isServerCPU() && TPMIHandle::getNumInstances() > 0)
         {
-            DBG(1, "TPMIHandle::getNumInstances(): ", TPMIHandle::getNumInstances());
+            const auto nInstances = TPMIHandle::getNumInstances();
+            DBG(1, "TPMIHandle::getNumInstances(): ", nInstances);
             UFSStatus.resize(num_sockets);
-            for (uint32 s = 0; s < (uint32)num_sockets; ++s)
+            for (uint32 i = 0; i < (uint32)nInstances; ++i)
             {
+                uint32 socket = (std::numeric_limits<uint32>::max)(); // invalid socket by default
                 try {
-                    TPMIHandle h(s, UFS_ID, UFS_FABRIC_CLUSTER_OFFSET * sizeof(uint64));
-                    DBG(1,  "Socket ", s, " dies: ", h.getNumEntries());
+                    TPMIHandle h(i, UFS_ID, UFS_FABRIC_CLUSTER_OFFSET * sizeof(uint64));
+                    const auto numaNode = h.getNUMANode();
+                    DBG(1, "Instance ", i, " NUMA node: ", numaNode);
+                    if (numaNode >= 0)
+                    {
+                        const auto socketTmp = mapNUMANodeToSocket(numaNode);
+                        DBG(1, "Instance ", i, " mapped to socket: ", socketTmp);
+                        if (socketTmp >= 0 && socketTmp < (int32)num_sockets)
+                        {
+                            socket = (uint32)socketTmp;
+                        }
+                        else
+                        {
+                            socket = 0;
+                            std::cerr << "WARNING: Could not map UFS TPMI instance " << i << " NUMA node " << numaNode << " to socket. Assuming socket 0.\n";
+                        }
+                    }
+                    else
+                    {
+                        socket = 0;
+                        std::cerr << "WARNING: Could not map UFS TPMI instance " << i << " to NUMA node. Assuming socket 0.\n";
+                    }
+                    DBG(1, "Instance ", i, " Socket ", socket, " dies: ", h.getNumEntries());
                     for (size_t die = 0; die < h.getNumEntries(); ++die)
                     {
                         const auto clusterOffset = extract_bits(h.read64(die), 0, 7);
-                        UFSStatus[s].push_back(std::make_shared<TPMIHandle>(s, UFS_ID, (clusterOffset + UFS_STATUS)* sizeof(uint64)));
+                        assert(socket < UFSStatus.size());
+                        UFSStatus[socket].push_back(
+                            UFSStatusEntry(
+                                std::make_shared<TPMIHandle>(i, UFS_ID, (clusterOffset + UFS_STATUS)* sizeof(uint64)),
+                                die));
                     }
                 } catch (std::exception & e)
                 {
-                    std::cerr << "ERROR: Could not open UFS TPMI register on socket " << s << ". Uncore frequency metrics will be unavailable. Exception details: " << e.what() << "\n";
+                    std::cerr << "ERROR: Could not open UFS TPMI register on socket " << socket << " instance " << i << ". Uncore frequency metrics will be unavailable. Exception details: " << e.what() << "\n";
                 }
             }
         }
@@ -6617,12 +6644,13 @@ void PCM::readAndAggregateUncoreMCCounters(const uint32 socket, CounterStateType
     if (socket < UFSStatus.size())
     {
         result.UFSStatus.clear();
-        for (size_t die = 0; die < UFSStatus[socket].size(); ++die)
+        for (auto & e : UFSStatus[socket])
         {
-            auto & handle = UFSStatus[socket][die];
-            if (handle.get() && die < handle->getNumEntries())
+            auto & handle = e.tpmiHandle;
+            const auto pos = e.pos;
+            if (handle.get() && pos < handle->getNumEntries())
             {
-                const auto value = handle->read64(die);
+                const auto value = handle->read64(pos);
                 DBG(3, std::hex , value , std::dec);
                 result.UFSStatus.push_back(value);
             }

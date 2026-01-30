@@ -652,7 +652,14 @@ class PCM_API PCM
         UFS_FABRIC_CLUSTER_OFFSET = 1,
         UFS_STATUS = 0
     };
-    std::vector<std::vector<std::shared_ptr<TPMIHandle> > > UFSStatus;
+    struct UFSStatusEntry
+    {
+        std::shared_ptr<TPMIHandle> tpmiHandle;
+        size_t pos;
+        UFSStatusEntry() : tpmiHandle(nullptr), pos(0) {}
+        UFSStatusEntry(const std::shared_ptr<TPMIHandle>& handle, size_t position) : tpmiHandle(handle), pos(position) {}
+    };
+    std::vector<std::vector<UFSStatusEntry> > UFSStatus;
 
     std::vector<TopologyEntry> topology;
     mutable std::unordered_map<uint32, int32> numaNodeToSocketCache; // Cache for mapNUMANodeToSocket

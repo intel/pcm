@@ -554,6 +554,7 @@ void print_output(PCM * m,
             }
         };
         const std::vector<uint64> uncoreDieTypes{getUncoreDieTypes(sktstate2[0])};
+        DBG(2, " Uncore die types count: ", uncoreDieTypes.size());
         if (uncoreDieTypes.empty() == false)
         {
             cout << setNextColor() << " Unc(Ghz) ";
