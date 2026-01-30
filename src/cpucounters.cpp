@@ -128,7 +128,7 @@ bool PCM::initWinRing0Lib()
 #endif
 
 PCM * PCM::instance = NULL;
-bool PCM::quietMode = false;
+std::atomic<bool> PCM::quietMode{false};
 
 /*
 static int bitCount(uint64 n)
@@ -3263,7 +3263,7 @@ PCM::PCM() :
     needToRestoreNMIWatchdog(false)
 {
     // Check for PCM_QUIET environment variable
-    if (safe_getenv("PCM_QUIET") == "1")
+    if (safe_getenv("PCM_QUIET") == std::string("1"))
     {
         quietMode = true;
     }

@@ -43,6 +43,7 @@
 #include <unordered_map>
 #include <string.h>
 #include <assert.h>
+#include <atomic>
 #include "mutex.h"
 
 #ifdef PCM_USE_PERF
@@ -668,7 +669,7 @@ class PCM_API PCM
     std::string errorMessage;
 
     static PCM * instance;
-    static bool quietMode;
+    static std::atomic<bool> quietMode;
     bool programmed_core_pmu{false};
     std::vector<std::shared_ptr<SafeMsrHandle> > MSR;
     std::vector<std::shared_ptr<ServerUncorePMUs> > serverUncorePMUs;
