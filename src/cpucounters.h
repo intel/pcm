@@ -668,6 +668,7 @@ class PCM_API PCM
     std::string errorMessage;
 
     static PCM * instance;
+    static bool quietMode;
     bool programmed_core_pmu{false};
     std::vector<std::shared_ptr<SafeMsrHandle> > MSR;
     std::vector<std::shared_ptr<ServerUncorePMUs> > serverUncorePMUs;
@@ -1321,6 +1322,23 @@ private:
 
 public:
     static bool isInitialized() { return instance != nullptr; }
+
+    /*!
+        \brief Set quiet mode for PCM initialization
+
+        When quiet mode is enabled, only errors are output during PCM initialization.
+        This method should be called before getInstance() is called for the first time.
+
+        \param enable true to enable quiet mode, false to disable
+    */
+    static void setQuietMode(bool enable) { quietMode = enable; }
+
+    /*!
+        \brief Check if quiet mode is enabled
+
+        \return true if quiet mode is enabled, false otherwise
+    */
+    static bool getQuietMode() { return quietMode; }
 
     //! check if TMA level 1 metrics are supported
     bool isHWTMAL1Supported() const;

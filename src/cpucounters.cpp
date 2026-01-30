@@ -128,6 +128,7 @@ bool PCM::initWinRing0Lib()
 #endif
 
 PCM * PCM::instance = NULL;
+bool PCM::quietMode = false;
 
 /*
 static int bitCount(uint64 n)
@@ -303,13 +304,19 @@ void PCM::readCoreCounterConfig(const bool complainAboutMSR)
         if (aws_workaround == true && vm == true && linux_arch_perfmon == true && core_gen_counter_num_max > 3)
         {
             core_gen_counter_num_max = 3;
-            std::cerr << "INFO: Reducing the number of programmable counters to 3 to workaround the fixed cycle counter virtualization issue on AWS.\n";
-            std::cerr << "      You can disable the workaround by setting PCM_NO_AWS_WORKAROUND=1 environment variable\n";
+            if (!quietMode)
+            {
+                std::cerr << "INFO: Reducing the number of programmable counters to 3 to workaround the fixed cycle counter virtualization issue on AWS.\n";
+                std::cerr << "      You can disable the workaround by setting PCM_NO_AWS_WORKAROUND=1 environment variable\n";
+            }
         }
         if (isNMIWatchdogEnabled(true) && keepNMIWatchdogEnabled())
         {
             --core_gen_counter_num_max;
-            std::cerr << "INFO: Reducing the number of programmable counters to " << core_gen_counter_num_max  << " because NMI watchdog is enabled.\n";
+            if (!quietMode)
+            {
+                std::cerr << "INFO: Reducing the number of programmable counters to " << core_gen_counter_num_max  << " because NMI watchdog is enabled.\n";
+            }
         }
 #endif
     }
@@ -433,14 +440,20 @@ bool PCM::detectModel()
 
     if (cpuinfo.reg.ecx & (1UL << 31UL)) {
         vm = true;
-        std::cerr << "Detected a hypervisor/virtualization technology. Some metrics might not be available due to configuration or availability of virtual hardware features.\n";
+        if (!quietMode)
+        {
+            std::cerr << "Detected a hypervisor/virtualization technology. Some metrics might not be available due to configuration or availability of virtual hardware features.\n";
+        }
     }
 
     readCoreCounterConfig();
 
     pcm_cpuid(7, 0, cpuinfo);
 
-    std::cerr << "\n=====  Processor information  =====\n";
+    if (!quietMode)
+    {
+        std::cerr << "\n=====  Processor information  =====\n";
+    }
 
 #ifdef __linux__
     auto checkLinuxCpuinfoFlag = [](const std::string& flag) -> bool
@@ -468,7 +481,10 @@ bool PCM::detectModel()
         return false;
     };
     linux_arch_perfmon = checkLinuxCpuinfoFlag("arch_perfmon");
-    std::cerr << "Linux arch_perfmon flag  : " << (linux_arch_perfmon ? "yes" : "no") << "\n";
+    if (!quietMode)
+    {
+        std::cerr << "Linux arch_perfmon flag  : " << (linux_arch_perfmon ? "yes" : "no") << "\n";
+    }
     if (vm == true && linux_arch_perfmon == false)
     {
         std::cerr << "ERROR: vPMU is not enabled in the hypervisor. Please see details in https://software.intel.com/content/www/us/en/develop/documentation/vtune-help/top/set-up-analysis-target/on-virtual-machine.html \n";
@@ -486,13 +502,16 @@ bool PCM::detectModel()
     }
 #endif
     hybrid = (cpuinfo.reg.edx & (1 << 15)) ? true : false;
-    std::cerr << "Hybrid processor         : " << (hybrid ? "yes" : "no") << "\n";
-    std::cerr << "IBRS and IBPB supported  : " << ((cpuinfo.reg.edx & (1 << 26)) ? "yes" : "no") << "\n";
-    std::cerr << "STIBP supported          : " << ((cpuinfo.reg.edx & (1 << 27)) ? "yes" : "no") << "\n";
-    std::cerr << "Spec arch caps supported : " << ((cpuinfo.reg.edx & (1 << 29)) ? "yes" : "no") << "\n";
-    std::cerr << "Max CPUID level          : " << max_cpuid << "\n";
-    std::cerr << "CPU family               : " << cpu_family << "\n";
-    std::cerr << "CPU model number         : " << cpu_model_private << "\n";
+    if (!quietMode)
+    {
+        std::cerr << "Hybrid processor         : " << (hybrid ? "yes" : "no") << "\n";
+        std::cerr << "IBRS and IBPB supported  : " << ((cpuinfo.reg.edx & (1 << 26)) ? "yes" : "no") << "\n";
+        std::cerr << "STIBP supported          : " << ((cpuinfo.reg.edx & (1 << 27)) ? "yes" : "no") << "\n";
+        std::cerr << "Spec arch caps supported : " << ((cpuinfo.reg.edx & (1 << 29)) ? "yes" : "no") << "\n";
+        std::cerr << "Max CPUID level          : " << max_cpuid << "\n";
+        std::cerr << "CPU family               : " << cpu_family << "\n";
+        std::cerr << "CPU model number         : " << cpu_model_private << "\n";
+    }
 
     return true;
 }
@@ -512,7 +531,10 @@ bool PCM::isRDTDisabled() const
 #endif
         if (env != nullptr && std::string(env) == std::string("1"))
         {
-            std::cout << "Disabling RDT usage because PCM_NO_RDT=1 environment variable is set.\n";
+            if (!quietMode)
+            {
+                std::cout << "Disabling RDT usage because PCM_NO_RDT=1 environment variable is set.\n";
+            }
             flag = 1;
         }
         else
@@ -605,27 +627,39 @@ void PCM::initRDT()
     auto env = std::getenv("PCM_USE_RESCTRL");
     if (env != nullptr && std::string(env) == std::string("1"))
     {
-        std::cerr << "INFO: using Linux resctrl driver for RDT metrics (L3OCC, LMB, RMB) because environment variable PCM_USE_RESCTRL=1\n";
+        if (!quietMode)
+        {
+            std::cerr << "INFO: using Linux resctrl driver for RDT metrics (L3OCC, LMB, RMB) because environment variable PCM_USE_RESCTRL=1\n";
+        }
         resctrl.init();
         useResctrl = true;
         return;
     }
     if (resctrl.isMounted())
     {
-        std::cerr << "INFO: using Linux resctrl driver for RDT metrics (L3OCC, LMB, RMB) because resctrl driver is mounted.\n";
+        if (!quietMode)
+        {
+            std::cerr << "INFO: using Linux resctrl driver for RDT metrics (L3OCC, LMB, RMB) because resctrl driver is mounted.\n";
+        }
         resctrl.init();
         useResctrl = true;
         return;
     }
     if (isSecureBoot())
     {
-        std::cerr << "INFO: using Linux resctrl driver for RDT metrics (L3OCC, LMB, RMB) because Secure Boot mode is enabled.\n";
+        if (!quietMode)
+        {
+            std::cerr << "INFO: using Linux resctrl driver for RDT metrics (L3OCC, LMB, RMB) because Secure Boot mode is enabled.\n";
+        }
         resctrl.init();
         useResctrl = true;
         return;
     }
 #endif
-    std::cerr << "Initializing RMIDs" << std::endl;
+    if (!quietMode)
+    {
+        std::cerr << "Initializing RMIDs" << std::endl;
+    }
     unsigned maxRMID;
     /* Calculate maximum number of RMID supported by socket */
     maxRMID = getMaxRMID();
@@ -3228,6 +3262,12 @@ PCM::PCM() :
     run_state(1),
     needToRestoreNMIWatchdog(false)
 {
+    // Check for PCM_QUIET environment variable
+    if (safe_getenv("PCM_QUIET") == "1")
+    {
+        quietMode = true;
+    }
+
 #ifdef __linux__
     increaseULimit();
 #endif
@@ -3256,24 +3296,36 @@ PCM::PCM() :
     readCoreCounterConfig(true);
 
 #ifndef PCM_SILENT
-    printSystemTopology();
+    if (!quietMode)
+    {
+        printSystemTopology();
+    }
 #endif
 
     if(!detectNominalFrequency()) return;
 
-    showSpecControlMSRs();
+    if (!quietMode)
+    {
+        showSpecControlMSRs();
+    }
 
 #ifndef PCM_DEBUG_TOPOLOGY
     if (safe_getenv("PCM_PRINT_TOPOLOGY") == "1")
 #endif
     {
-        printDetailedSystemTopology(1);
+        if (!quietMode)
+        {
+            printDetailedSystemTopology(1);
+        }
     }
 
     initEnergyMonitoring();
 
 #ifndef PCM_SILENT
-    std::cerr << "\n";
+    if (!quietMode)
+    {
+        std::cerr << "\n";
+    }
 #endif
 
     if (isServerCPU())
