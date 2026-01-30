@@ -1788,7 +1788,10 @@ bool PCM::detectNominalFrequency()
         }
 
 #ifndef PCM_SILENT
-        std::cerr << "Nominal core frequency: " << nominal_frequency << " Hz\n";
+        if (!quietMode)
+        {
+            std::cerr << "Nominal core frequency: " << nominal_frequency << " Hz\n";
+        }
 #endif
     }
 
@@ -1817,9 +1820,12 @@ void PCM::initEnergyMonitoring()
         pkgMaximumPower = (int32) (double(extract_bits(package_power_info, 32, 46))*wattsPerPowerUnit);
 
 #ifndef PCM_SILENT
-        std::cerr << "Package thermal spec power: " << pkgThermalSpecPower << " Watt; ";
-        std::cerr << "Package minimum power: " << pkgMinimumPower << " Watt; ";
-        std::cerr << "Package maximum power: " << pkgMaximumPower << " Watt;\n";
+        if (!quietMode)
+        {
+            std::cerr << "Package thermal spec power: " << pkgThermalSpecPower << " Watt; ";
+            std::cerr << "Package minimum power: " << pkgMinimumPower << " Watt; ";
+            std::cerr << "Package maximum power: " << pkgMaximumPower << " Watt;\n";
+        }
 #endif
 
         int i = 0;
@@ -2180,7 +2186,7 @@ void PCM::initUncoreObjects()
         std::cerr << "ERROR: Could not initialize TPMI. Uncore frequency metrics will be unavailable. Exception details: " << e.what() << "\n";
     }
 
-    for (uint32 s = 0; s < (uint32)num_sockets; ++s)
+    for (uint32 s = 0; s < (uint32)num_sockets && !quietMode; ++s)
     {
         std::cerr << "Socket " << s << ":" <<
             " " << getMaxNumOfUncorePMUs(PCU_PMU_ID, s) << " PCU units detected."
