@@ -814,6 +814,12 @@ int32 getNUMANodeLinux(uint32 groupnr, uint32 bus, uint32 device, uint32 functio
     DBG(3, "NUMA node for ", std::hex, std::setw(4), std::setfill('0'), groupnr, ":",
         std::setw(2), bus, ":", std::setw(2), device, ".", function, std::dec, " is ", numa_node);
     
+    if (numa_node == -1)
+    {
+        // No NUMA -> map to NUMA node 0
+        numa_node = 0;
+    }
+
     return numa_node;
 }
 
