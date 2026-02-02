@@ -124,7 +124,12 @@ for die in "${!die_types[@]}"; do
     while read -r line; do
         if [[ $line == *"Read value"* ]]; then
             value=$(echo "$line" | grep -oP 'value \K[0-9]+')
-            socket_id=$(echo "$line" | grep -oP 'instance \K[0-9]+')
+            # Extract socket ID if present, otherwise fallback to instance ID
+            if [[ $line =~ \(socket\ ([0-9]+)\) ]]; then
+                socket_id=${BASH_REMATCH[1]}
+            else
+                socket_id=$(echo "$line" | grep -oP 'instance \K[0-9]+')
+            fi
             extract_and_print_metrics "$value" "$socket_id" "$die"
         fi
     done <<< "$output"

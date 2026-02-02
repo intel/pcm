@@ -15,7 +15,15 @@ echo "$output" | while read -r line; do
         # Extract the value using BASH_REMATCH
         value=${BASH_REMATCH[1]}
 	die=${BASH_REMATCH[2]}
-	socket=${BASH_REMATCH[3]}
+	instance=${BASH_REMATCH[3]}
+	
+	# Extract socket ID if present in the output (format: "(socket X)")
+	if [[ $line =~ \(socket\ ([0-9]+)\) ]]; then
+	    socket=${BASH_REMATCH[1]}
+	else
+	    # Fallback to instance ID if socket info is not available
+	    socket=$instance
+	fi
 
         freq=$(( (value & 0x7F) * 100 ))
         compute=$(( (value >> 23) & 1 ))
