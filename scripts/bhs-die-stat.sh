@@ -24,7 +24,7 @@ echo "$output" | while read -r line; do
 	    # Fallback to instance ID if socket info is not available
 	    socket=$instance
 	fi
-	
+
 	# Extract NUMA node ID if present in the output (format: "(NUMA node X)")
 	numa_node=""
 	if [[ $line =~ \(NUMA\ node\ ([0-9]+)\) ]]; then
