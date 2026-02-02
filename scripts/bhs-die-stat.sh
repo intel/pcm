@@ -51,10 +51,11 @@ echo "$output" | while read -r line; do
                 die_type="${die_type}IO"
         fi
         die_type="${die_type%"${die_type##*[!\/]}"}"
-        str="Socket $socket die $die ($die_type) uncore frequency"
+        str="Socket $socket"
         if [ -n "$numa_node" ]; then
             str="$str NUMA node $numa_node"
         fi
+        str="$str die $die ($die_type) uncore frequency"
         printf "%-60s: %d MHz\n" "$str" "$freq"
     fi
 done

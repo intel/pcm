@@ -105,12 +105,11 @@ extract_and_print_metrics() {
     eff_latency_ctrl_high_threshold=$(( (eff_latency_ctrl_high_threshold * 100) / 127 ))
 
     # Print metrics
-    echo -n "Socket ID: $socket_id, Die: $die, Type: $die_type"
+    echo -n "Socket ID: $socket_id"
     if [ -n "$numa_node" ]; then
-        echo ", NUMA node: $numa_node"
-    else
-        echo ""
+        echo -n ", NUMA node: $numa_node"
     fi
+    echo ", Die: $die, Type: $die_type"
     echo "MIN_RATIO: $min_ratio MHz"
     echo "MAX_RATIO: $max_ratio MHz"
     echo "EFFICIENCY_LATENCY_CTRL_RATIO: $eff_latency_ctrl_ratio MHz"
