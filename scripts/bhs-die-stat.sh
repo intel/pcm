@@ -55,7 +55,7 @@ echo "$output" | while read -r line; do
         if [ -n "$numa_node" ]; then
             str="$str NUMA node $numa_node"
         fi
-        str="$str die $die ($die_type) uncore frequency"
+        str="$str instance $instance die $die ($die_type) uncore frequency"
         printf "%-60s: %d MHz\n" "$str" "$freq"
     fi
 done
