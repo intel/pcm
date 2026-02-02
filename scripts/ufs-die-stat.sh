@@ -2,7 +2,7 @@
 
 
 echo "Intel(r) Performance Counter Monitor"
-echo "Birch Stream Die Statistics Utility"
+echo "Uncore Frequency Scaling: Die Statistics Utility"
 echo
 
 # Run the pcm-tpmi command and store the output
