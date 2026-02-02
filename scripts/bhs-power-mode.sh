@@ -13,18 +13,21 @@ echo
 output=$(pcm-tpmi 2 0x10 -d -b 26:26)
 
 # Parse the output to build lists of I/O and compute dies
+# Store as "instance:entry" to handle multiple instances per socket
 io_dies=()
 compute_dies=()
 declare -A die_types
 while read -r line; do
-    if [[ $line == *"instance 0"* ]]; then
-        die=$(echo "$line" | grep -oP 'entry \K[0-9]+')
+    if [[ $line == *"entry"* && $line == *"instance"* ]]; then
+        entry=$(echo "$line" | grep -oP 'entry \K[0-9]+')
+        instance=$(echo "$line" | grep -oP 'instance \K[0-9]+')
+        die_key="${instance}:${entry}"
         if [[ $line == *"value 1"* ]]; then
-            die_types[$die]="IO"
-	    io_dies+=("$die")
+            die_types[$die_key]="IO"
+	    io_dies+=("$die_key")
         elif [[ $line == *"value 0"* ]]; then
-            die_types[$die]="Compute"
-	    compute_dies+=("$die")
+            die_types[$die_key]="Compute"
+	    compute_dies+=("$die_key")
         fi
     fi
 done <<< "$output"
@@ -32,23 +35,27 @@ done <<< "$output"
 if [ "$1" == "--optimized-power-mode" ]; then
 	echo "Setting optimized power mode..."
 
-    for die in "${io_dies[@]}"; do
+    for die_key in "${io_dies[@]}"; do
+        instance="${die_key%:*}"
+        entry="${die_key#*:}"
         # EFFICIENCY_LATENCY_CTRL_RATIO (Uncore IO)
-        pcm-tpmi 2 0x18 -d -e $die -b 28:22 -w 8 
+        pcm-tpmi 2 0x18 -d -i $instance -e $entry -b 28:22 -w 8 
 
         #EFFICIENCY_LATENCY_CTRL_LOW_THRESHOLD (Uncore IO)
-        pcm-tpmi 2 0x18 -d -e $die -b 38:32 -w 13
+        pcm-tpmi 2 0x18 -d -i $instance -e $entry -b 38:32 -w 13
 
         #EFFICIENCY_LATENCY_CTRL_HIGH_THRESHOLD(Uncore IO)
-        pcm-tpmi 2 0x18 -d -e $die -b 46:40 -w 120
+        pcm-tpmi 2 0x18 -d -i $instance -e $entry -b 46:40 -w 120
 
         #EFFICIENCY_LATENCY_CTRL_HIGH_THRESHOLD_ENABLE (Uncore IO)
-        pcm-tpmi 2 0x18 -d -e $die -b 39:39 -w 1
+        pcm-tpmi 2 0x18 -d -i $instance -e $entry -b 39:39 -w 1
     done
 
-    for die in "${compute_dies[@]}"; do
+    for die_key in "${compute_dies[@]}"; do
+        instance="${die_key%:*}"
+        entry="${die_key#*:}"
 	 # EFFICIENCY_LATENCY_CTRL_RATIO (Uncore Compute)
-	 pcm-tpmi 2 0x18 -d -e $die -b 28:22 -w 12
+	 pcm-tpmi 2 0x18 -d -i $instance -e $entry -b 28:22 -w 12
     done
 
 fi
@@ -56,23 +63,27 @@ fi
 if [ "$1" == "--latency-optimized-mode" ]; then
     echo "Setting latency optimized mode..."
 
-    for die in "${io_dies[@]}"; do
+    for die_key in "${io_dies[@]}"; do
+        instance="${die_key%:*}"
+        entry="${die_key#*:}"
         # EFFICIENCY_LATENCY_CTRL_RATIO (Uncore IO)
-        pcm-tpmi 2 0x18 -d -e $die -b 28:22 -w 0
+        pcm-tpmi 2 0x18 -d -i $instance -e $entry -b 28:22 -w 0
 
         #EFFICIENCY_LATENCY_CTRL_LOW_THRESHOLD (Uncore IO)
-        pcm-tpmi 2 0x18 -d -e $die -b 38:32 -w 0
+        pcm-tpmi 2 0x18 -d -i $instance -e $entry -b 38:32 -w 0
 
         #EFFICIENCY_LATENCY_CTRL_HIGH_THRESHOLD(Uncore IO)
-        pcm-tpmi 2 0x18 -d -e $die -b 46:40 -w 0
+        pcm-tpmi 2 0x18 -d -i $instance -e $entry -b 46:40 -w 0
 
         #EFFICIENCY_LATENCY_CTRL_HIGH_THRESHOLD_ENABLE (Uncore IO)
-        pcm-tpmi 2 0x18 -d -e $die -b 39:39 -w 1
+        pcm-tpmi 2 0x18 -d -i $instance -e $entry -b 39:39 -w 1
     done
 
-    for die in "${compute_dies[@]}"; do
+    for die_key in "${compute_dies[@]}"; do
+        instance="${die_key%:*}"
+        entry="${die_key#*:}"
          # EFFICIENCY_LATENCY_CTRL_RATIO (Uncore Compute)
-         pcm-tpmi 2 0x18 -d -e $die -b 28:22 -w 0
+         pcm-tpmi 2 0x18 -d -i $instance -e $entry -b 28:22 -w 0
     done
 
 fi
@@ -85,10 +96,14 @@ echo ""
 extract_and_print_metrics() {
     local value=$1
     local socket_id=$2
-    local die=$3
+    local die_key=$3
     local numa_node=$4
     local instance=$5
-    local die_type=${die_types[$die]}
+    local die_type=${die_types[$die_key]}
+    
+    # Extract instance and entry from die_key
+    local inst="${die_key%:*}"
+    local entry="${die_key#*:}"
 
     # Extract bits and calculate metrics
     local min_ratio=$(( (value >> 15) & 0x7F ))
@@ -110,7 +125,7 @@ extract_and_print_metrics() {
     if [ -n "$numa_node" ]; then
         echo -n ", NUMA node: $numa_node"
     fi
-    echo ", instance: $instance, Die: $die, Type: $die_type"
+    echo ", instance: $instance, Die: $entry, Type: $die_type"
     echo "MIN_RATIO: $min_ratio MHz"
     echo "MAX_RATIO: $max_ratio MHz"
     echo "EFFICIENCY_LATENCY_CTRL_RATIO: $eff_latency_ctrl_ratio MHz"
@@ -123,27 +138,33 @@ extract_and_print_metrics() {
 }
 
 # Iterate over all dies and run pcm-tpmi for each to get the metrics
-for die in "${!die_types[@]}"; do
-    output=$(pcm-tpmi 2 0x18 -d -e "$die")
+for die_key in "${!die_types[@]}"; do
+    instance="${die_key%:*}"
+    entry="${die_key#*:}"
+    output=$(pcm-tpmi 2 0x18 -d -i $instance -e $entry)
 
     # Parse the output and extract metrics for each socket
     while read -r line; do
         if [[ $line == *"Read value"* ]]; then
             value=$(echo "$line" | grep -oP 'value \K[0-9]+')
             # Extract instance ID
-            instance=$(echo "$line" | grep -oP 'instance \K[0-9]+')
+            inst=$(echo "$line" | grep -oP 'instance \K[0-9]+')
+            # Extract entry ID
+            ent=$(echo "$line" | grep -oP 'entry \K[0-9]+')
+            # Create die_key from instance and entry
+            parsed_die_key="${inst}:${ent}"
             # Extract socket ID if present, otherwise fallback to instance ID
             if [[ $line =~ \(socket\ ([0-9]+)\) ]]; then
                 socket_id=${BASH_REMATCH[1]}
             else
-                socket_id=$instance
+                socket_id=$inst
             fi
             # Extract NUMA node ID if present in the output (format: "(NUMA node X)")
             numa_node=""
             if [[ $line =~ \(NUMA\ node\ ([0-9]+)\) ]]; then
                 numa_node=${BASH_REMATCH[1]}
             fi
-            extract_and_print_metrics "$value" "$socket_id" "$die" "$numa_node" "$instance"
+            extract_and_print_metrics "$value" "$socket_id" "$parsed_die_key" "$numa_node" "$inst"
         fi
     done <<< "$output"
 done
