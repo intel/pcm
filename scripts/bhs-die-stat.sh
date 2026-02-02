@@ -24,6 +24,12 @@ echo "$output" | while read -r line; do
 	    # Fallback to instance ID if socket info is not available
 	    socket=$instance
 	fi
+	
+	# Extract NUMA node ID if present in the output (format: "(NUMA node X)")
+	numa_node=""
+	if [[ $line =~ \(NUMA\ node\ ([0-9]+)\) ]]; then
+	    numa_node=${BASH_REMATCH[1]}
+	fi
 
         freq=$(( (value & 0x7F) * 100 ))
         compute=$(( (value >> 23) & 1 ))
@@ -46,6 +52,9 @@ echo "$output" | while read -r line; do
         fi
         die_type="${die_type%"${die_type##*[!\/]}"}"
         str="Socket $socket die $die ($die_type) uncore frequency"
+        if [ -n "$numa_node" ]; then
+            str="$str NUMA node $numa_node"
+        fi
         printf "%-60s: %d MHz\n" "$str" "$freq"
     fi
 done

@@ -86,6 +86,7 @@ extract_and_print_metrics() {
     local value=$1
     local socket_id=$2
     local die=$3
+    local numa_node=$4
     local die_type=${die_types[$die]}
 
     # Extract bits and calculate metrics
@@ -104,7 +105,12 @@ extract_and_print_metrics() {
     eff_latency_ctrl_high_threshold=$(( (eff_latency_ctrl_high_threshold * 100) / 127 ))
 
     # Print metrics
-    echo "Socket ID: $socket_id, Die: $die, Type: $die_type"
+    echo -n "Socket ID: $socket_id, Die: $die, Type: $die_type"
+    if [ -n "$numa_node" ]; then
+        echo ", NUMA node: $numa_node"
+    else
+        echo ""
+    fi
     echo "MIN_RATIO: $min_ratio MHz"
     echo "MAX_RATIO: $max_ratio MHz"
     echo "EFFICIENCY_LATENCY_CTRL_RATIO: $eff_latency_ctrl_ratio MHz"
@@ -130,7 +136,12 @@ for die in "${!die_types[@]}"; do
             else
                 socket_id=$(echo "$line" | grep -oP 'instance \K[0-9]+')
             fi
-            extract_and_print_metrics "$value" "$socket_id" "$die"
+            # Extract NUMA node ID if present in the output (format: "(NUMA node X)")
+            numa_node=""
+            if [[ $line =~ \(NUMA\ node\ ([0-9]+)\) ]]; then
+                numa_node=${BASH_REMATCH[1]}
+            fi
+            extract_and_print_metrics "$value" "$socket_id" "$die" "$numa_node"
         fi
     done <<< "$output"
 done
