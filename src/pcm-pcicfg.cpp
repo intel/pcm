@@ -3,6 +3,7 @@
 
 // written by Roman Dementiev
 #include "cpucounters.h"
+#include "lspci.h"
 #ifdef _MSC_VER
 #include <windows.h>
 #include "windows/windriver.h"
@@ -21,13 +22,16 @@ using namespace pcm;
 
 void print_usage(const char * progname)
 {
-    std::cout << "Usage " << progname << " [-w value] [-d] [-n] [-i ID] [group bus device function] offset\n\n";
+    std::cout << "Usage " << progname << " [-w value] [-d] [-n] [-i ID] [group bus device function] offset\n";
+    std::cout << "       " << progname << " -l [-v] [-d]\n\n";
     std::cout << "  Reads/writes 32-bit PCICFG register \n";
     std::cout << "   -w value    : write the value before reading \n";
     std::cout << "   -b low:high : read or write only low..high bits of the register\n";
     std::cout << "   -d          : output all numbers in dec (default is hex)\n";
     std::cout << "   -n          : print NUMA node of the device\n";
     std::cout << "   -i ID       : specify Intel device ID instead of group bus device function\n";
+    std::cout << "   -l          : list all PCI devices (similar to lspci)\n";
+    std::cout << "   -v          : increase verbosity (can be used multiple times with -l)\n";
     std::cout << "   --version   : print application version\n";
     std::cout << "\n";
 }
@@ -53,11 +57,13 @@ int mainThrows(int argc, char * argv[])
     bool write = false;
     bool dec = false;
     bool print_numa = false;
+    bool list_devices = false;
+    int verbosity = 0;
     uint32 deviceID = 0;
     std::pair<int64,int64> bits{-1, -1};
 
     int my_opt = -1;
-    while ((my_opt = getopt(argc, argv, "i:w:db:n")) != -1)
+    while ((my_opt = getopt(argc, argv, "i:w:db:nlv")) != -1)
     {
         switch (my_opt)
         {
@@ -77,6 +83,12 @@ int mainThrows(int argc, char * argv[])
         case 'n':
             print_numa = true;
             break;
+        case 'l':
+            list_devices = true;
+            break;
+        case 'v':
+            verbosity++;
+            break;
         default:
             print_usage(argv[0]);
             return -1;
@@ -85,8 +97,12 @@ int mainThrows(int argc, char * argv[])
 
     if (optind + ((deviceID)?0:4) >= argc)
     {
-        print_usage(argv[0]);
-        return -1;
+        // Allow -l option without additional arguments
+        if (!list_devices)
+        {
+            print_usage(argv[0]);
+            return -1;
+        }
     }
 
     int group = -1;
@@ -109,6 +125,78 @@ int mainThrows(int argc, char * argv[])
         return -1;
     }
     #endif
+
+    // Handle list devices mode
+    if (list_devices)
+    {
+        // Load PCI database for device name lookups if verbosity is enabled
+        PCIDB pciDB;
+        if (verbosity > 0)
+        {
+            load_PCIDB(pciDB);
+        }
+
+        // List all PCI devices
+        forAllDevices([&dec, &verbosity, &pciDB](const uint32 group, const uint32 bus, const uint32 device, const uint32 function, const uint32 device_id)
+        {
+            const uint32 vendor_id = device_id & 0xffff;
+            const uint32 dev_id = (device_id >> 16) & 0xffff;
+            
+            // Basic format: segment:bus:device.function
+            if (dec)
+            {
+                std::cout << std::dec << group << ":" 
+                         << std::setfill('0') << std::setw(2) << bus << ":"
+                         << std::setfill('0') << std::setw(2) << device << "."
+                         << function;
+            }
+            else
+            {
+                std::cout << std::hex << std::setfill('0') << std::setw(4) << group << ":"
+                         << std::setfill('0') << std::setw(2) << bus << ":"
+                         << std::setfill('0') << std::setw(2) << device << "."
+                         << function;
+            }
+            
+            // Add vendor and device IDs with verbosity level 1 or higher
+            if (verbosity >= 1)
+            {
+                if (dec)
+                {
+                    std::cout << " " << vendor_id << ":" << dev_id;
+                }
+                else
+                {
+                    std::cout << " " << std::hex << std::setfill('0') << std::setw(4) << vendor_id 
+                             << ":" << std::setfill('0') << std::setw(4) << dev_id;
+                }
+                
+                // Add device names with verbosity level 2 or higher
+                if (verbosity >= 2 && !pciDB.first.empty())
+                {
+                    auto vendor_it = pciDB.first.find(vendor_id);
+                    if (vendor_it != pciDB.first.end())
+                    {
+                        std::cout << " " << vendor_it->second;
+                        
+                        auto device_map_it = pciDB.second.find(vendor_id);
+                        if (device_map_it != pciDB.second.end())
+                        {
+                            auto device_it = device_map_it->second.find(dev_id);
+                            if (device_it != device_map_it->second.end())
+                            {
+                                std::cout << " - " << device_it->second;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            std::cout << "\n";
+        });
+        
+        return 0;
+    }
 
     auto one = [&dec,&write,&bits,&print_numa](const uint32 & group, const uint32 & bus, const uint32 & device, const uint32 & function, const uint32 & offset, uint32 value)
     {
