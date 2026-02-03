@@ -141,12 +141,12 @@ int32 getNUMANodeLinux(uint32 groupnr, uint32 bus, uint32 device, uint32 functio
 #endif
 
 template <class F>
-inline void forAllIntelDevices(F f, int requestedDevice = -1, int requestedFunction = -1)
+inline void forAllDevices(F f, const int requestedVendorID = -1, const int requestedDevice = -1, const int requestedFunction = -1)
 {
     std::vector<MCFGRecord> mcfg;
     getMCFGRecords(mcfg);
 
-    auto probe = [&f](const uint32 group, const uint32 bus, const uint32 device, const uint32 function)
+    auto probe = [&f, &requestedVendorID](const uint32 group, const uint32 bus, const uint32 device, const uint32 function)
     {
         DBG(3, "Probing " , std::hex , group , ":" , bus , ":" , device , ":" , function , " " , std::dec);
         uint32 value = 0;
@@ -164,7 +164,7 @@ inline void forAllIntelDevices(F f, int requestedDevice = -1, int requestedFunct
         const uint32 vendor_id = value & 0xffff;
         const uint32 device_id = (value >> 16) & 0xffff;
         DBG(3, "Found dev " , std::hex , vendor_id , ":" , device_id , std::dec);
-        if (vendor_id != PCM_INTEL_PCI_VENDOR_ID)
+        if (requestedVendorID >= 0 && int(vendor_id) != requestedVendorID)
         {
             return;
         }
@@ -204,6 +204,12 @@ inline void forAllIntelDevices(F f, int requestedDevice = -1, int requestedFunct
             }
         }
     }
+}
+
+template <class F>
+inline void forAllIntelDevices(F f, int requestedDevice = -1, int requestedFunction = -1)
+{
+    forAllDevices(f, PCM_INTEL_PCI_VENDOR_ID, requestedDevice, requestedFunction);
 }
 
 union VSEC {
