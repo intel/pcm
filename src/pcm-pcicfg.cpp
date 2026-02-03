@@ -212,7 +212,7 @@ int mainThrows(int argc, char * argv[])
             }
             
             // Add NUMA node information
-            std::cout << " (NUMA: ";
+            std::cout << " (NUMA node: ";
             if (numa_node >= 0)
             {
                 std::cout << std::dec << numa_node;
