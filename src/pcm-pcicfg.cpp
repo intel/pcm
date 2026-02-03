@@ -145,6 +145,7 @@ int mainThrows(int argc, char * argv[])
             }
             uint32 vendor_id = 0;
             uint32 dev_id = 0;
+            int32 numa_node = -1;
 
             try
             {
@@ -153,6 +154,7 @@ int mainThrows(int argc, char * argv[])
                 h.read32(0, &value);
                 vendor_id = value & 0xffff;
                 dev_id = (value >> 16) & 0xffff;
+                numa_node = h.getNUMANode();
             }
             catch (...)
             {
@@ -208,6 +210,18 @@ int mainThrows(int argc, char * argv[])
                     }
                 }
             }
+            
+            // Add NUMA node information
+            std::cout << " (NUMA: ";
+            if (numa_node >= 0)
+            {
+                std::cout << std::dec << numa_node;
+            }
+            else
+            {
+                std::cout << "n/a";
+            }
+            std::cout << ")";
             
             std::cout << "\n";
         });
