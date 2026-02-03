@@ -139,9 +139,26 @@ int mainThrows(int argc, char * argv[])
         // List all PCI devices
         forAllDevices([&dec, &verbosity, &pciDB](const uint32 group, const uint32 bus, const uint32 device, const uint32 function, const uint32 device_id)
         {
-            const uint32 vendor_id = device_id & 0xffff;
-            const uint32 dev_id = (device_id >> 16) & 0xffff;
-            
+            if (PciHandleType::exists(group, bus, device, function) == false)
+            {
+                return;
+            }
+            uint32 vendor_id = 0;
+            uint32 dev_id = 0;
+
+            try
+            {
+                PciHandleType h(group, bus, device, function);
+                uint32 value = 0;
+                h.read32(0, &value);
+                vendor_id = value & 0xffff;
+                dev_id = (value >> 16) & 0xffff;
+            }
+            catch (...)
+            {
+                DBG(2, "Error accessing PCI device ", std::hex, group, ":", bus, ":", device, ".", function);
+                return;
+            }
             // Basic format: segment:bus:device.function
             if (dec)
             {
