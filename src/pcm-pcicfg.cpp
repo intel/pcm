@@ -129,9 +129,9 @@ int mainThrows(int argc, char * argv[])
     // Handle list devices mode
     if (list_devices)
     {
-        // Load PCI database for device name lookups if verbosity is enabled
+        // Load PCI database for device name lookups if verbosity is 2 or higher
         PCIDB pciDB;
-        if (verbosity > 0)
+        if (verbosity >= 2)
         {
             load_PCIDB(pciDB);
         }
@@ -145,7 +145,7 @@ int mainThrows(int argc, char * argv[])
             // Basic format: segment:bus:device.function
             if (dec)
             {
-                std::cout << std::dec << group << ":" 
+                std::cout << std::dec << std::setfill('0') << std::setw(4) << group << ":" 
                          << std::setfill('0') << std::setw(2) << bus << ":"
                          << std::setfill('0') << std::setw(2) << device << "."
                          << function;
@@ -163,7 +163,7 @@ int mainThrows(int argc, char * argv[])
             {
                 if (dec)
                 {
-                    std::cout << " " << vendor_id << ":" << dev_id;
+                    std::cout << " " << std::dec << vendor_id << ":" << dev_id;
                 }
                 else
                 {
