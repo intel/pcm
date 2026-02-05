@@ -129,9 +129,9 @@ int mainThrows(int argc, char * argv[])
     // Handle list devices mode
     if (list_devices)
     {
-        // Load PCI database for device name lookups if verbosity is 2 or higher
+        // Load PCI database for device name lookups if verbosity is 1 or higher
         PCIDB pciDB;
-        if (verbosity >= 2)
+        if (verbosity >= 1)
         {
             load_PCIDB(pciDB);
         }
@@ -177,51 +177,50 @@ int mainThrows(int argc, char * argv[])
                          << function;
             }
             
-            // Add vendor and device IDs with verbosity level 1 or higher
-            if (verbosity >= 1)
+            if (dec)
             {
-                if (dec)
+                std::cout << " " << std::dec << vendor_id << ":" << dev_id;
+            }
+            else
+            {
+                std::cout << " " << std::hex << std::setfill('0') << std::setw(4) << vendor_id
+                    << ":" << std::setfill('0') << std::setw(4) << dev_id;
+            }
+
+            // Add device names with verbosity level 1 or higher
+            if (verbosity >= 1 && !pciDB.first.empty())
+            {
+                auto vendor_it = pciDB.first.find(vendor_id);
+                if (vendor_it != pciDB.first.end())
                 {
-                    std::cout << " " << std::dec << vendor_id << ":" << dev_id;
-                }
-                else
-                {
-                    std::cout << " " << std::hex << std::setfill('0') << std::setw(4) << vendor_id 
-                             << ":" << std::setfill('0') << std::setw(4) << dev_id;
-                }
-                
-                // Add device names with verbosity level 2 or higher
-                if (verbosity >= 2 && !pciDB.first.empty())
-                {
-                    auto vendor_it = pciDB.first.find(vendor_id);
-                    if (vendor_it != pciDB.first.end())
+                    std::cout << " " << vendor_it->second;
+
+                    auto device_map_it = pciDB.second.find(vendor_id);
+                    if (device_map_it != pciDB.second.end())
                     {
-                        std::cout << " " << vendor_it->second;
-                        
-                        auto device_map_it = pciDB.second.find(vendor_id);
-                        if (device_map_it != pciDB.second.end())
+                        auto device_it = device_map_it->second.find(dev_id);
+                        if (device_it != device_map_it->second.end())
                         {
-                            auto device_it = device_map_it->second.find(dev_id);
-                            if (device_it != device_map_it->second.end())
-                            {
-                                std::cout << " - " << device_it->second;
-                            }
+                            std::cout << " - " << device_it->second;
                         }
                     }
                 }
             }
             
             // Add NUMA node information
-            std::cout << " (NUMA node: ";
-            if (numa_node >= 0)
+            if (verbosity >= 2)
             {
-                std::cout << std::dec << numa_node;
+                std::cout << " (NUMA node: ";
+                if (numa_node >= 0)
+                {
+                    std::cout << std::dec << numa_node;
+                }
+                else
+                {
+                    std::cout << "n/a";
+                }
+                std::cout << ")";
             }
-            else
-            {
-                std::cout << "n/a";
-            }
-            std::cout << ")";
             
             std::cout << "\n";
         });
