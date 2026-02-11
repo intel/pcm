@@ -1,0 +1,40 @@
+name: Security Scanning (Source Code)
+
+on:
+  schedule:
+  # Every 2 months on 1st at midnight UTC
+    - cron: '0 0 1 */2 *'
+  # Manual trigger for testing
+  workflow_dispatch:
+
+jobs:
+  security:
+    runs-on: ["innersource.prod.amr.dind"]
+    if: ${{ github.repository != 'intel/pcm' }}
+
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies for SCA scanning
+        run: |
+          pip install -r perfmon/requirements.txt || true
+          pip install -r perfmon/scripts/ci/verify_mapfile/requirements.txt || true
+          pip install -r Intel-PMT/tools/docker/requirements.txt || true
+
+      - name: CAS Security Orchestrator (Source Only)
+        uses: intel-innersource/applications.security.monitoring.cas@v2
+        with:
+          sdl-api-key: ${{ secrets.SDL_API_KEY }}
+          sdl-project-id: ${{ secrets.SDL_PROJECT_ID }}
+          sdl-idsid-value: ${{ secrets.SDL_IDSID_VALUE }}
+          sdl-tasks: "SDL441"  # scan for SDL441 only, SDL419 has separate scan (workaround)
