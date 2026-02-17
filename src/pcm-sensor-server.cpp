@@ -3087,7 +3087,7 @@ public:
                     response.setProtocol( HTTPProtocol::HTTP_1_1 );
                 }
                 // Always send a response
-                response.createResponse( TextPlain, std::string( "400 Bad Request " ) + e.what(), RC_400_BadRequest );
+                response.createResponse( TextPlain, std::string( "400 Bad Request" ), RC_400_BadRequest );
                 socketStream_ << response;
                 break;
             }
