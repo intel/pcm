@@ -38,3 +38,6 @@ jobs:
           sdl-project-id: ${{ secrets.SDL_PROJECT_ID }}
           sdl-idsid-value: ${{ secrets.SDL_IDSID_VALUE }}
           sdl-tasks: "SDL441"  # scan for SDL441 only, SDL419 has separate scan (workaround)
+          # Set branch type to 'release' for scheduled runs and manual trigger on main branch.
+          # Required for automatic evidence submit. Excludes push events.
+          branch-type: ${{ github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') && 'release' || 'dev' }}
