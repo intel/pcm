@@ -12,7 +12,7 @@ if(UNIX)
     target_link_libraries(daemon_alignment_test)
 
     # numa_to_socket_test
-    if(not APPLE)
+    if(NOT APPLE)
         add_executable(numa_to_socket_test numa_to_socket_test.cpp)
         target_link_libraries(numa_to_socket_test Threads::Threads PCM_STATIC)
     endif()
