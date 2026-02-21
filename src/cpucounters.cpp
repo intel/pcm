@@ -7494,7 +7494,7 @@ int32 PCM::mapNUMANodeToSocket(uint32 numa_node_id) const
     
     // cpuset_getdomain returns the cpuset for a specific domain
     if (cpuset_getdomain(CPU_LEVEL_WHICH, CPU_WHICH_DOMAIN, numa_node_id, 
-                         sizeof(cpuset), &cpuset, 0) == 0)
+                         sizeof(cpuset), &cpuset, DOMAINSET_POLICY_PREFER) == 0)
     {
         // Find the first CPU in this domain's cpuset
         for (size_t cpu = 0; cpu < topology.size(); ++cpu)
