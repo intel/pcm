@@ -37,6 +37,7 @@
 #include <sys/ioccom.h>
 #include <sys/cpuctl.h>
 #include <machine/cpufunc.h>
+#include <sys/domainset.h>
 #endif
 
 #ifdef _MSC_VER
