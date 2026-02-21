@@ -1,8 +1,6 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright (c) 2022-2025, Intel Corporation
 
-include(FindOpenSSL)
-
 # All pcm-* executables
 set(PROJECT_NAMES pcm pcm-numa pcm-latency pcm-power pcm-msr pcm-memory pcm-tsx pcm-pcie pcm-core pcm-iio pcm-pcicfg pcm-mmio pcm-tpmi pcm-raw pcm-accel pcm-sensor-server)
 
@@ -220,6 +218,10 @@ if(PCM_BUILD_EXECUTABLES)
               message(STATUS "OpenSSL version ${OPENSSL_VERSION} >= ${MINIMUM_OPENSSL_VERSION}, OpenSSL support enabled")
               target_compile_options(${PROJECT_NAME} PRIVATE "-DUSE_SSL")
               set(LIBS ${LIBS} OpenSSL::SSL OpenSSL::Crypto)
+              if(MSVC)
+                # Static OpenSSL on Windows depends on these system libraries
+                set(LIBS ${LIBS} crypt32 ws2_32)
+              endif()
             else()
               message(STATUS "OpenSSL support has been disabled, the version is less than ${MINIMUM_OPENSSL_VERSION}")
             endif()

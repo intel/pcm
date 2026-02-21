@@ -8,6 +8,7 @@ on:
 
 env:
   BUILD_TYPE: Release
+  OPENSSL_ROOT_DIR: "C:\\Program Files\\OpenSSL-Win64"
 
 permissions:
   contents: read
@@ -30,7 +31,11 @@ jobs:
     - name: Configure CMake
       run: |
         if (Test-Path ${{github.workspace}}\build){ Remove-Item ${{github.workspace}}\build -Recurse }
-        cmake -B ${{github.workspace}}\build
+        $cryptoLib = "$env:OPENSSL_ROOT_DIR\lib\VC\x64\MT\libcrypto_static.lib"
+        $sslLib = "$env:OPENSSL_ROOT_DIR\lib\VC\x64\MT\libssl_static.lib"
+        cmake -B ${{github.workspace}}\build `
+          -DLIB_EAY_RELEASE:FILEPATH="$cryptoLib" `
+          -DSSL_EAY_RELEASE:FILEPATH="$sslLib"
     - name: Build
       run: |
         cmake --build ${{github.workspace}}\build --config ${{env.BUILD_TYPE}} --parallel

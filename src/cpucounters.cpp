@@ -128,6 +128,7 @@ bool PCM::initWinRing0Lib()
 #endif
 
 PCM * PCM::instance = NULL;
+std::atomic<bool> PCM::quietMode{false};
 
 /*
 static int bitCount(uint64 n)
@@ -303,13 +304,19 @@ void PCM::readCoreCounterConfig(const bool complainAboutMSR)
         if (aws_workaround == true && vm == true && linux_arch_perfmon == true && core_gen_counter_num_max > 3)
         {
             core_gen_counter_num_max = 3;
-            std::cerr << "INFO: Reducing the number of programmable counters to 3 to workaround the fixed cycle counter virtualization issue on AWS.\n";
-            std::cerr << "      You can disable the workaround by setting PCM_NO_AWS_WORKAROUND=1 environment variable\n";
+            if (!quietMode)
+            {
+                std::cerr << "INFO: Reducing the number of programmable counters to 3 to workaround the fixed cycle counter virtualization issue on AWS.\n";
+                std::cerr << "      You can disable the workaround by setting PCM_NO_AWS_WORKAROUND=1 environment variable\n";
+            }
         }
         if (isNMIWatchdogEnabled(true) && keepNMIWatchdogEnabled())
         {
             --core_gen_counter_num_max;
-            std::cerr << "INFO: Reducing the number of programmable counters to " << core_gen_counter_num_max  << " because NMI watchdog is enabled.\n";
+            if (!quietMode)
+            {
+                std::cerr << "INFO: Reducing the number of programmable counters to " << core_gen_counter_num_max  << " because NMI watchdog is enabled.\n";
+            }
         }
 #endif
     }
@@ -433,14 +440,20 @@ bool PCM::detectModel()
 
     if (cpuinfo.reg.ecx & (1UL << 31UL)) {
         vm = true;
-        std::cerr << "Detected a hypervisor/virtualization technology. Some metrics might not be available due to configuration or availability of virtual hardware features.\n";
+        if (!quietMode)
+        {
+            std::cerr << "Detected a hypervisor/virtualization technology. Some metrics might not be available due to configuration or availability of virtual hardware features.\n";
+        }
     }
 
     readCoreCounterConfig();
 
     pcm_cpuid(7, 0, cpuinfo);
 
-    std::cerr << "\n=====  Processor information  =====\n";
+    if (!quietMode)
+    {
+        std::cerr << "\n=====  Processor information  =====\n";
+    }
 
 #ifdef __linux__
     auto checkLinuxCpuinfoFlag = [](const std::string& flag) -> bool
@@ -468,7 +481,10 @@ bool PCM::detectModel()
         return false;
     };
     linux_arch_perfmon = checkLinuxCpuinfoFlag("arch_perfmon");
-    std::cerr << "Linux arch_perfmon flag  : " << (linux_arch_perfmon ? "yes" : "no") << "\n";
+    if (!quietMode)
+    {
+        std::cerr << "Linux arch_perfmon flag  : " << (linux_arch_perfmon ? "yes" : "no") << "\n";
+    }
     if (vm == true && linux_arch_perfmon == false)
     {
         std::cerr << "ERROR: vPMU is not enabled in the hypervisor. Please see details in https://software.intel.com/content/www/us/en/develop/documentation/vtune-help/top/set-up-analysis-target/on-virtual-machine.html \n";
@@ -486,13 +502,16 @@ bool PCM::detectModel()
     }
 #endif
     hybrid = (cpuinfo.reg.edx & (1 << 15)) ? true : false;
-    std::cerr << "Hybrid processor         : " << (hybrid ? "yes" : "no") << "\n";
-    std::cerr << "IBRS and IBPB supported  : " << ((cpuinfo.reg.edx & (1 << 26)) ? "yes" : "no") << "\n";
-    std::cerr << "STIBP supported          : " << ((cpuinfo.reg.edx & (1 << 27)) ? "yes" : "no") << "\n";
-    std::cerr << "Spec arch caps supported : " << ((cpuinfo.reg.edx & (1 << 29)) ? "yes" : "no") << "\n";
-    std::cerr << "Max CPUID level          : " << max_cpuid << "\n";
-    std::cerr << "CPU family               : " << cpu_family << "\n";
-    std::cerr << "CPU model number         : " << cpu_model_private << "\n";
+    if (!quietMode)
+    {
+        std::cerr << "Hybrid processor         : " << (hybrid ? "yes" : "no") << "\n";
+        std::cerr << "IBRS and IBPB supported  : " << ((cpuinfo.reg.edx & (1 << 26)) ? "yes" : "no") << "\n";
+        std::cerr << "STIBP supported          : " << ((cpuinfo.reg.edx & (1 << 27)) ? "yes" : "no") << "\n";
+        std::cerr << "Spec arch caps supported : " << ((cpuinfo.reg.edx & (1 << 29)) ? "yes" : "no") << "\n";
+        std::cerr << "Max CPUID level          : " << max_cpuid << "\n";
+        std::cerr << "CPU family               : " << cpu_family << "\n";
+        std::cerr << "CPU model number         : " << cpu_model_private << "\n";
+    }
 
     return true;
 }
@@ -512,7 +531,10 @@ bool PCM::isRDTDisabled() const
 #endif
         if (env != nullptr && std::string(env) == std::string("1"))
         {
-            std::cout << "Disabling RDT usage because PCM_NO_RDT=1 environment variable is set.\n";
+            if (!quietMode)
+            {
+                std::cout << "Disabling RDT usage because PCM_NO_RDT=1 environment variable is set.\n";
+            }
             flag = 1;
         }
         else
@@ -605,27 +627,39 @@ void PCM::initRDT()
     auto env = std::getenv("PCM_USE_RESCTRL");
     if (env != nullptr && std::string(env) == std::string("1"))
     {
-        std::cerr << "INFO: using Linux resctrl driver for RDT metrics (L3OCC, LMB, RMB) because environment variable PCM_USE_RESCTRL=1\n";
+        if (!quietMode)
+        {
+            std::cerr << "INFO: using Linux resctrl driver for RDT metrics (L3OCC, LMB, RMB) because environment variable PCM_USE_RESCTRL=1\n";
+        }
         resctrl.init();
         useResctrl = true;
         return;
     }
     if (resctrl.isMounted())
     {
-        std::cerr << "INFO: using Linux resctrl driver for RDT metrics (L3OCC, LMB, RMB) because resctrl driver is mounted.\n";
+        if (!quietMode)
+        {
+            std::cerr << "INFO: using Linux resctrl driver for RDT metrics (L3OCC, LMB, RMB) because resctrl driver is mounted.\n";
+        }
         resctrl.init();
         useResctrl = true;
         return;
     }
     if (isSecureBoot())
     {
-        std::cerr << "INFO: using Linux resctrl driver for RDT metrics (L3OCC, LMB, RMB) because Secure Boot mode is enabled.\n";
+        if (!quietMode)
+        {
+            std::cerr << "INFO: using Linux resctrl driver for RDT metrics (L3OCC, LMB, RMB) because Secure Boot mode is enabled.\n";
+        }
         resctrl.init();
         useResctrl = true;
         return;
     }
 #endif
-    std::cerr << "Initializing RMIDs" << std::endl;
+    if (!quietMode)
+    {
+        std::cerr << "Initializing RMIDs" << std::endl;
+    }
     unsigned maxRMID;
     /* Calculate maximum number of RMID supported by socket */
     maxRMID = getMaxRMID();
@@ -1754,7 +1788,10 @@ bool PCM::detectNominalFrequency()
         }
 
 #ifndef PCM_SILENT
-        std::cerr << "Nominal core frequency: " << nominal_frequency << " Hz\n";
+        if (!quietMode)
+        {
+            std::cerr << "Nominal core frequency: " << nominal_frequency << " Hz\n";
+        }
 #endif
     }
 
@@ -1783,9 +1820,12 @@ void PCM::initEnergyMonitoring()
         pkgMaximumPower = (int32) (double(extract_bits(package_power_info, 32, 46))*wattsPerPowerUnit);
 
 #ifndef PCM_SILENT
-        std::cerr << "Package thermal spec power: " << pkgThermalSpecPower << " Watt; ";
-        std::cerr << "Package minimum power: " << pkgMinimumPower << " Watt; ";
-        std::cerr << "Package maximum power: " << pkgMaximumPower << " Watt;\n";
+        if (!quietMode)
+        {
+            std::cerr << "Package thermal spec power: " << pkgThermalSpecPower << " Watt; ";
+            std::cerr << "Package minimum power: " << pkgMinimumPower << " Watt; ";
+            std::cerr << "Package maximum power: " << pkgMaximumPower << " Watt;\n";
+        }
 #endif
 
         int i = 0;
@@ -2094,23 +2134,50 @@ void PCM::initUncoreObjects()
 
     //TPMIHandle::setVerbose(true);
     try {
-        if (isServerCPU() && TPMIHandle::getNumInstances() == (size_t)num_sockets)
+        if (isServerCPU() && TPMIHandle::getNumInstances() > 0)
         {
-            DBG(1, "TPMIHandle::getNumInstances(): ", TPMIHandle::getNumInstances());
+            const auto nInstances = TPMIHandle::getNumInstances();
+            DBG(1, "TPMIHandle::getNumInstances(): ", nInstances);
             UFSStatus.resize(num_sockets);
-            for (uint32 s = 0; s < (uint32)num_sockets; ++s)
+            for (uint32 i = 0; i < (uint32)nInstances; ++i)
             {
+                uint32 socket = (std::numeric_limits<uint32>::max)(); // invalid socket by default
                 try {
-                    TPMIHandle h(s, UFS_ID, UFS_FABRIC_CLUSTER_OFFSET * sizeof(uint64));
-                    DBG(1,  "Socket ", s, " dies: ", h.getNumEntries());
+                    TPMIHandle h(i, UFS_ID, UFS_FABRIC_CLUSTER_OFFSET * sizeof(uint64));
+                    const auto numaNode = h.getNUMANode();
+                    DBG(1, "Instance ", i, " NUMA node: ", numaNode);
+                    if (numaNode >= 0)
+                    {
+                        const auto socketTmp = mapNUMANodeToSocket(numaNode);
+                        DBG(1, "Instance ", i, " mapped to socket: ", socketTmp);
+                        if (socketTmp >= 0 && socketTmp < (int32)num_sockets)
+                        {
+                            socket = (uint32)socketTmp;
+                        }
+                        else
+                        {
+                            socket = 0;
+                            std::cerr << "WARNING: Could not map UFS TPMI instance " << i << " NUMA node " << numaNode << " to socket. Assuming socket 0.\n";
+                        }
+                    }
+                    else
+                    {
+                        socket = 0;
+                        std::cerr << "WARNING: Could not map UFS TPMI instance " << i << " to NUMA node. Assuming socket 0.\n";
+                    }
+                    DBG(1, "Instance ", i, " Socket ", socket, " dies: ", h.getNumEntries());
                     for (size_t die = 0; die < h.getNumEntries(); ++die)
                     {
                         const auto clusterOffset = extract_bits(h.read64(die), 0, 7);
-                        UFSStatus[s].push_back(std::make_shared<TPMIHandle>(s, UFS_ID, (clusterOffset + UFS_STATUS)* sizeof(uint64)));
+                        assert(socket < UFSStatus.size());
+                        UFSStatus[socket].push_back(
+                            UFSStatusEntry(
+                                std::make_shared<TPMIHandle>(i, UFS_ID, (clusterOffset + UFS_STATUS)* sizeof(uint64)),
+                                die));
                     }
                 } catch (std::exception & e)
                 {
-                    std::cerr << "ERROR: Could not open UFS TPMI register on socket " << s << ". Uncore frequency metrics will be unavailable. Exception details: " << e.what() << "\n";
+                    std::cerr << "ERROR: Could not open UFS TPMI register on socket " << socket << " instance " << i << ". Uncore frequency metrics will be unavailable. Exception details: " << e.what() << "\n";
                 }
             }
         }
@@ -2119,7 +2186,7 @@ void PCM::initUncoreObjects()
         std::cerr << "ERROR: Could not initialize TPMI. Uncore frequency metrics will be unavailable. Exception details: " << e.what() << "\n";
     }
 
-    for (uint32 s = 0; s < (uint32)num_sockets; ++s)
+    for (uint32 s = 0; s < (uint32)num_sockets && !quietMode; ++s)
     {
         std::cerr << "Socket " << s << ":" <<
             " " << getMaxNumOfUncorePMUs(PCU_PMU_ID, s) << " PCU units detected."
@@ -2700,7 +2767,7 @@ void PCM::initUncorePMUsDirect()
         initSocket2Bus(socket2DSAbus, SPR_IDX_DSA_REGISTER_DEV_ADDR, SPR_IDX_DSA_REGISTER_FUNC_ADDR, DSA_DEV_IDS, (uint32)sizeof(DSA_DEV_IDS) / sizeof(DSA_DEV_IDS[0]));
         initSocket2Bus(socket2QATbus, SPR_IDX_QAT_REGISTER_DEV_ADDR, SPR_IDX_QAT_REGISTER_FUNC_ADDR, QAT_DEV_IDS, (uint32)sizeof(QAT_DEV_IDS) / sizeof(QAT_DEV_IDS[0]));
 #ifndef PCM_SILENT
-        std::cerr << "Info: IDX - Detected " << socket2IAAbus.size() << " IAA devices, " << socket2DSAbus.size() << " DSA devices, " << socket2QATbus.size() << " QAT devices. \n";
+        if (!quietMode) std::cerr << "INFO: IDX - Detected " << socket2IAAbus.size() << " IAA devices, " << socket2DSAbus.size() << " DSA devices, " << socket2QATbus.size() << " QAT devices. \n";
 #endif
         initRootBusMap(rootbusMap);
 
@@ -2754,7 +2821,7 @@ void PCM::initUncorePMUsDirect()
                         std::hex << devInfo.func << "/telemetry/control";
                     qatTLMCTLStr = readSysFS(qat_TLMCTL_sysfs_path.str().c_str(), true);
                     if(!qatTLMCTLStr.size()){
-                        std::cerr << "Warning: IDX - QAT telemetry feature of B:0x" << std::hex << devInfo.bus << ",D:0x" << devInfo.dev << ",F:0x" << devInfo.func \
+                        if (!quietMode) std::cerr << "INFO: IDX - QAT telemetry feature of B:0x" << std::hex << devInfo.bus << ",D:0x" << devInfo.dev << ",F:0x" << devInfo.func \
                             << " is NOT available, skipped." << std::dec << std::endl;
                         continue;
                     }
@@ -3201,6 +3268,12 @@ PCM::PCM() :
     run_state(1),
     needToRestoreNMIWatchdog(false)
 {
+    // Check for PCM_QUIET environment variable
+    if (safe_getenv("PCM_QUIET") == std::string("1"))
+    {
+        quietMode = true;
+    }
+
 #ifdef __linux__
     increaseULimit();
 #endif
@@ -3229,29 +3302,42 @@ PCM::PCM() :
     readCoreCounterConfig(true);
 
 #ifndef PCM_SILENT
-    printSystemTopology();
+    if (!quietMode)
+    {
+        printSystemTopology();
+    }
 #endif
 
     if(!detectNominalFrequency()) return;
 
-    showSpecControlMSRs();
+    if (!quietMode)
+    {
+        showSpecControlMSRs();
+    }
 
 #ifndef PCM_DEBUG_TOPOLOGY
     if (safe_getenv("PCM_PRINT_TOPOLOGY") == "1")
 #endif
     {
-        printDetailedSystemTopology(1);
+        if (!quietMode)
+        {
+            printDetailedSystemTopology(1);
+        }
     }
 
     initEnergyMonitoring();
 
 #ifndef PCM_SILENT
-    std::cerr << "\n";
+    if (!quietMode)
+    {
+        std::cerr << "\n";
+    }
 #endif
 
     if (isServerCPU())
     {
-        uncorePMUDiscovery = std::make_shared<UncorePMUDiscovery>();
+        assert(topology.size());
+        uncorePMUDiscovery = std::make_shared<UncorePMUDiscovery>(*this);
     }
 
     initUncoreObjects();
@@ -6616,12 +6702,13 @@ void PCM::readAndAggregateUncoreMCCounters(const uint32 socket, CounterStateType
     if (socket < UFSStatus.size())
     {
         result.UFSStatus.clear();
-        for (size_t die = 0; die < UFSStatus[socket].size(); ++die)
+        for (auto & e : UFSStatus[socket])
         {
-            auto & handle = UFSStatus[socket][die];
-            if (handle.get() && die < handle->getNumEntries())
+            auto & handle = e.tpmiHandle;
+            const auto pos = e.pos;
+            if (handle.get() && pos < handle->getNumEntries())
             {
-                const auto value = handle->read64(die);
+                const auto value = handle->read64(pos);
                 DBG(3, std::hex , value , std::dec);
                 result.UFSStatus.push_back(value);
             }
@@ -7235,6 +7322,220 @@ uint32 PCM::getNumSockets() const
     return (uint32)num_sockets;
 }
 
+int32 PCM::mapNUMANodeToSocket(uint32 numa_node_id) const
+{
+    // Check cache (thread-safe read)
+    {
+        pcm::Mutex::Scope lock(numaNodeToSocketCacheMutex);
+        auto it = numaNodeToSocketCache.find(numa_node_id);
+        if (it != numaNodeToSocketCache.end())
+        {
+            return it->second;
+        }
+    }
+    
+    // Cache miss, compute the result
+    int32 socket_id = -1;
+    
+    // Helper lambda to cache the result before returning
+    auto cacheAndReturn = [&](int32 result) -> int32 {
+        pcm::Mutex::Scope lock(numaNodeToSocketCacheMutex);
+        numaNodeToSocketCache[numa_node_id] = result;
+        return result;
+    };
+    
+#ifdef __linux__
+    // On Linux, read the CPU list for this NUMA node and map to socket
+    std::ostringstream path;
+    path << "/sys/devices/system/node/node" << numa_node_id << "/cpulist";
+    
+    std::ifstream cpulist_file(path.str());
+    if (!cpulist_file.is_open())
+    {
+        // Try alternative path with /pcm prefix (for containerized environments)
+        cpulist_file.open("/pcm" + path.str());
+        if (!cpulist_file.is_open())
+        {
+            DBG(2, "Cannot open NUMA node cpulist file: ", path.str());
+            return cacheAndReturn(-1);
+        }
+    }
+    
+    std::string cpulist;
+    std::getline(cpulist_file, cpulist);
+    
+    if (cpulist.empty())
+    {
+        DBG(2, "Empty CPU list for NUMA node ", numa_node_id);
+        return cacheAndReturn(-1);
+    }
+    
+    // Parse the first CPU from the list (format: "0-15,32-47" or "0" or "0,2,4")
+    size_t first_cpu_end = cpulist.find_first_of(",-");
+    std::string first_cpu_str = (first_cpu_end == std::string::npos) ? cpulist : cpulist.substr(0, first_cpu_end);
+    
+    try
+    {
+        uint32 first_cpu = std::stoul(first_cpu_str);
+        if (first_cpu < topology.size())
+        {
+            socket_id = topology[first_cpu].socket_id;
+            DBG(3, "NUMA node ", numa_node_id, " maps to socket ", socket_id);
+            return cacheAndReturn(socket_id);
+        }
+    }
+    catch (const std::exception& e)
+    {
+        DBG(2, "Failed to parse CPU ID from cpulist: ", cpulist, " error: ", e.what());
+        return cacheAndReturn(-1);
+    }
+    
+    return cacheAndReturn(-1);
+#elif defined(_MSC_VER)
+    // On Windows, use GetLogicalProcessorInformationEx to map NUMA node to processors
+    // and then map processor to socket using topology information
+    DWORD length = 0;
+    GetLogicalProcessorInformationEx(RelationNumaNode, nullptr, &length);
+    if (GetLastError() != ERROR_INSUFFICIENT_BUFFER)
+    {
+        return cacheAndReturn(-1);
+    }
+    
+    std::vector<uint8_t> buffer(length);
+    auto info = reinterpret_cast<PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX>(buffer.data());
+    
+    if (!GetLogicalProcessorInformationEx(RelationNumaNode, info, &length))
+    {
+        return cacheAndReturn(-1);
+    }
+    
+    // Iterate through NUMA nodes
+    DWORD offset = 0;
+    while (offset < length)
+    {
+        auto current = reinterpret_cast<PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX>(
+            reinterpret_cast<uint8_t*>(info) + offset);
+        
+        if (current->Relationship == RelationNumaNode && 
+            current->NumaNode.NodeNumber == numa_node_id)
+        {
+            // The GROUP_AFFINITY structure contains a processor group number and affinity mask
+            WORD groupNumber = current->NumaNode.GroupMask.Group;
+            KAFFINITY mask = current->NumaNode.GroupMask.Mask;
+            
+            if (mask != 0)
+            {
+                auto BitScanForward64 = [](unsigned long* Index, uint64_t Mask)
+                {
+                    if (Mask == 0) return 0;
+
+                    // Magic numbers for LSB (chess engine style)
+                    static const uint64_t magic = 0x03f79d71b4cb0a89ULL;
+                    uint64_t isolated = Mask & -Mask;  // Rightmost set bit
+                    *Index = (unsigned long)(((isolated * magic) >> 58));
+                };
+
+                // Find first set bit (first processor in this NUMA node within this group)
+                DWORD bitPosition = 0;
+                BitScanForward64(&bitPosition, mask);
+                
+                // On Windows, we need to find the logical processor ID that corresponds to
+                // this bit position in this group. We iterate through topology to find a match.
+                // Note: This is a simplified approach. A more robust implementation would need
+                // to query the system for the mapping between group/bit position and logical processor IDs.
+                for (size_t cpu = 0; cpu < topology.size(); ++cpu)
+                {
+                    // Check if this CPU belongs to the current NUMA node
+                    // Since we don't have direct group information in topology, we use a heuristic:
+                    // try the first CPU we find in the topology array
+                    // A better approach would store group information in TopologyEntry
+                    if (cpu == bitPosition + (groupNumber * 64))  // Rough approximation
+                    {
+                        socket_id = topology[cpu].socket_id;
+                        return cacheAndReturn(socket_id);
+                    }
+                }
+                
+                // Fallback: just return the socket_id of the first available CPU if within bounds
+                if (bitPosition < topology.size())
+                {
+                    socket_id = topology[bitPosition].socket_id;
+                    return cacheAndReturn(socket_id);
+                }
+            }
+        }
+        
+        offset += current->Size;
+    }
+    
+    return cacheAndReturn(-1);
+#elif defined(__FreeBSD__) || defined(__DragonFly__)
+    // FreeBSD implementation using vm.ndomains and cpuset APIs
+    
+    // First check if NUMA is enabled on this system
+    int ndomains = 0;
+    size_t len = sizeof(ndomains);
+    
+    if (sysctlbyname("vm.ndomains", &ndomains, &len, nullptr, 0) != 0)
+    {
+        DBG(2, "Cannot query vm.ndomains, NUMA not available");
+        return cacheAndReturn(-1);
+    }
+    
+    if (ndomains <= 1)
+    {
+        // NUMA not enabled or single domain system
+        DBG(3, "NUMA not enabled on FreeBSD (vm.ndomains = ", ndomains, ")");
+        return cacheAndReturn(-1);
+    }
+    
+    // Validate NUMA node ID
+    if (numa_node_id >= (uint32)ndomains)
+    {
+        DBG(2, "Invalid NUMA node ID ", numa_node_id, " (max: ", ndomains - 1, ")");
+        return cacheAndReturn(-1);
+    }
+    
+#if defined(__FreeBSD__) && defined(CPU_WHICH_DOMAIN)
+    // On FreeBSD with CPU_WHICH_DOMAIN support (FreeBSD 12.0+)
+    // Query which CPUs belong to this NUMA domain
+    cpuset_t cpuset;
+    CPU_ZERO(&cpuset);
+    
+    // cpuset_getaffinity with CPU_WHICH_DOMAIN returns the cpuset for a specific NUMA domain
+    if (cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_DOMAIN, numa_node_id, 
+                           sizeof(cpuset), &cpuset) == 0)
+    {
+        // Find the first CPU in this domain's cpuset
+        for (size_t cpu = 0; cpu < topology.size(); ++cpu)
+        {
+            if (CPU_ISSET(cpu, &cpuset))
+            {
+                socket_id = topology[cpu].socket_id;
+                DBG(3, "NUMA domain ", numa_node_id, " maps to socket ", socket_id);
+                return cacheAndReturn(socket_id);
+            }
+        }
+    }
+    else
+    {
+        DBG(2, "cpuset_getaffinity failed for domain ", numa_node_id);
+    }
+#endif
+
+    return cacheAndReturn(-1);
+#elif defined(__APPLE__)
+    // On macOS, NUMA information is not readily available
+    // For now, return -1 to indicate the mapping is not available
+    (void)numa_node_id; // Suppress unused parameter warning
+    return cacheAndReturn(-1);
+#else
+    // Unsupported platform
+    (void)numa_node_id; // Suppress unused parameter warning
+    return cacheAndReturn(-1);
+#endif
+}
+
 uint32 PCM::getAccel() const
 {
     return accel;
@@ -7615,7 +7916,7 @@ bool PCM::useLinuxPerfForUncore() const
     bool secureBoot = isSecureBoot();
 #ifdef PCM_USE_PERF
     const auto imcIDs = enumeratePerfPMUs("imc", 100);
-    std::cerr << "INFO: Linux perf interface to program uncore PMUs is " << (imcIDs.empty()?"NOT ":"") << "present\n";
+    if (!quietMode) std::cerr << "INFO: Linux perf interface to program uncore PMUs is " << (imcIDs.empty()?"NOT ":"") << "present\n";
     if (imcIDs.empty())
     {
         use = 0;
@@ -7624,12 +7925,12 @@ bool PCM::useLinuxPerfForUncore() const
     const char * perf_env = std::getenv("PCM_USE_UNCORE_PERF");
     if (perf_env != NULL && std::string(perf_env) == std::string("1"))
     {
-        std::cerr << "INFO: using Linux perf interface to program uncore PMUs because env variable PCM_USE_UNCORE_PERF=1\n";
+        if (!quietMode) std::cerr << "INFO: using Linux perf interface to program uncore PMUs because env variable PCM_USE_UNCORE_PERF=1\n";
         use = 1;
     }
     if (secureBoot)
     {
-        std::cerr << "INFO: Secure Boot detected. Using Linux perf for uncore PMU programming.\n";
+        if (!quietMode) std::cerr << "INFO: Secure Boot detected. Using Linux perf for uncore PMU programming.\n";
         use = 1;
     }
 #else
@@ -7724,7 +8025,7 @@ ServerUncorePMUs::ServerUncorePMUs(uint32 socket_, const PCM * pcm) :
         initDirect(socket_, pcm);
     }
 
-    std::cerr << "Socket " << socket_ << ": " <<
+    if (!PCM::getQuietMode()) std::cerr << "Socket " << socket_ << ": " <<
         getNumMC() << " memory controllers detected with total number of " << getNumMCChannels() << " channels. " <<
         getNumQPIPorts() << " " << pcm->xPI() << " ports detected." <<
         " " << m2mPMUs.size() << " M2M (mesh to memory)/B2CMI blocks detected."

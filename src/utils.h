@@ -87,7 +87,10 @@ namespace pcm {
 }
 
 #ifdef _MSC_VER
-#define PCM_SET_DLL_DIR SetDllDirectory(_T(""));
+// Security hardening: remove the current working directory from the DLL search
+// order to prevent DLL planting attacks (CWE-427). This ensures DLLs are only
+// loaded from trusted system directories.
+#define PCM_SET_DLL_DIR SetDllDirectory(_T("")); SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_SYSTEM32);
 #else
 #define PCM_SET_DLL_DIR
 #endif

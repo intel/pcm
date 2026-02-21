@@ -11,20 +11,23 @@ Write-Output ""
 $output = pcm-tpmi 2 0x10 -d -b 26:26
 
 # Parse the output to build lists of I/O and compute dies
+# Store as "instance:entry" to handle multiple instances per socket
 $io_dies = @()
 $compute_dies = @()
 $die_types = @{}
 
 $output -split "`n" | ForEach-Object {
     $line = $_
-    if ($line -match "instance 0") {
-        $die = $line -match 'entry (\d+)' | Out-Null; $matches[1]
+    if ($line -match "entry" -and $line -match "instance") {
+        $entry = $line -match 'entry (\d+)' | Out-Null; $matches[1]
+        $instance = $line -match 'instance (\d+)' | Out-Null; $matches[1]
+        $die_key = "${instance}:${entry}"
         if ($line -match "value 1") {
-            $die_types[$die] = "IO"
-            $io_dies += $die
+            $die_types[$die_key] = "IO"
+            $io_dies += $die_key
         } elseif ($line -match "value 0") {
-            $die_types[$die] = "Compute"
-            $compute_dies += $die
+            $die_types[$die_key] = "Compute"
+            $compute_dies += $die_key
         }
     }
 }
@@ -32,46 +35,54 @@ $output -split "`n" | ForEach-Object {
 if ($args[0] -eq "--optimized-power-mode") {
     Write-Output "Setting optimized power mode..."
 
-    foreach ($die in $io_dies) {
+    foreach ($die_key in $io_dies) {
+        $instance = $die_key -split ":" | Select-Object -First 1
+        $entry = $die_key -split ":" | Select-Object -Last 1
         # EFFICIENCY_LATENCY_CTRL_RATIO (Uncore IO)
-        pcm-tpmi 2 0x18 -d -e $die -b 28:22 -w 8 
+        pcm-tpmi 2 0x18 -d -i $instance -e $entry -b 28:22 -w 8 
 
         # EFFICIENCY_LATENCY_CTRL_LOW_THRESHOLD (Uncore IO)
-        pcm-tpmi 2 0x18 -d -e $die -b 38:32 -w 13
+        pcm-tpmi 2 0x18 -d -i $instance -e $entry -b 38:32 -w 13
 
         # EFFICIENCY_LATENCY_CTRL_HIGH_THRESHOLD (Uncore IO)
-        pcm-tpmi 2 0x18 -d -e $die -b 46:40 -w 120
+        pcm-tpmi 2 0x18 -d -i $instance -e $entry -b 46:40 -w 120
 
         # EFFICIENCY_LATENCY_CTRL_HIGH_THRESHOLD_ENABLE (Uncore IO)
-        pcm-tpmi 2 0x18 -d -e $die -b 39:39 -w 1
+        pcm-tpmi 2 0x18 -d -i $instance -e $entry -b 39:39 -w 1
     }
 
-    foreach ($die in $compute_dies) {
+    foreach ($die_key in $compute_dies) {
+        $instance = $die_key -split ":" | Select-Object -First 1
+        $entry = $die_key -split ":" | Select-Object -Last 1
         # EFFICIENCY_LATENCY_CTRL_RATIO (Uncore Compute)
-        pcm-tpmi 2 0x18 -d -e $die -b 28:22 -w 12
+        pcm-tpmi 2 0x18 -d -i $instance -e $entry -b 28:22 -w 12
     }
 }
 
 if ($args[0] -eq "--latency-optimized-mode") {
     Write-Output "Setting latency optimized mode..."
 
-    foreach ($die in $io_dies) {
+    foreach ($die_key in $io_dies) {
+        $instance = $die_key -split ":" | Select-Object -First 1
+        $entry = $die_key -split ":" | Select-Object -Last 1
         # EFFICIENCY_LATENCY_CTRL_RATIO (Uncore IO)
-        pcm-tpmi 2 0x18 -d -e $die -b 28:22 -w 0
+        pcm-tpmi 2 0x18 -d -i $instance -e $entry -b 28:22 -w 0
 
         # EFFICIENCY_LATENCY_CTRL_LOW_THRESHOLD (Uncore IO)
-        pcm-tpmi 2 0x18 -d -e $die -b 38:32 -w 0
+        pcm-tpmi 2 0x18 -d -i $instance -e $entry -b 38:32 -w 0
 
         # EFFICIENCY_LATENCY_CTRL_HIGH_THRESHOLD (Uncore IO)
-        pcm-tpmi 2 0x18 -d -e $die -b 46:40 -w 0
+        pcm-tpmi 2 0x18 -d -i $instance -e $entry -b 46:40 -w 0
 
         # EFFICIENCY_LATENCY_CTRL_HIGH_THRESHOLD_ENABLE (Uncore IO)
-        pcm-tpmi 2 0x18 -d -e $die -b 39:39 -w 1
+        pcm-tpmi 2 0x18 -d -i $instance -e $entry -b 39:39 -w 1
     }
 
-    foreach ($die in $compute_dies) {
+    foreach ($die_key in $compute_dies) {
+        $instance = $die_key -split ":" | Select-Object -First 1
+        $entry = $die_key -split ":" | Select-Object -Last 1
         # EFFICIENCY_LATENCY_CTRL_RATIO (Uncore Compute)
-        pcm-tpmi 2 0x18 -d -e $die -b 28:22 -w 0
+        pcm-tpmi 2 0x18 -d -i $instance -e $entry -b 28:22 -w 0
     }
 }
 
@@ -83,10 +94,16 @@ function ExtractAndPrintMetrics {
     param (
         [int]$value,
         [int]$socket_id,
-        [int]$die
+        [string]$die_key,
+        [string]$numa_node,
+        [int]$instance
     )
 
-    $die_type = $die_types[$die]
+    $die_type = $die_types[$die_key]
+    
+    # Extract instance and entry from die_key
+    $inst = $die_key -split ":" | Select-Object -First 1
+    $entry = $die_key -split ":" | Select-Object -Last 1
 
     # Extract bits and calculate metrics
     $min_ratio = ($value -shr 15) -band 0x7F
@@ -104,7 +121,12 @@ function ExtractAndPrintMetrics {
     $eff_latency_ctrl_high_threshold = ($eff_latency_ctrl_high_threshold * 100) / 127
 
     # Print metrics
-    Write-Output "Socket ID: $socket_id, Die: $die, Type: $die_type"
+    $output_str = "Socket ID: $socket_id"
+    if ($numa_node) {
+        $output_str += ", NUMA node: $numa_node"
+    }
+    $output_str += ", instance: $instance, Die: $entry, Type: $die_type"
+    Write-Output $output_str
     Write-Output "MIN_RATIO: $min_ratio MHz"
     Write-Output "MAX_RATIO: $max_ratio MHz"
     Write-Output "EFFICIENCY_LATENCY_CTRL_RATIO: $eff_latency_ctrl_ratio MHz"
@@ -117,16 +139,31 @@ function ExtractAndPrintMetrics {
 }
 
 # Iterate over all dies and run pcm-tpmi for each to get the metrics
-foreach ($die in $die_types.Keys) {
-    $output = pcm-tpmi 2 0x18 -d -e $die
+foreach ($die_key in $die_types.Keys) {
+    $instance = $die_key -split ":" | Select-Object -First 1
+    $entry = $die_key -split ":" | Select-Object -Last 1
+    $output = pcm-tpmi 2 0x18 -d -i $instance -e $entry
 
     # Parse the output and extract metrics for each socket
     $output -split "`n" | ForEach-Object {
         $line = $_
         if ($line -match "Read value") {
             $value = $line -match 'value (\d+)' | Out-Null; $matches[1]
-            $socket_id = $line -match 'instance (\d+)' | Out-Null; $matches[1]
-            ExtractAndPrintMetrics -value $value -socket_id $socket_id -die $die
+            $inst = $line -match 'instance (\d+)' | Out-Null; $matches[1]
+            $ent = $line -match 'entry (\d+)' | Out-Null; $matches[1]
+            $parsed_die_key = "${inst}:${ent}"
+            # Extract socket ID if present, otherwise fallback to instance ID
+            if ($line -match '\(socket (\d+)\)') {
+                $socket_id = $matches[1]
+            } else {
+                $socket_id = $inst
+            }
+            # Extract NUMA node if present
+            $numa_node = $null
+            if ($line -match '\(NUMA node (\d+)\)') {
+                $numa_node = $matches[1]
+            }
+            ExtractAndPrintMetrics -value $value -socket_id $socket_id -die_key $parsed_die_key -numa_node $numa_node -instance $inst
         }
     }
 }

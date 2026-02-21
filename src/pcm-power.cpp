@@ -109,14 +109,17 @@ namespace PERF_LIMIT_REASON_TPMI
     {
         bool PERF_LIMIT_REASON_TPMI_Supported = false;
         auto numTPMIInstances = TPMIHandle::getNumInstances();
+        DBG(1, "TPMI instances detected: ", numTPMIInstances);
         for (size_t i = 0; i < numTPMIInstances; ++i)
         {
             TPMIHandle h(i, PERF_LIMIT_REASON_TPMI_ID, PERF_LIMIT_REASON_TPMI_HEADER);
+            DBG(1, "TPMI instance ", i, " has ", h.getNumEntries(), " entries");
             for (uint32 j = 0; j < h.getNumEntries(); ++j)
             {
                 const auto header = h.read64(j);
                 if (header == ~0ULL)
                 {
+                    DBG(1, "TPMI instance ", i, " die ", j, " header read failed");
                     return false;
                 }
                 const auto version =      extract_bits_64(header, 7, 0);
@@ -132,6 +135,7 @@ namespace PERF_LIMIT_REASON_TPMI
     int getMaxPMModuleID(const PCM * m)
     {
         int max_pm_module_id = -1;
+        DBG(1, "Detecting max PM module ID from MSR_PM_LOGICAL_ID. numCores: ", m->getNumCores());
         for (unsigned int core = 0; core < m->getNumCores(); ++core)
         {
             if (m->isCoreOnline(core) == false)
@@ -140,8 +144,15 @@ namespace PERF_LIMIT_REASON_TPMI
             MsrHandle msr(core);
             uint64 val = 0;
             constexpr auto MSR_PM_LOGICAL_ID = 0x54;
-            msr.read(MSR_PM_LOGICAL_ID, &val);
+            const auto readSize = msr.read(MSR_PM_LOGICAL_ID, &val);
+            if (readSize != sizeof(uint64))
+            {
+                std::cerr << "Error reading MSR_PM_LOGICAL_ID (0x54) on core " << core << "\n";
+                continue;
+            }
+            DBG(2, "Core ", core, " MSR_PM_LOGICAL_ID value: 0x", std::hex, val, std::dec);
             const auto module_id = (int)extract_bits(val, 10, 3);
+            DBG(2, "Core ", core, " PM module ID: ", module_id);
             max_pm_module_id = (std::max)(max_pm_module_id, module_id);
         }
         return max_pm_module_id;

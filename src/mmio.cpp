@@ -239,10 +239,14 @@ MMIORange::MMIORange(const uint64 baseAddr_, const uint64 size_, const bool read
     silent(silent_),
     core(core_)
 {
-    const int oflag = readonly ? O_RDONLY : O_RDWR;
+    // SDL330: Use O_NOFOLLOW to reject symlinks
+    const int oflag = (readonly ? O_RDONLY : O_RDWR) | O_NOFOLLOW;
     int handle = ::open("/dev/mem", oflag);
     if (handle < 0)
     {
+       if (errno == ELOOP) {
+           std::cerr << "SDL330 CRITICAL: Symlink detected at /dev/mem\n";
+       }
        std::ostringstream strstr;
        strstr << "opening /dev/mem failed: errno is " << errno << " (" << strerror(errno) << ")\n";
        if (!silent)

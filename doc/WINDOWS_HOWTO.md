@@ -122,7 +122,7 @@ Starting from this release, **pcm-sensor-server** is now supported on Windows. T
 
 ### Running pcm-sensor-server on Windows
 
-1. Choose or create a directory for PCM (e.g., `C:\Program Files\PCM\` or `C:\Program Files (x86)\PCM\`). Copy `msr.sys` and `pcm-sensor-server.exe` to this directory.
+1. Create a directory for PCM in a protected location (e.g., `C:\Program Files\PCM\` or `C:\Program Files (x86)\PCM\`). Copy `msr.sys` and `pcm-sensor-server.exe` to this directory. **Important:** Do not place PCM binaries in user-writable directories (e.g., Downloads, Desktop, `C:\Users\Public\`) to prevent DLL planting attacks.
 
 2. Run as Administrator (required for MSR access):
    ```

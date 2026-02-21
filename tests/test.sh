@@ -131,6 +131,20 @@ if [ "$?" -ne "0" ]; then
     exit 1
 fi
 
+echo Testing pcm-pcicfg with -n option
+./pcm-pcicfg -n 0 0 0 0 0
+if [ "$?" -ne "0" ]; then
+    echo "Error in pcm-pcicfg with -n option"
+    exit 1
+fi
+
+echo Testing pcm-pcicfg with -n and -d options
+./pcm-pcicfg -n -d 0 0 0 0 0
+if [ "$?" -ne "0" ]; then
+    echo "Error in pcm-pcicfg with -n -d options"
+    exit 1
+fi
+
 echo Testing pcm-tpmi
 ./pcm-tpmi 2 0x10 -d -b 26:26
 if [ "$?" -ne "0" ]; then

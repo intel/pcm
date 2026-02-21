@@ -43,6 +43,8 @@
 #include <unordered_map>
 #include <string.h>
 #include <assert.h>
+#include <atomic>
+#include "mutex.h"
 
 #ifdef PCM_USE_PERF
 #include <linux/perf_event.h>
@@ -651,13 +653,23 @@ class PCM_API PCM
         UFS_FABRIC_CLUSTER_OFFSET = 1,
         UFS_STATUS = 0
     };
-    std::vector<std::vector<std::shared_ptr<TPMIHandle> > > UFSStatus;
+    struct UFSStatusEntry
+    {
+        std::shared_ptr<TPMIHandle> tpmiHandle;
+        size_t pos;
+        UFSStatusEntry() : tpmiHandle(nullptr), pos(0) {}
+        UFSStatusEntry(const std::shared_ptr<TPMIHandle>& handle, size_t position) : tpmiHandle(handle), pos(position) {}
+    };
+    std::vector<std::vector<UFSStatusEntry> > UFSStatus;
 
     std::vector<TopologyEntry> topology;
+    mutable std::unordered_map<uint32, int32> numaNodeToSocketCache; // Cache for mapNUMANodeToSocket
+    mutable pcm::Mutex numaNodeToSocketCacheMutex; // Mutex to protect cache access
     SystemRoot* systemTopology;
     std::string errorMessage;
 
     static PCM * instance;
+    static std::atomic<bool> quietMode;
     bool programmed_core_pmu{false};
     std::vector<std::shared_ptr<SafeMsrHandle> > MSR;
     std::vector<std::shared_ptr<ServerUncorePMUs> > serverUncorePMUs;
@@ -1311,6 +1323,23 @@ private:
 
 public:
     static bool isInitialized() { return instance != nullptr; }
+
+    /*!
+        \brief Set quiet mode for PCM initialization
+
+        When quiet mode is enabled, only errors are output during PCM initialization.
+        This method should be called before getInstance() is called for the first time.
+
+        \param enable true to enable quiet mode, false to disable
+    */
+    static void setQuietMode(bool enable) { quietMode = enable; }
+
+    /*!
+        \brief Check if quiet mode is enabled
+
+        \return true if quiet mode is enabled, false otherwise
+    */
+    static bool getQuietMode() { return quietMode; }
 
     //! check if TMA level 1 metrics are supported
     bool isHWTMAL1Supported() const;
@@ -2045,6 +2074,14 @@ public:
     //! \return socket identifier
     int32 getSocketId(uint32 core_id) const { return (int32)topology[core_id].socket_id; }
 
+    //! \brief Maps NUMA node ID to CPU socket ID
+    //! \param numa_node_id NUMA node identifier
+    //! \return socket identifier, or -1 if mapping is not available or numa_node_id is invalid
+    //! \note On Linux: Uses /sys/devices/system/node/nodeX/cpulist
+    //! \note On Windows: Uses GetLogicalProcessorInformationEx (may have limitations with multi-group processors)
+    //! \note On FreeBSD: Uses vm.ndomains and cpuset_getdomain (FreeBSD 12.0+)
+    //! \note On macOS: Not implemented, returns -1
+    int32 mapNUMANodeToSocket(uint32 numa_node_id) const;
 
     size_t getNumCXLPorts(uint32 socket) const
     {

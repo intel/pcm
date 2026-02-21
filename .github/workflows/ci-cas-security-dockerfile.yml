@@ -1,0 +1,38 @@
+name: Security Scanning (dockerfile)
+
+on:
+  schedule:
+  # Every 2 months on 1st at midnight UTC
+    - cron: '0 0 1 */2 *'
+  # Manual trigger for testing
+  workflow_dispatch:
+
+jobs:
+  security:
+    runs-on: ["innersource.prod.amr.dind"]
+    if: ${{ github.repository != 'intel/pcm' }}
+
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: CAS Security Orchestrator (Source Only)
+        uses: intel-innersource/applications.security.monitoring.cas@v2
+        with:
+          sdl-api-key: ${{ secrets.SDL_API_KEY }}
+          sdl-project-id: ${{ secrets.SDL_PROJECT_ID }}
+          sdl-idsid-value: ${{ secrets.SDL_IDSID_VALUE }}
+          # Scan for SDL419 only (workaround), SDL441 has separate scan
+          sdl-tasks: "SDL419"
+          # Set branch type to 'release' for scheduled runs and manual trigger on main branch.
+          # Required for automatic evidence submit. Excludes push events.
+          branch-type: ${{ github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') && 'release' || 'dev' }}

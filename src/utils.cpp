@@ -64,12 +64,14 @@ void getMCFGRecords(std::vector<MCFGRecord>& mcfg)
 {
 #ifdef __linux__
     mcfg = PciHandleMM::getMCFGRecords();
+#elif defined(_MSC_VER)
+    PciHandle::readMCFGRecords(mcfg);
 #else
     MCFGRecord segment;
     segment.startBusNumber = 0;
     segment.endBusNumber = 0xff;
     auto maxSegments = 1;
-#if defined (_MSC_VER) || defined(__FreeBSD__) || defined(__DragonFly__)
+#if defined(__FreeBSD__) || defined(__DragonFly__)
     switch (PCM::getCPUFamilyModelFromCPUID())
     {
     case PCM::SPR:
