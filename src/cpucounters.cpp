@@ -37,7 +37,6 @@
 #include <sys/ioccom.h>
 #include <sys/cpuctl.h>
 #include <machine/cpufunc.h>
-#include <sys/domainset.h>
 #endif
 
 #ifdef _MSC_VER
@@ -7493,9 +7492,9 @@ int32 PCM::mapNUMANodeToSocket(uint32 numa_node_id) const
     cpuset_t cpuset;
     CPU_ZERO(&cpuset);
     
-    // cpuset_getdomain returns the cpuset for a specific domain
-    if (cpuset_getdomain(CPU_LEVEL_WHICH, CPU_WHICH_DOMAIN, numa_node_id, 
-                         sizeof(cpuset), &cpuset, DOMAINSET_POLICY_PREFER) == 0)
+    // cpuset_getaffinity with CPU_WHICH_DOMAIN returns the cpuset for a specific NUMA domain
+    if (cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_DOMAIN, numa_node_id, 
+                           sizeof(cpuset), &cpuset) == 0)
     {
         // Find the first CPU in this domain's cpuset
         for (size_t cpu = 0; cpu < topology.size(); ++cpu)
@@ -7510,7 +7509,7 @@ int32 PCM::mapNUMANodeToSocket(uint32 numa_node_id) const
     }
     else
     {
-        DBG(2, "cpuset_getdomain failed for domain ", numa_node_id);
+        DBG(2, "cpuset_getaffinity failed for domain ", numa_node_id);
     }
 #endif
 
