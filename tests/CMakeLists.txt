@@ -12,8 +12,10 @@ if(UNIX)
     target_link_libraries(daemon_alignment_test)
 
     # numa_to_socket_test
-    add_executable(numa_to_socket_test numa_to_socket_test.cpp)
-    target_link_libraries(numa_to_socket_test Threads::Threads PCM_STATIC)
+    if(not APPLE)
+        add_executable(numa_to_socket_test numa_to_socket_test.cpp)
+        target_link_libraries(numa_to_socket_test Threads::Threads PCM_STATIC)
+    endif()
 
     # cache_verification_test
     add_executable(cache_verification_test cache_verification_test.cpp)
