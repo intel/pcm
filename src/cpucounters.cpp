@@ -41,6 +41,7 @@
 
 #ifdef _MSC_VER
 #include <intrin.h>
+#pragma intrinsic(_BitScanForward64)
 #include <windows.h>
 #include <comdef.h>
 #include <tchar.h>
