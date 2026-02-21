@@ -24,5 +24,8 @@ if(UNIX)
 
     # numa_to_socket_example
     add_executable(numa_to_socket_example numa_to_socket_example.cpp)
+    if(APPLE)
+        target_include_directories(numa_to_socket_example PRIVATE "${CMAKE_SOURCE_DIR}/src/MacMSRDriver")
+    endif()
     target_link_libraries(numa_to_socket_example PUBLIC PCM_SHARED PRIVATE Threads::Threads)
 endif(UNIX)
