@@ -497,9 +497,8 @@ static void readSRATTable(std::unordered_map<uint64_t, uint32_t>& pciToNuma)
 
 #elif __APPLE__
 
-PciHandle::PciHandle(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 function_) :
+PciHandle::PciHandle(uint32, uint32 bus_, uint32 device_, uint32 function_) :
     fd(-1),
-    groupnr(groupnr_),
     bus(bus_),
     device(device_),
     function(function_),
