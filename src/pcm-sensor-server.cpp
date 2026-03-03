@@ -68,10 +68,14 @@ typedef int socket_t;
 
 #include <chrono>
 #include <algorithm>
+#include <mutex>
+#include <thread>
+#include <atomic>
 
 #include "threadpool.h"
 
 #include "pcm-iio-pmu.h"
+#include "pcm-pcie-collector.h"
 
 using namespace pcm;
 
@@ -323,21 +327,21 @@ public:
         CoreCounterState ccs;
         if ( nullptr == ag.get() )
             return ccs;
-        return std::move( ag->coreCounterStates()[tid] );
+        return ag->coreCounterStates()[tid];
     }
 
     SocketCounterState const getSocketCounter( std::shared_ptr<Aggregator> ag, uint32 sid ) const {
         SocketCounterState socs;
         if ( nullptr == ag.get() )
             return socs;
-        return std::move( ag->socketCounterStates()[sid] );
+        return ag->socketCounterStates()[sid];
     }
 
     SystemCounterState getSystemCounter( std::shared_ptr<Aggregator> ag ) const {
         SystemCounterState sycs;
         if ( nullptr == ag.get() )
             return sycs;
-        return std::move( ag->systemCounterState() );
+        return ag->systemCounterState();
     }
 
 
@@ -410,6 +414,10 @@ public:
         endObject( JSONPrinter::LineEndAction::DelimiterAndNewLine, END_OBJECT );
         startObject( "Uncore Aggregate", BEGIN_OBJECT );
         printUncoreCounterState( before, after );
+        endObject( JSONPrinter::LineEndAction::DelimiterAndNewLine, END_OBJECT );
+
+        startObject( "PCIe Bandwidth", BEGIN_OBJECT );
+        printPCIeCounterState();
         endObject( JSONPrinter::LineEndAction::NewLineOnly, END_OBJECT );
 
         endObject( JSONPrinter::LineEndAction::NewLineOnly, END_OBJECT );
@@ -530,6 +538,31 @@ private:
         std::stringstream s;
         s << "CStateResidency[" << i << "]";
         printCounter( s.str(), getPackageCStateResidency( i, before, after ) );
+        endObject( JSONPrinter::NewLineOnly, END_OBJECT );
+    }
+
+    void printPCIeCounterState() {
+        PCIeCollector* col = PCIeCollector::getInstance();
+        if (!col) return;
+
+        const auto& names = col->eventNames();
+        for (uint32 skt = 0; skt < col->socketCount(); ++skt) {
+            auto bw = col->getSocket(skt);
+            auto raw = col->getRawValues(skt);
+            startObject( std::string("PCIe Counters Socket ") + std::to_string(skt), BEGIN_OBJECT );
+            printCounter( "PCIe Read Bytes",  bw.readBytes );
+            printCounter( "PCIe Write Bytes", bw.writeBytes );
+            for (uint32_t i = 0; i < raw.size(); ++i)
+                printCounter( std::string("PCIe ") + names[i], raw[i] );
+            endObject( JSONPrinter::DelimiterAndNewLine, END_OBJECT );
+        }
+        auto agg = col->getAggregate();
+        auto rawAgg = col->getRawAggregate();
+        startObject( "PCIe Counters Aggregate", BEGIN_OBJECT );
+        printCounter( "PCIe Read Bytes",  agg.readBytes );
+        printCounter( "PCIe Write Bytes", agg.writeBytes );
+        for (uint32_t i = 0; i < rawAgg.size(); ++i)
+            printCounter( std::string("PCIe ") + names[i], rawAgg[i] );
         endObject( JSONPrinter::NewLineOnly, END_OBJECT );
     }
 
@@ -654,21 +687,21 @@ public:
         CoreCounterState ccs;
         if ( nullptr == ag.get() )
             return ccs;
-        return std::move( ag->coreCounterStates()[tid] );
+        return ag->coreCounterStates()[tid];
     }
 
     SocketCounterState const getSocketCounter( std::shared_ptr<Aggregator> ag, uint32 sid ) const {
         SocketCounterState socs;
         if ( nullptr == ag.get() )
             return socs;
-        return std::move( ag->socketCounterStates()[sid] );
+        return ag->socketCounterStates()[sid];
     }
 
     SystemCounterState getSystemCounter( std::shared_ptr<Aggregator> ag ) const {
         SystemCounterState sycs;
         if ( nullptr == ag.get() )
             return sycs;
-        return std::move( ag->systemCounterState() );
+        return ag->systemCounterState();
     }
 
     virtual void dispatch( HyperThread* ht ) override {
@@ -724,6 +757,8 @@ public:
         printBasicCounterState ( before, after );
         printComment( "Uncore Counters Aggregate System" );
         printUncoreCounterState( before, after );
+        printComment( "PCIe Bandwidth Counters" );
+        printPCIeCounterState();
         removeFromHierarchy(); // aggregate=system
     }
 
@@ -826,6 +861,34 @@ private:
             printCounter( "RawCStateResidency", getPackageCStateResidency( i, after ) );
             removeFromHierarchy();
         }
+        removeFromHierarchy();
+    }
+
+    void printPCIeCounterState() {
+        PCIeCollector* col = PCIeCollector::getInstance();
+        if (!col) return;
+
+        addToHierarchy( "source=\"uncore\"" );
+
+        const auto& names = col->eventNames();
+        for (uint32 skt = 0; skt < col->socketCount(); ++skt) {
+            auto bw = col->getSocket(skt);
+            auto raw = col->getRawValues(skt);
+            addToHierarchy( std::string("socket=\"") + std::to_string(skt) + "\"" );
+            printCounter( "PCIe Read Bytes",  bw.readBytes );
+            printCounter( "PCIe Write Bytes", bw.writeBytes );
+            for (uint32_t i = 0; i < raw.size(); ++i)
+                printCounter( std::string("PCIe ") + names[i], raw[i] );
+            removeFromHierarchy();
+        }
+
+        auto agg = col->getAggregate();
+        auto rawAgg = col->getRawAggregate();
+        printCounter( "PCIe Read Bytes",  agg.readBytes );
+        printCounter( "PCIe Write Bytes", agg.writeBytes );
+        for (uint32_t i = 0; i < rawAgg.size(); ++i)
+            printCounter( std::string("PCIe ") + names[i], rawAgg[i] );
+
         removeFromHierarchy();
     }
 
@@ -4347,6 +4410,15 @@ int mainThrows(int argc, char * argv[]) {
 //            exit(EXIT_FAILURE);
 //        }
 
+        // PCIe bandwidth collection
+        PCIeCollector* pcieCol = PCIeCollector::getInstance();
+        if (pcieCol) {
+            std::cerr << "PCIe bandwidth collector: supported, starting background thread\n";
+            pcieCol->startBackground(2000);
+        } else {
+            std::cerr << "PCIe bandwidth collector: not supported on this platform\n";
+        }
+
         // Now that everything is set we can start the http(s) server
 #if defined (USE_SSL)
         if ( useSSL ) {
@@ -4364,6 +4436,9 @@ int mainThrows(int argc, char * argv[]) {
             std::cerr << "Starting plain HTTP server on http://" << displayAddr << ":" << port << "/\n";
             startHTTPServer( listenAddress, port, useIPv4 );
         }
+
+        if (pcieCol) pcieCol->stop();
+
         delete pcmInstance;
     } else if ( pid > 0 ) {
         /* Parent, just leave */
