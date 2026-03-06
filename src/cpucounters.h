@@ -2074,6 +2074,11 @@ public:
     //! \return socket identifier
     int32 getSocketId(uint32 core_id) const { return (int32)topology[core_id].socket_id; }
 
+    //! \brief Determines die of given processor ID within a socket
+    //! \param os_id processor identifier
+    //! \return die identifier
+    int32 getDieId(uint32 os_id) const { return (int32)topology[os_id].die_id; }
+
     //! \brief Maps NUMA node ID to CPU socket ID
     //! \param numa_node_id NUMA node identifier
     //! \return socket identifier, or -1 if mapping is not available or numa_node_id is invalid

@@ -93,35 +93,7 @@ void print_usage(const string & progname)
     cout << "\n";
 }
 
-IPlatform *IPlatform::getPlatform(PCM *m, bool csv, bool print_bandwidth, bool print_additional_info, uint32 delay)
-{
-    switch (m->getCPUFamilyModel()) {
-        case PCM::GNR:
-        case PCM::GNR_D:
-        case PCM::SRF:
-            return new BirchStreamPlatform(m, csv, print_bandwidth, print_additional_info, delay);
-        case PCM::GRR:
-            return new LoganvillePlatform(m, csv, print_bandwidth, print_additional_info, delay);
-        case PCM::SPR:
-        case PCM::EMR:
-            return new EagleStreamPlatform(m, csv, print_bandwidth, print_additional_info, delay);
-        case PCM::ICX:
-        case PCM::SNOWRIDGE:
-            return new WhitleyPlatform(m, csv, print_bandwidth, print_additional_info, delay);
-        case PCM::SKX:
-            return new PurleyPlatform(m, csv, print_bandwidth, print_additional_info, delay);
-        case PCM::BDX_DE:
-        case PCM::BDX:
-        case PCM::KNL:
-        case PCM::HASWELLX:
-            return new GrantleyPlatform(m, csv, print_bandwidth, print_additional_info, delay);
-        case PCM::IVYTOWN:
-        case PCM::JAKETOWN:
-            return new BromolowPlatform(m, csv, print_bandwidth, print_additional_info, delay);
-        default:
-          return NULL;
-    }
-}
+// getPlatform() is defined inline in pcm-pcie.h.
 
 PCM_MAIN_NOTHROW;
 

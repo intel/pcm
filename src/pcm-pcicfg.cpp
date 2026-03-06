@@ -137,7 +137,7 @@ int mainThrows(int argc, char * argv[])
         }
 
         // List all PCI devices
-        forAllDevices([&dec, &verbosity, &pciDB](const uint32 group, const uint32 bus, const uint32 device, const uint32 function, const uint32 device_id)
+        forAllDevices([&dec, &verbosity, &pciDB](const uint32 group, const uint32 bus, const uint32 device, const uint32 function, const uint32 /* device_id */)
         {
             if (PciHandleType::exists(group, bus, device, function) == false)
             {
