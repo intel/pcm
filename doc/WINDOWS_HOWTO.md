@@ -14,7 +14,7 @@ _For support of systems with more than _**_64_**_ logical cores you need to comp
    alternatively you can perform `cmake -B build`, open *PCM.sln* form *build* folder in and build required project in Visual Studio.
    .exe and .dll files will be located in *build\bin\Release* folder
 3. As Administrator create PCM directory in Windows "Program Files" directory (e.g. `C:\Program Files (x86)\PCM\`)
-4. As Administrator copy the msr.sys driver and pcm.exe into the PCM directory
+4. As Administrator copy the msr.sys driver into `c:\windows\system32` and pcm.exe into the PCM directory
 5. Run pcm.exe utility from the PCM directory as Administrator
 
 For Windows 7+ and Windows Server 2008+ R2 the PCM utilities need to be run as Administrator:
@@ -51,7 +51,7 @@ If you do not want or cannot compile the msr.sys driver you might use a third-pa
 Instructions:
 
 1. Download the free RealTemp utility package from [http://www.techpowerup.com/realtemp/](http://www.techpowerup.com/realtemp/) or any other free utility that uses the open-source WinRing0 driver (like OpenHardwareMonitor [http://code.google.com/p/open-hardware-monitor/downloads/list](http://code.google.com/p/open-hardware-monitor/downloads/list)).
-2. Copy WinRing0.dll, WinRing0.sys, WinRing0x64.dll, WinRing0x64.sys files from there into the PCM.exe binary location, into the PCM-Service.exe location and into c:\windows\system32
+2. Copy WinRing0.dll, WinRing0.sys, WinRing0x64.dll, WinRing0x64.sys files from there into c:\windows\system32
 3. Run the PCM.exe tool and/or go to step 6 (perfmon utility).
 
 ## Compile the Windows MSR driver
@@ -122,7 +122,7 @@ Starting from this release, **pcm-sensor-server** is now supported on Windows. T
 
 ### Running pcm-sensor-server on Windows
 
-1. Create a directory for PCM in a protected location (e.g., `C:\Program Files\PCM\` or `C:\Program Files (x86)\PCM\`). Copy `msr.sys` and `pcm-sensor-server.exe` to this directory. **Important:** Do not place PCM binaries in user-writable directories (e.g., Downloads, Desktop, `C:\Users\Public\`) to prevent DLL planting attacks.
+1. Create a directory for PCM in a protected location (e.g., `C:\Program Files\PCM\` or `C:\Program Files (x86)\PCM\`). Copy `pcm-sensor-server.exe` to this directory and `msr.sys` to `c:\windows\system32`. If using WinPmem for memory bandwidth statistics, also copy `winpmem_x64.sys` (or `winpmem_x86.sys`) to `c:\windows\system32`. **Important:** Do not place PCM binaries or drivers in user-writable directories (e.g., Downloads, Desktop, `C:\Users\Public\`) to prevent driver planting attacks.
 
 2. Run as Administrator (required for MSR access):
    ```
