@@ -37,7 +37,13 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 DAMAGE.
 ==============================
-2. GoogleTest
+2. Intel-PMT
+   Intel Performance Monitoring Tooling ("Intel-PMT") is referenced by this repository as a Git submodule.
+   The Intel-PMT source code and binaries are not distributed as part of this Intel software.
+   When obtaining or using Intel-PMT, please refer to the Intel-PMT repository or distribution for the
+   applicable license terms, notices, and other conditions.
+==============================
+3. GoogleTest
    Copyright 2008, Google Inc.
    All rights reserved.
 
