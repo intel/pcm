@@ -1,6 +1,7 @@
 This file contains the list of third-party software included in or with the Intel software and their required
 license, copyright statement, permission notice, disclaimers, or other terms. This third-party software is
-governed by the separate license terms listed in this file.
+governed by the separate license terms listed in this file, and this notice file must accompany any distribution
+or release (including binary installers and other release artifacts) of the Intel software.
 ==============================
 1. Free Getopt
    Copyright (c)2002-2003 Mark K. Kim
