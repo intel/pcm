@@ -76,7 +76,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ==============================
-3. Intel perfmon
+4. Intel perfmon
    Copyright (c) 2021, Intel Corporation
    All rights reserved.
 
@@ -107,7 +107,7 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ==============================
-4. pugixml
+5. pugixml
    Copyright (c) 2006-2025 Arseny Kapoulkine
 
 MIT License
@@ -133,7 +133,7 @@ WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 ==============================
-5. simdjson
+6. simdjson
    Copyright 2018-2024 The simdjson authors
 
 Apache License
@@ -313,14 +313,14 @@ of your accepting any such warranty or additional liability.
 
 END OF TERMS AND CONDITIONS
 ==============================
-6. WinPmem
+7. WinPmem
    Copyright 2012 Michael Cohen <scudette@gmail.com>
 
 Licensed under the Apache License, Version 2.0.
 The full text of the Apache License 2.0 is provided under the
 simdjson component section above.
 ==============================
-7. WinRing0
+8. WinRing0
    Copyright (c) 2007-2009 OpenLibSys.org. All rights reserved.
 
 Modified BSD License
@@ -345,7 +345,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ==============================
-8. GCC libgcc (Runtime Library)
+9. GCC libgcc (Runtime Library)
    Copyright (C) Free Software Foundation, Inc.
 
 This library is licensed under the terms of the GNU General Public License,
