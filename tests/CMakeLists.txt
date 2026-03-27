@@ -11,13 +11,15 @@ if(UNIX)
     add_executable(daemon_alignment_test ${TEST_FILE})
     target_link_libraries(daemon_alignment_test)
 
-    # numa_to_socket_test
-    add_executable(numa_to_socket_test numa_to_socket_test.cpp)
-    target_link_libraries(numa_to_socket_test Threads::Threads PCM_STATIC)
+    if(NOT APPLE)
+        # numa_to_socket_test
+        add_executable(numa_to_socket_test numa_to_socket_test.cpp)
+        target_link_libraries(numa_to_socket_test Threads::Threads PCM_STATIC)
 
-    # cache_verification_test
-    add_executable(cache_verification_test cache_verification_test.cpp)
-    target_link_libraries(cache_verification_test Threads::Threads PCM_STATIC)
+    	# cache_verification_test
+    	add_executable(cache_verification_test cache_verification_test.cpp)
+    	target_link_libraries(cache_verification_test Threads::Threads PCM_STATIC)
+    endif()
 
     # PCM_STATIC + pcm_sensor = urltest
     if(LINUX)

@@ -23,6 +23,8 @@ if(UNIX)
     target_link_libraries(c_example_shlib PUBLIC PCM_SHARED PRIVATE Threads::Threads)
 
     # numa_to_socket_example
-    add_executable(numa_to_socket_example numa_to_socket_example.cpp)
-    target_link_libraries(numa_to_socket_example PUBLIC PCM_SHARED PRIVATE Threads::Threads)
+    if(NOT APPLE)
+        add_executable(numa_to_socket_example numa_to_socket_example.cpp)
+        target_link_libraries(numa_to_socket_example PUBLIC PCM_SHARED PRIVATE Threads::Threads)
+    endif()
 endif(UNIX)

@@ -40,7 +40,7 @@ class PciHandle
 #endif
 
 #if defined(__FreeBSD__) || defined(__DragonFly__) || defined(__linux__)
-    uint32 groupnr;
+    uint32 groupnr{};
 #endif
     uint32 bus;
     uint32 device;

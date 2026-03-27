@@ -7425,9 +7425,19 @@ int32 PCM::mapNUMANodeToSocket(uint32 numa_node_id) const
             
             if (mask != 0)
             {
+                auto BitScanForward64 = [](unsigned long* Index, uint64_t Mask)
+                {
+                    if (Mask == 0) return 0;
+
+                    // Magic numbers for LSB (chess engine style)
+                    static const uint64_t magic = 0x03f79d71b4cb0a89ULL;
+                    uint64_t isolated = Mask & -Mask;  // Rightmost set bit
+                    *Index = (unsigned long)(((isolated * magic) >> 58));
+                };
+
                 // Find first set bit (first processor in this NUMA node within this group)
                 DWORD bitPosition = 0;
-                _BitScanForward64(&bitPosition, mask);
+                BitScanForward64(&bitPosition, mask);
                 
                 // On Windows, we need to find the logical processor ID that corresponds to
                 // this bit position in this group. We iterate through topology to find a match.
@@ -7492,9 +7502,9 @@ int32 PCM::mapNUMANodeToSocket(uint32 numa_node_id) const
     cpuset_t cpuset;
     CPU_ZERO(&cpuset);
     
-    // cpuset_getdomain returns the cpuset for a specific domain
-    if (cpuset_getdomain(CPU_LEVEL_WHICH, CPU_WHICH_DOMAIN, numa_node_id, 
-                         sizeof(cpuset), &cpuset, DOMAINSET_POLICY_PREFER) == 0)
+    // cpuset_getaffinity with CPU_WHICH_DOMAIN returns the cpuset for a specific NUMA domain
+    if (cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_DOMAIN, numa_node_id, 
+                           sizeof(cpuset), &cpuset) == 0)
     {
         // Find the first CPU in this domain's cpuset
         for (size_t cpu = 0; cpu < topology.size(); ++cpu)
@@ -7509,7 +7519,7 @@ int32 PCM::mapNUMANodeToSocket(uint32 numa_node_id) const
     }
     else
     {
-        DBG(2, "cpuset_getdomain failed for domain ", numa_node_id);
+        DBG(2, "cpuset_getaffinity failed for domain ", numa_node_id);
     }
 #endif
 
