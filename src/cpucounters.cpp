@@ -7425,19 +7425,9 @@ int32 PCM::mapNUMANodeToSocket(uint32 numa_node_id) const
             
             if (mask != 0)
             {
-                auto BitScanForward64 = [](unsigned long* Index, uint64_t Mask)
-                {
-                    if (Mask == 0) return 0;
-
-                    // Magic numbers for LSB (chess engine style)
-                    static const uint64_t magic = 0x03f79d71b4cb0a89ULL;
-                    uint64_t isolated = Mask & -Mask;  // Rightmost set bit
-                    *Index = (unsigned long)(((isolated * magic) >> 58));
-                };
-
                 // Find first set bit (first processor in this NUMA node within this group)
                 DWORD bitPosition = 0;
-                BitScanForward64(&bitPosition, mask);
+                _BitScanForward64(&bitPosition, mask);
                 
                 // On Windows, we need to find the logical processor ID that corresponds to
                 // this bit position in this group. We iterate through topology to find a match.
