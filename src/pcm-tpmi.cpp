@@ -99,7 +99,7 @@ int mainThrows(int argc, char * argv[])
     SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
 
     // WARNING: This driver code (msr.sys) is only for testing purposes, not for production use
-    Driver drv = Driver(Driver::msrLocalPath());
+    Driver drv = Driver(Driver::msrSystemPath());
     // drv.stop();     // restart driver (usually not needed)
     if (!drv.start())
     {

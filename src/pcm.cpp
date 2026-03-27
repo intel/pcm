@@ -26,6 +26,7 @@
 #include <sstream>
 #include <assert.h>
 #include <bitset>
+#include <map>
 #include "cpucounters.h"
 #include "utils.h"
 
@@ -89,6 +90,7 @@ void print_help(const string & prog_name)
     cout << "  -yc   | --yescores  | /yc          => enable specific cores to output\n";
     cout << "  -ns   | --nosockets | /ns          => hide socket related output\n";
     cout << "  -nsys | --nosystem  | /nsys        => hide system related output\n";
+    cout << "  --die                              => show aggregated core metrics per die\n";
     cout << "  --color                            => use ASCII colors\n";
     cout << "  --no-color                         => don't use ASCII colors\n";
     cout << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or\n"
@@ -171,7 +173,8 @@ void print_output(PCM * m,
     const bool show_partial_core_output,
     const bool show_socket_output,
     const bool show_system_output,
-    const int metricVersion
+    const int metricVersion,
+    const bool show_die_output = false
     )
 {
     cout << "\n";
@@ -298,6 +301,28 @@ void print_output(PCM * m,
 
             print_basic_metrics(m, cstates1[i], cstates2[i], metricVersion);
             print_other_metrics(m, cstates1[i], cstates2[i]);
+            cout << resetColor();
+        }
+    }
+    if (show_die_output)
+    {
+        // aggregate core metrics per (socket, die) pair
+        std::map<std::pair<int32, int32>, CoreCounterState> die_cstates1, die_cstates2;
+        for (uint32 i = 0; i < m->getNumCores(); ++i)
+        {
+            if (m->isCoreOnline(i) == false)
+                continue;
+            auto key = std::make_pair(m->getSocketId(i), m->getDieId(i));
+            die_cstates1[key] += cstates1[i];
+            die_cstates2[key] += cstates2[i];
+        }
+        cout << longDiv;
+        for (const auto & entry : die_cstates1)
+        {
+            const auto & key = entry.first;
+            cout << " SKT " << setw(4) << (std::to_string(key.first) + "." + std::to_string(key.second));
+            print_basic_metrics(m, die_cstates1[key], die_cstates2[key], metricVersion);
+            print_other_metrics(m, die_cstates1[key], die_cstates2[key]);
             cout << resetColor();
         }
     }
@@ -725,7 +750,8 @@ void print_csv_header(PCM * m,
     const bool show_core_output,
     const bool show_partial_core_output,
     const bool show_socket_output,
-    const bool show_system_output
+    const bool show_system_output,
+    const bool show_die_output = false
     )
 {
     // print first header line
@@ -877,6 +903,30 @@ void print_csv_header(PCM * m,
                 header = "UncFREQ Die " + std::to_string(die) + " (Ghz)";
                 print_csv_header_helper(header);
             }
+        }
+    }
+
+    if (show_die_output)
+    {
+        // build sorted list of (socket, die) pairs for first header line
+        std::map<std::pair<int32, int32>, bool> die_map;
+        for (uint32 i = 0; i < m->getNumCores(); ++i)
+        {
+            if (m->isCoreOnline(i))
+                die_map[std::make_pair(m->getSocketId(i), m->getDieId(i))] = true;
+        }
+        for (const auto & entry : die_map)
+        {
+            header = "SKT" + std::to_string(entry.first.first) + "." + std::to_string(entry.first.second);
+            print_basic_metrics_csv_semicolons(m, header);
+            if (m->L3CacheOccupancyMetricAvailable())
+                print_csv_header_helper(header);
+            if (m->CoreLocalMemoryBWMetricAvailable())
+                print_csv_header_helper(header);
+            if (m->CoreRemoteMemoryBWMetricAvailable())
+                print_csv_header_helper(header);
+            print_csv_header_helper(header); // TEMP
+            print_csv_header_helper(header, 7); // INST,ACYC,TIME(ticks),PhysIPC,PhysIPC%,INSTnom,INSTnom%
         }
     }
 
@@ -1059,6 +1109,29 @@ void print_csv_header(PCM * m,
         }
     }
 
+    if (show_die_output)
+    {
+        // second header line for die-level columns
+        std::map<std::pair<int32, int32>, bool> die_map;
+        for (uint32 i = 0; i < m->getNumCores(); ++i)
+        {
+            if (m->isCoreOnline(i))
+                die_map[std::make_pair(m->getSocketId(i), m->getDieId(i))] = true;
+        }
+        for (size_t d = 0; d < die_map.size(); ++d)
+        {
+            print_basic_metrics_csv_header(m);
+            if (m->L3CacheOccupancyMetricAvailable())
+                cout << "L3OCC,";
+            if (m->CoreLocalMemoryBWMetricAvailable())
+                cout << "LMB,";
+            if (m->CoreRemoteMemoryBWMetricAvailable())
+                cout << "RMB,";
+            cout << "TEMP,";
+            cout << "INST,ACYC,TIME(ticks),PhysIPC,PhysIPC%,INSTnom,INSTnom%,";
+        }
+    }
+
     if (show_core_output)
     {
         for (uint32 i = 0; i < m->getNumCores(); ++i)
@@ -1151,7 +1224,8 @@ void print_csv(PCM * m,
     const bool show_core_output,
     const bool show_partial_core_output,
     const bool show_socket_output,
-    const bool show_system_output
+    const bool show_system_output,
+    const bool show_die_output = false
     )
 {
     cout << "\n";
@@ -1324,6 +1398,35 @@ void print_csv(PCM * m,
         }
     }
 
+    if (show_die_output)
+    {
+        // aggregate core metrics per (socket, die) pair
+        std::map<std::pair<int32, int32>, CoreCounterState> die_cstates1, die_cstates2;
+        for (uint32 i = 0; i < m->getNumCores(); ++i)
+        {
+            if (m->isCoreOnline(i) == false)
+                continue;
+            auto key = std::make_pair(m->getSocketId(i), m->getDieId(i));
+            die_cstates1[key] += cstates1[i];
+            die_cstates2[key] += cstates2[i];
+        }
+        for (const auto & entry : die_cstates1)
+        {
+            const auto & key = entry.first;
+            print_basic_metrics_csv(m, die_cstates1[key], die_cstates2[key], false);
+            print_other_metrics_csv(m, die_cstates1[key], die_cstates2[key]);
+            cout << ',' << temp_format(die_cstates2[key].getThermalHeadroom()) << ',';
+
+            cout << float_format(getInstructionsRetired(die_cstates1[key], die_cstates2[key])) << ","
+                << float_format(getCycles(die_cstates1[key], die_cstates2[key])) << ","
+                << float_format(getInvariantTSC(cstates1[0], cstates2[0])) << ","
+                << getCoreIPC(die_cstates1[key], die_cstates2[key]) << ","
+                << 100. * (getCoreIPC(die_cstates1[key], die_cstates2[key]) / double(m->getMaxIPC())) << ","
+                << getTotalExecUsage(die_cstates1[key], die_cstates2[key]) << ","
+                << 100. * (getTotalExecUsage(die_cstates1[key], die_cstates2[key]) / double(m->getMaxIPC())) << ",";
+        }
+    }
+
     if (show_core_output)
     {
         for (uint32 i = 0; i < m->getNumCores(); ++i)
@@ -1388,6 +1491,7 @@ int mainThrows(int argc, char * argv[])
     bool show_partial_core_output = false;
     bool show_socket_output = true;
     bool show_system_output = true;
+    bool show_die_output = false;
     bool csv_output = false;
     bool reset_pmu = false;
     bool disable_JKT_workaround = false; // as per http://software.intel.com/en-us/articles/performance-impact-when-sampling-certain-llc-events-on-snb-ep-with-vtune
@@ -1472,6 +1576,11 @@ int mainThrows(int argc, char * argv[])
             show_system_output = false;
             continue;
         }
+        else if (check_argument_equals(*argv, {"--die"}))
+        {
+            show_die_output = true;
+            continue;
+        }
         else if (check_argument_equals(*argv, {"--color"}))
         {
             setColorEnabled();
@@ -1540,7 +1649,7 @@ int mainThrows(int argc, char * argv[])
         }
         else if (check_argument_equals(*argv, {"--installDriver"}))
         {
-            Driver tmpDrvObject = Driver(Driver::msrLocalPath());
+            Driver tmpDrvObject = Driver(Driver::msrSystemPath());
             if (!tmpDrvObject.start())
             {
                 tcerr << "Can not access CPU counters\n";
@@ -1613,7 +1722,7 @@ int mainThrows(int argc, char * argv[])
     // cerr << "DEBUG: Delay: " << delay << " seconds. Blocked: " << m->isBlocked() << "\n";
 
     if (csv_output) {
-        print_csv_header(m, ycores, show_core_output, show_partial_core_output, show_socket_output, show_system_output);
+        print_csv_header(m, ycores, show_core_output, show_partial_core_output, show_socket_output, show_system_output, show_die_output);
     }
 
     m->getAllCounterStates(sstate1, sktstate1, cstates1);
@@ -1632,11 +1741,11 @@ int mainThrows(int argc, char * argv[])
 
         if (csv_output)
             print_csv(m, cstates1, cstates2, sktstate1, sktstate2, ycores, sstate1, sstate2,
-                show_core_output, show_partial_core_output, show_socket_output, show_system_output);
+                show_core_output, show_partial_core_output, show_socket_output, show_system_output, show_die_output);
         else
             print_output(m, cstates1, cstates2, sktstate1, sktstate2, ycores, sstate1, sstate2,
                 cpu_family_model, show_core_output, show_partial_core_output, show_socket_output, show_system_output,
-                metricVersion);
+                metricVersion, show_die_output);
 
         std::swap(sstate1, sstate2);
         std::swap(sktstate1, sktstate2);

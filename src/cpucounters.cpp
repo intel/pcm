@@ -3279,7 +3279,7 @@ PCM::PCM() :
 #endif
 #ifdef _MSC_VER
     // WARNING: This driver code (msr.sys) is only for testing purposes, not for production use
-    Driver drv(Driver::msrLocalPath());
+    Driver drv(Driver::msrSystemPath());
     // drv.stop();     // restart driver (usually not needed)
     if (!drv.start())
     {

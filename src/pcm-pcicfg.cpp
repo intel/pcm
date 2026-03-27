@@ -116,7 +116,7 @@ int mainThrows(int argc, char * argv[])
     SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
 
     // WARNING: This driver code (msr.sys) is only for testing purposes, not for production use
-    Driver drv = Driver(Driver::msrLocalPath());
+    Driver drv = Driver(Driver::msrSystemPath());
     // drv.stop();     // restart driver (usually not needed)
     if (!drv.start())
     {
@@ -137,7 +137,7 @@ int mainThrows(int argc, char * argv[])
         }
 
         // List all PCI devices
-        forAllDevices([&dec, &verbosity, &pciDB](const uint32 group, const uint32 bus, const uint32 device, const uint32 function, const uint32 device_id)
+        forAllDevices([&dec, &verbosity, &pciDB](const uint32 group, const uint32 bus, const uint32 device, const uint32 function, const uint32 /* device_id */)
         {
             if (PciHandleType::exists(group, bus, device, function) == false)
             {

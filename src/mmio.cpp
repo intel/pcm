@@ -38,7 +38,12 @@ protected:
         SYSTEM_INFO sys_info;
         SecureZeroMemory(&sys_info, sizeof(sys_info));
 
-        GetCurrentDirectory(MAX_PATH - 10, driver_filename);
+        // Use System32 directory to avoid untrusted search path vulnerability
+        if (!GetSystemDirectory(driver_filename, MAX_PATH - 10))
+        {
+            std::wcerr << "Failed to get System32 directory path.\n";
+            return -1;
+        }
 
         GetNativeSystemInfo(&sys_info);
         switch (sys_info.wProcessorArchitecture)
@@ -47,7 +52,7 @@ protected:
             _tcscat_s(driver_filename, MAX_PATH, TEXT("\\winpmem_x64.sys"));
             if (GetFileAttributes(driver_filename) == INVALID_FILE_ATTRIBUTES)
             {
-                std::cerr << "ERROR: winpmem_x64.sys not found in current directory. Download it from https://github.com/Velocidex/WinPmem/blob/f044f340dd05658d026b0f293cdfa92876159872/kernel/binaries/winpmem_x64.sys .\n";
+                std::cerr << "ERROR: winpmem_x64.sys not found in System32 directory. Download it from https://github.com/Velocidex/WinPmem/blob/f044f340dd05658d026b0f293cdfa92876159872/kernel/binaries/winpmem_x64.sys .\n";
                 std::cerr << "ERROR: Memory bandwidth statistics will not be available.\n";
             }
             break;
@@ -55,7 +60,7 @@ protected:
             _tcscat_s(driver_filename, MAX_PATH, TEXT("\\winpmem_x86.sys"));
             if (GetFileAttributes(driver_filename) == INVALID_FILE_ATTRIBUTES)
             {
-                std::cerr << "ERROR: winpmem_x86.sys not found in current directory. Download it from https://github.com/Velocidex/WinPmem/blob/f044f340dd05658d026b0f293cdfa92876159872/kernel/binaries/winpmem_x86.sys .\n";
+                std::cerr << "ERROR: winpmem_x86.sys not found in System32 directory. Download it from https://github.com/Velocidex/WinPmem/blob/f044f340dd05658d026b0f293cdfa92876159872/kernel/binaries/winpmem_x86.sys .\n";
                 std::cerr << "ERROR: Memory bandwidth statistics will not be available.\n";
             }
             break;
