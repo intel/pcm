@@ -81,8 +81,13 @@ git submodule update --init --recursive
 
 Install cmake (and libasan on Linux) then:
 
+Choose your build method:
+* Quick Update: Run `mkdir -p build` to skip a full rebuild and preserve existing build artifacts.
+* OR
+* Clean Start: Run `rm -rf build && mkdir build` to do a full rebuild.
+
+Compile:
 ```
-mkdir build
 cd build
 cmake ..
 cmake --build .

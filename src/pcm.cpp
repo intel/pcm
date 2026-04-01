@@ -184,7 +184,7 @@ void print_output(PCM * m,
         case 2:
             if (m->isCoreCStateResidencySupported(0))
             {
-                cout << " UTIL  : utlization (same as core C0 state active state residency, the value is in 0..1) \n";
+                cout << " UTIL  : utilization (same as core C0 state active state residency, the value is in 0..1) \n";
             }
             cout << " IPC   : instructions per CPU cycle\n";
             if (m->isActiveRelativeFrequencyAvailable())
