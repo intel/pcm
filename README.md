@@ -79,13 +79,11 @@ or clone the repository first, and then update submodules with:
 git submodule update --init --recursive
 ```
 
-Install cmake (and libasan on Linux) then:
+Install cmake (and libasan on Linux) then compile:
 
 Choose **one** of the following build methods:
-* Quick Update: Run `mkdir -p build` to reuse the existing build directory and preserve previous build artifacts for an incremental build.
-* Clean Start: Run `rm -rf build && mkdir build` to do a full rebuild.
-
-then compile:
+* Incremental Build (Fastest): if you have a previous build to reuse the existing `build` directory and preserve previous build artifacts, go straight to the `cd build` step.
+* Clean Build (From Scratch): Run `rm -rf build && mkdir build` for your first build, or for a full rebuild to ensure a "clean state" by deleting all previous build data.
 ```
 cd build
 cmake ..
