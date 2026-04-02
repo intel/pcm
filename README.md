@@ -83,7 +83,7 @@ Install cmake (and libasan on Linux) then compile:
 
 Choose **one** of the following build methods:
 * Incremental Build (Fastest): if you have a previous build to reuse the existing `build` directory and preserve previous build artifacts, go straight to the `cd build` step.
-* Clean Build (From Scratch): Run `rm -rf build && mkdir build` for your first build, or for a full rebuild to ensure a "clean state" by deleting all previous build data.
+* Clean Build (From Scratch): Run `cmake -E rm -rf build && cmake -E make_directory build` for your first build, or for a full rebuild to ensure a "clean state" by deleting all previous build data.
 ```
 cd build
 cmake ..
