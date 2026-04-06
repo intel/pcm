@@ -52,6 +52,7 @@ typedef int socket_t;
 #include <cstring>
 #include <fstream>
 #include <ctime>
+#include <limits>
 #include <vector>
 #include <unordered_map>
 
@@ -4131,9 +4132,11 @@ int mainThrows(int argc, char * argv[]) {
             else if ( check_argument_equals( argv[i], {"-p"} ) )
             {
                 if ( (++i) < argc ) {
-                    std::stringstream ss( argv[i] );
                     try {
-                        ss >> port;
+                        unsigned long val = std::stoul( argv[i] );
+                        if ( val > std::numeric_limits<unsigned short>::max() )
+                            throw std::out_of_range( "port out of range" );
+                        port = static_cast<unsigned short>( val );
                     } catch( std::exception& ) {
                         std::cerr << "main: port number is not an unsigned short!\n";
                         ::exit( 2 );
@@ -4174,9 +4177,11 @@ int mainThrows(int argc, char * argv[]) {
             else if ( check_argument_equals( argv[i], {"-D", "--debug"} ) )
             {
                 if ( (++i) < argc ) {
-                    std::stringstream ss( argv[i] );
                     try {
-                        ss >> debug_level;
+                        unsigned long val = std::stoul( argv[i] );
+                        if ( val > std::numeric_limits<unsigned short>::max() )
+                            throw std::out_of_range( "debug level out of range" );
+                        debug_level = static_cast<unsigned short>( val );
                     } catch( std::exception& ) {
                         std::cerr << "main: debug level is not an unsigned short!\n";
                         ::exit( 2 );
