@@ -129,10 +129,17 @@ class datetime {
     public:
         datetime() {
             std::time_t t = std::time( nullptr );
+#ifdef _MSC_VER
+            std::tm tm_buf;
+            if (gmtime_s(&tm_buf, &t) != 0)
+                throw std::runtime_error("gmtime_s failed");
+            now = tm_buf;
+#else
             const auto gt = std::gmtime( &t );
             if (gt == nullptr)
                 throw std::runtime_error("std::gmtime returned nullptr");
             now = *gt;
+#endif
         }
         datetime( std::tm t ) : now( t ) {}
         ~datetime() = default;
@@ -184,9 +191,16 @@ class date {
     public:
         void printDate( std::ostream& os ) const {
             char buf[64];
+#ifdef _MSC_VER
+            std::tm tm_buf;
+            if (localtime_s(&tm_buf, &now) != 0)
+                return;
+            std::strftime( buf, 64, "%F", &tm_buf);
+#else
             const auto t = std::localtime(&now);
             assert(t);
             std::strftime( buf, 64, "%F", t);
+#endif
             os << buf;
         }
 
@@ -2128,7 +2142,16 @@ public:
                                 DBG( 3, "number of characters processed: ", pos );
                             } catch ( std::out_of_range& e ) {
                                 DBG( 3, "out_of_range exception caught in stoull: ", e.what() );
+#ifdef _MSC_VER
+                                char errbuf[256];
+                                if (strerror_s(errbuf, sizeof(errbuf), errno) == 0) {
+                                    DBG( 3, "errno: ", errno, ", strerror(errno): ", errbuf );
+                                } else {
+                                    DBG( 3, "errno: ", errno, ", strerror(errno): (error converting)" );
+                                }
+#else
                                 DBG( 3, "errno: ", errno, ", strerror(errno): ", strerror(errno) );
+#endif
                             }
                         }
                         if ( port >= 65536 )
