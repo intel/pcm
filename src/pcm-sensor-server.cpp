@@ -4140,8 +4140,14 @@ int mainThrows(int argc, char * argv[]) {
                         if ( val > (std::numeric_limits<unsigned short>::max)() )
                             throw std::out_of_range( "port out of range" );
                         port = static_cast<unsigned short>( val );
-                    } catch( std::exception& ) {
-                        std::cerr << "main: port number is not an unsigned short!\n";
+                    } catch( const std::invalid_argument& e ) {
+                        std::cerr << "main: invalid port argument '" << argv[i] << "': " << e.what() << "\n";
+                        ::exit( 2 );
+                    } catch( const std::out_of_range& e ) {
+                        std::cerr << "main: port argument out of range '" << argv[i] << "': " << e.what() << "\n";
+                        ::exit( 2 );
+                    } catch( const std::exception& e ) {
+                        std::cerr << "main: failed to parse port argument '" << argv[i] << "': " << e.what() << "\n";
                         ::exit( 2 );
                     }
                 } else {
@@ -4188,8 +4194,11 @@ int mainThrows(int argc, char * argv[]) {
                         if ( val > (std::numeric_limits<unsigned short>::max)() )
                             throw std::out_of_range( "debug level out of range" );
                         debug_level = static_cast<unsigned short>( val );
-                    } catch( std::exception& ) {
-                        std::cerr << "main: debug level is not an unsigned short!\n";
+                    } catch ( const std::invalid_argument& e ) {
+                        std::cerr << "main: invalid debug level '" << argv[i] << "': " << e.what() << "\n";
+                        ::exit( 2 );
+                    } catch ( const std::out_of_range& e ) {
+                        std::cerr << "main: debug level '" << argv[i] << "' is out of range: " << e.what() << "\n";
                         ::exit( 2 );
                     }
                 } else {
