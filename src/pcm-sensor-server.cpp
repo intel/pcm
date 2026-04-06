@@ -29,9 +29,9 @@ constexpr unsigned int DEFAULT_HTTPS_PORT = DEFAULT_HTTP_PORT;
 typedef SOCKET socket_t;
 #define SHUT_RDWR SD_BOTH
 #define MSG_NOSIGNAL 0
-// errno values
-#define EAGAIN WSAEWOULDBLOCK
-#define EWOULDBLOCK WSAEWOULDBLOCK
+// PCM errno values mapped to Windows socket errors
+#define PCM_EAGAIN WSAEWOULDBLOCK
+#define PCM_EWOULDBLOCK WSAEWOULDBLOCK
 inline int close(SOCKET s) { return closesocket(s); }
 #else
 #include <unistd.h>
@@ -43,6 +43,9 @@ inline int close(SOCKET s) { return closesocket(s); }
 #include <sched.h>
 typedef int socket_t;
 #define INVALID_SOCKET (-1)
+// PCM errno values mapped to POSIX errors
+#define PCM_EAGAIN EAGAIN
+#define PCM_EWOULDBLOCK EWOULDBLOCK
 #define SOCKET_ERROR (-1)
 #endif
 
@@ -1291,7 +1294,7 @@ protected:
                         switch ( sslError ) {
                             case SSL_ERROR_WANT_READ:
                                 DBG( 3, "SSL_ERROR_WANT_READ: Errno = ", errno, ", strerror(errno): ", strerror(errno) );
-                                if ( errno == EAGAIN || errno == EWOULDBLOCK ) {
+                                if ( errno == PCM_EAGAIN || errno == PCM_EWOULDBLOCK ) {
                                     DBG( 3, dbg, "Most likely the set timeout, so aborting..." );
                                     close();
                                     Base::setg( nullptr, nullptr, nullptr );
@@ -1305,7 +1308,7 @@ protected:
                                 break;
                             case SSL_ERROR_SYSCALL:
                                 DBG( 3, "SSL_ERROR_SYSCALL: Errno = ", errno );
-                                if ( errno == EAGAIN || errno == EWOULDBLOCK ) {
+                                if ( errno == PCM_EAGAIN || errno == PCM_EWOULDBLOCK ) {
                                     DBG( 3, dbg, "Most likely the set timeout, so aborting..." );
                                     close();
                                     Base::setg( nullptr, nullptr, nullptr );
