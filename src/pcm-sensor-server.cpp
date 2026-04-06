@@ -3537,7 +3537,7 @@ void HTTPServer::run() {
         HTTPConnection* connection = nullptr;
         try {
             connection = new HTTPConnection( this, clientSocketFD, clientAddress, callbackList_ );
-        } catch ( std::exception& e ) {
+        } catch ( std::exception& ) {
             DBG( 3, "Exception caught while creating a HTTPConnection: " );
             deleteAndNullify( connection );
             DBG( 3, "close clientsocketFD" );
@@ -4130,7 +4130,7 @@ int mainThrows(int argc, char * argv[]) {
                     std::stringstream ss( argv[i] );
                     try {
                         ss >> port;
-                    } catch( std::exception& e ) {
+                    } catch( std::exception& ) {
                         std::cerr << "main: port number is not an unsigned short!\n";
                         ::exit( 2 );
                     }
@@ -4173,7 +4173,7 @@ int mainThrows(int argc, char * argv[]) {
                     std::stringstream ss( argv[i] );
                     try {
                         ss >> debug_level;
-                    } catch( std::exception& e ) {
+                    } catch( std::exception& ) {
                         std::cerr << "main: debug level is not an unsigned short!\n";
                         ::exit( 2 );
                     }
