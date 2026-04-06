@@ -3541,8 +3541,8 @@ void HTTPServer::run() {
         HTTPConnection* connection = nullptr;
         try {
             connection = new HTTPConnection( this, clientSocketFD, clientAddress, callbackList_ );
-        } catch ( std::exception& ) {
-            DBG( 3, "Exception caught while creating a HTTPConnection: " );
+        } catch ( const std::exception& e ) {
+            DBG( 3, "Exception caught while creating a HTTPConnection: ", e.what() );
             deleteAndNullify( connection );
             DBG( 3, "close clientsocketFD" );
             ::close( clientSocketFD );
