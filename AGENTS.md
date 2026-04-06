@@ -14,7 +14,7 @@ This document tracks code improvements made with the assistance of AI agents.
 
 MSVC compilation error caused by macro conflict with `std::numeric_limits<T>::max()`
 
-The error occurred at two locations in the argument parsing code (lines 4137 and 4182):
+The error occurred at two locations in the argument parsing code (the `-p` port and `-D` debug level options):
 
 ```cpp
 // Original code (problematic)
@@ -46,7 +46,7 @@ By adding parentheses around `max`, the preprocessor no longer recognizes it as 
 
 ### Technical Details
 
-- **Affected lines:** 4137, 4182 (port and debug level validation)
+- **Affected code:** Port validation (`-p` option) and debug level validation (`-D` option)
 - **Context:** Command-line argument parsing for `-p` (port) and `-D` (debug level) options
 - **Alternative solutions:**
   1. `#undef max` before use (not recommended, affects entire translation unit)
