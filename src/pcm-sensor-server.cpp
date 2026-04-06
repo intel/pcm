@@ -194,12 +194,15 @@ class date {
 #ifdef _MSC_VER
             std::tm tm_buf;
             if (localtime_s(&tm_buf, &now) != 0)
-                return;
-            std::strftime( buf, 64, "%F", &tm_buf);
+                throw std::runtime_error("localtime_s failed");
+            if (std::strftime(buf, 64, "%F", &tm_buf) == 0)
+                throw std::runtime_error("Error writing date to buffer, too small?");
 #else
             const auto t = std::localtime(&now);
-            assert(t);
-            std::strftime( buf, 64, "%F", t);
+            if (t == nullptr)
+                throw std::runtime_error("std::localtime returned nullptr");
+            if (std::strftime(buf, 64, "%F", t) == 0)
+                throw std::runtime_error("Error writing date to buffer, too small?");
 #endif
             os << buf;
         }
