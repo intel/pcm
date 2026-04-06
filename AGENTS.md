@@ -63,5 +63,5 @@ The parentheses-wrapping approach is preferred because:
 
 When writing portable C++ code that may be compiled with Windows headers:
 - Always wrap standard library function names like `min`, `max` in parentheses when calling them
-- Consider using `(std::min)()` and `(std::max)()` as a standard practice
+- Consider using `(std::min)(a, b)` and `(std::max)(a, b)` for function calls, and `(std::numeric_limits<T>::max)()` for `numeric_limits`
 - Be aware that macros from platform headers can interfere with identically-named functions
