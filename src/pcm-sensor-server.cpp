@@ -4135,7 +4135,9 @@ int mainThrows(int argc, char * argv[]) {
                     try {
                         std::size_t pos = 0;
                         unsigned long val = std::stoul( argv[i], &pos );
-                        if ( pos != std::strlen( argv[i] ) || val > (std::numeric_limits<unsigned short>::max)() )
+                        if ( pos != std::strlen( argv[i] ) )
+                            throw std::invalid_argument( "invalid port" );
+                        if ( val > (std::numeric_limits<unsigned short>::max)() )
                             throw std::out_of_range( "port out of range" );
                         port = static_cast<unsigned short>( val );
                     } catch( std::exception& ) {
@@ -4181,7 +4183,9 @@ int mainThrows(int argc, char * argv[]) {
                     try {
                         std::size_t pos = 0;
                         unsigned long val = std::stoul( argv[i], &pos );
-                        if ( pos != std::strlen( argv[i] ) || val > (std::numeric_limits<unsigned short>::max)() )
+                        if ( pos != std::strlen( argv[i] ) )
+                            throw std::invalid_argument( "invalid debug level" );
+                        if ( val > (std::numeric_limits<unsigned short>::max)() )
                             throw std::out_of_range( "debug level out of range" );
                         debug_level = static_cast<unsigned short>( val );
                     } catch( std::exception& ) {
