@@ -3204,9 +3204,9 @@ public:
 
             // Do processing of the request here
             auto callback = callbackList_[request.method()];
-            if (callback)
+            if ( callback ) {
                 (*callback)( hs_, request, response );
-            else {
+            } else {
                 std::string body( "501 Not Implemented." );
                 body += " Method \"" + HTTPMethodProperties::getMethodAsString(request.method()) + "\" is not implemented (yet).";
                 response.createResponse( TextPlain, body, RC_501_NotImplemented );
