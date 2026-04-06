@@ -3202,8 +3202,9 @@ public:
             }
 
             // Do processing of the request here
-            if (*callbackList_[request.method()])
-                (*callbackList_[request.method()])( hs_, request, response );
+            auto callback = callbackList_[request.method()];
+            if (callback)
+                (*callback)( hs_, request, response );
             else {
                 std::string body( "501 Not Implemented." );
                 body += " Method \"" + HTTPMethodProperties::getMethodAsString(request.method()) + "\" is not implemented (yet).";
