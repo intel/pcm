@@ -2,6 +2,8 @@
 
 This document tracks code improvements made with the assistance of AI agents.
 
+> **Note:** For compilation instructions, see [README.md](README.md).
+
 ## MSVC Compilation Error Fix - numeric_limits::max() Macro Conflict
 
 **Commit:** 2e387a11  
