@@ -141,7 +141,9 @@ int mainThrows(int argc, char * argv[])
         printf("SDL330 ERROR: Symlink/reparse point detected at '%s' (skipping write)\n", outfile.c_str());
         outflag = false;
       } else {
-        ofile = fopen(outfile.c_str(),"w");
+        if (fopen_s(&ofile, outfile.c_str(), "w") != 0) {
+          ofile = NULL;
+        }
       }
 #else
       // SDL330: Use O_NOFOLLOW to reject symlinks

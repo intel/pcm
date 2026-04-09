@@ -29,9 +29,9 @@ constexpr unsigned int DEFAULT_HTTPS_PORT = DEFAULT_HTTP_PORT;
 typedef SOCKET socket_t;
 #define SHUT_RDWR SD_BOTH
 #define MSG_NOSIGNAL 0
-// errno values
-#define EAGAIN WSAEWOULDBLOCK
-#define EWOULDBLOCK WSAEWOULDBLOCK
+// PCM errno values mapped to Windows socket errors
+#define PCM_EAGAIN WSAEWOULDBLOCK
+#define PCM_EWOULDBLOCK WSAEWOULDBLOCK
 inline int close(SOCKET s) { return closesocket(s); }
 #else
 #include <unistd.h>
@@ -43,12 +43,16 @@ inline int close(SOCKET s) { return closesocket(s); }
 #include <sched.h>
 typedef int socket_t;
 #define INVALID_SOCKET (-1)
+// PCM errno values mapped to POSIX errors
+#define PCM_EAGAIN EAGAIN
+#define PCM_EWOULDBLOCK EWOULDBLOCK
 #define SOCKET_ERROR (-1)
 #endif
 
 #include <cstring>
 #include <fstream>
 #include <ctime>
+#include <limits>
 #include <vector>
 #include <unordered_map>
 
@@ -129,10 +133,17 @@ class datetime {
     public:
         datetime() {
             std::time_t t = std::time( nullptr );
+#ifdef _MSC_VER
+            std::tm tm_buf;
+            if (gmtime_s(&tm_buf, &t) != 0)
+                throw std::runtime_error("gmtime_s failed");
+            now = tm_buf;
+#else
             const auto gt = std::gmtime( &t );
             if (gt == nullptr)
                 throw std::runtime_error("std::gmtime returned nullptr");
             now = *gt;
+#endif
         }
         datetime( std::tm t ) : now( t ) {}
         ~datetime() = default;
@@ -184,9 +195,19 @@ class date {
     public:
         void printDate( std::ostream& os ) const {
             char buf[64];
+#ifdef _MSC_VER
+            std::tm tm_buf;
+            if (localtime_s(&tm_buf, &now) != 0)
+                throw std::runtime_error("localtime_s failed");
+            if (std::strftime(buf, 64, "%F", &tm_buf) == 0)
+                throw std::runtime_error("Error writing date to buffer, too small?");
+#else
             const auto t = std::localtime(&now);
-            assert(t);
-            std::strftime( buf, 64, "%F", t);
+            if (t == nullptr)
+                throw std::runtime_error("std::localtime returned nullptr");
+            if (std::strftime(buf, 64, "%F", t) == 0)
+                throw std::runtime_error("Error writing date to buffer, too small?");
+#endif
             os << buf;
         }
 
@@ -1274,7 +1295,7 @@ protected:
                         switch ( sslError ) {
                             case SSL_ERROR_WANT_READ:
                                 DBG( 3, "SSL_ERROR_WANT_READ: Errno = ", errno, ", strerror(errno): ", strerror(errno) );
-                                if ( errno == EAGAIN || errno == EWOULDBLOCK ) {
+                                if ( errno == PCM_EAGAIN || errno == PCM_EWOULDBLOCK ) {
                                     DBG( 3, dbg, "Most likely the set timeout, so aborting..." );
                                     close();
                                     Base::setg( nullptr, nullptr, nullptr );
@@ -1288,7 +1309,7 @@ protected:
                                 break;
                             case SSL_ERROR_SYSCALL:
                                 DBG( 3, "SSL_ERROR_SYSCALL: Errno = ", errno );
-                                if ( errno == EAGAIN || errno == EWOULDBLOCK ) {
+                                if ( errno == PCM_EAGAIN || errno == PCM_EWOULDBLOCK ) {
                                     DBG( 3, dbg, "Most likely the set timeout, so aborting..." );
                                     close();
                                     Base::setg( nullptr, nullptr, nullptr );
@@ -2128,7 +2149,16 @@ public:
                                 DBG( 3, "number of characters processed: ", pos );
                             } catch ( std::out_of_range& e ) {
                                 DBG( 3, "out_of_range exception caught in stoull: ", e.what() );
+#ifdef _MSC_VER
+                                char errbuf[256];
+                                if (strerror_s(errbuf, sizeof(errbuf), errno) == 0) {
+                                    DBG( 3, "errno: ", errno, ", strerror(errno): ", errbuf );
+                                } else {
+                                    DBG( 3, "errno: ", errno, ", strerror(errno): (error converting)" );
+                                }
+#else
                                 DBG( 3, "errno: ", errno, ", strerror(errno): ", strerror(errno) );
+#endif
                             }
                         }
                         if ( port >= 65536 )
@@ -3173,9 +3203,10 @@ public:
             }
 
             // Do processing of the request here
-            if (*callbackList_[request.method()])
-                (*callbackList_[request.method()])( hs_, request, response );
-            else {
+            auto callback = callbackList_[request.method()];
+            if ( callback ) {
+                (*callback)( hs_, request, response );
+            } else {
                 std::string body( "501 Not Implemented." );
                 body += " Method \"" + HTTPMethodProperties::getMethodAsString(request.method()) + "\" is not implemented (yet).";
                 response.createResponse( TextPlain, body, RC_501_NotImplemented );
@@ -3511,8 +3542,8 @@ void HTTPServer::run() {
         HTTPConnection* connection = nullptr;
         try {
             connection = new HTTPConnection( this, clientSocketFD, clientAddress, callbackList_ );
-        } catch ( std::exception& e ) {
-            DBG( 3, "Exception caught while creating a HTTPConnection: " );
+        } catch ( const std::exception& e ) {
+            DBG( 3, "Exception caught while creating a HTTPConnection: ", e.what() );
             deleteAndNullify( connection );
             DBG( 3, "close clientsocketFD" );
             ::close( clientSocketFD );
@@ -4101,11 +4132,22 @@ int mainThrows(int argc, char * argv[]) {
             else if ( check_argument_equals( argv[i], {"-p"} ) )
             {
                 if ( (++i) < argc ) {
-                    std::stringstream ss( argv[i] );
                     try {
-                        ss >> port;
-                    } catch( std::exception& e ) {
-                        std::cerr << "main: port number is not an unsigned short!\n";
+                        std::size_t pos = 0;
+                        unsigned long val = std::stoul( argv[i], &pos );
+                        if ( pos != std::strlen( argv[i] ) )
+                            throw std::invalid_argument( "invalid port" );
+                        if ( val > (std::numeric_limits<unsigned short>::max)() )
+                            throw std::out_of_range( "port out of range" );
+                        port = static_cast<unsigned short>( val );
+                    } catch( const std::invalid_argument& e ) {
+                        std::cerr << "main: invalid port argument '" << argv[i] << "': " << e.what() << "\n";
+                        ::exit( 2 );
+                    } catch( const std::out_of_range& e ) {
+                        std::cerr << "main: port argument out of range '" << argv[i] << "': " << e.what() << "\n";
+                        ::exit( 2 );
+                    } catch( const std::exception& e ) {
+                        std::cerr << "main: failed to parse port argument '" << argv[i] << "': " << e.what() << "\n";
                         ::exit( 2 );
                     }
                 } else {
@@ -4144,11 +4186,19 @@ int mainThrows(int argc, char * argv[]) {
             else if ( check_argument_equals( argv[i], {"-D", "--debug"} ) )
             {
                 if ( (++i) < argc ) {
-                    std::stringstream ss( argv[i] );
                     try {
-                        ss >> debug_level;
-                    } catch( std::exception& e ) {
-                        std::cerr << "main: debug level is not an unsigned short!\n";
+                        std::size_t pos = 0;
+                        unsigned long val = std::stoul( argv[i], &pos );
+                        if ( pos != std::strlen( argv[i] ) )
+                            throw std::invalid_argument( "invalid debug level" );
+                        if ( val > (std::numeric_limits<unsigned short>::max)() )
+                            throw std::out_of_range( "debug level out of range" );
+                        debug_level = static_cast<unsigned short>( val );
+                    } catch ( const std::invalid_argument& e ) {
+                        std::cerr << "main: invalid debug level '" << argv[i] << "': " << e.what() << "\n";
+                        ::exit( 2 );
+                    } catch ( const std::out_of_range& e ) {
+                        std::cerr << "main: debug level '" << argv[i] << "' is out of range: " << e.what() << "\n";
                         ::exit( 2 );
                     }
                 } else {
