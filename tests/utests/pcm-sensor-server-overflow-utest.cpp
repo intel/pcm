@@ -54,6 +54,8 @@ public:
 // server-side send() inside writeToSocket() never blocks, regardless of what
 // the kernel's default socket buffer sizes happen to be on the CI runner.
 class SocketDrainer {
+    SocketDrainer & operator = (const SocketDrainer &) = delete;
+    SocketDrainer(const SocketDrainer &) = delete;
 public:
     explicit SocketDrainer(int fd) : fd_(fd), stop_(false) {
         thread_ = std::thread([this]() {
