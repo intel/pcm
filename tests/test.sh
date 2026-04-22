@@ -251,7 +251,8 @@ fi
 
 echo "  Query /metrics endpoint with curl"
 METRICS_OUT=$(curl -s -f "http://127.0.0.1:${SENSOR_PORT}/metrics")
-if [ "$?" -ne "0" ] || [ -z "$METRICS_OUT" ]; then
+CURL_RC=$?
+if [ "$CURL_RC" -ne "0" ] || [ -z "$METRICS_OUT" ]; then
     echo "Error in pcm-sensor-server: /metrics request failed or returned empty body"
     kill $SENSOR_PID 2>/dev/null
     wait $SENSOR_PID 2>/dev/null
