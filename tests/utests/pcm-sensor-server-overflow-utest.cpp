@@ -70,9 +70,15 @@ public:
 
     ~SocketDrainer() {
         stop_.store(true);
-        ::shutdown(fd_, SHUT_RDWR);
+        if (fd_ >= 0) {
+            ::shutdown(fd_, SHUT_RDWR);
+        }
         if (thread_.joinable()) {
             thread_.join();
+        }
+        if (fd_ >= 0) {
+            ::close(fd_);
+            fd_ = -1;
         }
     }
 
@@ -124,7 +130,7 @@ TEST(PcmSensorServerOverflowTest, OverflowDoesNotWritePastOutputBuffer)
 
     // After overflow() returns, the put area should have been flushed to the
     // socket and the sentinel in inputBuffer_[0] must still be intact.
-    EXPECT_EQ(static_cast<unsigned char>(buf->inputBuffer_[0]), kSentinel)
+    EXPECT_EQ(kSentinel, static_cast<unsigned char>(buf->inputBuffer_[0]))
         << "basic_socketbuf::overflow() corrupted inputBuffer_[0]: "
         << "wrote ch=0x" << std::hex << static_cast<int>(kOverflowChar)
         << " past the end of outputBuffer_ (SIZE=" << std::dec
@@ -135,8 +141,7 @@ TEST(PcmSensorServerOverflowTest, OverflowDoesNotWritePastOutputBuffer)
 
     // Release the socket before the buf destructor runs sync(); this keeps
     // the test output stable regardless of whether the drainer has already
-    // exited.
+    // exited. Resetting buf closes sv[0].
     buf.reset();
-    ::close(sv[0]);
     // sv[1] is closed by the drainer's shutdown.
 }
