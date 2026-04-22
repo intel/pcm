@@ -220,7 +220,71 @@ if [ "$?" -ne "0" ]; then
 fi
 
 # TODO add more tests
-# e.g for ./pcm-sensor-server, ./pcm-sensor, ...
+# e.g for ./pcm-sensor, ...
+
+echo Testing pcm-sensor-server
+# Pick an unused high port to avoid collisions with the default one.
+SENSOR_PORT=19738
+./pcm-sensor-server -p $SENSOR_PORT -silent &
+SENSOR_PID=$!
+
+# Wait for the server to start accepting connections (up to ~20s).
+SENSOR_READY=0
+for i in $(seq 1 40); do
+    if ! kill -0 $SENSOR_PID 2>/dev/null; then
+        echo "pcm-sensor-server exited unexpectedly during startup"
+        exit 1
+    fi
+    if curl -s -o /dev/null -f "http://127.0.0.1:${SENSOR_PORT}/metrics"; then
+        SENSOR_READY=1
+        break
+    fi
+    sleep 0.5
+done
+
+if [ "$SENSOR_READY" -ne "1" ]; then
+    echo "Error: pcm-sensor-server did not become ready on port $SENSOR_PORT"
+    kill $SENSOR_PID 2>/dev/null
+    wait $SENSOR_PID 2>/dev/null
+    exit 1
+fi
+
+echo "  Query /metrics endpoint with curl"
+METRICS_OUT=$(curl -s -f "http://127.0.0.1:${SENSOR_PORT}/metrics")
+if [ "$?" -ne "0" ] || [ -z "$METRICS_OUT" ]; then
+    echo "Error in pcm-sensor-server: /metrics request failed or returned empty body"
+    kill $SENSOR_PID 2>/dev/null
+    wait $SENSOR_PID 2>/dev/null
+    exit 1
+fi
+# Prometheus exposition format lines start with '#' (HELP/TYPE) or a metric name.
+if ! echo "$METRICS_OUT" | grep -q '^#'; then
+    echo "Error in pcm-sensor-server: /metrics response does not look like Prometheus output"
+    kill $SENSOR_PID 2>/dev/null
+    wait $SENSOR_PID 2>/dev/null
+    exit 1
+fi
+
+echo "  Query /dashboard endpoint with curl"
+curl -s -f -o /dev/null "http://127.0.0.1:${SENSOR_PORT}/dashboard"
+if [ "$?" -ne "0" ]; then
+    echo "Error in pcm-sensor-server: /dashboard request failed"
+    kill $SENSOR_PID 2>/dev/null
+    wait $SENSOR_PID 2>/dev/null
+    exit 1
+fi
+
+echo "  Query unknown endpoint, expect HTTP 404"
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${SENSOR_PORT}/does-not-exist")
+if [ "$HTTP_CODE" != "404" ]; then
+    echo "Error in pcm-sensor-server: expected 404 for unknown endpoint, got $HTTP_CODE"
+    kill $SENSOR_PID 2>/dev/null
+    wait $SENSOR_PID 2>/dev/null
+    exit 1
+fi
+
+kill $SENSOR_PID 2>/dev/null
+wait $SENSOR_PID 2>/dev/null
 
 echo Testing urltest
 ./tests/urltest
