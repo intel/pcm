@@ -1237,7 +1237,7 @@ protected:
             *Base::pptr() = traits_type::to_char_type(ch);
             Base::pbump(1);
         }
-        return bytesWritten; // Anything but traits_type::eof() to signal ok.
+        return traits_type::not_eof( ch );
     }
 
     virtual int_type underflow() override {
