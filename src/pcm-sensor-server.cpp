@@ -1234,7 +1234,7 @@ protected:
         Base::setp( outputBuffer_, outputBuffer_ + SIZE );
         // Now safe to write new character at pptr() (start of empty buffer)
         if ( traits_type::eof() != ch ) {
-            *Base::pptr() = ch;
+            *Base::pptr() = traits_type::to_char_type(ch);
             Base::pbump(1);
         }
         return bytesWritten; // Anything but traits_type::eof() to signal ok.
