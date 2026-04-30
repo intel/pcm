@@ -1224,16 +1224,20 @@ protected:
     }
 
     virtual int_type overflow( int_type ch ) override {
-        // send data in buffer and reset it
-        if ( traits_type::eof() != ch ) {
-            *Base::pptr() = ch;
-            Base::pbump(1);
-        }
-        int_type bytesWritten = 0;
-        if ( traits_type::eof() == (bytesWritten = writeToSocket()) ) {
+        // Flush buffer first - when overflow() is called, pptr() == epptr() (buffer is full)
+        // Writing to pptr() before flushing would write past the end of outputBuffer_
+        int_type bytesWritten = writeToSocket();
+        if ( traits_type::eof() == bytesWritten ) {
             return traits_type::eof();
         }
-        return bytesWritten; // Anything but traits_type::eof() to signal ok.
+        // Reset put area pointers to start of buffer after successful flush
+        Base::setp( outputBuffer_, outputBuffer_ + SIZE );
+        // Now safe to write new character at pptr() (start of empty buffer)
+        if ( traits_type::eof() != ch ) {
+            *Base::pptr() = traits_type::to_char_type(ch);
+            Base::pbump(1);
+        }
+        return traits_type::not_eof( ch );
     }
 
     virtual int_type underflow() override {

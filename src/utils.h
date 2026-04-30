@@ -702,7 +702,7 @@ inline bool readOldValueHelper(const std::pair<int64,int64> & bits, T & value, c
         {
             return false;
         }
-        value = insertBits(old_value, value, bits.first, bits.second - bits.first + 1);
+        value = insertBits(old_value, value, bits.first, static_cast<uint64>(bits.second - bits.first + 1));
     }
     return true;
 }
@@ -715,7 +715,7 @@ inline void extractBitsPrintHelper(const std::pair<int64,int64> & bits, T & valu
     {
         std::cout << "bits "<< std::dec << bits.first << ":" << bits.second << " ";
         if (!dec) std::cout << std::hex << std::showbase;
-        value = extract_bits(value, bits.first, bits.second);
+        value = extract_bits(value, static_cast<uint32>(bits.first), static_cast<uint32>(bits.second));
     }
     std::cout << "value " << value;
 }
