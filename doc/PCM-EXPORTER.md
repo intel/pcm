@@ -63,6 +63,11 @@ The default output of pcm-sensor-server endpoint in a browser:
 
 ![image](https://user-images.githubusercontent.com/25432609/226344012-8783e154-998e-48a7-a2ca-f2c42af9c843.png)
 
+## Security Warning
+
+pcm-sensor-server collects and serves internal CPU metric information on the system. Do not expose its HTTP/HTTPS endpoints to untrusted or publicly accessible networks. Prefer binding to localhost or a dedicated management interface (see `-l|--listen` above), and use firewalling and/or an authenticated reverse proxy if remote access is required. High request rates can overload the host and lead to a denial of service.
+
+## Integration with Grafana
 
 The PCM exporter can be used together with Grafana to obtain these Intel processor metrics (see [how-to](../scripts/grafana/README.md)):
 
