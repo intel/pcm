@@ -1,0 +1,8 @@
+optionally select a subset of tests to run or skip by
+### filling out the 'tests' and 'skips' lists given below. If no tests are
+### specified for inclusion then it is assumed all tests are desired. The skips
+### set will remove specific tests from the include set. This can be controlled
+### using the -t/-s CLI options. Note that the same test ID should not appear
+### in both 'tests' and 'skips', this would be nonsensical and is detected by
+#### Available tests: yes
+# B101 : assert_used
