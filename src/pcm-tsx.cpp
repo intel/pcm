@@ -183,7 +183,7 @@ void print_usage(const string & progname)
     cout << " Examples:\n";
     cout << "  " << progname << " 1                  => print counters every second without core and socket output\n";
     cout << "  " << progname << " 0.5 -csv=test.log  => twice a second save counter values to test.log in CSV format\n";
-    cout << "  " << progname << " /csv 5 2>/dev/null => one sampe every 5 seconds, and discard all diagnostic output\n";
+    cout << "  " << progname << " /csv 5 2>/dev/null => one sample every 5 seconds, and discard all diagnostic output\n";
     cout << "\n";
 }
 
@@ -307,7 +307,7 @@ int mainThrows(int argc, char * argv[])
 
     PCM * m = PCM::getInstance();
     const size_t numCtrSupported = m->getMaxCustomCoreEvents();
-    switch (m->getCPUModel())
+    switch (m->getCPUFamilyModel())
     {
     case PCM::SKL:
     case PCM::SKX:
@@ -320,6 +320,9 @@ int mainThrows(int argc, char * argv[])
         eventDefinition = iclEventDefinition;
         break;
     case PCM::SPR:
+    case PCM::EMR:
+    case PCM::GNR:
+    case PCM::GNR_D:
         eventDefinition = sprEventDefinition;
         break;
     }

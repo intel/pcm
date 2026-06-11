@@ -45,9 +45,9 @@ void print_events()
     cout << "     RFO*      - Demand Data RFO\n";
     cout << "     CRd*      - Demand Code Read\n";
     cout << "     DRd       - Demand Data Read\n";
-    cout << "     PCIeNSWr  - PCIe Non-snoop write transfer (partial cache line)\n";
+    cout << "     PCIeNSRd  - PCIe Non-snoop read transfer\n";
     cout << "   PCIe write events (PCI devices writing to memory - application reads from disk/network/PCIe device):\n";
-    cout << "     PCIeWiLF  - PCIe Write transfer (non-allocating) (full cache line)\n";
+    cout << "     PCIeWiLF  - PCIe MMIO Write transfer (non-allocating) (full cache line)\n";
     cout << "     PCIeItoM  - PCIe Write transfer (allocating) (full cache line)\n";
     cout << "     PCIeNSWr  - PCIe Non-snoop write transfer (partial cache line)\n";
     cout << "     PCIeNSWrF - PCIe Non-snoop write transfer (full cache line)\n";
@@ -89,32 +89,11 @@ void print_usage(const string & progname)
     cout << " Examples:\n";
     cout << "  " << progname << " 1                  => print counters every second without core and socket output\n";
     cout << "  " << progname << " 0.5 -csv=test.log  => twice a second save counter values to test.log in CSV format\n";
-    cout << "  " << progname << " /csv 5 2>/dev/null => one sampe every 5 seconds, and discard all diagnostic output\n";
+    cout << "  " << progname << " /csv 5 2>/dev/null => one sample every 5 seconds, and discard all diagnostic output\n";
     cout << "\n";
 }
 
-IPlatform *IPlatform::getPlatform(PCM *m, bool csv, bool print_bandwidth, bool print_additional_info, uint32 delay)
-{
-    switch (m->getCPUModel()) {
-        case PCM::SPR:
-            return new EagleStreamPlatform(m, csv, print_bandwidth, print_additional_info, delay);
-        case PCM::ICX:
-        case PCM::SNOWRIDGE:
-            return new WhitleyPlatform(m, csv, print_bandwidth, print_additional_info, delay);
-        case PCM::SKX:
-            return new PurleyPlatform(m, csv, print_bandwidth, print_additional_info, delay);
-        case PCM::BDX_DE:
-        case PCM::BDX:
-        case PCM::KNL:
-        case PCM::HASWELLX:
-            return new GrantleyPlatform(m, csv, print_bandwidth, print_additional_info, delay);
-        case PCM::IVYTOWN:
-        case PCM::JAKETOWN:
-            return new BromolowPlatform(m, csv, print_bandwidth, print_additional_info, delay);
-        default:
-          return NULL;
-    }
-}
+// getPlatform() is defined inline in pcm-pcie.h.
 
 PCM_MAIN_NOTHROW;
 
@@ -143,7 +122,7 @@ int mainThrows(int argc, char * argv[])
     double delay = -1.0;
     bool csv = false;
     bool print_bandwidth = false;
-	bool print_additional_info = false;
+    bool print_additional_info = false;
     char * sysCmd = NULL;
     char ** sysArgv = NULL;
     MainLoop mainLoop;
@@ -230,7 +209,7 @@ int mainThrows(int argc, char * argv[])
 
     cerr << "Update every " << delay << " seconds\n";
 
-    // Delay in miliseconds
+    // Delay in milliseconds
     unique_ptr<IPlatform> platform(IPlatform::getPlatform(m, csv, print_bandwidth,
                                     print_additional_info, (uint)(delay * 1000)));
 

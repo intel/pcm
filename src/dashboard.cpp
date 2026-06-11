@@ -3,8 +3,16 @@
 
 #include <vector>
 #include <memory>
+#include <mutex>
+
+#ifdef _MSC_VER
+#include <winsock2.h>
+#pragma comment(lib, "ws2_32.lib")
+#else
 #include <unistd.h>
-#include "cpucounters.h"
+#endif
+
+#include "pcm-accel-common.h"
 #include "dashboard.h"
 
 namespace pcm {
@@ -261,13 +269,13 @@ public:
     }
 };
 
-class GraphPanel : public Panel
+class TimeSeriesPanel : public Panel
 {
     std::string yAxisLabel;
     bool stack;
-    GraphPanel() = delete;
+    TimeSeriesPanel() = delete;
 public:
-    GraphPanel(int x_, int y_, int w_, int h_, const std::string & title_, const std::string & yAxisLabel_, bool stack_)
+    TimeSeriesPanel(int x_, int y_, int w_, int h_, const std::string & title_, const std::string & yAxisLabel_, bool stack_)
         : Panel(x_, y_, w_, h_, title_)
         , yAxisLabel(yAxisLabel_)
         , stack(stack_)
@@ -305,7 +313,7 @@ public:
         "dataLinks": []
       },
       "percentage": false,
-      "pluginVersion": "6.7.2",
+      "pluginVersion": "10.4.2",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -324,7 +332,7 @@ public:
         "sort": 0,
         "value_type": "individual"
       },
-      "type": "graph",
+      "type": "timeseries",
       "xaxis": {
         "buckets": null,
         "mode": "time",
@@ -418,7 +426,7 @@ public:
         }
         result += R"PCMDELIMITER(
   ],
-  "refresh": "5s",
+  "refresh": "1s",
   "schemaVersion": 22,
   "style": "dark",
   "tags": [],
@@ -455,7 +463,22 @@ public:
     "from": "now-5m",
     "to": "now"
   },
-  "timepicker": {},
+  "timepicker": {
+    "refresh_intervals": [
+      "1s",
+      "2s",
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m",
+      "15m",
+      "30m",
+      "1h",
+      "2h",
+      "1d"
+    ]
+  },
   "timezone": "",
   "title": ")PCMDELIMITER";
         result += title;
@@ -515,6 +538,12 @@ std::string influxDBCore_Aggregate_Core_Counters(const std::string& S, const std
     return influxDB_Counters(S, m, "Core Aggregate_Core Counters");
 }
 
+std::string influxDBAccel_Counters(const std::string& S, const std::string& m)
+{
+    AcceleratorCounterState * accs = AcceleratorCounterState::getInstance();
+    return std::string("mean(\\\"Sockets_") + S + "_Accelerators_" +accs->getAccelCounterName()+" Counters Device_"  + m + "\\\")";
+}
+
 std::string influxDBCore_Aggregate_Core_Counters(const std::string& m)
 {
     return influxDB_Counters(m, "Core Aggregate_Core Counters");
@@ -542,6 +571,7 @@ std::mutex dashboardGenMutex;
 std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int nc)
 {
     auto pcm = PCM::getInstance();
+    auto accs = AcceleratorCounterState::getInstance();
     std::lock_guard<std::mutex> dashboardGenGuard(dashboardGenMutex);
     const size_t NumSockets = (ns < 0) ? pcm->getNumSockets() : ns;
     const size_t NumUPILinksPerSocket = (nu < 0) ? pcm->getQPILinksPerSocket() : nu;
@@ -578,8 +608,64 @@ std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int
             t = std::make_shared<PrometheusTarget>(title, prometheusExpr);
         return t;
     };
+    auto scaled = [&] (const char * m, const char * unit, const char * op, const bool total = true)
     {
-        auto panel = std::make_shared<GraphPanel>(0, y, width, height, "Memory Bandwidth", "MByte/sec", false);
+        auto panel = std::make_shared<TimeSeriesPanel>(0, y, width, height, std::string(m), unit, false);
+        auto panel1 = std::make_shared<BarGaugePanel>(width, y, max_width - width, height, std::string(m) + " (" + unit + ")");
+        y += height;
+        for (size_t s = 0; s < NumSockets; ++s)
+        {
+            const auto S = std::to_string(s);
+            auto t = createTarget("Socket" + S, influxDBCore_Aggregate_Core_Counters(S, m) + op, prometheusCounters(S, m) + op);
+            panel->push(t);
+            panel1->push(t);
+        }
+        if (total)
+        {
+            auto t = createTarget("Total", influxDBCore_Aggregate_Core_Counters(m) + op, prometheusCounters(m) + op);
+            panel->push(t);
+            panel1->push(t);
+            dashboard.push(panel);
+            dashboard.push(panel1);
+        }
+    };
+    if (type == InfluxDB) {
+        scaled("Core Frequency", "GHz", "/1000000000");
+    }
+    for (size_t s = 0; type == InfluxDB && s < NumSockets; ++s)
+    {
+        const char * op = "/1000000000";
+        const auto S = std::to_string(s);
+        auto panel = std::make_shared<TimeSeriesPanel>(0, y, width, height, std::string("Socket") +  S + " Uncore Frequencies", "GHz", false);
+        auto panel1 = std::make_shared<BarGaugePanel>(width, y, max_width - width, height, std::string("Current Socket") +  S + " Uncore Frequencies (GHz)");
+        y += height;
+        for (size_t d = 0; d < (std::max)(pcm->getNumUFSDies(), (size_t)1ULL); ++d)
+        {
+          auto m = std::string("Uncore Frequency Die ") + std::to_string(d);
+          auto t = createTarget(m, influxDBUncore_Uncore_Counters(S, m) + op, prometheusCounters(S, m, false) + op);
+          panel->push(t);
+          panel1->push(t);
+        }
+        dashboard.push(panel);
+        dashboard.push(panel1);
+    }
+    for (size_t s = 0; s < NumSockets; ++s)
+    {
+        const auto S = std::to_string(s);
+        auto panel = std::make_shared<TimeSeriesPanel>(0, y, width, height, std::string("Socket") +  S + " Energy Consumption", "Watt", false);
+        auto panel1 = std::make_shared<BarGaugePanel>(width, y, max_width - width, height, std::string("Current Socket") +  S + " Energy Consumption (Watt)");
+        y += height;
+        for (auto &m : {"Package Joules Consumed", "DRAM Joules Consumed", "PP0 Joules Consumed", "PP1 Joules Consumed"})
+        {
+          auto t = createTarget(m, influxDBUncore_Uncore_Counters(S, m), prometheusCounters(S, m, false));
+          panel->push(t);
+          panel1->push(t);
+        }
+        dashboard.push(panel);
+        dashboard.push(panel1);
+    }
+    {
+        auto panel = std::make_shared<TimeSeriesPanel>(0, y, width, height, "Memory Bandwidth", "MByte/sec", false);
         auto panel1 = std::make_shared<BarGaugePanel>(width, y, max_width - width, height, "Memory Bandwidth (MByte/sec)");
         y += height;
         auto genAll = [type](const std::string& special) -> std::string
@@ -614,7 +700,7 @@ std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int
     for (size_t s = 0; s < NumSockets; ++s)
     {
         const auto S = std::to_string(s);
-        auto panel = std::make_shared<GraphPanel>(0, y, width, height, std::string("Socket") + S + " Memory Bandwidth", "MByte/sec", false);
+        auto panel = std::make_shared<TimeSeriesPanel>(0, y, width, height, std::string("Socket") + S + " Memory Bandwidth", "MByte/sec", false);
         auto panel1 = std::make_shared<BarGaugePanel>(width, y, max_width - width, height, std::string("Current Socket") + S + " Memory Bandwidth (MByte/sec)");
         y += height;
         for (auto& m : { "DRAM Reads", "DRAM Writes", "Persistent Memory Reads", "Persistent Memory Writes" })
@@ -623,6 +709,11 @@ std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int
             panel->push(t);
             panel1->push(t);
         }
+        for (auto& m : {"CXL Write Mem","CXL Write Cache" }){
+            auto t = createTarget(m, "mean(\\\"QPI/UPI Links_QPI Counters Socket " + S + "_" + m + "\\\")/1048576", prometheusCounters(S, m, false) + "/1048576");
+            panel->push(t);
+            panel1->push(t);
+         }
         for (std::string m : { "DRAM ", "Persistent Memory " })
         {
             auto t = createTarget(m + "Total",
@@ -634,8 +725,40 @@ std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int
         dashboard.push(panel);
         dashboard.push(panel1);
     }
+    if(pcm->nearMemoryMetricsAvailable()){        // Near Memory statistics
+      y += height;
+      for (size_t s = 0; s < NumSockets; ++s)
+      {
+      const auto S = std::to_string(s);
+      
+      auto panel = std::make_shared<TimeSeriesPanel>(0, y, width, height,std::string("Socket") + S + " Near Memory Hit Miss", "M/s", false);
+      auto panel1 = std::make_shared<BarGaugePanel>(width, y, max_width - width, height,std::string("Current Socket") + S + "Near Memory Hit/Miss");
+        for (auto& m : {"NM Hits","NM Misses","NM Miss Bw"})
+          {
+              auto t = createTarget(m, influxDBUncore_Uncore_Counters(S, m) + "/1048576", prometheusCounters(S, m, false) + "/1048576");
+              panel->push(t);
+              panel1->push(t);
+          }
+        dashboard.push(panel);
+        dashboard.push(panel1);
+      }
 
-    auto panel = std::make_shared<GraphPanel>(0, y, width, height, "PMEM/DRAM Bandwidth Ratio", "PMEM/DRAM", false);
+
+      auto NMpanel = std::make_shared<TimeSeriesPanel>(0, y, width, height, "Near Memory Hit Rate", "NM Hit Rate", false);
+      auto NMpanel1 = std::make_shared<GaugePanel>(width, y, max_width - width, height, "Near Memory HitRate");
+      y += height;
+      for (size_t s = 0; s < NumSockets; ++s)
+      {
+        const auto S = std::to_string(s);
+        auto t = createTarget("Socket " + S, influxDBUncore_Uncore_Counters(S, "NM HitRate") + "/1048576", prometheusCounters(S, "NM HitRate", false) + "/1048576");
+              NMpanel->push(t);
+              NMpanel1->push(t);
+        
+      }
+      dashboard.push(NMpanel);
+      dashboard.push(NMpanel1);
+    }
+    auto panel = std::make_shared<TimeSeriesPanel>(0, y, width, height, "PMEM/DRAM Bandwidth Ratio", "PMEM/DRAM", false);
     auto panel1 = std::make_shared<BarGaugePanel>(width, y, max_width - width, height, "PMEM/DRAM Bandwidth Ratio");
     y += height;
     for (size_t s = 0; s < NumSockets; ++s)
@@ -657,13 +780,40 @@ std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int
     }
     dashboard.push(panel);
     dashboard.push(panel1);
-
+    auto stacked = [&] (const char * m, std::vector<const char *> metrics, size_t s, const bool core = false)
+    {
+        const auto S = std::to_string(s);
+        auto my_height = 3 * height / 2;
+        auto panel = std::make_shared<TimeSeriesPanel>(0, y, width, my_height, "Socket" + S + " " + std::string(m), "stacked %", true);
+        auto panel1 = std::make_shared<BarGaugePanel>(width, y, max_width - width, my_height, std::string("Current ") + m + " (%)");
+        y += my_height;
+        for (auto & metric : metrics)
+        {
+            std::shared_ptr<pcm::Target> t;
+            if (core)
+            {
+                t = createTarget(metric, influxDBCore_Aggregate_Core_Counters(S, metric), "");
+            }
+            else
+            {
+                t = createTarget(metric, influxDBUncore_Uncore_Counters(S, metric), "");
+            }
+            panel->push(t);
+            panel1->push(t);
+        }
+        dashboard.push(panel);
+        dashboard.push(panel1);
+    };
+    for (size_t s = 0; type == InfluxDB && s < NumSockets; ++s)
+    {
+        stacked("Memory Request Ratio", {"Local Memory Request Ratio", "Remote Memory Request Ratio"}, s);
+    }
     auto upi = [&](const std::string & m, const bool utilization)
     {
-        for (size_t s = 0; s < NumSockets; ++s)
+        for (size_t s = 0; s < NumSockets && NumUPILinksPerSocket > 0; ++s)
         {
             const auto S = std::to_string(s);
-            auto panel = std::make_shared<GraphPanel>(0, y, width, height, std::string("Socket") + S + " " + pcm->xPI() + " " + m, utilization?"%": "MByte/sec", false);
+            auto panel = std::make_shared<TimeSeriesPanel>(0, y, width, height, std::string("Socket") + S + " " + pcm->xPI() + " " + m, utilization?"%": "MByte/sec", false);
             std::shared_ptr<Panel> panel1;
             if (utilization)
                 panel1 = std::make_shared<GaugePanel>(width, y, max_width - width, height, std::string("Current Socket") + S + " UPI " + m + " (%)");
@@ -695,7 +845,7 @@ std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int
     auto cstate = [&] (const char * m, const char * tPrefix, const char * source)
     {
         auto my_height = 3 * height / 2;
-        auto panel = std::make_shared<GraphPanel>(0, y, width, my_height, std::string(m) + " C-state residency", "stacked %", true);
+        auto panel = std::make_shared<TimeSeriesPanel>(0, y, width, my_height, std::string(m) + " C-state residency", "stacked %", true);
         auto panel1 = std::make_shared<BarGaugePanel>(width, y, max_width - width, my_height, std::string("Current ") + m + " C-state residency (%)");
         y += my_height;
         auto prometheusCStateExpression = [](const std::string& source, const size_t c) -> std::string
@@ -735,7 +885,7 @@ std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int
     cstate("Package", "Uncore Aggregate_Uncore", "uncore");
     auto derived = [&](const std::string & fullName, const std::string & shortName, const std::string & dividend, const std::string & divisor)
     {
-        auto panel = std::make_shared<GraphPanel>(0, y, width, height, fullName, shortName, false);
+        auto panel = std::make_shared<TimeSeriesPanel>(0, y, width, height, fullName, shortName, false);
         auto panel1 = std::make_shared<BarGaugePanel>(width, y, max_width - width, height, fullName);
         y += height;
         for (size_t s = 0; s < NumSockets; ++s)
@@ -757,41 +907,55 @@ std::string getPCMDashboardJSON(const PCMDashboardType type, int ns, int nu, int
         dashboard.push(panel1);
     };
     derived("Instructions Per Cycle", "IPC", "Instructions Retired Any", "Clock Unhalted Thread");
+    for (size_t s = 0; type == InfluxDB && s < NumSockets; ++s)
+    {
+        stacked("Core Stalls", {
+            "Frontend Bound",
+            "Bad Speculation",
+            "Backend Bound",
+            "Retiring",
+            "Fetch Latency Bound",
+            "Fetch Bandwidth Bound",
+            "Branch Misprediction Bound",
+            "Machine Clears Bound",
+            "Memory Bound",
+            "Core Bound",
+            "Heavy Operations Bound",
+            "Light Operations Bound"
+            }, s, true);
+    }
     derived("Active Frequency Ratio", "AFREQ", "Clock Unhalted Thread", "Clock Unhalted Ref");
     derived("L3 Cache Misses Per Instruction", "L3 MPI", "L3 Cache Misses", "Instructions Retired Any");
     derived("L2 Cache Misses Per Instruction", "L2 MPI", "L2 Cache Misses", "Instructions Retired Any");
     for (auto & m : {"Instructions Retired Any", "Clock Unhalted Thread", "L2 Cache Hits", "L2 Cache Misses", "L3 Cache Hits", "L3 Cache Misses"})
     {
-        auto panel = std::make_shared<GraphPanel>(0, y, width, height, std::string(m), "Million", false);
-        auto panel1 = std::make_shared<BarGaugePanel>(width, y, max_width - width, height, std::string(m) + " (Million)");
-        y += height;
-        for (size_t s = 0; s < NumSockets; ++s)
-        {
-            const auto S = std::to_string(s);
-            auto t = createTarget("Socket" + S, influxDBCore_Aggregate_Core_Counters(S, m) + "/1000000", prometheusCounters(S, m) + "/1000000");
-            panel->push(t);
-            panel1->push(t);
-        }
-        auto t = createTarget("Total", influxDBCore_Aggregate_Core_Counters(m) + "/1000000", prometheusCounters(m) + "/1000000");
-        panel->push(t);
-        panel1->push(t);
-        dashboard.push(panel);
-        dashboard.push(panel1);
+        scaled(m, "Million", "/1000000");
     }
-    for (size_t s = 0; s < NumSockets; ++s)
-    {
-        const auto S = std::to_string(s);
-        auto panel = std::make_shared<GraphPanel>(0, y, width, height, std::string("Socket") +  S + " Energy Consumption", "Watt", false);
-        auto panel1 = std::make_shared<BarGaugePanel>(width, y, max_width - width, height, std::string("Current Socket") +  S + " Energy Consumption (Watt)");
-        y += height;
-        for (auto &m : {"Package Joules Consumed", "DRAM Joules Consumed"})
+    if (pcm->getAccel() != ACCEL_NOCONFIG){
+        auto accelCounters = [&](const std::string & m)
         {
-          auto t = createTarget(m, influxDBUncore_Uncore_Counters(S, m), prometheusCounters(S, m, false));
-          panel->push(t);
-          panel1->push(t);
+            auto panel = std::make_shared<TimeSeriesPanel>(0, y, width, height, accs->getAccelCounterName() + " " + m,"Byte/sec", false);
+            std::shared_ptr<Panel> panel1;
+            panel1 = std::make_shared<BarGaugePanel>(width, y, max_width - width, height, std::string("Current ") +accs->getAccelCounterName() + " (Byte/sec)");
+            y += height;
+            for (size_t s = 0; s < accs->getNumOfAccelDevs(); ++s)
+            {
+                const auto S = std::to_string(s);         
+                const auto suffix = "/1";
+                auto t = createTarget("Device "+S,
+                    "mean(\\\"Accelerators_"+accs->getAccelCounterName()+" Counters Device " + S + "_" + m + "\\\")" +  suffix,
+                    "rate(" + prometheusMetric(accs->remove_string_inside_use(m))  + "{instance=\\\"$node\\\", aggregate=\\\"system\\\", source=\\\"accel\\\" ,"+accs->getAccelCounterName()+"device=\\\"" + S + "\\\"}" + interval + ")" + suffix);
+                panel->push(t);
+                panel1->push(t);
+
+            }
+            dashboard.push(panel);
+            dashboard.push(panel1);
+        };
+        for (int j =0;j<accs->getNumberOfCounters();j++)
+        {
+            accelCounters(accs->getAccelIndexCounterName(j));
         }
-        dashboard.push(panel);
-        dashboard.push(panel1);
     }
     return dashboard();
 }

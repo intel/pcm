@@ -14,11 +14,13 @@ class PcmMsrClientClassName : public IOUserClient
 
 protected:
     PcmMsrDriverClassName*                  fProvider;
+    void*                                   sSecurityToken;
     static const IOExternalMethodDispatch   sMethods[kNumberOfMethods];
 
 public:
+    virtual bool initWithTask(task_t owningTask, void *securityToken, UInt32 type, OSDictionary *properties) override;
     virtual bool start(IOService *provider) override;
-
+    
     virtual IOReturn clientClose(void) override;
 
     virtual bool didTerminate(IOService* provider, IOOptionBits opts, bool* defer) override;
