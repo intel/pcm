@@ -135,13 +135,22 @@ _SetOlsValue SetOlsValue = NULL;
 BOOL InitOpenLibSys(HMODULE *hModule)
 {
 	TCHAR dll_path[MAX_PATH];
-	GetSystemDirectory(dll_path, MAX_PATH - 20);
+	// SDL436: Use fully qualified path from System32 directory
+	// GetSystemDirectory ensures we load from the trusted System32 location
+	if (!GetSystemDirectory(dll_path, MAX_PATH - 20))
+	{
+		std::wcerr << "Failed to get System32 directory path.\n";
+		return FALSE;
+	}
 #ifdef _M_X64
 	_tcscat_s(dll_path, MAX_PATH, TEXT("\\WinRing0x64.dll"));
 #else
 	_tcscat_s(dll_path, MAX_PATH, TEXT("\\WinRing0.dll"));
 #endif
-	*hModule = LoadLibrary(dll_path);
+
+	// SDL436: Use LoadLibraryEx with LOAD_LIBRARY_SEARCH_SYSTEM32 flag
+	// This ensures secure DLL loading from System32 only, preventing DLL injection
+	*hModule = LoadLibraryEx(dll_path, NULL, LOAD_LIBRARY_SEARCH_SYSTEM32);
 
 	if(*hModule == NULL)
 	{

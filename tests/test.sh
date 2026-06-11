@@ -22,6 +22,13 @@ if [ "$?" -ne "0" ]; then
    exit 1
 fi
 
+echo Testing pcm with PCM_DEBUG_LEVEL=100
+PCM_DEBUG_LEVEL=100 ./pcm -r -- sleep 1
+if [ "$?" -ne "0" ]; then
+   echo "Error in pcm"
+   exit 1
+fi
+
 echo Testing pcm w/o env vars
 ./pcm -r -- sleep 1
 if [ "$?" -ne "0" ]; then
@@ -124,6 +131,20 @@ if [ "$?" -ne "0" ]; then
     exit 1
 fi
 
+echo Testing pcm-pcicfg with -n option
+./pcm-pcicfg -n 0 0 0 0 0
+if [ "$?" -ne "0" ]; then
+    echo "Error in pcm-pcicfg with -n option"
+    exit 1
+fi
+
+echo Testing pcm-pcicfg with -n and -d options
+./pcm-pcicfg -n -d 0 0 0 0 0
+if [ "$?" -ne "0" ]; then
+    echo "Error in pcm-pcicfg with -n -d options"
+    exit 1
+fi
+
 echo Testing pcm-tpmi
 ./pcm-tpmi 2 0x10 -d -b 26:26
 if [ "$?" -ne "0" ]; then
@@ -199,13 +220,78 @@ if [ "$?" -ne "0" ]; then
 fi
 
 # TODO add more tests
-# e.g for ./pcm-sensor-server, ./pcm-sensor, ...
+# e.g for ./pcm-sensor, ...
+
+echo Testing pcm-sensor-server
+# Pick an unused high port to avoid collisions with the default one.
+SENSOR_PORT=19738
+./pcm-sensor-server -p $SENSOR_PORT -silent &
+SENSOR_PID=$!
+
+# Wait for the server to start accepting connections (up to ~20s).
+SENSOR_READY=0
+for i in $(seq 1 40); do
+    if ! kill -0 $SENSOR_PID 2>/dev/null; then
+        echo "pcm-sensor-server exited unexpectedly during startup"
+        exit 1
+    fi
+    if curl -s -o /dev/null -f "http://127.0.0.1:${SENSOR_PORT}/metrics"; then
+        SENSOR_READY=1
+        break
+    fi
+    sleep 0.5
+done
+
+if [ "$SENSOR_READY" -ne "1" ]; then
+    echo "Error: pcm-sensor-server did not become ready on port $SENSOR_PORT"
+    kill $SENSOR_PID 2>/dev/null
+    wait $SENSOR_PID 2>/dev/null
+    exit 1
+fi
+
+echo "  Query /metrics endpoint with curl"
+METRICS_OUT=$(curl -s -f "http://127.0.0.1:${SENSOR_PORT}/metrics")
+CURL_RC=$?
+if [ "$CURL_RC" -ne "0" ] || [ -z "$METRICS_OUT" ]; then
+    echo "Error in pcm-sensor-server: /metrics request failed or returned empty body"
+    kill $SENSOR_PID 2>/dev/null
+    wait $SENSOR_PID 2>/dev/null
+    exit 1
+fi
+# Prometheus exposition format lines start with '#' (HELP/TYPE) or a metric name.
+if ! echo "$METRICS_OUT" | grep -q '^#'; then
+    echo "Error in pcm-sensor-server: /metrics response does not look like Prometheus output"
+    kill $SENSOR_PID 2>/dev/null
+    wait $SENSOR_PID 2>/dev/null
+    exit 1
+fi
+
+echo "  Query /dashboard endpoint with curl"
+curl -s -f -o /dev/null "http://127.0.0.1:${SENSOR_PORT}/dashboard"
+if [ "$?" -ne "0" ]; then
+    echo "Error in pcm-sensor-server: /dashboard request failed"
+    kill $SENSOR_PID 2>/dev/null
+    wait $SENSOR_PID 2>/dev/null
+    exit 1
+fi
+
+echo "  Query unknown endpoint, expect HTTP 404"
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${SENSOR_PORT}/does-not-exist")
+if [ "$HTTP_CODE" != "404" ]; then
+    echo "Error in pcm-sensor-server: expected 404 for unknown endpoint, got $HTTP_CODE"
+    kill $SENSOR_PID 2>/dev/null
+    wait $SENSOR_PID 2>/dev/null
+    exit 1
+fi
+
+kill $SENSOR_PID 2>/dev/null
+wait $SENSOR_PID 2>/dev/null
 
 echo Testing urltest
 ./tests/urltest
-# We have 12 expected errors, anything else is a bug
-if [ "$?" != 12 ]; then
-    echo "Error in urltest, 12 expected errors but found $?!"
+# We have 14 expected errors, anything else is a bug
+if [ "$?" != 14 ]; then
+    echo "Error in urltest, 14 expected errors but found $?!"
     exit 1
 fi
 
@@ -401,5 +487,25 @@ if [ "$?" -ne "0" ]; then
 fi
 online_offline_cores 1
 
+# Below is UT part
+
+echo "Running Unit Tests"
+failed=()
+for test_binary in ./tests/utests/*; do
+    if [ -x "$test_binary" ]; then
+        echo "Running $test_binary"
+        "$test_binary"
+        if [ "$?" -ne "0" ]; then
+            failed+=("$test_binary")
+        fi
+    else
+        echo "Skipping $test_binary (not executable)"
+    fi
+done
+
+if [ "${#failed[@]}" -ne "0" ]; then
+    echo "Failed test programs: ${failed[@]}"
+    exit 1
+fi
 
 popd

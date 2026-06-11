@@ -1,0 +1,668 @@
+#!/usr/bin/env python3
+
+"""topotop - visualize CPU usage in NUMA nodes/packages/hyperthreads
+
+Usage: topotop [options]
+
+Options:
+  -h, --help            print help.
+  -d, --delay SECONDS   delay between updates. The default is "1.0".
+  -l, --largest-share   show largest share of each busy CPU that a
+                        single process got. The top dot stands for
+                        at least 99 % CPU. Requires "bpftrace".
+  -m, --memory          include memory bandwidth, requires "pcm-memory".
+  -u, --upi             include UPI traffic, requires "pcm".
+"""
+
+import glob
+import os
+import subprocess
+import sys
+import time
+
+# error prints error message and exits process
+def error(msg, exit_status=1):
+    sys.stderr.write("topotop: %s\n" % (msg,))
+    sys.exit(exit_status)
+
+# listset2list parses list set syntax (like "0,4-7,63") into a list
+def listset2list(s):
+    l = []
+    if s == "":
+        return l
+    for comma in s.split(","):
+        rng = comma.split("-")
+        if len(rng) == 1:
+            l.append(int(rng[0]))
+            continue
+        for i in range(int(rng[0]), int(rng[1])+1):
+            l.append(i)
+    return l
+
+# coord2brbit maps (x, y) coordinates to offset bits in utf8/braille
+# defined for width x height: 2 x 4
+coord2brbit = [
+    [0, 1, 2, 6],
+    [3, 4, 5, 7],
+]
+
+# brbits2chr converts braille character bits to a braille character
+def brbits2chr(bits):
+    base = 10240
+    offset = 0
+    for bit in range(8):
+        if bits & (1 << bit) != 0:
+            offset += 1 << bit
+    return chr(base + offset)
+
+class Bitmap:
+    def __init__(self, width=0, height=0, data=None):
+        self._width = width
+        self._height = height
+        self._data = data
+        self._max_color = 1
+    # from_table() creates bitmap from table
+    # [[x0y0, x1y0, ...],
+    #  [x0y1, x1y1, ...],
+    #  ...]
+    def from_table(self, table):
+        self._data = table
+        self._height = len(self._data)
+        self._width = max([len(line) for line in self._data])
+        for row in self._data:
+            self._max_color = max(self._max_color, max(row))
+    def set_line(self, lineno, linedata):
+        if self._data is None:
+            self._data = []
+        if lineno == -1:
+            lineno = len(self._data)
+        if lineno >= len(self._data):
+            [self._data.append([]) for n in range(lineno-len(self._data)+1)]
+        self._data[lineno] = linedata
+        if len(linedata) > self._width:
+            self._width = len(linedata)
+        self._height = len(self._data)
+        if len(linedata) > 0:
+            self._max_color = max(self._max_color, max(linedata))
+    def add_col(self, coldata):
+        if self._data is None:
+            self._data = []
+        if len(self._data) < len(coldata):
+            [self._data.append([]) for n in range(len(coldata)-len(self._data))]
+        for lineidx, line in enumerate(self._data):
+            line.append(coldata[lineidx])
+        self._width = len(self._data[0])
+        self._height = len(self._data)
+    def line(self, lineno):
+        if self._data and lineno < len(self._data):
+            return self._data[lineno]
+        return []
+    def size(self):
+        return (self._width, self._height)
+    def max_color(self):
+        return self._max_color
+    def pixel(self, x, y, default=None):
+        if y >= len(self._data) or x >= len(self._data[y]):
+            return default
+        return self._data[y][x]
+    # to_braille() converts a bitmap into a string of braille
+    # characters. If bitmap height > 4 the result will be a
+    # multiline string.
+    def to_braille(self, colormode=0):
+        width, height = self.size()
+        max_color = self.max_color()
+        if width == 0 or height == 0:
+            return ""
+        braille = []
+        for row in range((3+height)//4):
+            braille.append([])
+        for x2 in range((1+width)//2):
+            for y4 in range((3+height)//4):
+                braille_char_bits = 0
+                pixel_count = 0
+                color_sum = 0
+                if colormode == 2:
+                    color_sum = (0, 0, 0)
+                for x in range(min(2, width - x2*2)):
+                    for y in range(min(4, height - y4*4)):
+                        c = self.pixel(x2*2+x, y4*4+y, default=0)
+                        if c != 0:
+                            braille_char_bits |= 1 << coord2brbit[x][y]
+                            pixel_count += 1
+                            if colormode == 1: # grayscale
+                                color_sum += c
+                            elif colormode == 2: # 8-bit RGB
+                                r, g, b = c >> 16, c >> 8 & 255, c & 255
+                                color_sum = (color_sum[0] + b, color_sum[1] + g, color_sum[2] + r)
+                color, nocolor = "", ""
+                if colormode == 1 and pixel_count > 0 and max_color > 0:
+                    grayscale = 232 + int(15 * (color_sum / pixel_count) / max_color)
+                    color = "\x1b[38;5;%dm" % (grayscale,)
+                    nocolor = "\x1b[0m"
+                elif colormode == 2 and pixel_count > 0:
+                    r = int(color_sum[2]/pixel_count)
+                    g = int(color_sum[1]/pixel_count)
+                    b = int(color_sum[0]/pixel_count)
+                    color = "\x1b[38;2;%d;%d;%dm" % (r, g, b)
+                    nocolor = "\x1b[0m"
+                braille[y4].append(color + brbits2chr(braille_char_bits) + nocolor)
+        return '\n'.join(''.join(c for c in line) for line in braille)
+
+_bpftrace_cpu_pid_process = None
+def cpu_pid_stats():
+    global _bpftrace_cpu_pid_process
+    if _bpftrace_cpu_pid_process is None:
+        bpfprog = (
+            "tracepoint:sched:sched_stat_runtime{ if (@active[0]==0) { @run0[cpu,args->pid]+=args->runtime; } else { @run1[cpu,args->pid]+=args->runtime; } }" + # @run: {(cpu, pid): runtime}
+            "interval:ms:%d{ @active[0]=1-@active[0]; if (@active[0]==1) { print(@run0); clear(@run0); } else { print(@run1); clear(@run1); } print(\"---\"); }" % (int(opt_delay * 1000),)
+        )
+        _bpftrace_cpu_pid_process = subprocess.Popen(
+            ["bpftrace", "-e", bpfprog],
+            bufsize=0,
+            universal_newlines=True,
+            stdout=subprocess.PIPE)
+    # @MAP0[cpu,pid]: count
+    stat_cpu_pid = {
+        "run": {},
+    }
+    while True:
+        line = _bpftrace_cpu_pid_process.stdout.readline().strip()
+        if line == "":
+            raise Exception("bpftrace exited")
+        if line == "---":
+            break
+        if line.startswith("@"):
+            stat = line[1:4]
+            cpu_pid_value = stat_cpu_pid[stat]
+            cpu_pid, count = line.split(":")
+            # cpu_pid: "@XXX0[cpu, pid]"
+            cpu = int(cpu_pid.split(",")[0][6:]) # cut "@XXX0["
+            pid = int(cpu_pid.split(",")[1][:-1]) # cut "]"
+            if not cpu in cpu_pid_value:
+                cpu_pid_value[cpu] = {}
+            cpu_pid_value[cpu][pid] = int(count.strip())
+    return stat_cpu_pid
+
+def cpu_lshare(stat_cpu_pid, cpu_usage):
+    """Return largest share (lshare) that the most running process got from a CPU"""
+    cpu_lshare = {}
+    for cpu, pid_runtime in stat_cpu_pid["run"].items():
+        # show largest share only on CPUs with at least 25 % usage
+        if cpu_usage.get(cpu, 0) < 0.25:
+            cpu_lshare[cpu] = 0
+            continue
+        max_time = max(pid_runtime.values())
+        sum_time = sum(pid_runtime.values())
+        if sum_time == 0:
+            cpu_lshare[cpu] = 0
+            continue
+        cpu_lshare[cpu] = max_time / sum_time
+    return cpu_lshare
+
+_cpu_load_total, _cpu_load_idle = {}, {}
+def cpu_usage_from_proc():
+    """Read CPU usage statistics from /proc/stat"""
+    global _cpu_load_total, _cpu_load_idle
+    total1, idle1 = _cpu_load_total, _cpu_load_idle
+
+    total2, idle2 = {}, {}
+    with open("/proc/stat") as f:
+        for line in f:
+            if line.startswith("cpu") and line[3] in "0123456789":
+                fields = line.split()
+                vcpu = int(fields[0][3:])
+                values = list(map(int, fields[1:]))  # Convert to integers
+                total2[vcpu] = sum(values)  # Total time
+                idle2[vcpu] = values[3]  # Idle time (4th column)
+    _cpu_load_total, _cpu_load_idle = total2, idle2
+    usage = {}
+    for vcpu in total1:
+        try:
+            usage[vcpu] = 1-((idle2[vcpu]-idle1[vcpu]) / (total2[vcpu]-total1[vcpu]))
+        except:
+            usage[vcpu] = 0
+    return usage
+
+_pcm_memory_process = None
+_pcm_memory_csv_headers = [] # expect two lines
+def membw_from_pcm():
+    global _pcm_memory_process
+    global _pcm_memory_csv_headers
+    if _pcm_memory_process is None:
+        _pcm_memory_process = subprocess.Popen(
+            ["stdbuf", "-oL", "pcm-memory", "-csv", "%.2f" % (opt_delay,)],
+            bufsize=1,
+            universal_newlines=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL)
+        _pcm_memory_csv_headers.append([f.strip() for f in _pcm_memory_process.stdout.readline().strip().split(",")])
+        if len(_pcm_memory_csv_headers[0]) <= 4:
+            raise Exception("failed to launch pcm-memory")
+        _pcm_memory_csv_headers.append([f.strip() for f in _pcm_memory_process.stdout.readline().strip().split(",")])
+        return []
+    # get latest output from pcm-memory
+    h0, h1 = _pcm_memory_csv_headers[0], _pcm_memory_csv_headers[1]
+    line = _pcm_memory_process.stdout.readline().strip()
+    skt_chn_mbs = []
+    for col, field in enumerate(line.split(",")):
+        if not field:
+            continue
+        try:
+            field_float = float(field.strip())
+        except:
+            continue
+        if h0[col].startswith("SKT"):
+            skt_chn_mbs.append(
+                (int(h0[col][len("SKT"):]),
+                 h1[col],
+                 field_float))
+        elif h0[col].startswith("System"):
+            skt_chn_mbs.append(
+                (-1,
+                 h1[col],
+                 field_float))
+    return skt_chn_mbs
+
+_pcm_process = None
+_pcm_csv_headers = [] # expect two lines
+_pcm_prevline_timestamp = None
+def upi_from_pcm():
+    global _pcm_process
+    global _pcm_csv_headers
+    global _pcm_prevline_timestamp
+    if _pcm_process is None:
+        _pcm_process = subprocess.Popen(
+            ["stdbuf", "-oL", "pcm", "-nc", "-nsys", "-csv", "%.2f" % (opt_delay,)],
+            bufsize=1,
+            universal_newlines=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL)
+        _pcm_csv_headers.append([f.strip() for f in _pcm_process.stdout.readline().strip().split(",")])
+        if len(_pcm_csv_headers[0]) <= 4:
+            raise Exception("failed to launch pcm")
+        _pcm_csv_headers.append([f.strip() for f in _pcm_process.stdout.readline().strip().split(",")])
+        return []
+    # get latest output from pcm
+    h0, h1 = _pcm_csv_headers[0], _pcm_csv_headers[1]
+    line = _pcm_process.stdout.readline().strip()
+
+    pcm_line_timestamp = time.time()
+    pcm_line_timediff = 0
+    if _pcm_prevline_timestamp is not None:
+        pcm_line_timediff = pcm_line_timestamp - _pcm_prevline_timestamp
+    _pcm_prevline_timestamp = pcm_line_timestamp
+
+    skt_upi_mbs = []
+    for col, field in enumerate(line.split(",")):
+        if not field:
+            continue
+        try:
+            field_float = float(field.strip())
+        except:
+            continue
+        if h0[col].startswith("SKT") and h0[col].endswith("trafficOut"):
+            if pcm_line_timediff > 0:
+                mbps = field_float / pcm_line_timediff
+            else:
+                mbps = field_float
+            skt_upi_mbs.append(
+                (int(h0[col][len("SKT"):-len("trafficOut")]),
+                 h1[col],
+                 mbps))
+    return skt_upi_mbs
+
+def read_topology():
+    cpus = []
+    id_files=["physical_package_id", "die_id", "cluster_id", "core_id"]
+    vcpu = lambda s: int(s[len("/sys/devices/system/cpu/cpu"):-len("/topology")])
+    def readi(path):
+        try:
+            return int(open(path).read())
+        except:
+            return 0
+    for d in glob.glob("/sys/devices/system/cpu/cpu*/topology"):
+        cpus.append([readi(d + "/" + f) for f in id_files] + [vcpu(d)])
+    cpus.sort()
+    return cpus
+
+def add_numa_info_to_pkg(cpus):
+    nodeid = lambda s: int(s[len("/sys/devices/system/node/node"):-len("/cpulist")])
+    cpu_node = {}
+    for d in glob.glob("/sys/devices/system/node/node*/cpulist"):
+        cpulist = listset2list(open(d).read())
+        for cpuid in cpulist:
+            cpu_node[cpuid] = nodeid(d)
+    for cpu_vec in cpus:
+        cpuid = cpu_vec[-1]
+        cpu_vec[0:0] = [cpu_node.get(cpuid, "?")] # add NUMA node id to beginning
+
+_width_bw = 0
+_pkg_ch_max_read_bw, _pkg_ch_max_write_bw, _pkg_ch_max_bw = {}, {}, {}
+_pkg_max_sum_read_bw, _pkg_max_sum_write_bw = {}, {}
+def print_membw_usage(pkg, data):
+    global _width_bw, _pkg_ch_max_read_bw, _pkg_ch_max_write_bw, _pkg_ch_max_bw
+    global _max_sum_read_bw, _max_sum_write_bw
+    if pkg not in _pkg_ch_max_read_bw:
+        _pkg_ch_max_read_bw[pkg] = {}
+        _pkg_ch_max_write_bw[pkg] = {}
+        _pkg_ch_max_bw[pkg] = {}
+        _pkg_max_sum_read_bw[pkg] = 0
+        _pkg_max_sum_write_bw[pkg] = 0
+    _ch_max_read_bw = _pkg_ch_max_read_bw[pkg]
+    _ch_max_write_bw = _pkg_ch_max_write_bw[pkg]
+    _ch_max_bw = _pkg_ch_max_bw[pkg]
+    _max_sum_read_bw = _pkg_max_sum_read_bw[pkg]
+    _max_sum_write_bw = _pkg_max_sum_write_bw[pkg]
+    bm_width = 25*2
+    lines = []
+    ch_rw = {} # {channel: (readMBps, writeMBps)}
+    for skt, metric, value in data:
+        if skt != pkg:
+            continue
+        if metric.startswith("Ch"):
+            gbps = value/1000.0
+            if metric.endswith("Read"):
+                try:
+                    ch = int(metric[len("Ch"):-len("Read")])
+                except:
+                    continue
+                ch_rw[ch] = (gbps, ch_rw.get(ch, (0, 0))[1])
+                if gbps > _ch_max_read_bw.get(ch, 0):
+                    _ch_max_read_bw[ch] = gbps
+            elif metric.endswith("Write"):
+                try:
+                    ch = int(metric[len("Ch"):-len("Write")])
+                except:
+                    continue
+                ch_rw[ch] = (ch_rw.get(ch, (0, 0))[0], gbps)
+                if gbps > _ch_max_write_bw.get(ch, 0):
+                    _ch_max_write_bw[ch] = gbps
+    max_read_bw = max(rw[0] for rw in ch_rw.values())
+    sum_read_bw = sum(rw[0] for rw in ch_rw.values())
+    max_write_bw = max(rw[1] for rw in ch_rw.values())
+    sum_write_bw = sum(rw[1] for rw in ch_rw.values())
+    width_bw = max(max_read_bw, max_write_bw)
+    if width_bw > _width_bw:
+        _width_bw = width_bw
+    if sum_read_bw > _max_sum_read_bw:
+        _max_sum_read_bw = sum_read_bw
+        _pkg_max_sum_read_bw[pkg] = sum_read_bw
+    if sum_write_bw > _max_sum_write_bw:
+        _max_sum_write_bw = sum_write_bw
+        _pkg_max_sum_write_bw[pkg] = sum_write_bw
+    print(f" skt{pkg}R {sum_read_bw:6.1f} GB/s peak {_max_sum_read_bw:6.1f} GB/s ch.peak {max(_ch_max_read_bw.values()):6.1f} GB/s")
+    print(f" skt{pkg}W {sum_write_bw:6.1f} GB/s peak {_max_sum_write_bw:6.1f} GB/s ch.peak {max(_ch_max_write_bw.values()):6.1f} GB/s")
+    for ch in sorted(ch_rw.keys()):
+        if _ch_max_bw.get(ch, 0) < sum(ch_rw[ch]):
+            _ch_max_bw[ch] = sum(ch_rw[ch])
+        read, write = ch_rw[ch]
+        bm = Bitmap()
+        read_line = [1]*int(bm_width * read / _width_bw) + [0]*(bm_width-int(bm_width * read / _width_bw))
+        read_empty = [0]*bm_width
+        read_line[max(int(bm_width * _ch_max_read_bw[ch] / _width_bw)-1,0)] = 1
+        read_empty[max(int(bm_width * _ch_max_read_bw[ch] / _width_bw)-1,0)] = 1
+        write_line = [1]*int(bm_width * write / _width_bw) + [0]*(bm_width-int(bm_width * write / _width_bw))
+        write_empty = [0]*bm_width
+        write_line[max(int(bm_width * _ch_max_write_bw[ch] / _width_bw)-1,0)] = 1
+        write_empty[max(int(bm_width * _ch_max_write_bw[ch] / _width_bw)-1,0)] = 1
+        bm.set_line(0, read_empty)
+        bm.set_line(1, read_line)
+        bm.set_line(2, write_empty)
+        bm.set_line(3, write_line)
+
+        lines.append(f"ch{ch}R+W {read+write:6.1f} GB/s" + bm.to_braille() + f" {_ch_max_bw[ch]:6.1f} GB/s")
+    print("\n".join(lines))
+
+_upi_width_bw = 0
+_upi_max_bw = 0
+_upi_pkg_max_sum_bw = {}
+def print_upi_usage(pkg, data, upidir):
+    global _upi_width_bw, _upi_max_bw, _upi_pkg_max_sum_bw
+    if pkg not in _upi_pkg_max_sum_bw:
+        _upi_pkg_max_sum_bw[pkg] = 0
+    upi_bw = {}
+    lines = []
+    for skt, metric, value in data:
+        if skt != pkg:
+            continue
+        if metric.startswith("UPI"):
+            gbps = value/1000.0
+            try:
+                upi = int(metric[len("UPI"):])
+            except:
+                continue
+            upi_bw[upi] = gbps
+    max_bw = max(upi_bw.values())
+    sum_bw = sum(upi_bw.values())
+    if max_bw > _upi_max_bw:
+        _upi_max_bw = max_bw
+    if sum_bw > _upi_pkg_max_sum_bw[pkg]:
+        _upi_pkg_max_sum_bw[pkg] = sum_bw
+    bm_width = 25*2
+    upi_links = []
+    bm = Bitmap()
+    for upi in sorted(upi_bw.keys()):
+        upi_links.append(upi)
+        bw = upi_bw[upi]
+        line = [1]*int(bm_width * bw / _upi_max_bw) + [0]*(bm_width-int(bm_width * bw / _upi_max_bw))
+        bm.set_line(-1, line)
+    bm_lines = bm.to_braille().split("\n")
+    lines.append(f"{upidir}UPI{pkg}{upidir} {sum_bw:6.1f} GB/s{bm_lines[0]} {_upi_pkg_max_sum_bw[pkg]:6.1f} GB/s")
+    bm_lines.pop(0)
+    while bm_lines:
+        lines.append(" "*18 + bm_lines[0])
+        bm_lines.pop(0)
+    print("\n".join(lines))
+
+_max_sys_bw = 0
+_max_sys_rbw = 0
+_max_sys_wbw = 0
+def print_sysmbw_usage(data):
+    global _max_sys_bw, _max_sys_rbw, _max_sys_wbw
+    skt_ch_bw = {}
+    rgbps, wgbps = 0, 0
+    for skt, metric, value in data:
+        if skt == -1:
+            if metric == "Read":
+                rgbps = value/1000.0
+            elif metric == "Write":
+                wgbps = value/1000.0
+    gbps = rgbps + wgbps
+    if gbps > _max_sys_bw:
+        _max_sys_bw = gbps
+    if rgbps > _max_sys_rbw:
+        _max_sys_rbw = rgbps
+    if wgbps > _max_sys_wbw:
+        _max_sys_wbw = wgbps
+    max_bw = max(_max_sys_rbw, _max_sys_wbw)
+    bm_width = 25*2
+    bm = Bitmap()
+    read_max_idx = max(int(bm_width * _max_sys_rbw / max_bw)-1,0)
+    read_empty = [0]*bm_width
+    read_bar = [1]*int(bm_width * rgbps / max_bw) + [0]*(bm_width-int(bm_width * rgbps / max_bw))
+    read_empty[read_max_idx] = 1
+    read_bar[read_max_idx] = 1
+    write_max_idx = max(int(bm_width * _max_sys_wbw / max_bw)-1,0)
+    write_empty = [0]*bm_width
+    write_bar = [1]*int(bm_width * wgbps / max_bw) + [0]*(bm_width-int(bm_width * wgbps / max_bw))
+    write_empty[write_max_idx] = 1
+    write_bar[write_max_idx] = 1
+    bm.set_line(-1, read_empty)
+    bm.set_line(-1, read_bar)
+    bm.set_line(-1, write_empty)
+    bm.set_line(-1, write_bar)
+    print(f"sysR+W {rgbps+wgbps:6.1f} GB/s{bm.to_braille()} {_max_sys_bw:6.1f} GB/s")
+
+def print_cpu_load2(pkg, cpus, cpu_usage, cpu_ls):
+    try:
+        width = os.get_terminal_size().columns
+    except:
+        width = 72
+    height_pts = 8 # resolution in braille points
+    lines = []
+    prev_pkg = None
+    for node in sorted(set([cpu[0] for cpu in cpus])):
+        line0 = []
+        line1 = []
+        line2 = []
+        usage = []
+        lshare = [] # largest share that any process got on a CPU
+        for cpu in cpus:
+            if cpu[0] != node or cpu[1] != pkg:
+                continue
+            if not line0:
+                if cpu[1] != prev_pkg:
+                    if prev_pkg is not None:
+                        lines.append([""])
+                    prev_pkg = cpu[1]
+                line0.append(f" pkg{cpu[1]:2}")
+                line1.append(f"node{cpu[0]:2}")
+                line2.append(f"coreid")
+            vcpu = cpu[-1]
+            usage.append(round(height_pts * cpu_usage[vcpu]))
+            if cpu_ls:
+                # 99 % CPU usage is shown as 100 % in the braille,
+                # anything lower than that lacks the last braille dot.
+                lshare.append(int(height_pts * min(1.0, .01 + cpu_ls.get(vcpu, 0))))
+            if len(usage) == 2:
+                bm = Bitmap()
+                if cpu_ls and lshare:
+                    lshare_col0 = [0]*height_pts
+                    if lshare[0] > 0:
+                        lshare_col0[height_pts-lshare[0]] = 1
+                    bm.add_col(lshare_col0)
+                else:
+                    bm.add_col([0]*height_pts)
+                for u in usage:
+                    coldata =  [0]*(height_pts-u) + [1]*u
+                    bm.add_col(coldata)
+                if cpu_ls and len(lshare) == 2:
+                    lshare_col1 = [0]*height_pts
+                    if lshare[1] > 0:
+                        lshare_col1[height_pts-lshare[1]] = 1
+                    bm.add_col(lshare_col1)
+                else:
+                    bm.add_col([0]*height_pts)
+                s = bm.to_braille()
+                if cpu[-2] % 4 == 0:
+                    bgon = "\x1b[48;5;14m"
+                    bgoff = "\x1b[0m"
+                else:
+                    bgon = ""
+                    bgoff = ""
+                line0.append(bgon + (s.split("\n")[0]) + bgoff)
+                line1.append(bgon + (s.split("\n")[1]) + bgoff)
+                line2.append(bgon + (" " + str(cpu[-2]))[-2:] + bgoff)
+                usage = []
+                lshare = []
+        if line0:
+            lines.append(line0)
+            lines.append(line1)
+            lines.append(line2)
+    print("\n".join("".join(line) for line in lines))
+
+if __name__ == "__main__":
+    import getopt
+    opt_delay = 1.0
+    opt_memory = False
+    opt_upi = False
+    opt_largest_share = False
+
+    # get stats on cpu pid events
+    try:
+        opts, remainder = getopt.gnu_getopt(
+            sys.argv[1:], 'hd:lmu',
+            ['help', 'delay=', 'largest-share', 'memory', 'upi'])
+    except Exception as e:
+        error(str(e))
+    for opt, arg in opts:
+        if opt in ["-h", "--help"]:
+            print(__doc__)
+            sys.exit(0)
+        elif opt in ["-d", "--delay"]:
+            try:
+                opt_delay = float(arg)
+            except:
+                error("invalid delay: %s" % (arg,))
+        elif opt in ["-l", "--largest-share"]:
+            opt_largest_share = True
+        elif opt in ["-m", "--memory"]:
+            opt_memory = True
+        elif opt in ["-u", "--upi"]:
+            opt_upi = True
+        else:
+            error("internal error: unhandled option: %s" % (opt,))
+
+    cpus = read_topology()
+    add_numa_info_to_pkg(cpus)
+    max_pkg = max([cpu[1] for cpu in cpus])
+    membw_usage, upi_usage = None, None
+    cpu_usage_from_proc() # read initial values
+
+    if opt_largest_share:
+        print("starting bpftrace")
+        try:
+            cpu_pid_stats()
+        except Exception as err:
+            error("cannot run bpftrace to show -l/--largest-share data: %s" % (err,))
+
+    if opt_upi:
+        print("starting pcm")
+        try:
+            upi_from_pcm()
+        except Exception as err:
+            error("cannot run pcm to show -u/--upi data: %s" % (err,))
+
+    if opt_memory:
+        print("starting pcm-memory")
+        try:
+            membw_from_pcm()
+        except Exception as err:
+            error("cannot run pcm-memory to show -m/--memory data: %s" % (err,))
+        if opt_upi:
+            print("sync pcm and pcm-memory")
+            # read already printed lines from pcm output
+            _start, _end = 0, 0
+            while _end - _start < opt_delay/10:
+                _start, _, _end = time.time(), upi_from_pcm(), time.time()
+    else:
+        membw_from_pcm = lambda: time.sleep(opt_delay)
+
+    cpu_ls = {}
+    # clear terminal
+    print("\x1b[2J", end="")
+    while True:
+        membw_usage = membw_from_pcm()
+        if opt_upi:
+            upi_usage = upi_from_pcm()
+
+        # move cursor to top left
+        print("\x1b[H", end="")
+
+        if opt_memory:
+            print_membw_usage(0, membw_usage)
+            print()
+
+        cpu_usage = cpu_usage_from_proc()
+        if opt_largest_share:
+            cps = cpu_pid_stats()
+            cpu_ls = cpu_lshare(cps, cpu_usage)
+
+        print_cpu_load2(0, cpus, cpu_usage, cpu_ls)
+
+        if max_pkg > 0:
+            if opt_upi:
+                print_upi_usage(0, upi_usage, "\u2193")
+            for pkg in range(1, max_pkg + 1):
+                print()
+                if opt_upi:
+                    print_upi_usage(pkg, upi_usage, "\u2191")
+                print_cpu_load2(pkg, cpus, cpu_usage, cpu_ls)
+
+            if membw_usage:
+                for pkg in range(1, max_pkg + 1):
+                    print()
+                    print_membw_usage(pkg, membw_usage)
+        if membw_usage:
+            print()
+            print_sysmbw_usage(membw_usage)

@@ -9,6 +9,7 @@
 #include <vector>
 #include <array>
 #include <string>
+#include <stdexcept>
 #include <initializer_list>
 #include <algorithm>
 
@@ -54,14 +55,23 @@ public:
                                         bool verbose, uint32 delay);
     virtual ~IPlatform() { }
 
+    enum eventFilter {TOTAL, MISS, HIT, fltLast};
+
+    // Data-access interface for external consumers (e.g. PCIeCollector).
+    virtual uint64 getReadBw(uint socket, eventFilter filter) = 0;
+    virtual uint64 getWriteBw(uint socket, eventFilter filter) = 0;
+    virtual uint64 getReadBw() = 0;
+    virtual uint64 getWriteBw() = 0;
+    virtual uint64 event(uint socket, eventFilter filter, uint idx) = 0;
+    virtual const vector<string>& getEventNames() const = 0;
+    virtual uint numEvents() const = 0;
+
 protected:
     PCM *m_pcm;
     bool m_csv;
     bool m_bandwidth;
     bool m_verbose;
     uint m_socketCount;
-
-    enum eventFilter {TOTAL, MISS, HIT, fltLast};
 
     vector<string> filterNames, bwNames;
 };
@@ -70,10 +80,24 @@ void IPlatform::init()
 {
     print_cpu_details();
 
-    if (m_pcm->isSomeCoreOfflined())
+    if (m_pcm->getMaxNumOfUncorePMUs(PCM::CBO_PMU_ID) == 0) // CHAs (CBoxes) PMUs are not available
     {
-        cerr << "Core offlining is not supported. Program aborted\n";
-        exit(EXIT_FAILURE);
+        throw std::runtime_error("CHA PCIe performance counters not supported on this processor");
+    }
+
+    if (m_pcm->isMaxNumOfCBoxesBasedOnCoreCount() &&  m_pcm->isSomeCoreOfflined())
+    {
+        /*
+            The bandwwidth metrics can be calculated correctly only if we aggregate
+            the event counts from all CHAs (CBoxes) in the socket. For this need to
+            know the number of CBoxes in the socket. For some processors we do not
+            have access to a register containing the CHA count but on those processors
+            the number of CBoxes is equal to the number of cores. On such systems if
+            the cores are offlined then the number of CBoxes can't be determined.
+            pcm-pcie does not support such systems because the bandwidth can't be
+            computed correctly.
+        */
+        throw std::runtime_error("CHA PCIe counters unavailable: core offlining not supported on this processor");
     }
 }
 
@@ -145,13 +169,11 @@ public:
         }
     };
 
+    const vector<string>& getEventNames() const override { return eventNames; }
+    uint numEvents() const override { return (uint)eventNames.size(); }
+
 protected:
     vector<vector<uint64>> eventSample;
-    virtual uint64 getReadBw(uint socket, eventFilter filter) = 0;
-    virtual uint64 getWriteBw(uint socket, eventFilter filter) = 0;
-    virtual uint64 getReadBw() = 0;
-    virtual uint64 getWriteBw() = 0;
-    virtual uint64 event(uint socket, eventFilter filter, uint idx) = 0;
 };
 
 void LegacyPlatform::cleanup()
@@ -384,11 +406,11 @@ private:
             eventLast
     };
 
-    virtual uint64 getReadBw(uint socket, eventFilter filter);
-    virtual uint64 getWriteBw(uint socket, eventFilter filter);
-    virtual uint64 getReadBw();
-    virtual uint64 getWriteBw();
-    virtual uint64 event(uint socket, eventFilter filter, uint idx);
+    uint64 getReadBw(uint socket, eventFilter filter) override;
+    uint64 getWriteBw(uint socket, eventFilter filter) override;
+    uint64 getReadBw() override;
+    uint64 getWriteBw() override;
+    uint64 event(uint socket, eventFilter filter, uint idx) override;
 };
 
 uint64 BirchStreamPlatform::event(uint socket, eventFilter filter, uint idx)
@@ -515,11 +537,11 @@ private:
             eventLast
     };
 
-    virtual uint64 getReadBw(uint socket, eventFilter filter);
-    virtual uint64 getWriteBw(uint socket, eventFilter filter);
-    virtual uint64 getReadBw();
-    virtual uint64 getWriteBw();
-    virtual uint64 event(uint socket, eventFilter filter, uint idx);
+    uint64 getReadBw(uint socket, eventFilter filter) override;
+    uint64 getWriteBw(uint socket, eventFilter filter) override;
+    uint64 getReadBw() override;
+    uint64 getWriteBw() override;
+    uint64 event(uint socket, eventFilter filter, uint idx) override;
 };
 
 uint64 LoganvillePlatform::event(uint socket, eventFilter filter, uint idx)
@@ -645,11 +667,11 @@ private:
             eventLast
     };
 
-    virtual uint64 getReadBw(uint socket, eventFilter filter);
-    virtual uint64 getWriteBw(uint socket, eventFilter filter);
-    virtual uint64 getReadBw();
-    virtual uint64 getWriteBw();
-    virtual uint64 event(uint socket, eventFilter filter, uint idx);
+    uint64 getReadBw(uint socket, eventFilter filter) override;
+    uint64 getWriteBw(uint socket, eventFilter filter) override;
+    uint64 getReadBw() override;
+    uint64 getWriteBw() override;
+    uint64 event(uint socket, eventFilter filter, uint idx) override;
 };
 
 uint64 EagleStreamPlatform::event(uint socket, eventFilter filter, uint idx)
@@ -770,11 +792,11 @@ private:
             eventLast
     };
 
-    virtual uint64 getReadBw(uint socket, eventFilter filter);
-    virtual uint64 getWriteBw(uint socket, eventFilter filter);
-    virtual uint64 getReadBw();
-    virtual uint64 getWriteBw();
-    virtual uint64 event(uint socket, eventFilter filter, uint idx);
+    uint64 getReadBw(uint socket, eventFilter filter) override;
+    uint64 getWriteBw(uint socket, eventFilter filter) override;
+    uint64 getReadBw() override;
+    uint64 getWriteBw() override;
+    uint64 event(uint socket, eventFilter filter, uint idx) override;
 };
 
 uint64 WhitleyPlatform::event(uint socket, eventFilter filter, uint idx)
@@ -906,11 +928,11 @@ private:
             WiL_hit,
     };
 
-    virtual uint64 getReadBw(uint socket, eventFilter filter);
-    virtual uint64 getWriteBw(uint socket, eventFilter filter);
-    virtual uint64 getReadBw();
-    virtual uint64 getWriteBw();
-    virtual uint64 event(uint socket, eventFilter filter, uint idx);
+    uint64 getReadBw(uint socket, eventFilter filter) override;
+    uint64 getWriteBw(uint socket, eventFilter filter) override;
+    uint64 getReadBw() override;
+    uint64 getWriteBw() override;
+    uint64 event(uint socket, eventFilter filter, uint idx) override;
 };
 
 uint64 PurleyPlatform::event(uint socket, eventFilter filter, uint idx)
@@ -1018,11 +1040,11 @@ private:
             WiL_total,
     };
 
-    virtual uint64 getReadBw(uint socket, eventFilter filter);
-    virtual uint64 getWriteBw(uint socket, eventFilter filter);
-    virtual uint64 getReadBw();
-    virtual uint64 getWriteBw();
-    virtual uint64 event(uint socket, eventFilter filter, uint idx);
+    uint64 getReadBw(uint socket, eventFilter filter) override;
+    uint64 getWriteBw(uint socket, eventFilter filter) override;
+    uint64 getReadBw() override;
+    uint64 getWriteBw() override;
+    uint64 event(uint socket, eventFilter filter, uint idx) override;
 };
 
 uint64 GrantleyPlatform::event(uint socket, eventFilter filter, uint idx)
@@ -1127,11 +1149,11 @@ private:
             PCIeNSWrF_total,
     };
 
-    virtual uint64 getReadBw(uint socket, eventFilter filter);
-    virtual uint64 getWriteBw(uint socket, eventFilter filter);
-    virtual uint64 getReadBw();
-    virtual uint64 getWriteBw();
-    virtual uint64 event(uint socket, eventFilter filter, uint idx);
+    uint64 getReadBw(uint socket, eventFilter filter) override;
+    uint64 getWriteBw(uint socket, eventFilter filter) override;
+    uint64 getReadBw() override;
+    uint64 getWriteBw() override;
+    uint64 event(uint socket, eventFilter filter, uint idx) override;
 };
 
 uint64 BromolowPlatform::event(uint socket, eventFilter filter, uint idx)
@@ -1185,3 +1207,36 @@ uint64 BromolowPlatform::getWriteBw()
                     event(socket, TOTAL, PCIeNSWrF));
     return (writeBw * 64ULL);
 }
+
+inline IPlatform *IPlatform::getPlatform(PCM *m, bool csv, bool bandwidth,
+                                         bool verbose, uint32 delay)
+{
+    switch (m->getCPUFamilyModel()) {
+        case PCM::GNR:
+        case PCM::GNR_D:
+        case PCM::SRF:
+            return new BirchStreamPlatform(m, csv, bandwidth, verbose, delay);
+        case PCM::GRR:
+            return new LoganvillePlatform(m, csv, bandwidth, verbose, delay);
+        case PCM::SPR:
+        case PCM::EMR:
+            return new EagleStreamPlatform(m, csv, bandwidth, verbose, delay);
+        case PCM::ICX:
+        case PCM::SNOWRIDGE:
+            return new WhitleyPlatform(m, csv, bandwidth, verbose, delay);
+        case PCM::SKX:
+            return new PurleyPlatform(m, csv, bandwidth, verbose, delay);
+        case PCM::BDX_DE:
+        case PCM::BDX:
+        case PCM::KNL:
+        case PCM::HASWELLX:
+            return new GrantleyPlatform(m, csv, bandwidth, verbose, delay);
+        case PCM::IVYTOWN:
+        case PCM::JAKETOWN:
+            return new BromolowPlatform(m, csv, bandwidth, verbose, delay);
+        default:
+          return nullptr;
+    }
+}
+
+

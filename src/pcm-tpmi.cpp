@@ -62,7 +62,7 @@ int mainThrows(int argc, char * argv[])
         {
         case 'w':
             write = true;
-            value = (pcm::uint32)read_number(optarg);
+            value = read_number(optarg);
             break;
         case 'd':
             dec = true;
@@ -99,7 +99,7 @@ int mainThrows(int argc, char * argv[])
     SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
 
     // WARNING: This driver code (msr.sys) is only for testing purposes, not for production use
-    Driver drv = Driver(Driver::msrLocalPath());
+    Driver drv = Driver(Driver::msrSystemPath());
     // drv.stop();     // restart driver (usually not needed)
     if (!drv.start())
     {
@@ -111,6 +111,9 @@ int mainThrows(int argc, char * argv[])
 
     try
     {
+        PCM::setQuietMode(true);
+        auto pcmInstance = PCM::getInstance();
+        
         if (instances.empty())
         {
             for (size_t i = 0; i < TPMIHandle::getNumInstances(); ++i)
@@ -126,7 +129,33 @@ int mainThrows(int argc, char * argv[])
                 continue;
             }
             TPMIHandle h(i, requestedID, requestedRelativeOffset, !write);
-            auto one = [&](const size_t p)
+            
+            // Get NUMA node and socket ID
+            int32 numaNode = h.getNUMANode();
+            int32 socketId = -1;
+            if (numaNode >= 0)
+            {
+                socketId = pcmInstance->mapNUMANodeToSocket(static_cast<uint32>(numaNode));
+            }
+            
+            // Helper lambda to print socket ID and NUMA node information
+            auto printTopologyInfo = [&socketId, &numaNode]() {
+                if (socketId >= 0 || numaNode >= 0)
+                {
+                    // Save stream format state
+                    auto flags = std::cout.flags();
+                    
+                    if (socketId >= 0)
+                        std::cout << " (socket " << std::dec << socketId << ")";
+                    if (numaNode >= 0)
+                        std::cout << " (NUMA node " << std::dec << numaNode << ")";
+                    
+                    // Restore stream format state
+                    std::cout.flags(flags);
+                }
+            };
+            
+            auto one = [&](const size_t p, uint64 value)
             {
                 if (!dec)
                     std::cout << std::hex << std::showbase;
@@ -134,12 +163,16 @@ int mainThrows(int argc, char * argv[])
                 { old_value = h.read64(p); return true; });
                 if (write)
                 {
-                    std::cout << " Writing " << value << " to TPMI ID " << requestedID << "@" << requestedRelativeOffset << " for entry " << p << " in instance " << i << "\n";
+                    std::cout << " Writing " << value << " to TPMI ID " << requestedID << "@" << requestedRelativeOffset << " for entry " << p << " in instance " << i;
+                    printTopologyInfo();
+                    std::cout << "\n";
                     h.write64(p, value);
                 }
                 value = h.read64(p);
                 extractBitsPrintHelper(bits, value, dec);
-                std::cout << " from TPMI ID " << requestedID << "@" << requestedRelativeOffset << " for entry " << p << " in instance " << i << "\n\n";
+                std::cout << " from TPMI ID " << requestedID << "@" << requestedRelativeOffset << " for entry " << p << " in instance " << i;
+                printTopologyInfo();
+                std::cout << "\n\n";
             };
             if (entries.empty())
             {
@@ -152,7 +185,7 @@ int mainThrows(int argc, char * argv[])
             {
                 if (p < h.getNumEntries())
                 {
-                    one(p);
+                    one(p, value);
                 }
             }
         }

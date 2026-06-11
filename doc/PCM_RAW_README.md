@@ -214,6 +214,12 @@ Sample csv output (date,time,event_name,milliseconds_between_samples,TSC_cycles_
 ```
 The unit can be logical core, memory channel, CHA, etc, depending on the event type.
 
+
+Show events available for the processor on the system:
+```
+pcm-raw -?
+```
+
 --------------------------------------------------------------------------------
 Low-level access to Intel PMT telemetry data
 --------------------------------------------------------------------------------

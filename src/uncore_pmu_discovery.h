@@ -10,6 +10,8 @@
 
 namespace pcm {
 
+class PCM;
+
 constexpr auto SPR_PCU_BOX_TYPE = 4U;
 constexpr auto SPR_IMC_BOX_TYPE = 6U;
 constexpr auto SPR_UPILL_BOX_TYPE = 8U;
@@ -92,6 +94,9 @@ protected:
             " globalCtrl: 0x" << std::hex << globalCtrlAddr;
             UncorePMUDiscovery::printHelper((accessTypeEnum)accessType, globalCtrlAddr);
             std::cout << " stride: " << std::dec <<  stride
+                      << " maxUnits: " << maxUnits
+                      << " statusOffset: " << statusOffset
+                      << " numStatus: " << numStatus
             << "\n";
         }
     };
@@ -125,17 +130,17 @@ protected:
     };
     typedef std::vector<BoxPMU> BoxPMUs;
     typedef std::unordered_map<size_t, BoxPMUs> BoxPMUMap; // boxType -> BoxPMUs
-    std::vector<BoxPMUMap> boxPMUs;
-    std::vector<GlobalPMU> globalPMUs;
+    std::vector<std::vector<BoxPMUMap> > boxPMUs; // socket -> die -> BoxPMUs
+    std::vector<std::vector<GlobalPMU> > globalPMUs; // socket -> die -> GlobalPMU
 
-    bool validBox(const size_t boxType, const size_t socket, const size_t pos)
+    bool validBox(const size_t boxType, const size_t socket, const size_t die, const size_t pos)
     {
-        return socket < boxPMUs.size() && pos < boxPMUs[socket][boxType].size();
+        return socket < boxPMUs.size() && die < boxPMUs[socket].size() && pos < boxPMUs[socket][die][boxType].size();
     }
-    size_t registerStep(const size_t boxType, const size_t socket, const size_t pos)
+    size_t registerStep(const size_t boxType, const size_t socket, const size_t die, const size_t pos)
     {
-        const auto width = boxPMUs[socket][boxType][pos].bitWidth;
-        switch (boxPMUs[socket][boxType][pos].accessType)
+        const auto width = boxPMUs[socket][die][boxType][pos].bitWidth;
+        switch (boxPMUs[socket][die][boxType][pos].accessType)
         {
         case MSR:
             if (width <= 64)
@@ -165,60 +170,70 @@ protected:
         }
         return 0;
     }
+    UncorePMUDiscovery() = delete;
 public:
-    UncorePMUDiscovery();
+    UncorePMUDiscovery(PCM &);
 
-    size_t getNumBoxes(const size_t boxType, const size_t socket)
+    size_t getNumDies(const size_t socket) const
     {
         if (socket < boxPMUs.size())
         {
-            return boxPMUs[socket][boxType].size();
+            return boxPMUs[socket].size();
         }
         return 0;
     }
 
-    uint64 getBoxCtlAddr(const size_t boxType, const size_t socket, const size_t pos)
+    size_t getNumBoxes(const size_t boxType, const size_t socket, const size_t die)
     {
-        if (validBox(boxType, socket, pos))
+        if (socket < boxPMUs.size() && die < boxPMUs[socket].size())
         {
-            return boxPMUs[socket][boxType][pos].boxCtrlAddr;
+            return boxPMUs[socket][die][boxType].size();
         }
         return 0;
     }
 
-    uint64 getBoxCtlAddr(const size_t boxType, const size_t socket, const size_t pos, const size_t c)
+    uint64 getBoxCtlAddr(const size_t boxType, const size_t socket, const size_t die, const size_t pos)
     {
-        if (validBox(boxType, socket, pos) && c < boxPMUs[socket][boxType][pos].numRegs)
+        if (validBox(boxType, socket, die, pos))
         {
-            const size_t step = (boxType == SPR_IMC_BOX_TYPE) ? 4 : registerStep(boxType, socket, pos);
-            return boxPMUs[socket][boxType][pos].boxCtrlAddr + boxPMUs[socket][boxType][pos].ctrlOffset + c * step;
+            return boxPMUs[socket][die][boxType][pos].boxCtrlAddr;
         }
         return 0;
     }
 
-    uint64 getBoxCtrAddr(const size_t boxType, const size_t socket, const size_t pos, const size_t c)
+    uint64 getBoxCtlAddr(const size_t boxType, const size_t socket, const size_t die, const size_t pos, const size_t c)
     {
-        if (validBox(boxType, socket, pos) && c < boxPMUs[socket][boxType][pos].numRegs)
+        if (validBox(boxType, socket, die, pos) && c < boxPMUs[socket][die][boxType][pos].numRegs)
         {
-            return boxPMUs[socket][boxType][pos].boxCtrlAddr + boxPMUs[socket][boxType][pos].ctrOffset + c * registerStep(boxType, socket, pos);
+            const size_t step = (boxType == SPR_IMC_BOX_TYPE) ? 4 : registerStep(boxType, socket, die, pos);
+            return boxPMUs[socket][die][boxType][pos].boxCtrlAddr + boxPMUs[socket][die][boxType][pos].ctrlOffset + c * step;
         }
         return 0;
     }
 
-    accessTypeEnum getBoxAccessType(const size_t boxType, const size_t socket, const size_t pos)
+    uint64 getBoxCtrAddr(const size_t boxType, const size_t socket, const size_t die, const size_t pos, const size_t c)
     {
-        if (validBox(boxType, socket, pos))
+        if (validBox(boxType, socket, die, pos) && c < boxPMUs[socket][die][boxType][pos].numRegs)
         {
-            return static_cast<accessTypeEnum>(boxPMUs[socket][boxType][pos].accessType);
+            return boxPMUs[socket][die][boxType][pos].boxCtrlAddr + boxPMUs[socket][die][boxType][pos].ctrOffset + c * registerStep(boxType, socket, die, pos);
+        }
+        return 0;
+    }
+
+    accessTypeEnum getBoxAccessType(const size_t boxType, const size_t socket, const size_t die, const size_t pos)
+    {
+        if (validBox(boxType, socket, die, pos))
+        {
+            return static_cast<accessTypeEnum>(boxPMUs[socket][die][boxType][pos].accessType);
         }
         return unknownAccessType;
     }
 
-    uint64 getBoxNumRegs(const size_t boxType, const size_t socket, const size_t pos)
+    uint64 getBoxNumRegs(const size_t boxType, const size_t socket, const size_t die, const size_t pos)
     {
-        if (validBox(boxType, socket, pos))
+        if (validBox(boxType, socket, die, pos))
         {
-            return boxPMUs[socket][boxType][pos].numRegs;
+            return boxPMUs[socket][die][boxType][pos].numRegs;
         }
         return 0;
     }

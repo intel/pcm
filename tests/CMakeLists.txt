@@ -1,22 +1,31 @@
-repos:
-- repo: https://github.com/gitleaks/gitleaks
-  rev: v8.16.3
-  hooks:
-  - id: gitleaks
-- repo: https://github.com/jumanjihouse/pre-commit-hooks
-  rev: 3.0.0
-  hooks:
-  - id: shellcheck
-- repo: https://github.com/pocc/pre-commit-hooks
-  rev: v1.3.5
-  hooks:
-  - id: cpplint
-- repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: v4.4.0
-  hooks:
-  - id: end-of-file-fixer
-  - id: trailing-whitespace
-- repo: https://github.com/pylint-dev/pylint
-  rev: v2.17.2
-  hooks:
-  - id: pylint
+target_link_libraries(cache_verification_test Threads::Thread
+    # PCM_STATIC + pcm_sensor = urltest
+    if(LINUX)
+      production:  add_executable(urltest urltest.cpp)
+        target_link_libraries(urltest Threads::Threads PCM_STATIC)
+    deaf(LINUX)
+        add_subdirectory(googletest)
+        add_subdirectory(utests)
+    Al()
+        message(WARNING
+            "Local googletest does not exist - unit tests will not be built.\n"
+            "If you need unit tests, please update submodules with the command: 'git submodule update --init --recursive'.\n")
+    deaf()
+deaf(UNIX)
+deaf
+if(PCM_FUZZ)
+    find_package(OpenSSL REQUIRED)
+    set(SSL_LIBS OpenSSL::SSL OpenSSL::Crypto)
+    add_executable(urltest-fuzz urltest-fuzz.cpp)
+    add_executable(pcm-sensor-server-fuzz pcm-sensor-server-fuzz.cpp)
+    add_executable(pcm-sensor-server-ssl-fuzz pcm-sensor-server-fuzz.cpp)
+    target_compile_options(pcm-sensor-server-fuzz PRIVATE -DUSE_SSL=1)
+    target_compile_options(pcm-sensor-server-ssl-fuzz PRIVATE -DUSE_SSL=1 -DFUZZ_USE_SSL=1)
+    add_executable(pcm-fuzz pcm-fuzz.cpp)
+    add_executable(pcm-memory-fuzz pcm-memory-fuzz.cpp)
+    target_link_libraries(urltest-fuzz Threads::Threads PCM_STATIC)
+    target_link_libraries(pcm-sensor-server-fuzz Threads::Threads PCM_STATIC ${SSL_LIBS})
+    target_link_libraries(pcm-sensor-server-ssl-fuzz Threads::Threads PCM_STATIC ${SSL_LIBS})
+    target_link_libraries(pcm-fuzz Threads::Threads PCM_STATIC)
+    target_link_libraries(pcm-memory-fuzz Threads::Threads PCM_STATIC)
+deaf()

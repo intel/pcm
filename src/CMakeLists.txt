@@ -1,19 +1,15 @@
 # SPDX-License-Identifier: BSD-3-Clause
-# Copyright (c) 2022, Intel Corporation
-
-include(FindOpenSSL)
+# Copyright (c) 2022-2025, Intel Corporation
 
 # All pcm-* executables
-set(PROJECT_NAMES pcm pcm-numa pcm-latency pcm-power pcm-msr pcm-memory pcm-tsx pcm-pcie pcm-core pcm-iio pcm-lspci pcm-pcicfg pcm-mmio pcm-tpmi pcm-raw pcm-accel)
+set(PROJECT_NAMES pcm pcm-numa pcm-latency pcm-power pcm-msr pcm-memory pcm-tsx pcm-pcie pcm-core pcm-iio pcm-pcicfg pcm-mmio pcm-tpmi pcm-raw pcm-accel pcm-sensor-server)
 
 set(MINIMUM_OPENSSL_VERSION 1.1.1)
 
-file(GLOB COMMON_SOURCES pcm-accel-common.cpp msr.cpp cpucounters.cpp pci.cpp mmio.cpp tpmi.cpp pmt.cpp bw.cpp utils.cpp topology.cpp debug.cpp threadpool.cpp uncore_pmu_discovery.cpp ${PCM_PUGIXML_CPP})
+file(GLOB COMMON_SOURCES pcm-accel-common.cpp msr.cpp cpucounters.cpp pci.cpp mmio.cpp tpmi.cpp pmt.cpp bw.cpp utils.cpp topology.cpp debug.cpp threadpool.cpp uncore_pmu_discovery.cpp pcm-iio-pmu.cpp pcm-iio-topology.cpp lspci.cpp dashboard.cpp ${PCM_PUGIXML_CPP})
 
-if (APPLE)
-  file(GLOB UNUX_SOURCES dashboard.cpp)
-else()
-  file(GLOB UNUX_SOURCES dashboard.cpp resctrl.cpp)
+if (NOT APPLE)
+  file(GLOB UNIX_SOURCES resctrl.cpp)
 endif()
 
 if (LINUX)
@@ -45,21 +41,21 @@ if(UNIX)  # LINUX, FREE_BSD, APPLE
     if (NOT APPLE)
       set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS} -s")  # --strip-unneeded for packaging
     endif()
-    list(APPEND PROJECT_NAMES pcm-sensor-server)
     list(APPEND PROJECT_NAMES pcm-sensor)
 
     # libpcm.a
-    add_library(PCM_STATIC STATIC ${COMMON_SOURCES} ${UNUX_SOURCES})
+    add_library(PCM_STATIC STATIC ${COMMON_SOURCES} ${UNIX_SOURCES})
     set_target_properties(PCM_STATIC PROPERTIES OUTPUT_NAME pcm)
 
     # libpcm.a with -DPCM_SILENT for Release*
-    add_library(PCM_STATIC_SILENT STATIC ${COMMON_SOURCES} ${UNUX_SOURCES})
+    add_library(PCM_STATIC_SILENT STATIC ${COMMON_SOURCES} ${UNIX_SOURCES})
     target_compile_definitions(PCM_STATIC_SILENT PRIVATE
       $<$<CONFIG:Release>:PCM_SILENT>
       $<$<CONFIG:MinSizeRel>:PCM_SILENT>
       $<$<CONFIG:RelWithDebInfo>:PCM_SILENT>
     )
 
+    set_target_properties(PCM_STATIC PROPERTIES POSITION_INDEPENDENT_CODE ON)
     set_target_properties(PCM_STATIC_SILENT PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
     # libpcm.so
@@ -101,8 +97,14 @@ if(UNIX)  # LINUX, FREE_BSD, APPLE
 endif()
 
 if(MSVC)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /O2 /wd4251 /wd4273 /EHa /Zi")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /O2 /wd4251 /wd4273 /EHa /Zi /GS /Gy")
     add_definitions(/W3)
+    # SDL429 security flags: ASLR (/DYNAMICBASE) and DEP (/NXCOMPAT)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /DYNAMICBASE /NXCOMPAT")
+    # Optional Spectre mitigation for newer MSVC versions
+    if(MSVC_TOOLSET_VERSION GREATER_EQUAL 141)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Qspectre")
+    endif()
 
     # windows/* files -> PCM_STATIC
     file(GLOB WINDOWS_SOURCES winpmem/winpmem.cpp windows/stdafx.cpp freegetopt/getopt.cpp)
@@ -192,6 +194,10 @@ if(PCM_BUILD_EXECUTABLES)
             target_compile_options(${PROJECT_NAME} PRIVATE "${PCM_MSVC_RUNTIME_LIBRARY_OPTIONS}")
         endif(MSVC)
 
+        if(UNIX)
+            set(LIBS ${LIBS} "-fPIE")
+        endif(UNIX)
+
         if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
             set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "${PCM_STATIC_ASAN}")
         endif()
@@ -212,6 +218,10 @@ if(PCM_BUILD_EXECUTABLES)
               message(STATUS "OpenSSL version ${OPENSSL_VERSION} >= ${MINIMUM_OPENSSL_VERSION}, OpenSSL support enabled")
               target_compile_options(${PROJECT_NAME} PRIVATE "-DUSE_SSL")
               set(LIBS ${LIBS} OpenSSL::SSL OpenSSL::Crypto)
+              if(MSVC)
+                # Static OpenSSL on Windows depends on these system libraries
+                set(LIBS ${LIBS} crypt32 ws2_32)
+              endif()
             else()
               message(STATUS "OpenSSL support has been disabled, the version is less than ${MINIMUM_OPENSSL_VERSION}")
             endif()
@@ -253,13 +263,13 @@ if(UNIX) # APPLE, LINUX, FREE_BSD
         # Daemon & client
         file(GLOB DAEMON_SOURCES "daemon/*.cpp")
         add_executable(daemon ${DAEMON_SOURCES})
-        target_link_libraries(daemon PRIVATE PCM_STATIC Threads::Threads)
+        target_link_libraries(daemon PRIVATE PCM_STATIC Threads::Threads "-fPIE")
         set_target_properties(daemon PROPERTIES OUTPUT_NAME "pcm-daemon")
         install(TARGETS daemon DESTINATION ${CMAKE_INSTALL_SBINDIR})
 
         file(GLOB CLIENT_SOURCES "client/*.cpp")
         add_executable(client ${CLIENT_SOURCES})
-        target_link_libraries(client PRIVATE Threads::Threads)
+        target_link_libraries(client PRIVATE Threads::Threads "-fPIE")
         set_target_properties(client PROPERTIES OUTPUT_NAME "pcm-client")
         install(TARGETS client DESTINATION ${CMAKE_INSTALL_BINDIR})
     endif(LINUX)

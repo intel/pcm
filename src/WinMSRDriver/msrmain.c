@@ -9,6 +9,7 @@
 #include "msr.h"
 #include "ntdef.h"
 #include <wdm.h>
+#include <wdmsec.h>
 
 
 /*!     \file msrmain.cpp
@@ -62,6 +63,18 @@ DriverEntry(
     RtlInitUnicodeString(&UnicodeString, NT_DEVICE_NAME);
     RtlInitUnicodeString(&dosDeviceName, DOS_DEVICE_NAME);
 
+#if 1
+    status = IoCreateDeviceSecure(DriverObject,
+        sizeof(struct DeviceExtension),
+        &UnicodeString,
+        FILE_DEVICE_UNKNOWN,
+        FILE_DEVICE_SECURE_OPEN,
+        FALSE,
+        &SDDL_DEVOBJ_SYS_ALL_ADM_ALL,
+        NULL,
+        &MSRSystemDeviceObject
+    );
+#else
     status = IoCreateDevice(DriverObject,
                             sizeof(struct DeviceExtension),
                             &UnicodeString,
@@ -70,6 +83,7 @@ DriverEntry(
                             FALSE,
                             &MSRSystemDeviceObject
                             );
+#endif
 
     if (!NT_SUCCESS(status))
         return status;

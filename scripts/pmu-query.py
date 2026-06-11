@@ -46,17 +46,17 @@ if filename is None:
             break
 
     if platform.system() == "CYGWIN_NT-6.1":
-        p = subprocess.Popen(["./pcm-core.exe -c"], stdout=subprocess.PIPE, shell=True)
+        p = subprocess.Popen(["./pcm-core.exe", "-c"], stdout=subprocess.PIPE, shell=False)
     elif platform.system() == "Windows":
-        p = subprocess.Popen(["pcm-core.exe", "-c"], stdout=subprocess.PIPE, shell=True)
+        p = subprocess.Popen(["pcm-core.exe", "-c"], stdout=subprocess.PIPE, shell=False)
     elif platform.system() == "Linux":
         pcm_core = shutil.which("pcm-core")
         if not pcm_core:
             print("Could not find pcm-core executable!")
             sys.exit(-1)
-        p = subprocess.Popen([pcm_core, "-c"], stdout=subprocess.PIPE, shell=True)
+        p = subprocess.Popen([pcm_core, "-c"], stdout=subprocess.PIPE, shell=False)
     else:
-        p = subprocess.Popen(["../build/bin/pcm-core -c"], stdout=subprocess.PIPE, shell=True)
+        p = subprocess.Popen(["../build/bin/pcm-core", "-c"], stdout=subprocess.PIPE, shell=False)
 
     (output, err) = p.communicate()
     p_status = p.wait()
