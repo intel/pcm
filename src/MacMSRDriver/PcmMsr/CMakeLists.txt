@@ -29,6 +29,8 @@ endif()
 target_include_directories(PcmMsrDriver PRIVATE
         "${MACOSX_SDK_PATH}/System/Library/Frameworks/Kernel.framework/PrivateHeaders"
         "${MACOSX_SDK_PATH}/System/Library/Frameworks/Kernel.framework/Headers"
+        ${CMAKE_OSX_SYSROOT}/System/Library/Frameworks/Kernel.framework/PrivateHeaders
+        ${CMAKE_OSX_SYSROOT}/System/Library/Frameworks/Kernel.framework/Headers
 )
 target_compile_definitions(PcmMsrDriver PRIVATE
         -DKERNEL
