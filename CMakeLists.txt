@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.5)
 
 project(PCM)
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
@@ -67,9 +67,9 @@ if(UNIX)  # APPLE, LINUX, FREE_BSD
     set (PCM_COMMON_FLAGS "-Wno-unknown-pragmas -DCMAKE_INSTALL_PREFIX=\"${CMAKE_INSTALL_PREFIX}\"")
 
     if(LINUX)
-       set (PCM_COMMON_FLAGS "${PCM_COMMON_FLAGS} -Wextra -DPCM_USE_PERF")
-       if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-         set (PCM_COMMON_FLAGS "${PCM_COMMON_FLAGS} -Wl,-z,now")
+       set (PCM_COMMON_FLAGS "${PCM_COMMON_FLAGS} -Wextra -DPCM_USE_PERF -fstack-protector-strong")
+       if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+         set (PCM_COMMON_FLAGS "${PCM_COMMON_FLAGS} -Wl,-z,now -Wl,-z,relro -Wl,-z,noexecstack")
        endif()
 
        if(NOT DEFINED LINUX_SYSTEMD)
@@ -113,7 +113,7 @@ if(UNIX)  # APPLE, LINUX, FREE_BSD
         message(STATUS "To disable AddressSanitizer, use -DPCM_NO_ASAN=1 option")
         set(PCM_ASAN "-fsanitize=address")
     endif()
-    set(PCM_HARDENING_FLAGS "-fPIE -fstack-protector -D_FORTIFY_SOURCE=2 -ftrapv ${PCM_ASAN} -fwrapv -fno-delete-null-pointer-checks -fno-strict-overflow -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer")
+    set(PCM_HARDENING_FLAGS "-fstack-protector -D_FORTIFY_SOURCE=2 -ftrapv ${PCM_ASAN} -fwrapv -fno-delete-null-pointer-checks -fno-strict-overflow -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer")
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5)
         message(WARNING "Old gcc compiler (version < 5), -fsanitize=undefined option is not supported.")
     elseif()
@@ -137,6 +137,9 @@ if(UNIX)  # APPLE, LINUX, FREE_BSD
     message(STATUS "CMAKE_CXX_FLAGS_RELEASE: ${CMAKE_CXX_FLAGS_RELEASE}")
     message(STATUS "CMAKE_CXX_FLAGS_DEBUG: ${CMAKE_CXX_FLAGS_DEBUG}")
     message(STATUS "CMAKE_CXX_FLAGS_RELWITHDEBINFO: ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+
+    install(DIRECTORY "perfmon" DESTINATION ${CMAKE_INSTALL_DATADIR}/pcm)
+    install(FILES "third-party-software.txt" DESTINATION ${CMAKE_INSTALL_DATADIR}/pcm)
 
 endif(UNIX)
 

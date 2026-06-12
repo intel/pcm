@@ -43,6 +43,8 @@
 #include <unordered_map>
 #include <string.h>
 #include <assert.h>
+#include <atomic>
+#include "mutex.h"
 
 #ifdef PCM_USE_PERF
 #include <linux/perf_event.h>
@@ -158,13 +160,13 @@ public:
     }
     void operator = (uint64 val) override
     {
-        // std::cout << std::hex << "MMIORegister64 writing " << val << " at offset " << offset << std::dec << std::endl;
+        DBG(4, std::hex , "MMIORegister64 writing " , val , " at offset " , offset , std::dec);
         handle->write64(offset, val);
     }
     operator uint64 () override
     {
         const uint64 val = handle->read64(offset);
-        // std::cout << std::hex << "MMIORegister64 read " << val << " from offset " << offset << std::dec << std::endl;
+        DBG(4, std::hex , "MMIORegister64 read " , val , " from offset " , offset , std::dec);
         return val;
     }
 };
@@ -181,13 +183,13 @@ public:
     }
     void operator = (uint64 val) override
     {
-        // std::cout << std::hex << "MMIORegister32 writing " << val << " at offset " << offset << std::dec << std::endl;
+        DBG(4, std::hex , "MMIORegister32 writing " , val , " at offset " , offset , std::dec);
         handle->write32(offset, (uint32)val);
     }
     operator uint64 () override
     {
         const uint64 val = (uint64)handle->read32(offset);
-        // std::cout << std::hex << "MMIORegister32 read " << val << " from offset " << offset << std::dec << std::endl;
+        DBG(4, std::hex , "MMIORegister32 read " , val , " from offset " , offset , std::dec);
         return val;
     }
 };
@@ -210,7 +212,7 @@ public:
     {
         uint64 value = 0;
         handle->read(offset, &value);
-        // std::cout << "reading MSR " << offset << " returning " << value << std::endl;
+        DBG(4, "reading MSR " , offset , " returning " , value);
         return value;
     }
 };
@@ -313,7 +315,7 @@ public:
     std::vector<HWRegisterPtr> counterFilterENG;
     std::vector<HWRegisterPtr> counterFilterTC;
     std::vector<HWRegisterPtr> counterFilterPGSZ;
-    std::vector<HWRegisterPtr> counterFilterXFERSZ; 
+    std::vector<HWRegisterPtr> counterFilterXFERSZ;
 
     IDX_PMU(const bool perfMode_,
         const uint32 numaNode_,
@@ -570,7 +572,6 @@ class SimpleCounterState
     friend uint64 getNumberOfEvents(const T & before, const T & after);
     friend class PCM;
     uint64 data;
-
 public:
     SimpleCounterState() : data(0)
     { }
@@ -583,6 +584,11 @@ typedef SimpleCounterState IIOCounterState;
 typedef SimpleCounterState IDXCounterState;
 
 typedef std::vector<uint64> eventGroup_t;
+
+inline constexpr int PCM_CPU_FAMILY_MODEL(int family_, int model_)
+{
+    return ((family_) << 8) + (model_);
+}
 
 class PerfVirtualControlRegister;
 
@@ -619,6 +625,7 @@ class PCM_API PCM
     int32 num_phys_cores_per_socket;
     int32 num_online_cores;
     int32 num_online_sockets;
+    mutable bool maxNumOfCBoxesBasedOnCoreCount{false};
     uint32 accel;
     uint32 accel_counters_num_max;
     uint32 core_gen_counter_num_max;
@@ -646,13 +653,23 @@ class PCM_API PCM
         UFS_FABRIC_CLUSTER_OFFSET = 1,
         UFS_STATUS = 0
     };
-    std::vector<std::vector<std::shared_ptr<TPMIHandle> > > UFSStatus;
+    struct UFSStatusEntry
+    {
+        std::shared_ptr<TPMIHandle> tpmiHandle;
+        size_t pos;
+        UFSStatusEntry() : tpmiHandle(nullptr), pos(0) {}
+        UFSStatusEntry(const std::shared_ptr<TPMIHandle>& handle, size_t position) : tpmiHandle(handle), pos(position) {}
+    };
+    std::vector<std::vector<UFSStatusEntry> > UFSStatus;
 
     std::vector<TopologyEntry> topology;
+    mutable std::unordered_map<uint32, int32> numaNodeToSocketCache; // Cache for mapNUMANodeToSocket
+    mutable pcm::Mutex numaNodeToSocketCacheMutex; // Mutex to protect cache access
     SystemRoot* systemTopology;
     std::string errorMessage;
 
     static PCM * instance;
+    static std::atomic<bool> quietMode;
     bool programmed_core_pmu{false};
     std::vector<std::shared_ptr<SafeMsrHandle> > MSR;
     std::vector<std::shared_ptr<ServerUncorePMUs> > serverUncorePMUs;
@@ -767,7 +784,7 @@ private:
                         auto& pmu = pmuIter->second[unit];
                         for (size_t i = 0; pmu.get() != nullptr && i < pmu->size(); ++i)
                         {
-                            // std::cerr << "s " << socket << " d " << die << " pmu " << pmu_id << " unit " << unit << " ctr " << i << "\n";
+                            DBG(4, "s " , socket , " d " , die , " pmu " , pmu_id , " unit " , unit , " ctr " , i );
                             result.Counters[die][pmu_id][unit][i] = *(pmu->counterValue[i]);
                         }
                     }
@@ -951,6 +968,7 @@ public:
         THRESH,
         CH_MASK,
         FC_MASK,
+        UNIT_TYPE,
         /* Below are not part of perfmon definition */
         H_EVENT_NAME,
         V_EVENT_NAME,
@@ -1253,6 +1271,7 @@ private:
                 case SPR:
                 case EMR:
                 case GNR:
+                case GNR_D:
                 case GRR:
                 case SRF:
                     *ctrl = *curEvent;
@@ -1274,9 +1293,14 @@ private:
     void programCXLCM(const uint64* events);
     void cleanupUncorePMUs(const bool silent = false);
 
+    static bool isCLX(int cpu_family_model_, int cpu_stepping_)
+    {
+        return (PCM::SKX == cpu_family_model_) && (cpu_stepping_ > 4 && cpu_stepping_ < 8);
+    }
+
     bool isCLX() const // Cascade Lake-SP
     {
-        return (PCM::SKX == cpu_family_model) && (cpu_stepping > 4 && cpu_stepping < 8);
+        return isCLX(cpu_family_model, cpu_stepping);
     }
 
     static bool isCPX(int cpu_family_model_, int cpu_stepping_) // Cooper Lake
@@ -1299,6 +1323,23 @@ private:
 
 public:
     static bool isInitialized() { return instance != nullptr; }
+
+    /*!
+        \brief Set quiet mode for PCM initialization
+
+        When quiet mode is enabled, only errors are output during PCM initialization.
+        This method should be called before getInstance() is called for the first time.
+
+        \param enable true to enable quiet mode, false to disable
+    */
+    static void setQuietMode(bool enable) { quietMode = enable; }
+
+    /*!
+        \brief Check if quiet mode is enabled
+
+        \return true if quiet mode is enabled, false otherwise
+    */
+    static bool getQuietMode() { return quietMode; }
 
     //! check if TMA level 1 metrics are supported
     bool isHWTMAL1Supported() const;
@@ -1389,6 +1430,9 @@ public:
 
     //! \brief Returns the number of IIO stacks per socket
     uint32 getMaxNumOfIIOStacks() const;
+
+    //! \brief Returns the number of IO stacks per socket
+    uint32 getMaxNumOfIOStacks() const;
 
     /*! \brief Returns the number of IDX accel devs
         \param accel index of IDX accel
@@ -1595,6 +1639,7 @@ public:
     typedef std::pair<std::shared_ptr<MMIORange>, uint32> MMIORegisterEncoding; // MMIORange shared ptr, offset
     struct MMIORegisterEncodingHash : public PCICFGRegisterEncodingHash
     {
+        // cppcheck-suppress duplInheritedMember
         std::size_t operator()(const RawEventEncoding& e) const
         {
             std::size_t h4 = std::hash<uint64>{}(e[MMIOEventPosition::membar_bits1]);
@@ -1604,6 +1649,7 @@ public:
     };
     struct MMIORegisterEncodingCmp : public PCICFGRegisterEncodingCmp
     {
+        // cppcheck-suppress duplInheritedMember
         bool operator ()(const RawEventEncoding& a, const RawEventEncoding& b) const
         {
             return PCICFGRegisterEncodingCmp::operator()(a,b)
@@ -1663,6 +1709,7 @@ public:
     std::pair<unsigned, unsigned> getOCREventNr(const int event, const unsigned coreID) const
     {
        assert (coreID < topology.size());
+       const auto eCoreOCREvent = std::make_pair(OFFCORE_RESPONSE_0_EVTNR, event + 1);
        if (hybrid)
        {
             switch (cpu_family_model)
@@ -1672,9 +1719,10 @@ public:
             case MTL:
             case LNL:
             case ARL:
+            case PTL:
                 if (topology[coreID].core_type == TopologyEntry::Atom)
                 {
-                    return std::make_pair(OFFCORE_RESPONSE_0_EVTNR, event + 1);
+                    return eCoreOCREvent;
                 }
                 break;
             }
@@ -1684,13 +1732,32 @@ public:
        {
        case SPR:
        case EMR:
+       case GNR:
+       case GNR_D:
        case ADL: // ADL big core (GLC)
        case RPL:
        case MTL:
        case LNL:
        case ARL:
+       case PTL:
            useGLCOCREvent = true;
            break;
+
+       case ATOM:
+       case ATOM_2:
+       case CENTERTON:
+       case BAYTRAIL:
+       case AVOTON:
+       case CHERRYTRAIL:
+       case APOLLO_LAKE:
+       case GEMINI_LAKE:
+       case DENVERTON:
+       case SNOWRIDGE:
+       case ELKHART_LAKE:
+       case JASPER_LAKE:
+       case SRF:
+       case GRR:
+            return eCoreOCREvent;
        }
        switch (event)
        {
@@ -1725,7 +1792,7 @@ public:
 
             One needs to call this method when your program finishes or/and you are not going to use the
             performance counting routines anymore.
-*/
+    */
     void cleanup(const bool silent = false);
 
     /*! \brief Forces PMU reset
@@ -1803,7 +1870,7 @@ public:
             \return Number of sockets in the system
     */
     uint32 getNumSockets() const;
-    
+
     /*! \brief Reads  the accel type in the system
         \return acceltype
     */
@@ -1821,7 +1888,7 @@ public:
 
     /*! \brief Sets the Number of AccelCounters in the system
         \return number of counters
-    */          
+    */
     void setNumberofAccelCounters(uint32 input);
 
     /*! \brief Reads number of online sockets (CPUs) in the system
@@ -1859,6 +1926,12 @@ public:
      */
     bool isSomeCoreOfflined();
 
+    //! \brief Returns true if the CBox or CHA PMU count detection relies on physical core count
+    bool isMaxNumOfCBoxesBasedOnCoreCount() const
+    {
+        return maxNumOfCBoxesBasedOnCoreCount;
+    }
+
     /*! \brief Returns the maximum number of custom (general-purpose) core events supported by CPU
     */
     int32 getMaxCustomCoreEvents();
@@ -1873,8 +1946,6 @@ public:
     *   \return cpu family and model id number (model id is in the lower 8 bits, family id is in the next 8 bits)
     */
     static int getCPUFamilyModelFromCPUID();
-
-    #define PCM_CPU_FAMILY_MODEL(family_, model_) (((family_) << 8) + (model_))
 
     //! \brief Identifiers of supported CPU models
     enum SupportedCPUModels
@@ -1928,6 +1999,7 @@ public:
         LNL =           PCM_CPU_FAMILY_MODEL(6, 0xBD),
         ARL =           PCM_CPU_FAMILY_MODEL(6, 197),
         ARL_1 =         PCM_CPU_FAMILY_MODEL(6, 198),
+        PTL =           PCM_CPU_FAMILY_MODEL(6, 204),
         BDX =           PCM_CPU_FAMILY_MODEL(6, 79),
         KNL =           PCM_CPU_FAMILY_MODEL(6, 87),
         SKL =           PCM_CPU_FAMILY_MODEL(6, 94),
@@ -2002,6 +2074,19 @@ public:
     //! \return socket identifier
     int32 getSocketId(uint32 core_id) const { return (int32)topology[core_id].socket_id; }
 
+    //! \brief Determines die of given processor ID within a socket
+    //! \param os_id processor identifier
+    //! \return die identifier
+    int32 getDieId(uint32 os_id) const { return (int32)topology[os_id].die_id; }
+
+    //! \brief Maps NUMA node ID to CPU socket ID
+    //! \param numa_node_id NUMA node identifier
+    //! \return socket identifier, or -1 if mapping is not available or numa_node_id is invalid
+    //! \note On Linux: Uses /sys/devices/system/node/nodeX/cpulist
+    //! \note On Windows: Uses GetLogicalProcessorInformationEx (may have limitations with multi-group processors)
+    //! \note On FreeBSD: Uses vm.ndomains and cpuset_getdomain (FreeBSD 12.0+)
+    //! \note On macOS: Not implemented, returns -1
+    int32 mapNUMANodeToSocket(uint32 numa_node_id) const;
 
     size_t getNumCXLPorts(uint32 socket) const
     {
@@ -2038,6 +2123,7 @@ public:
         case SPR:
         case EMR:
         case GNR:
+        case GNR_D:
         case GRR:
         case SRF:
             return (serverUncorePMUs.size() && serverUncorePMUs[0].get()) ? (serverUncorePMUs[0]->getNumQPIPorts()) : 0;
@@ -2066,6 +2152,7 @@ public:
         case SPR:
         case EMR:
         case GNR:
+        case GNR_D:
         case GRR:
         case SRF:
         case BDX:
@@ -2096,6 +2183,7 @@ public:
         case SPR:
         case EMR:
         case GNR:
+        case GNR_D:
         case GRR:
         case SRF:
         case BDX:
@@ -2129,6 +2217,7 @@ public:
         case SPR:
         case EMR:
         case GNR:
+        case GNR_D:
         case GRR:
         case SRF:
         case BDX:
@@ -2165,6 +2254,7 @@ public:
             return 6;
         case LNL:
         case ARL:
+        case PTL:
             return 12;
         case SNOWRIDGE:
         case ELKHART_LAKE:
@@ -2196,6 +2286,7 @@ public:
         case SPR:
         case EMR:
         case GNR:
+        case GNR_D:
         case GRR:
         case SRF:
             return 6;
@@ -2250,6 +2341,7 @@ public:
         case SPR:
         case EMR:
         case GNR:
+        case GNR_D:
         case GRR:
         case SRF:
         case KNL:
@@ -2266,9 +2358,9 @@ public:
     }
     //! \brief Return TSC timer value in time units
     //! \param multiplier use 1 for seconds, 1000 for ms, 1000000 for mks, etc (default is 1000: ms)
-    //! \param core core to read on-chip TSC value (default is 0)
+    //! \param core core to read on-chip TSC value (default is -1: socketRefCore[0])
     //! \return time counter value
-    uint64 getTickCount(uint64 multiplier = 1000 /* ms */, uint32 core = 0);
+    uint64 getTickCount(uint64 multiplier = 1000 /* ms */, int32 core = -1);
 
     uint64 getInvariantTSC_Fast(uint32 core = 0);
 
@@ -2384,18 +2476,17 @@ public:
 
     //! \brief Control QAT telemetry service
     //! \param dev device index
-    //! \param operation control code 
+    //! \param operation control code
     void controlQATTelemetry(uint32 dev, uint32 operation);
 
     //! \brief Program IDX events
     //! \param events config of event to program
-    //! \param filters_wq filters(work queue) of event to program 
-    //! \param filters_eng filters(engine) of event to program 
-    //! \param filters_tc filters(traffic class) of event to program 
-    //! \param filters_pgsz filters(page size) of event to program 
-    //! \param filters_xfersz filters(transfer size) of event to program 
+    //! \param filters_wq filters(work queue) of event to program
+    //! \param filters_eng filters(engine) of event to program
+    //! \param filters_tc filters(traffic class) of event to program
+    //! \param filters_pgsz filters(page size) of event to program
+    //! \param filters_xfersz filters(transfer size) of event to program
     void programIDXAccelCounters(uint32 accel, std::vector<uint64_t> &events, std::vector<uint32> &filters_wq, std::vector<uint32> &filters_eng, std::vector<uint32> &filters_tc, std::vector<uint32> &filters_pgsz, std::vector<uint32> &filters_xfersz);
-
 
     //! \brief Get the state of IIO counter
     //! \param socket socket of the IIO stack
@@ -2426,6 +2517,11 @@ public:
     //! \brief Get a string describing the codename of the processor microarchitecture
     //! \param cpu_family_model_ cpu model (if no parameter provided the codename of the detected CPU is returned)
     const char * getUArchCodename(const int32 cpu_family_model_ = -1) const;
+
+    //! \brief Convert CPU Family/Model/Stepping to microarchitecture codename
+    //! \param cpu_family_model_ cpu family model
+    //! \param cpu_stepping necessary for some CPU models to distinguish between different microarchitectures
+    static const char * cpuFamilyModelToUArchCodename(const int32 cpu_family_model_, const int32 cpu_stepping_ = -1);
 
     //! \brief Get Brand string of processor
     static std::string getCPUBrandString();
@@ -2515,9 +2611,11 @@ public:
                  || cpu_family_model == PCM::MTL
                  || cpu_family_model == PCM::LNL
                  || cpu_family_model == PCM::ARL
+                 || cpu_family_model == PCM::PTL
                  || cpu_family_model == PCM::SPR
                  || cpu_family_model == PCM::EMR
                  || cpu_family_model == PCM::GNR
+                 || cpu_family_model == PCM::GNR_D
                  || cpu_family_model == PCM::SRF
                  || cpu_family_model == PCM::GRR
                );
@@ -2537,6 +2635,7 @@ public:
           || cpu_family_model == PCM::SPR
           || cpu_family_model == PCM::EMR
           || cpu_family_model == PCM::GNR
+          || cpu_family_model == PCM::GNR_D
           || cpu_family_model == PCM::SRF
           || cpu_family_model == PCM::GRR
           );
@@ -2553,6 +2652,7 @@ public:
             || cpu_family_model == PCM::MTL
             || cpu_family_model == PCM::LNL
             || cpu_family_model == PCM::ARL
+            || cpu_family_model == PCM::PTL
             || cpu_family_model == PCM::SPR
             || cpu_family_model == PCM::EMR
             || cpu_family_model == PCM::GNR
@@ -2625,9 +2725,10 @@ public:
         return (
                cpu_family_model == PCM::SRF
             || cpu_family_model == PCM::GNR
+            || cpu_family_model == PCM::GNR_D
             );
     }
-    
+
     bool memoryTrafficMetricsAvailable() const
     {
         return (!(isAtom() || cpu_family_model == PCM::CLARKDALE))
@@ -2667,6 +2768,7 @@ public:
             || cpu_family_model == PCM::GRR
             || cpu_family_model == PCM::SRF
             || cpu_family_model == PCM::GNR
+            || cpu_family_model == PCM::GNR_D
         );
     }
 
@@ -2676,6 +2778,7 @@ public:
                 && getMaxNumOfUncorePMUs(UBOX_PMU_ID) > 0ULL
                 && getNumCores() == getNumOnlineCores()
                 && PCM::GNR != cpu_family_model
+                && PCM::GNR_D != cpu_family_model
                 && PCM::SRF != cpu_family_model
             ;
     }
@@ -2769,6 +2872,7 @@ public:
             || cpu_family_model == PCM::SPR
             || cpu_family_model == PCM::EMR
             || cpu_family_model == PCM::GNR
+            || cpu_family_model == PCM::GNR_D
             || cpu_family_model == PCM::SRF
             || cpu_family_model == PCM::GRR
             || cpu_family_model == PCM::BDX
@@ -2816,6 +2920,7 @@ public:
          || cpu_family_model == PCM::SPR
          || cpu_family_model == PCM::EMR
          || cpu_family_model == PCM::GNR
+         || cpu_family_model == PCM::GNR_D
          || cpu_family_model == PCM::SRF
          || cpu_family_model == PCM::GRR
                );
@@ -2833,6 +2938,7 @@ public:
                || PCM::SPR == cpu_family_model
                || PCM::EMR == cpu_family_model
                || PCM::GNR == cpu_family_model
+               || PCM::GNR_D == cpu_family_model
                ;
     }
 
@@ -2847,6 +2953,7 @@ public:
             || cpu_family_model == MTL
             || cpu_family_model == LNL
             || cpu_family_model == ARL
+            || cpu_family_model == PTL
             || useSKLPath()
             ;
     }
@@ -3108,7 +3215,7 @@ public:
         MemoryBWLocal += o.MemoryBWLocal;
         MemoryBWTotal += o.MemoryBWTotal;
         SMICount += o.SMICount;
-        // std::cout << "before PCM debug aggregate "<< FrontendBoundSlots << " " << BadSpeculationSlots << " " << BackendBoundSlots << " " <<RetiringSlots << std::endl;
+        DBG(4, "before PCM debug aggregate ", FrontendBoundSlots , " " , BadSpeculationSlots , " " , BackendBoundSlots , " " , RetiringSlots );
         BasicCounterState old = *this;
         FrontendBoundSlots += o.FrontendBoundSlots;
         BadSpeculationSlots += o.BadSpeculationSlots;
@@ -3119,7 +3226,7 @@ public:
         FetchLatSlots += o.FetchLatSlots;
         BrMispredSlots += o.BrMispredSlots;
         HeavyOpsSlots += o.HeavyOpsSlots;
-        //std::cout << "after PCM debug aggregate "<< FrontendBoundSlots << " " << BadSpeculationSlots << " " << BackendBoundSlots << " " <<RetiringSlots << std::endl;
+        DBG(4, "after PCM debug aggregate ", FrontendBoundSlots , " " , BadSpeculationSlots , " " , BackendBoundSlots , " " ,RetiringSlots);
         assert(FrontendBoundSlots >= old.FrontendBoundSlots);
         assert(BadSpeculationSlots >= old.BadSpeculationSlots);
         assert(BackendBoundSlots >= old.BackendBoundSlots);
@@ -3547,9 +3654,6 @@ double getDRAMConsumedJoules(const CounterStateType & before, const CounterState
         || PCM::BDX == cpu_family_model
         || PCM::SKX == cpu_family_model
         || PCM::ICX == cpu_family_model
-        || PCM::GNR == cpu_family_model
-        || PCM::SRF == cpu_family_model
-        || PCM::GRR == cpu_family_model
         || PCM::KNL == cpu_family_model
         ) {
 /* as described in sections 5.3.2 (DRAM_POWER_INFO) and 5.3.3 (DRAM_ENERGY_STATUS) of
@@ -3747,7 +3851,7 @@ public:
         maxChannels = 32,
         maxXPILinks = 6,
         maxIIOStacks = 16,
-        maxCXLPorts = 6,
+        maxCXLPorts = 16,
         maxCounters = UncorePMU::maxCounters
     };
     enum EventPosition
@@ -3914,6 +4018,7 @@ class SocketCounterState : public BasicCounterState, public UncoreCounterState
     friend class PCM;
 
 protected:
+    // cppcheck-suppress duplInheritedMember
     void readAndAggregate(std::shared_ptr<SafeMsrHandle> handle)
     {
         BasicCounterState::readAndAggregate(handle);
@@ -3921,6 +4026,7 @@ protected:
     }
 
 public:
+    // cppcheck-suppress duplInheritedMember
     SocketCounterState& operator += ( const BasicCounterState& ccs )
     {
         BasicCounterState::operator += ( ccs );
@@ -3928,6 +4034,7 @@ public:
         return *this;
     }
 
+    // cppcheck-suppress duplInheritedMember
     SocketCounterState& operator += ( const UncoreCounterState& ucs )
     {
         UncoreCounterState::operator += ( ucs );
@@ -3940,6 +4047,7 @@ public:
     SocketCounterState( SocketCounterState&& ) = default;
     SocketCounterState & operator = ( SocketCounterState&& ) = default;
 
+    // cppcheck-suppress duplInheritedMember
     SocketCounterState & operator = ( UncoreCounterState&& ucs ) {
         UncoreCounterState::operator = ( std::move(ucs) );
         return *this;
@@ -3970,6 +4078,7 @@ class SystemCounterState : public SocketCounterState
     std::unordered_map<PCM::RawEventEncoding, std::vector<uint64>, PCM::PMTRegisterEncodingHash2> PMTValues{};
 
 protected:
+    // cppcheck-suppress duplInheritedMember
     void readAndAggregate(std::shared_ptr<SafeMsrHandle> handle)
     {
         BasicCounterState::readAndAggregate(handle);
@@ -4009,6 +4118,7 @@ public:
     SystemCounterState( SystemCounterState&& ) = default;
     SystemCounterState & operator = ( SystemCounterState&& ) = default;
 
+    // cppcheck-suppress duplInheritedMember
     SystemCounterState & operator += ( const SocketCounterState& scs )
     {
         BasicCounterState::operator += ( scs );
@@ -4017,6 +4127,7 @@ public:
         return *this;
     }
 
+    // cppcheck-suppress duplInheritedMember
     SystemCounterState & operator += ( const UncoreCounterState& ucs )
     {
         UncoreCounterState::operator += ( ucs );
@@ -4408,6 +4519,7 @@ uint64 getL2CacheMisses(const CounterStateType & before, const CounterStateType 
         || cpu_family_model == PCM::MTL
         || cpu_family_model == PCM::LNL
         || cpu_family_model == PCM::ARL
+        || cpu_family_model == PCM::PTL
         ) {
         return after.Event[BasicCounterState::SKLL2MissPos] - before.Event[BasicCounterState::SKLL2MissPos];
     }
@@ -4524,6 +4636,7 @@ uint64 getL3CacheHitsSnoop(const CounterStateType & before, const CounterStateTy
         || cpu_family_model == PCM::MTL
         || cpu_family_model == PCM::LNL
         || cpu_family_model == PCM::ARL
+        || cpu_family_model == PCM::PTL
         )
     {
         const int64 misses = getL3CacheMisses(before, after);
@@ -5144,7 +5257,7 @@ inline double getLocalMemoryRequestRatio(const CounterStateType & before, const 
     if (PCM::getInstance()->localMemoryRequestRatioMetricAvailable() == false) return -1.;
     const auto all = after.UncHARequests - before.UncHARequests;
     const auto local = after.UncHALocalRequests - before.UncHALocalRequests;
-    // std::cout << "PCM DEBUG "<< 64*all/1e6 << " " << 64*local/1e6 << "\n";
+    DBG(4, 64*all/1e6 , " " , 64*local/1e6);
     return double(local)/double(all);
 }
 
@@ -5183,8 +5296,8 @@ inline uint64 getAllSlots(const CounterStateType & before, const CounterStateTyp
     const int64 b = after.FrontendBoundSlots - before.FrontendBoundSlots;
     const int64 c = after.BadSpeculationSlots - before.BadSpeculationSlots;
     const int64 d = after.RetiringSlots - before.RetiringSlots;
-    // std::cout << "before DEBUG: " << before.FrontendBoundSlots << " " << before.BadSpeculationSlots << " "<< before.BackendBoundSlots << " " << before.RetiringSlots << std::endl;
-    // std::cout << "after DEBUG: " <<  after.FrontendBoundSlots << " " << after.BadSpeculationSlots << " " << after.BackendBoundSlots << " " << after.RetiringSlots << std::endl;
+    DBG(4, "before: " , before.FrontendBoundSlots , " " , before.BadSpeculationSlots , " ", before.BackendBoundSlots , " " , before.RetiringSlots);
+    DBG(4, "afterG: " ,  after.FrontendBoundSlots , " " , after.BadSpeculationSlots , " " , after.BackendBoundSlots , " " , after.RetiringSlots);
     assert(a >= 0);
     assert(b >= 0);
     assert(c >= 0);
@@ -5202,7 +5315,7 @@ inline uint64 getAllSlotsRaw(const CounterStateType& before, const CounterStateT
 template <class CounterStateType>
 inline double getBackendBound(const CounterStateType & before, const CounterStateType & after)
 {
-//    std::cout << "DEBUG: "<< after.BackendBoundSlots - before.BackendBoundSlots << " " << getAllSlots(before, after) << std::endl;
+    DBG(4, (after.BackendBoundSlots - before.BackendBoundSlots) , " " , getAllSlots(before, after));
     if (PCM::getInstance()->isHWTMAL1Supported())
         return double(after.BackendBoundSlots - before.BackendBoundSlots)/double(getAllSlots(before, after));
     return 0.;
@@ -5230,7 +5343,7 @@ inline double getCoreBound(const CounterStateType & before, const CounterStateTy
 template <class CounterStateType>
 inline double getFrontendBound(const CounterStateType & before, const CounterStateType & after)
 {
-//    std::cout << "DEBUG: "<< after.FrontendBoundSlots - before.FrontendBoundSlots << " " << getAllSlots(before, after) << std::endl;
+    DBG(4, (after.FrontendBoundSlots - before.FrontendBoundSlots) , " " , getAllSlots(before, after));
     if (PCM::getInstance()->isHWTMAL1Supported())
         return double(after.FrontendBoundSlots - before.FrontendBoundSlots)/double(getAllSlots(before, after));
     return 0.;
@@ -5258,7 +5371,7 @@ inline double getFetchBandwidthBound(const CounterStateType & before, const Coun
 template <class CounterStateType>
 inline double getBadSpeculation(const CounterStateType & before, const CounterStateType & after)
 {
-//    std::cout << "DEBUG: "<< after.BadSpeculationSlots - before.BadSpeculationSlots << " " << getAllSlots(before, after) << std::endl;
+    DBG(4, (after.BadSpeculationSlots - before.BadSpeculationSlots) , " " , getAllSlots(before, after));
     if (PCM::getInstance()->isHWTMAL1Supported())
         return double(after.BadSpeculationSlots - before.BadSpeculationSlots)/double(getAllSlots(before, after));
     return 0.;
@@ -5286,7 +5399,7 @@ inline double getMachineClearsBound(const CounterStateType & before, const Count
 template <class CounterStateType>
 inline double getRetiring(const CounterStateType & before, const CounterStateType & after)
 {
-//    std::cout << "DEBUG: "<< after.RetiringSlots - before.RetiringSlots << " " << getAllSlots(before, after) << std::endl;
+    DBG(4, (after.RetiringSlots - before.RetiringSlots) , " " , getAllSlots(before, after));
     if (PCM::getInstance()->isHWTMAL1Supported())
         return double(after.RetiringSlots - before.RetiringSlots)/double(getAllSlots(before, after));
     return 0.;
