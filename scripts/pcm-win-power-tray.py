@@ -2,7 +2,7 @@ import pystray
 from PIL import Image, ImageDraw, ImageFont
 import threading
 import time
-import subprocess
+import subprocess  # nosec B404 - subprocess used for controlled system commands, no user input
 import csv
 import io
 

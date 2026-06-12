@@ -8,7 +8,7 @@
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
        size_t size_int = size / sizeof(int);
-       const auto ints_used = 7;
+       const auto ints_used = 8;
        if (size_int < ints_used)
        {
                return 0;
@@ -65,17 +65,18 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
         bool show_socket_output = data_int[pos++] % 2;
         bool show_system_output = data_int[pos++] % 2;
         bool show_core_output = data_int[pos++] % 2;
+        bool show_die_output = data_int[pos++] % 2;
         assert(pos == ints_used);
 
         m->getAllCounterStates(sstate1, sktstate1, cstates1);
         m->getAllCounterStates(sstate2, sktstate2, cstates2);
         if (csv_output)
                 print_csv(m, cstates1, cstates2, sktstate1, sktstate2, ycores, sstate1, sstate2,
-                        show_core_output, show_partial_core_output, show_socket_output, show_system_output);
+                        show_core_output, show_partial_core_output, show_socket_output, show_system_output, show_die_output);
         else
                 print_output(m, cstates1, cstates2, sktstate1, sktstate2, ycores, sstate1, sstate2,
                         cpu_family_model, show_core_output, show_partial_core_output, show_socket_output, show_system_output,
-                        metricVersion);
+                        metricVersion, show_die_output);
 
        return 0;
 }

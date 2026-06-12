@@ -78,33 +78,55 @@ struct PCM_API TopologyEntry // describes a core
         }
         return "unknown";
     }
-    bool isSameSocket( TopologyEntry& te ) {
+    bool isSameSocket( TopologyEntry& te ) const {
         return this->socket_id == te.socket_id;
     }
-    bool isSameDieGroup( TopologyEntry& te ) {
+    bool isSameDieGroup( TopologyEntry& te ) const {
         return this->die_grp_id == te.die_grp_id && isSameSocket(te);
     }
-    bool isSameDie( TopologyEntry& te ) {
+    bool isSameDie( TopologyEntry& te ) const {
         return this->die_id == te.die_id && isSameDieGroup(te);
     }
-    bool isSameTile( TopologyEntry& te ) {
+    bool isSameTile( TopologyEntry& te ) const {
         return this->tile_id == te.tile_id && isSameDie(te);
     }
-    bool isSameModule( TopologyEntry& te ) {
+    bool isSameModule( TopologyEntry& te ) const {
         return this->module_id == te.module_id && isSameTile (te);
     }
-    bool isSameCore( TopologyEntry& te ) {
+    bool isSameCore( TopologyEntry& te ) const {
         return this->core_id == te.core_id && isSameModule(te);
+    }
+    bool operator <(const TopologyEntry& other) const
+    {
+        if (socket_id != other.socket_id)
+            return socket_id < other.socket_id;
+        if (die_grp_id != other.die_grp_id)
+            return die_grp_id < other.die_grp_id;
+        if (die_id != other.die_id)
+            return die_id < other.die_id;
+        if (tile_id != other.tile_id)
+            return tile_id < other.tile_id;
+        if (module_id != other.module_id)
+            return module_id < other.module_id;
+        if (core_id != other.core_id)
+            return core_id < other.core_id;
+        return thread_id < other.thread_id;
     }
 };
 
 inline void fillEntry(TopologyEntry & entry, const uint32 & smtMaskWidth, const uint32 & coreMaskWidth, const uint32 & l2CacheMaskShift, const int apic_id)
 {
+    #ifndef USER_KERNEL_SHARED
+    DBG(1, "entry.os_id = ", entry.os_id, " apic_id = ", apic_id);
+    #endif
     entry.thread_id = smtMaskWidth ? extract_bits_32(apic_id, 0, smtMaskWidth - 1) : 0;
-    entry.core_id = (smtMaskWidth + coreMaskWidth) ? extract_bits_32(apic_id, smtMaskWidth, smtMaskWidth + coreMaskWidth - 1) : 0;
+    entry.core_id = coreMaskWidth ? extract_bits_32(apic_id, smtMaskWidth, smtMaskWidth + coreMaskWidth - 1) : 0;
     entry.socket_id = extract_bits_32(apic_id, smtMaskWidth + coreMaskWidth, 31);
     entry.tile_id = extract_bits_32(apic_id, l2CacheMaskShift, 31);
     entry.socket_unique_core_id = entry.core_id;
+    #ifndef USER_KERNEL_SHARED
+    DBG(1, "entry.os_id = ", entry.os_id, " apic_id = ", apic_id, " entry.thread_id = ", entry.thread_id, " entry.core_id = ", entry.core_id, " entry.socket_id = ", entry.socket_id , " entry.tile_id = ", entry.tile_id, " entry.socket_unique_core_id = ", entry.socket_unique_core_id);
+    #endif
 }
 
 inline bool initCoreMasks(uint32 & smtMaskWidth, uint32 & coreMaskWidth, uint32 & l2CacheMaskShift, uint32 & l3CacheMaskShift)
@@ -127,6 +149,9 @@ inline bool initCoreMasks(uint32 & smtMaskWidth, uint32 & coreMaskWidth, uint32 
             }
             levelType = extract_bits_32(cpuid_args.array[2], 8, 15);
             levelShift = extract_bits_32(cpuid_args.array[0], 0, 4);
+            #ifndef USER_KERNEL_SHARED
+            DBG(1, "levelType = ", levelType, " levelShift = ", levelShift);
+            #endif
             switch (levelType)
             {
             case 1: //level type is SMT, so levelShift is the SMT_Mask_Width
@@ -235,6 +260,9 @@ inline bool initCoreMasks(uint32 & smtMaskWidth, uint32 & coreMaskWidth, uint32 
         }
 #endif
     }
+    #ifndef USER_KERNEL_SHARED
+    DBG(1, "smtMaskWidth = ", smtMaskWidth, " coreMaskWidth = ", coreMaskWidth, " l2CacheMaskShift = ", l2CacheMaskShift, " l3CacheMaskShift = ", l3CacheMaskShift);
+    #endif
     return true;
 }
 

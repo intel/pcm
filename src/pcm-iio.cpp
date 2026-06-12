@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: BSD-3-Clause
-// Copyright (c) 2017-2022, Intel Corporation
+// Copyright (c) 2017-2025, Intel Corporation
 
 // written by Patrick Lu,
-//            Aaron Cruz
+//            Aaron Cruz,
+//            Alexander Antonov
 //            and others
 
 #include "pcm-iio-pmu.h"
@@ -63,30 +64,9 @@ void print_usage(const string& progname)
     cout << "\n";
 }
 
-PCM_MAIN_NOTHROW;
-
-int mainThrows(int argc, char * argv[])
+void parse_arguments(int argc, char * argv[], struct pcm_iio_config& config, MainLoop& mainLoop)
 {
-    if (print_version(argc, argv))
-        exit(EXIT_SUCCESS);
-
-    null_stream nullStream;
-    check_and_set_silent(argc, argv, nullStream);
-
-    std::cout << "\n Intel(r) Performance Counter Monitor " << PCM_VERSION << "\n";
-    std::cout << "\n This utility measures IIO information\n\n";
-
-    string program = string(argv[0]);
-
-    bool csv = false;
-    bool human_readable = false;
-    bool show_root_port = false;
-    std::string csv_delimiter = ",";
-    std::string output_file;
-    double delay = PCM_DELAY_DEFAULT;
-    bool list = false;
-    MainLoop mainLoop;
-
+    const string program = string(argv[0]);
     while (argc > 1) {
         argv++;
         argc--;
@@ -100,73 +80,84 @@ int mainThrows(int argc, char * argv[])
             continue;
         }
         else if (extract_argument_value(*argv, {"-csv-delimiter", "/csv-delimiter"}, arg_value)) {
-            csv_delimiter = std::move(arg_value);
+            config.display.csv_delimiter = std::move(arg_value);
         }
         else if (check_argument_equals(*argv, {"-csv", "/csv"})) {
-            csv = true;
+            config.display.csv = true;
         }
         else if (extract_argument_value(*argv, {"-csv", "/csv"}, arg_value)) {
-            csv = true;
-            output_file = std::move(arg_value);
+            config.display.csv = true;
+            config.display.output_file = std::move(arg_value);
         }
         else if (check_argument_equals(*argv, {"-human-readable", "/human-readable"})) {
-            human_readable = true;
+            config.display.human_readable = true;
         }
         else if (check_argument_equals(*argv, {"-list", "--list"})) {
-            list = true;
+            config.display.list = true;
         }
         else if (check_argument_equals(*argv, {"-root-port", "/root-port"})) {
-            show_root_port = true;
+            config.display.show_root_port = true;
         }
         else if (mainLoop.parseArg(*argv)) {
             continue;
         }
         else {
-            delay = parse_delay(*argv, program, (print_usage_func)print_usage);
+            config.pmu_config.delay = parse_delay(*argv, program, (print_usage_func)print_usage);
             continue;
         }
     }
+}
+
+PCM_MAIN_NOTHROW;
+
+int mainThrows(int argc, char * argv[])
+{
+    if (print_version(argc, argv))
+        exit(EXIT_SUCCESS);
+
+    null_stream nullStream;
+    check_and_set_silent(argc, argv, nullStream);
+
+    std::cout << "\n Intel(r) Performance Counter Monitor " << PCM_VERSION << "\n";
+    std::cout << "\n This utility measures IIO information\n\n";
+
+    struct pcm_iio_config config;
+    MainLoop mainLoop;
+
+    parse_arguments(argc, argv, config, mainLoop);
 
     set_signal_handlers();
 
     print_cpu_details();
 
-    PCM * m = PCM::getInstance();
-
     std::ostream* output = &std::cout;
     std::fstream file_stream;
-    if (!output_file.empty()) {
-        file_stream.open(output_file.c_str(), std::ios_base::out);
+    if (!config.display.output_file.empty()) {
+        file_stream.open(config.display.output_file.c_str(), std::ios_base::out);
         output = &file_stream;
     }
 
-    std::vector<struct iio_stacks_on_socket> iios;
-    iio_evt_parse_context evt_ctx;
-    // Map with metrics names.
-    PCIeEventNameMap_t nameMap;
-
-    if ( !initializeIIOCounters( iios, evt_ctx, nameMap ) )
+    if (!initializePCIeBWCounters(config.pmu_config))
         exit(EXIT_FAILURE);
 
-    PCIDB pciDB;
-    load_PCIDB(pciDB);
+    load_PCIDB(config.pciDB);
 
-    if (list) {
-        print_PCIeMapping(iios, pciDB, *output);
+    if (config.display.list) {
+        print_PCIeMapping(config.pmu_config.iios, config.pciDB, *output);
         return 0;
     }
 
-
 #ifdef PCM_DEBUG
-    print_nameMap(nameMap);
+    print_nameMap(config.pmu_config.nameMap);
 #endif
+
+    auto displayBuilder = getDisplayBuilder(config);
+    auto collector = std::make_unique<PcmIioDataCollector>(config.pmu_config);
 
     mainLoop([&]()
     {
-        collect_data(m, delay, iios, evt_ctx.ctrs);
-        vector<string> display_buffer = csv ?
-            build_csv(iios, evt_ctx.ctrs, human_readable, show_root_port, csv_delimiter, nameMap) :
-            build_display(iios, evt_ctx.ctrs, pciDB, nameMap);
+        collector->collectData();
+        vector<string> display_buffer = displayBuilder->buildDisplayBuffer();
         display(display_buffer, *output);
         return true;
     });

@@ -18,6 +18,9 @@
 #endif
 #include <stdio.h>
 #include <list>
+#ifndef _MSC_VER
+#include <fcntl.h>
+#endif
 #include <string>
 
 using namespace pcm;
@@ -120,7 +123,7 @@ int mainThrows(int argc, char * argv[])
     SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
 
     // WARNING: This driver code (msr.sys) is only for testing purposes, not for production use
-    Driver drv = Driver(Driver::msrLocalPath());
+    Driver drv = Driver(Driver::msrSystemPath());
     // drv.stop();     // restart driver (usually not needed)
     if (!drv.start())
     {
@@ -131,8 +134,24 @@ int mainThrows(int argc, char * argv[])
     #endif
     if (outfile.length() > 0){
       outflag = true;
-      ofile = fopen(outfile.c_str(),"w");
-      if (ofile==NULL){
+#ifdef _MSC_VER
+      // SDL330: Check for symlink/reparse point before opening (Windows)
+      DWORD attrs = GetFileAttributesA(outfile.c_str());
+      if (attrs != INVALID_FILE_ATTRIBUTES && (attrs & FILE_ATTRIBUTE_REPARSE_POINT)) {
+        printf("SDL330 ERROR: Symlink/reparse point detected at '%s' (skipping write)\n", outfile.c_str());
+        outflag = false;
+      } else {
+        if (fopen_s(&ofile, outfile.c_str(), "w") != 0) {
+          ofile = NULL;
+        }
+      }
+#else
+      // SDL330: Use O_NOFOLLOW to reject symlinks
+      int fd = open(outfile.c_str(), O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW, 0644);
+      ofile = (fd >= 0) ? fdopen(fd, "w") : NULL;
+      if (fd >= 0 && !ofile) close(fd);
+#endif
+      if (outflag && ofile==NULL){
         printf("ERROR: can not open '%s' (skipping write)\n",outfile.c_str());
         printf("      (maybe a sudo issue .. need o+rwx on directory)\n");
         outflag = false;

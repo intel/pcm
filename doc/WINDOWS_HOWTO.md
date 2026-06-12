@@ -14,7 +14,7 @@ _For support of systems with more than _**_64_**_ logical cores you need to comp
    alternatively you can perform `cmake -B build`, open *PCM.sln* form *build* folder in and build required project in Visual Studio.
    .exe and .dll files will be located in *build\bin\Release* folder
 3. As Administrator create PCM directory in Windows "Program Files" directory (e.g. `C:\Program Files (x86)\PCM\`)
-4. As Administrator copy the msr.sys driver and pcm.exe into the PCM directory
+4. As Administrator copy the msr.sys driver into `c:\windows\system32` and pcm.exe into the PCM directory
 5. Run pcm.exe utility from the PCM directory as Administrator
 
 For Windows 7+ and Windows Server 2008+ R2 the PCM utilities need to be run as Administrator:
@@ -51,7 +51,7 @@ If you do not want or cannot compile the msr.sys driver you might use a third-pa
 Instructions:
 
 1. Download the free RealTemp utility package from [http://www.techpowerup.com/realtemp/](http://www.techpowerup.com/realtemp/) or any other free utility that uses the open-source WinRing0 driver (like OpenHardwareMonitor [http://code.google.com/p/open-hardware-monitor/downloads/list](http://code.google.com/p/open-hardware-monitor/downloads/list)).
-2. Copy WinRing0.dll, WinRing0.sys, WinRing0x64.dll, WinRing0x64.sys files from there into the PCM.exe binary location, into the PCM-Service.exe location and into c:\windows\system32
+2. Copy WinRing0.dll, WinRing0.sys, WinRing0x64.dll, WinRing0x64.sys files from there into c:\windows\system32
 3. Run the PCM.exe tool and/or go to step 6 (perfmon utility).
 
 ## Compile the Windows MSR driver
@@ -101,3 +101,63 @@ A: Despite that PCM-Service is reserving more memory than the standard 512kB thi
 <performanceCounters filemappingsize="2097152" />
 </system.diagnostics>`
 to that file
+
+## pcm-sensor-server (HTTP/HTTPS server for Grafana integration)
+
+Starting from this release, **pcm-sensor-server** is now supported on Windows. This utility exposes PCM metrics over HTTP in JSON or Prometheus format for integration with Grafana dashboards.
+
+### Building pcm-sensor-server on Windows
+
+1. Follow the **Compile the Windows MSR driver** and **Sign the Windows MSR driver** sections above to compile, sign, and install the MSR driver (`msr.sys`)
+
+2. Build pcm-sensor-server:
+   ```
+   cmake -B build
+   cmake --build build --config Release --target pcm-sensor-server
+   ```
+   
+   The executable will be located in `build\bin\Release\pcm-sensor-server.exe`
+
+3. (Optional) For HTTPS support, ensure OpenSSL is installed and available to CMake
+
+### Running pcm-sensor-server on Windows
+
+1. Create a directory for PCM in a protected location (e.g., `C:\Program Files\PCM\` or `C:\Program Files (x86)\PCM\`). Copy `pcm-sensor-server.exe` to this directory and `msr.sys` to `c:\windows\system32`. If using WinPmem for memory bandwidth statistics, also copy `winpmem_x64.sys` (or `winpmem_x86.sys`) to `c:\windows\system32`. **Important:** Do not place PCM binaries or drivers in user-writable directories (e.g., Downloads, Desktop, `C:\Users\Public\`) to prevent driver planting attacks.
+
+2. Run as Administrator (required for MSR access):
+   ```
+   pcm-sensor-server.exe
+   ```
+   
+   The server will start on the default port 9738
+
+3. Common command-line options:
+   - `-p <port>` : Run on a specific port (default is 9738)
+   - `-D <level>` : Set debug verbosity level (0 = no debug, higher = more verbose)
+   - `-s` : Enable HTTPS (requires OpenSSL and certificate files)
+   - `-h` or `--help` : Show all available options
+
+4. Access the metrics:
+   - JSON format: http://localhost:9738/ (with `Accept: application/json` header)
+   - Prometheus format: http://localhost:9738/metrics
+
+### Windows-specific limitations
+
+- **Daemon mode not supported**: The `-d` (daemon/background) option is not available on Windows. The server runs in foreground mode only.
+- **Real-time priority not supported**: The `-R` (real-time priority) option is not available on Windows.
+- **Signal handling**: Use Ctrl+C to gracefully stop the server instead of SIGTERM/SIGINT.
+
+### Example: Running with Grafana on Windows
+
+1. Start pcm-sensor-server as Administrator:
+   ```
+   pcm-sensor-server.exe -p 9738
+   ```
+
+2. Configure Prometheus to scrape from `http://localhost:9738/metrics`
+
+3. Configure Grafana to use your Prometheus data source
+
+4. Import the PCM Grafana dashboard (see [scripts/grafana/README.md](../scripts/grafana/README.md))
+
+For more details on using pcm-sensor-server with Grafana, see [PCM-EXPORTER.md](PCM-EXPORTER.md).

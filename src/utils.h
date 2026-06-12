@@ -87,7 +87,10 @@ namespace pcm {
 }
 
 #ifdef _MSC_VER
-#define PCM_SET_DLL_DIR SetDllDirectory(_T(""));
+// Security hardening: remove the current working directory from the DLL search
+// order to prevent DLL planting attacks (CWE-427). This ensures DLLs are only
+// loaded from trusted system directories.
+#define PCM_SET_DLL_DIR SetDllDirectory(_T("")); SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_SYSTEM32);
 #else
 #define PCM_SET_DLL_DIR
 #endif
@@ -97,7 +100,7 @@ int mainThrows(int argc, char * argv[]); \
 int main(int argc, char * argv[]) \
 { \
     try { \
-       eraseEnvironmentVariables({PCM_STRING("POSIXLY_CORRECT")}); \
+       eraseEnvironmentVariables({PCM_STRING("POSIXLY_CORRECT"), PCM_STRING("SystemRoot")}); \
     } catch(const std::exception & e) \
     { \
         std::cerr << "PCM ERROR. Exception in eraseEnvironmentVariables: " << e.what() << "\n"; \
@@ -587,6 +590,12 @@ inline void parsePID(int argc, char* argv[], int& pid)
     parseParam(argc, argv, "pid", [&pid](const char* p) { if (p) pid = atoi(p); });
 }
 
+enum class CounterType {
+    COUNTER_TYPE_INVALID = -1,
+    iio = 0,
+    COUNTER_TYPES_COUNT
+};
+
 struct counter {
     std::string h_event_name = "";
     std::string v_event_name = "";
@@ -596,6 +605,7 @@ struct counter {
     int divider = 0;
     uint32_t h_id = 0;
     uint32_t v_id = 0;
+    CounterType type = CounterType::COUNTER_TYPE_INVALID;
 };
 
 struct data{
@@ -609,6 +619,13 @@ typedef enum{
     EVT_LINE_COMPLETE
 }evt_cb_type;
 
+using EventName = std::string;
+using CounterName = std::string;
+
+using CounterValueMap = std::unordered_map<CounterName, uint32_t>;
+using EventDefinition = std::pair<uint32_t, CounterValueMap>;
+using PCIeEventNameMap = std::unordered_map<EventName, EventDefinition>;
+
 void getMCFGRecords(std::vector<MCFGRecord>& mcfg);
 std::string dos2unix(std::string in);
 bool isRegisterEvent(const std::string & pmu);
@@ -620,10 +637,10 @@ std::string build_csv_row(const std::vector<std::string>& chunks, const std::str
 std::vector<struct data> prepare_data(const std::vector<uint64_t> &values, const std::vector<std::string> &headers);
 void display(const std::vector<std::string> &buff, std::ostream& stream);
 
-void print_nameMap(std::map<std::string,std::pair<uint32_t,std::map<std::string,uint32_t>>>& nameMap);
+void print_nameMap(const PCIeEventNameMap& nameMap);
 int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
                 int (*p_fn_evtcb)(evt_cb_type, void *, counter &, std::map<std::string, uint32_t> &, std::string, uint64),
-                void *evtcb_ctx, std::map<std::string,std::pair<uint32_t,std::map<std::string,uint32_t>>> &nameMap);
+                void *evtcb_ctx, PCIeEventNameMap& nameMap);
 int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
                 int (*pfn_evtcb)(evt_cb_type, void *, counter &, std::map<std::string, uint32_t> &, std::string, uint64),
                 void *evtcb_ctx);
@@ -685,7 +702,7 @@ inline bool readOldValueHelper(const std::pair<int64,int64> & bits, T & value, c
         {
             return false;
         }
-        value = insertBits(old_value, value, bits.first, bits.second - bits.first + 1);
+        value = insertBits(old_value, value, bits.first, static_cast<uint64>(bits.second - bits.first + 1));
     }
     return true;
 }
@@ -698,7 +715,7 @@ inline void extractBitsPrintHelper(const std::pair<int64,int64> & bits, T & valu
     {
         std::cout << "bits "<< std::dec << bits.first << ":" << bits.second << " ";
         if (!dec) std::cout << std::hex << std::showbase;
-        value = extract_bits(value, bits.first, bits.second);
+        value = extract_bits(value, static_cast<uint32>(bits.first), static_cast<uint32>(bits.second));
     }
     std::cout << "value " << value;
 }

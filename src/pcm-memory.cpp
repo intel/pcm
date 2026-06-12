@@ -1512,7 +1512,7 @@ int mainThrows(int argc, char * argv[])
         }
         else if (check_argument_equals(*argv, {"--installDriver"}))
         {
-            Driver tmpDrvObject = Driver(Driver::msrLocalPath());
+            Driver tmpDrvObject = Driver(Driver::msrSystemPath());
             if (!tmpDrvObject.start())
             {
                 tcerr << "Can not access CPU counters\n";

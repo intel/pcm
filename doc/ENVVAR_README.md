@@ -14,4 +14,6 @@
 
 `PCM_ENFORCE_MBM=1` :  force-enable Memory Bandwidth Monitoring (MBM) metrics (LocalMemoryBW = LMB) and (RemoteMemoryBW = RMB) on processors with RDT/MBM errata
 
+`PCM_QUIET=1` :  enable quiet mode for PCM initialization. In quiet mode, only error messages are output during PCM initialization, suppressing informational output such as processor information and topology details
+
 `PCM_DEBUG_LEVEL=x` :  x is an integer defining debug output level. level = 0 (default): minimal or no debug info, > 0 increases verbosity

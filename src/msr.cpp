@@ -166,8 +166,13 @@ MsrHandle::MsrHandle(uint32 cpu) : fd(-1), cpu_id(cpu)
 {
     char path[200];
     snprintf(path, 200, "/dev/cpuctl%u", cpu);
-    int handle = ::open(path, O_RDWR);
-    if (handle < 0) throw std::exception();
+    int handle = ::open(path, O_RDWR | O_NOFOLLOW);
+    if (handle < 0) {
+        if (errno == ELOOP) {
+            std::cerr << "SDL330 ERROR: Symlink detected at " << path << "\n";
+        }
+        throw std::exception();
+    }
     fd = handle;
 }
 
@@ -229,11 +234,17 @@ MsrHandle::MsrHandle(uint32 cpu) : fd(-1), cpu_id(cpu)
     char * path = new char[200];
     if (!path) throw std::runtime_error("Allocation of 200 bytes failed.");
     snprintf(path, 200, "/dev/cpu/%u/msr", cpu);
-    int handle = ::open(path, O_RDWR);
+    int handle = ::open(path, O_RDWR | O_NOFOLLOW);
+    if (handle < 0 && errno == ELOOP) {
+        std::cerr << "SDL330 ERROR: Symlink detected at MSR device path " << path << "\n";
+    }
     if (handle < 0)
     {   // try Android msr device path
         snprintf(path, 200, "/dev/msr%u", cpu);
-        handle = ::open(path, O_RDWR);
+        handle = ::open(path, O_RDWR | O_NOFOLLOW);
+        if (handle < 0 && errno == ELOOP) {
+            std::cerr << "SDL330 ERROR: Symlink detected at MSR device path " << path << "\n";
+        }
     }
     deleteAndNullifyArray(path);
     if (handle < 0)
@@ -258,13 +269,17 @@ int32 MsrHandle::write(uint64 msr_number, uint64 value)
     std::cout << "DEBUG: writing MSR 0x" << std::hex << msr_number << " value 0x" << value << " on cpu " << std::dec << cpu_id << std::endl;
 #endif
     if (fd < 0) return 0;
+    DBG(4, "core_id = ", cpu_id, " writing MSR 0x", std::hex, msr_number, " value 0x", value, std::dec);
     return ::pwrite(fd, (const void *)&value, sizeof(uint64), msr_number);
 }
 
 int32 MsrHandle::read(uint64 msr_number, uint64 * value)
 {
     if (fd < 0) return 0;
-    return ::pread(fd, (void *)value, sizeof(uint64), msr_number);
+    assert(value);
+    const auto ret = ::pread(fd, (void *)value, sizeof(uint64), msr_number);
+    DBG(4, "core_id = ", cpu_id, " reading MSR 0x", std::hex, msr_number, " value 0x", *value, std::dec);
+    return ret;
 }
 
 #endif
