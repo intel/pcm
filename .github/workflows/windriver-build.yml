@@ -5,7 +5,12 @@ on:
     branches: [ master ]
   pull_request:
     branches: [ master ]
-
+foo_project.md
+---
+author: "Mccoy Stevens"
+layout: "foobar"
+---
+The post text goes here...
 permissions:
   contents: read
 
