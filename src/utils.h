@@ -14,6 +14,7 @@
 #include <fstream>
 #include <time.h>
 #include "types.h"
+#include "debug.h"
 #include <vector>
 #include <list>
 #include <chrono>
@@ -40,6 +41,7 @@
 #ifdef __linux__
 #include <unistd.h>
 #endif
+
 namespace pcm {
 
     template <class T>
@@ -81,10 +83,14 @@ namespace pcm {
     #define PCM_STRING(x) (x)
 #endif
     void eraseEnvironmentVariables(const std::vector<StringType>& keepList);
+    void setDefaultDebugLevel();
 }
 
 #ifdef _MSC_VER
-#define PCM_SET_DLL_DIR SetDllDirectory(_T(""));
+// Security hardening: remove the current working directory from the DLL search
+// order to prevent DLL planting attacks (CWE-427). This ensures DLLs are only
+// loaded from trusted system directories.
+#define PCM_SET_DLL_DIR SetDllDirectory(_T("")); SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_SYSTEM32);
 #else
 #define PCM_SET_DLL_DIR
 #endif
@@ -94,7 +100,7 @@ int mainThrows(int argc, char * argv[]); \
 int main(int argc, char * argv[]) \
 { \
     try { \
-       eraseEnvironmentVariables({PCM_STRING("POSIXLY_CORRECT")}); \
+       eraseEnvironmentVariables({PCM_STRING("POSIXLY_CORRECT"), PCM_STRING("SystemRoot")}); \
     } catch(const std::exception & e) \
     { \
         std::cerr << "PCM ERROR. Exception in eraseEnvironmentVariables: " << e.what() << "\n"; \
@@ -103,6 +109,7 @@ int main(int argc, char * argv[]) \
     PCM_SET_DLL_DIR \
     if (pcm::safe_getenv("PCM_NO_MAIN_EXCEPTION_HANDLER") == std::string("1")) return mainThrows(argc, argv); \
     try { \
+        setDefaultDebugLevel(); \
         return mainThrows(argc, argv); \
     } catch(const std::runtime_error & e) \
     { \
@@ -362,7 +369,7 @@ inline std::pair<tm, uint64> pcm_localtime() // returns <tm, milliseconds>
     const auto durationSinceEpoch = std::chrono::system_clock::now().time_since_epoch();
     const auto durationSinceEpochInSeconds = std::chrono::duration_cast<std::chrono::seconds>(durationSinceEpoch);
     time_t now = durationSinceEpochInSeconds.count();
-    tm result;
+    tm result{};
 #ifdef _MSC_VER
     localtime_s(&result, &now);
 #else
@@ -401,20 +408,22 @@ inline void choose(const CsvOutputType outputType, H1 h1Func, H2 h2Func, D dataF
     }
 }
 
-inline void printDateForCSV(const CsvOutputType outputType, std::string separator = std::string(","))
+inline void printDateForCSV(const CsvOutputType outputType, std::string separator = std::string(","), std::string * out = nullptr)
 {
+    std::ostringstream strstr;
+    std::ostream & stdcout = out ? strstr : std::cout;
     choose(outputType,
-        [&separator]() {
-            std::cout << separator << separator; // Time
+        [&separator, &stdcout]() {
+            stdcout << separator << separator; // Time
         },
-        [&separator]() {
-            std::cout << "Date" << separator << "Time" << separator;
+        [&separator, &stdcout]() {
+            stdcout << "Date" << separator << "Time" << separator;
         },
-        [&separator]() {
+        [&separator, &stdcout]() {
             std::pair<tm, uint64> tt{ pcm_localtime() };
-            std::cout.precision(3);
-            char old_fill = std::cout.fill('0');
-            std::cout <<
+            stdcout.precision(3);
+            char old_fill = stdcout.fill('0');
+            stdcout <<
                 std::setw(4) <<  1900 + tt.first.tm_year << '-' <<
                 std::setw(2) << 1 + tt.first.tm_mon << '-' <<
                 std::setw(2) << tt.first.tm_mday << separator <<
@@ -422,10 +431,14 @@ inline void printDateForCSV(const CsvOutputType outputType, std::string separato
                 std::setw(2) << tt.first.tm_min << ':' <<
                 std::setw(2) << tt.first.tm_sec << '.' <<
                 std::setw(3) << tt.second << separator; // milliseconds
-            std::cout.fill(old_fill);
-            std::cout.setf(std::ios::fixed);
-            std::cout.precision(2);
+            stdcout.fill(old_fill);
+            stdcout.setf(std::ios::fixed);
+            stdcout.precision(2);
         });
+        if (out)
+        {
+            *out = strstr.str();
+        }
 }
 
 inline void printDateForJson(const std::string& separator, const std::string &jsonSeparator)
@@ -501,7 +514,7 @@ public:
     void operator ()(const Body & body)
     {
         unsigned int i = 1;
-        // std::cerr << "DEBUG: numberOfIterations: " << numberOfIterations << "\n";
+        DBG(1, "numberOfIterations: " , numberOfIterations);
         while ((i <= numberOfIterations) || (numberOfIterations == 0))
         {
             if (body() == false)
@@ -577,6 +590,12 @@ inline void parsePID(int argc, char* argv[], int& pid)
     parseParam(argc, argv, "pid", [&pid](const char* p) { if (p) pid = atoi(p); });
 }
 
+enum class CounterType {
+    COUNTER_TYPE_INVALID = -1,
+    iio = 0,
+    COUNTER_TYPES_COUNT
+};
+
 struct counter {
     std::string h_event_name = "";
     std::string v_event_name = "";
@@ -586,6 +605,7 @@ struct counter {
     int divider = 0;
     uint32_t h_id = 0;
     uint32_t v_id = 0;
+    CounterType type = CounterType::COUNTER_TYPE_INVALID;
 };
 
 struct data{
@@ -599,6 +619,14 @@ typedef enum{
     EVT_LINE_COMPLETE
 }evt_cb_type;
 
+using EventName = std::string;
+using CounterName = std::string;
+
+using CounterValueMap = std::unordered_map<CounterName, uint32_t>;
+using EventDefinition = std::pair<uint32_t, CounterValueMap>;
+using PCIeEventNameMap = std::unordered_map<EventName, EventDefinition>;
+
+void getMCFGRecords(std::vector<MCFGRecord>& mcfg);
 std::string dos2unix(std::string in);
 bool isRegisterEvent(const std::string & pmu);
 std::string a_title (const std::string &init, const std::string &name);
@@ -609,10 +637,10 @@ std::string build_csv_row(const std::vector<std::string>& chunks, const std::str
 std::vector<struct data> prepare_data(const std::vector<uint64_t> &values, const std::vector<std::string> &headers);
 void display(const std::vector<std::string> &buff, std::ostream& stream);
 
-void print_nameMap(std::map<std::string,std::pair<uint32_t,std::map<std::string,uint32_t>>>& nameMap);
+void print_nameMap(const PCIeEventNameMap& nameMap);
 int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
                 int (*p_fn_evtcb)(evt_cb_type, void *, counter &, std::map<std::string, uint32_t> &, std::string, uint64),
-                void *evtcb_ctx, std::map<std::string,std::pair<uint32_t,std::map<std::string,uint32_t>>> &nameMap);
+                void *evtcb_ctx, PCIeEventNameMap& nameMap);
 int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
                 int (*pfn_evtcb)(evt_cb_type, void *, counter &, std::map<std::string, uint32_t> &, std::string, uint64),
                 void *evtcb_ctx);
@@ -674,7 +702,7 @@ inline bool readOldValueHelper(const std::pair<int64,int64> & bits, T & value, c
         {
             return false;
         }
-        value = insertBits(old_value, value, bits.first, bits.second - bits.first + 1);
+        value = insertBits(old_value, value, bits.first, static_cast<uint64>(bits.second - bits.first + 1));
     }
     return true;
 }
@@ -687,7 +715,7 @@ inline void extractBitsPrintHelper(const std::pair<int64,int64> & bits, T & valu
     {
         std::cout << "bits "<< std::dec << bits.first << ":" << bits.second << " ";
         if (!dec) std::cout << std::hex << std::showbase;
-        value = extract_bits(value, bits.first, bits.second);
+        value = extract_bits(value, static_cast<uint32>(bits.first), static_cast<uint32>(bits.second));
     }
     std::cout << "value " << value;
 }

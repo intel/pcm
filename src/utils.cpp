@@ -17,6 +17,7 @@
 #else
 #include <sys/wait.h> // for waitpid()
 #include <unistd.h> // for ::sleep
+#include <fcntl.h>  // for open(), O_NOFOLLOW
 #endif
 #include "utils.h"
 #include "cpucounters.h"
@@ -28,6 +29,8 @@ extern char ** environ;
 #ifdef __linux__
 #include <glob.h>
 #endif
+
+#include "debug.h"
 
 namespace pcm {
 
@@ -44,6 +47,44 @@ bool isInKeepList(const StringType& varName, const std::vector<StringType>& keep
         }
     }
     return false;
+}
+
+void setDefaultDebugLevel()
+{
+    auto strDebugLevel = pcm::safe_getenv("PCM_DEBUG_LEVEL");
+    if (strDebugLevel.empty() == false)
+    {
+        auto intDebugLevel = std::stoi(strDebugLevel);
+        debug::dyn_debug_level(intDebugLevel);
+        DBG(0, "Debug level set to ", intDebugLevel);
+    }
+}
+
+void getMCFGRecords(std::vector<MCFGRecord>& mcfg)
+{
+#ifdef __linux__
+    mcfg = PciHandleMM::getMCFGRecords();
+#elif defined(_MSC_VER)
+    PciHandle::readMCFGRecords(mcfg);
+#else
+    MCFGRecord segment;
+    segment.startBusNumber = 0;
+    segment.endBusNumber = 0xff;
+    auto maxSegments = 1;
+#if defined(__FreeBSD__) || defined(__DragonFly__)
+    switch (PCM::getCPUFamilyModelFromCPUID())
+    {
+    case PCM::SPR:
+    case PCM::GNR:
+        maxSegments = 4;
+        break;
+    }
+#endif
+    for (segment.PCISegmentGroupNumber = 0; segment.PCISegmentGroupNumber < maxSegments; ++(segment.PCISegmentGroupNumber))
+    {
+        mcfg.push_back(segment);
+    }
+#endif
 }
 
 #if defined(_MSC_VER)
@@ -776,10 +817,75 @@ std::vector<std::string> split(const std::string & str, const char delim)
 
 uint64 read_number(const char* str)
 {
-    std::istringstream stream(str);
-    if (strstr(str, "x")) stream >> std::hex;
+    if (str == nullptr || *str == '\0')
+    {
+        throw std::invalid_argument("Input string is null or empty");
+    }
+
+    std::string input(str);
+    // Trim leading and trailing whitespace
+    size_t start = input.find_first_not_of(" \t\n\r");
+    size_t end = input.find_last_not_of(" \t\n\r");
+    
+    if (start == std::string::npos)
+    {
+        throw std::invalid_argument("Input string contains only whitespace");
+    }
+    
+    input = input.substr(start, end - start + 1);
+    
+    std::istringstream stream(input);
     uint64 result = 0;
-    stream >> result;
+    
+    // Check if the input is hexadecimal (starts with 0x or 0X)
+    if (input.length() >= 2 && input[0] == '0' && (input[1] == 'x' || input[1] == 'X'))
+    {
+        if (input.length() == 2)
+        {
+            throw std::invalid_argument("Invalid hexadecimal number: no digits after 0x");
+        }
+        
+        // Validate that all characters after 0x are valid hex digits
+        for (size_t i = 2; i < input.length(); ++i)
+        {
+            char c = input[i];
+            if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')))
+            {
+                throw std::invalid_argument("Invalid hexadecimal number: contains non-hex characters");
+            }
+        }
+        
+        stream >> std::hex >> result;
+    }
+    else
+    {
+        // Validate that all characters are valid decimal digits
+        for (size_t i = 0; i < input.length(); ++i)
+        {
+            char c = input[i];
+            if (!(c >= '0' && c <= '9'))
+            {
+                throw std::invalid_argument("Invalid decimal number: contains non-digit characters");
+            }
+        }
+        
+        stream >> result;
+    }
+    
+    // Check if the stream operation failed or if there are remaining characters
+    if (stream.fail())
+    {
+        throw std::invalid_argument("Failed to parse number from input string");
+    }
+    
+    // Check if there are any remaining characters in the stream
+    std::string remaining;
+    stream >> remaining;
+    if (!remaining.empty())
+    {
+        throw std::invalid_argument("Input string contains extra characters after the number");
+    }
+    
     return result;
 }
 
@@ -809,7 +915,7 @@ int calibratedSleep(const double delay, const char* sysCmd, const MainLoop& main
     {
         if (delay_ms > 0)
         {
-            // std::cerr << "DEBUG: sleeping for " << std::dec << delay_ms << " ms...\n";
+            DBG(1, "sleeping for " , std::dec , delay_ms , " ms...");
             MySleepMs(delay_ms);
         }
     }
@@ -1115,19 +1221,19 @@ void display(const std::vector<std::string> &buff, std::ostream& stream)
     stream << std::flush;
 }
 
-void print_nameMap(std::map<std::string,std::pair<uint32_t,std::map<std::string,uint32_t>>>& nameMap)
+void print_nameMap(const PCIeEventNameMap& nameMap)
 {
-    for (std::map<std::string,std::pair<uint32_t,std::map<std::string,uint32_t>>>::const_iterator iunit = nameMap.begin(); iunit != nameMap.end(); ++iunit)
+    for (const auto& iunit : nameMap)
     {
-        std::string h_name = iunit->first;
-        std::pair<uint32_t,std::map<std::string,uint32_t>> value = iunit->second;
+        const std::string& h_name = iunit.first;
+        const auto& value = iunit.second;
         uint32_t hid = value.first;
-        std::map<std::string,uint32_t> vMap = value.second;
+        const auto& vMap = value.second;
         std::cout << "H name: " << h_name << " id =" << hid << " vMap size:" << vMap.size() << "\n";
-        for (std::map<std::string,uint32_t>::const_iterator junit = vMap.begin(); junit != vMap.end(); ++junit)
+        for (const auto& junit : vMap)
         {
-            std::string v_name = junit->first;
-            uint32_t vid = junit->second;
+            const std::string& v_name = junit.first;
+            uint32_t vid = junit.second;
             std::cout << "V name: " << v_name << " id =" << vid << "\n";
         }
     }
@@ -1150,7 +1256,7 @@ void print_nameMap(std::map<std::string,std::pair<uint32_t,std::map<std::string,
 //! \return -1 means fail with app exit, 0 means success or fail with continue.
 int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
                 int (*pfn_evtcb)(evt_cb_type, void *, counter &, std::map<std::string, uint32_t> &, std::string, uint64),
-                void *evtcb_ctx, std::map<std::string,std::pair<uint32_t,std::map<std::string,uint32_t>>> &nameMap)
+                void *evtcb_ctx, PCIeEventNameMap& nameMap)
 {
     struct counter ctr;
 
@@ -1159,6 +1265,7 @@ int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
     if (!in.is_open())
     {
         const auto alt_fn = getInstallPathPrefix() + fn;
+        std::cout << "INFO: Couldn't load event config file " << fn << ", trying to load it from PCM install path: " << alt_fn << std::endl;
         in.open(alt_fn);
         if (!in.is_open())
         {
@@ -1189,11 +1296,9 @@ int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
         }
 
         /* Ignore anyline with # */
-        if (line.find("#") != std::string::npos)
-            continue;
+        if (line.find("#") != std::string::npos) continue;
         /* If line does not have any deliminator, we ignore it as well */
-        if (line.find("=") == std::string::npos)
-            continue;
+        if (line.find("=") == std::string::npos) continue;
 
         std::string h_name, v_name;
         std::istringstream iss(line);
@@ -1219,12 +1324,12 @@ int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
                     if (nameMap.find(h_name) == nameMap.end())
                     {
                         /* It's a new horizontal event name */
-                        uint32_t next_h_id = (uint32_t)nameMap.size();
-                        std::pair<uint32_t,std::map<std::string,uint32_t>> nameMap_value(next_h_id, std::map<std::string,uint32_t>());
+                        auto next_h_id = static_cast<uint32_t>(nameMap.size());
+                        auto nameMap_value = std::make_pair(next_h_id, CounterValueMap());
                         nameMap[h_name] = nameMap_value;
                     }
-                    ctr.h_id = (uint32_t)nameMap.size() - 1;
-                    //cout << "h_name:" << ctr.h_event_name << "h_id: "<< ctr.h_id << "\n";
+                    ctr.h_id = static_cast<uint32_t>(nameMap.size()) - 1;
+                    DBG(2, "h_name:" , ctr.h_event_name , "h_id: ", ctr.h_id);
                     break;
                 case PCM::V_EVENT_NAME:
                     {
@@ -1232,11 +1337,11 @@ int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
                         ctr.v_event_name = v_name;
                         //XXX: If h_name comes after v_name, we'll have a problem.
                         //XXX: It's very weird, I forgot to assign nameMap[h_name] = nameMap_value earlier (:298), but this part still works?
-                        std::map<std::string,uint32_t> &v_nameMap = nameMap[h_name].second;
+                        auto& v_nameMap = nameMap[h_name].second;
                         if (v_nameMap.find(v_name) == v_nameMap.end())
                         {
-                            v_nameMap[v_name] = (unsigned int)v_nameMap.size() - 1;
-                            //cout << "v_name(" << v_name << ")="<< v_nameMap[v_name] << "\n";
+                            v_nameMap[v_name] = static_cast<uint32_t>(v_nameMap.size()) - 1;
+                            DBG(2, "v_name(" , v_name , ")=", v_nameMap[v_name]);
                         }
                         else
                         {
@@ -1244,21 +1349,35 @@ int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
                             const auto err_msg = std::string("Detect duplicated v_name:") + v_name + "\n";
                             throw std::invalid_argument(err_msg);
                         }
-                        ctr.v_id = (uint32_t)v_nameMap.size() - 1;
-                        //cout << "h_name:" << ctr.h_event_name << ",hid=" << ctr.h_id << ",v_name:" << ctr.v_event_name << ",v_id: "<< ctr.v_id << "\n";
+                        ctr.v_id = static_cast<uint32_t>(v_nameMap.size()) - 1;
+                        DBG(2, "h_name:" , ctr.h_event_name , ",hid=" , ctr.h_id , ",v_name:" , ctr.v_event_name , ",v_id: ", ctr.v_id);
                         break;
                     }
                 //TODO: double type for multiplier. drop divider variable
                 case PCM::MULTIPLIER:
-                    ctr.multiplier = (int)numValue;
+                    ctr.multiplier = static_cast<int>(numValue);
                     break;
                 case PCM::DIVIDER:
-                    ctr.divider = (int)numValue;
+                    ctr.divider = static_cast<int>(numValue);
                     break;
                 case PCM::COUNTER_INDEX:
-                    ctr.idx = (int)numValue;
+                    ctr.idx = static_cast<int>(numValue);
                     break;
-
+                case PCM::UNIT_TYPE:
+                    {
+                        auto typeString = dos2unix(value);
+                        if (typeString == std::string("iio"))
+                        {
+                            ctr.type = CounterType::iio;
+                        }
+                        else
+                        {
+                            in.close();
+                            const auto err_msg = std::string("event line processing(end) fault.\n");
+                            throw std::invalid_argument(err_msg);
+                        }
+                    }
+                    break;
                 default:
                     if (pfn_evtcb(EVT_LINE_FIELD, evtcb_ctx, ctr, ofm, key, numValue))
                     {
@@ -1270,7 +1389,7 @@ int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
             }
         }
 
-        //std::cout << "Finish parsing: " << line << "\n";
+        DBG(2, "Finished parsing: " , line);
         if (pfn_evtcb(EVT_LINE_COMPLETE, evtcb_ctx, ctr, ofm, "", 0))
         {
             in.close();
@@ -1288,13 +1407,13 @@ int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
                 int (*pfn_evtcb)(evt_cb_type, void *, counter &, std::map<std::string, uint32_t> &, std::string, uint64),
                 void *evtcb_ctx)
 {
-    std::map<std::string,std::pair<uint32_t,std::map<std::string,uint32_t>>> nm;
+    PCIeEventNameMap nm;
     return load_events(fn, ofm, pfn_evtcb, evtcb_ctx, nm);
 }
 
 bool get_cpu_bus(uint32 msmDomain, uint32 msmBus, uint32 msmDev, uint32 msmFunc, uint32 &cpuBusValid, std::vector<uint32> &cpuBusNo, int &cpuPackageId)
 {
-    //std::cout << "get_cpu_bus: d=" << std::hex << msmDomain << ",b=" << msmBus << ",d=" << msmDev << ",f=" << msmFunc << std::dec << " \n";
+    DBG(2, "get_cpu_bus: d=" , std::hex , msmDomain , ",b=" , msmBus , ",d=" , msmDev , ",f=" , msmFunc , std::dec );
     try
     {
         PciHandleType h(msmDomain, msmBus, msmDev, msmFunc);
@@ -1303,6 +1422,16 @@ bool get_cpu_bus(uint32 msmDomain, uint32 msmBus, uint32 msmDev, uint32 msmFunc,
         if (cpuBusValid == (std::numeric_limits<uint32>::max)()) {
             std::cerr << "Failed to read CPUBUSNO_VALID" << std::endl;
             return false;
+        }
+
+        if (!cpuBusValid)
+        {
+            /**
+             * Return true because an unexpected device might appear in the OS due to specific configurations.
+             * This ensures the function does not fail in such cases and allows further processing.
+             */
+            std::cerr << "CPUBUSNO_VALID is 0" << std::endl;
+            return true;
         }
 
         cpuBusNo.resize(8);
@@ -1348,9 +1477,18 @@ std::pair<int64,int64> parseBitsParameter(const char * param)
 {
     std::pair<int64,int64> bits{-1, -1};
     const auto bitsArray = pcm::split(std::string(param),':');
-    assert(bitsArray.size() == 2);
-    bits.first = (int64)read_number(bitsArray[0].c_str());
-    bits.second = (int64)read_number(bitsArray[1].c_str());
+    switch ( bitsArray.size() ) {
+    case 1:
+        bits.first  = (int64)read_number(bitsArray[0].c_str());
+        bits.second = bits.first;
+        break;
+    case 2:
+        bits.first = (int64)read_number(bitsArray[0].c_str());
+        bits.second = (int64)read_number(bitsArray[1].c_str());
+        break;
+    default:
+        assert(bitsArray.size() == 1 || bitsArray.size() == 2);
+    }
     assert(bits.first >= 0);
     assert(bits.second >= 0);
     assert(bits.first < 64);
@@ -1365,10 +1503,28 @@ std::pair<int64,int64> parseBitsParameter(const char * param)
 #ifdef __linux__
 FILE * tryOpen(const char * path, const char * mode)
 {
-    FILE * f = fopen(path, mode);
-    if (!f)
+    // SDL330: O_NOFOLLOW rejects symlinks atomically (no TOCTOU)
+    int flags = O_NOFOLLOW;
+    if (strchr(mode, 'w')) {
+        flags |= O_WRONLY | O_CREAT | O_TRUNC;
+    } else {
+        flags |= O_RDONLY;
+    }
+
+    int fd = open(path, flags, 0644);
+    if (fd < 0)
     {
-        f = fopen((std::string("/pcm") + path).c_str(), mode);
+        const std::string alt_path = std::string("/pcm") + path;
+        fd = open(alt_path.c_str(), flags, 0644);
+    }
+
+    if (fd < 0) {
+        return nullptr;
+    }
+
+    FILE * f = fdopen(fd, mode);
+    if (!f) {
+        close(fd);
     }
     return f;
 }
@@ -1446,7 +1602,7 @@ bool readMapFromSysFS(const char * path, std::unordered_map<std::string, uint32>
         std::istringstream iss2(value);
         iss2 >> std::setbase(0) >> numValue;
         result.insert(std::pair<std::string, uint32>(key, numValue));
-        //std::cerr << "readMapFromSysFS:" << key << "=" << numValue << ".\n";
+        DBG(3, "readMapFromSysFS:" , key , "=" , numValue , ".");
     }
 
     fclose(f);

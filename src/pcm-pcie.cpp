@@ -45,9 +45,9 @@ void print_events()
     cout << "     RFO*      - Demand Data RFO\n";
     cout << "     CRd*      - Demand Code Read\n";
     cout << "     DRd       - Demand Data Read\n";
-    cout << "     PCIeNSWr  - PCIe Non-snoop write transfer (partial cache line)\n";
+    cout << "     PCIeNSRd  - PCIe Non-snoop read transfer\n";
     cout << "   PCIe write events (PCI devices writing to memory - application reads from disk/network/PCIe device):\n";
-    cout << "     PCIeWiLF  - PCIe Write transfer (non-allocating) (full cache line)\n";
+    cout << "     PCIeWiLF  - PCIe MMIO Write transfer (non-allocating) (full cache line)\n";
     cout << "     PCIeItoM  - PCIe Write transfer (allocating) (full cache line)\n";
     cout << "     PCIeNSWr  - PCIe Non-snoop write transfer (partial cache line)\n";
     cout << "     PCIeNSWrF - PCIe Non-snoop write transfer (full cache line)\n";
@@ -93,34 +93,7 @@ void print_usage(const string & progname)
     cout << "\n";
 }
 
-IPlatform *IPlatform::getPlatform(PCM *m, bool csv, bool print_bandwidth, bool print_additional_info, uint32 delay)
-{
-    switch (m->getCPUFamilyModel()) {
-        case PCM::GNR:
-        case PCM::SRF:
-            return new BirchStreamPlatform(m, csv, print_bandwidth, print_additional_info, delay);
-        case PCM::GRR:
-            return new LoganvillePlatform(m, csv, print_bandwidth, print_additional_info, delay);
-        case PCM::SPR:
-        case PCM::EMR:
-            return new EagleStreamPlatform(m, csv, print_bandwidth, print_additional_info, delay);
-        case PCM::ICX:
-        case PCM::SNOWRIDGE:
-            return new WhitleyPlatform(m, csv, print_bandwidth, print_additional_info, delay);
-        case PCM::SKX:
-            return new PurleyPlatform(m, csv, print_bandwidth, print_additional_info, delay);
-        case PCM::BDX_DE:
-        case PCM::BDX:
-        case PCM::KNL:
-        case PCM::HASWELLX:
-            return new GrantleyPlatform(m, csv, print_bandwidth, print_additional_info, delay);
-        case PCM::IVYTOWN:
-        case PCM::JAKETOWN:
-            return new BromolowPlatform(m, csv, print_bandwidth, print_additional_info, delay);
-        default:
-          return NULL;
-    }
-}
+// getPlatform() is defined inline in pcm-pcie.h.
 
 PCM_MAIN_NOTHROW;
 
@@ -149,7 +122,7 @@ int mainThrows(int argc, char * argv[])
     double delay = -1.0;
     bool csv = false;
     bool print_bandwidth = false;
-	bool print_additional_info = false;
+    bool print_additional_info = false;
     char * sysCmd = NULL;
     char ** sysArgv = NULL;
     MainLoop mainLoop;

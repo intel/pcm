@@ -6,6 +6,9 @@
 #include <sstream>
 #include <iomanip>
 #include <iostream>
+#include <utility>
+#include <ctime>
+#include "types.h"
 
 #ifdef _MSC_VER
 #include <BaseTsd.h>
@@ -14,6 +17,9 @@
 #endif
 
 namespace pcm {
+
+// Forward declaration
+std::pair<tm, uint64> pcm_localtime();
 
 namespace debug {
     extern int currentDebugLevel;
@@ -32,10 +38,10 @@ namespace debug {
     template<typename LVL, typename PF, typename F, typename L, typename... Args>
     void dyn_debug_output( std::ostream& out, LVL level, PF pretty_function, F file, L line, Args... args ) {
         std::stringstream ss;
-        auto now = time(nullptr);
+        auto tt = pcm_localtime();
         ss << "DBG(" << std::dec << level << "): File '" << file << "', line '" << std::dec << line << "' :\n";
         ss << "DBG(" << std::dec << level << "): " << pretty_function << ":\n";
-        ss << "DBG(" << std::dec << level << ") " << std::put_time( localtime(&now), "%F_%T: " ); // Next code line will continue printing on this output line
+        ss << "DBG(" << std::dec << level << ") " << std::put_time( &tt.first, "%F_%T: " ); // Next code line will continue printing on this output line
         dyn_debug_output_helper( ss, args... );
         out << ss.str() << std::flush;
     }

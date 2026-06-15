@@ -110,7 +110,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
           calculate_bandwidth_rank(m,BeforeState, AfterState, AfterTime - BeforeTime, csv, csvheader, no_columns, rankA, rankB);
         else
           calculate_bandwidth(m,BeforeState,AfterState,AfterTime-BeforeTime,csv,csvheader, no_columns, metrics,
-                show_channel_output, print_update, 0);
+                show_channel_output, print_update, 0, true);
 
         return 0;
 }

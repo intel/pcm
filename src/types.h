@@ -19,6 +19,8 @@
 #include <istream>
 #include <sstream>
 #include <iomanip>
+#include <stdexcept>
+#include <string>
 #include <string.h>
 #include <assert.h>
 #include <limits>
@@ -691,6 +693,8 @@ constexpr auto SERVER_MC_CH_PMON_CTR3_OFFSET = SERVER_MC_CH_PMON_CTR0_OFFSET + 8
 constexpr auto SERVER_MC_CH_PMON_FIXED_CTL_OFFSET = 0x54;
 constexpr auto SERVER_MC_CH_PMON_FIXED_CTR_OFFSET = 0x38;
 constexpr auto BHS_MC_CH_PMON_BASE_ADDR = 0x024e800;
+constexpr auto GNR_D_A_MC_CH_PMON_BASE_ADDR = 0x0104800;
+constexpr auto GNR_D_B_MC_CH_PMON_BASE_ADDR = 0x0208800;
 
 constexpr auto JKTIVT_QPI_PORT0_REGISTER_DEV_ADDR = 8;
 constexpr auto JKTIVT_QPI_PORT0_REGISTER_FUNC_ADDR = 2;
@@ -1581,7 +1585,7 @@ inline uint32 build_bit_ui(uint32 beg, uint32 end)
     return myll;
 }
 
-inline uint32 extract_bits_ui(uint32 myin, uint32 beg, uint32 end)
+inline uint32 extract_bits_32(uint32 myin, uint32 beg, uint32 end)
 {
     uint32 myll = 0;
     uint32 beg1, end1;
@@ -1640,6 +1644,11 @@ inline uint64 extract_bits(uint64 myin, uint32 beg, uint32 end)
     myll = myin >> beg1;
     myll = myll & build_bit(beg1, end1);
     return myll;
+}
+
+inline uint64 extract_bits_64(uint64 myin, uint32 beg, uint32 end)
+{
+    return extract_bits(myin, beg, end);
 }
 
 union PCM_CPUID_INFO
