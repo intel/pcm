@@ -77,10 +77,10 @@ public:
         {
             std::cerr << "PCM Error in ~AsynchronCounterState(). Exception " << e.what() << "\n";
         }
-        delete[] cstates1;
-        delete[] cstates2;
-        delete[] skstates1;
-        delete[] skstates2;
+        deleteAndNullifyArray(cstates1);
+        deleteAndNullifyArray(cstates2);
+        deleteAndNullifyArray(skstates1);
+        deleteAndNullifyArray(skstates2);
     }
 
     uint32 getNumCores()

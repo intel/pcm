@@ -164,7 +164,7 @@ int main(int argc, char * argv[])
 
     if (m->program() != PCM::Success) {
         cout << "Program was not successful...\n";
-        delete m;
+        deleteAndNullify(m);
         return -1;
     }
 

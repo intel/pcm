@@ -64,7 +64,11 @@
             "Threshold":   {"Config": 0, "Position": 24, "Width": 8, "DefaultValue": 0},
             "Filter0":     {"Config": 1, "Position": 0, "Width": 64, "DefaultValue": 0},
             "TID":         {"Config": 1, "Position": 0,  "Width": 6, "DefaultValue": 0},
-            "Filter1":     {"Config": 2, "Position": 0, "Width": 64, "DefaultValue": 59}
+            "State":       {"Config": 1, "Position": 17, "Width": 7, "DefaultValue": 0},
+            "Filter1":     {"Config": 2, "Position": 0, "Width": 64, "DefaultValue": 59},
+            "OPC":         {"Config": 2, "Position": 20, "Width": 9, "DefaultValue": 0},
+            "NC":          {"Config": 2, "Position": 30, "Width": 1, "DefaultValue": 0},
+            "ISOC":        {"Config": 2, "Position": 31, "Width": 1, "DefaultValue": 0}
         }
     },
     "imc" : {
@@ -73,6 +77,21 @@
             "UMask":       {"Config": 0, "Position": 8, "Width": 8},
             "EdgeDetect":  {"Config": 0, "Position": 18, "Width": 1, "DefaultValue": 0},
             "Threshold":   {"Config": 0, "Position": 24, "Width": 8, "DefaultValue": 0}
+        }
+    },
+    "ha" : {
+        "programmable" : {
+            "EventCode":   {"Config": 0, "Position": 0, "Width": 8},
+            "UMask":       {"Config": 0, "Position": 8, "Width": 8},
+            "EdgeDetect":  {"Config": 0, "Position": 18, "Width": 1, "DefaultValue": 0},
+            "Threshold":   {"Config": 0, "Position": 24, "Width": 8, "DefaultValue": 0}
+        }
+    },
+    "pcu" : {
+        "programmable" : {
+            "EventCode":   {"Config": 0, "Position": 0, "Width": 8},
+            "UMask":       {"Config": 0, "Position": 8, "Width": 8},
+            "EdgeDetect":  {"Config": 0, "Position": 18, "Width": 1, "DefaultValue": 0}
         }
     },
     "xpi" : {
@@ -85,6 +104,14 @@
         }
     },
     "irp" : {
+        "programmable" : {
+            "EventCode":   {"Config": 0, "Position": 0, "Width": 8},
+            "UMask":       {"Config": 0, "Position": 8, "Width": 8},
+            "EdgeDetect":  {"Config": 0, "Position": 18, "Width": 1, "DefaultValue": 0},
+            "Threshold":   {"Config": 0, "Position": 24, "Width": 8, "DefaultValue": 0}
+        }
+    },
+    "ubox" : {
         "programmable" : {
             "EventCode":   {"Config": 0, "Position": 0, "Width": 8},
             "UMask":       {"Config": 0, "Position": 8, "Width": 8},

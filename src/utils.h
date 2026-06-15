@@ -14,12 +14,21 @@
 #include <fstream>
 #include <time.h>
 #include "types.h"
+#include "debug.h"
 #include <vector>
+#include <list>
 #include <chrono>
 #include <math.h>
 #include <assert.h>
 
+#if defined(__FreeBSD__) || (defined(__DragonFly__) && __DragonFly_version >= 400707)
+#include <pthread_np.h>
+#include <sys/_cpuset.h>
+#include <sys/cpuset.h>
+#endif
+
 #ifndef _MSC_VER
+#include <unistd.h>
 #include <csignal>
 #include <ctime>
 #include <cmath>
@@ -29,11 +38,78 @@
 #include <map>
 #include <unordered_map>
 
+#ifdef __linux__
+#include <unistd.h>
+#endif
+
+namespace pcm {
+
+    template <class T>
+    inline void deleteAndNullify(T & p)
+    {
+        if (p)
+        {
+            delete p;
+            p = nullptr;
+        }
+    }
+
+    template <class T>
+    inline void deleteAndNullifyArray(T & p)
+    {
+        if (p)
+        {
+            delete [] p;
+            p = nullptr;
+        }
+    }
+
+    template <class T>
+    inline void freeAndNullify(T & p)
+    {
+        if (p)
+        {
+            free(p);
+            p = nullptr;
+        }
+    }
+
+    std::string safe_getenv(const char* env);
+#ifdef _MSC_VER
+    typedef std::wstring StringType;
+    #define PCM_STRING(x) (L ## x)
+#else
+    typedef std::string StringType;
+    #define PCM_STRING(x) (x)
+#endif
+    void eraseEnvironmentVariables(const std::vector<StringType>& keepList);
+    void setDefaultDebugLevel();
+}
+
+#ifdef _MSC_VER
+// Security hardening: remove the current working directory from the DLL search
+// order to prevent DLL planting attacks (CWE-427). This ensures DLLs are only
+// loaded from trusted system directories.
+#define PCM_SET_DLL_DIR SetDllDirectory(_T("")); SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_SYSTEM32);
+#else
+#define PCM_SET_DLL_DIR
+#endif
+
 #define PCM_MAIN_NOTHROW \
 int mainThrows(int argc, char * argv[]); \
 int main(int argc, char * argv[]) \
 { \
     try { \
+       eraseEnvironmentVariables({PCM_STRING("POSIXLY_CORRECT"), PCM_STRING("SystemRoot")}); \
+    } catch(const std::exception & e) \
+    { \
+        std::cerr << "PCM ERROR. Exception in eraseEnvironmentVariables: " << e.what() << "\n"; \
+        return -1; \
+    } \
+    PCM_SET_DLL_DIR \
+    if (pcm::safe_getenv("PCM_NO_MAIN_EXCEPTION_HANDLER") == std::string("1")) return mainThrows(argc, argv); \
+    try { \
+        setDefaultDebugLevel(); \
         return mainThrows(argc, argv); \
     } catch(const std::runtime_error & e) \
     { \
@@ -60,6 +136,7 @@ namespace pcm {
 #endif // _MSC_VER
 
 typedef void (* print_usage_func)(const std::string & progname);
+std::list<int> extract_integer_list(const char *optarg);
 double parse_delay(const char * arg, const std::string & progname, print_usage_func print_usage_func);
 bool extract_argument_value(const char * arg, std::initializer_list<const char*> arg_names, std::string & value);
 bool check_argument_equals(const char * arg, std::initializer_list<const char*> arg_names);
@@ -70,6 +147,7 @@ void set_signal_handlers(void);
 void set_real_time_priority(const bool & silent);
 void restore_signal_handlers(void);
 #ifndef _MSC_VER
+void printBacktrace();
 void sigINT_handler(int signum);
 void sigHUP_handler(int signum);
 void sigUSR_handler(int signum);
@@ -124,6 +202,29 @@ struct null_stream : public std::streambuf
 #pragma clang diagnostic pop
 #endif
 
+constexpr const char* ASCII_BLACK = "\033[0;30m";
+constexpr const char* ASCII_RED = "\033[0;31m";
+constexpr const char* ASCII_GREEN = "\033[0;32m";
+constexpr const char* ASCII_YELLOW = "\033[0;33m";
+constexpr const char* ASCII_BLUE = "\033[0;34m";
+constexpr const char* ASCII_MAGENTA = "\033[0;35m";
+constexpr const char* ASCII_CYAN = "\033[0;36m";
+constexpr const char* ASCII_WHITE = "\033[0;37m";
+constexpr const char* ASCII_BRIGHT_BLACK = "\033[1;30m";
+constexpr const char* ASCII_BRIGHT_RED = "\033[1;31m";
+constexpr const char* ASCII_BRIGHT_GREEN = "\033[1;32m";
+constexpr const char* ASCII_BRIGHT_YELLOW = "\033[1;33m";
+constexpr const char* ASCII_BRIGHT_BLUE = "\033[1;34m";
+constexpr const char* ASCII_BRIGHT_MAGENTA = "\033[1;35m";
+constexpr const char* ASCII_BRIGHT_CYAN = "\033[1;36m";
+constexpr const char* ASCII_BRIGHT_WHITE = "\033[1;37m";
+constexpr const char* ASCII_RESET_COLOR = "\033[0m";
+
+void setColorEnabled(bool value = true);
+const char * setColor(const char * colorStr);
+const char * setNextColor();
+const char * resetColor();
+
 template <class IntType>
 inline std::string unit_format(IntType n)
 {
@@ -154,6 +255,27 @@ inline std::string unit_format(IntType n)
 }
 
 void print_cpu_details();
+
+
+inline void printDebugCallstack()
+{
+#ifndef _MSC_VER
+    if (safe_getenv("PCM_PRINT_DEBUG_CALLSTACK") == "1")
+    {
+        printBacktrace();
+    }
+#endif
+}
+
+template <unsigned Bytes>
+inline void warnAlignment(const char* call, const bool silent, const uint64 offset)
+{
+    if (silent == false && (offset % Bytes) != 0)
+    {
+        std::cerr << "PCM Warning: " << call << " offset " << offset << " is not " << Bytes << "-byte aligned\n";
+        printDebugCallstack();
+    }
+}
 
 #define PCM_UNUSED(x) (void)(x)
 
@@ -226,7 +348,7 @@ private:
         {
             istr.setstate(std::ios_base::failbit);
         }
-        delete [] buffer;
+        deleteAndNullifyArray(buffer);
     }
 };
 
@@ -247,7 +369,7 @@ inline std::pair<tm, uint64> pcm_localtime() // returns <tm, milliseconds>
     const auto durationSinceEpoch = std::chrono::system_clock::now().time_since_epoch();
     const auto durationSinceEpochInSeconds = std::chrono::duration_cast<std::chrono::seconds>(durationSinceEpoch);
     time_t now = durationSinceEpochInSeconds.count();
-    tm result;
+    tm result{};
 #ifdef _MSC_VER
     localtime_s(&result, &now);
 #else
@@ -286,20 +408,22 @@ inline void choose(const CsvOutputType outputType, H1 h1Func, H2 h2Func, D dataF
     }
 }
 
-inline void printDateForCSV(const CsvOutputType outputType, std::string separator = std::string(","))
+inline void printDateForCSV(const CsvOutputType outputType, std::string separator = std::string(","), std::string * out = nullptr)
 {
+    std::ostringstream strstr;
+    std::ostream & stdcout = out ? strstr : std::cout;
     choose(outputType,
-        [&separator]() {
-            std::cout << separator << separator; // Time
+        [&separator, &stdcout]() {
+            stdcout << separator << separator; // Time
         },
-        [&separator]() {
-            std::cout << "Date" << separator << "Time" << separator;
+        [&separator, &stdcout]() {
+            stdcout << "Date" << separator << "Time" << separator;
         },
-        [&separator]() {
+        [&separator, &stdcout]() {
             std::pair<tm, uint64> tt{ pcm_localtime() };
-            std::cout.precision(3);
-            char old_fill = std::cout.fill('0');
-            std::cout <<
+            stdcout.precision(3);
+            char old_fill = stdcout.fill('0');
+            stdcout <<
                 std::setw(4) <<  1900 + tt.first.tm_year << '-' <<
                 std::setw(2) << 1 + tt.first.tm_mon << '-' <<
                 std::setw(2) << tt.first.tm_mday << separator <<
@@ -307,10 +431,14 @@ inline void printDateForCSV(const CsvOutputType outputType, std::string separato
                 std::setw(2) << tt.first.tm_min << ':' <<
                 std::setw(2) << tt.first.tm_sec << '.' <<
                 std::setw(3) << tt.second << separator; // milliseconds
-            std::cout.fill(old_fill);
-            std::cout.setf(std::ios::fixed);
-            std::cout.precision(2);
+            stdcout.fill(old_fill);
+            stdcout.setf(std::ios::fixed);
+            stdcout.precision(2);
         });
+        if (out)
+        {
+            *out = strstr.str();
+        }
 }
 
 inline void printDateForJson(const std::string& separator, const std::string &jsonSeparator)
@@ -386,7 +514,7 @@ public:
     void operator ()(const Body & body)
     {
         unsigned int i = 1;
-        // std::cerr << "DEBUG: numberOfIterations: " << numberOfIterations << "\n";
+        DBG(1, "numberOfIterations: " , numberOfIterations);
         while ((i <= numberOfIterations) || (numberOfIterations == 0))
         {
             if (body() == false)
@@ -423,23 +551,6 @@ bool match(const std::string& subtoken, const std::string& sname, uint64* result
 
 uint64 read_number(const char* str);
 
-union PCM_CPUID_INFO
-{
-    int array[4];
-    struct { unsigned int eax, ebx, ecx, edx; } reg;
-};
-
-inline void pcm_cpuid(int leaf, PCM_CPUID_INFO& info)
-{
-#ifdef _MSC_VER
-    // version for Windows
-    __cpuid(info.array, leaf);
-#else
-    __asm__ __volatile__("cpuid" : \
-        "=a" (info.reg.eax), "=b" (info.reg.ebx), "=c" (info.reg.ecx), "=d" (info.reg.edx) : "a" (leaf));
-#endif
-}
-
 inline void clear_screen() {
 #ifdef _MSC_VER
     system("cls");
@@ -448,85 +559,13 @@ inline void clear_screen() {
 #endif
 }
 
-inline uint32 build_bit_ui(uint32 beg, uint32 end)
-{
-    assert(end <= 31);
-    uint32 myll = 0;
-    if (end == 31)
-    {
-        myll = (uint32)(-1);
-    }
-    else
-    {
-        myll = (1 << (end + 1)) - 1;
-    }
-    myll = myll >> beg;
-    return myll;
-}
-
-inline uint32 extract_bits_ui(uint32 myin, uint32 beg, uint32 end)
-{
-    uint32 myll = 0;
-    uint32 beg1, end1;
-
-    // Let the user reverse the order of beg & end.
-    if (beg <= end)
-    {
-        beg1 = beg;
-        end1 = end;
-    }
-    else
-    {
-        beg1 = end;
-        end1 = beg;
-    }
-    myll = myin >> beg1;
-    myll = myll & build_bit_ui(beg1, end1);
-    return myll;
-}
-
-inline uint64 build_bit(uint32 beg, uint32 end)
-{
-    uint64 myll = 0;
-    if (end == 63)
-    {
-        myll = static_cast<uint64>(-1);
-    }
-    else
-    {
-        myll = (1LL << (end + 1)) - 1;
-    }
-    myll = myll >> beg;
-    return myll;
-}
-
-inline uint64 extract_bits(uint64 myin, uint32 beg, uint32 end)
-{
-    uint64 myll = 0;
-    uint32 beg1, end1;
-
-    // Let the user reverse the order of beg & end.
-    if (beg <= end)
-    {
-        beg1 = beg;
-        end1 = end;
-    }
-    else
-    {
-        beg1 = end;
-        end1 = beg;
-    }
-    myll = myin >> beg1;
-    myll = myll & build_bit(beg1, end1);
-    return myll;
-}
-
-std::string safe_getenv(const char* env);
-
 #ifdef _MSC_VER
+
+#define PCM_MSR_DRV_NAME TEXT("\\\\.\\RDMSR")
+
 inline HANDLE openMSRDriver()
 {
-    return CreateFile(TEXT("\\\\.\\RDMSR"), GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+    return CreateFile(PCM_MSR_DRV_NAME, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
 }
 #endif
 
@@ -551,6 +590,12 @@ inline void parsePID(int argc, char* argv[], int& pid)
     parseParam(argc, argv, "pid", [&pid](const char* p) { if (p) pid = atoi(p); });
 }
 
+enum class CounterType {
+    COUNTER_TYPE_INVALID = -1,
+    iio = 0,
+    COUNTER_TYPES_COUNT
+};
+
 struct counter {
     std::string h_event_name = "";
     std::string v_event_name = "";
@@ -560,6 +605,7 @@ struct counter {
     int divider = 0;
     uint32_t h_id = 0;
     uint32_t v_id = 0;
+    CounterType type = CounterType::COUNTER_TYPE_INVALID;
 };
 
 struct data{
@@ -573,8 +619,16 @@ typedef enum{
     EVT_LINE_COMPLETE
 }evt_cb_type;
 
-std::string dos2unix(std::string in);
+using EventName = std::string;
+using CounterName = std::string;
 
+using CounterValueMap = std::unordered_map<CounterName, uint32_t>;
+using EventDefinition = std::pair<uint32_t, CounterValueMap>;
+using PCIeEventNameMap = std::unordered_map<EventName, EventDefinition>;
+
+void getMCFGRecords(std::vector<MCFGRecord>& mcfg);
+std::string dos2unix(std::string in);
+bool isRegisterEvent(const std::string & pmu);
 std::string a_title (const std::string &init, const std::string &name);
 std::string a_data (std::string init, struct data d);
 std::string a_header_footer(std::string init, std::string name);
@@ -583,10 +637,10 @@ std::string build_csv_row(const std::vector<std::string>& chunks, const std::str
 std::vector<struct data> prepare_data(const std::vector<uint64_t> &values, const std::vector<std::string> &headers);
 void display(const std::vector<std::string> &buff, std::ostream& stream);
 
-void print_nameMap(std::map<std::string,std::pair<uint32_t,std::map<std::string,uint32_t>>>& nameMap);
+void print_nameMap(const PCIeEventNameMap& nameMap);
 int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
                 int (*p_fn_evtcb)(evt_cb_type, void *, counter &, std::map<std::string, uint32_t> &, std::string, uint64),
-                void *evtcb_ctx, std::map<std::string,std::pair<uint32_t,std::map<std::string,uint32_t>>> &nameMap);
+                void *evtcb_ctx, PCIeEventNameMap& nameMap);
 int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
                 int (*pfn_evtcb)(evt_cb_type, void *, counter &, std::map<std::string, uint32_t> &, std::string, uint64),
                 void *evtcb_ctx);
@@ -600,6 +654,183 @@ bool writeSysFS(const char * path, const std::string & value, bool silent = fals
 int readMaxFromSysFS(const char * path);
 bool readMapFromSysFS(const char * path, std::unordered_map<std::string, uint32> &result, bool silent = false);
 #endif
+
+inline uint64 insertBits(uint64 input, const uint64 value, const int64_t position, const uint64 width)
+{
+    const uint64 mask = (width == 64) ? (~0ULL) : ((1ULL << width) - 1ULL); // 1 -> 1b, 2 -> 11b, 3 -> 111b
+    input &= ~(mask << position); // clear
+    input |= (value & mask) << position;
+    return input;
+}
+
+inline uint64 roundDownTo4K(uint64 number) {
+    return number & ~0xFFFULL; // Mask the lower 12 bits to round down to 4K
+}
+
+inline uint64 roundUpTo4K(uint64 number) {
+    if (number % 4096ULL == 0ULL) {
+        // Already a multiple of 4K
+        return number;
+    } else {
+        // Round up to the next multiple of 4K
+        return ((number / 4096ULL) + 1ULL) * 4096ULL;
+    }
+}
+
+#define PCM_STRINGIFY(x) #x
+#define PCM_TOSTRING(x) PCM_STRINGIFY(x)
+
+inline std::string getInstallPathPrefix()
+{
+#if defined (CMAKE_INSTALL_PREFIX)
+    const std::string prefix{ PCM_TOSTRING(CMAKE_INSTALL_PREFIX) };
+#else
+    const std::string prefix{ "/usr" };
+#endif
+    return prefix + "/share/pcm/";
+}
+
+std::pair<int64,int64> parseBitsParameter(const char * param);
+template <class T, class R>
+inline bool readOldValueHelper(const std::pair<int64,int64> & bits, T & value, const bool & write, R readValue)
+{
+    if (bits.first >= 0 && write)
+    {
+        // to write bits need to read the old value first
+        T old_value = 0;
+        if (!readValue(old_value))
+        {
+            return false;
+        }
+        value = insertBits(old_value, value, bits.first, static_cast<uint64>(bits.second - bits.first + 1));
+    }
+    return true;
+}
+
+template <class T>
+inline void extractBitsPrintHelper(const std::pair<int64,int64> & bits, T & value, const bool & dec)
+{
+    std::cout << " Read ";
+    if (bits.first >= 0)
+    {
+        std::cout << "bits "<< std::dec << bits.first << ":" << bits.second << " ";
+        if (!dec) std::cout << std::hex << std::showbase;
+        value = extract_bits(value, static_cast<uint32>(bits.first), static_cast<uint32>(bits.second));
+    }
+    std::cout << "value " << value;
+}
+
+#ifdef _MSC_VER
+void restrictDriverAccessNative(LPCTSTR path);
+#endif
+
+#ifdef __linux__
+std::vector<std::string> findPathsFromPattern(const char* pattern);
+#endif
+
+class TemporalThreadAffinity
+{
+    TemporalThreadAffinity(); // forbidden
+#if defined(__FreeBSD__) || (defined(__DragonFly__) && __DragonFly_version >= 400707)
+    cpu_set_t old_affinity;
+    bool restore;
+
+public:
+    TemporalThreadAffinity(uint32 core_id, bool checkStatus = true, const bool restore_ = true)
+        : restore(restore_)
+    {
+        assert(core_id < 1024);
+        auto res = pthread_getaffinity_np(pthread_self(), sizeof(cpu_set_t), &old_affinity);
+        if (res != 0)
+        {
+            std::cerr << "ERROR: pthread_getaffinity_np for core " << core_id << " failed with code " << res << "\n";
+            throw std::exception();
+        }
+        cpu_set_t new_affinity;
+        CPU_ZERO(&new_affinity);
+        CPU_SET(core_id, &new_affinity);
+        // CPU_CMP() returns true if old_affinity is NOT equal to new_affinity
+        if (!(CPU_CMP(&old_affinity, &new_affinity)))
+        {
+            restore = false;
+            return; // the same affinity => return
+        }
+        res = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &new_affinity);
+        if (res != 0 && checkStatus)
+        {
+            std::cerr << "ERROR: pthread_setaffinity_np for core " << core_id << " failed with code " << res << "\n";
+            throw std::exception();
+        }
+    }
+    ~TemporalThreadAffinity()
+    {
+        if (restore) pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &old_affinity);
+    }
+    bool supported() const { return true; }
+
+#elif defined(__linux__)
+    cpu_set_t* old_affinity = nullptr;
+    static constexpr auto maxCPUs = 8192;
+    const size_t set_size;
+    bool restore;
+
+public:
+    TemporalThreadAffinity(const uint32 core_id, bool checkStatus = true, const bool restore_ = true)
+        : set_size(CPU_ALLOC_SIZE(maxCPUs)), restore(restore_)
+    {
+        assert(core_id < maxCPUs);
+        old_affinity = CPU_ALLOC(maxCPUs);
+        assert(old_affinity);
+        auto res = pthread_getaffinity_np(pthread_self(), set_size, old_affinity);
+        if (res != 0)
+        {
+            std::cerr << "ERROR: pthread_getaffinity_np for core " << core_id << " failed with code " << res << "\n";
+            CPU_FREE(old_affinity);
+            old_affinity = nullptr;
+            throw std::runtime_error("pthread_getaffinity_np failed");
+        }
+        cpu_set_t* new_affinity = CPU_ALLOC(maxCPUs);
+        assert(new_affinity);
+        CPU_ZERO_S(set_size, new_affinity);
+        CPU_SET_S(core_id, set_size, new_affinity);
+        if (CPU_EQUAL_S(set_size, old_affinity, new_affinity))
+        {
+            CPU_FREE(new_affinity);
+            restore = false;
+            return;
+        }
+        res = pthread_setaffinity_np(pthread_self(), set_size, new_affinity);
+        CPU_FREE(new_affinity);
+        if (res != 0 && checkStatus)
+        {
+            std::cerr << "ERROR: pthread_setaffinity_np for core " << core_id << " failed with code " << res << "\n";
+            CPU_FREE(old_affinity);
+            old_affinity = nullptr;
+            throw std::runtime_error("pthread_setaffinity_np failed");
+        }
+    }
+    ~TemporalThreadAffinity()
+    {
+        if (restore) pthread_setaffinity_np(pthread_self(), set_size, old_affinity);
+        CPU_FREE(old_affinity);
+        old_affinity = nullptr;
+    }
+    bool supported() const { return true; }
+#elif defined(_MSC_VER)
+    ThreadGroupTempAffinity affinity;
+public:
+    TemporalThreadAffinity(uint32 core, bool checkStatus = true, const bool restore = true)
+        : affinity(core, checkStatus, restore)
+    {
+    }
+    bool supported() const { return true; }
+#else // not implemented for os x
+public:
+    TemporalThreadAffinity(uint32) { }
+    TemporalThreadAffinity(uint32, bool) {}
+    bool supported() const { return false; }
+#endif
+};
 
 
 } // namespace pcm

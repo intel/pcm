@@ -20,6 +20,7 @@ using namespace System::Reflection;
 //To install/uninstall the service, type: "PCM-Service.exe [-Install/-Uninstall]"
 int _tmain(int argc, _TCHAR* argv[])
 {
+	PCM_SET_DLL_DIR
 	if (argc >= 2)
 	{
 		if (argv[1][0] == _T('/'))

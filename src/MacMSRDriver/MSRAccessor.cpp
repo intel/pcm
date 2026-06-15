@@ -79,7 +79,7 @@ uint32_t MSRAccessor::getNumInstances()
 
     if (kernResult != KERN_SUCCESS)
     {
-        cerr << "IOConnectCallScalarMethod returned 0x" << hex << setw(8) << kernResult << endl;
+        cerr << "IOConnectCallScalarMethod returned 0x" << hex << setw(8) << kernResult << dec << endl;
     }
     // TODO add error handling; also, number-of-instance related
     // functions may go away as they do not appear to be used.
@@ -99,7 +99,7 @@ uint32_t MSRAccessor::incrementNumInstances()
 
     if (kernResult != KERN_SUCCESS)
     {
-        cerr << "IOConnectCallScalarMethod returned 0x" << hex << setw(8) << kernResult << endl;
+        cerr << "IOConnectCallScalarMethod returned 0x" << hex << setw(8) << kernResult << dec << endl;
     }
     // TODO add error handling; also, these functions may go away as
     // they do not appear to be used.
@@ -118,7 +118,7 @@ uint32_t MSRAccessor::decrementNumInstances()
 
     if (kernResult != KERN_SUCCESS)
     {
-        cerr << "IOConnectCallScalarMethod returned 0x" << hex << setw(8) << kernResult << endl;
+        cerr << "IOConnectCallScalarMethod returned 0x" << hex << setw(8) << kernResult << dec << endl;
     }
     // TODO add error handling; also, these functions may go away as
     // they do not appear to be used.
@@ -136,13 +136,13 @@ kern_return_t MSRAccessor::openConnection()
 
     if (kernResult != KERN_SUCCESS)
     {
-        cerr << "IOServiceOpen returned 0x" << hex << setw(8) << kernResult << endl;
+        cerr << "IOServiceOpen returned 0x" << hex << setw(8) << kernResult << dec <<  endl;
     } else {
         kernResult = IOConnectCallScalarMethod(connect, kOpenDriver, NULL, 0, NULL, NULL);
 
         if (kernResult != KERN_SUCCESS)
         {
-            cerr << "kOpenDriver returned 0x" << hex << setw(8) << kernResult << endl;
+            cerr << "kOpenDriver returned 0x" << hex << setw(8) << kernResult << dec <<  endl;
         }
     }
 
@@ -155,12 +155,12 @@ void MSRAccessor::closeConnection()
                                                          NULL, 0, NULL, NULL);
     if (kernResult != KERN_SUCCESS)
     {
-        cerr << "kCloseDriver returned 0x" << hex << setw(8) << kernResult << endl;
+        cerr << "kCloseDriver returned 0x" << hex << setw(8) << kernResult << dec << endl;
     }
 
     kernResult = IOServiceClose(connect);
     if (kernResult != KERN_SUCCESS)
     {
-        cerr << "IOServiceClose returned 0x" << hex << setw(8) << kernResult << endl;
+        cerr << "IOServiceClose returned 0x" << hex << setw(8) << kernResult << dec << endl;
     }
 }
