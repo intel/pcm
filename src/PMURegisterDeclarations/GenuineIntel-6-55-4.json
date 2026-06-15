@@ -100,7 +100,22 @@
             "Threshold":   {"Config": 0, "Position": 24, "Width": 8, "DefaultValue": 0}
         }
     },
+    "pcu" : {
+        "programmable" : {
+            "EventCode":   {"Config": 0, "Position": 0, "Width": 8},
+            "UMask":       {"Config": 0, "Position": 8, "Width": 8},
+            "EdgeDetect":  {"Config": 0, "Position": 18, "Width": 1, "DefaultValue": 0}
+        }
+    },
     "irp" : {
+        "programmable" : {
+            "EventCode":   {"Config": 0, "Position": 0, "Width": 8},
+            "UMask":       {"Config": 0, "Position": 8, "Width": 8},
+            "EdgeDetect":  {"Config": 0, "Position": 18, "Width": 1, "DefaultValue": 0},
+            "Threshold":   {"Config": 0, "Position": 24, "Width": 8, "DefaultValue": 0}
+        }
+    },
+    "ubox" : {
         "programmable" : {
             "EventCode":   {"Config": 0, "Position": 0, "Width": 8},
             "UMask":       {"Config": 0, "Position": 8, "Width": 8},
