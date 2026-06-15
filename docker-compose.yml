@@ -1,13 +1,14 @@
 version: '2.0'
 services:
     pcm:
-       image: opcm/pcm
+       image: ghcr.io/intel/pcm:latest
        ports:
            - "9738:9738"
        volumes:
            - "/sys/firmware/acpi/tables/MCFG:/pcm/sys/firmware/acpi/tables/MCFG:ro"
            - "/proc/bus/pci/:/pcm/proc/bus/pci/"
            - "/proc/sys/kernel/nmi_watchdog:/pcm/proc/sys/kernel/nmi_watchdog"
+           - "/sys:/sys:rw"
        cap_add:
            - SYS_ADMIN
            - SYS_RAWIO

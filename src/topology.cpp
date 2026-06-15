@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2016-2022, Intel Corporation
 
-#include "cpucounters.h"
 #include "topology.h"
+#include "pcm-accel-common.h"
 
 namespace pcm {
 
@@ -18,8 +18,20 @@ UncoreCounterState ServerUncore::uncoreCounterState( void ) const
     return ucs;
 }
 
-Socket::Socket( PCM* m, int32 apicID, int32 logicalID )
-    : pcm_(m), refCore_(nullptr), apicID_(apicID), logicalID_(logicalID)
+UncoreCounterState ClientUncore::uncoreCounterState( void ) const
+{
+    UncoreCounterState ucs;
+    // Fill the ucs
+    PCM* pcm = PCM::getInstance();
+    pcm->readAndAggregateUncoreMCCounters( socketID(), ucs );
+    pcm->readAndAggregateEnergyCounters( socketID(), ucs );
+    pcm->readAndAggregatePackageCStateResidencies( refCore()->msrHandle(), ucs );
+
+    return ucs;
+}
+
+Socket::Socket( PCM* m, int32 logicalID )
+    : pcm_(m), refCore_(nullptr), logicalID_(logicalID)
 {
     if ( pcm_->isServerCPU() )
         uncore_ = new ServerUncore( pcm_, logicalID );
@@ -86,17 +98,20 @@ void Aggregator::dispatch( SystemRoot const& syp ) {
     }
     PCM* pcm = PCM::getInstance();
     pcm->readQPICounters( sycs_ );
+    pcm->readAndAggregateCXLCMCounters( sycs_ );
+    readAccelCounters(sycs_);
 }
 
-Aggregator::Aggregator()
-{
-    PCM* const pcm = PCM::getInstance();
-    // Resize user provided vectors to the right size
-    ccsVector_.resize( pcm->getNumCores() );
-    socsVector_.resize( pcm->getNumSockets() );
-    // Internal use only, need to be the same size as the user provided vectors
-    ccsFutures_.resize( pcm->getNumCores() );
-    ucsFutures_.resize( pcm->getNumSockets() );
+bool TopologyStringCompare( const std::string& topology1, const std::string& topology2 ) {
+    if ( topology1.size() == 0 ) return true;
+    if ( topology2.size() == 0 ) return false;
+
+    int topo1asint, topo2asint;
+    std::stringstream ss1(topology1);
+    std::stringstream ss2(topology2);
+    ss1 >> topo1asint;
+    ss2 >> topo2asint;
+    return topo1asint < topo2asint;
 }
 
 }// namespace pcm

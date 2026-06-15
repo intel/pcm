@@ -2,6 +2,9 @@ name: coverity-linux-and-python-report
 
 on: [workflow_dispatch, workflow_call]
 
+permissions:
+  contents: read
+
 jobs:
   build:
 
@@ -9,7 +12,12 @@ jobs:
     if: ${{ github.repository != 'intel/pcm' }}
 
     steps:
-    - uses: actions/checkout@v3
+    - name: Harden Runner
+      uses: step-security/harden-runner@0080882f6c36860b6ba35c610c98ce87d4e2f26f # v2.10.2
+      with:
+        egress-policy: audit
+
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       with:
         submodules: recursive
 
@@ -29,7 +37,7 @@ jobs:
         ci-cov-linux-report.sh PCM.linux.and.python
 
     - name: upload-artifact
-      uses: actions/upload-artifact@v3.1.1
+      uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
       with:
         name: coverity-linux-and-python-report-${{ github.sha }}
         path: "*-Report.pdf"

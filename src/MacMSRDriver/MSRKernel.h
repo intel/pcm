@@ -13,27 +13,4 @@ typedef struct {
     uint32_t msr_num;
 } pcm_msr_data_t;
 
-/*
-// The topologyEntry struct that is used by PCM
-typedef struct{
-    uint32_t os_id;
-    uint32_t socket;
-    uint32_t core_id;
-} topologyEntry;
-
-// A kernel version of the topology entry structure. It has
-// an extra unused int to explicitly align the struct on a 64bit
-// boundary, preventing the compiler from adding extra padding.
-enum {
-    kOpenDriver,
-    kCloseDriver,
-    kReadMSR,
-    kWriteMSR,
-    kBuildTopology,
-    kGetNumInstances,
-    kIncrementNumInstances,
-    kDecrementNumInstances,
-    kNumberOfMethods 
-};
-*/
 #endif

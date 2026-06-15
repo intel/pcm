@@ -41,10 +41,23 @@ IOReturn PcmMsrClientClassName::externalMethod(uint32_t selector, IOExternalMeth
 	return super::externalMethod(selector, args, dispatch, target, reference);
 }
 
+bool PcmMsrClientClassName::initWithTask(task_t owningTask, void *securityToken, UInt32 type, OSDictionary *properties)
+{
+    if(!IOUserClient::initWithTask(owningTask, securityToken, type, properties)) {
+        return false;
+    }
+    
+    sSecurityToken = securityToken;
+    return true;
+}
+
 bool PcmMsrClientClassName::start(IOService* provider)
 {
 	bool result = false;
-    
+
+    if(clientHasPrivilege(sSecurityToken, kIOClientPrivilegeAdministrator) != kIOReturnSuccess) 
+		return false;
+		
     fProvider = OSDynamicCast(PcmMsrDriverClassName, provider);
     
     if (fProvider != NULL) {
