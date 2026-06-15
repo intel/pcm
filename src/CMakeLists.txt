@@ -196,6 +196,7 @@ if(PCM_BUILD_EXECUTABLES)
 
         if(UNIX)
             set(LIBS ${LIBS} "-fPIE")
+            target_link_options(${PROJECT_NAME} PRIVATE "-fPIE")
         endif(UNIX)
 
         if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
