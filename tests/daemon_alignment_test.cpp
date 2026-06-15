@@ -4,6 +4,7 @@
 #include <algorithm>
 
 #include "../src/daemon/common.h"
+#include "../src/utils.h"
 
 #define ALIGNMENT 64
 
@@ -83,7 +84,7 @@ int main()
     	}
     }
 
-    free(pcmState);
+    pcm::freeAndNullify(pcmState);
 
     printf("\n------ All passed ------\n\n");
 

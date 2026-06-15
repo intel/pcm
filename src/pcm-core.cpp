@@ -48,12 +48,14 @@ struct CoreEvent
 	char * description;
 } events[PERF_MAX_CUSTOM_COUNTERS];
 
+#ifdef PCM_SHARED_LIBRARY
+
 extern "C" {
-	SystemCounterState globalSysBeforeState, globalSysAfterState;
-	std::vector<CoreCounterState> globalBeforeState, globalAfterState;
-	std::vector<SocketCounterState> globalDummySocketStates;
-	EventSelectRegister globalRegs[PERF_MAX_COUNTERS];
-	PCM::ExtendedCustomCoreEventDescription globalConf;
+	static std::shared_ptr<SystemCounterState> globalSysBeforeState, globalSysAfterState;
+	static std::shared_ptr<std::vector<CoreCounterState> > globalBeforeState, globalAfterState;
+	static std::shared_ptr<std::vector<SocketCounterState> > globalDummySocketStates;
+	static EventSelectRegister globalRegs[PERF_MAX_COUNTERS];
+	static PCM::ExtendedCustomCoreEventDescription globalConf;
 
 	int pcm_c_build_core_event(uint8_t idx, const char * argv)
 	{
@@ -68,6 +70,11 @@ extern "C" {
 	int pcm_c_init()
 	{
 		PCM * m = PCM::getInstance();
+		globalSysBeforeState = std::make_shared<SystemCounterState>();
+		globalSysAfterState = std::make_shared<SystemCounterState>();
+		globalBeforeState = std::make_shared<std::vector<CoreCounterState> >();
+		globalAfterState = std::make_shared<std::vector<CoreCounterState> >();
+		globalDummySocketStates = std::make_shared<std::vector<SocketCounterState> >();
 		globalConf.fixedCfg = NULL; // default
 		globalConf.nGPCounters = m->getMaxCustomCoreEvents();
 		globalConf.gpCounterCfg = globalRegs;
@@ -85,30 +92,32 @@ extern "C" {
 	void pcm_c_start()
 	{
 		PCM * m = PCM::getInstance();
-		m->getAllCounterStates(globalSysBeforeState, globalDummySocketStates, globalBeforeState);
+		m->getAllCounterStates(*globalSysBeforeState.get(), *globalDummySocketStates.get(), *globalBeforeState.get());
 	}
 
 	void pcm_c_stop()
 	{
 		PCM * m = PCM::getInstance();
-		m->getAllCounterStates(globalSysAfterState, globalDummySocketStates, globalAfterState);
+		m->getAllCounterStates(*globalSysAfterState.get(), *globalDummySocketStates.get(), *globalAfterState.get());
 	}
 
 	uint64_t pcm_c_get_cycles(uint32_t core_id)
 	{
-		return getCycles(globalBeforeState[core_id], globalAfterState[core_id]);
+		return getCycles((*globalBeforeState.get())[core_id], (*globalAfterState.get())[core_id]);
 	}
 
 	uint64_t pcm_c_get_instr(uint32_t core_id)
 	{
-		return getInstructionsRetired(globalBeforeState[core_id], globalAfterState[core_id]);
+		return getInstructionsRetired((*globalBeforeState.get())[core_id], (*globalAfterState.get())[core_id]);
 	}
 
 	uint64_t pcm_c_get_core_event(uint32_t core_id, uint32_t event_id)
 	{
-		return getNumberOfCustomEvents(event_id, globalBeforeState[core_id], globalAfterState[core_id]);
+		return getNumberOfCustomEvents(event_id, (*globalBeforeState.get())[core_id], (*globalAfterState.get())[core_id]);
 	}
 }
+
+#endif // PCM_SHARED_LIBRARY
 
 void print_usage(const string & progname)
 {

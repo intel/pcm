@@ -1,5 +1,6 @@
 modprobe msr
 
+export PCM_ENFORCE_MBM="1"
 export BIN_DIR="build/bin"
 
 pushd $BIN_DIR
@@ -21,8 +22,22 @@ if [ "$?" -ne "0" ]; then
    exit 1
 fi
 
+echo Testing pcm with PCM_DEBUG_LEVEL=100
+PCM_DEBUG_LEVEL=100 ./pcm -r -- sleep 1
+if [ "$?" -ne "0" ]; then
+   echo "Error in pcm"
+   exit 1
+fi
+
 echo Testing pcm w/o env vars
 ./pcm -r -- sleep 1
+if [ "$?" -ne "0" ]; then
+   echo "Error in pcm"
+   exit 1
+fi
+
+echo Testing pcm w/o env vars + color
+./pcm -r --color -- sleep 1
 if [ "$?" -ne "0" ]; then
    echo "Error in pcm"
    exit 1
@@ -116,6 +131,27 @@ if [ "$?" -ne "0" ]; then
     exit 1
 fi
 
+echo Testing pcm-pcicfg with -n option
+./pcm-pcicfg -n 0 0 0 0 0
+if [ "$?" -ne "0" ]; then
+    echo "Error in pcm-pcicfg with -n option"
+    exit 1
+fi
+
+echo Testing pcm-pcicfg with -n and -d options
+./pcm-pcicfg -n -d 0 0 0 0 0
+if [ "$?" -ne "0" ]; then
+    echo "Error in pcm-pcicfg with -n -d options"
+    exit 1
+fi
+
+echo Testing pcm-tpmi
+./pcm-tpmi 2 0x10 -d -b 26:26
+if [ "$?" -ne "0" ]; then
+    echo "Error in pcm-tpmi"
+    exit 1
+fi
+
 echo Testing pcm-numa
 ./pcm-numa -- sleep 1
 if [ "$?" -ne "0" ]; then
@@ -131,7 +167,8 @@ if [ "$?" -ne "0" ]; then
 fi
 
 echo Testing c_example
-./examples/c_example
+# see https://github.com/google/sanitizers/issues/934
+LD_PRELOAD="$(realpath "$(gcc -print-file-name=libasan.so)") $(realpath "$(gcc -print-file-name=libstdc++.so)")" LD_LIBRARY_PATH=../lib/ ./examples/c_example
 if [ "$?" -ne "0" ]; then
     echo "Error in c_example"
     exit 1
@@ -158,6 +195,9 @@ if [ "$?" -ne "0" ]; then
     exit 1
 fi
 
+echo "/sys/fs/cgroup/cpuset/cpuset.cpus:"
+cat /sys/fs/cgroup/cpuset/cpuset.cpus
+
 echo Testing pcm-pcie
 ./pcm-pcie -- sleep 1
 if [ "$?" -ne "0" ]; then
@@ -180,13 +220,78 @@ if [ "$?" -ne "0" ]; then
 fi
 
 # TODO add more tests
-# e.g for ./pcm-sensor-server, ./pcm-sensor, ...
+# e.g for ./pcm-sensor, ...
+
+echo Testing pcm-sensor-server
+# Pick an unused high port to avoid collisions with the default one.
+SENSOR_PORT=19738
+./pcm-sensor-server -p $SENSOR_PORT -silent &
+SENSOR_PID=$!
+
+# Wait for the server to start accepting connections (up to ~20s).
+SENSOR_READY=0
+for i in $(seq 1 40); do
+    if ! kill -0 $SENSOR_PID 2>/dev/null; then
+        echo "pcm-sensor-server exited unexpectedly during startup"
+        exit 1
+    fi
+    if curl -s -o /dev/null -f "http://127.0.0.1:${SENSOR_PORT}/metrics"; then
+        SENSOR_READY=1
+        break
+    fi
+    sleep 0.5
+done
+
+if [ "$SENSOR_READY" -ne "1" ]; then
+    echo "Error: pcm-sensor-server did not become ready on port $SENSOR_PORT"
+    kill $SENSOR_PID 2>/dev/null
+    wait $SENSOR_PID 2>/dev/null
+    exit 1
+fi
+
+echo "  Query /metrics endpoint with curl"
+METRICS_OUT=$(curl -s -f "http://127.0.0.1:${SENSOR_PORT}/metrics")
+CURL_RC=$?
+if [ "$CURL_RC" -ne "0" ] || [ -z "$METRICS_OUT" ]; then
+    echo "Error in pcm-sensor-server: /metrics request failed or returned empty body"
+    kill $SENSOR_PID 2>/dev/null
+    wait $SENSOR_PID 2>/dev/null
+    exit 1
+fi
+# Prometheus exposition format lines start with '#' (HELP/TYPE) or a metric name.
+if ! echo "$METRICS_OUT" | grep -q '^#'; then
+    echo "Error in pcm-sensor-server: /metrics response does not look like Prometheus output"
+    kill $SENSOR_PID 2>/dev/null
+    wait $SENSOR_PID 2>/dev/null
+    exit 1
+fi
+
+echo "  Query /dashboard endpoint with curl"
+curl -s -f -o /dev/null "http://127.0.0.1:${SENSOR_PORT}/dashboard"
+if [ "$?" -ne "0" ]; then
+    echo "Error in pcm-sensor-server: /dashboard request failed"
+    kill $SENSOR_PID 2>/dev/null
+    wait $SENSOR_PID 2>/dev/null
+    exit 1
+fi
+
+echo "  Query unknown endpoint, expect HTTP 404"
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${SENSOR_PORT}/does-not-exist")
+if [ "$HTTP_CODE" != "404" ]; then
+    echo "Error in pcm-sensor-server: expected 404 for unknown endpoint, got $HTTP_CODE"
+    kill $SENSOR_PID 2>/dev/null
+    wait $SENSOR_PID 2>/dev/null
+    exit 1
+fi
+
+kill $SENSOR_PID 2>/dev/null
+wait $SENSOR_PID 2>/dev/null
 
 echo Testing urltest
 ./tests/urltest
-# We have 2 expected errors, anything else is a bug
-if [ "$?" != 2 ]; then
-    echo "Error in urltest, 2 expected errors but found $?!"
+# We have 14 expected errors, anything else is a bug
+if [ "$?" != 14 ]; then
+    echo "Error in urltest, 14 expected errors but found $?!"
     exit 1
 fi
 
@@ -300,6 +405,10 @@ MSR_EVENT:msr=0x34:type=static:scope=PACKAGE
 package_msr/config=0x34,config1=0
 thread_msr/config=0x10,config1=1,name=TSC_DELTA
 thread_msr/config=0x10,config1=0,name=TSC
+pcicfg/config=0x208d,config1=0,config2=0,width=64,name=first_8_bytes_of_208d_device
+pcicfg/config=0x2021,config1=0,config2=0,width=32
+pcicfg/config=0x2021,config1=0,config2=0,width=64
+pcicfg/config=0x2058,config1=0x318,config2=1,width=64,name=UPI_reg
 ;
 # group 2
 OFFCORE_REQUESTS_BUFFER.SQ_FULL
@@ -315,8 +424,11 @@ UNC_UPI_TxL0P_POWER_CYCLES
 UNC_UPI_RxL0P_POWER_CYCLES
 UNC_UPI_RxL_FLITS.ALL_DATA
 UNC_UPI_RxL_FLITS.NON_DATA
+UNC_P_FREQ_MAX_LIMIT_THERMAL_CYCLES
 MSR_EVENT:msr=0x10:type=FREERUN:scope=thread
 MSR_EVENT:msr=0x10:type=static:scope=thread
+pcicfg/config=0x2021,config1=4,config2=0,width=32
+pcicfg/config=0x208d,config1=0,config2=1,width=64,name=first_8_bytes_of_208d_device_diff
 ;
 EOF
 
@@ -375,5 +487,25 @@ if [ "$?" -ne "0" ]; then
 fi
 online_offline_cores 1
 
+# Below is UT part
+
+echo "Running Unit Tests"
+failed=()
+for test_binary in ./tests/utests/*; do
+    if [ -x "$test_binary" ]; then
+        echo "Running $test_binary"
+        "$test_binary"
+        if [ "$?" -ne "0" ]; then
+            failed+=("$test_binary")
+        fi
+    else
+        echo "Skipping $test_binary (not executable)"
+    fi
+done
+
+if [ "${#failed[@]}" -ne "0" ]; then
+    echo "Failed test programs: ${failed[@]}"
+    exit 1
+fi
 
 popd

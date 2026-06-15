@@ -73,7 +73,7 @@ int main()
         assert(res >= 0);
     }
     for (i = 0; i < NUM_CORES; ++i)
-        delete cpu_msr[i];
+        deleteAndNullify(cpu_msr[i]);
     for (i = 0; i < NUM_CORES; ++i)
         std::cout << "Core " << i <<
             "\t Instructions: " << (counters_after[i][0] - counters_before[i][0]) <<

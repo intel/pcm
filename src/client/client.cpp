@@ -16,6 +16,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <fcntl.h>
 
 #include "../daemon/common.h"
 #include "client.h"
@@ -96,9 +97,16 @@ namespace PCMDaemon {
 	void Client::setupSharedMemory()
 	{
 		int sharedMemoryId;
-		FILE *fp = fopen (shmIdLocation_.c_str(), "r");
+		// SDL330: Use O_NOFOLLOW to reject symlinks
+		int fd = open(shmIdLocation_.c_str(), O_RDONLY | O_NOFOLLOW);
+		if (fd < 0 && errno == ELOOP) {
+			std::cerr << "SDL330 ERROR: Symlink detected at " << shmIdLocation_ << "\n";
+			exit(EXIT_FAILURE);
+		}
+		FILE *fp = (fd >= 0) ? fdopen(fd, "r") : NULL;
 		if (!fp)
 		{
+			if (fd >= 0) close(fd);
 			std::cerr << "Failed to open to shared memory key location: " << shmIdLocation_ << "\n";
 			exit(EXIT_FAILURE);
 		}

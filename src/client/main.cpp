@@ -281,7 +281,7 @@ int main(int argc, char * argv[])
             printTitle("PMM Memory Mode hit rate p/Sock. ");
             for (PCMDaemon::uint32 i = 0; i < counters.system.numOfOnlineSockets; ++i)
             {
-                std::cout << std::setprecision(coutPrecision) << counters.memory.sockets[i].pmmMemoryModeHitRate << " ";
+                std::cout << std::setprecision(coutPrecision) << counters.memory.sockets[i].memoryModeHitRate << " ";
             }
             std::cout << "\n";
         }
