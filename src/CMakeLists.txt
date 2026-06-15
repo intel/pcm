@@ -1,41 +1,62 @@
 # SPDX-License-Identifier: BSD-3-Clause
-# Copyright (c) 2022, Intel Corporation
-
-include(FindOpenSSL)
+# Copyright (c) 2022-2025, Intel Corporation
 
 # All pcm-* executables
-set(PROJECT_NAMES pcm pcm-numa pcm-latency pcm-power pcm-msr pcm-memory pcm-tsx pcm-pcie pcm-core pcm-iio pcm-lspci pcm-pcicfg pcm-mmio pcm-tpmi pcm-raw pcm-accel)
+set(PROJECT_NAMES pcm pcm-numa pcm-latency pcm-power pcm-msr pcm-memory pcm-tsx pcm-pcie pcm-core pcm-iio pcm-pcicfg pcm-mmio pcm-tpmi pcm-raw pcm-accel pcm-sensor-server)
 
 set(MINIMUM_OPENSSL_VERSION 1.1.1)
 
-file(GLOB COMMON_SOURCES pcm-accel-common.cpp msr.cpp cpucounters.cpp pci.cpp mmio.cpp tpmi.cpp pmt.cpp bw.cpp utils.cpp topology.cpp debug.cpp threadpool.cpp uncore_pmu_discovery.cpp)
+file(GLOB COMMON_SOURCES pcm-accel-common.cpp msr.cpp cpucounters.cpp pci.cpp mmio.cpp tpmi.cpp pmt.cpp bw.cpp utils.cpp topology.cpp debug.cpp threadpool.cpp uncore_pmu_discovery.cpp pcm-iio-pmu.cpp pcm-iio-topology.cpp lspci.cpp dashboard.cpp ${PCM_PUGIXML_CPP})
 
-if (APPLE)
-  file(GLOB UNUX_SOURCES dashboard.cpp)
-else()
-  file(GLOB UNUX_SOURCES dashboard.cpp resctrl.cpp)
+if (NOT APPLE)
+  file(GLOB UNIX_SOURCES resctrl.cpp)
+endif()
+
+if (LINUX)
+    if(EXISTS "/etc/os-release") #  AND IS_READABLE "/etc/os-release" (3.29 cmake required :-( )
+      file(STRINGS "/etc/os-release" OS_RELEASE_CONTENTS)
+      foreach(LINE ${OS_RELEASE_CONTENTS})
+          if(LINE MATCHES "^ID=")
+              string(REGEX REPLACE "^ID=\"?\([a-zA-Z]+\)\"?" "\\1" OS_ID ${LINE})
+          endif()
+      endforeach()
+      message(STATUS "Detected Linux distribution: ${OS_ID}")
+    else()
+      message(STATUS "Unable to read /etc/os-release")
+    endif()
+endif()
+
+if(NOT PCM_NO_ASAN)
+    if(OS_ID STREQUAL "centos")
+        set(PCM_NO_STATIC_LIBASAN ON)
+        message(STATUS "CentOS detected, using dynamic libasan")
+    endif()
+    if(OS_ID STREQUAL "arch")
+        set(PCM_NO_STATIC_LIBASAN ON)
+        message(STATUS "arch Linux detected, using dynamic libasan")
+    endif()
 endif()
 
 if(UNIX)  # LINUX, FREE_BSD, APPLE
     if (NOT APPLE)
       set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS} -s")  # --strip-unneeded for packaging
     endif()
-    list(APPEND PROJECT_NAMES pcm-sensor-server)
     list(APPEND PROJECT_NAMES pcm-sensor)
 
     # libpcm.a
-    add_library(PCM_STATIC STATIC ${COMMON_SOURCES} ${UNUX_SOURCES})
+    add_library(PCM_STATIC STATIC ${COMMON_SOURCES} ${UNIX_SOURCES})
     set_target_properties(PCM_STATIC PROPERTIES OUTPUT_NAME pcm)
 
     # libpcm.a with -DPCM_SILENT for Release*
-    add_library(PCM_STATIC_SILENT STATIC ${COMMON_SOURCES} ${UNUX_SOURCES})
+    add_library(PCM_STATIC_SILENT STATIC ${COMMON_SOURCES} ${UNIX_SOURCES})
     target_compile_definitions(PCM_STATIC_SILENT PRIVATE
       $<$<CONFIG:Release>:PCM_SILENT>
       $<$<CONFIG:MinSizeRel>:PCM_SILENT>
       $<$<CONFIG:RelWithDebInfo>:PCM_SILENT>
     )
 
-    target_compile_options(PCM_STATIC_SILENT PRIVATE "-fPIC")
+    set_target_properties(PCM_STATIC PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    set_target_properties(PCM_STATIC_SILENT PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
     # libpcm.so
     add_library(PCM_SHARED SHARED pcm-core.cpp)
@@ -46,10 +67,29 @@ if(UNIX)  # LINUX, FREE_BSD, APPLE
       $<$<CONFIG:MinSizeRel>:PCM_SILENT>
       $<$<CONFIG:RelWithDebInfo>:PCM_SILENT>
     )
+
+    if(PCM_NO_ASAN)
+        set(PCM_DYNAMIC_ASAN "")
+        set(PCM_STATIC_ASAN "")
+    else()
+        if(PCM_NO_STATIC_LIBASAN)
+            message(STATUS "Using dynamic libasan")
+            set(PCM_DYNAMIC_ASAN "asan")
+            set(PCM_STATIC_ASAN "")
+        else()
+            set(PCM_DYNAMIC_ASAN "")
+            set(PCM_STATIC_ASAN "-static-libasan")
+            message(STATUS "Using static libasan")
+            message(STATUS "To use dynamic libasan, use -DPCM_NO_STATIC_LIBASAN=1 option (required for CentOS and arch Linux)")
+        endif()
+    endif()
+
     if(APPLE)
         add_subdirectory(MacMSRDriver)
         include_directories("${CMAKE_SOURCE_DIR}/src/MacMSRDriver") # target_include_directories doesn't work
         target_link_libraries(PCM_SHARED PRIVATE PCM_STATIC_SILENT PcmMsr Threads::Threads)
+    elseif(LINUX)
+        target_link_libraries(PCM_SHARED PRIVATE PCM_STATIC_SILENT Threads::Threads "${PCM_DYNAMIC_ASAN}")
     else()
         target_link_libraries(PCM_SHARED PRIVATE PCM_STATIC_SILENT Threads::Threads)
     endif()
@@ -57,14 +97,20 @@ if(UNIX)  # LINUX, FREE_BSD, APPLE
 endif()
 
 if(MSVC)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /O2 /wd4251 /wd4273 /EHa /Zi")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /O2 /wd4251 /wd4273 /EHa /Zi /GS /Gy")
     add_definitions(/W3)
+    # SDL429 security flags: ASLR (/DYNAMICBASE) and DEP (/NXCOMPAT)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /DYNAMICBASE /NXCOMPAT")
+    # Optional Spectre mitigation for newer MSVC versions
+    if(MSVC_TOOLSET_VERSION GREATER_EQUAL 141)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Qspectre")
+    endif()
 
     # windows/* files -> PCM_STATIC
     file(GLOB WINDOWS_SOURCES winpmem/winpmem.cpp windows/stdafx.cpp freegetopt/getopt.cpp)
     add_library(PCM_STATIC STATIC ${COMMON_SOURCES} ${WINDOWS_SOURCES})
     target_compile_definitions(PCM_STATIC PRIVATE UNICODE _UNICODE _CONSOLE)
-    if (NO_STATIC_MSVC_RUNTIME_LIBRARY)
+    if(PCM_NO_STATIC_MSVC_RUNTIME_LIBRARY)
         set(PCM_MSVC_RUNTIME_LIBRARY_OPTIONS "")
     else()
         set(PCM_MSVC_RUNTIME_LIBRARY_OPTIONS "/MT$<$<CONFIG:Debug>:d>")
@@ -110,7 +156,7 @@ if((CMAKE_CXX_COMPILER_ID STREQUAL "GNU"   AND CMAKE_CXX_COMPILER_VERSION VERSIO
 endif()
 
 if(SIMDJSON_IS_APPLICABLE)
-    find_package(simdjson QUIET)  # Working form Ububtu 22.04
+    find_package(simdjson QUIET)  # Working form Ubuntu 22.04
     if(simdjson_FOUND)
         message(STATUS "System SIMDJSON is used")
         target_link_libraries(PCM_SIMDJSON INTERFACE simdjson::simdjson)
@@ -137,66 +183,76 @@ endif(SIMDJSON_IS_APPLICABLE)
 # End of SIMDJSON dependency section
 #######################
 
-foreach(PROJECT_NAME ${PROJECT_NAMES})
-    file(GLOB PROJECT_FILE ${PROJECT_NAME}.cpp)
-    set(LIBS PCM_STATIC)
+if(PCM_BUILD_EXECUTABLES)
+    foreach(PROJECT_NAME ${PROJECT_NAMES})
+        file(GLOB PROJECT_FILE ${PROJECT_NAME}.cpp)
+        set(LIBS PCM_STATIC)
 
-    add_executable(${PROJECT_NAME} ${PROJECT_FILE})
+        add_executable(${PROJECT_NAME} ${PROJECT_FILE})
 
-    if(MSVC)
-        target_compile_options(${PROJECT_NAME} PRIVATE "${PCM_MSVC_RUNTIME_LIBRARY_OPTIONS}")
-    endif(MSVC)
+        if(MSVC)
+            target_compile_options(${PROJECT_NAME} PRIVATE "${PCM_MSVC_RUNTIME_LIBRARY_OPTIONS}")
+        endif(MSVC)
 
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-        set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "-static-libasan")
-    endif()
+        if(UNIX)
+            set(LIBS ${LIBS} "-fPIE")
+        endif(UNIX)
 
-    # specific file for pcm-raw project
-    if(${PROJECT_NAME} STREQUAL pcm-raw)
-        set(LIBS ${LIBS} PCM_SIMDJSON)
-    endif(${PROJECT_NAME} STREQUAL pcm-raw)
-
-    if(${PROJECT_NAME} STREQUAL pcm-sensor-server)
-      if(NO_SSL)
-        message(STATUS "SSL is disabled")
-      else()
-        message(STATUS "Compiling with SSL support, requires libssl-dev or openssl-devel or libopenssl-devel or libopenssl-dev package installed")
-        message(STATUS "To disable SSL support, use -DNO_SSL=1 option")
-        find_package(OpenSSL ${MINIMUM_OPENSSL_VERSION} QUIET)
-        if(OPENSSL_FOUND)
-          message(STATUS "OpenSSL version ${OPENSSL_VERSION} >= ${MINIMUM_OPENSSL_VERSION}, OpenSSL support enabled")
-          target_compile_options(${PROJECT_NAME} PRIVATE "-DUSE_SSL")
-          set(LIBS ${LIBS} OpenSSL::SSL OpenSSL::Crypto)
-        else()
-          message(STATUS "OpenSSL support has been disabled, the version is less than ${MINIMUM_OPENSSL_VERSION}")
+        if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+            set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "${PCM_STATIC_ASAN}")
         endif()
-      endif()
-      file(READ pcm-sensor-server.service.in SENSOR_SERVICE_IN)
-      string(REPLACE "@@CMAKE_INSTALL_SBINDIR@@" "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_SBINDIR}" SENSOR_SERVICE "${SENSOR_SERVICE_IN}")
-      file(WRITE "${CMAKE_BINARY_DIR}/pcm-sensor-server.service" "${SENSOR_SERVICE}")
-      file(GLOB PROJECT_FILE ${PROJECT_NAME}.cpp pcm-accel-common.h pcm-accel-common.cpp)
-      target_include_directories(pcm-sensor-server PUBLIC ${CMAKE_SOURCE_DIR})
-      if(LINUX_SYSTEMD)
-        install(FILES "${CMAKE_BINARY_DIR}/pcm-sensor-server.service" DESTINATION "${LINUX_SYSTEMD_UNITDIR}")
-      endif(LINUX_SYSTEMD)
-    endif(${PROJECT_NAME} STREQUAL pcm-sensor-server)
 
-    if(LINUX OR FREE_BSD)
-        set(LIBS ${LIBS} Threads::Threads)
-        install(TARGETS ${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_SBINDIR})
-    endif(LINUX OR FREE_BSD)
+        # specific file for pcm-raw project
+        if(${PROJECT_NAME} STREQUAL pcm-raw)
+            set(LIBS ${LIBS} PCM_SIMDJSON)
+        endif(${PROJECT_NAME} STREQUAL pcm-raw)
 
-    if(APPLE)
-        set(LIBS ${LIBS} Threads::Threads PcmMsr)
-        install(TARGETS ${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_SBINDIR})
-    endif(APPLE)
+        if(${PROJECT_NAME} STREQUAL pcm-sensor-server)
+          if(NO_SSL)
+            message(STATUS "SSL is disabled")
+          else()
+            message(STATUS "Compiling with SSL support, requires libssl-dev or openssl-devel or libopenssl-devel or libopenssl-dev package installed")
+            message(STATUS "To disable SSL support, use -DNO_SSL=1 option")
+            find_package(OpenSSL ${MINIMUM_OPENSSL_VERSION} QUIET)
+            if(OPENSSL_FOUND)
+              message(STATUS "OpenSSL version ${OPENSSL_VERSION} >= ${MINIMUM_OPENSSL_VERSION}, OpenSSL support enabled")
+              target_compile_options(${PROJECT_NAME} PRIVATE "-DUSE_SSL")
+              set(LIBS ${LIBS} OpenSSL::SSL OpenSSL::Crypto)
+              if(MSVC)
+                # Static OpenSSL on Windows depends on these system libraries
+                set(LIBS ${LIBS} crypt32 ws2_32)
+              endif()
+            else()
+              message(STATUS "OpenSSL support has been disabled, the version is less than ${MINIMUM_OPENSSL_VERSION}")
+            endif()
+          endif()
+          file(READ pcm-sensor-server.service.in SENSOR_SERVICE_IN)
+          string(REPLACE "@@CMAKE_INSTALL_SBINDIR@@" "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_SBINDIR}" SENSOR_SERVICE "${SENSOR_SERVICE_IN}")
+          file(WRITE "${CMAKE_BINARY_DIR}/pcm-sensor-server.service" "${SENSOR_SERVICE}")
+          file(GLOB PROJECT_FILE ${PROJECT_NAME}.cpp pcm-accel-common.h pcm-accel-common.cpp)
+          target_include_directories(pcm-sensor-server PUBLIC ${CMAKE_SOURCE_DIR})
+          if(LINUX_SYSTEMD)
+            install(FILES "${CMAKE_BINARY_DIR}/pcm-sensor-server.service" DESTINATION "${LINUX_SYSTEMD_UNITDIR}")
+          endif(LINUX_SYSTEMD)
+        endif(${PROJECT_NAME} STREQUAL pcm-sensor-server)
 
-    if(MSVC)
-        target_compile_definitions(${PROJECT_NAME} PRIVATE _UNICODE UNICODE _CONSOLE) # for all, except pcm-lib and pcm-service
-    endif(MSVC)
+        if(LINUX OR FREE_BSD)
+            set(LIBS ${LIBS} Threads::Threads)
+            install(TARGETS ${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_SBINDIR})
+        endif(LINUX OR FREE_BSD)
 
-    target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBS})
-endforeach(PROJECT_NAME ${PROJECT_NAMES})
+        if(APPLE)
+            set(LIBS ${LIBS} Threads::Threads PcmMsr)
+            install(TARGETS ${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_SBINDIR})
+        endif(APPLE)
+
+        if(MSVC)
+            target_compile_definitions(${PROJECT_NAME} PRIVATE _UNICODE UNICODE _CONSOLE) # for all, except pcm-lib and pcm-service
+        endif(MSVC)
+
+        target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBS})
+    endforeach(PROJECT_NAME ${PROJECT_NAMES})
+endif(PCM_BUILD_EXECUTABLES)
 
 #######################
 # Install
@@ -207,13 +263,13 @@ if(UNIX) # APPLE, LINUX, FREE_BSD
         # Daemon & client
         file(GLOB DAEMON_SOURCES "daemon/*.cpp")
         add_executable(daemon ${DAEMON_SOURCES})
-        target_link_libraries(daemon PRIVATE PCM_STATIC Threads::Threads)
+        target_link_libraries(daemon PRIVATE PCM_STATIC Threads::Threads "-fPIE")
         set_target_properties(daemon PROPERTIES OUTPUT_NAME "pcm-daemon")
         install(TARGETS daemon DESTINATION ${CMAKE_INSTALL_SBINDIR})
 
         file(GLOB CLIENT_SOURCES "client/*.cpp")
         add_executable(client ${CLIENT_SOURCES})
-        target_link_libraries(client PRIVATE Threads::Threads)
+        target_link_libraries(client PRIVATE Threads::Threads "-fPIE")
         set_target_properties(client PROPERTIES OUTPUT_NAME "pcm-client")
         install(TARGETS client DESTINATION ${CMAKE_INSTALL_BINDIR})
     endif(LINUX)

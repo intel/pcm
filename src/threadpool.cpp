@@ -11,8 +11,12 @@ void ThreadPool::execute( ThreadPool* tp ) {
         Work* w = tp->retrieveWork();
         if ( w == nullptr ) break;
         w->execute();
-        deleteAndNullify(w);
+        // There can never be a double delete here, once taken from the tp it is owned by this thread
+        // but in order to silence cppcheck w is set explicitly to null
+        deleteAndNullify( w );
+        DBG( 5, "Work deleted, waiting for more work..." );
     }
+    DBG( 4, "Thread is explicitly dying now..." );
 }
 
 } // namespace pcm

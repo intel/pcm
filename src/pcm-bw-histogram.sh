@@ -11,6 +11,8 @@ if [ "$#" -ne 1 ]; then
   exit 1
 fi
 
+mydir=$(dirname "$0")
+
 out=bw-tmp
 
 rm $out
@@ -18,7 +20,7 @@ rm $out
 echo
 echo ========= CHECKING FOR PMM SUPPORT =========
 echo
-./pcm-memory -pmm -- sleep 1 >tmp 2>&1
+"$mydir/pcm-memory" -pmm -- sleep 1 >tmp 2>&1
 dram_only=`cat tmp | grep "PMM traffic metrics are not available"  | wc -l`
 rm tmp
 if [ $dram_only -gt 0 ]
@@ -35,9 +37,9 @@ echo
 
 if [ $dram_only -gt 0 ]
 then
-                chrt --rr 1 nice --adjustment=-20 ./pcm-memory 0.005 -nc -csv=$out -- sleep $1
+                chrt --rr 1 nice --adjustment=-20 "$mydir/pcm-memory" 0.005 -nc -csv=$out -- sleep $1
 else
-                chrt --rr 1 nice --adjustment=-20 ./pcm-memory 0.005 -pmm -nc -csv=$out -- sleep $1
+                chrt --rr 1 nice --adjustment=-20 "$mydir/pcm-memory" 0.005 -pmm -nc -csv=$out -- sleep $1
 fi
 
 cat $out | sed 's/;/,/g' > $out.csv

@@ -1,12 +1,30 @@
 # SPDX-License-Identifier: BSD-3-Clause
-# Copyright (c) 2022, Intel Corporation
- 
+# Copyright (c) 2022-2025, Intel Corporation
+
 cmake_minimum_required(VERSION 3.5)
 
 project(PCM)
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
+
+option(PCM_NO_ASAN "Disable address sanitizer" ON)
+option(PCM_FUZZ "Enable fuzzing" OFF)
+option(PCM_BUILD_EXECUTABLES "Build PCM utilities" ON)
+option(PCM_NO_STATIC_LIBASAN "Disable static address sanitizer library" ON)
+
+if(MSVC)
+    option(PCM_NO_STATIC_MSVC_RUNTIME_LIBRARY "Disable using static runtime under MSVC" OFF)
+endif()
+
+foreach(opt NO_STATIC_MSVC_RUNTIME_LIBRARY;FUZZ;NO_ASAN;NO_STATIC_LIBASAN)
+    if(${opt})
+        message(DEPRECATION "Option \"${opt}\" is deprecated and will be removed soon. Please use \"PCM_${opt}\"")
+        set(PCM_${opt} ${opt})
+    endif()
+endforeach()
 
 include(GNUInstallDirs)
 
@@ -19,6 +37,7 @@ foreach(file ${PCM_X_ARTIFACTS})
     file(REMOVE ${file})
     message(STATUS "Removing old artifact from current source directory : ${file}")
 endforeach()
+
 if(PCM_X_ARTIFACTS)
     message(WARNING
 	  " Old pcm utilities (.x) were indicated in build folder.\n"
@@ -45,12 +64,12 @@ if(UNIX)  # APPLE, LINUX, FREE_BSD
     message(STATUS "initial CMAKE_C_FLAGS: ${CMAKE_C_FLAGS}")
 
     # required PCM common flags
-    set (PCM_COMMON_FLAGS "-Wno-unknown-pragmas -fPIC")
+    set (PCM_COMMON_FLAGS "-Wno-unknown-pragmas -DCMAKE_INSTALL_PREFIX=\"${CMAKE_INSTALL_PREFIX}\"")
 
     if(LINUX)
-       set (PCM_COMMON_FLAGS "${PCM_COMMON_FLAGS} -Wextra -DPCM_USE_PERF")
-       if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-         set (PCM_COMMON_FLAGS "${PCM_COMMON_FLAGS} -Wl,-z,now")
+       set (PCM_COMMON_FLAGS "${PCM_COMMON_FLAGS} -Wextra -DPCM_USE_PERF -fstack-protector-strong")
+       if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+         set (PCM_COMMON_FLAGS "${PCM_COMMON_FLAGS} -Wl,-z,now -Wl,-z,relro -Wl,-z,noexecstack")
        endif()
 
        if(NOT DEFINED LINUX_SYSTEMD)
@@ -58,7 +77,7 @@ if(UNIX)  # APPLE, LINUX, FREE_BSD
        endif()
 
        if(NOT DEFINED LINUX_SYSTEMD_UNITDIR)
-           set(LINUX_SYSTEMD_UNITDIR /usr/lib/systemd/system)
+         set(LINUX_SYSTEMD_UNITDIR "${CMAKE_INSTALL_LIBDIR}/systemd/system")
        endif()
 
        if(LINUX_SYSTEMD)
@@ -82,13 +101,25 @@ if(UNIX)  # APPLE, LINUX, FREE_BSD
     elseif()
          set (PCM_DYNAMIC "")
     endif()
-    set(PCM_HARDENING_FLAGS "-fPIE -fstack-protector -D_FORTIFY_SOURCE=2 -ftrapv -fsanitize=address -fwrapv -fno-delete-null-pointer-checks -fno-strict-overflow -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer")
+    if(APPLE)
+       set(PCM_NO_ASAN ON)
+       message(STATUS "AddressSanitizer is currently disabled on MacOS")
+    endif()
+    if(PCM_NO_ASAN)
+        message(STATUS "AddressSanitizer is disabled")
+        set(PCM_ASAN "")
+    else()
+        message(STATUS "AddressSanitizer is enabled")
+        message(STATUS "To disable AddressSanitizer, use -DPCM_NO_ASAN=1 option")
+        set(PCM_ASAN "-fsanitize=address")
+    endif()
+    set(PCM_HARDENING_FLAGS "-fstack-protector -D_FORTIFY_SOURCE=2 -ftrapv ${PCM_ASAN} -fwrapv -fno-delete-null-pointer-checks -fno-strict-overflow -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer")
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5)
         message(WARNING "Old gcc compiler (version < 5), -fsanitize=undefined option is not supported.")
     elseif()
         set(PCM_HARDENING_FLAGS "${PCM_HARDENING_FLAGS} -fsanitize=undefined")
     endif()
-    set(PCM_LINKER_HARDENING_FLAGS "-fsanitize=address")
+    set(PCM_LINKER_HARDENING_FLAGS "${PCM_ASAN}")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${PCM_LINKER_HARDENING_FLAGS}")
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${PCM_LINKER_HARDENING_FLAGS}")
     set(CMAKE_CXX_FLAGS_RELEASE "${PCM_OPTIONAL_FLAGS} -O3 ${PCM_DYNAMIC} ${PCM_HARDENING_FLAGS}")
@@ -107,14 +138,42 @@ if(UNIX)  # APPLE, LINUX, FREE_BSD
     message(STATUS "CMAKE_CXX_FLAGS_DEBUG: ${CMAKE_CXX_FLAGS_DEBUG}")
     message(STATUS "CMAKE_CXX_FLAGS_RELWITHDEBINFO: ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
 
+    install(DIRECTORY "perfmon" DESTINATION ${CMAKE_INSTALL_DATADIR}/pcm)
+    install(FILES "third-party-software.txt" DESTINATION ${CMAKE_INSTALL_DATADIR}/pcm)
+
 endif(UNIX)
 
-if(FUZZ)
+if(PCM_FUZZ)
     set(FUZZER_OPTIONS "-fsanitize=fuzzer,address -fprofile-instr-generate -fcoverage-mapping")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${FUZZER_OPTIONS}")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${FUZZER_OPTIONS}")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${FUZZER_OPTIONS}")
-endif(FUZZ)
+    message(STATUS "CMAKE_C_FLAGS: ${CMAKE_C_FLAGS}")
+    message(STATUS "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
+    message(STATUS "CMAKE_EXE_LINKER_FLAGS: ${CMAKE_EXE_LINKER_FLAGS}")
+endif(PCM_FUZZ)
+
+#######################
+# pugixml dependency
+#######################
+
+add_library(PCM_PUGIXML INTERFACE) # interface library for pugixml
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/pugixml/src/pugixml.cpp")
+    message(STATUS "Local pugixml exists: ${CMAKE_CURRENT_SOURCE_DIR}/src/pugixml/src/pugixml.cpp")
+    set(PCM_PUGIXML_CPP ${CMAKE_CURRENT_SOURCE_DIR}/src/pugixml/src/pugixml.cpp)
+    add_compile_options(-DPCM_PUGIXML_AVAILABLE)
+else()
+    message(STATUS "Local pugixml doesn't exist")
+#    message(WARNING
+#        " ${CMAKE_CURRENT_SOURCE_DIR}/src/pugixml/src/pugixml.cpp doesn't exist\n"
+#        " Use `git clone --recursive` flag when cloning pcm repository to clone pugixml submodule as well or\n"
+#        " update submodule with command 'git submodule update --init --recursive' or\n"
+#        " run 'git clone https//github.com/zeux/pugixml.git' in 'src' directory to get pugixml library")
+endif()
+
+#######################
+# End of pugixml dependency section
+#######################
 
 #######################
 # Install

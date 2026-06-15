@@ -19,6 +19,8 @@
 #include <istream>
 #include <sstream>
 #include <iomanip>
+#include <stdexcept>
+#include <string>
 #include <string.h>
 #include <assert.h>
 #include <limits>
@@ -506,6 +508,7 @@ constexpr auto MSR_SMI_COUNT = 0x34;
 */
 
 constexpr auto MSR_PKG_ENERGY_STATUS = 0x611;
+constexpr auto MSR_SYS_ENERGY_STATUS = 0x64D;
 constexpr auto MSR_RAPL_POWER_UNIT = 0x606;
 constexpr auto MSR_PKG_POWER_INFO = 0x614;
 
@@ -690,6 +693,8 @@ constexpr auto SERVER_MC_CH_PMON_CTR3_OFFSET = SERVER_MC_CH_PMON_CTR0_OFFSET + 8
 constexpr auto SERVER_MC_CH_PMON_FIXED_CTL_OFFSET = 0x54;
 constexpr auto SERVER_MC_CH_PMON_FIXED_CTR_OFFSET = 0x38;
 constexpr auto BHS_MC_CH_PMON_BASE_ADDR = 0x024e800;
+constexpr auto GNR_D_A_MC_CH_PMON_BASE_ADDR = 0x0104800;
+constexpr auto GNR_D_B_MC_CH_PMON_BASE_ADDR = 0x0208800;
 
 constexpr auto JKTIVT_QPI_PORT0_REGISTER_DEV_ADDR = 8;
 constexpr auto JKTIVT_QPI_PORT0_REGISTER_FUNC_ADDR = 2;
@@ -1017,7 +1022,19 @@ constexpr auto BHS_UBOX_MSR_PMON_CTL1_ADDR = 0x3FF3;
 constexpr auto BHS_UBOX_MSR_PMON_CTR0_ADDR = 0x3FF8;
 constexpr auto BHS_UBOX_MSR_PMON_CTR1_ADDR = 0x3FF9;
 
+constexpr auto GRR_UCLK_FIXED_CTR_ADDR        = 0x3F5F;
+constexpr auto GRR_UCLK_FIXED_CTL_ADDR        = 0x3F5E;
+constexpr auto GRR_UBOX_MSR_PMON_BOX_CTL_ADDR = 0x3F50;
+constexpr auto GRR_UBOX_MSR_PMON_CTL0_ADDR    = 0x3F52;
+constexpr auto GRR_UBOX_MSR_PMON_CTL1_ADDR    = 0x3F53;
+constexpr auto GRR_UBOX_MSR_PMON_CTR0_ADDR    = 0x3F58;
+constexpr auto GRR_UBOX_MSR_PMON_CTR1_ADDR    = 0x3F59;
 
+constexpr auto GRR_M2IOSF_IIO_UNIT_CTL = 0x2900;
+constexpr auto GRR_M2IOSF_IIO_CTR0     = 0x2908;
+constexpr auto GRR_M2IOSF_IIO_CTL0     = 0x2902;
+constexpr auto GRR_M2IOSF_REG_STEP = 0x10;
+constexpr auto GRR_M2IOSF_NUM      = 3;
 
 constexpr auto JKTIVT_UCLK_FIXED_CTR_ADDR = (0x0C09);
 constexpr auto JKTIVT_UCLK_FIXED_CTL_ADDR = (0x0C08);
@@ -1247,6 +1264,14 @@ static const uint32 ICX_IIO_UNIT_CTL[] = {
     0x0A50, 0x0A70, 0x0A90, 0x0AE0, 0x0B00, 0x0B20
 };
 
+static const uint32 GRR_IRP_UNIT_CTL[] = {
+    0x2A00,
+    0x2A10,
+    0x2A20
+};
+
+#define GRR_IRP_CTL_REG_OFFSET      (0x0002)
+#define GRR_IRP_CTR_REG_OFFSET      (0x0008)
 
 static const uint32 BHS_IRP_UNIT_CTL[] = {
     0x2A00,
@@ -1560,7 +1585,7 @@ inline uint32 build_bit_ui(uint32 beg, uint32 end)
     return myll;
 }
 
-inline uint32 extract_bits_ui(uint32 myin, uint32 beg, uint32 end)
+inline uint32 extract_bits_32(uint32 myin, uint32 beg, uint32 end)
 {
     uint32 myll = 0;
     uint32 beg1, end1;
@@ -1619,6 +1644,11 @@ inline uint64 extract_bits(uint64 myin, uint32 beg, uint32 end)
     myll = myin >> beg1;
     myll = myll & build_bit(beg1, end1);
     return myll;
+}
+
+inline uint64 extract_bits_64(uint64 myin, uint32 beg, uint32 end)
+{
+    return extract_bits(myin, beg, end);
 }
 
 union PCM_CPUID_INFO

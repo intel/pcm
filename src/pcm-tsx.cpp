@@ -307,7 +307,7 @@ int mainThrows(int argc, char * argv[])
 
     PCM * m = PCM::getInstance();
     const size_t numCtrSupported = m->getMaxCustomCoreEvents();
-    switch (m->getCPUModel())
+    switch (m->getCPUFamilyModel())
     {
     case PCM::SKL:
     case PCM::SKX:
@@ -321,6 +321,8 @@ int mainThrows(int argc, char * argv[])
         break;
     case PCM::SPR:
     case PCM::EMR:
+    case PCM::GNR:
+    case PCM::GNR_D:
         eventDefinition = sprEventDefinition;
         break;
     }

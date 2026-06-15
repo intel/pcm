@@ -68,6 +68,6 @@ ${CTR_RUN} network create prometheus-network || { echo "Error creating prometheu
 echo Starting prometheus
 ${CTR_RUN} run --name prometheus --network=prometheus-network -d -p 9090:9090 -v "$PWD"/prometheus.yml:/etc/prometheus/prometheus.yml:Z -v "$PWD"/prometheus_volume:/prometheus:Z quay.io/prometheus/prometheus:latest || { echo "Error starting prometheus"; exit 1; }
 echo Starting grafana
-${CTR_RUN} run -d --network=prometheus-network --name=grafana -p 3000:3000 -v "$PWD"/grafana_volume:/var/lib/grafana:Z -v "$PWD"/provisioning:/etc/grafana/provisioning:Z docker.io/grafana/grafana:latest || { echo "Error starting grafana"; exit 1; }
+${CTR_RUN} run -d --network=prometheus-network --name=grafana -p 3000:3000 -v "$PWD"/grafana_volume:/var/lib/grafana:Z -v "$PWD"/provisioning:/etc/grafana/provisioning:Z -e GF_DASHBOARDS_MIN_REFRESH_INTERVAL=1s docker.io/grafana/grafana:latest || { echo "Error starting grafana"; exit 1; }
 
 echo "Start browser at http://"`hostname`":3000/ or http://localhost:3000/ and login with admin user, password admin"

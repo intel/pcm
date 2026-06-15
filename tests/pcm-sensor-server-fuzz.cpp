@@ -25,7 +25,7 @@ bool waitForPort(int port, int timeoutSeconds) {
     // Create a socket
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) {
-        std::cerr << "Error creating socket" << std::endl;
+        DBG( 0, "Client: Error creating socket" );
         return false;
     }
 
@@ -57,9 +57,9 @@ std::thread * serverThread;
 
 void cleanup()
 {
-    std::cerr << "Stopping HTTPServer\n";
+    DBG( 0, "Client: Stopping HTTPServer" );
     httpServer->stop();
-    std::cerr << "Cleaning up PMU:\n";
+    DBG( 0, "Client: Cleaning up PMU:" );
     PCM::getInstance()->cleanup();
 }
 
@@ -73,19 +73,19 @@ bool init()
         pcmInstance->resetPMU();
         status = pcmInstance->program();
         if (status != PCM::Success) {
-            std::cerr << "Error in program() function" << std::endl;
+            DBG( 0, "Client: Error in program() function" );
             exit(1);
         }
-        debug::dyn_debug_level(0);
+        debug::dyn_debug_level(1);
         #ifdef FUZZ_USE_SSL
-        std::cerr << "Starting SSL enabled server on https://localhost:" << port << "/\n";
+        DBG( 0, "Client: Starting SSL enabled server on https://localhost:", port );
         auto httpsServer = new HTTPSServer( "", port );
         httpsServer->setPrivateKeyFile ( "/private.key" );
         httpsServer->setCertificateFile( "/certificate.crt" );
         httpsServer->initialiseSSL();
         httpServer = httpsServer;
         #else
-        std::cerr << "Starting plain HTTP server on http://localhost:" << port << "/\n";
+        DBG( 0, "Client: Starting plain HTTP server on http://localhost:", port );
         httpServer = new HTTPServer( "", port );
         #endif
         // HEAD is GET without body, we will remove the body in execute()
@@ -94,20 +94,16 @@ bool init()
         httpServer->run();
     });
     int timeout = 60; // Timeout in seconds
-    std::cout << "Waiting for port " << port << " to be bound with timeout of " << timeout << " seconds..." << std::endl;
-    std::cout.flush();
+    DBG( 0, "Client: Waiting for port ", port, " to be bound with timeout of ", timeout, " seconds..." );
     if (waitForPort(port, timeout)) {
-            std::cout << "Port " << port << " is now bound." << std::endl;
+            DBG( 0, "Client: Port ", port, " is now bound." );
     } else {
-            std::cout << "Port " << port << " is not bound after " << timeout << " seconds." << std::endl;
+            DBG( 0, "Client: Port ", port, " is not bound after ", timeout, " seconds." );
             exit(1);
     }
     atexit(cleanup);
     return true;
 }
-
-
-std::vector<char> buffer(1024*1024*16);
 
 std::string make_request(const std::string& request) {
 #ifdef FUZZ_USE_SSL
@@ -124,7 +120,7 @@ std::string make_request(const std::string& request) {
 #ifdef FUZZ_USE_SSL
         SSL_CTX_free(ctx);
 #endif
-        std::cerr << "Failed to resolve host. Error: " << strerror(errno) << std::endl;
+        DBG( 0, "Client: Failed to resolve host. Error: ", strerror(errno) );
         throw std::runtime_error("Failed to resolve host: " + server);
     }
 
@@ -134,7 +130,7 @@ std::string make_request(const std::string& request) {
 #ifdef FUZZ_USE_SSL
         SSL_CTX_free(ctx);
 #endif
-        std::cerr << "Failed to create socket. Error: " << strerror(errno) << std::endl;
+        DBG( 0, "Client: Failed to create socket. Error: ", strerror(errno) );
         throw std::runtime_error("Failed to create socket");
     }
 
@@ -147,7 +143,7 @@ std::string make_request(const std::string& request) {
 
     // Connect to server
     if (connect(sock, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
-        std::cerr << "Failed to connect to server. Error: " << strerror(errno) << std::endl;
+        DBG( 0, "Failed to connect to server. Error: ", strerror(errno) );
         close(sock);
 #ifdef FUZZ_USE_SSL
         SSL_CTX_free(ctx);
@@ -159,7 +155,9 @@ std::string make_request(const std::string& request) {
     // Create SSL structure
     SSL* ssl = SSL_new(ctx);
     SSL_set_fd(ssl, sock);
-    if (SSL_connect(ssl) <= 0) {
+    int con_ret = SSL_connect(ssl);
+    DBG( 1, "Client: SSL_connect returned ", con_ret );
+    if ( con_ret <= 0) {
         SSL_free(ssl);
         close(sock);
         SSL_CTX_free(ctx);
@@ -167,57 +165,61 @@ std::string make_request(const std::string& request) {
     }
 #endif
 
-    std::cout << "Sending request: " << request << "\n=====\n";
+#ifdef FUZZ_USE_SSL
+    // "Client:" is used as a hint to indicate whether client or server wrote the debug messages inside socketstream and socketbuf
+    // When using this socketstream, it takes ownership of the socket and ssl connection and is responsible for properly closing 
+    // connections and freeing the allocated structures, this is why all of the frees and closes are commented out below
+    DBG( 0, "Client: Opening an SSL socket stream" );
+    socketstream mystream( sock, ssl, "Client: " );
+#else
+    DBG( 0, "Client: Opening a normal socket stream" );
+    socketstream mystream( sock );
+#endif
+    DBG( 0, "Sending request: \n", request, "\n=====" );
 
     std::string response;
     int bytes_received = -1;
-#ifdef FUZZ_USE_SSL
     // Send the request
-    if (SSL_write(ssl, request.c_str(), request.length()) <= 0) {
-        SSL_free(ssl);
-        close(sock);
-        SSL_CTX_free(ctx);
-        return "Failed to send request, no response";
-    }
-
-    // Receive the response
-    bytes_received = SSL_read(ssl, &(buffer[0]), buffer.size());
-#else
-    // Send the request
-    if (send(sock, request.c_str(), request.length(), 0) < 0) {
-        std::cerr << "Failed to send request. Error: " << strerror(errno) << std::endl;
-        close(sock);
-        return "Failed to send request, no response"; // not sure why it happens relatively often
-        // throw std::runtime_error("Failed to send request");
-    }
-
-    // Receive the response
-    bytes_received = recv(sock, &(buffer[0]), buffer.size(), 0);
-#endif
-    if (bytes_received > 0)
-    {
-        response.append(&(buffer[0]), bytes_received);
-    }
-
-    if (bytes_received < 0) {
-#ifdef FUZZ_USE_SSL
-        SSL_free(ssl);
-#endif
-        std::cerr << "Failed to receive response. Error: " << strerror(errno) << std::endl;
-        close(sock);
+    try {
+        mystream << request.c_str();
+        mystream.sync();
+    } catch ( const std::exception& e ) {
+        DBG( 0, "Writing caused an exception: ", e.what() );
+        mystream.close();
 #ifdef FUZZ_USE_SSL
         SSL_CTX_free(ctx);
 #endif
-        // throw std::runtime_error("Failed to receive response");
-        return "Failed to receive response"; // expected to happen sometimes
+        throw std::runtime_error(std::string("Client Failed to write the request: ") + e.what());
     }
+    // Receive the response
+    HTTPResponse resp;
+    DBG( 0, "Client: Waiting for response:" );
+    try {
+        mystream >> resp;
+    } catch ( const std::exception& e ) {
+        mystream.close();
+#ifdef FUZZ_USE_SSL
+        SSL_CTX_free(ctx);
+#endif
+        DBG( 0, "Reading from the socket failed, reason: ", e.what() );
+        return std::string("Not necessarily fatal: Client: Exception caught while reading a response from the server: ") + e.what();
+    }
+
+    // We've got a valid HTTPResponse otherwise we'd have caught an exception above
+    HTTPHeader const h = resp.getHeader( "Content-Length" );
+    size_t contentLength = h.headerValueAsNumber();
+
+    // contentLength must be positive now otherwise the bad Content-Length should have thrown an exception
+    bytes_received = contentLength;
+
+    DBG( 0, "Client: received ", bytes_received, " bytes, copying them into response." );
+    // Reducing verbosity, only print the first 1024 characters of the response
+    response.append( resp.body() );
+    if ( response.size() > 1024 )
+        response.erase(1024, std::string::npos );
 
     // clean up
-#ifdef FUZZ_USE_SSL
-    SSL_shutdown(ssl);
-    SSL_free(ssl);
-#endif
-    close(sock);
+    mystream.close();
 #ifdef FUZZ_USE_SSL
     SSL_CTX_free(ctx);
 #endif
@@ -234,9 +236,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
     try {
         std::string request = std::string((const char*)data, size);
         std::string response = make_request(request);
-        std::cout << response << std::endl;
+        DBG( 0, "Response:\n", response, "\n====" );
     } catch (const std::exception& e) {
-        std::cerr << "LLVMFuzzerTestOneInput Exception: \"" << e.what() << "\"" << std::endl;
+        DBG( 0, "Client: LLVMFuzzerTestOneInput Exception: \"", e.what(), "\"" );
         exit(1);
     }
    return 0;

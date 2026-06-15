@@ -33,3 +33,6 @@ latex/
 .idea/
 build
 src/simdjson
+.vscode/
+_codeql_build_dir/
+tests/numa_test

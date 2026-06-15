@@ -40,12 +40,20 @@ public:
     {
         std::shared_ptr<SafeMsrHandle> msr;
         uint64 msr_addr;
-        MsrHandleCounter(std::shared_ptr<SafeMsrHandle> msr_, uint64 msr_addr_) : msr(msr_), msr_addr(msr_addr_) { }
+        uint64 msr_mask;
+        MsrHandleCounter(   std::shared_ptr<SafeMsrHandle> msr_,
+                            const uint64 msr_addr_,
+                            const uint64 msr_mask_ = ~uint64(0ULL)) :
+            msr(msr_),
+            msr_addr(msr_addr_),
+            msr_mask(msr_mask_)
+        {
+        }
         uint64 operator () ()
         {
             uint64 value = 0;
             msr->read(msr_addr, &value);
-            return value;
+            return value & msr_mask;
         }
     };
 

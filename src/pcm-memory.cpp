@@ -93,6 +93,7 @@ void print_help(const string & prog_name)
     cout << "  -mixed                             => monitor PMM mixed mode (AppDirect + Memory Mode).\n";
     cout << "  -partial                           => monitor partial writes instead of PMM (default on systems without PMM support).\n";
     cout << "  -nc   | --nochannel | /nc          => suppress output for individual channels.\n";
+    cout << "  --nocxl                            => suppress output for CXL ports.\n";
     cout << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or\n"
          << "                                        to a file, in case filename is provided\n";
     cout << "  -columns=X | /columns=X            => Number of columns to display the NUMA Nodes, defaults to 2.\n";
@@ -355,21 +356,21 @@ float PMM_MM_Ratio(const memdata_t *md, const uint32 skt)
 void printSocketBWFooter(PCM *m, uint32 no_columns, uint32 skt, const memdata_t *md)
 {
     for (uint32 i=skt; i<(skt+no_columns); ++i) {
-        cout << "|-- NODE" << setw(2) << i << " Mem Read (MB/s) :" << setw(9) << md->iMC_Rd_socket[i] << " --|";
+        cout << "|-- SKT " << setw(2) << i << " Mem Read (MB/s) :" << setw(9) << md->iMC_Rd_socket[i] << " --|";
     }
     cout << "\n";
     for (uint32 i=skt; i<(skt+no_columns); ++i) {
-        cout << "|-- NODE" << setw(2) << i << " Mem Write(MB/s) :" << setw(9) << md->iMC_Wr_socket[i] << " --|";
+        cout << "|-- SKT " << setw(2) << i << " Mem Write(MB/s) :" << setw(9) << md->iMC_Wr_socket[i] << " --|";
     }
     cout << "\n";
     if (anyPmem(md->metrics))
     {
         for (uint32 i=skt; i<(skt+no_columns); ++i) {
-            cout << "|-- NODE" << setw(2) << i << " PMM Read (MB/s):  " << setw(8) << md->iMC_PMM_Rd_socket[i] << " --|";
+            cout << "|-- SKT " << setw(2) << i << " PMM Read (MB/s):  " << setw(8) << md->iMC_PMM_Rd_socket[i] << " --|";
         }
         cout << "\n";
         for (uint32 i=skt; i<(skt+no_columns); ++i) {
-            cout << "|-- NODE" << setw(2) << i << " PMM Write(MB/s):  " << setw(8) << md->iMC_PMM_Wr_socket[i] << " --|";
+            cout << "|-- SKT " << setw(2) << i << " PMM Write(MB/s):  " << setw(8) << md->iMC_PMM_Wr_socket[i] << " --|";
         }
         cout << "\n";
     }
@@ -377,17 +378,17 @@ void printSocketBWFooter(PCM *m, uint32 no_columns, uint32 skt, const memdata_t 
     {
         for (uint32 i = skt; i < (skt + no_columns); ++i)
         {
-            cout << "|-- NODE" << setw(2) << i << " PMM AD Bw(MB/s):  " << setw(8) << AD_BW(md, i) << " --|";
+            cout << "|-- SKT " << setw(2) << i << " PMM AD Bw(MB/s):  " << setw(8) << AD_BW(md, i) << " --|";
         }
         cout << "\n";
         for (uint32 i = skt; i < (skt + no_columns); ++i)
         {
-            cout << "|-- NODE" << setw(2) << i << " PMM MM Bw(MB/s):  " << setw(8) << md->MemoryMode_Miss_socket[i] << " --|";
+            cout << "|-- SKT " << setw(2) << i << " PMM MM Bw(MB/s):  " << setw(8) << md->MemoryMode_Miss_socket[i] << " --|";
         }
         cout << "\n";
         for (uint32 i = skt; i < (skt + no_columns); ++i)
         {
-            cout << "|-- NODE" << setw(2) << i << " PMM MM Bw/DRAM Bw:" << setw(8) << PMM_MM_Ratio(md, i) << " --|";
+            cout << "|-- SKT " << setw(2) << i << " PMM MM Bw/DRAM Bw:" << setw(8) << PMM_MM_Ratio(md, i) << " --|";
         }
         cout << "\n";
     }
@@ -396,7 +397,7 @@ void printSocketBWFooter(PCM *m, uint32 no_columns, uint32 skt, const memdata_t 
         for (uint32 ctrl = 0; ctrl < max_imc_controllers; ++ctrl)
         {
             for (uint32 i=skt; i<(skt+no_columns); ++i) {
-                cout << "|-- NODE" << setw(2) << i << "." << ctrl << " NM read hit rate :" << setw(6) << md->M2M_NM_read_hit_rate[i][ctrl] << " --|";
+                cout << "|-- SKT " << setw(2) << i << "." << ctrl << " NM read hit rate :" << setw(6) << md->M2M_NM_read_hit_rate[i][ctrl] << " --|";
             }
             cout << "\n";
         }
@@ -404,36 +405,39 @@ void printSocketBWFooter(PCM *m, uint32 no_columns, uint32 skt, const memdata_t 
     if ((md->metrics == PmemMemoryMode && md->NM_hit_rate_supported) || md->BHS_NM == true)
     {
         for (uint32 i=skt; i<(skt+no_columns); ++i) {
-            cout << "|-- NODE" << setw(2) << i << " NM hit rate:        " << setw(6) << md->NM_hit_rate[i] << " --|";
+            cout << "|-- SKT " << setw(2) << i << " NM hit rate:        " << setw(6) << md->NM_hit_rate[i] << " --|";
         }
         cout << "\n";
         for (uint32 i=skt; i<(skt+no_columns); ++i) {
-            cout << "|-- NODE" << setw(2) << i << " NM hits   (M/s):   " << setw(7) << (md->MemoryMode_Hit_socket[i])/1000000. << " --|";
+            cout << "|-- SKT " << setw(2) << i << " NM hits   (M/s):   " << setw(7) << (md->MemoryMode_Hit_socket[i])/1000000. << " --|";
         }
         cout << "\n";
         for (uint32 i=skt; i<(skt+no_columns); ++i) {
-            cout << "|-- NODE" << setw(2) << i << " NM misses (M/s):   " << setw(7) << (md->MemoryMode_Miss_socket[i])/1000000. << " --|";
+            cout << "|-- SKT " << setw(2) << i << " NM misses (M/s):   " << setw(7) << (md->MemoryMode_Miss_socket[i])/1000000. << " --|";
         }
         cout << "\n";
     }
     if (md->BHS_NM == true)
     {
         for (uint32 i = skt; i < (skt + no_columns); ++i) {
-            cout << "|-- NODE" << setw(2) << i << " NM miss Bw(MB/s):" << setw(9) << (md->MemoryMode_Miss_socket[i] * 64. * 2.) / 1000000. << " --|";
+            cout << "|-- SKT " << setw(2) << i << " NM miss Bw(MB/s):" << setw(9) << (md->MemoryMode_Miss_socket[i] * 64. * 2.) / 1000000. << " --|";
         }
         cout << "\n";
     }
     if (    md->metrics == PartialWrites
-        &&  m->getCPUModel() != PCM::SRF
+        &&  m->getCPUFamilyModel() != PCM::SRF
+        &&  m->getCPUFamilyModel() != PCM::GNR
+        &&  m->getCPUFamilyModel() != PCM::GNR_D
+        &&  m->getCPUFamilyModel() != PCM::GRR
         )
     {
         for (uint32 i=skt; i<(skt+no_columns); ++i) {
-            cout << "|-- NODE" << setw(2) << i << " P. Write (T/s): " << dec << setw(10) << md->partial_write[i] << " --|";
+            cout << "|-- SKT " << setw(2) << i << " P. Write (T/s): " << dec << setw(10) << md->partial_write[i] << " --|";
         }
         cout << "\n";
     }
     for (uint32 i=skt; i<(skt+no_columns); ++i) {
-        cout << "|-- NODE" << setw(2) << i << " Memory (MB/s): " << setw(11) << right << (md->iMC_Rd_socket[i]+md->iMC_Wr_socket[i]+
+        cout << "|-- SKT " << setw(2) << i << " Memory (MB/s): " << setw(11) << right << (md->iMC_Rd_socket[i]+md->iMC_Wr_socket[i]+
               md->iMC_PMM_Rd_socket[i]+md->iMC_PMM_Wr_socket[i]) << " --|";
     }
     cout << "\n";
@@ -443,7 +447,7 @@ void printSocketBWFooter(PCM *m, uint32 no_columns, uint32 skt, const memdata_t 
     cout << "\n";
 }
 
-void display_bandwidth(PCM *m, memdata_t *md, const uint32 no_columns, const bool show_channel_output, const bool print_update, const float CXL_Read_BW)
+void display_bandwidth(PCM *m, memdata_t *md, const uint32 no_columns, const bool show_channel_output, const bool print_update, const float CXL_Read_BW, const bool show_cxl_bandwidth)
 {
     float sysReadDRAM = 0.0, sysWriteDRAM = 0.0, sysReadPMM = 0.0, sysWritePMM = 0.0;
     uint32 numSockets = m->getNumSockets();
@@ -530,13 +534,16 @@ void display_bandwidth(PCM *m, memdata_t *md, const uint32 no_columns, const boo
                 sysWriteDRAM += (md->iMC_Wr_socket[skt] + md->EDC_Wr_socket[skt]);
                 skt += 1;
             };
-        auto printRow = [&skt,&show_channel_output,&m,&md,&sysReadDRAM,&sysWriteDRAM, &sysReadPMM, &sysWritePMM](const uint32 no_columns)
+        auto printRow = [&skt,&show_channel_output,&m,&md,&sysReadDRAM,&sysWriteDRAM, &sysReadPMM, &sysWritePMM, &show_cxl_bandwidth](const uint32 no_columns)
         {
             printSocketBWHeader(no_columns, skt, show_channel_output);
             if (show_channel_output)
                 printSocketChannelBW(m, md, no_columns, skt);
             printSocketBWFooter(m, no_columns, skt, md);
-            printSocketCXLBW(m, md, no_columns, skt);
+            if (show_cxl_bandwidth)
+            {
+                printSocketCXLBW(m, md, no_columns, skt);
+            }
             for (uint32 i = skt; i < (skt + no_columns); i++)
             {
                 sysReadDRAM += md->iMC_Rd_socket[i];
@@ -585,7 +592,7 @@ void display_bandwidth(PCM *m, memdata_t *md, const uint32 no_columns, const boo
 
 constexpr float CXLBWWrScalingFactor = 0.5;
 
-void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 /*elapsedTime*/, const bool show_channel_output, const CsvOutputType outputType, const float CXL_Read_BW)
+void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 /*elapsedTime*/, const bool show_channel_output, const CsvOutputType outputType, const float CXL_Read_BW, const bool show_cxl_output)
 {
     const uint32 numSockets = m->getNumSockets();
     printDateForCSV(outputType);
@@ -732,7 +739,10 @@ void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 /*elapsedTime*/, const 
         if (m->HBMmemoryTrafficMetricsAvailable() == false)
         {
             if (    md->metrics == PartialWrites
-                &&  m->getCPUModel() != PCM::SRF
+                &&  m->getCPUFamilyModel() != PCM::GNR
+                &&  m->getCPUFamilyModel() != PCM::GNR_D
+                &&  m->getCPUFamilyModel() != PCM::SRF
+                &&  m->getCPUFamilyModel() != PCM::GRR
                 )
             {
                 choose(outputType,
@@ -804,41 +814,44 @@ void display_bandwidth_csv(PCM *m, memdata_t *md, uint64 /*elapsedTime*/, const 
                        sysWriteDRAM += md->EDC_Wr_socket[skt];
                    });
         }
-        for (uint64 port = 0; port < m->getNumCXLPorts(skt); ++port)
+        if (show_cxl_output)
         {
-            choose(outputType,
-                [printSKT, &md]() {
-                    printSKT((md->BHS)? 4 : 2 );
-                },
-                [&port,&md]() {
-                    if (md->BHS)
-                    {
-                        cout << "CXL.mem_P" << port << "Read,"
-                            << "CXL.mem_P" << port << "Write,"
-                            << "CXL.cache_P" << port << "dv->hst,"
-                            << "CXL.cache_P" << port << "hst->dv,";
-                    }
-                    else
-                    {
-                        cout
-                            << "CXL.mem_P" << port << "Write,"
-                            << "CXL.cache_P" << port << "hst->dv,";
-                    }
-                },
-                    [&md, &skt, &port]() {
-                    if (md->BHS)
-                    {
-                        cout << setw(8) << md->CXLMEM_Rd_socket_port[skt][port] << ','
-                             << setw(8) << md->CXLMEM_Wr_socket_port[skt][port] << ','
-                             << setw(8) << md->CXLCACHE_Rd_socket_port[skt][port] << ','
-                             << setw(8) << md->CXLCACHE_Wr_socket_port[skt][port] << ',';
-                    }
-                    else
-                    {
-                        cout << setw(8) << md->CXLMEM_Wr_socket_port[skt][port] << ','
-                             << setw(8) << md->CXLCACHE_Wr_socket_port[skt][port] << ',';
-                    }
-                });
+            for (uint64 port = 0; port < m->getNumCXLPorts(skt); ++port)
+            {
+                choose(outputType,
+                    [printSKT, &md]() {
+                        printSKT((md->BHS)? 4 : 2 );
+                    },
+                    [&port,&md]() {
+                        if (md->BHS)
+                        {
+                            cout << "CXL.mem_P" << port << "Read,"
+                                << "CXL.mem_P" << port << "Write,"
+                                << "CXL.cache_P" << port << "dv->hst,"
+                                << "CXL.cache_P" << port << "hst->dv,";
+                        }
+                        else
+                        {
+                            cout
+                                << "CXL.mem_P" << port << "Write,"
+                                << "CXL.cache_P" << port << "hst->dv,";
+                        }
+                    },
+                        [&md, &skt, &port]() {
+                        if (md->BHS)
+                        {
+                            cout << setw(8) << md->CXLMEM_Rd_socket_port[skt][port] << ','
+                                << setw(8) << md->CXLMEM_Wr_socket_port[skt][port] << ','
+                                << setw(8) << md->CXLCACHE_Rd_socket_port[skt][port] << ','
+                                << setw(8) << md->CXLCACHE_Wr_socket_port[skt][port] << ',';
+                        }
+                        else
+                        {
+                            cout << setw(8) << md->CXLMEM_Wr_socket_port[skt][port] << ','
+                                << setw(8) << md->CXLCACHE_Wr_socket_port[skt][port] << ',';
+                        }
+                    });
+            }
         }
     }
 
@@ -897,15 +910,16 @@ void calculate_bandwidth(PCM *m,
     const ServerUncoreMemoryMetrics & metrics,
     const bool show_channel_output,
     const bool print_update,
-    const uint64 SPR_CHA_CXL_Count)
+    const uint64 SPR_CHA_CXL_Count,
+    const bool show_cxl_output)
 {
     //const uint32 num_imc_channels = m->getMCChannelsPerSocket();
     //const uint32 num_edc_channels = m->getEDCChannelsPerSocket();
     memdata_t md;
     md.metrics = metrics;
-    const auto cpu_model = m->getCPUModel();
-    md.M2M_NM_read_hit_rate_supported = (cpu_model == PCM::SKX);
-    md.NM_hit_rate_supported = (cpu_model == PCM::ICX);
+    const auto cpu_family_model = m->getCPUFamilyModel();
+    md.M2M_NM_read_hit_rate_supported = (cpu_family_model == PCM::SKX);
+    md.NM_hit_rate_supported = (cpu_family_model == PCM::ICX);
     md.BHS_NM = m->nearMemoryMetricsAvailable();
     md.BHS = md.BHS_NM;
     static bool mm_once = true;
@@ -989,8 +1003,11 @@ void calculate_bandwidth(PCM *m,
                 uint64 memoryModeHits = 0;
                 reads = getMCCounter(channel, ServerUncorePMUs::EventPosition::READ, uncState1[skt], uncState2[skt]);
                 writes = getMCCounter(channel, ServerUncorePMUs::EventPosition::WRITE, uncState1[skt], uncState2[skt]);
-                switch (cpu_model)
+                switch (cpu_family_model)
                 {
+                case PCM::GNR:
+                case PCM::GNR_D:
+                case PCM::GRR:
                 case PCM::SRF:
                     reads += getMCCounter(channel, ServerUncorePMUs::EventPosition::READ2, uncState1[skt], uncState2[skt]);
                     writes += getMCCounter(channel, ServerUncorePMUs::EventPosition::WRITE2, uncState1[skt], uncState2[skt]);
@@ -1054,7 +1071,10 @@ void calculate_bandwidth(PCM *m,
                     md.MemoryMode_Hit_socket[skt] += toRate(memoryModeHits);
                 }
                 else if (
-                       cpu_model != PCM::SRF
+                   cpu_family_model != PCM::GNR
+                && cpu_family_model != PCM::GNR_D
+                && cpu_family_model != PCM::SRF
+                && cpu_family_model != PCM::GRR
                     )
                 {
                     md.partial_write[skt] += (uint64)(getMCCounter(channel, ServerUncorePMUs::EventPosition::PARTIAL, uncState1[skt], uncState2[skt]) / (elapsedTime / 1000.0));
@@ -1144,15 +1164,15 @@ void calculate_bandwidth(PCM *m,
     {
         if (csvheader)
         {
-            display_bandwidth_csv(m, &md, elapsedTime, show_channel_output, Header1, CXL_Read_BW);
-            display_bandwidth_csv(m, &md, elapsedTime, show_channel_output, Header2, CXL_Read_BW);
+            display_bandwidth_csv(m, &md, elapsedTime, show_channel_output, Header1, CXL_Read_BW, show_cxl_output);
+            display_bandwidth_csv(m, &md, elapsedTime, show_channel_output, Header2, CXL_Read_BW, show_cxl_output);
             csvheader = false;
         }
-        display_bandwidth_csv(m, &md, elapsedTime, show_channel_output, Data, CXL_Read_BW);
+        display_bandwidth_csv(m, &md, elapsedTime, show_channel_output, Data, CXL_Read_BW, show_cxl_output);
     }
     else
     {
-        display_bandwidth(m, &md, no_columns, show_channel_output, print_update, CXL_Read_BW);
+        display_bandwidth(m, &md, no_columns, show_channel_output, print_update, CXL_Read_BW, show_cxl_output);
     }
 }
 
@@ -1244,7 +1264,7 @@ public:
         pcm(m)
     {
         assert(pcm);
-        switch (pcm->getCPUModel())
+        switch (pcm->getCPUFamilyModel())
         {
             case PCM::SPR:
                 eventGroups = {
@@ -1355,6 +1375,7 @@ int mainThrows(int argc, char * argv[])
 
     double delay = -1.0;
     bool csv = false, csvheader = false, show_channel_output = true, print_update = false;
+    bool show_cxl_output = true;
     uint32 no_columns = DEFAULT_DISPLAY_COLUMNS; // Default number of columns is 2
     char * sysCmd = NULL;
     char ** sysArgv = NULL;
@@ -1444,6 +1465,11 @@ int mainThrows(int argc, char * argv[])
             show_channel_output = false;
             continue;
         }
+        else if (check_argument_equals(*argv, {"--nocxl"}))
+        {
+            show_cxl_output = false;
+            continue;
+        }
         else if (check_argument_equals(*argv, {"-pmm", "/pmm", "-pmem", "/pmem"}))
         {
             metrics = Pmem;
@@ -1486,7 +1512,7 @@ int mainThrows(int argc, char * argv[])
         }
         else if (check_argument_equals(*argv, {"--installDriver"}))
         {
-            Driver tmpDrvObject = Driver(Driver::msrLocalPath());
+            Driver tmpDrvObject = Driver(Driver::msrSystemPath());
             if (!tmpDrvObject.start())
             {
                 tcerr << "Can not access CPU counters\n";
@@ -1512,10 +1538,10 @@ int mainThrows(int argc, char * argv[])
 
     m->disableJKTWorkaround();
     print_cpu_details();
-    const auto cpu_model = m->getCPUModel();
+    const auto cpu_family_model = m->getCPUFamilyModel();
     if (!m->hasPCICFGUncore())
     {
-        cerr << "Unsupported processor model (" << cpu_model << ").\n";
+        cerr << "Unsupported processor model (0x" << std::hex << cpu_family_model << std::dec << ").\n";
         if (m->memoryTrafficMetricsAvailable())
             cerr << "For processor-level memory bandwidth statistics please use 'pcm' utility\n";
         exit(EXIT_FAILURE);
@@ -1573,7 +1599,7 @@ int mainThrows(int argc, char * argv[])
 
     shared_ptr<CHAEventCollector> chaEventCollector;
 
-    SPR_CXL = (PCM::SPR == cpu_model || PCM::EMR == cpu_model) && (getNumCXLPorts(m) > 0);
+    SPR_CXL = (PCM::SPR == cpu_family_model || PCM::EMR == cpu_family_model) && (getNumCXLPorts(m) > 0);
     if (SPR_CXL)
     {
          chaEventCollector = std::make_shared<CHAEventCollector>(delay, sysCmd, mainLoop, m);
@@ -1628,7 +1654,7 @@ int mainThrows(int argc, char * argv[])
           calculate_bandwidth_rank(m,BeforeState, AfterState, AfterTime - BeforeTime, csv, csvheader, no_columns, rankA, rankB);
         else
           calculate_bandwidth(m,BeforeState,AfterState,AfterTime-BeforeTime,csv,csvheader, no_columns, metrics,
-                show_channel_output, print_update, SPR_CHA_CXL_Event_Count);
+                show_channel_output, print_update, SPR_CHA_CXL_Event_Count, show_cxl_output);
 
         swap(BeforeTime, AfterTime);
         swap(BeforeState, AfterState);

@@ -7,6 +7,7 @@ Group:           System/Monitoring
 License:         BSD-3-Clause
 Url:             https://github.com/intel/pcm
 Source:          %{version}.zip
+Source1:         https://github.com/intel/perfmon/archive/main.zip
 BuildRoot:       %{_tmppath}/%{name}-%{version}-build
 AutoReqProv:     on
 BuildRequires:   unzip
@@ -29,11 +30,14 @@ Intel(r) Performance Counter Monitor (Intel(r) PCM) is an application programmin
 
 %prep
 %setup -n pcm-master
+rm -rf perfmon
+unzip $RPM_SOURCE_DIR/main.zip
+mv perfmon-main perfmon
 
 %build
 mkdir build
 cd build
-cmake -DCMAKE_INSTALL_PREFIX=/usr/ -DCMAKE_BUILD_TYPE=RelWithDebInfo ..
+cmake -DPCM_NO_STATIC_LIBASAN=ON -DCMAKE_INSTALL_PREFIX=/usr/ -DCMAKE_BUILD_TYPE=RelWithDebInfo ..
 make -j 
 
 %install
@@ -69,7 +73,6 @@ rm -rf $RPM_BUILD_ROOT
 %{_sbindir}/pcm-core
 %{_sbindir}/pcm-iio
 %{_sbindir}/pcm-latency
-%{_sbindir}/pcm-lspci
 %{_sbindir}/pcm-memory
 %{_sbindir}/pcm-msr
 %{_sbindir}/pcm-mmio

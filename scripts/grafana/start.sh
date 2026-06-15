@@ -72,6 +72,6 @@ ${CTR_RUN} run -d --name influxdb -p 8083:8083 -p 8086:8086 --network=influxdb-n
 echo Starting telegraf
 ${CTR_RUN} run -d --name telegraf --network=influxdb-network -v "$PWD"/telegraf.conf:/etc/telegraf/telegraf.conf:ro telegraf || { echo "Error starting telegraf"; exit 1; }
 echo Starting grafana
-${CTR_RUN} run -d --network=influxdb-network --name grafana -p 3000:3000 -v "$PWD"/provisioning:/etc/grafana/provisioning -v "$PWD"/grafana_volume:/var/lib/grafana grafana/grafana || { echo "Error starting grafana"; exit 1; }
+${CTR_RUN} run -d --network=influxdb-network --name grafana -p 3000:3000 -v "$PWD"/provisioning:/etc/grafana/provisioning -v "$PWD"/grafana_volume:/var/lib/grafana -e GF_DASHBOARDS_MIN_REFRESH_INTERVAL=1s grafana/grafana || { echo "Error starting grafana"; exit 1; }
 
 echo "Start browser at http://"`hostname`":3000/ or http://localhost:3000/ and login with admin user, password admin"

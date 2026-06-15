@@ -2,6 +2,10 @@
 Intel&reg; Performance Counter Monitor (Intel&reg; PCM)
 --------------------------------------------------------------------------------
 
+[![CodeQL](https://github.com/intel/pcm/actions/workflows/codeql.yml/badge.svg?branch=master)](https://github.com/intel/pcm/security/code-scanning/tools/CodeQL/status)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/intel/pcm/badge)](https://securityscorecards.dev/viewer/?uri=github.com/intel/pcm)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/8652/badge)](https://www.bestpractices.dev/projects/8652)
+
 [PCM Tools](#pcm-tools) | [Building PCM](#building-pcm-tools) | [Downloading Pre-Compiled PCM](#downloading-pre-compiled-pcm-tools) | [FAQ](#frequently-asked-questions-faq) | [API Documentation](#pcm-api-documentation) | [Environment Variables](#pcm-environment-variables) | [Compilation Options](#custom-compilation-options)
 
 Intel&reg; Performance Counter Monitor (Intel&reg; PCM) is an application programming interface (API) and a set of tools based on the API to monitor performance and energy metrics of Intel&reg; Core&trade;, Xeon&reg;, Atom&trade; and Xeon Phi&trade; processors. PCM works on Linux, Windows, Mac OS X, FreeBSD, DragonFlyBSD and ChromeOS operating systems.
@@ -38,7 +42,7 @@ PCM provides a number of command-line utilities for real-time monitoring:
 
 - **pcm-latency** : monitor L1 cache miss and DDR/PMM memory latency
 - **pcm-pcie** : monitor PCIe bandwidth per-socket
-- **pcm-iio** : monitor PCIe bandwidth per PCIe device
+- **pcm-iio** : [monitor PCIe bandwidth per PCIe bus/device](doc/PCM_IIO_README.md)
 
 ![pcm-iio output](https://raw.githubusercontent.com/wiki/intel/pcm/pcm-iio.png)
 - **pcm-numa** : monitor local and remote memory accesses
@@ -65,7 +69,8 @@ Building PCM Tools
 Clone PCM repository with submodules:
 
 ```
-git clone --recursive https://github.com/intel/pcm.git
+git clone --recursive https://github.com/intel/pcm
+cd pcm
 ```
 
 or clone the repository first, and then update submodules with:
@@ -74,10 +79,12 @@ or clone the repository first, and then update submodules with:
 git submodule update --init --recursive
 ```
 
-Install cmake then:
+Install cmake (and libasan on Linux) then compile:
 
+Choose **one** of the following build methods:
+* Incremental Build (Fastest): if you have a previous build to reuse the existing `build` directory and preserve previous build artifacts, go straight to the `cd build` step.
+* Clean Build (From Scratch): Run `cmake -E rm -rf build && cmake -E make_directory build` for your first build, or for a full rebuild to ensure a "clean state" by deleting all previous build data.
 ```
-mkdir build
 cd build
 cmake ..
 cmake --build .
