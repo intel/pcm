@@ -1074,7 +1074,7 @@ AddEventStatus addEvent(PCM::RawPMUConfigs & curPMUConfigs, string eventStr)
     const auto configArray = split(configStr, ',');
     bool fixed = false;
     std::string lookup;
-    auto pmtAddRecord = [&lookup, &pmuName, &config](const std::vector<TelemetryDB::PMTRecord> & records) -> AddEventStatus
+    auto pmtAddRecord = [&lookup, &pmuName, &config](const std::vector<TelemetryDB::PMTRecord> & records, const bool first = false) -> AddEventStatus
     {
         if (pmuName == "pmt")
         {
@@ -1083,7 +1083,7 @@ AddEventStatus addEvent(PCM::RawPMUConfigs & curPMUConfigs, string eventStr)
                     cerr << "ERROR: lookup \"" << lookup << "\" not found in PMT telemetry database\n";
                     return AddEventStatus::Failed;
                 }
-                if (records.size() > 1)
+                if (records.size() > 1 && first == false)
                 {
                     cerr << "ERROR: lookup \"" << lookup << "\" is ambiguous in PMT telemetry database\n\n";
                     for (const auto & record : records)
@@ -1092,10 +1092,11 @@ AddEventStatus addEvent(PCM::RawPMUConfigs & curPMUConfigs, string eventStr)
                         record.print(cerr);
                         cerr << "\n";
                     }
+                    cerr << "Alternatively use lookupf or ilookupf to select the first record in the list.\n";
                     return AddEventStatus::Failed;
                 }
                 config.second = records[0].fullName;
-                assert(records.size() == 1);
+                assert(records.size() >= 1);
                 config.first[PCM::PMTEventPosition::UID] = records[0].uid;
                 config.first[PCM::PMTEventPosition::offset] = records[0].qWordOffset;
                 config.first[PCM::PMTEventPosition::type] = (records[0].sampleType == "Snapshot") ? PCM::MSRType::Static : PCM::MSRType::Freerun;
@@ -1148,6 +1149,16 @@ AddEventStatus addEvent(PCM::RawPMUConfigs & curPMUConfigs, string eventStr)
         else if (pcm_sscanf(item) >> s_expect("ilookup=") >> setw(255) >> lookup)
         {
             if (pmtAddRecord(telemDB.ilookup(lookup)) != AddEventStatus::OK)
+                return AddEventStatus::Failed;
+        }
+        else if (pcm_sscanf(item) >> s_expect("lookupf=") >> setw(255) >> lookup)
+        {
+            if (pmtAddRecord(telemDB.lookup(lookup), true) != AddEventStatus::OK)
+                return AddEventStatus::Failed;
+        }
+        else if (pcm_sscanf(item) >> s_expect("ilookupf=") >> setw(255) >> lookup)
+        {
+            if (pmtAddRecord(telemDB.ilookup(lookup), true) != AddEventStatus::OK)
                 return AddEventStatus::Failed;
         }
         else if (item == "fixed")
@@ -1866,10 +1877,11 @@ void printTransposed(const PCM::RawPMUConfigs& curPMUConfigs,
             }
             else if (type == "ubox")
             {
+                const auto numPMUs = (uint32)m->getMaxNumOfUncorePMUs(PCM::UBOX_PMU_ID);
                 choose(outputType,
-                    [&]() { printUncoreRows(nullptr, 1U, ""); },
-                    [&]() { printUncoreRows(nullptr, 1U, type); },
-                    [&]() { printUncoreRows([](const uint32, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getUncoreCounter(PCM::UBOX_PMU_ID, 0, i, before, after); }, 1U,
+                    [&]() { printUncoreRows(nullptr, numPMUs, ""); },
+                    [&]() { printUncoreRows(nullptr, numPMUs, type); },
+                    [&]() { printUncoreRows([](const uint32 u, const uint32 i, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getUncoreCounter(PCM::UBOX_PMU_ID, u, i, before, after); }, numPMUs,
                             "UncoreClocks", [](const uint32, const ServerUncoreCounterState& before, const ServerUncoreCounterState& after) { return getUncoreClocks(before, after); });
                     });
             }
@@ -2249,14 +2261,17 @@ void print(const PCM::RawPMUConfigs& curPMUConfigs,
                         [&fixedEvents]() { cout << "UncoreClocks" << fixedEvents[0].second << separator; },
                         [&]() { cout << getUncoreClocks(BeforeUncoreState[s], AfterUncoreState[s]) << separator; });
                 }
-                int i = 0;
-                for (auto& event : events)
+                for (uint32 u = 0; u < m->getMaxNumOfUncorePMUs(PCM::UBOX_PMU_ID); ++u)
                 {
-                    choose(outputType,
-                        [s]() { cout << "SKT" << s << separator; },
-                        [&event, &i]() { if (event.second.empty()) cout << "UBOXEvent" << i << separator;  else cout << event.second << separator; },
-                        [&]() { cout << getUncoreCounter(PCM::UBOX_PMU_ID, 0, i, BeforeUncoreState[s], AfterUncoreState[s]) << separator; });
-                    ++i;
+                    int i = 0;
+                    for (auto& event : events)
+                    {
+                        choose(outputType,
+                            [s, u]() { cout << "SKT" << s << "U" << u << separator; },
+                            [&event, &i]() { if (event.second.empty()) cout << "UBOXEvent" << i << separator;  else cout << event.second << separator; },
+                            [&]() { cout << getUncoreCounter(PCM::UBOX_PMU_ID, u, i, BeforeUncoreState[s], AfterUncoreState[s]) << separator; });
+                        ++i;
+                    }
                 }
             }
         }

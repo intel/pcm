@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright (c) 2022-2024, Intel Corporation
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/tests)
+set(CMAKE_TEST_BINARY_DIR ${CMAKE_BINARY_DIR}/bin/tests)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_TEST_BINARY_DIR})
 
 if(UNIX)
 
@@ -10,12 +11,30 @@ if(UNIX)
     add_executable(daemon_alignment_test ${TEST_FILE})
     target_link_libraries(daemon_alignment_test)
 
+    if(NOT APPLE)
+        # numa_to_socket_test
+        add_executable(numa_to_socket_test numa_to_socket_test.cpp)
+        target_link_libraries(numa_to_socket_test Threads::Threads PCM_STATIC)
+
+    	# cache_verification_test
+    	add_executable(cache_verification_test cache_verification_test.cpp)
+    	target_link_libraries(cache_verification_test Threads::Threads PCM_STATIC)
+    endif()
+
     # PCM_STATIC + pcm_sensor = urltest
     if(LINUX)
         add_executable(urltest urltest.cpp)
         target_link_libraries(urltest Threads::Threads PCM_STATIC)
     endif(LINUX)
 
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/googletest/googletest/include/gtest/gtest.h")
+        add_subdirectory(googletest)
+        add_subdirectory(utests)
+    else()
+        message(WARNING
+            "Local googletest does not exist - unit tests will not be built.\n"
+            "If you need unit tests, please update submodules with the command: 'git submodule update --init --recursive'.\n")
+    endif()
 endif(UNIX)
 
 if(PCM_FUZZ)

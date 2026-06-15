@@ -39,8 +39,8 @@ class PciHandle
     int32 fd;
 #endif
 
-#if defined(__FreeBSD__) || defined(__DragonFly__)
-    uint32 groupnr;
+#if defined(__FreeBSD__) || defined(__DragonFly__) || defined(__linux__)
+    uint32 groupnr{};
 #endif
     uint32 bus;
     uint32 device;
@@ -48,6 +48,7 @@ class PciHandle
 #ifdef _MSC_VER
     DWORD pciAddress;
 #endif
+    int32 numaNode;
 
     friend class PciHandleMM;
 
@@ -65,10 +66,16 @@ public:
 
     int32 read64(uint64 offset, uint64 * value);
 
+    int32 getNUMANode() const;
+
     virtual ~PciHandle();
 
 protected:
     static int openMcfgTable();
+#ifdef _MSC_VER
+public:
+    static void readMCFGRecords(std::vector<MCFGRecord>& mcfg);
+#endif
 };
 
 #ifdef _MSC_VER
@@ -86,10 +93,12 @@ class PciHandleMM
     int32 fd;
     char * mmapAddr;
 
+    uint32 groupnr;
     uint32 bus;
     uint32 device;
     uint32 function;
     uint64 base_addr;
+    int32 numaNode;
 
     static MCFGHeader mcfgHeader;
     static std::vector<MCFGRecord> mcfgRecords;
@@ -109,6 +118,8 @@ public:
 
     int32 read64(uint64 offset, uint64 * value);
 
+    int32 getNUMANode() const;
+
     virtual ~PciHandleMM();
 
     static const std::vector<MCFGRecord> & getMCFGRecords();
@@ -124,19 +135,25 @@ public:
 #error "Platform not supported"
 #endif
 
+#ifdef __linux__
+// Helper function to retrieve NUMA node for a PCI device (Linux only)
+int32 getNUMANodeLinux(uint32 groupnr, uint32 bus, uint32 device, uint32 function);
+#endif
+
 template <class F>
-inline void forAllIntelDevices(F f, int requestedDevice = -1, int requestedFunction = -1)
+inline void forAllDevices(F f, const int requestedVendorID = -1, const int requestedDevice = -1, const int requestedFunction = -1)
 {
     std::vector<MCFGRecord> mcfg;
     getMCFGRecords(mcfg);
 
-    auto probe = [&f](const uint32 group, const uint32 bus, const uint32 device, const uint32 function)
+    auto probe = [&f, &requestedVendorID](const uint32 group, const uint32 bus, const uint32 device, const uint32 function)
     {
         DBG(3, "Probing " , std::hex , group , ":" , bus , ":" , device , ":" , function , " " , std::dec);
         uint32 value = 0;
         try
         {
             PciHandleType h(group, bus, device, function);
+            DBG(3, "NUMA node: ", h.getNUMANode());
             h.read32(0, &value);
 
         } catch(...)
@@ -147,7 +164,7 @@ inline void forAllIntelDevices(F f, int requestedDevice = -1, int requestedFunct
         const uint32 vendor_id = value & 0xffff;
         const uint32 device_id = (value >> 16) & 0xffff;
         DBG(3, "Found dev " , std::hex , vendor_id , ":" , device_id , std::dec);
-        if (vendor_id != PCM_INTEL_PCI_VENDOR_ID)
+        if (requestedVendorID >= 0 && int(vendor_id) != requestedVendorID)
         {
             return;
         }
@@ -189,6 +206,12 @@ inline void forAllIntelDevices(F f, int requestedDevice = -1, int requestedFunct
     }
 }
 
+template <class F>
+inline void forAllIntelDevices(F f, int requestedDevice = -1, int requestedFunction = -1)
+{
+    forAllDevices(f, PCM_INTEL_PCI_VENDOR_ID, requestedDevice, requestedFunction);
+}
+
 union VSEC {
     struct {
         uint64 cap_id:16;
@@ -215,6 +238,8 @@ void processDVSEC(MatchFunc matchFunc, ProcessFunc processFunc)
         DBG(2, "Intel device scan.found " , std::hex , group , ":" , bus , " : " , device , " : " , function , " " , device_id);
         uint32 status{0};
         PciHandleType h(group, bus, device, function);
+        const auto NUMANode = h.getNUMANode();
+        DBG(2, "NUMA node: ", NUMANode);
         h.read32(4, &status); // read status
         if (status & 0x100000) // has capability list
         {
@@ -231,20 +256,51 @@ void processDVSEC(MatchFunc matchFunc, ProcessFunc processFunc)
                 {
                     return;
                 }
-                DBG(2, "offset 0x" , std::hex , offset , " cap_id: 0x" , header.fields.cap_id , " vsec_id: 0x", header.fields.vsec_id, " entryID: 0x" , std::hex , header.fields.entryID , std::dec);
+                DBG(2, "offset 0x" , std::hex , offset , " cap_id: 0x" , header.fields.cap_id , " vsec_id: 0x", header.fields.vsec_id, " entryID: 0x" , std::hex , header.fields.entryID ,
+                    " NumEntries: ", std::dec, header.fields.NumEntries, " EntrySize: ", std::dec, header.fields.EntrySize, " tBIR: ", header.fields.tBIR,
+                    " Address: 0x", std::hex, header.fields.Address, std::dec);
                 if (matchFunc(header))
                 {
-                    DBG(2, ".... found match");
+                    DBG(2, ".... found match.  tBIR = ", header.fields.tBIR);
                     auto barOffset = 0x10 + header.fields.tBIR * 4;
                     uint32 bar = 0;
                     if (h.read32(barOffset, &bar) == sizeof(uint32) && bar != 0) // read bar
                     {
-                        bar &= ~4095;
-                        processFunc(bar, header);
+                        DBG(2, "bar = 0x", std::hex, bar, std::dec);
+                        if (extract_bits_32(bar, 0, 0) == 0) // memory space
+                        {
+                            auto type = extract_bits_32(bar, 2, 1);
+                            if (type == 0) // 32-bit address
+                            {
+                                bar &= ~0xfull;
+                                processFunc(bar, header, NUMANode);
+                            }
+                            else if (type == 2) // 64-bit address
+                            {
+                                uint32 bar_high = 0;
+                                if (h.read32(barOffset + 4, &bar_high) == sizeof(uint32))
+                                {
+                                    uint64 full_bar = (uint64(bar_high) << 32) | uint64(bar);
+                                    full_bar &= ~0xfull;
+                                    DBG(2, " full_bar = 0x", std::hex, full_bar, std::dec);
+                                    processFunc(full_bar, header, NUMANode);
+                                }
+                                else
+                                {
+                                    std::cerr << "Error: can't read high part of 64-bit bar from offset 0x" << std::hex << (barOffset + 4) << std::dec << " \n";
+                                }
+                            }
+                            else
+                            {
+                                // BAR type 1 is reserved by the PCI specification and is not valid.
+                                // Any unknown BAR type (including type 1) is treated as an error.
+                                std::cerr << "Error: unknown bar type " << type << " at bar offset 0x" << std::hex << barOffset << std::dec << " \n";
+                            }
+                        }
                     }
                     else
                     {
-                        std::cerr << "Error: can't read bar from offset " << barOffset << " \n";
+                        std::cerr << "Error: can't read bar from offset 0x" << std::hex << barOffset << std::dec << " \n";
                     }
                 }
                 const uint64 lastOffset = offset;

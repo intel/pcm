@@ -67,9 +67,9 @@ if(UNIX)  # APPLE, LINUX, FREE_BSD
     set (PCM_COMMON_FLAGS "-Wno-unknown-pragmas -DCMAKE_INSTALL_PREFIX=\"${CMAKE_INSTALL_PREFIX}\"")
 
     if(LINUX)
-       set (PCM_COMMON_FLAGS "${PCM_COMMON_FLAGS} -Wextra -DPCM_USE_PERF")
-       if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-         set (PCM_COMMON_FLAGS "${PCM_COMMON_FLAGS} -Wl,-z,now")
+       set (PCM_COMMON_FLAGS "${PCM_COMMON_FLAGS} -Wextra -DPCM_USE_PERF -fstack-protector-strong")
+       if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+         set (PCM_COMMON_FLAGS "${PCM_COMMON_FLAGS} -Wl,-z,now -Wl,-z,relro -Wl,-z,noexecstack")
        endif()
 
        if(NOT DEFINED LINUX_SYSTEMD)
@@ -139,6 +139,7 @@ if(UNIX)  # APPLE, LINUX, FREE_BSD
     message(STATUS "CMAKE_CXX_FLAGS_RELWITHDEBINFO: ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
 
     install(DIRECTORY "perfmon" DESTINATION ${CMAKE_INSTALL_DATADIR}/pcm)
+    install(FILES "third-party-software.txt" DESTINATION ${CMAKE_INSTALL_DATADIR}/pcm)
 
 endif(UNIX)
 

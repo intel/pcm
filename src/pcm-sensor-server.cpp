@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2016-2022, Intel Corporation
 
+// Windows: Define WIN32_LEAN_AND_MEAN before ANY includes to prevent winsock.h conflicts
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#endif
+
 // Use port allocated for PCM in prometheus:
 // https://github.com/prometheus/prometheus/wiki/Default-port-allocations
 constexpr unsigned int DEFAULT_HTTP_PORT = 9738;
@@ -12,19 +17,42 @@ constexpr unsigned int DEFAULT_HTTPS_PORT = DEFAULT_HTTP_PORT;
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include<string>
 
+// Platform-specific includes
+#ifdef _WIN32
+// winsock2.h must be included before windows.h (already included by pcm-accel-common.h -> cpucounters.h -> types.h)
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#pragma comment(lib, "ws2_32.lib")
+// Define UNIX-like types for Windows
+typedef SOCKET socket_t;
+#define SHUT_RDWR SD_BOTH
+#define MSG_NOSIGNAL 0
+// PCM errno values mapped to Windows socket errors
+#define PCM_EAGAIN WSAEWOULDBLOCK
+#define PCM_EWOULDBLOCK WSAEWOULDBLOCK
+inline int close(SOCKET s) { return closesocket(s); }
+#else
+#include <unistd.h>
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sched.h>
+typedef int socket_t;
+#define INVALID_SOCKET (-1)
+// PCM errno values mapped to POSIX errors
+#define PCM_EAGAIN EAGAIN
+#define PCM_EWOULDBLOCK EWOULDBLOCK
+#define SOCKET_ERROR (-1)
+#endif
 
 #include <cstring>
 #include <fstream>
 #include <ctime>
+#include <limits>
 #include <vector>
 #include <unordered_map>
 
@@ -44,10 +72,14 @@ constexpr unsigned int DEFAULT_HTTPS_PORT = DEFAULT_HTTP_PORT;
 
 #include <chrono>
 #include <algorithm>
+#include <mutex>
+#include <thread>
+#include <atomic>
 
 #include "threadpool.h"
 
 #include "pcm-iio-pmu.h"
+#include "pcm-pcie-collector.h"
 
 using namespace pcm;
 
@@ -101,10 +133,17 @@ class datetime {
     public:
         datetime() {
             std::time_t t = std::time( nullptr );
+#ifdef _MSC_VER
+            std::tm tm_buf;
+            if (gmtime_s(&tm_buf, &t) != 0)
+                throw std::runtime_error("gmtime_s failed");
+            now = tm_buf;
+#else
             const auto gt = std::gmtime( &t );
             if (gt == nullptr)
                 throw std::runtime_error("std::gmtime returned nullptr");
             now = *gt;
+#endif
         }
         datetime( std::tm t ) : now( t ) {}
         ~datetime() = default;
@@ -156,9 +195,19 @@ class date {
     public:
         void printDate( std::ostream& os ) const {
             char buf[64];
+#ifdef _MSC_VER
+            std::tm tm_buf;
+            if (localtime_s(&tm_buf, &now) != 0)
+                throw std::runtime_error("localtime_s failed");
+            if (std::strftime(buf, 64, "%F", &tm_buf) == 0)
+                throw std::runtime_error("Error writing date to buffer, too small?");
+#else
             const auto t = std::localtime(&now);
-            assert(t);
-            std::strftime( buf, 64, "%F", t);
+            if (t == nullptr)
+                throw std::runtime_error("std::localtime returned nullptr");
+            if (std::strftime(buf, 64, "%F", t) == 0)
+                throw std::runtime_error("Error writing date to buffer, too small?");
+#endif
             os << buf;
         }
 
@@ -216,9 +265,13 @@ public:
         return &instance;
     }
 
+#ifdef _WIN32
+    static BOOL WINAPI handleSignal( DWORD signum );
+#else
     static void handleSignal( int signum );
+#endif
 
-    void setSocket( int s ) {
+    void setSocket( socket_t s ) {
         networkSocket_ = s;
     }
 
@@ -227,19 +280,31 @@ public:
     }
 
     void ignoreSignal( int signum ) {
+#ifdef _WIN32
+        // On Windows, ignoring signals is handled differently
+        // SIGPIPE doesn't exist on Windows, so this is a no-op
+#else
         struct sigaction sa;
         sigemptyset(&sa.sa_mask);
         sa.sa_handler = SIG_IGN;
         sa.sa_flags = 0;
         sigaction( signum, &sa, 0 );
+#endif
     }
 
     void installHandler( void (*handler)(int), int signum ) {
+#ifdef _WIN32
+        // On Windows, use SetConsoleCtrlHandler for CTRL+C and CTRL+BREAK
+        (void)handler; // unused on Windows
+        (void)signum;  // unused on Windows
+        SetConsoleCtrlHandler((PHANDLER_ROUTINE)handleSignal, TRUE);
+#else
         struct sigaction sa;
         sigemptyset(&sa.sa_mask);
         sa.sa_handler = handler;
         sa.sa_flags = 0;
         sigaction( signum, &sa, 0 );
+#endif
     }
 
     SignalHandler( SignalHandler const & ) = delete;
@@ -250,12 +315,14 @@ private:
     SignalHandler() = default;
 
 private:
-    static int networkSocket_;
+    static socket_t networkSocket_;
     static HTTPServer* httpServer_;
 };
 
-int SignalHandler::networkSocket_ = 0;
+socket_t SignalHandler::networkSocket_ = INVALID_SOCKET;
 HTTPServer* SignalHandler::httpServer_ = nullptr;
+
+namespace pcm {
 
 class JSONPrinter : Visitor
 {
@@ -281,21 +348,21 @@ public:
         CoreCounterState ccs;
         if ( nullptr == ag.get() )
             return ccs;
-        return std::move( ag->coreCounterStates()[tid] );
+        return ag->coreCounterStates()[tid];
     }
 
     SocketCounterState const getSocketCounter( std::shared_ptr<Aggregator> ag, uint32 sid ) const {
         SocketCounterState socs;
         if ( nullptr == ag.get() )
             return socs;
-        return std::move( ag->socketCounterStates()[sid] );
+        return ag->socketCounterStates()[sid];
     }
 
     SystemCounterState getSystemCounter( std::shared_ptr<Aggregator> ag ) const {
         SystemCounterState sycs;
         if ( nullptr == ag.get() )
             return sycs;
-        return std::move( ag->systemCounterState() );
+        return ag->systemCounterState();
     }
 
 
@@ -368,6 +435,10 @@ public:
         endObject( JSONPrinter::LineEndAction::DelimiterAndNewLine, END_OBJECT );
         startObject( "Uncore Aggregate", BEGIN_OBJECT );
         printUncoreCounterState( before, after );
+        endObject( JSONPrinter::LineEndAction::DelimiterAndNewLine, END_OBJECT );
+
+        startObject( "PCIe Bandwidth", BEGIN_OBJECT );
+        printPCIeCounterState();
         endObject( JSONPrinter::LineEndAction::NewLineOnly, END_OBJECT );
 
         endObject( JSONPrinter::LineEndAction::NewLineOnly, END_OBJECT );
@@ -488,6 +559,31 @@ private:
         std::stringstream s;
         s << "CStateResidency[" << i << "]";
         printCounter( s.str(), getPackageCStateResidency( i, before, after ) );
+        endObject( JSONPrinter::NewLineOnly, END_OBJECT );
+    }
+
+    void printPCIeCounterState() {
+        PCIeCollector* col = PCIeCollector::getInstance();
+        if (!col) return;
+
+        const auto& names = col->eventNames();
+        for (uint32 skt = 0; skt < col->socketCount(); ++skt) {
+            auto bw = col->getSocket(skt);
+            auto raw = col->getRawValues(skt);
+            startObject( std::string("PCIe Counters Socket ") + std::to_string(skt), BEGIN_OBJECT );
+            printCounter( "PCIe Read Bytes",  bw.readBytes );
+            printCounter( "PCIe Write Bytes", bw.writeBytes );
+            for (uint32_t i = 0; i < raw.size(); ++i)
+                printCounter( std::string("PCIe ") + names[i], raw[i] );
+            endObject( JSONPrinter::DelimiterAndNewLine, END_OBJECT );
+        }
+        auto agg = col->getAggregate();
+        auto rawAgg = col->getRawAggregate();
+        startObject( "PCIe Counters Aggregate", BEGIN_OBJECT );
+        printCounter( "PCIe Read Bytes",  agg.readBytes );
+        printCounter( "PCIe Write Bytes", agg.writeBytes );
+        for (uint32_t i = 0; i < rawAgg.size(); ++i)
+            printCounter( std::string("PCIe ") + names[i], rawAgg[i] );
         endObject( JSONPrinter::NewLineOnly, END_OBJECT );
     }
 
@@ -612,21 +708,21 @@ public:
         CoreCounterState ccs;
         if ( nullptr == ag.get() )
             return ccs;
-        return std::move( ag->coreCounterStates()[tid] );
+        return ag->coreCounterStates()[tid];
     }
 
     SocketCounterState const getSocketCounter( std::shared_ptr<Aggregator> ag, uint32 sid ) const {
         SocketCounterState socs;
         if ( nullptr == ag.get() )
             return socs;
-        return std::move( ag->socketCounterStates()[sid] );
+        return ag->socketCounterStates()[sid];
     }
 
     SystemCounterState getSystemCounter( std::shared_ptr<Aggregator> ag ) const {
         SystemCounterState sycs;
         if ( nullptr == ag.get() )
             return sycs;
-        return std::move( ag->systemCounterState() );
+        return ag->systemCounterState();
     }
 
     virtual void dispatch( HyperThread* ht ) override {
@@ -682,6 +778,8 @@ public:
         printBasicCounterState ( before, after );
         printComment( "Uncore Counters Aggregate System" );
         printUncoreCounterState( before, after );
+        printComment( "PCIe Bandwidth Counters" );
+        printPCIeCounterState();
         removeFromHierarchy(); // aggregate=system
     }
 
@@ -787,6 +885,34 @@ private:
         removeFromHierarchy();
     }
 
+    void printPCIeCounterState() {
+        PCIeCollector* col = PCIeCollector::getInstance();
+        if (!col) return;
+
+        addToHierarchy( "source=\"uncore\"" );
+
+        const auto& names = col->eventNames();
+        for (uint32 skt = 0; skt < col->socketCount(); ++skt) {
+            auto bw = col->getSocket(skt);
+            auto raw = col->getRawValues(skt);
+            addToHierarchy( std::string("socket=\"") + std::to_string(skt) + "\"" );
+            printCounter( "PCIe Read Bytes",  bw.readBytes );
+            printCounter( "PCIe Write Bytes", bw.writeBytes );
+            for (uint32_t i = 0; i < raw.size(); ++i)
+                printCounter( std::string("PCIe ") + names[i], raw[i] );
+            removeFromHierarchy();
+        }
+
+        auto agg = col->getAggregate();
+        auto rawAgg = col->getRawAggregate();
+        printCounter( "PCIe Read Bytes",  agg.readBytes );
+        printCounter( "PCIe Write Bytes", agg.writeBytes );
+        for (uint32_t i = 0; i < rawAgg.size(); ++i)
+            printCounter( std::string("PCIe ") + names[i], rawAgg[i] );
+
+        removeFromHierarchy();
+    }
+
     void printAccelCounterState( SystemCounterState const& before, SystemCounterState const& after )
     {
         addToHierarchy( "source=\"accel\"" );
@@ -886,8 +1012,10 @@ void PrometheusPrinter::iterateVectorAndCallAccept(Vector const& v) {
     }
 };
 
+}  // end anonymous namespace
+
 #if defined (USE_SSL)
-void closeSSLConnectionAndFD( int fd, SSL* ssl ) {
+void closeSSLConnectionAndFD( socket_t fd, SSL* ssl ) {
     int ret;
 
     if ( (ret = SSL_shutdown( ssl )) == 0 ) {
@@ -916,13 +1044,17 @@ public:
     using int_type    = typename Base::int_type;
     using traits_type = typename Base::traits_type;
 
-    basic_socketbuf( std::string dbg_ = std::string("Server: ") ): socketFD_(0), dbg(dbg_) {
+    basic_socketbuf( std::string dbg_ = std::string("Server: ") ): socketFD_(INVALID_SOCKET), dbg(dbg_) {
         // According to http://en.cppreference.com/w/cpp/io/basic_streambuf
         // epptr and egptr point beyond the buffer, so start + SIZE
         Base::setp( outputBuffer_, outputBuffer_ + SIZE );
         Base::setg( inputBuffer_, inputBuffer_, inputBuffer_ );
         // Default timeout of 10 seconds and 0 microseconds
+#ifdef _WIN32
+        timeout_ = 10000; // Windows uses milliseconds
+#else
         timeout_ = { 10, 0 };
+#endif
 #if defined (USE_SSL)
         // I guess one could say that the instantiation of the ptr in this object will always be 0, i just want this to be explicit for now
         // cppcheck-suppress uselessAssignmentPtrArg
@@ -935,28 +1067,47 @@ public:
         DBG( 3, dbg, "socketbuf destructor finished" );
     }
 
-    int socket() {
+    socket_t socket() {
         return socketFD_;
     }
 
-    void setSocket( int socketFD ) {
+    void setSocket( socket_t socketFD ) {
         socketFD_ = socketFD;
-        if( 0 == socketFD )  // avoid work with 0 socket after closure socket and set value to 0
+        if( INVALID_SOCKET == socketFD )  // avoid work with invalid socket after closure
             return;
         // When receiving the socket descriptor, set the timeout
+#ifdef _WIN32
+        DWORD timeout_ms = timeout_;
+        const auto res = setsockopt( socketFD_, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout_ms, sizeof(DWORD) );
+#else
         const auto res = setsockopt( socketFD_, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout_, sizeof(struct timeval) );
+#endif
         if (res != 0)
         {
+#ifdef _WIN32
+            std::cerr << "setsockopt failed while setting timeout value, error: " << WSAGetLastError() << "\n";
+#else
             std::cerr << "setsockopt failed while setting timeout value, " << strerror( errno ) << "\n";
+#endif
         }
     }
 
+#ifdef _WIN32
+    void setTimeout( DWORD t ) {
+        timeout_ = t;
+        const auto res = setsockopt( socketFD_, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout_, sizeof(DWORD) );
+#else
     void setTimeout( struct timeval t ) {
         timeout_ = t;
         const auto res = setsockopt( socketFD_, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout_, sizeof(struct timeval) );
+#endif
         if (res != 0)
         {
+#ifdef _WIN32
+            std::cerr << "setsockopt failed while setting timeout value, error: " << WSAGetLastError() << "\n";
+#else
             std::cerr << "setsockopt failed while setting timeout value, " << strerror( errno ) << "\n";
+#endif
         }
     }
 
@@ -984,25 +1135,34 @@ public:
             ssl_ = nullptr;
         }
 #endif
-        if ( 0 != socketFD_ ) {
+        if ( INVALID_SOCKET != socketFD_ ) {
             DBG( 3, dbg, "close clientsocketFD" );
             ::close( socketFD_ );
+            socketFD_ = INVALID_SOCKET;
         }
     }
 
 protected:
     int_type writeToSocket() {
         size_t bytesToSend;
-        ssize_t bytesSent;
+        int bytesSent;
         bytesToSend = (char*)Base::pptr() - (char*)Base::pbase();
         DBG( 3, dbg, "wts: Bytes to send: ", bytesToSend );
 
 #if defined (USE_SSL)
         if ( nullptr == ssl_ ) {
 #endif
+#ifdef _WIN32
+            bytesSent= ::send( socketFD_, (const char*)outputBuffer_, static_cast<int>(bytesToSend), MSG_NOSIGNAL );
+#else
             bytesSent= ::send( socketFD_, (void*)outputBuffer_, bytesToSend, MSG_NOSIGNAL );
-            if ( -1 == bytesSent ) {
+#endif
+            if ( SOCKET_ERROR == bytesSent ) {
+#ifdef _WIN32
+                DBG( 3, "bytesSent == SOCKET_ERROR: WSAGetLastError: ", WSAGetLastError(), ", returning eof..." );
+#else
                 DBG( 3, "bytesSent == -1: strerror( ", errno, " ): ", strerror( errno ), ", returning eof..." );
+#endif
                 return traits_type::eof();
             }
 #if defined (USE_SSL)
@@ -1052,7 +1212,7 @@ protected:
 
     int sync() override {
         DBG( 3, dbg, "sync socketFD_: ", socketFD_ );
-        if ( 0 == socketFD_ ) // Socket is closed already
+        if ( INVALID_SOCKET == socketFD_ ) // Socket is closed already
             return 0;
 
         DBG( 3, dbg, "sync: Calling writeToSocket()" );
@@ -1064,35 +1224,49 @@ protected:
     }
 
     virtual int_type overflow( int_type ch ) override {
-        // send data in buffer and reset it
-        if ( traits_type::eof() != ch ) {
-            *Base::pptr() = ch;
-            Base::pbump(1);
-        }
-        int_type bytesWritten = 0;
-        if ( traits_type::eof() == (bytesWritten = writeToSocket()) ) {
+        // Flush buffer first - when overflow() is called, pptr() == epptr() (buffer is full)
+        // Writing to pptr() before flushing would write past the end of outputBuffer_
+        int_type bytesWritten = writeToSocket();
+        if ( traits_type::eof() == bytesWritten ) {
             return traits_type::eof();
         }
-        return bytesWritten; // Anything but traits_type::eof() to signal ok.
+        // Reset put area pointers to start of buffer after successful flush
+        Base::setp( outputBuffer_, outputBuffer_ + SIZE );
+        // Now safe to write new character at pptr() (start of empty buffer)
+        if ( traits_type::eof() != ch ) {
+            *Base::pptr() = traits_type::to_char_type(ch);
+            Base::pbump(1);
+        }
+        return traits_type::not_eof( ch );
     }
 
     virtual int_type underflow() override {
         std::fill(inputBuffer_, inputBuffer_ + SIZE, 0);
-        ssize_t bytesReceived;
+        int bytesReceived;
 
 #if defined (USE_SSL)
         if ( nullptr == ssl_ ) {
 #endif
             DBG( 3, dbg, "Socketbuf: Read from socket:" );
+#ifdef _WIN32
+            bytesReceived = ::recv( socketFD_, static_cast<char*>(inputBuffer_), SIZE * sizeof( char_type ), 0 );
+#else
             bytesReceived = ::read( socketFD_, static_cast<char*>(inputBuffer_), SIZE * sizeof( char_type ) );
+#endif
             if ( 0 == bytesReceived ) {
                 // Client closed the socket normally, we will do the same
                 close();
                 return traits_type::eof();
             }
-            if ( -1 == bytesReceived ) {
+            if ( SOCKET_ERROR == bytesReceived ) {
+#ifdef _WIN32
+                int err = WSAGetLastError();
+                if ( err )
+                    DBG( 3, dbg, "WSAError: ", err );
+#else
                 if ( errno )
                     DBG( 3, dbg, "Errno: ", errno, ", (", strerror( errno ) , ")" );
+#endif
                 close();
                 Base::setg( nullptr, nullptr, nullptr );
                 return traits_type::eof();
@@ -1125,7 +1299,7 @@ protected:
                         switch ( sslError ) {
                             case SSL_ERROR_WANT_READ:
                                 DBG( 3, "SSL_ERROR_WANT_READ: Errno = ", errno, ", strerror(errno): ", strerror(errno) );
-                                if ( errno == EAGAIN || errno == EWOULDBLOCK ) {
+                                if ( errno == PCM_EAGAIN || errno == PCM_EWOULDBLOCK ) {
                                     DBG( 3, dbg, "Most likely the set timeout, so aborting..." );
                                     close();
                                     Base::setg( nullptr, nullptr, nullptr );
@@ -1139,7 +1313,7 @@ protected:
                                 break;
                             case SSL_ERROR_SYSCALL:
                                 DBG( 3, "SSL_ERROR_SYSCALL: Errno = ", errno );
-                                if ( errno == EAGAIN || errno == EWOULDBLOCK ) {
+                                if ( errno == PCM_EAGAIN || errno == PCM_EWOULDBLOCK ) {
                                     DBG( 3, dbg, "Most likely the set timeout, so aborting..." );
                                     close();
                                     Base::setg( nullptr, nullptr, nullptr );
@@ -1173,8 +1347,12 @@ protected:
 protected:
     CharT outputBuffer_[SIZE];
     CharT inputBuffer_[SIZE];
-    int   socketFD_;
+    socket_t socketFD_;
+#ifdef _WIN32
+    DWORD timeout_;
+#else
     struct timeval timeout_;
+#endif
     std::string dbg;
 #if defined (USE_SSL)
     SSL*  ssl_;
@@ -1195,11 +1373,11 @@ public:
     basic_socketstream & operator = (const basic_socketstream &) = delete;
     basic_socketstream() : stream_type( &socketBuffer_ ) {}
 #if defined (USE_SSL)
-    basic_socketstream( int socketFD, SSL* ssl, std::string dbg_ = "Server: " ) : stream_type( &socketBuffer_ ), dbg( dbg_ ), socketBuffer_( dbg_ ) {
+    basic_socketstream( socket_t socketFD, SSL* ssl, std::string dbg_ = "Server: " ) : stream_type( &socketBuffer_ ), dbg( dbg_ ), socketBuffer_( dbg_ ) {
         DBG( 3, dbg, "socketFD = ", socketFD );
-        if ( 0 == socketFD ) {
-            DBG( 3, dbg, "Trying to set socketFD to 0 which is not allowed!" );
-            throw std::runtime_error( "Trying to set socketFD to 0 on basic_socketstream level which is not allowed." );
+        if ( INVALID_SOCKET == socketFD ) {
+            DBG( 3, dbg, "Trying to set socketFD to INVALID_SOCKET which is not allowed!" );
+            throw std::runtime_error( "Trying to set socketFD to INVALID_SOCKET on basic_socketstream level which is not allowed." );
         }
         socketBuffer_.setSocket( socketFD );
 
@@ -1208,11 +1386,11 @@ public:
     }
 #endif
 
-    basic_socketstream( int socketFD ) : stream_type( &socketBuffer_ ) {
+    basic_socketstream( socket_t socketFD ) : stream_type( &socketBuffer_ ) {
         DBG( 3, dbg, "socketFD = ", socketFD );
-        if ( 0 == socketFD ) {
-            DBG( 3, dbg, "Trying to set socketFD to 0 which is not allowed!" );
-            throw std::runtime_error( "Trying to set socketFD to 0 on basic_socketstream level which is not allowed." );
+        if ( INVALID_SOCKET == socketFD ) {
+            DBG( 3, dbg, "Trying to set socketFD to INVALID_SOCKET which is not allowed!" );
+            throw std::runtime_error( "Trying to set socketFD to INVALID_SOCKET on basic_socketstream level which is not allowed." );
         }
         socketBuffer_.setSocket( socketFD );
     }
@@ -1276,7 +1454,7 @@ public:
     }
 
     void putLine( std::string& line ) {
-        if ( !socketBuffer_.socket() )
+        if ( INVALID_SOCKET == socketBuffer_.socket() )
             throw std::runtime_error( "The socket is not or no longer open!" );
         DBG( 3, dbg, "socketstream::putLine: putting \"", line, "\" into the socket." );
         Base::write( line.c_str(), line.size() );
@@ -1298,62 +1476,146 @@ typedef basic_socketstream<wchar_t> wsocketstream;
 class Server {
 public:
     Server() = delete;
-    Server( const std::string & listenIP, uint16_t port ) noexcept( false ) : listenIP_(listenIP), wq_( WorkQueue::getInstance() ), port_( port ) {
+    Server( const std::string & listenIP, uint16_t port, bool useIPv4 = false ) noexcept( false ) : listenIP_(listenIP), wq_( WorkQueue::getInstance() ), port_( port ), useIPv4_( useIPv4 ) {
         DBG( 3, "Initializing Server" );
+#ifdef _WIN32
+        // Initialize Winsock on Windows
+        WSADATA wsaData;
+        int result = WSAStartup(MAKEWORD(2, 2), &wsaData);
+        if (result != 0) {
+            throw std::runtime_error(std::string("WSAStartup failed: ") + std::to_string(result));
+        }
+        // Verify that Winsock 2.2 or higher is available
+        if (LOBYTE(wsaData.wVersion) < 2 || (LOBYTE(wsaData.wVersion) == 2 && HIBYTE(wsaData.wVersion) < 2)) {
+            WSACleanup();
+            throw std::runtime_error(std::string("Winsock 2.2 or higher required. Found version: ") + 
+                                   std::to_string(LOBYTE(wsaData.wVersion)) + "." + std::to_string(HIBYTE(wsaData.wVersion)));
+        }
+#endif
         serverSocket_ = initializeServerSocket();
         SignalHandler* shi = SignalHandler::getInstance();
         shi->setSocket( serverSocket_ );
+#ifndef _WIN32
         shi->ignoreSignal( SIGPIPE ); // Sorry Dennis Ritchie, we do not care about this, we always check return codes
+#endif
 #ifndef UNIT_TEST // libFuzzer installs own signal handlers
+#ifndef _WIN32
         shi->installHandler( SignalHandler::handleSignal, SIGTERM );
         shi->installHandler( SignalHandler::handleSignal, SIGINT );
+#else
+        shi->installHandler( nullptr, 0 ); // Windows uses SetConsoleCtrlHandler
+#endif
 #endif
     }
     Server( Server const & ) = delete;
     Server & operator = ( Server const & ) = delete;
     virtual ~Server() {
         wq_ = nullptr;
+#ifdef _WIN32
+        WSACleanup();
+#endif
     }
 
 public:
     virtual void run() = 0;
 
 private:
-    int initializeServerSocket() {
+    socket_t initializeServerSocket() {
         if ( port_ == 0 )
             throw std::runtime_error( "Server Constructor: No port specified." );
 
-        int sockfd = ::socket( AF_INET6, SOCK_STREAM, 0 );
-        if ( -1 == sockfd )
-            throw std::runtime_error( "Server Constructor: Can´t create socket" );
+        bool useIPv4 = false;
+#ifdef _WIN32
+        // On Windows, use IPv4 by default for better compatibility
+        socket_t sockfd = ::socket( AF_INET, SOCK_STREAM, IPPROTO_TCP );
+        if ( INVALID_SOCKET == sockfd )
+        {
+            throw std::runtime_error( std::string("Server Constructor: Can't create socket. WSAGetLastError: ") + std::to_string(WSAGetLastError()) );
+        }
+        useIPv4 = true;
+#else
+        // On non-Windows systems, use IPv6 by default unless IPv4 is explicitly requested
+        useIPv4 = useIPv4_;
+        socket_t sockfd;
+        if ( useIPv4 ) {
+            sockfd = ::socket( AF_INET, SOCK_STREAM, 0 );
+            if ( INVALID_SOCKET == sockfd )
+            {
+                throw std::runtime_error( "Server Constructor: Can't create IPv4 socket" );
+            }
+        } else {
+            sockfd = ::socket( AF_INET6, SOCK_STREAM, 0 );
+            if ( INVALID_SOCKET == sockfd )
+            {
+                throw std::runtime_error( "Server Constructor: Can't create IPv6 socket" );
+            }
+        }
+#endif
 
         int retval = 0;
 
-        struct sockaddr_in6 serv;
-        serv.sin6_family = AF_INET6;
-        serv.sin6_port = htons( port_ );
-        if ( listenIP_.empty() )
-            serv.sin6_addr = in6addr_any;
-        else {
-            if ( 1 != ::inet_pton( AF_INET6, listenIP_.c_str(), &(serv.sin6_addr) ) )
-            {
-                DBG( 3, "close clientsocketFD" );
-                ::close(sockfd);
-                throw std::runtime_error( "Server Constructor: Cannot convert IP string" );
+        if (useIPv4) {
+            // Use IPv4
+            struct sockaddr_in serv4;
+            memset(&serv4, 0, sizeof(serv4));
+            serv4.sin_family = AF_INET;
+            serv4.sin_port = htons( port_ );
+            if ( listenIP_.empty() )
+                serv4.sin_addr.s_addr = INADDR_ANY;
+            else {
+                if ( 1 != ::inet_pton( AF_INET, listenIP_.c_str(), &(serv4.sin_addr) ) )
+                {
+                    DBG( 3, "close clientsocketFD" );
+#ifdef _WIN32
+                    closesocket(sockfd);
+#else
+                    ::close(sockfd);
+#endif
+                    throw std::runtime_error(std::string("Server Constructor: Cannot convert IP string ") + listenIP_ + " to IPv4 address");
+                }
             }
+            socklen_t len = sizeof( struct sockaddr_in );
+            retval = ::bind( sockfd, reinterpret_cast<struct sockaddr*>(&serv4), len );
+        } else {
+            // Use IPv6
+            struct sockaddr_in6 serv;
+            serv.sin6_family = AF_INET6;
+            serv.sin6_port = htons( port_ );
+            if ( listenIP_.empty() )
+                serv.sin6_addr = in6addr_any;
+            else {
+                if ( 1 != ::inet_pton( AF_INET6, listenIP_.c_str(), &(serv.sin6_addr) ) )
+                {
+                    DBG( 3, "close clientsocketFD" );
+#ifdef _WIN32
+                    closesocket(sockfd);
+#else
+                    ::close(sockfd);
+#endif
+                    throw std::runtime_error( std::string("Server Constructor: Cannot convert IP string ") + listenIP_ + " to IPv6 address" );
+                }
+            }
+            socklen_t len = sizeof( struct sockaddr_in6 );
+            retval = ::bind( sockfd, reinterpret_cast<struct sockaddr*>(&serv), len );
         }
-        socklen_t len = sizeof( struct sockaddr_in6 );
-        retval = ::bind( sockfd, reinterpret_cast<struct sockaddr*>(&serv), len );
         if ( 0 != retval ) {
             DBG( 3, "close clientsocketFD" );
+#ifdef _WIN32
+            closesocket( sockfd );
+#else
             ::close( sockfd );
+#endif
             throw std::runtime_error( std::string("Server Constructor: Cannot bind to port ") + std::to_string(port_) );
         }
 
         retval = listen( sockfd, 64 );
         if ( 0 != retval ) {
             DBG( 3, "close clientsocketFD" );
+#ifdef _WIN32
+            closesocket( sockfd );
+#else
             ::close( sockfd );
+#endif
             throw std::runtime_error( "Server Constructor: Cannot listen on socket" );
         }
         // Here everything should be fine, return socket fd
@@ -1363,8 +1625,9 @@ private:
 protected:
     std::string  listenIP_;
     WorkQueue*   wq_;
-    int          serverSocket_;
+    socket_t     serverSocket_;
     uint16_t     port_;
+    bool         useIPv4_;
 };
 
 enum HTTPRequestMethod {
@@ -1372,7 +1635,7 @@ enum HTTPRequestMethod {
     HEAD,
     POST,
     PUT,
-    DELETE,
+    HTTP_DELETE,  // Renamed from DELETE to avoid conflict with Windows macro
     CONNECT,
     OPTIONS,
     TRACE,
@@ -1509,15 +1772,15 @@ private:
     }
 
     std::vector<struct HTTPMethodProperty> const httpMethodProperties = {
-        { GET,     "GET",     HTTPRequestHasBody::No,       true  },
-        { HEAD,    "HEAD",    HTTPRequestHasBody::No,       false },
-        { POST,    "POST",    HTTPRequestHasBody::Required, true  },
-        { PUT,     "PUT",     HTTPRequestHasBody::Required, true  },
-        { DELETE,  "DELETE",  HTTPRequestHasBody::No,       true  },
-        { CONNECT, "CONNECT", HTTPRequestHasBody::Required, true  },
-        { OPTIONS, "OPTIONS", HTTPRequestHasBody::Optional, true  },
-        { TRACE,   "TRACE",   HTTPRequestHasBody::No,       true  },
-        { PATCH,   "PATCH",   HTTPRequestHasBody::Required, true  }
+        { GET,         "GET",     HTTPRequestHasBody::No,       true  },
+        { HEAD,        "HEAD",    HTTPRequestHasBody::No,       false },
+        { POST,        "POST",    HTTPRequestHasBody::Required, true  },
+        { PUT,         "PUT",     HTTPRequestHasBody::Required, true  },
+        { HTTP_DELETE, "DELETE",  HTTPRequestHasBody::No,       true  },
+        { CONNECT,     "CONNECT", HTTPRequestHasBody::Required, true  },
+        { OPTIONS,     "OPTIONS", HTTPRequestHasBody::Optional, true  },
+        { TRACE,       "TRACE",   HTTPRequestHasBody::No,       true  },
+        { PATCH,       "PATCH",   HTTPRequestHasBody::Required, true  }
     };
 };
 
@@ -1804,7 +2067,7 @@ public:
                     throw std::runtime_error( "Something between : and //" );
 
                 pathBeginPos = fullURL.find( '/', authorityPos+2 );
-                authorityEndPos = std::min( { pathBeginPos, questionMarkPos, numberPos } );
+                authorityEndPos = (std::min)( { pathBeginPos, questionMarkPos, numberPos } );
                 authority = fullURL.substr( authorityPos+2, authorityEndPos - (authorityPos + 2) );
                 DBG( 3, "authority: '", authority, "'" );
 
@@ -1890,7 +2153,16 @@ public:
                                 DBG( 3, "number of characters processed: ", pos );
                             } catch ( std::out_of_range& e ) {
                                 DBG( 3, "out_of_range exception caught in stoull: ", e.what() );
+#ifdef _MSC_VER
+                                char errbuf[256];
+                                if (strerror_s(errbuf, sizeof(errbuf), errno) == 0) {
+                                    DBG( 3, "errno: ", errno, ", strerror(errno): ", errbuf );
+                                } else {
+                                    DBG( 3, "errno: ", errno, ", strerror(errno): (error converting)" );
+                                }
+#else
                                 DBG( 3, "errno: ", errno, ", strerror(errno): ", strerror(errno) );
+#endif
                             }
                         }
                         if ( port >= 65536 )
@@ -1910,7 +2182,7 @@ public:
             }
         }
 
-        pathEndPos = std::min( {questionMarkPos, numberPos} );
+        pathEndPos = (std::min)( {questionMarkPos, numberPos} );
         if ( std::string::npos != pathBeginPos ) {
             url.path_ = fullURL.substr( pathBeginPos, pathEndPos - pathBeginPos );
         } else {
@@ -2880,11 +3152,11 @@ class HTTPConnection : public Work {
 public:
     HTTPConnection() = delete;
 #if defined (USE_SSL)
-    HTTPConnection( HTTPServer* hs, int socketFD, struct sockaddr_in /* clientAddr */, std::vector<http_callback> const & cl, SSL* ssl = nullptr ) : hs_( hs ), socketStream_( socketFD, ssl ), /* clientAddress_( clientAddr ), */ callbackList_( cl ) {
+    HTTPConnection( HTTPServer* hs, socket_t socketFD, struct sockaddr_in /* clientAddr */, std::vector<http_callback> const & cl, SSL* ssl = nullptr ) : hs_( hs ), socketStream_( socketFD, ssl ), /* clientAddress_( clientAddr ), */ callbackList_( cl ) {
         DBG( 3, "HTTPConnection Constructor called..." );
     }
 #else
-    HTTPConnection( HTTPServer* hs, int socketFD, struct sockaddr_in /* clientAddr */, std::vector<http_callback> const & cl ) : hs_( hs ), socketStream_( socketFD ), /* clientAddress_( clientAddr ), */ callbackList_( cl ) {}
+    HTTPConnection( HTTPServer* hs, socket_t socketFD, struct sockaddr_in /* clientAddr */, std::vector<http_callback> const & cl ) : hs_( hs ), socketStream_( socketFD ), /* clientAddress_( clientAddr ), */ callbackList_( cl ) {}
 #endif
     HTTPConnection( HTTPConnection const & ) = delete;
     void operator=( HTTPConnection const & ) = delete;
@@ -2912,7 +3184,7 @@ public:
                     response.setProtocol( HTTPProtocol::HTTP_1_1 );
                 }
                 // Always send a response
-                response.createResponse( TextPlain, std::string( "400 Bad Request " ) + e.what(), RC_400_BadRequest );
+                response.createResponse( TextPlain, std::string( "400 Bad Request" ), RC_400_BadRequest );
                 socketStream_ << response;
                 break;
             }
@@ -2935,9 +3207,10 @@ public:
             }
 
             // Do processing of the request here
-            if (*callbackList_[request.method()])
-                (*callbackList_[request.method()])( hs_, request, response );
-            else {
+            auto callback = callbackList_[request.method()];
+            if ( callback ) {
+                (*callback)( hs_, request, response );
+            } else {
                 std::string body( "501 Not Implemented." );
                 body += " Method \"" + HTTPMethodProperties::getMethodAsString(request.method()) + "\" is not implemented (yet).";
                 response.createResponse( TextPlain, body, RC_501_NotImplemented );
@@ -3039,7 +3312,7 @@ public:
         SignalHandler::getInstance()->setHTTPServer( this );
     }
 
-    HTTPServer( std::string const & ip, uint16_t port ) : Server( ip, port ), stopped_( false ) {
+    HTTPServer( std::string const & ip, uint16_t port, bool useIPv4 = false ) : Server( ip, port, useIPv4 ), stopped_( false ) {
         DBG( 3, "HTTPServer::HTTPServer( ip=", ip, ", port=", port, " )" );
         callbackList_.resize( 256 );
         createPeriodicCounterFetcher();
@@ -3101,7 +3374,7 @@ public:
             throw std::runtime_error("BUG: getAggregator: both indices are equal. Fix the code!" );
 
         // simply wait until we have enough samples to return
-        while( agVector_.size() < ( std::max( index, index2 ) + 1 ) )
+        while( agVector_.size() < ( (std::max)( index, index2 ) + 1 ) )
             std::this_thread::sleep_for(std::chrono::seconds(1));
 
         agVectorMutex_.lock();
@@ -3110,11 +3383,19 @@ public:
         return ret;
     }
 
-    bool checkForIncomingSSLConnection( int fd ) {
+    bool checkForIncomingSSLConnection( socket_t fd ) {
         char ch = ' ';
+#ifdef _WIN32
+        int bytes = ::recv( fd, &ch, 1, MSG_PEEK );
+#else
         ssize_t bytes = ::recv( fd, &ch, 1, MSG_PEEK );
-        if ( bytes == -1 ) {
+#endif
+        if ( SOCKET_ERROR == bytes ) {
+#ifdef _WIN32
+            DBG( 1, "recv call to peek for the first incoming character failed, WSAGetLastError = ", WSAGetLastError() );
+#else
             DBG( 1, "recv call to peek for the first incoming character failed, errno = ", errno, ", strerror: ", strerror(errno) );
+#endif
             throw std::runtime_error( "recv to peek first char failed" );
         } else if ( bytes == 0 ) {
             DBG( 0, "Connection was properly closed by the client, no bytes to read" );
@@ -3149,6 +3430,23 @@ protected:
 };
 
 // Here to break dependency on HTTPServer
+#ifdef _WIN32
+BOOL WINAPI SignalHandler::handleSignal( DWORD signum )
+{
+    // Clean up, close socket and such
+    std::cerr << "handleSignal: signal " << signum << " caught.\n";
+    std::cerr << "handleSignal: closing socket " << networkSocket_ << "\n";
+    ::close( networkSocket_ );
+    std::cerr << "Cleaning up PMU:\n";
+    PCM::getInstance()->cleanup();
+    std::cerr << "Stopping HTTPServer\n";
+    if (httpServer_)
+        httpServer_->stop();
+    std::cerr << "handleSignal: exiting with exit code 1...\n";
+    exit(1);
+    return TRUE;
+}
+#else
 void SignalHandler::handleSignal( int signum )
 {
     // Clean up, close socket and such
@@ -3162,6 +3460,7 @@ void SignalHandler::handleSignal( int signum )
     std::cerr << "handleSignal: exiting with exit code 1...\n";
     exit(1);
 }
+#endif
 
 void PeriodicCounterFetcher::execute() {
     using namespace std::chrono;
@@ -3193,13 +3492,17 @@ void PeriodicCounterFetcher::execute() {
 void HTTPServer::run() {
     struct sockaddr_in clientAddress;
     clientAddress.sin_family = AF_INET;
-    int clientSocketFD = 0;
+    socket_t clientSocketFD = INVALID_SOCKET;
     while ( ! stopped_ ) {
         // Listen on socket for incoming requests
         socklen_t sa_len = sizeof( struct sockaddr_in );
-        int retval = ::accept( serverSocket_, (struct sockaddr*)&clientAddress, &sa_len );
-        if ( -1 == retval ) {
+        socket_t retval = ::accept( serverSocket_, (struct sockaddr*)&clientAddress, &sa_len );
+        if ( INVALID_SOCKET == retval ) {
+#ifdef _WIN32
+            DBG( 3, "Accept returned INVALID_SOCKET, WSAGetLastError: ", WSAGetLastError() );
+#else
             DBG( 3, "Accept returned -1, errno: ", strerror( errno ) );
+#endif
             continue;
         }
         clientSocketFD = retval;
@@ -3227,7 +3530,11 @@ void HTTPServer::run() {
         std::fill(ipbuf, ipbuf + INET_ADDRSTRLEN, 0);
         char const * resbuf = ::inet_ntop( AF_INET, &(clientAddress.sin_addr), ipbuf, INET_ADDRSTRLEN );
         if ( nullptr == resbuf ) {
+#ifdef _WIN32
+            DBG( 3, "inet_ntop returned nullptr, WSAGetLastError: ", WSAGetLastError() );
+#else
             DBG( 3, "inet_ntop returned -1, strerror: ", strerror( errno ) );
+#endif
             DBG( 3, "close clientsocketFD" );
             ::close( clientSocketFD );
             continue;
@@ -3239,8 +3546,8 @@ void HTTPServer::run() {
         HTTPConnection* connection = nullptr;
         try {
             connection = new HTTPConnection( this, clientSocketFD, clientAddress, callbackList_ );
-        } catch ( std::exception& e ) {
-            DBG( 3, "Exception caught while creating a HTTPConnection: " );
+        } catch ( const std::exception& e ) {
+            DBG( 3, "Exception caught while creating a HTTPConnection: ", e.what() );
             deleteAndNullify( connection );
             DBG( 3, "close clientsocketFD" );
             ::close( clientSocketFD );
@@ -3260,7 +3567,7 @@ void HTTPServer::run() {
 class HTTPSServer : public HTTPServer {
 public:
     HTTPSServer() : HTTPServer( "", 443 ) {}
-    HTTPSServer( std::string const & ip, uint16_t port ) : HTTPServer( ip, port ), sslCTX_( nullptr ) {}
+    HTTPSServer( std::string const & ip, uint16_t port, bool useIPv4 = false ) : HTTPServer( ip, port, useIPv4 ), sslCTX_( nullptr ) {}
     HTTPSServer( HTTPSServer const & ) = delete;
     HTTPSServer & operator = ( HTTPSServer const & ) = delete;
     virtual ~HTTPSServer() {
@@ -3319,7 +3626,7 @@ private:
 void HTTPSServer::run() {
     struct sockaddr_in clientAddress;
     clientAddress.sin_family = AF_INET;
-    int clientSocketFD = 0;
+    socket_t clientSocketFD = INVALID_SOCKET;
     // Check SSL CTX for validity
     if ( nullptr == sslCTX_ )
         throw std::runtime_error( "No SSL_CTX created" );
@@ -3327,10 +3634,14 @@ void HTTPSServer::run() {
     while ( ! stopped_ ) {
         // Listen on socket for incoming requests, same as for regular connection
         socklen_t sa_len = sizeof( struct sockaddr_in );
-        int retval = ::accept( serverSocket_, (struct sockaddr*)&clientAddress, &sa_len );
-        DBG( 3, "RegularAccept: (if not -1 it is client socket descriptor) ", retval );
-        if ( -1 == retval ) {
+        socket_t retval = ::accept( serverSocket_, (struct sockaddr*)&clientAddress, &sa_len );
+        DBG( 3, "RegularAccept: (if not INVALID_SOCKET it is client socket descriptor) ", retval );
+        if ( INVALID_SOCKET == retval ) {
+#ifdef _WIN32
+            DBG( 3, "Accept failed: WSAGetLastError( ): ", WSAGetLastError() );
+#else
             DBG( 3, "Accept failed: strerror( ", errno, " ): ", strerror( errno ) );
+#endif
             continue;
         }
         clientSocketFD = retval;
@@ -3420,7 +3731,11 @@ void HTTPSServer::run() {
         memset( ipbuf, 0, 16 );
         char const * resbuf = ::inet_ntop( AF_INET, &(clientAddress.sin_addr), ipbuf, INET_ADDRSTRLEN );
         if ( nullptr == resbuf ) {
+#ifdef _WIN32
+            DBG( 3, "inet_ntop returned an error: ", WSAGetLastError(), "\n");
+#else
             DBG( 3, "inet_ntop returned an error: ", errno, ", error string: ", strerror( errno ), "\n");
+#endif
             ERR_clear_error();
             SSL_free( ssl ); // Free the SSL structure to prevent memory leaks
             ssl = nullptr;
@@ -3686,8 +4001,8 @@ void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & re
     }
 }
 
-int startHTTPServer( unsigned short port ) {
-    HTTPServer server( "", port );
+int startHTTPServer( const std::string& listenAddr, unsigned short port, bool useIPv4 = false ) {
+    HTTPServer server( listenAddr, port, useIPv4 );
     try {
         // HEAD is GET without body, we will remove the body in execute()
         server.registerCallback( HTTPRequestMethod::GET,  my_get_callback );
@@ -3701,8 +4016,8 @@ int startHTTPServer( unsigned short port ) {
 }
 
 #if defined (USE_SSL)
-int startHTTPSServer( unsigned short port, std::string const & cFile, std::string const & pkFile) {
-    HTTPSServer server( "", port );
+int startHTTPSServer( const std::string& listenAddr, unsigned short port, std::string const & cFile, std::string const & pkFile, bool useIPv4 = false ) {
+    HTTPSServer server( listenAddr, port, useIPv4 );
     try {
         server.setPrivateKeyFile ( pkFile );
         server.setCertificateFile( cFile );
@@ -3719,21 +4034,48 @@ int startHTTPSServer( unsigned short port, std::string const & cFile, std::strin
 }
 #endif
 
+// Validate IP address string (IPv4 or IPv6)
+bool isValidIPAddress( const std::string& ipAddress ) {
+    if ( ipAddress.empty() ) {
+        return true;  // Empty string is valid - means bind to all interfaces
+    }
+    
+    // Try IPv4 first
+    struct sockaddr_in sa4;
+    if ( 1 == ::inet_pton( AF_INET, ipAddress.c_str(), &(sa4.sin_addr) ) ) {
+        return true;
+    }
+    
+    // Try IPv6
+    struct sockaddr_in6 sa6;
+    if ( 1 == ::inet_pton( AF_INET6, ipAddress.c_str(), &(sa6.sin6_addr) ) ) {
+        return true;
+    }
+    
+    return false;
+}
+
 void printHelpText( std::string const & programName ) {
     std::cout << "Usage: " << programName << " [OPTION]\n\n";
     std::cout << "Valid Options:\n";
+#ifndef _WIN32
     std::cout << "    -d                   : Run in the background\n";
+#endif
 #if defined (USE_SSL)
     std::cout << "    -s                   : Use https protocol (default port " << DEFAULT_HTTPS_PORT << ")\n";
 #endif
     std::cout << "    -p portnumber        : Run on port <portnumber> (default port is " << DEFAULT_HTTP_PORT << ")\n";
+    std::cout << "    -l|--listen address  : Listen on IP address <address> (default: all interfaces)\n";
+#ifndef _WIN32
+    std::cout << "    -4|--ipv4            : Use IPv4 instead of IPv6 (non-Windows only)\n";
+#endif
     std::cout << "    -r|--reset           : Reset programming of the performance counters.\n";
     std::cout << "    -D|--debug level     : level = 0: no debug info, > 0 increase verbosity.\n";
-#ifndef __APPLE__
+#if !defined(__APPLE__) && !defined(_WIN32)
     std::cout << "    -R|--real-time       : If possible the daemon will run with real time\n";
-#endif
     std::cout << "                           priority, could be useful under heavy load to \n";
     std::cout << "                           stabilize the async counter fetching.\n";
+#endif
 #if defined (USE_SSL)
     std::cout << "    -C|--certificateFile : \n";
     std::cout << "    -P|--privateKeyFile  : \n";
@@ -3744,7 +4086,8 @@ void printHelpText( std::string const & programName ) {
     print_help_force_rtm_abort_mode(25, ":");
 }
 
-#if not defined( UNIT_TEST )
+#ifndef UNIT_TEST
+
 /* Main */
 PCM_MAIN_NOTHROW;
 
@@ -3764,8 +4107,10 @@ int mainThrows(int argc, char * argv[]) {
 #endif
     bool forceRTMAbortMode = false;
     bool printTopology = false;
+    bool useIPv4 = false;
     unsigned short port = 0;
     unsigned short debug_level = 0;
+    std::string listenAddress = "";  // Empty string means listen on all interfaces
     std::string certificateFile;
     std::string privateKeyFile;
     AcceleratorCounterState *accs_ = AcceleratorCounterState::getInstance();
@@ -3791,17 +4136,47 @@ int mainThrows(int argc, char * argv[]) {
             else if ( check_argument_equals( argv[i], {"-p"} ) )
             {
                 if ( (++i) < argc ) {
-                    std::stringstream ss( argv[i] );
                     try {
-                        ss >> port;
-                    } catch( std::exception& e ) {
-                        std::cerr << "main: port number is not an unsigned short!\n";
+                        std::size_t pos = 0;
+                        unsigned long val = std::stoul( argv[i], &pos );
+                        if ( pos != std::strlen( argv[i] ) )
+                            throw std::invalid_argument( "invalid port" );
+                        if ( val > (std::numeric_limits<unsigned short>::max)() )
+                            throw std::out_of_range( "port out of range" );
+                        port = static_cast<unsigned short>( val );
+                    } catch( const std::invalid_argument& e ) {
+                        std::cerr << "main: invalid port argument '" << argv[i] << "': " << e.what() << "\n";
+                        ::exit( 2 );
+                    } catch( const std::out_of_range& e ) {
+                        std::cerr << "main: port argument out of range '" << argv[i] << "': " << e.what() << "\n";
+                        ::exit( 2 );
+                    } catch( const std::exception& e ) {
+                        std::cerr << "main: failed to parse port argument '" << argv[i] << "': " << e.what() << "\n";
                         ::exit( 2 );
                     }
                 } else {
                     throw std::runtime_error( "main: Error no port argument given" );
                 }
             }
+            else if ( check_argument_equals( argv[i], {"-l", "--listen"} ) )
+            {
+                if ( (++i) < argc ) {
+                    listenAddress = argv[i];
+                    if ( !isValidIPAddress( listenAddress ) ) {
+                        std::cerr << "Error: Invalid IP address '" << listenAddress << "'. ";
+                        std::cerr << "Please provide a valid IPv4 or IPv6 address.\n";
+                        exit( 1 );
+                    }
+                } else {
+                    throw std::runtime_error( "main: Error no listen address argument given" );
+                }
+            }
+#ifndef _WIN32
+            else if ( check_argument_equals( argv[i], {"-4", "--ipv4"} ) )
+            {
+                useIPv4 = true;
+            }
+#endif
 #if defined (USE_SSL)
             else if ( check_argument_equals( argv[i], {"-s"} ) )
             {
@@ -3815,11 +4190,19 @@ int mainThrows(int argc, char * argv[]) {
             else if ( check_argument_equals( argv[i], {"-D", "--debug"} ) )
             {
                 if ( (++i) < argc ) {
-                    std::stringstream ss( argv[i] );
                     try {
-                        ss >> debug_level;
-                    } catch( std::exception& e ) {
-                        std::cerr << "main: debug level is not an unsigned short!\n";
+                        std::size_t pos = 0;
+                        unsigned long val = std::stoul( argv[i], &pos );
+                        if ( pos != std::strlen( argv[i] ) )
+                            throw std::invalid_argument( "invalid debug level" );
+                        if ( val > (std::numeric_limits<unsigned short>::max)() )
+                            throw std::out_of_range( "debug level out of range" );
+                        debug_level = static_cast<unsigned short>( val );
+                    } catch ( const std::invalid_argument& e ) {
+                        std::cerr << "main: invalid debug level '" << argv[i] << "': " << e.what() << "\n";
+                        ::exit( 2 );
+                    } catch ( const std::out_of_range& e ) {
+                        std::cerr << "main: debug level '" << argv[i] << "' is out of range: " << e.what() << "\n";
                         ::exit( 2 );
                     }
                 } else {
@@ -3955,7 +4338,7 @@ int mainThrows(int argc, char * argv[]) {
     }
 #endif
 
-#ifndef __APPLE__
+#if !defined(__APPLE__) && !defined(_WIN32)
     if ( useRealtimePriority ) {
         int priority = sched_get_priority_min( SCHED_RR );
         if ( priority == -1 ) {
@@ -3975,14 +4358,23 @@ int mainThrows(int argc, char * argv[]) {
     }
 #endif
 
+#ifdef _WIN32
+    // Windows doesn't support fork(), so daemon mode is not available
+    if ( daemonMode ) {
+        std::cerr << "Daemon mode is not supported on Windows. Starting in foreground mode.\n";
+        daemonMode = false;
+    }
+    const int pid = 0; // Always run in foreground on Windows
+#else
     pid_t pid;
     if ( daemonMode )
         pid = fork();
     else
         pid = 0;
+#endif
 
     if ( pid == 0 ) {
-        /* child */
+        /* child (or Windows foreground mode) */
         // Default programming is to use normal core counters and memory bandwidth counters
         // and if pmem is available to also show this instead of partial writes
         // A HTTP interface to change the programming is planned
@@ -4061,14 +4453,24 @@ int mainThrows(int argc, char * argv[]) {
         std::vector<struct iio_stacks_on_socket> iios;
         iio_evt_parse_context evt_ctx;
         std::string ev_file_name;
-        // Map with metrics names.
-        PCIeEventNameMap_t nameMap;
 
         // TODO: add check for IIO support before trying to initialize the pmu
-        if ( !initializeIIOCounters( iios, evt_ctx, nameMap ) )
-        {
-            std::cerr << "Error: IIO is NOT supported with this platform! Program aborted\n";
-            exit(EXIT_FAILURE);
+        // Map with metrics names.
+        // PCIeEventNameMap nameMap;
+// Otto: re-add this check when there is support for IIO and do it properly, seems to fail for some reason, see #788
+//        if ( !initializePCIeBWCounters( iios, evt_ctx, nameMap ) )
+//        {
+//            std::cerr << "Error: IIO is NOT supported with this platform! Program aborted\n";
+//            exit(EXIT_FAILURE);
+//        }
+
+        // PCIe bandwidth collection
+        PCIeCollector* pcieCol = PCIeCollector::getInstance();
+        if (pcieCol) {
+            std::cerr << "PCIe bandwidth collector: supported, starting background thread\n";
+            pcieCol->startBackground(2000);
+        } else {
+            std::cerr << "PCIe bandwidth collector: not supported on this platform\n";
         }
 
         // Now that everything is set we can start the http(s) server
@@ -4076,16 +4478,21 @@ int mainThrows(int argc, char * argv[]) {
         if ( useSSL ) {
             if ( port == 0 )
                 port = DEFAULT_HTTPS_PORT;
-            std::cerr << "Starting SSL enabled server on https://localhost:" << port << "/\n";
-            startHTTPSServer( port, certificateFile, privateKeyFile );
+            std::string displayAddr = listenAddress.empty() ? "localhost" : listenAddress;
+            std::cerr << "Starting SSL enabled server on https://" << displayAddr << ":" << port << "/\n";
+            startHTTPSServer( listenAddress, port, certificateFile, privateKeyFile, useIPv4 );
         } else
 #endif
         {
             if ( port == 0 )
                 port = DEFAULT_HTTP_PORT;
-            std::cerr << "Starting plain HTTP server on http://localhost:" << port << "/\n";
-            startHTTPServer( port );
+            std::string displayAddr = listenAddress.empty() ? "localhost" : listenAddress;
+            std::cerr << "Starting plain HTTP server on http://" << displayAddr << ":" << port << "/\n";
+            startHTTPServer( listenAddress, port, useIPv4 );
         }
+
+        if (pcieCol) pcieCol->stop();
+
         delete pcmInstance;
     } else if ( pid > 0 ) {
         /* Parent, just leave */
