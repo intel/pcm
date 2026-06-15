@@ -106,6 +106,26 @@ Example (Icelake server iMC PMON MMIO register read):
 mmio/config=0x3451,config1=0x22808,config2=1,config3=0x171D0000D0,config4=0x0c0b0000d8,width=64
 ```
 
+TPMI Registers:
+
+TPMI ([Topology Aware Register and PM Capsule Interface](https://github.com/intel/tpmi_power_management)) can be read with pcm-raw as follows:
+
+```
+tpmi/config=<tpmi_id>,config1=<offset>,config2=<static_or_freerun>[,name=<name>]
+```
+
+* tpmi_id: TPMI id
+* offset: offset of the register
+* static_or_freerun: same syntax as for MSR registers
+
+Example:
+
+```
+tpmi/config=0x2,config1=0x18,name=BHS_UFS_CONTROL
+```
+
+From: https://github.com/intel/tpmi_power_management/blob/main/UFS_TPMI_public_disclosure_FINAL_rev4.pdf
+
 --------------------------------------------------------------------------------
 Collecting Events By Names From Event Lists (https://github.com/intel/perfmon/)
 --------------------------------------------------------------------------------

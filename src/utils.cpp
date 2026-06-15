@@ -114,7 +114,12 @@ void exit_cleanup(void)
     }
 }
 
+
+#ifdef _MSC_VER
 bool colorEnabled = false;
+#else
+bool colorEnabled = true;
+#endif
 
 void setColorEnabled(bool value)
 {
@@ -330,16 +335,11 @@ void sigINT_handler(int signum)
     }
 }
 
-/**
- * \brief handles SIGSEGV signals that lead to termination of the program
- * this function specifically works when the client application launched
- * by pcm -- terminates
- */
 constexpr auto BACKTRACE_MAX_STACK_FRAME = 30;
-void sigSEGV_handler(int signum)
+void printBacktrace()
 {
-    void *backtrace_buffer[BACKTRACE_MAX_STACK_FRAME] = {0};
-    char **backtrace_strings = NULL;
+    void* backtrace_buffer[BACKTRACE_MAX_STACK_FRAME] = { 0 };
+    char** backtrace_strings = NULL;
     size_t backtrace_size = 0;
 
     backtrace_size = backtrace(backtrace_buffer, BACKTRACE_MAX_STACK_FRAME);
@@ -357,7 +357,16 @@ void sigSEGV_handler(int signum)
         }
         freeAndNullify(backtrace_strings);
     }
+}
 
+/**
+ * \brief handles SIGSEGV signals that lead to termination of the program
+ * this function specifically works when the client application launched
+ * by pcm -- terminates
+ */
+void sigSEGV_handler(int signum)
+{
+    printBacktrace();
     sigINT_handler(signum);
 }
 
@@ -812,16 +821,31 @@ int calibratedSleep(const double delay, const char* sysCmd, const MainLoop& main
 
 void print_help_force_rtm_abort_mode(const int alignment, const char * separator)
 {
-    const auto m = PCM::getInstance();
-    if (m->isForceRTMAbortModeAvailable() && (m->getMaxCustomCoreEvents() < 4))
+    if (PCM::isForceRTMAbortModeAvailable() == false)
     {
-        std::cout << "  -force-rtm-abort-mode";
-        for (int i = 0; i < (alignment - 23); ++i)
+        return;
+    }
+    try
+    {
+        const auto m = PCM::getInstance();
+        if (m->getMaxCustomCoreEvents() < 4)
         {
-            std::cout << " ";
+            std::cout << "  -force-rtm-abort-mode";
+            for (int i = 0; i < (alignment - 23); ++i)
+            {
+                std::cout << " ";
+            }
+            assert(separator);
+            std::cout << separator << " force RTM transaction abort mode to enable more programmable counters\n";
         }
-        assert(separator);
-        std::cout << separator << " force RTM transaction abort mode to enable more programmable counters\n";
+    }
+    catch (std::exception & e)
+    {
+        std::cerr << "ERROR: " << e.what() << "\n";
+    }
+    catch (...)
+    {
+        std::cerr << "ERROR: Unknown exception caught in print_help_force_rtm_abort_mode\n";
     }
 }
 
@@ -1018,6 +1042,7 @@ bool isRegisterEvent(const std::string & pmu)
     if (pmu == "mmio"
        || pmu == "pcicfg"
        || pmu == "pmt"
+       || pmu == "tpmi"
        || pmu == "package_msr"
        || pmu == "thread_msr")
     {

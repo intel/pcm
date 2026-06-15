@@ -90,6 +90,7 @@ void print_help(const string & prog_name)
     cout << "  -ns   | --nosockets | /ns          => hide socket related output\n";
     cout << "  -nsys | --nosystem  | /nsys        => hide system related output\n";
     cout << "  --color                            => use ASCII colors\n";
+    cout << "  --no-color                         => don't use ASCII colors\n";
     cout << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or\n"
         << "                                        to a file, in case filename is provided\n"
         << "                                        the format used is documented here: https://www.intel.com/content/www/us/en/developer/articles/technical/intel-pcm-column-names-decoder-ring.html\n";
@@ -334,19 +335,25 @@ void print_output(PCM * m,
 
         cout << setNextColor() << "     N/A\n";
         cout << resetColor();
-        cout << setNextColor() <<"\n Instructions retired: " << unit_format(getInstructionsRetired(sstate1, sstate2)) << " ;"
-             << setNextColor() <<" Active cycles: " << unit_format(getCycles(sstate1, sstate2)) << " ;"
-             << setNextColor() <<" Time (TSC): " << unit_format(getInvariantTSC(cstates1[0], cstates2[0])) << "ticks ;"
-             << setNextColor() << " C0 (active,non-halted) core residency: " << (getCoreCStateResidency(0, sstate1, sstate2)*100.) << " %\n";
-        cout << "\n";
+        cout << setNextColor() << "\n Instructions retired: " << unit_format(getInstructionsRetired(sstate1, sstate2)) << " ;"
+            << setNextColor() << " Active cycles: " << unit_format(getCycles(sstate1, sstate2)) << " ;"
+            << setNextColor() << " Time (TSC): " << unit_format(getInvariantTSC(cstates1[0], cstates2[0])) << "ticks;";
+        if (m->systemEnergyMetricAvailable() && systemEnergyStatusValid(sstate1) && systemEnergyStatusValid(sstate2))
+        {
+            cout << setNextColor() << " SYS energy: " << getSystemConsumedJoules(sstate1, sstate2) << " J;";
+        }
+        cout << "\n\n";
+
+        cout << resetColor() << setNextColor() << " Core C-state residencies: "<< setNextColor() << "C0 (active,non-halted): " << (getCoreCStateResidency(0, sstate1, sstate2)*100.) << " %;";
         for (int s = 1; s <= PCM::MAX_C_STATE; ++s)
         {
             if (m->isCoreCStateResidencySupported(s))
             {
-                std::cout << setNextColor() << " C" << s << " core residency: " << (getCoreCStateResidency(s, sstate1, sstate2)*100.) << " %;";
+                std::cout << setNextColor() << " C" << s << ": " << (getCoreCStateResidency(s, sstate1, sstate2)*100.) << " %;";
             }
         }
         cout << "\n" ;
+        cout << resetColor() << setNextColor() << " Package C-state residencies: ";
         std::vector<StackedBarItem> CoreCStateStackedBar, PackageCStateStackedBar;
         for (int s = 0; s <= PCM::MAX_C_STATE; ++s)
         {
@@ -359,7 +366,7 @@ void print_output(PCM * m,
             }
             if (m->isPackageCStateResidencySupported(s))
             {
-                std::cout << setNextColor() << " C" << s << " package residency: " << (getPackageCStateResidency(s, sstate1, sstate2)*100.) << " %;";
+                std::cout << setNextColor() << " C" << s << ": " << (getPackageCStateResidency(s, sstate1, sstate2)*100.) << " %;";
                 PackageCStateStackedBar.push_back(StackedBarItem(getPackageCStateResidency(s, sstate1, sstate2), "", fill));
             }
         }
@@ -760,6 +767,8 @@ void print_csv_header(PCM * m,
             print_csv_header_helper(header, 2);
         if (m->dramEnergyMetricsAvailable())
             print_csv_header_helper(header);
+        if (m->systemEnergyMetricAvailable())
+            print_csv_header_helper(header);
         if (m->LLCReadMissLatencyMetricsAvailable())
             print_csv_header_helper(header);
         if (m->uncoreFrequencyMetricAvailable())
@@ -940,6 +949,8 @@ void print_csv_header(PCM * m,
         }
         if (m->dramEnergyMetricsAvailable())
             cout << "DRAM Energy (Joules),";
+        if (m->systemEnergyMetricAvailable())
+            cout << "SYSTEM Energy (Joules),";
         if (m->LLCReadMissLatencyMetricsAvailable())
             cout << "LLCRDMISSLAT (ns),";
         if (m->uncoreFrequencyMetricAvailable())
@@ -1194,6 +1205,8 @@ void print_csv(PCM * m,
             cout << getConsumedJoules(0, sstate1, sstate2) << "," << getConsumedJoules(1, sstate1, sstate2) << ",";
         if (m->dramEnergyMetricsAvailable())
             cout << getDRAMConsumedJoules(sstate1, sstate2) << ",";
+        if (m->systemEnergyMetricAvailable())
+            cout << getSystemConsumedJoules(sstate1, sstate2) << ",";
         if (m->LLCReadMissLatencyMetricsAvailable())
             cout << getLLCReadMissLatency(sstate1, sstate2) << ",";
         if (m->uncoreFrequencyMetricAvailable())
@@ -1461,6 +1474,11 @@ int mainThrows(int argc, char * argv[])
         else if (check_argument_equals(*argv, {"--color"}))
         {
             setColorEnabled();
+            continue;
+        }
+        else if (check_argument_equals(*argv, { "--no-color" }))
+        {
+            setColorEnabled(false);
             continue;
         }
         else if (check_argument_equals(*argv, {"-csv", "/csv"}))

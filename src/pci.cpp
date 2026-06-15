@@ -25,8 +25,9 @@
 #include "Winmsrdriver\msrstruct.h"
 #include "winring0/OlsDef.h"
 #include "winring0/OlsApiInitExt.h"
-#include "utils.h"
 #endif
+
+#include "utils.h"
 
 #if defined (__FreeBSD__) || defined(__DragonFly__)
 #include <sys/pciio.h>
@@ -83,6 +84,7 @@ bool PciHandle::exists(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 func
 
 int32 PciHandle::read32(uint64 offset, uint32 * value)
 {
+    warnAlignment<4>("PciHandle::read32", false, offset);
     if (hDriver != INVALID_HANDLE_VALUE)
     {
         PCICFG_Request req;
@@ -113,6 +115,7 @@ int32 PciHandle::read32(uint64 offset, uint32 * value)
 
 int32 PciHandle::write32(uint64 offset, uint32 value)
 {
+    warnAlignment<4>("PciHandle::write32", false, offset);
     if (hDriver != INVALID_HANDLE_VALUE)
     {
         PCICFG_Request req;
@@ -139,10 +142,17 @@ int32 PciHandle::write32(uint64 offset, uint32 value)
 
 int32 PciHandle::read64(uint64 offset, uint64 * value)
 {
+    warnAlignment<4>("PciHandle::read64", false, offset);
     if (hDriver != INVALID_HANDLE_VALUE)
     {
+        if (offset & 7)
+        {
+            // this driver supports only 8-byte aligned reads
+            // use read32 for unaligned reads
+            uint32* value32Ptr = (uint32*)value;
+            return read32(offset, value32Ptr) + read32(offset + sizeof(uint32), value32Ptr + 1);
+        }
         PCICFG_Request req;
-        // ULONG64 result;
         DWORD reslength = 0;
         req.bus = bus;
         req.dev = device;
@@ -208,18 +218,21 @@ bool PciHandle::exists(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 func
 
 int32 PciHandle::read32(uint64 offset, uint32 * value)
 {
+    warnAlignment<4>("PciHandle::read32", false, offset);
     uint32_t pci_address = FORM_PCI_ADDR(bus, device, function, (uint32_t)offset);
     return PCIDriver_read32(pci_address, value);
 }
 
 int32 PciHandle::write32(uint64 offset, uint32 value)
 {
+    warnAlignment<4>("PciHandle::write32", false, offset);
     uint32_t pci_address = FORM_PCI_ADDR(bus, device, function, (uint32_t)offset);
     return PCIDriver_write32(pci_address, value);
 }
 
 int32 PciHandle::read64(uint64 offset, uint64 * value)
 {
+    warnAlignment<4>("PciHandle::read64", false, offset);
     uint32_t pci_address = FORM_PCI_ADDR(bus, device, function, (uint32_t)offset);
     return PCIDriver_read64(pci_address, value);
 }
@@ -289,6 +302,7 @@ bool PciHandle::exists(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 func
 
 int32 PciHandle::read32(uint64 offset, uint32 * value)
 {
+    warnAlignment<4>("PciHandle::read32", false, offset);
     struct pci_io pi;
     int ret;
 
@@ -308,6 +322,7 @@ int32 PciHandle::read32(uint64 offset, uint32 * value)
 
 int32 PciHandle::write32(uint64 offset, uint32 value)
 {
+    warnAlignment<4>("PciHandle::write32", false, offset);
     struct pci_io pi;
     int ret;
 
@@ -327,6 +342,7 @@ int32 PciHandle::write32(uint64 offset, uint32 value)
 
 int32 PciHandle::read64(uint64 offset, uint64 * value)
 {
+    warnAlignment<4>("PciHandle::read64", false, offset);
     struct pci_io pi;
     int32 ret;
 
@@ -415,16 +431,19 @@ bool PciHandle::exists(uint32 groupnr_, uint32 bus_, uint32 device_, uint32 func
 
 int32 PciHandle::read32(uint64 offset, uint32 * value)
 {
+    warnAlignment<4>("PciHandle::read32", false, offset);
     return ::pread(fd, (void *)value, sizeof(uint32), offset);
 }
 
 int32 PciHandle::write32(uint64 offset, uint32 value)
 {
+    warnAlignment<4>("PciHandle::write32", false, offset);
     return ::pwrite(fd, (const void *)&value, sizeof(uint32), offset);
 }
 
 int32 PciHandle::read64(uint64 offset, uint64 * value)
 {
+    warnAlignment<4>("PciHandle::read64", false, offset);
     size_t res = ::pread(fd, (void *)value, sizeof(uint64), offset);
     if(res != sizeof(uint64))
     {
@@ -532,16 +551,19 @@ bool PciHandleM::exists(uint32 /*groupnr_*/, uint32 /* bus_*/, uint32 /* device_
 
 int32 PciHandleM::read32(uint64 offset, uint32 * value)
 {
+    warnAlignment<4>("PciHandleM::read32", false, offset);
     return ::pread(fd, (void *)value, sizeof(uint32), offset + base_addr);
 }
 
 int32 PciHandleM::write32(uint64 offset, uint32 value)
 {
+    warnAlignment<4>("PciHandleM::write32", false, offset);
     return ::pwrite(fd, (const void *)&value, sizeof(uint32), offset + base_addr);
 }
 
 int32 PciHandleM::read64(uint64 offset, uint64 * value)
 {
+    warnAlignment<4>("PciHandleM::read64", false, offset);
     return ::pread(fd, (void *)value, sizeof(uint64), offset + base_addr);
 }
 
@@ -682,6 +704,7 @@ bool PciHandleMM::exists(uint32 /*groupnr_*/, uint32 /*bus_*/, uint32 /*device_*
 
 int32 PciHandleMM::read32(uint64 offset, uint32 * value)
 {
+    warnAlignment<4>("PciHandleMM::read32", false, offset);
     *value = *((uint32 *)(mmapAddr + offset));
 
     return sizeof(uint32);
@@ -689,6 +712,7 @@ int32 PciHandleMM::read32(uint64 offset, uint32 * value)
 
 int32 PciHandleMM::write32(uint64 offset, uint32 value)
 {
+    warnAlignment<4>("PciHandleMM::write32", false, offset);
     *((uint32 *)(mmapAddr + offset)) = value;
 
     return sizeof(uint32);
@@ -696,6 +720,7 @@ int32 PciHandleMM::write32(uint64 offset, uint32 value)
 
 int32 PciHandleMM::read64(uint64 offset, uint64 * value)
 {
+    warnAlignment<4>("PciHandleMM::read64", false, offset);
     read32(offset, (uint32 *)value);
     read32(offset + sizeof(uint32), ((uint32 *)value) + 1);
 

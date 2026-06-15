@@ -261,8 +261,8 @@ void processDVSEC(MatchFunc matchFunc, ProcessFunc processFunc)
         // std::cerr << "Intel device scan. found " << std::hex << group << ":" << bus << ":" << device << ":" << function << " " << device_id << std::dec;
         uint32 status{0};
         PciHandleType h(group, bus, device, function);
-        h.read32(6, &status); // read status
-        if (status & 0x10) // has capability list
+        h.read32(4, &status); // read status
+        if (status & 0x100000) // has capability list
         {
             // std::cerr << "Intel device scan. found "<< std::hex << group << ":" << bus << ":" << device << ":" << function << " " << device_id << " with capability list\n" << std::dec;
             VSEC header;

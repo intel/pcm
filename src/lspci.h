@@ -35,184 +35,138 @@ typedef std::map<std::pair<h_id,v_id>,uint64_t> ctr_data;
 typedef std::vector<ctr_data> stack_content;
 typedef std::vector<stack_content> result_content;
 
+struct ccr_config {
+    static constexpr uint64_t EVENT_SELECT_MASK = 0xFFULL;
+    static constexpr uint8_t  UMASK_SHIFT = 8;
+    static constexpr uint64_t UMASK_MASK = 0xFFULL << UMASK_SHIFT;
+    static constexpr uint8_t  RESET_SHIFT = 17;
+    static constexpr uint64_t RESET_MASK = 0x01ULL << RESET_SHIFT;
+    static constexpr uint8_t  EDGE_SHIFT = 18;
+    static constexpr uint64_t EDGE_MASK = 0x01ULL << EDGE_SHIFT;
+    static constexpr uint8_t  OV_EN_SHIFT = 20;
+    static constexpr uint64_t OV_EN_MASK = 0x01ULL << OV_EN_SHIFT;
+    static constexpr uint8_t  ENABLE_SHIFT = 22;
+    static constexpr uint64_t ENABLE_MASK = 0x01ULL << ENABLE_SHIFT;
+    static constexpr uint8_t  INVERT_SHIFT = 23;
+    static constexpr uint64_t INVERT_MASK = 0x01ULL << INVERT_SHIFT;
+    static constexpr uint8_t  THRESH_SHIFT = 24;
+    static constexpr uint64_t THRESH_MASK = 0xFFFULL << THRESH_SHIFT;
+    static constexpr uint8_t  CH_MASK_SHIFT = 36;
+
+    uint8_t  FC_MASK_SHIFT;
+    uint64_t FC_MASK;
+    uint64_t CH_MASK;
+
+    ccr_config(uint8_t fc_mask_shift, uint64_t ch_mask)
+    : FC_MASK_SHIFT(fc_mask_shift), FC_MASK(0x07ULL << fc_mask_shift), CH_MASK(ch_mask << CH_MASK_SHIFT) {}
+};
+
 class ccr {
-        public:
-                virtual uint64_t get_event_select() const = 0;
-                virtual void set_event_select(uint64_t value) = 0;
-                virtual uint64_t get_umask() const  = 0;
-                virtual void set_umask(uint64_t value) = 0;
-                virtual uint64_t get_reset() const = 0;
-                virtual void set_reset(uint64_t value) = 0;
-                virtual uint64_t get_edge() const  = 0;
-                virtual void set_edge(uint64_t value) = 0;
-                virtual uint64_t get_ov_en() const  = 0;
-                virtual void set_ov_en(uint64_t value) = 0;
-                virtual uint64_t get_enable() const  = 0;
-                virtual void set_enable(uint64_t value) = 0;
-                virtual uint64_t get_invert() const = 0;
-                virtual void set_invert(uint64_t value) = 0;
-                virtual uint64_t get_thresh() const  = 0;
-                virtual void set_thresh(uint64_t value) = 0;
-                virtual uint64_t get_ch_mask() const = 0;
-                virtual void set_ch_mask(uint64_t value) = 0;
-                virtual uint64_t get_fc_mask() const  = 0;
-                virtual void set_fc_mask(uint64_t value) = 0;
-                virtual uint64_t get_ccr_value() const  = 0;
-                virtual void set_ccr_value(uint64_t value) = 0;
-                virtual ~ccr() {};
+public:
+    enum class ccr_type {
+        skx,
+        icx
+    };
+
+    ccr(uint64_t &v, const ccr_type &type) : ccr_value(v), config(type == ccr_type::skx ? skx_ccrs : icx_ccrs) { }
+
+    ccr() = delete;
+
+    ~ccr() = default;
+
+    uint64_t get_event_select() const {
+        return (ccr_value & config.EVENT_SELECT_MASK);
+    }
+
+    void set_event_select(uint64_t value) {
+        ccr_value = (ccr_value & ~config.EVENT_SELECT_MASK) | (value & config.EVENT_SELECT_MASK);
+    }
+
+    uint64_t get_umask() const {
+        return (ccr_value & config.UMASK_MASK) >> config.UMASK_SHIFT;
+    }
+
+    void set_umask(uint64_t value) {
+        ccr_value = (ccr_value & ~config.UMASK_MASK) | ((value << config.UMASK_SHIFT) & config.UMASK_MASK);
+    }
+
+    uint64_t get_reset() const {
+        return (ccr_value & config.RESET_MASK) >> config.RESET_SHIFT;
+    }
+
+    void set_reset(uint64_t value) {
+        ccr_value = (ccr_value & ~config.RESET_MASK) | ((value << config.RESET_SHIFT) & config.RESET_MASK);
+    }
+
+    uint64_t get_edge() const {
+        return (ccr_value & config.EDGE_MASK) >> config.EDGE_SHIFT;
+    }
+
+    void set_edge(uint64_t value) {
+        ccr_value = (ccr_value & ~config.EDGE_MASK) | ((value << config.EDGE_SHIFT) & config.EDGE_MASK);
+    }
+
+    uint64_t get_ov_en() const {
+        return (ccr_value & config.OV_EN_MASK) >> config.OV_EN_SHIFT;
+    }
+
+    void set_ov_en(uint64_t value) {
+        ccr_value = (ccr_value & ~config.OV_EN_MASK) | ((value << config.OV_EN_SHIFT) & config.OV_EN_MASK);
+    }
+
+    uint64_t get_enable() const {
+        return (ccr_value & config.ENABLE_MASK) >> config.ENABLE_SHIFT;
+    }
+
+    void set_enable(uint64_t value) {
+        ccr_value = (ccr_value & ~config.ENABLE_MASK) | ((value << config.ENABLE_SHIFT) & config.ENABLE_MASK);
+    }
+
+    uint64_t get_invert() const {
+        return (ccr_value & config.INVERT_MASK) >> config.INVERT_SHIFT;
+    }
+
+    void set_invert(uint64_t value) {
+        ccr_value = (ccr_value & ~config.INVERT_MASK) | ((value << config.INVERT_SHIFT) & config.INVERT_MASK);
+    }
+
+    uint64_t get_thresh() const {
+        return (ccr_value & config.THRESH_MASK) >> config.THRESH_SHIFT;
+    }
+
+    void set_thresh(uint64_t value) {
+        ccr_value = (ccr_value & ~config.THRESH_MASK) | ((value << config.THRESH_SHIFT) & config.THRESH_MASK);
+    }
+
+    uint64_t get_ch_mask() const {
+        return (ccr_value & config.CH_MASK) >> config.CH_MASK_SHIFT;
+    }
+
+    void set_ch_mask(uint64_t value) {
+        ccr_value = (ccr_value & ~config.CH_MASK) | ((value << config.CH_MASK_SHIFT) & config.CH_MASK);
+    }
+
+    uint64_t get_fc_mask() const {
+        return (ccr_value & config.FC_MASK) >> config.FC_MASK_SHIFT;
+    }
+
+    void set_fc_mask(uint64_t value) {
+        ccr_value = (ccr_value & ~config.FC_MASK) | ((value << config.FC_MASK_SHIFT) & config.FC_MASK);
+    }
+
+    uint64_t get_ccr_value() const { return ccr_value; }
+
+    void set_ccr_value(uint64_t value) { ccr_value = value; }
+private:
+    uint64_t &ccr_value;
+    const ccr_config &config;
+
+    static const ccr_config skx_ccrs;
+    static const ccr_config icx_ccrs;
 };
 
-class skx_ccr: public ccr {
-        public:
-                skx_ccr(uint64_t &v){
-                        ccr_value = &v;
-                }
-                virtual uint64_t get_event_select() const  {
-                        return (*ccr_value & 0xFF);
-                }
-                virtual void set_event_select(uint64_t value) {
-                        *ccr_value |= value;
-                }
-                virtual uint64_t get_umask() const  {
-                        return ((*ccr_value >> 8) & 0xFF);
-                }
-                virtual void set_umask(uint64_t value) {
-                        *ccr_value |= (value << 8);
-                }
-                virtual uint64_t get_reset() const  {
-                        return ((*ccr_value >> 17) & 0x01);
-                }
-                virtual void set_reset(uint64_t value) {
-                        *ccr_value |= (value << 17);
-                }
-                virtual uint64_t get_edge() const  {
-                        return ((*ccr_value >> 18) & 0x01);
-                }
-                virtual void set_edge(uint64_t value) {
-                        *ccr_value |= (value << 18);
-                }
-                virtual uint64_t get_ov_en() const  {
-                        return ((*ccr_value >> 20) & 0x01);
-                }
-                virtual void set_ov_en(uint64_t value) {
-                        *ccr_value |= (value << 20);
-                }
-                virtual uint64_t get_enable() const  {
-                        return ((*ccr_value >> 22) & 0x01);
-                }
-                virtual void set_enable(uint64_t value) {
-                        *ccr_value |= (value << 22);
-                }
-                virtual uint64_t get_invert() const  {
-                        return ((*ccr_value >> 23) & 0x01);
-                }
-                virtual void set_invert(uint64_t value) {
-                        *ccr_value |= (value << 23);
-                }
-                virtual uint64_t get_thresh() const  {
-                        return ((*ccr_value >> 24) & 0xFFF);
-                }
-                virtual void set_thresh(uint64_t value) {
-                        *ccr_value |= (value << 24);
-                }
-                virtual uint64_t get_ch_mask() const  {
-                        return ((*ccr_value >> 36) & 0xFF);
-                }
-                virtual void set_ch_mask(uint64_t value) {
-                        *ccr_value |= (value << 36);
-                }
-                virtual uint64_t get_fc_mask() const  {
-                        return ((*ccr_value >> 44) & 0x07);
-                }
-                virtual void set_fc_mask(uint64_t value) {
-                        *ccr_value |= (value << 44);
-                }
-                virtual uint64_t get_ccr_value() const {
-                        return *ccr_value;
-                }
-                virtual void set_ccr_value(uint64_t value) {
-                        *ccr_value = value;
-                }
-
-        private:
-                uint64_t* ccr_value = NULL;
-};
-
-class icx_ccr: public ccr {
-         public:
-                 icx_ccr(uint64_t &v){
-                         ccr_value = &v;
-                 }
-                 virtual uint64_t get_event_select() const  {
-                         return (*ccr_value & 0xFF);
-                 }
-                 virtual void set_event_select(uint64_t value) {
-                         *ccr_value |= value;
-                 }
-                 virtual uint64_t get_umask() const  {
-                         return ((*ccr_value >> 8) & 0xFF);
-                 }
-                 virtual void set_umask(uint64_t value) {
-                         *ccr_value |= (value << 8);
-                 }
-                 virtual uint64_t get_reset() const  {
-                         return ((*ccr_value >> 17) & 0x01);
-                 }
-                 virtual void set_reset(uint64_t value) {
-                         *ccr_value |= (value << 17);
-                 }
-                 virtual uint64_t get_edge() const  {
-                         return ((*ccr_value >> 18) & 0x01);
-                 }
-                 virtual void set_edge(uint64_t value) {
-                         *ccr_value |= (value << 18);
-                 }
-                 virtual uint64_t get_ov_en() const  {
-                         return ((*ccr_value >> 20) & 0x01);
-                 }
-                 virtual void set_ov_en(uint64_t value) {
-                         *ccr_value |= (value << 20);
-                 }
-                 virtual uint64_t get_enable() const  {
-                         return ((*ccr_value >> 22) & 0x01);
-                 }
-                 virtual void set_enable(uint64_t value) {
-                         *ccr_value |= (value << 22);
-                 }
-                 virtual uint64_t get_invert() const  {
-                         return ((*ccr_value >> 23) & 0x01);
-                 }
-                 virtual void set_invert(uint64_t value) {
-                         *ccr_value |= (value << 23);
-                 }
-                 virtual uint64_t get_thresh() const  {
-                         return ((*ccr_value >> 24) & 0xFFF);
-                 }
-                 virtual void set_thresh(uint64_t value) {
-                         *ccr_value |= (value << 24);
-                 }
-                 virtual uint64_t get_ch_mask() const  {
-                         return ((*ccr_value >> 36) & 0xFFF);
-                 }
-                 virtual void set_ch_mask(uint64_t value) {
-                         *ccr_value |= (value << 36);
-                 }
-                 virtual uint64_t get_fc_mask() const  {
-                         return ((*ccr_value >> 48) & 0x07);
-                 }
-                 virtual void set_fc_mask(uint64_t value) {
-                         *ccr_value |= (value << 48);
-                 }
-                 virtual uint64_t get_ccr_value() const {
-                         return *ccr_value;
-                 }
-                 virtual void set_ccr_value(uint64_t value) {
-                         *ccr_value = value;
-                 }
-
-         private:
-                 uint64_t* ccr_value = NULL;
-};
+const ccr_config ccr::skx_ccrs(44, 0xFFULL);
+const ccr_config ccr::icx_ccrs(48, 0xFFFULL);
 
 struct bdf {
     uint32_t domainno;

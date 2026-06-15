@@ -328,8 +328,14 @@ public:
         iterateVectorAndCallAccept( vec );
         endObject( JSONPrinter::LineEndAction::DelimiterAndNewLine, END_LIST );
 
+        // For backward compatibility we use socketUniqueCoreID to create a unique number inside the socket for a core
+        // and introduce HW Core ID as the physical core id inside a module, keep in mind this core id is not unique inside a socket
+        printCounter( "Core ID", c->socketUniqueCoreID() );
+        printCounter( "HW Core ID", c->coreID() );
+        printCounter( "Module ID", c->moduleID() );
         printCounter( "Tile ID", c->tileID() );
-        printCounter( "Core ID", c->coreID() );
+        printCounter( "Die ID", c->dieID() );
+        printCounter( "Die Group ID", c->dieGroupID() );
         printCounter( "Socket ID", c->socketID() );
     }
 
@@ -645,14 +651,9 @@ public:
     }
 
     virtual void dispatch( Core* c ) override {
-        addToHierarchy( std::string( "core=\"" ) + std::to_string( c->coreID() ) + "\"" );
+        addToHierarchy( std::string( "core=\"" ) + std::to_string( c->socketUniqueCoreID() ) + "\"" );
         auto vec = c->threads();
         iterateVectorAndCallAccept( vec );
-
-        // Useless?
-        //printCounter( "Tile ID", c->tileID() );
-        //printCounter( "Core ID", c->coreID() );
-        //printCounter( "Socket ID", c->socketID() );
         removeFromHierarchy();
     }
 
@@ -801,6 +802,7 @@ private:
         }
         removeFromHierarchy();
     }
+
     void printSystemCounterState( SystemCounterState const& before, SystemCounterState const& after ) {
         addToHierarchy( "source=\"uncore\"" );
         PCM* pcm = PCM::getInstance();
@@ -1300,10 +1302,10 @@ public:
         SignalHandler* shi = SignalHandler::getInstance();
         shi->setSocket( serverSocket_ );
         shi->ignoreSignal( SIGPIPE ); // Sorry Dennis Ritchie, we do not care about this, we always check return codes
-        #ifndef UNIT_TEST // libFuzzer installs own signal handlers
+#ifndef UNIT_TEST // libFuzzer installs own signal handlers
         shi->installHandler( SignalHandler::handleSignal, SIGTERM );
         shi->installHandler( SignalHandler::handleSignal, SIGINT );
-        #endif
+#endif
     }
     Server( Server const & ) = delete;
     Server & operator = ( Server const & ) = delete;
@@ -1319,26 +1321,26 @@ private:
         if ( port_ == 0 )
             throw std::runtime_error( "Server Constructor: No port specified." );
 
-        int sockfd = ::socket( AF_INET, SOCK_STREAM, 0 );
+        int sockfd = ::socket( AF_INET6, SOCK_STREAM, 0 );
         if ( -1 == sockfd )
             throw std::runtime_error( "Server Constructor: Can´t create socket" );
 
         int retval = 0;
 
-        struct sockaddr_in serv;
-        serv.sin_family = AF_INET;
-        serv.sin_port = htons( port_ );
+        struct sockaddr_in6 serv;
+        serv.sin6_family = AF_INET6;
+        serv.sin6_port = htons( port_ );
         if ( listenIP_.empty() )
-            serv.sin_addr.s_addr = INADDR_ANY;
+            serv.sin6_addr = in6addr_any;
         else {
-            if ( 1 != ::inet_pton( AF_INET, listenIP_.c_str(), &(serv.sin_addr) ) )
+            if ( 1 != ::inet_pton( AF_INET6, listenIP_.c_str(), &(serv.sin6_addr) ) )
             {
                 DBG( 3, "close clientsocketFD" );
                 ::close(sockfd);
                 throw std::runtime_error( "Server Constructor: Cannot convert IP string" );
             }
         }
-        socklen_t len = sizeof( struct sockaddr_in );
+        socklen_t len = sizeof( struct sockaddr_in6 );
         retval = ::bind( sockfd, reinterpret_cast<struct sockaddr*>(&serv), len );
         if ( 0 != retval ) {
             DBG( 3, "close clientsocketFD" );
@@ -3759,6 +3761,7 @@ int mainThrows(int argc, char * argv[]) {
     bool useRealtimePriority = false;
 #endif
     bool forceRTMAbortMode = false;
+    bool printTopology = false;
     unsigned short port = 0;
     unsigned short debug_level = 0;
     std::string certificateFile;
@@ -3774,7 +3777,12 @@ int mainThrows(int argc, char * argv[]) {
     MainLoop mainLoop;
     std::string ev_file_name;
 
-    if ( argc > 1 ) {
+    const char* PPTEnv = std::getenv( "PCMSENSORSERVER_PRINT_TOPOLOGY" );
+    if ( PPTEnv ) {
+        if ( *PPTEnv == '1' ) {
+            printTopology = true;
+        }
+    } else if ( argc > 1 ) {
         std::string arg_value;
 
         for ( int i=1; i < argc; ++i ) {
@@ -3901,7 +3909,7 @@ int mainThrows(int argc, char * argv[]) {
         }
     }
 
-    #ifdef __linux__
+#ifdef __linux__
     // check kernel version for driver dependency.
     if (accel != ACCEL_NOCONFIG)
     {
@@ -4034,6 +4042,17 @@ int mainThrows(int argc, char * argv[]) {
             accs_->setEvents(pcmInstance,accel,specify_evtfile,evtfile);
 
             accs_->programAccelCounters();
+        }
+        if ( printTopology ) {
+            TopologyPrinter* tp = new TopologyPrinter();
+            tp->dispatch( PCM::getInstance()->getSystemTopology() );
+            std::vector<std::string> & tpData = tp->topologyDataStrings();
+            std::sort( tpData.begin(), tpData.end(), TopologyStringCompare );
+            for( auto& line: tpData ) {
+                std::cout << line << "\n";
+            }
+            deleteAndNullify( tp );
+            exit( 0 );
         }
 #if defined (USE_SSL)
         if ( useSSL ) {

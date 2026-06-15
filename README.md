@@ -70,6 +70,7 @@ Clone PCM repository with submodules:
 
 ```
 git clone --recursive https://github.com/intel/pcm
+cd pcm
 ```
 
 or clone the repository first, and then update submodules with:

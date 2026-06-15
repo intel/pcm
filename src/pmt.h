@@ -5,6 +5,7 @@
 
 #include "types.h"
 #include <memory>
+#include <vector>
 
 namespace pcm {
 
@@ -28,10 +29,37 @@ class TelemetryArray : public TelemetryArrayInterface
 public:
     TelemetryArray(const size_t /* uid */, const size_t /* instance */);
     static size_t numInstances(const size_t /* uid */);
+    static std::vector<size_t> getUIDs();
     virtual ~TelemetryArray() override;
     size_t size() override; // in bytes
     void load() override;
     uint64 get(size_t qWordOffset, size_t lsb, size_t msb) override;
+};
+
+class TelemetryDB
+{
+public:
+    struct PMTRecord
+    {
+        size_t uid;
+        std::string fullName;
+        std::string sampleType;
+        size_t qWordOffset;
+        uint32 lsb;
+        uint32 msb;
+        std::string description;
+        void print(std::ostream & os) const
+        {
+            os << "uid: " << uid << " fullName: " << fullName << " description: \"" << description <<
+                "\" sampleType: " << sampleType << " qWordOffset: " << qWordOffset << " lsb: " << lsb << " msb: " << msb << std::endl;
+        }
+    };
+    std::vector<PMTRecord> records;
+    TelemetryDB() = default;
+    bool loadFromXML(const std::string& pmtXMLPath);
+    virtual ~TelemetryDB() = default;
+    std::vector<PMTRecord> lookup(const std::string & name);
+    std::vector<PMTRecord> ilookup(const std::string & name);
 };
 
 } // namespace pcm

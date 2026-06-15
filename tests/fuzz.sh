@@ -15,13 +15,14 @@ export LSAN_OPTIONS=suppressions="pcm_asan_suppression_file"
 
 echo "Running fuzz tests with running time multiplier $factor"
 
-CC=`which clang` CXX=`which clang++` cmake ..  -DCMAKE_BUILD_TYPE=Debug -DFUZZ=1 && mkdir -p corpus &&
+CC=`which clang` CXX=`which clang++` cmake ..  -DCMAKE_BUILD_TYPE=Debug -DPCM_FUZZ=ON && mkdir -p corpus &&
 make urltest-fuzz \
      pcm-fuzz \
      pcm-memory-fuzz \
      pcm-sensor-server-fuzz \
      pcm-sensor-server-ssl-fuzz \
      -j &&
+ldd bin/tests/pcm-fuzz &&
 rm -rf corpus/* &&
 printf '%b' "GET / HTTP/1.1\r\nHost: localhost\r\nAccept: */*\r\n\r\n" > corpus/1 &&
 printf '%b' "GET /metrics HTTP/1.1\r\nHost: localhost\r\nAccept: */*\r\n\r\n" > corpus/2 &&

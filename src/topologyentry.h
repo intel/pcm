@@ -10,14 +10,21 @@ namespace pcm
 
 struct PCM_API TopologyEntry // describes a core
 {
+    /*
+     * core_id is the hw specific physical core id that was introduced in newer generations, on
+     * older generations this is the same as socket_unique_core_id.
+     * socket_unique_core_id is like the name says a socket unique core id that is built out of the core_id, module_id, thread_id, die_id and die_grp_id.
+     * With it, we have unique core ids inside a socket for keeping backward compatibility in the prometheus and json output.
+     */
     int32 os_id;
     int32 thread_id;
     int32 core_id;
     int32 module_id;
-    int32 tile_id; // tile is a constalation of 1 or more cores sharing same L2 cache. Unique for entire system
+    int32 tile_id; // tile is a constellation of 1 or more cores sharing same L2 cache. Unique for entire system
     int32 die_id;
     int32 die_grp_id;
     int32 socket_id;
+    int32 socket_unique_core_id;
     int32 native_cpu_model = -1;
     enum DomainTypeID
     {
@@ -38,7 +45,7 @@ struct PCM_API TopologyEntry // describes a core
     };
     CoreType core_type = Invalid;
 
-    TopologyEntry() : os_id(-1), thread_id (-1), core_id(-1), module_id(-1), tile_id(-1), die_id(-1), die_grp_id(-1), socket_id(-1) { }
+    TopologyEntry() : os_id(-1), thread_id (-1), core_id(-1), module_id(-1), tile_id(-1), die_id(-1), die_grp_id(-1), socket_id(-1), socket_unique_core_id(-1) { }
     const char* getCoreTypeStr()
     {
         switch (core_type)
@@ -67,6 +74,24 @@ struct PCM_API TopologyEntry // describes a core
         }
         return "unknown";
     }
+    bool isSameSocket( TopologyEntry& te ) {
+        return this->socket_id == te.socket_id;
+    }
+    bool isSameDieGroup( TopologyEntry& te ) {
+        return this->die_grp_id == te.die_grp_id && isSameSocket(te);
+    }
+    bool isSameDie( TopologyEntry& te ) {
+        return this->die_id == te.die_id && isSameDieGroup(te);
+    }
+    bool isSameTile( TopologyEntry& te ) {
+        return this->tile_id == te.tile_id && isSameDie(te);
+    }
+    bool isSameModule( TopologyEntry& te ) {
+        return this->module_id == te.module_id && isSameTile (te);
+    }
+    bool isSameCore( TopologyEntry& te ) {
+        return this->core_id == te.core_id && isSameModule(te);
+    }
 };
 
 inline void fillEntry(TopologyEntry & entry, const uint32 & smtMaskWidth, const uint32 & coreMaskWidth, const uint32 & l2CacheMaskShift, const int apic_id)
@@ -75,6 +100,7 @@ inline void fillEntry(TopologyEntry & entry, const uint32 & smtMaskWidth, const 
     entry.core_id = (smtMaskWidth + coreMaskWidth) ? extract_bits_ui(apic_id, smtMaskWidth, smtMaskWidth + coreMaskWidth - 1) : 0;
     entry.socket_id = extract_bits_ui(apic_id, smtMaskWidth + coreMaskWidth, 31);
     entry.tile_id = extract_bits_ui(apic_id, l2CacheMaskShift, 31);
+    entry.socket_unique_core_id = entry.core_id;
 }
 
 inline bool initCoreMasks(uint32 & smtMaskWidth, uint32 & coreMaskWidth, uint32 & l2CacheMaskShift)
