@@ -1,0 +1,47 @@
+name: FreeBSD build
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+
+    runs-on: ubuntu-24.04
+
+    steps:
+    - name: Harden Runner
+      uses: step-security/harden-runner@0080882f6c36860b6ba35c610c98ce87d4e2f26f # v2.10.2
+      with:
+        egress-policy: audit
+
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      with:
+        submodules: recursive
+    - name: build in FreeBSD VM
+      id: build
+      uses: cross-platform-actions/action@2d97d42e1972a17b045fd709a422f7e55a86230d
+      with:
+        memory: 2048
+        shell: sh
+        operating_system: freebsd
+        version: '14.2'
+        run: |
+          export IGNORE_OSVERSION=yes
+          sudo mkdir -p /usr/local/etc/pkg/repos
+          sudo sh -c 'echo "FreeBSD: { url: \"https://pkg.FreeBSD.org/\${ABI}/quarterly\", mirror_type: \"srv\", enabled: yes }" > /usr/local/etc/pkg/repos/FreeBSD.conf'
+          sudo -E pkg update -f
+          sudo -E pkg upgrade -y
+          sudo -E pkg install -y curl gmake cmake
+          pwd
+          ls -lah
+          whoami
+          env
+          freebsd-version
+          cmake -B build -DCMAKE_INSTALL_PREFIX=.
+          cd build && gmake install

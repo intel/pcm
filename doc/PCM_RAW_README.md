@@ -35,10 +35,106 @@ pcm-raw -e core/config=0x00000000004300c5,name=BR_MISP_RETIRED.ALL_BRANCHES -e c
 4. View/process the csv file using your favorite method. For example just open it in Excel.
 
 --------------------------------------------------------------------------------
-Collecting Events By Names From Event Lists (https://download.01.org/perfmon/)
+Collecting Register Values
 --------------------------------------------------------------------------------
 
-pcm-raw can also automatically lookup the events from the json event lists (https://download.01.org/perfmon/) and translate them to raw encodings itself. To make this work you need to download simdjson library in the PCM source directory and recompile PCM:
+pcm-raw supports collecting raw MSR and PCICFG (CSR) register values. The syntax is described below:
+
+Model Specific Registers (MSRs):
+
+```
+package_msr/config=<msr_address>,config1=<static_or_freerun>[,name=<name>]
+```
+
+static_or_freerun encoding:
+* 0 : static (last value reported in csv)
+* 1 : freerun (delta to last value reported in csv)
+
+Examples:
+```
+package_msr/config=0x34,config1=0,name=SMI_COUNT
+thread_msr/config=0x10,config1=1,name=TSC_DELTA
+thread_msr/config=0x10,config1=0,name=TSC
+```
+
+If the name is not specified the first event will show up as package_msr:0x34:static, with the name it will show up as SMI_COUNT in csv.
+
+PCI Configuration Registers - PCICFG (CSR):
+
+```
+pcicfg/config=<dev_id>,config1=<offset>,config2=<static_or_freerun>,width=<width>[,name=<name>]
+```
+
+* dev_id: Intel PCI device id where the register is located
+* offset: offset of the register
+* static_or_freerun: same syntax as for MSR registers
+* width: register width in bits (16,32,64) 
+
+Example:
+
+```
+pcicfg/config=0xe20,config1=0x180,config2=0x0,width=32,name=CHANERR_INT
+```
+From: https://www.intel.la/content/dam/www/public/us/en/documents/datasheets/xeon-e7-v2-datasheet-vol-2.pdf
+
+MMIO Registers:
+
+```
+mmio/config=<device_id>,config1=<offset>,config2=<static_or_freerun>,config3=<membar_bits1>[,config4=<membar_bits2>],width=<width>[,name=<NAME>]
+```
+
+The MEMBAR is computed by logically ORing the result of membar_bits1 and membar_bits1 computation described below (PCICFG read + bit extraction and shift). The final MMIO register address = MEMBAR + offset.
+
+* width: register width in bits (16,32,64) 
+* dev_id: Intel PCI device id where the membar address registers are located
+* membar_bits1: mmioBase register bits to compute membar (base address)
+  - bits 0-15 : PCICFG register offset to read membar1 bits
+  - bits 16-23: source position of membar bits in the PCICFG register 
+  - bits 24-31: number of bits
+  - bits 32-39: destination bit position in the membar
+* membar_bits2: mmioBase register bits to compute membar (base address), can be zero if only membar_bits1 is sufficient for locating the register.
+  - bits 0-15 : PCICFG register offset to read membar2 bits
+  - bits 16-23: source position of membar bits in the PCICFG register 
+  - bits 24-31: number of bits
+  - bits 32-39: destination bit position in the membar
+* offset: offset of the MMIO register relative to the membar
+* static_or_freerun: same syntax as for MSR registers
+
+Example (Icelake server iMC PMON MMIO register read):
+
+```
+mmio/config=0x3451,config1=0x22808,config2=1,config3=0x171D0000D0,config4=0x0c0b0000d8,width=64
+```
+
+TPMI Registers:
+
+TPMI ([Topology Aware Register and PM Capsule Interface](https://github.com/intel/tpmi_power_management)) can be read with pcm-raw as follows:
+
+```
+tpmi/config=<tpmi_id>,config1=<offset>,config2=<static_or_freerun>[,name=<name>]
+```
+
+* tpmi_id: TPMI id
+* offset: offset of the register
+* static_or_freerun: same syntax as for MSR registers
+
+Example:
+
+```
+tpmi/config=0x2,config1=0x18,name=BHS_UFS_CONTROL
+```
+
+From: https://github.com/intel/tpmi_power_management/blob/main/UFS_TPMI_public_disclosure_FINAL_rev4.pdf
+
+--------------------------------------------------------------------------------
+Collecting Events By Names From Event Lists (https://github.com/intel/perfmon/)
+--------------------------------------------------------------------------------
+
+pcm-raw can also automatically lookup the events from the json event lists (https://github.com/intel/perfmon/) and translate them to raw encodings itself. To make this work you need to checkout PCM with simdjson submodule:
+
+* use git clone --recursive flag when cloning pcm repository, or
+* update submodule with command `git submodule update --init --recursive`, or
+* download simdjson library in the PCM source directory and recompile PCM:
 
 1. change to PCM 'src/' directory
 2. git clone https://github.com/simdjson/simdjson.git
@@ -118,6 +214,38 @@ Sample csv output (date,time,event_name,milliseconds_between_samples,TSC_cycles_
 ```
 The unit can be logical core, memory channel, CHA, etc, depending on the event type.
 
-Limitations:
 
-Event-to-counter scheduling restrictions are not validated. The events are scheduled in order. The user need to make sure events are ordered correctly using emon or manually inspecting counter event restrictions specified in json files (https://download.01.org/perfmon/).
+Show events available for the processor on the system:
+```
+pcm-raw -?
+```
+
+--------------------------------------------------------------------------------
+Low-level access to Intel PMT telemetry data
+--------------------------------------------------------------------------------
+
+pcm-raw can read raw telemetry data from Intel PMT (https://github.com/intel/Intel-PMT/).
+
+Syntax for a PMT raw telemetry counter:
+
+```
+pmt/config=<uniqueid>,config1=<sampleID>,config2=<sampleType>,config3=<lsb,config4=<msb>[,name=<description>]
+
+```
+
+The fields are the values for the counter from the Intel PMT aggregator XML:
+
+* uniqueid : Intel PMT Telemetry unique identifier
+* sampleID : sample ID of the counter
+* sampleType counter encoding:
+  -  0        : Snapshot (last value reported in csv)
+  - non-zero  : Counter (delta to last value reported in csv)
+* lsb : lsb field
+* msb : msb field
+
+Example for https://github.com/intel/Intel-PMT/blob/868049006ad2770a75e5fc7526fd0c4b22438e27/xml/SPR/OOBMSM/CORE/spr_aggregator.xml#L15428:
+```
+pmt/config=0x87b6fef1,config1=770,config2=0,config3=32,config4=63,name="Temperature_histogram_range_5_(50.5-57.5C)_counter_for_core_0"
+```
+
+Current limitations: this feature (PMT access) is currently only available on Linux (with Intel PMT Linux driver).

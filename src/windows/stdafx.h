@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-// Copyright (c) 2009-2011, Intel Corporation
+// Copyright (c) 2009-2022, Intel Corporation
 
 // stdafx.h : include file for standard system include files,
 // or project specific include files that are used frequently, but

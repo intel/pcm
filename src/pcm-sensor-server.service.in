@@ -1,0 +1,11 @@
+[Unit]
+Description=Intel Performance Counter Monitor (PCM) Sensor Service
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStart=@@CMAKE_INSTALL_SBINDIR@@/pcm-sensor-server
+
+[Install]
+WantedBy=multi-user.target

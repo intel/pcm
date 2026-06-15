@@ -1,5 +1,6 @@
 modprobe msr
 
+export PCM_ENFORCE_MBM="1"
 export BIN_DIR="build/bin"
 
 pushd $BIN_DIR
@@ -21,8 +22,22 @@ if [ "$?" -ne "0" ]; then
    exit 1
 fi
 
+echo Testing pcm with PCM_DEBUG_LEVEL=100
+PCM_DEBUG_LEVEL=100 ./pcm -r -- sleep 1
+if [ "$?" -ne "0" ]; then
+   echo "Error in pcm"
+   exit 1
+fi
+
 echo Testing pcm w/o env vars
 ./pcm -r -- sleep 1
+if [ "$?" -ne "0" ]; then
+   echo "Error in pcm"
+   exit 1
+fi
+
+echo Testing pcm w/o env vars + color
+./pcm -r --color -- sleep 1
 if [ "$?" -ne "0" ]; then
    echo "Error in pcm"
    exit 1
@@ -60,6 +75,13 @@ if [ "$?" -ne "0" ]; then
     exit 1
 fi
 
+echo Testing pcm-memory with csv output
+./pcm-memory -csv=pcm-memory.csv -- sleep 1
+if [ "$?" -ne "0" ]; then
+    echo "Error in pcm-memory"
+    exit 1
+fi
+
 echo Testing pcm-memory with -rank
 ./pcm-memory -rank=1 -- sleep 1
 if [ "$?" -ne "0" ]; then
@@ -71,6 +93,13 @@ echo Testing pcm-memory with -rank and -csv
 ./pcm-memory -rank=1 -csv -- sleep 1
 if [ "$?" -ne "0" ]; then
     echo "Error in pcm-memory"
+    exit 1
+fi
+
+echo Testing pcm-iio --list
+./pcm-iio --list
+if [ "$?" -ne "0" ]; then
+    echo "Error in pcm-iio"
     exit 1
 fi
 
@@ -102,6 +131,27 @@ if [ "$?" -ne "0" ]; then
     exit 1
 fi
 
+echo Testing pcm-pcicfg with -n option
+./pcm-pcicfg -n 0 0 0 0 0
+if [ "$?" -ne "0" ]; then
+    echo "Error in pcm-pcicfg with -n option"
+    exit 1
+fi
+
+echo Testing pcm-pcicfg with -n and -d options
+./pcm-pcicfg -n -d 0 0 0 0 0
+if [ "$?" -ne "0" ]; then
+    echo "Error in pcm-pcicfg with -n -d options"
+    exit 1
+fi
+
+echo Testing pcm-tpmi
+./pcm-tpmi 2 0x10 -d -b 26:26
+if [ "$?" -ne "0" ]; then
+    echo "Error in pcm-tpmi"
+    exit 1
+fi
+
 echo Testing pcm-numa
 ./pcm-numa -- sleep 1
 if [ "$?" -ne "0" ]; then
@@ -117,7 +167,8 @@ if [ "$?" -ne "0" ]; then
 fi
 
 echo Testing c_example
-./examples/c_example
+# see https://github.com/google/sanitizers/issues/934
+LD_PRELOAD="$(realpath "$(gcc -print-file-name=libasan.so)") $(realpath "$(gcc -print-file-name=libstdc++.so)")" LD_LIBRARY_PATH=../lib/ ./examples/c_example
 if [ "$?" -ne "0" ]; then
     echo "Error in c_example"
     exit 1
@@ -144,6 +195,9 @@ if [ "$?" -ne "0" ]; then
     exit 1
 fi
 
+echo "/sys/fs/cgroup/cpuset/cpuset.cpus:"
+cat /sys/fs/cgroup/cpuset/cpuset.cpus
+
 echo Testing pcm-pcie
 ./pcm-pcie -- sleep 1
 if [ "$?" -ne "0" ]; then
@@ -166,21 +220,86 @@ if [ "$?" -ne "0" ]; then
 fi
 
 # TODO add more tests
-# e.g for ./pcm-sensor-server, ./pcm-sensor, ...
+# e.g for ./pcm-sensor, ...
+
+echo Testing pcm-sensor-server
+# Pick an unused high port to avoid collisions with the default one.
+SENSOR_PORT=19738
+./pcm-sensor-server -p $SENSOR_PORT -silent &
+SENSOR_PID=$!
+
+# Wait for the server to start accepting connections (up to ~20s).
+SENSOR_READY=0
+for i in $(seq 1 40); do
+    if ! kill -0 $SENSOR_PID 2>/dev/null; then
+        echo "pcm-sensor-server exited unexpectedly during startup"
+        exit 1
+    fi
+    if curl -s -o /dev/null -f "http://127.0.0.1:${SENSOR_PORT}/metrics"; then
+        SENSOR_READY=1
+        break
+    fi
+    sleep 0.5
+done
+
+if [ "$SENSOR_READY" -ne "1" ]; then
+    echo "Error: pcm-sensor-server did not become ready on port $SENSOR_PORT"
+    kill $SENSOR_PID 2>/dev/null
+    wait $SENSOR_PID 2>/dev/null
+    exit 1
+fi
+
+echo "  Query /metrics endpoint with curl"
+METRICS_OUT=$(curl -s -f "http://127.0.0.1:${SENSOR_PORT}/metrics")
+CURL_RC=$?
+if [ "$CURL_RC" -ne "0" ] || [ -z "$METRICS_OUT" ]; then
+    echo "Error in pcm-sensor-server: /metrics request failed or returned empty body"
+    kill $SENSOR_PID 2>/dev/null
+    wait $SENSOR_PID 2>/dev/null
+    exit 1
+fi
+# Prometheus exposition format lines start with '#' (HELP/TYPE) or a metric name.
+if ! echo "$METRICS_OUT" | grep -q '^#'; then
+    echo "Error in pcm-sensor-server: /metrics response does not look like Prometheus output"
+    kill $SENSOR_PID 2>/dev/null
+    wait $SENSOR_PID 2>/dev/null
+    exit 1
+fi
+
+echo "  Query /dashboard endpoint with curl"
+curl -s -f -o /dev/null "http://127.0.0.1:${SENSOR_PORT}/dashboard"
+if [ "$?" -ne "0" ]; then
+    echo "Error in pcm-sensor-server: /dashboard request failed"
+    kill $SENSOR_PID 2>/dev/null
+    wait $SENSOR_PID 2>/dev/null
+    exit 1
+fi
+
+echo "  Query unknown endpoint, expect HTTP 404"
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${SENSOR_PORT}/does-not-exist")
+if [ "$HTTP_CODE" != "404" ]; then
+    echo "Error in pcm-sensor-server: expected 404 for unknown endpoint, got $HTTP_CODE"
+    kill $SENSOR_PID 2>/dev/null
+    wait $SENSOR_PID 2>/dev/null
+    exit 1
+fi
+
+kill $SENSOR_PID 2>/dev/null
+wait $SENSOR_PID 2>/dev/null
 
 echo Testing urltest
 ./tests/urltest
-# We have 2 expected errors, anything else is a bug
-if [ "$?" != 2 ]; then
-    echo "Error in urltest, 2 expected errors but found $?!"
+# We have 14 expected errors, anything else is a bug
+if [ "$?" != 14 ]; then
+    echo "Error in urltest, 14 expected errors but found $?!"
     exit 1
 fi
 
 echo Testing pcm-raw with event files
 echo   Download necessary files
 if [ ! -f "mapfile.csv" ]; then
-    echo "Downloading https://download.01.org/perfmon/mapfile.csv"
-    wget -q --timeout=10 https://download.01.org/perfmon/mapfile.csv
+    echo "Downloading https://raw.githubusercontent.com/intel/perfmon/main/mapfile.csv"
+    wget -q --timeout=10 https://raw.githubusercontent.com/intel/perfmon/main/mapfile.csv
     if [ "$?" -ne "0" ]; then
         echo "Could not download mapfile.csv"
         exit 1
@@ -206,22 +325,21 @@ done
 for DIR in $DIRS
 do
     if [ ! -d $DIR ]; then
-        mkdir $DIR
+        mkdir -p $DIR
         cd $DIR
 
-        DIRPATH="https://download.01.org/perfmon/${DIR}/"
-        echo "Downloading all files from ${DIRPATH}"
+        DIRPATH="https://github.com/intel/perfmon.git"
+        echo "Downloading all files from ${DIRPATH} using git"
 
-        wget -q --timeout=10 -r -l1 --no-parent -A "*.json" $DIRPATH
+        git clone $DIRPATH
         if [ "$?" -ne "0" ]; then
             cd ..
-            echo "Could not download $DIR"
+            echo "Could not download ${DIRPATH}"
             exit 1
         fi
-        wget -q --timeout=10 -r -l1 --no-parent -A "*.tsv" $DIRPATH
-        mv download.01.org/perfmon/${DIR}/* .
-        rm -rf download.01.org
-        cd ..
+        mv perfmon/${DIR}/* .
+        rm -rf perfmon
+        cd ../..
     fi
 done
 
@@ -246,7 +364,7 @@ do
     CMD="find . -type f -regex '\.\/${TYPE}_v[0-9]*\.[0-9]*.tsv'"
     TSVFILE=$(eval $CMD)
     TSVFILE="${TSVFILE:2}"
-    cd ..
+    cd ../..
     CMD="sed -i 's/${BASE}/${TSVFILE}/g' mapfile.csv"
     eval $CMD
 done
@@ -270,6 +388,7 @@ if [ ! -f "event_file_test.txt" ]; then
 # group 1
 INST_RETIRED.ANY
 CPU_CLK_UNHALTED.REF_TSC
+MEM_TRANS_RETIRED.LOAD_LATENCY_GT_4
 UNC_CHA_DIR_LOOKUP.SNP
 UNC_CHA_DIR_LOOKUP.NO_SNP
 UNC_M_CAS_COUNT.RD
@@ -278,6 +397,7 @@ UNC_UPI_CLOCKTICKS
 UNC_UPI_TxL_FLITS.ALL_DATA
 UNC_UPI_TxL_FLITS.NON_DATA
 UNC_UPI_L1_POWER_CYCLES
+UNC_CHA_TOR_INSERTS.IA_MISS
 MSR_EVENT:msr=0x19C:type=STATIC:scope=THREAD
 MSR_EVENT:msr=0x1A2:type=STATIC:scope=THREAD
 MSR_EVENT:msr=0x34:type=FREERUN:scope=PACKAGE
@@ -285,6 +405,10 @@ MSR_EVENT:msr=0x34:type=static:scope=PACKAGE
 package_msr/config=0x34,config1=0
 thread_msr/config=0x10,config1=1,name=TSC_DELTA
 thread_msr/config=0x10,config1=0,name=TSC
+pcicfg/config=0x208d,config1=0,config2=0,width=64,name=first_8_bytes_of_208d_device
+pcicfg/config=0x2021,config1=0,config2=0,width=32
+pcicfg/config=0x2021,config1=0,config2=0,width=64
+pcicfg/config=0x2058,config1=0x318,config2=1,width=64,name=UPI_reg
 ;
 # group 2
 OFFCORE_REQUESTS_BUFFER.SQ_FULL
@@ -294,13 +418,17 @@ UNC_M2M_DIRECTORY_UPDATE.ANY
 UNC_M_CAS_COUNT.RD
 UNC_M_CAS_COUNT.WR
 imc/fixed,name=DRAM_CLOCKS
+UNC_CHA_TOR_INSERTS.IA_MISS:tid=0x20
 UNC_M_PRE_COUNT.PAGE_MISS
 UNC_UPI_TxL0P_POWER_CYCLES
 UNC_UPI_RxL0P_POWER_CYCLES
 UNC_UPI_RxL_FLITS.ALL_DATA
 UNC_UPI_RxL_FLITS.NON_DATA
+UNC_P_FREQ_MAX_LIMIT_THERMAL_CYCLES
 MSR_EVENT:msr=0x10:type=FREERUN:scope=thread
 MSR_EVENT:msr=0x10:type=static:scope=thread
+pcicfg/config=0x2021,config1=4,config2=0,width=32
+pcicfg/config=0x208d,config1=0,config2=1,width=64,name=first_8_bytes_of_208d_device_diff
 ;
 EOF
 
@@ -359,5 +487,25 @@ if [ "$?" -ne "0" ]; then
 fi
 online_offline_cores 1
 
+# Below is UT part
+
+echo "Running Unit Tests"
+failed=()
+for test_binary in ./tests/utests/*; do
+    if [ -x "$test_binary" ]; then
+        echo "Running $test_binary"
+        "$test_binary"
+        if [ "$?" -ne "0" ]; then
+            failed+=("$test_binary")
+        fi
+    else
+        echo "Skipping $test_binary (not executable)"
+    fi
+done
+
+if [ "${#failed[@]}" -ne "0" ]; then
+    echo "Failed test programs: ${failed[@]}"
+    exit 1
+fi
 
 popd

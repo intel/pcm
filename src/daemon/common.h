@@ -124,7 +124,7 @@ namespace PCMDaemon {
         float pmmRead;  // PMM read traffic in MBytes/sec
         float pmmWrite; // PMM write traffic in MBytes/sec
         float total;    // total traffic in MBytes/sec
-        float pmmMemoryModeHitRate; // PMM memory mode hit rate estimation. Metric value range is [0..1]
+        float memoryModeHitRate; // PMM memory mode hit rate estimation. Metric value range is [0..1]
         double dramEnergy; // energy consumed/used by DRAM memory in Joules
 
     public:
@@ -135,7 +135,7 @@ namespace PCMDaemon {
             pmmRead(-1.0),
             pmmWrite(-1.0),
             total(-1.0),
-            pmmMemoryModeHitRate(-1.0),
+            memoryModeHitRate(-1.0),
             dramEnergy(0.0) {}
     } ALIGN(ALIGNMENT);
 
@@ -175,7 +175,7 @@ namespace PCMDaemon {
     typedef struct PCMMemory PCMMemory;
 
     struct PCMQPILinkCounter {
-        uint64 bytes;  // bytes of certain traffic class transfered over QPI or UPI link
+        uint64 bytes;  // bytes of certain traffic class transferred over QPI or UPI link
         double utilization; // utilization of the link caused by the certain traffic class
 
     public:
@@ -189,7 +189,7 @@ namespace PCMDaemon {
     struct PCMQPISocketCounter {
         uint64 socketId = 0; // socket ID
         PCMQPILinkCounter links[QPI_MAX_LINKS];
-        uint64 total; // total number of transfered bytes of a certain traffic class
+        uint64 total; // total number of transferred bytes of a certain traffic class
 
     public:
         PCMQPISocketCounter() :

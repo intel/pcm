@@ -1,0 +1,20 @@
+# IAA events
+ctr=0,ev_sel=0x1,ev_cat=0x1,en=1,multiplier=32,divider=1,hname=IAA,vname=Inbound_BW(Bps)
+ctr=1,ev_sel=0x2,ev_cat=0x1,en=1,multiplier=512,divider=1,hname=IAA,vname=Outbound_BW(Bps)
+ctr=2,ev_sel=0x5,ev_cat=0x0,en=1,multiplier=1,divider=1,hname=IAA,vname=ShareWQ_ReqNb
+ctr=3,ev_sel=0x10,ev_cat=0x0,en=1,multiplier=1,divider=1,hname=IAA,vname=DedicateWQ_ReqNb
+
+# DSA events
+ctr=0,ev_sel=0x1,ev_cat=0x1,en=1,multiplier=32,divider=1,hname=DSA,vname=Inbound_BW(Bps)
+ctr=1,ev_sel=0x2,ev_cat=0x1,en=1,multiplier=32,divider=1,hname=DSA,vname=Outbound_BW(Bps)
+ctr=2,ev_sel=0x5,ev_cat=0x0,en=1,multiplier=1,divider=1,hname=DSA,vname=ShareWQ_ReqNb
+ctr=3,ev_sel=0x10,ev_cat=0x0,en=1,multiplier=1,divider=1,hname=DSA,vname=DedicateWQ_ReqNb
+
+# QAT events
+ctr=0,ev_sel=0x6,ev_cat=0x1,en=1,multiplier=1048576,divider=1,hname=QAT,vname=Inbound_BW(Bps)
+ctr=1,ev_sel=0x7,ev_cat=0x1,en=1,multiplier=1048576,divider=1,hname=QAT,vname=Outbound_BW(Bps)
+ctr=2,ev_sel=0xB,ev_cat=0x1,en=1,multiplier=1,divider=1,hname=QAT,vname=util_comp0(%)
+ctr=3,ev_sel=0xC,ev_cat=0x1,en=1,multiplier=1,divider=1,hname=QAT,vname=util_decomp0(%)
+ctr=4,ev_sel=0xD,ev_cat=0x1,en=1,multiplier=1,divider=1,hname=QAT,vname=util_decomp1(%)
+ctr=5,ev_sel=0xE,ev_cat=0x1,en=1,multiplier=1,divider=1,hname=QAT,vname=util_decomp2(%)
+ctr=6,ev_sel=0xF,ev_cat=0x1,en=1,multiplier=1,divider=1,hname=QAT,vname=util_xlt0(%)

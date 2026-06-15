@@ -1,0 +1,12 @@
+name: coverity-report
+
+on: workflow_dispatch
+
+permissions:
+  contents: read
+
+jobs:
+  linux-report:
+    uses: intel-innersource/applications.analyzers.pcm/.github/workflows/ci-cov-linux-report.yml@main
+  windows-report:
+    uses: intel-innersource/applications.analyzers.pcm/.github/workflows/ci-cov-windows-report.yml@main

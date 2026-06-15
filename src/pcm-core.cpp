@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-// Copyright (c) 2009-2018, Intel Corporation
+// Copyright (c) 2009-2022, Intel Corporation
 // written by Patrick Lu
 
 
@@ -48,12 +48,14 @@ struct CoreEvent
 	char * description;
 } events[PERF_MAX_CUSTOM_COUNTERS];
 
+#ifdef PCM_SHARED_LIBRARY
+
 extern "C" {
-	SystemCounterState globalSysBeforeState, globalSysAfterState;
-	std::vector<CoreCounterState> globalBeforeState, globalAfterState;
-	std::vector<SocketCounterState> globalDummySocketStates;
-	EventSelectRegister globalRegs[PERF_MAX_COUNTERS];
-	PCM::ExtendedCustomCoreEventDescription globalConf;
+	static std::shared_ptr<SystemCounterState> globalSysBeforeState, globalSysAfterState;
+	static std::shared_ptr<std::vector<CoreCounterState> > globalBeforeState, globalAfterState;
+	static std::shared_ptr<std::vector<SocketCounterState> > globalDummySocketStates;
+	static EventSelectRegister globalRegs[PERF_MAX_COUNTERS];
+	static PCM::ExtendedCustomCoreEventDescription globalConf;
 
 	int pcm_c_build_core_event(uint8_t idx, const char * argv)
 	{
@@ -68,6 +70,11 @@ extern "C" {
 	int pcm_c_init()
 	{
 		PCM * m = PCM::getInstance();
+		globalSysBeforeState = std::make_shared<SystemCounterState>();
+		globalSysAfterState = std::make_shared<SystemCounterState>();
+		globalBeforeState = std::make_shared<std::vector<CoreCounterState> >();
+		globalAfterState = std::make_shared<std::vector<CoreCounterState> >();
+		globalDummySocketStates = std::make_shared<std::vector<SocketCounterState> >();
 		globalConf.fixedCfg = NULL; // default
 		globalConf.nGPCounters = m->getMaxCustomCoreEvents();
 		globalConf.gpCounterCfg = globalRegs;
@@ -85,53 +92,57 @@ extern "C" {
 	void pcm_c_start()
 	{
 		PCM * m = PCM::getInstance();
-		m->getAllCounterStates(globalSysBeforeState, globalDummySocketStates, globalBeforeState);
+		m->getAllCounterStates(*globalSysBeforeState.get(), *globalDummySocketStates.get(), *globalBeforeState.get());
 	}
 
 	void pcm_c_stop()
 	{
 		PCM * m = PCM::getInstance();
-		m->getAllCounterStates(globalSysAfterState, globalDummySocketStates, globalAfterState);
+		m->getAllCounterStates(*globalSysAfterState.get(), *globalDummySocketStates.get(), *globalAfterState.get());
 	}
 
 	uint64_t pcm_c_get_cycles(uint32_t core_id)
 	{
-		return getCycles(globalBeforeState[core_id], globalAfterState[core_id]);
+		return getCycles((*globalBeforeState.get())[core_id], (*globalAfterState.get())[core_id]);
 	}
 
 	uint64_t pcm_c_get_instr(uint32_t core_id)
 	{
-		return getInstructionsRetired(globalBeforeState[core_id], globalAfterState[core_id]);
+		return getInstructionsRetired((*globalBeforeState.get())[core_id], (*globalAfterState.get())[core_id]);
 	}
 
 	uint64_t pcm_c_get_core_event(uint32_t core_id, uint32_t event_id)
 	{
-		return getNumberOfCustomEvents(event_id, globalBeforeState[core_id], globalAfterState[core_id]);
+		return getNumberOfCustomEvents(event_id, (*globalBeforeState.get())[core_id], (*globalAfterState.get())[core_id]);
 	}
 }
 
-void print_usage(const string progname)
+#endif // PCM_SHARED_LIBRARY
+
+void print_usage(const string & progname)
 {
-	cerr << "\n Usage: \n " << progname
-		<< " --help | [delay] [options] [-- external_program [external_program_options]]\n";
-	cerr << "   <delay>                               => time interval to sample performance counters.\n";
-	cerr << "                                            If not specified, or 0, with external program given\n";
-	cerr << "                                            will read counters only after external program finishes\n";
-	cerr << " Supported <options> are: \n";
-	cerr << "  -h    | --help      | /h               => print this help and exit\n";
-	cerr << "  -c    | /c                             => print CPU Model name and exit (used for pmu-query.py)\n";
-	cerr << "  -csv[=file.csv]     | /csv[=file.csv]  => output compact CSV format to screen or\n"
+	cout << "\n Usage: \n " << progname
+		 << " --help | [delay] [options] [-- external_program [external_program_options]]\n";
+	cout << "   <delay>                               => time interval to sample performance counters.\n";
+	cout << "                                            If not specified, or 0, with external program given\n";
+	cout << "                                            will read counters only after external program finishes\n";
+	cout << " Supported <options> are: \n";
+	cout << "  -h    | --help      | /h               => print this help and exit\n";
+	cout << "  -silent                                => silence information output and print only measurements\n";
+	cout << "  --version                              => print application version\n";
+	cout << "  -c    | /c                             => print CPU Model name and exit (used for pmu-query.py)\n";
+	cout << "  -csv[=file.csv]     | /csv[=file.csv]  => output compact CSV format to screen or\n"
 		<< "                                            to a file, in case filename is provided\n";
-    cerr << "  [-e event1] [-e event2] [-e event3] .. => optional list of custom events to monitor\n";
-	cerr << "  event description example: cpu/umask=0x01,event=0x05,name=MISALIGN_MEM_REF.LOADS/ \n";
-	cerr << "  -yc   | --yescores  | /yc              => enable specific cores to output\n";
-	cerr << "  -i[=number] | /i[=number]              => allow to determine number of iterations\n";
+    cout << "  [-e event1] [-e event2] [-e event3] .. => optional list of custom events to monitor\n";
+	cout << "  event description example: cpu/umask=0x01,event=0x05,name=MISALIGN_MEM_REF.LOADS/ \n";
+	cout << "  -yc   | --yescores  | /yc              => enable specific cores to output\n";
+	cout << "  -i[=number] | /i[=number]              => allow to determine number of iterations\n";
     print_help_force_rtm_abort_mode(41);
-	cerr << " Examples:\n";
-	cerr << "  " << progname << " 1                   => print counters every second without core and socket output\n";
-	cerr << "  " << progname << " 0.5 -csv=test.log   => twice a second save counter values to test.log in CSV format\n";
-	cerr << "  " << progname << " /csv 5 2>/dev/null  => one sampe every 5 seconds, and discard all diagnostic output\n";
-	cerr << "\n";
+	cout << " Examples:\n";
+	cout << "  " << progname << " 1                   => print counters every second without core and socket output\n";
+	cout << "  " << progname << " 0.5 -csv=test.log   => twice a second save counter values to test.log in CSV format\n";
+	cout << "  " << progname << " /csv 5 2>/dev/null  => one sample every 5 seconds, and discard all diagnostic output\n";
+	cout << "\n";
 }
 
 	template <class StateType>
@@ -244,7 +255,10 @@ void build_event(const char * argv, EventSelectRegister *reg, int idx)
 				}
 				events[idx].msr_value = tmp2;
 			}
-			else if(pcm_sscanf(subtoken) >> s_expect("name=") >> setw(255) >> events[idx].name) ;
+			else if(pcm_sscanf(subtoken) >> s_expect("name=") >> setw(255) >> events[idx].name) {
+				if (check_for_injections(events[idx].name))
+					throw events[idx].name;
+			}
 			else
 			{
 				cerr << "Event '" << subtoken << "' is not supported. See the list of supported events\n";
@@ -256,18 +270,26 @@ void build_event(const char * argv, EventSelectRegister *reg, int idx)
 	events[idx].value = reg->value;
 }
 
-int main(int argc, char * argv[])
-{
-	set_signal_handlers();
+PCM_MAIN_NOTHROW;
 
+int mainThrows(int argc, char * argv[])
+{
+	if(print_version(argc, argv))
+		exit(EXIT_SUCCESS);
+
+	null_stream nullStream2;
 #ifdef PCM_FORCE_SILENT
-	null_stream nullStream1, nullStream2;
+	null_stream nullStream1;
 	std::cout.rdbuf(&nullStream1);
 	std::cerr.rdbuf(&nullStream2);
+#else
+	check_and_set_silent(argc, argv, nullStream2);
 #endif
 
+	set_signal_handlers();
+
 	cerr << "\n";
-	cerr << " Processor Counter Monitor: Core Monitoring Utility \n";
+	cerr << " Intel(r) Performance Counter Monitor: Core Monitoring Utility \n";
 	cerr << "\n";
 
 	double delay = -1.0;
@@ -294,40 +316,40 @@ int main(int argc, char * argv[])
 	{
 		argv++;
 		argc--;
-		if (strncmp(*argv, "--help", 6) == 0 ||
-				strncmp(*argv, "-h", 2) == 0 ||
-				strncmp(*argv, "/h", 2) == 0)
+		string arg_value;
+
+		if (check_argument_equals(*argv, {"--help", "-h", "/h"}))
 		{
 			print_usage(program);
 			exit(EXIT_FAILURE);
 		}
-		else if (strncmp(*argv, "-csv",4) == 0 ||
-				strncmp(*argv, "/csv",4) == 0)
+		else if (check_argument_equals(*argv, {"-silent", "/silent"}))
+		{
+			// handled in check_and_set_silent
+			continue;
+		}
+		else if (check_argument_equals(*argv, {"-csv", "/csv"}))
 		{
 			csv = true;
-			string cmd = string(*argv);
-			size_t found = cmd.find('=',4);
-			if (found != string::npos) {
-				string filename = cmd.substr(found+1);
-				if (!filename.empty()) {
-					m->setOutput(filename);
-				}
+		}
+		else if (extract_argument_value(*argv, {"-csv", "/csv"}, arg_value))
+		{
+			csv = true;
+			if (!arg_value.empty()) {
+				m->setOutput(arg_value);
 			}
 			continue;
 		}
-		else
-		if (mainLoop.parseArg(*argv))
+		else if (mainLoop.parseArg(*argv))
 		{
 			continue;
 		}
-		else if (strncmp(*argv, "-c",2) == 0 ||
-				strncmp(*argv, "/c",2) == 0)
+		else if (check_argument_equals(*argv, {"-c", "/c"}))
 		{
 			cout << m->getCPUFamilyModelString() << "\n";
 			exit(EXIT_SUCCESS);
 		}
-		else if (strncmp(*argv, "-txn",4) == 0 ||
-				strncmp(*argv, "/txn",4) == 0)
+		else if (check_argument_equals(*argv, {"-txn", "/txn"}))
 		{
 			argv++;
 			argc--;
@@ -335,9 +357,7 @@ int main(int argc, char * argv[])
 			cout << "txn_rate set to " << txn_rate << "\n";
 			continue;
 		}
-		if (strncmp(*argv, "--yescores", 10) == 0 ||
-				strncmp(*argv, "-yc", 3) == 0 ||
-				strncmp(*argv, "/yc", 3) == 0)
+		else if (check_argument_equals(*argv, {"--yescores", "-yc", "/yc"}))
 		{
 			argv++;
 			argc--;
@@ -372,10 +392,11 @@ int main(int argc, char * argv[])
 			}
 			continue;
 		}
-		else if (strncmp(*argv, "-e",2) == 0)
+		else if (check_argument_equals(*argv, {"-e"}))
 		{
 			argv++;
 			argc--;
+
 			if(cur_event >= conf.nGPCounters) {
 				cerr << "At most " << conf.nGPCounters << " events are allowed\n";
 				exit(EXIT_FAILURE);
@@ -386,15 +407,13 @@ int main(int argc, char * argv[])
 			} catch (...) {
 				exit(EXIT_FAILURE);
 			}
-
 			continue;
 		}
-        else
-        if (CheckAndForceRTMAbortMode(*argv, m))
-        {
-            continue;
-        }
-		else if (strncmp(*argv, "--", 2) == 0)
+		else if (CheckAndForceRTMAbortMode(*argv, m))
+		{
+			continue;
+		}
+		else if (check_argument_equals(*argv, {"--"}))
 		{
 			argv++;
 			sysCmd = *argv;
@@ -403,18 +422,7 @@ int main(int argc, char * argv[])
 		}
 		else
 		{
-			// any other options positional that is a floating point number is treated as <delay>,
-			// while the other options are ignored with a warning issues to stderr
-			double delay_input = 0.0;
-			std::istringstream is_str_stream(*argv);
-			is_str_stream >> noskipws >> delay_input;
-			if(is_str_stream.eof() && !is_str_stream.fail()) {
-				delay = delay_input;
-			} else {
-				cerr << "WARNING: unknown command-line option: \"" << *argv << "\". Ignoring it.\n";
-				print_usage(program);
-				exit(EXIT_FAILURE);
-			}
+			delay = parse_delay(*argv, program, (print_usage_func)print_usage);
 			continue;
 		}
 	} while(argc > 1); // end of command line parsing loop

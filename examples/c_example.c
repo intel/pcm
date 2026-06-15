@@ -107,16 +107,16 @@ int main(int argc, const char *argv[])
 	printf("[c_example] PCM measurement stopped, compute result %u\n", total);
 
 	lcore_id = pcm_getcpu();
-	printf("C:%lu I:%lu, IPC:%3.2f\n",
-		PCM.pcm_c_get_cycles(lcore_id),
-		PCM.pcm_c_get_instr(lcore_id),
+	printf("C:%llu I:%llu, IPC:%3.2f\n",
+		(unsigned long long)PCM.pcm_c_get_cycles(lcore_id),
+		(unsigned long long)PCM.pcm_c_get_instr(lcore_id),
 		(double)PCM.pcm_c_get_instr(lcore_id)/PCM.pcm_c_get_cycles(lcore_id));
-	printf("CPU%d E0: %lu, E1: %lu, E2: %lu, E3: %lu\n",
+	printf("CPU%d E0: %llu, E1: %llu, E2: %llu, E3: %llu\n",
 		lcore_id,
-		PCM.pcm_c_get_core_event(lcore_id,0),
-		PCM.pcm_c_get_core_event(lcore_id,1),
-		PCM.pcm_c_get_core_event(lcore_id,2),
-		PCM.pcm_c_get_core_event(lcore_id,3));
+		(unsigned long long)PCM.pcm_c_get_core_event(lcore_id,0),
+		(unsigned long long)PCM.pcm_c_get_core_event(lcore_id,1),
+		(unsigned long long)PCM.pcm_c_get_core_event(lcore_id,2),
+		(unsigned long long)PCM.pcm_c_get_core_event(lcore_id,3));
 
 	return 0;
 }

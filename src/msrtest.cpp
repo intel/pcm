@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-// Copyright (c) 2009-2012, Intel Corporation
+// Copyright (c) 2009-2022, Intel Corporation
 // written by Roman Dementiev
 //            Austen Ott
 
@@ -73,7 +73,7 @@ int main()
         assert(res >= 0);
     }
     for (i = 0; i < NUM_CORES; ++i)
-        delete cpu_msr[i];
+        deleteAndNullify(cpu_msr[i]);
     for (i = 0; i < NUM_CORES; ++i)
         std::cout << "Core " << i <<
             "\t Instructions: " << (counters_after[i][0] - counters_before[i][0]) <<

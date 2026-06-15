@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-// Copyright (c) 2009-2012, Intel Corporation
+// Copyright (c) 2009-2022, Intel Corporation
 //
 // asynchronous CPU conters
 //
@@ -71,11 +71,16 @@ public:
     {
         pthread_cancel(UpdateThread);
         if (pthread_mutex_destroy(&CounterMutex) != 0) std::cerr << "pthread_mutex_destroy failed\n";
-        m->cleanup();
-        delete[] cstates1;
-        delete[] cstates2;
-        delete[] skstates1;
-        delete[] skstates2;
+        try {
+            m->cleanup();
+        } catch (const std::runtime_error & e)
+        {
+            std::cerr << "PCM Error in ~AsynchronCounterState(). Exception " << e.what() << "\n";
+        }
+        deleteAndNullifyArray(cstates1);
+        deleteAndNullifyArray(cstates2);
+        deleteAndNullifyArray(skstates1);
+        deleteAndNullifyArray(skstates2);
     }
 
     uint32 getNumCores()

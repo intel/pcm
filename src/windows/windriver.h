@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-// Copyright (c) 2009-2012, Intel Corporation
+// Copyright (c) 2009-2022, Intel Corporation
 
 #ifndef WINDRIVER_HEADER
 #define WINDRIVER_HEADER
@@ -33,22 +33,17 @@ class Driver
     SERVICE_STATUS ss{};
 
 public:
-    static tstring msrLocalPath()
+    // Use System32 directory to avoid untrusted search path vulnerability
+    static tstring msrSystemPath()
     {
         tstring driverPath;
-        DWORD driverPathLen = 1;
-        DWORD gcdReturn = 0;
-
-        do {
-            if (0 != gcdReturn)
-            {
-                driverPathLen = gcdReturn;
-            }
-            driverPath.resize(driverPathLen);
-            gcdReturn = GetCurrentDirectory(driverPathLen, &driverPath[0]);
-        } while (0 != gcdReturn && driverPathLen < gcdReturn);
-
-        removeNullTerminator(driverPath);
+        driverPath.resize(MAX_PATH);
+        UINT len = GetSystemDirectory(&driverPath[0], MAX_PATH);
+        if (len == 0 || len >= MAX_PATH)
+        {
+            return TEXT("c:\\windows\\system32\\msr.sys");
+        }
+        driverPath.resize(len);
 
         return driverPath + TEXT("\\msr.sys");
     }
@@ -100,16 +95,15 @@ public:
             {
                 if (0 != StartService(hService, 0, NULL))
                 {
-                    tstring convDriverName(&driverName_[0]);
-                    tstring driverPath = TEXT("\\\\.\\") + convDriverName;
-                    restrictDriverAccess(driverPath.c_str());
+                    restrictDriverAccess(PCM_MSR_DRV_NAME);
                     return true;
                 }
                 DWORD err = GetLastError();
                 if (err == ERROR_SERVICE_ALREADY_RUNNING) return true;
 
                 std::wcerr << "Starting MSR service failed with error " << err << " ";
-                const TCHAR * errorStr = _com_error(err).ErrorMessage();
+                const _com_error comError{ (int)err };
+                const TCHAR * errorStr = comError.ErrorMessage();
                 if (errorStr)
                     std::wcerr << errorStr << "\n";
 
@@ -122,7 +116,8 @@ public:
             else
             {
                 std::wcerr << "Opening service manager failed with error " << GetLastError() << " ";
-                const TCHAR * errorStr = _com_error(GetLastError()).ErrorMessage();
+                const _com_error comError{ (int)GetLastError() };
+                const TCHAR * errorStr = comError.ErrorMessage();
                 if (errorStr)
                     std::wcerr << errorStr << "\n";
             }
@@ -132,7 +127,8 @@ public:
         else
         {
             std::wcerr << "Opening service manager failed with error " << GetLastError() << " ";
-            const TCHAR * errorStr = _com_error(GetLastError()).ErrorMessage();
+            const _com_error comError{ (int)GetLastError() };
+            const TCHAR * errorStr = comError.ErrorMessage();
             if (errorStr)
                 std::wcerr << errorStr << "\n";
         }
@@ -171,7 +167,8 @@ public:
         else
         {
             std::wcerr << "Opening service manager failed with error " << GetLastError() << " ";
-            const TCHAR * errorStr = _com_error(GetLastError()).ErrorMessage();
+            const _com_error comError{ (int)GetLastError() };
+            const TCHAR * errorStr = comError.ErrorMessage();
             if (errorStr)
                 std::wcerr << errorStr;
         }
@@ -199,7 +196,8 @@ public:
         else
         {
             std::wcerr << "Opening service manager failed with error " << GetLastError() << " ";
-            const TCHAR * errorStr = _com_error(GetLastError()).ErrorMessage();
+            const _com_error comError{ (int)GetLastError() };
+            const TCHAR * errorStr = comError.ErrorMessage();
             if (errorStr)
                 std::wcerr << errorStr;
         }
@@ -225,7 +223,7 @@ private:
         }
 
         removeNullTerminator(regRead);
-            
+
         return ERROR_SUCCESS == regRes ? regRead : defaultValue;
     }
 

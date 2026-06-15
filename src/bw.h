@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-// Copyright (c) 2012-2019, Intel Corporation
+// Copyright (c) 2012-2022, Intel Corporation
 // written by Roman Dementiev
 //
 
@@ -32,10 +32,19 @@ namespace pcm {
 
     class TGLClientBW : public FreeRunningBWCounters
     {
-        std::array<std::shared_ptr<MMIORange>, 2> mmioRange;
-        int model;
+        std::array<std::array<std::shared_ptr<MMIORange>, 2>, 2> mmioRange;
     public:
         TGLClientBW();
+
+        uint64 getImcReads() override;
+        uint64 getImcWrites() override;
+    };
+
+    class ADLClientBW : public FreeRunningBWCounters
+    {
+        std::shared_ptr<MMIORange> mmioRange;
+    public:
+        ADLClientBW();
 
         uint64 getImcReads() override;
         uint64 getImcWrites() override;
@@ -55,6 +64,7 @@ namespace pcm {
     };
 
 std::vector<size_t> getServerMemBars(const uint32 numIMC, const uint32 root_segment_ubox0, const uint32 root_bus_ubox0);
+size_t getServerSCFBar(const uint32 root_segment_ubox0, const uint32 root_bus_ubox0);
 
 class ServerBW
 {

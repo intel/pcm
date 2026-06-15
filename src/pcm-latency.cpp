@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: BSD-3-Clause
-// Copyright (c) 2018, Intel Corporation
+// Copyright (c) 2018-2022, Intel Corporation
 //
 // written by Subhiksha Ravisundar
 #include "cpucounters.h"
 #ifdef _MSC_VER
-#pragma warning(disable : 4996) // for sprintf
 #include <windows.h>
 #include "windows/windriver.h"
 #else
@@ -93,9 +92,9 @@ ServerUncoreCounterState * BeforeState;
 ServerUncoreCounterState * AfterState;
 
 
-SystemCounterState SysBeforeState, SysAfterState;
-std::vector<CoreCounterState> BeforeState_core, AfterState_core;
-std::vector<SocketCounterState> DummySocketStates;
+std::shared_ptr<SystemCounterState> SysBeforeState, SysAfterState;
+std::shared_ptr<std::vector<CoreCounterState> > BeforeState_core, AfterState_core;
+std::shared_ptr<std::vector<SocketCounterState> > DummySocketStates;
 
 void collect_beforestate_uncore(PCM *m)
 {
@@ -151,12 +150,12 @@ void store_latency_uncore(PCM *m, bool ddr, int delay_ms)
 
 void collect_beforestate_core(PCM *m)
 {
-    m->getAllCounterStates(SysBeforeState, DummySocketStates, BeforeState_core);
+    m->getAllCounterStates(*SysBeforeState.get(), *DummySocketStates.get(), *BeforeState_core.get());
 }
 
 void collect_afterstate_core(PCM *m)
 {
-    m->getAllCounterStates(SysAfterState, DummySocketStates, AfterState_core);
+    m->getAllCounterStates(*SysAfterState.get(), *DummySocketStates.get(), *AfterState_core.get());
 }
 
 void store_latency_core(PCM *m)
@@ -174,12 +173,12 @@ void store_latency_core(PCM *m)
     }
     for (unsigned int i=0; i<m->getNumCores(); i++)
     {
-        const double frequency = (((double)getCycles(BeforeState_core[i], AfterState_core[i]) /
-            (double)getRefCycles(BeforeState_core[i], AfterState_core[i])) * (double)m->getNominalFrequency()) / 1000000000;
+        const double frequency = (((double)getCycles(BeforeState_core->operator[](i), AfterState_core->operator[](i)) /
+            (double)getRefCycles(BeforeState_core->operator[](i), AfterState_core->operator[](i))) * (double)m->getNominalFrequency()) / 1000000000;
         for(int j=0; j<2; j++)// 2 events
         {
             core_event[j].core[i].core_id = i;
-            core_event[j].core[i].latency = (double)getNumberOfCustomEvents(j, BeforeState_core[i], AfterState_core[i]);
+            core_event[j].core[i].latency = (double)getNumberOfCustomEvents(j, BeforeState_core->operator[](i), AfterState_core->operator[](i));
         }
         // L1 latency
         //Adding 5 clocks for L1 Miss
@@ -444,24 +443,36 @@ void collect_data(PCM *m, bool enable_pmm, bool enable_verbose, int delay_ms, Ma
         return true;
     });
 
-    delete[] BeforeState;
-    delete[] AfterState;
+    deleteAndNullifyArray(BeforeState);
+    deleteAndNullifyArray(AfterState);
 }
 
 void print_usage()
 {
-    cerr << "\nUsage: \n";
-    cerr << " -h | --help | /h          => print this help and exit\n";
-    cerr << " --PMM | -pmm              => to enable PMM (Default DDR uncore latency)\n";
-    cerr << " -i[=number] | /i[=number] => allow to determine number of iterations\n";
-    cerr << " -v | --verbose            => verbose Output\n";
-    cerr << "\n";
+    cout << "\nUsage: \n";
+    cout << " -h | --help | /h          => print this help and exit\n";
+    cout << " --PMM | -pmm              => to enable PMM (Default DDR uncore latency)\n";
+    cout << " -i[=number] | /i[=number] => allow to determine number of iterations\n";
+    cout << " -silent                   => silence information output and print only measurements\n";
+    cout << " --version                 => print application version\n";
+    cout << " -v | --verbose            => verbose Output\n";
+    cout << "\n";
 }
 
-int main(int argc, char * argv[])
-{
+PCM_MAIN_NOTHROW;
+
+int mainThrows(int argc, char * argv[])
+{   
+
+    if(print_version(argc, argv))
+        exit(EXIT_SUCCESS);
+
+    null_stream nullStream;
+    check_and_set_silent(argc, argv, nullStream);
+    
     set_signal_handlers();
-    std::cout << "\n Processor Counter Monitor " << PCM_VERSION << "\n";
+
+    std::cout << "\n Intel(r) Performance Counter Monitor " << PCM_VERSION << "\n";
     std::cout << "\n This utility measures Latency information\n\n";
     bool enable_pmm = false;
     bool enable_verbose = false;
@@ -472,31 +483,27 @@ int main(int argc, char * argv[])
         argv++;
         argc--;
 
-        if (strncmp(*argv, "--help", 6) == 0 ||
-                                strncmp(*argv, "-h", 2) == 0 ||
-                                strncmp(*argv, "/h", 2) == 0)
+        if (check_argument_equals(*argv, {"--help", "-h", "/h"}))
         {
             print_usage();
             exit(EXIT_FAILURE);
+        }
+        else if (check_argument_equals(*argv, {"-silent", "/silent"}))
+        {
+            // handled in check_and_set_silent
+            continue;
         }
         else if (mainLoop.parseArg(*argv))
         {
             continue;
         }
-        else if (strncmp(*argv, "--PMM",6) == 0 || strncmp(*argv, "-pmm", 5) == 0)
+        else if (check_argument_equals(*argv, {"--PMM", "-pmm"}))
         {
-            argv++;
-            argc--;
             enable_pmm = true;
             continue;
         }
-
-        else if (strncmp(*argv, "--verbose", 9) == 0 ||
-                             strncmp(*argv, "-v", 2) == 0 ||
-                             strncmp(*argv, "/v", 2) == 0)
+        else if (check_argument_equals(*argv, {"--verbose", "-v", "/v"}))
         {
-            argv++;
-            argc--;
             enable_verbose = true;
             continue;
         }
@@ -504,6 +511,12 @@ int main(int argc, char * argv[])
 
     PCM::ExtendedCustomCoreEventDescription conf;
     PCM * m = PCM::getInstance();
+
+    SysBeforeState = std::make_shared<SystemCounterState>();
+    SysAfterState = std::make_shared<SystemCounterState>();
+    BeforeState_core = std::make_shared<std::vector<CoreCounterState> >();
+    AfterState_core = std::make_shared<std::vector<CoreCounterState> >();
+    DummySocketStates = std::make_shared<std::vector<SocketCounterState> >();
 
     build_registers(m, conf, enable_pmm, enable_verbose);
     collect_data(m, enable_pmm, enable_verbose, delay_ms, mainLoop);

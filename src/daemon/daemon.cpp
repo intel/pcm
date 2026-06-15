@@ -7,11 +7,13 @@
 #include <cstring>
 #include <algorithm>
 #include <unistd.h>
+#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <errno.h>
 #include <time.h>
+#include <assert.h>
 
 #ifndef CLOCK_MONOTONIC_RAW
 #define CLOCK_MONOTONIC_RAW             (4) /* needed for SLES11 */
@@ -41,6 +43,8 @@ namespace PCMDaemon {
         readApplicationArguments(argc, argv);
         setupSharedMemory();
         setupPCM();
+
+        assert(sharedPCMState_);
 
         //Put the poll interval in shared memory so that the client knows
         sharedPCMState_->pollMs = pollIntervalMs_;
@@ -86,8 +90,8 @@ namespace PCMDaemon {
 
     Daemon::~Daemon()
     {
-        delete[] serverUncoreCounterStatesBefore_;
-        delete[] serverUncoreCounterStatesAfter_;
+        deleteAndNullifyArray(serverUncoreCounterStatesBefore_);
+        deleteAndNullifyArray(serverUncoreCounterStatesAfter_);
     }
 
     void Daemon::setupPCM()
@@ -310,11 +314,41 @@ namespace PCMDaemon {
             exit(EXIT_FAILURE);
         }
 
-        //Store shm id in a file (shmIdLocation_)
-        FILE* fp = fopen(shmIdLocation_.c_str(), "w");
+        // Store shm id in a file (shmIdLocation_)
+        // SDL330: Atomic file creation with symlink protection
+        // Try O_EXCL first, unlink and retry only if needed (avoids TOCTOU race)
+        int fd = -1;
+        constexpr int MAX_FILE_CREATION_RETRIES = 3;
+        for (int attempt = 0; attempt < MAX_FILE_CREATION_RETRIES && fd < 0; ++attempt) {
+            fd = open(shmIdLocation_.c_str(), O_CREAT | O_EXCL | O_WRONLY | O_NOFOLLOW, 0660);
+            if (fd >= 0) break;
+
+            if (errno == ELOOP) {
+                std::cerr << "SDL330 CRITICAL: Symlink detected at " << shmIdLocation_ << "\n";
+                exit(EXIT_FAILURE);
+            }
+            if (errno == EEXIST) {
+                // File exists from previous run - unlink and retry
+                if (unlink(shmIdLocation_.c_str()) != 0 && errno != ENOENT) {
+                    std::cerr << "Failed to delete stale shared memory id file: " << shmIdLocation_ << "\n";
+                    exit(EXIT_FAILURE);
+                }
+                continue;  // retry
+            }
+            // Other error
+            std::cerr << "Failed to create shared memory key location: " << shmIdLocation_ << " (errno=" << errno << ")\n";
+            exit(EXIT_FAILURE);
+        }
+        if (fd < 0) {
+            std::cerr << "SDL330 CRITICAL: Unable to create shared memory file after retries (possible attack): " << shmIdLocation_ << "\n";
+            exit(EXIT_FAILURE);
+        }
+
+        FILE* fp = fdopen(fd, "w");
         if (!fp)
         {
-            std::cerr << "Failed to create/write to shared memory key location: " << shmIdLocation_ << "\n";
+            close(fd);
+            std::cerr << "Failed to open stream for shared memory key location: " << shmIdLocation_ << "\n";
             exit(EXIT_FAILURE);
         }
         fprintf(fp, "%i", sharedMemoryId_);
@@ -632,7 +666,7 @@ namespace PCMDaemon {
             memory.sockets[onlineSocketsI].pmmWrite = iMC_PMM_Wr_socket[skt];
             memory.sockets[onlineSocketsI].total = iMC_Rd_socket[skt] + iMC_Wr_socket[skt] + iMC_PMM_Rd_socket[skt] + iMC_PMM_Wr_socket[skt];
             const auto all = memory.sockets[onlineSocketsI].total;
-            memory.sockets[onlineSocketsI].pmmMemoryModeHitRate = (all == 0.0) ? -1.0 : ((iMC_Rd_socket[skt] + iMC_Wr_socket[skt]) / all); // simplified approximation
+            memory.sockets[onlineSocketsI].memoryModeHitRate = (all == 0.0) ? -1.0 : ((iMC_Rd_socket[skt] + iMC_Wr_socket[skt]) / all); // simplified approximation
             if (memory.dramEnergyMetricsAvailable)
             {
                 memory.sockets[onlineSocketsI].dramEnergy = getDRAMConsumedJoules(socketStatesBefore_[skt], socketStatesAfter_[skt]);
@@ -740,7 +774,7 @@ namespace PCMDaemon {
             else
             {
                 // Delete segment
-                success = shmctl(sharedMemoryId_, IPC_RMID, NULL);
+                int success = shmctl(sharedMemoryId_, IPC_RMID, NULL);
                 if (success != 0)
                 {
                     std::cerr << "Failed to delete the shared memory segment (errno=" << errno << ")\n";

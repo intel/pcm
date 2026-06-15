@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-// Copyright (c) 2009-2012, Intel Corporation
+// Copyright (c) 2009-2022, Intel Corporation
 /*
 ** Written by Otto Bruggeman
 */
@@ -72,7 +72,7 @@ namespace PMUService {
             this->serviceInstaller1->Description = L"This service provides performance counters for perfmon to show hardware events ov" 
                 L"er time such as Clockticks, Instruction Retired,  Cache Misses and Memory Bandwi" 
                 L"dth.";
-            this->serviceInstaller1->DisplayName = L"Processor Counter Monitor Service";
+            this->serviceInstaller1->DisplayName = L"Intel(r) Performance Counter Monitor Service";
             this->serviceInstaller1->ServiceName = L"PCMService";
             this->serviceInstaller1->StartType = System::ServiceProcess::ServiceStartMode::Automatic;
             // 

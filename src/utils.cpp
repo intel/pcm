@@ -1,21 +1,139 @@
 // SPDX-License-Identifier: BSD-3-Clause
-// Copyright (c) 2009-2018, Intel Corporation
+// Copyright (c) 2009-2022, Intel Corporation
 // written by Andrey Semin and many others
 
+#include <array>
 #include <iostream>
 #include <cassert>
 #include <climits>
+#include <algorithm>
 #ifdef _MSC_VER
+#include <windows.h>
+#include <accctrl.h>
+#include <aclapi.h>
+#include <sddl.h>
 #include <process.h>
 #include <comdef.h>
 #else
 #include <sys/wait.h> // for waitpid()
 #include <unistd.h> // for ::sleep
+#include <fcntl.h>  // for open(), O_NOFOLLOW
 #endif
 #include "utils.h"
 #include "cpucounters.h"
+#include <numeric>
+#ifndef _MSC_VER
+#include <execinfo.h>
+extern char ** environ;
+#endif
+#ifdef __linux__
+#include <glob.h>
+#endif
+
+#include "debug.h"
 
 namespace pcm {
+
+
+bool startsWithPCM(const StringType& varName) {
+    const StringType prefix = PCM_STRING("PCM_");
+    return varName.compare(0, prefix.size(), prefix) == 0;
+}
+
+bool isInKeepList(const StringType& varName, const std::vector<StringType>& keepList) {
+    for (const auto& keepVar : keepList) {
+        if (varName == keepVar) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void setDefaultDebugLevel()
+{
+    auto strDebugLevel = pcm::safe_getenv("PCM_DEBUG_LEVEL");
+    if (strDebugLevel.empty() == false)
+    {
+        auto intDebugLevel = std::stoi(strDebugLevel);
+        debug::dyn_debug_level(intDebugLevel);
+        DBG(0, "Debug level set to ", intDebugLevel);
+    }
+}
+
+void getMCFGRecords(std::vector<MCFGRecord>& mcfg)
+{
+#ifdef __linux__
+    mcfg = PciHandleMM::getMCFGRecords();
+#elif defined(_MSC_VER)
+    PciHandle::readMCFGRecords(mcfg);
+#else
+    MCFGRecord segment;
+    segment.startBusNumber = 0;
+    segment.endBusNumber = 0xff;
+    auto maxSegments = 1;
+#if defined(__FreeBSD__) || defined(__DragonFly__)
+    switch (PCM::getCPUFamilyModelFromCPUID())
+    {
+    case PCM::SPR:
+    case PCM::GNR:
+        maxSegments = 4;
+        break;
+    }
+#endif
+    for (segment.PCISegmentGroupNumber = 0; segment.PCISegmentGroupNumber < maxSegments; ++(segment.PCISegmentGroupNumber))
+    {
+        mcfg.push_back(segment);
+    }
+#endif
+}
+
+#if defined(_MSC_VER)
+
+void eraseEnvironmentVariables(const std::vector<std::wstring>& keepList) {
+    // Get a snapshot of the current environment block
+    LPWCH envBlock = GetEnvironmentStrings();
+    if (!envBlock) {
+        std::cerr << "Error getting environment strings." << std::endl;
+        return;
+    }
+
+    // Iterate over the environment block
+    for (LPWCH var = envBlock; *var != 0; var += std::wcslen(var) + 1) {
+        std::wstring varName(var);
+        size_t pos = varName.find('=');
+        if (pos != std::string::npos) {
+            varName = varName.substr(0, pos);
+            if (!startsWithPCM(varName) && !isInKeepList(varName, keepList)) {
+                SetEnvironmentVariable(varName.c_str(), NULL);
+            }
+        }
+    }
+
+    // Free the environment block
+    FreeEnvironmentStrings(envBlock);
+}
+#else
+void eraseEnvironmentVariables(const std::vector<std::string>& keepList) {
+    std::vector<std::string> varsToDelete;
+
+    // Collect all the variables that need to be deleted
+    for (char **env = environ; *env != nullptr; ++env) {
+        std::string envEntry(*env);
+        size_t pos = envEntry.find('=');
+        if (pos != std::string::npos) {
+            std::string varName = envEntry.substr(0, pos);
+            if (!startsWithPCM(varName) && !isInKeepList(varName, keepList)) {
+                varsToDelete.push_back(varName);
+            }
+        }
+    }
+
+    // Delete the collected variables
+    for (const auto& varName : varsToDelete) {
+        unsetenv(varName.c_str());
+    }
+}
+#endif
 
 void (*post_cleanup_callback)(void) = NULL;
 
@@ -27,7 +145,7 @@ void exit_cleanup(void)
     restore_signal_handlers();
 
     // this replaces same call in cleanup() from util.h
-    PCM::getInstance()->cleanup(); // this replaces same call in cleanup() from util.h
+    if (PCM::isInitialized()) PCM::getInstance()->cleanup(); // this replaces same call in cleanup() from util.h
 
 //TODO: delete other shared objects.... if any.
 
@@ -35,6 +153,59 @@ void exit_cleanup(void)
     {
         post_cleanup_callback();
     }
+}
+
+
+#ifdef _MSC_VER
+bool colorEnabled = false;
+#else
+bool colorEnabled = true;
+#endif
+
+void setColorEnabled(bool value)
+{
+    colorEnabled = value;
+}
+
+const char * setColor (const char * colorStr)
+{
+    return colorEnabled ? colorStr : "";
+}
+
+template<typename T, typename... N>
+constexpr auto make_array(N&&... args) -> std::array<T, sizeof...(args)>
+{
+    return {std::forward<N>(args)...};
+}
+
+constexpr auto colorTable{make_array<const char*>(
+    ASCII_GREEN,
+    ASCII_YELLOW,
+    ASCII_MAGENTA,
+    ASCII_CYAN,
+    ASCII_BRIGHT_GREEN,
+    ASCII_BRIGHT_YELLOW,
+    ASCII_BRIGHT_BLUE,
+    ASCII_BRIGHT_MAGENTA,
+    ASCII_BRIGHT_CYAN,
+    ASCII_BRIGHT_WHITE
+)};
+
+size_t currentColor = 0;
+const char * setNextColor()
+{
+    const auto result = setColor(colorTable[currentColor++]);
+    if (currentColor == colorTable.size())
+    {
+        currentColor = 0;
+    }
+    return result;
+}
+
+const char * resetColor()
+{
+    currentColor = 0;
+    return setColor(ASCII_RESET_COLOR);
 }
 
 void print_cpu_details()
@@ -45,10 +216,28 @@ void print_cpu_details()
     const auto ucode_level = m->getCPUMicrocodeLevel();
     if (ucode_level >= 0)
     {
-        std::cerr << " microcode level 0x" << std::hex << ucode_level;
+        std::cerr << " microcode level 0x" << std::hex << ucode_level << std::dec;
     }
     std::cerr << "\n";
 }
+
+#ifdef __linux__
+std::vector<std::string> findPathsFromPattern(const char* pattern)
+{
+            std::vector<std::string> result;
+            glob_t glob_result;
+            memset(&glob_result, 0, sizeof(glob_result));
+            if (glob(pattern, GLOB_TILDE, nullptr, &glob_result) == 0)
+            {
+                for (size_t i = 0; i < glob_result.gl_pathc; ++i)
+                {
+                    result.push_back(glob_result.gl_pathv[i]);
+                }
+            }
+            globfree(&glob_result);
+            return result;
+};
+#endif
 
 #ifdef _MSC_VER
 
@@ -136,7 +325,7 @@ BOOL sigINT_handler(DWORD fdwCtrlType)
 
     // in case PCM is blocked just return and summary will be dumped in
     // calling function, if needed
-    if (PCM::getInstance()->isBlocked()) {
+    if (PCM::isInitialized() && PCM::getInstance()->isBlocked()) {
         return FALSE;
     } else {
         exit_cleanup();
@@ -172,7 +361,7 @@ void sigINT_handler(int signum)
 
     // in case PCM is blocked just return and summary will be dumped in
     // calling function, if needed
-    if (PCM::getInstance()->isBlocked()) {
+    if (PCM::isInitialized() && PCM::getInstance()->isBlocked()) {
         return;
     } else {
         exit_cleanup();
@@ -185,6 +374,41 @@ void sigINT_handler(int signum)
             _exit(EXIT_SUCCESS);
         }
     }
+}
+
+constexpr auto BACKTRACE_MAX_STACK_FRAME = 30;
+void printBacktrace()
+{
+    void* backtrace_buffer[BACKTRACE_MAX_STACK_FRAME] = { 0 };
+    char** backtrace_strings = NULL;
+    size_t backtrace_size = 0;
+
+    backtrace_size = backtrace(backtrace_buffer, BACKTRACE_MAX_STACK_FRAME);
+    backtrace_strings = backtrace_symbols(backtrace_buffer, backtrace_size);
+    if (backtrace_strings == NULL)
+    {
+        std::cerr << "Debug: backtrace empty. \n";
+    }
+    else
+    {
+        std::cerr << "Debug: backtrace dump(" << backtrace_size << " stack frames).\n";
+        for (size_t i = 0; i < backtrace_size; i++)
+        {
+            std::cerr << backtrace_strings[i] << "\n";
+        }
+        freeAndNullify(backtrace_strings);
+    }
+}
+
+/**
+ * \brief handles SIGSEGV signals that lead to termination of the program
+ * this function specifically works when the client application launched
+ * by pcm -- terminates
+ */
+void sigSEGV_handler(int signum)
+{
+    printBacktrace();
+    sigINT_handler(signum);
 }
 
 /**
@@ -285,15 +509,16 @@ void set_signal_handlers(void)
         std::cerr << "\nPCM ERROR: _dupenv_s failed.\n";
         _exit(EXIT_FAILURE);
     }
-    free(envPath);
     if (envPath)
     {
         std::cerr << "\nPCM ERROR: Detected cygwin/mingw environment which does not allow to setup PMU clean-up handlers on Ctrl-C and other termination signals.\n";
         std::cerr << "See https://www.mail-archive.com/cygwin@cygwin.com/msg74817.html\n";
         std::cerr << "As a workaround please run pcm directly from a native windows shell (e.g. cmd).\n";
         std::cerr << "Exiting...\n\n";
+        freeAndNullify(envPath);
         _exit(EXIT_FAILURE);
     }
+    freeAndNullify(envPath);
     std::cerr << "DEBUG: Setting Ctrl+C done.\n";
 
 #else
@@ -307,10 +532,14 @@ void set_signal_handlers(void)
     sigaction(SIGQUIT, &saINT, NULL);
     sigaction(SIGABRT, &saINT, NULL);
     sigaction(SIGTERM, &saINT, NULL);
-    sigaction(SIGSEGV, &saINT, NULL);
-
+    
     saINT.sa_flags = SA_RESTART | SA_NOCLDSTOP;
     sigaction(SIGCHLD, &saINT, NULL); // get there is our child exits. do nothing if it stopped/continued
+
+    saINT.sa_handler = sigSEGV_handler;
+    sigemptyset(&saINT.sa_mask);
+    saINT.sa_flags = SA_RESTART;
+    sigaction(SIGSEGV, &saINT, NULL);
 
     // install SIGHUP handler to restart
     saHUP.sa_handler = sigHUP_handler;
@@ -351,6 +580,8 @@ void restore_signal_handlers(void)
 #ifndef _MSC_VER
     struct sigaction action;
     action.sa_handler = SIG_DFL;
+    action.sa_flags = 0;
+    sigemptyset(&action.sa_mask);
 
     sigaction(SIGINT, &action, NULL);
     sigaction(SIGQUIT, &action, NULL);
@@ -482,13 +713,13 @@ void MySystem(char * sysCmd, char ** sysArgv)
         if (PCM::getInstance()->isBlocked()) {
             int res;
             waitpid(child_pid, &res, 0);
-            std::cerr << "Program " << sysCmd << " launched with PID: " << child_pid << "\n";
+            std::cerr << "Program " << sysCmd << " launched with PID: " << std::dec << child_pid << "\n";
 
             if (WIFEXITED(res)) {
                 std::cerr << "Program exited with status " << WEXITSTATUS(res) << "\n";
             }
             else if (WIFSIGNALED(res)) {
-                std::cerr << "Process " << child_pid << " was terminated with status " << WTERMSIG(res);
+                std::cerr << "Process " << child_pid << " was terminated with status " << WTERMSIG(res) << "\n";
             }
         }
     }
@@ -559,8 +790,13 @@ void drawStackedBar(const std::string & label, std::vector<StackedBarItem> & h, 
 
 bool CheckAndForceRTMAbortMode(const char * arg, PCM * m)
 {
-    if (strncmp(arg, "-force-rtm-abort-mode", 21) == 0)
+    if (check_argument_equals(arg, {"-force-rtm-abort-mode"}))
     {
+        if (nullptr == m)
+        {
+            m = PCM::getInstance();
+            assert(m);
+        }
         m->enableForceRTMAbortMode();
         return true;
     }
@@ -581,10 +817,75 @@ std::vector<std::string> split(const std::string & str, const char delim)
 
 uint64 read_number(const char* str)
 {
-    std::istringstream stream(str);
-    if (strstr(str, "x")) stream >> std::hex;
+    if (str == nullptr || *str == '\0')
+    {
+        throw std::invalid_argument("Input string is null or empty");
+    }
+
+    std::string input(str);
+    // Trim leading and trailing whitespace
+    size_t start = input.find_first_not_of(" \t\n\r");
+    size_t end = input.find_last_not_of(" \t\n\r");
+    
+    if (start == std::string::npos)
+    {
+        throw std::invalid_argument("Input string contains only whitespace");
+    }
+    
+    input = input.substr(start, end - start + 1);
+    
+    std::istringstream stream(input);
     uint64 result = 0;
-    stream >> result;
+    
+    // Check if the input is hexadecimal (starts with 0x or 0X)
+    if (input.length() >= 2 && input[0] == '0' && (input[1] == 'x' || input[1] == 'X'))
+    {
+        if (input.length() == 2)
+        {
+            throw std::invalid_argument("Invalid hexadecimal number: no digits after 0x");
+        }
+        
+        // Validate that all characters after 0x are valid hex digits
+        for (size_t i = 2; i < input.length(); ++i)
+        {
+            char c = input[i];
+            if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')))
+            {
+                throw std::invalid_argument("Invalid hexadecimal number: contains non-hex characters");
+            }
+        }
+        
+        stream >> std::hex >> result;
+    }
+    else
+    {
+        // Validate that all characters are valid decimal digits
+        for (size_t i = 0; i < input.length(); ++i)
+        {
+            char c = input[i];
+            if (!(c >= '0' && c <= '9'))
+            {
+                throw std::invalid_argument("Invalid decimal number: contains non-digit characters");
+            }
+        }
+        
+        stream >> result;
+    }
+    
+    // Check if the stream operation failed or if there are remaining characters
+    if (stream.fail())
+    {
+        throw std::invalid_argument("Failed to parse number from input string");
+    }
+    
+    // Check if there are any remaining characters in the stream
+    std::string remaining;
+    stream >> remaining;
+    if (!remaining.empty())
+    {
+        throw std::invalid_argument("Input string contains extra characters after the number");
+    }
+    
     return result;
 }
 
@@ -614,7 +915,7 @@ int calibratedSleep(const double delay, const char* sysCmd, const MainLoop& main
     {
         if (delay_ms > 0)
         {
-            // std::cerr << "DEBUG: sleeping for " << std::dec << delay_ms << " ms...\n";
+            DBG(1, "sleeping for " , std::dec , delay_ms , " ms...");
             MySleepMs(delay_ms);
         }
     }
@@ -624,17 +925,33 @@ int calibratedSleep(const double delay, const char* sysCmd, const MainLoop& main
     return delay_ms;
 };
 
-void print_help_force_rtm_abort_mode(const int alignment)
+void print_help_force_rtm_abort_mode(const int alignment, const char * separator)
 {
-    const auto m = PCM::getInstance();
-    if (m->isForceRTMAbortModeAvailable() && (m->getMaxCustomCoreEvents() < 4))
+    if (PCM::isForceRTMAbortModeAvailable() == false)
     {
-        std::cerr << "  -force-rtm-abort-mode";
-        for (int i = 0; i < (alignment - 23); ++i)
+        return;
+    }
+    try
+    {
+        const auto m = PCM::getInstance();
+        if (m->getMaxCustomCoreEvents() < 4)
         {
-            std::cerr << " ";
+            std::cout << "  -force-rtm-abort-mode";
+            for (int i = 0; i < (alignment - 23); ++i)
+            {
+                std::cout << " ";
+            }
+            assert(separator);
+            std::cout << separator << " force RTM transaction abort mode to enable more programmable counters\n";
         }
-        std::cerr << "=> force RTM transaction abort mode to enable more programmable counters\n";
+    }
+    catch (std::exception & e)
+    {
+        std::cerr << "ERROR: " << e.what() << "\n";
+    }
+    catch (...)
+    {
+        std::cerr << "ERROR: Unknown exception caught in print_help_force_rtm_abort_mode\n";
     }
 }
 
@@ -646,7 +963,7 @@ std::string safe_getenv(const char* env)
     if (_dupenv_s(&buffer, NULL, env) == 0 && buffer != nullptr)
     {
         result = buffer;
-        free(buffer);
+        freeAndNullify(buffer);
     }
     return result;
 }
@@ -666,18 +983,661 @@ void print_pid_collection_message(int pid)
     }
 }
 
-void check_and_set_silent(int argc, char * argv[], null_stream &nullStream2) {
+double parse_delay(const char *arg, const std::string& progname, print_usage_func print_usage_func)
+{
+    // any other options positional that is a floating point number is treated as <delay>,
+    // while the other options are ignored with a warning issues to stderr
+    double delay_input = 0.0;
+    std::istringstream is_str_stream(arg);
+    is_str_stream >> std::noskipws >> delay_input;
+    if(is_str_stream.eof() && !is_str_stream.fail())
+    {
+        if (delay_input < 0)
+        {
+            std::cerr << "Invalid delay specified: \"" << *arg << "\". Delay should be positive.\n";
+            if(print_usage_func)
+            {
+                print_usage_func(progname);
+            }
+            exit(EXIT_FAILURE);
+        }
+        return delay_input;
+    }
+    else
+    {
+        std::cerr << "WARNING: unknown command-line option: \"" << *arg << "\". Ignoring it.\n";
+        if(print_usage_func)
+        {
+            print_usage_func(progname);
+        }
+        exit(EXIT_FAILURE);
+    }
+}
+
+std::list<int> extract_integer_list(const char *optarg){
+    const char *pstr = optarg;
+    std::list<int> corelist;
+    std::string snum1, snum2;
+    std::string *pnow = &snum1;
+    char nchar = ',';
+    while(*pstr != '\0' || nchar != ','){
+        nchar = ',';
+        if (*pstr != '\0'){
+            nchar = *pstr;
+            pstr++;
+        } 
+        //printf("c=%c\n",nchar);
+        if (nchar=='-' && pnow == &snum1 && snum1.size()>0){
+            pnow = &snum2;
+        }else if (nchar == ','){
+            if (!snum1.empty() && !snum2.empty()){
+                int num1 = atoi(snum1.c_str()), num2 =atoi(snum2.c_str());
+                if (num2 < num1) std::swap(num1,num2);
+                if (num1 < 0) num1 = 0;
+                for (int ix=num1; ix <= num2; ix++){
+                    corelist.push_back(ix);
+                }
+            }else if (!snum1.empty()){
+                int num1 = atoi(snum1.c_str());
+                corelist.push_back(num1);
+            }
+            snum1.clear();
+            snum2.clear();
+            pnow = &snum1;
+        }else if (nchar != ' '){
+            pnow->push_back(nchar);
+        }
+    }
+    return(corelist);
+}
+
+bool extract_argument_value(const char* arg, std::initializer_list<const char*> arg_names, std::string& value)
+{
+    const auto arg_len = strlen(arg);
+    for (const auto& arg_name: arg_names) {
+        const auto arg_name_len = strlen(arg_name);
+        if (arg_len > arg_name_len && strncmp(arg, arg_name, arg_name_len) == 0 && arg[arg_name_len] == '=') {
+            value = arg + arg_name_len + 1;
+            const auto last_pos = value.find_last_not_of("\"");
+            if (last_pos != std::string::npos) {
+                value.erase(last_pos + 1);
+            }
+            const auto first_pos = value.find_first_not_of("\"");
+            if (first_pos != std::string::npos) {
+                value.erase(0, first_pos);
+            }
+
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool check_argument_equals(const char* arg, std::initializer_list<const char*> arg_names)
+{
+    const auto arg_len = strlen(arg);
+    for (const auto& arg_name: arg_names) {
+        if (arg_len == strlen(arg_name) && strncmp(arg, arg_name, arg_len) == 0) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+void check_and_set_silent(int argc, char * argv[], null_stream &nullStream2)
+{
     if (argc > 1) do
     {
         argv++;
         argc--;
-        if (strncmp(*argv, "-s", 2) == 0 ||
-            strncmp(*argv, "/s", 2) == 0)
+
+        if (check_argument_equals(*argv, {"--help", "-h", "/h"}) ||
+            check_argument_equals(*argv, {"-silent", "/silent"}))
         {
             std::cerr.rdbuf(&nullStream2);
             return;
         }
     } while (argc > 1);
 }
+
+bool check_for_injections(const std::string & str)
+{
+    const std::array<char, 4> symbols = {'=', '+', '-', '@'};
+    if (std::find(std::begin(symbols), std::end(symbols), str[0]) != std::end(symbols)) {
+        std::cerr << "ERROR: First letter in event name: " << str << " cannot be \"" << str[0] << "\" , please use escape \"\\\" or remove it\n";
+        return true;
+    }
+    return false;
+}
+
+void print_enforce_flush_option_help()
+{
+    std::cout << "  -f    | /f                         => enforce flushing output\n";
+}
+
+bool print_version(int argc, char * argv[])
+{
+    if (argc > 1) do
+    {
+        argv++;
+        argc--;
+
+        if (check_argument_equals(*argv, {"--version"}))
+        {
+            std::cout << "version: " << PCM_VERSION << "\n";
+            return true;
+        }
+    } while (argc > 1);
+
+    return false;
+}
+
+std::string dos2unix(std::string in)
+{
+    if (in.length() > 0 && int(in[in.length() - 1]) == 13)
+    {
+        in.erase(in.length() - 1);
+    }
+    return in;
+}
+
+bool isRegisterEvent(const std::string & pmu)
+{
+    if (pmu == "mmio"
+       || pmu == "pcicfg"
+       || pmu == "pmt"
+       || pmu == "tpmi"
+       || pmu == "package_msr"
+       || pmu == "thread_msr")
+    {
+        return true;
+    }
+    return false;
+}
+
+std::string a_title(const std::string &init, const std::string &name) {
+    char begin = init[0];
+    std::string row = init;
+    row += name;
+    return row + begin;
+}
+
+std::string a_data (std::string init, struct data d) {
+    char begin = init[0];
+    std::string row = init;
+    std::string str_d = unit_format(d.value);
+    row += str_d;
+    if (str_d.size() > d.width)
+        throw std::length_error("counter value > event_name length");
+    row += std::string(d.width - str_d.size(), ' ');
+    return row + begin;
+}
+
+std::string build_line(std::string init, std::string name, bool last_char = true, char this_char = '_')
+{
+    char begin = init[0];
+    std::string row = init;
+    row += std::string(name.size(), this_char);
+    if (last_char == true)
+        row += begin;
+    return row;
+}
+
+std::string a_header_footer (std::string init, std::string name)
+{
+    return build_line(init, name);
+}
+
+std::string build_csv_row(const std::vector<std::string>& chunks, const std::string& delimiter)
+{
+    return std::accumulate(chunks.begin(), chunks.end(), std::string(""),
+                           [delimiter](const std::string &left, const std::string &right){
+                               return left.empty() ? right : left + delimiter + right;
+                           });
+}
+
+
+std::vector<struct data> prepare_data(const std::vector<uint64_t> &values, const std::vector<std::string> &headers)
+{
+    std::vector<struct data> v;
+    uint32_t idx = 0;
+    for (std::vector<std::string>::const_iterator iunit = std::next(headers.begin()); iunit != headers.end() && idx < values.size(); ++iunit, idx++)
+    {
+        struct data d;
+        d.width = (uint32_t)iunit->size();
+        d.value = values[idx];
+        v.push_back(d);
+    }
+
+    return v;
+}
+
+void display(const std::vector<std::string> &buff, std::ostream& stream)
+{
+    for (std::vector<std::string>::const_iterator iunit = buff.begin(); iunit != buff.end(); ++iunit)
+        stream << *iunit << "\n";
+    stream << std::flush;
+}
+
+void print_nameMap(const PCIeEventNameMap& nameMap)
+{
+    for (const auto& iunit : nameMap)
+    {
+        const std::string& h_name = iunit.first;
+        const auto& value = iunit.second;
+        uint32_t hid = value.first;
+        const auto& vMap = value.second;
+        std::cout << "H name: " << h_name << " id =" << hid << " vMap size:" << vMap.size() << "\n";
+        for (const auto& junit : vMap)
+        {
+            const std::string& v_name = junit.first;
+            uint32_t vid = junit.second;
+            std::cout << "V name: " << v_name << " id =" << vid << "\n";
+        }
+    }
+}
+
+//! \brief load_events: parse the evt config file.
+//! \param fn:event config file name.
+//! \param ofm: operation field map struct.
+//! \param pfn_evtcb: see below.
+//! \param evtcb_ctx: pointer of the callback context(user define).
+//! \param nameMap: human readable metrics names.
+//! \return -1 means fail, 0 means success.
+
+//! \brief pfn_evtcb: call back func of event config file processing, app should provide it.
+//! \param void *: pointer of the callback context.
+//! \param counter &: common base counter struct.
+//! \param std::map<std::string, uint32_t> &: operation field map struct.
+//! \param std::string: event field name.
+//! \param uint64: event field value.
+//! \return -1 means fail with app exit, 0 means success or fail with continue.
+int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
+                int (*pfn_evtcb)(evt_cb_type, void *, counter &, std::map<std::string, uint32_t> &, std::string, uint64),
+                void *evtcb_ctx, PCIeEventNameMap& nameMap)
+{
+    struct counter ctr;
+
+    std::ifstream in(fn);
+    std::string line, item;
+    if (!in.is_open())
+    {
+        const auto alt_fn = getInstallPathPrefix() + fn;
+        std::cout << "INFO: Couldn't load event config file " << fn << ", trying to load it from PCM install path: " << alt_fn << std::endl;
+        in.open(alt_fn);
+        if (!in.is_open())
+        {
+            in.close();
+            const auto err_msg = std::string("event config file ") + fn + " or " + alt_fn + " is not available, you can try to manually copy it from PCM source package.";
+            throw std::invalid_argument(err_msg);
+        }
+    }
+
+    while (std::getline(in, line))
+    {
+        //TODO: substring until #, if len == 0, skip, else parse normally
+        //Set default value if the item is NOT available in cfg file.
+        ctr.h_event_name = "INVALID";
+        ctr.v_event_name = "INVALID";
+        ctr.ccr = 0;
+        ctr.idx = 0;
+        ctr.multiplier = 1;
+        ctr.divider = 1;
+        ctr.h_id = 0;
+        ctr.v_id = 0;
+
+        if (pfn_evtcb(EVT_LINE_START, evtcb_ctx, ctr, ofm, "", 0))
+        {
+            in.close();
+            const auto err_msg = std::string("event line processing(start) fault.\n");
+            throw std::invalid_argument(err_msg);
+        }
+
+        /* Ignore anyline with # */
+        if (line.find("#") != std::string::npos) continue;
+        /* If line does not have any deliminator, we ignore it as well */
+        if (line.find("=") == std::string::npos) continue;
+
+        std::string h_name, v_name;
+        std::istringstream iss(line);
+        while (std::getline(iss, item, ','))
+        {
+            std::string key, value;
+            uint64 numValue;
+            /* assume the token has the format <key>=<value> */
+            key = item.substr(0,item.find("="));
+            value = item.substr(item.find("=")+1);
+
+            if (key.empty() || value.empty())
+                continue; //skip the item if the token invalid
+
+            std::istringstream iss2(value);
+            iss2 >> std::setbase(0) >> numValue;
+
+            switch (ofm[key])
+            {
+                case PCM::H_EVENT_NAME:
+                    h_name = dos2unix(value);
+                    ctr.h_event_name = h_name;
+                    if (nameMap.find(h_name) == nameMap.end())
+                    {
+                        /* It's a new horizontal event name */
+                        auto next_h_id = static_cast<uint32_t>(nameMap.size());
+                        auto nameMap_value = std::make_pair(next_h_id, CounterValueMap());
+                        nameMap[h_name] = nameMap_value;
+                    }
+                    ctr.h_id = static_cast<uint32_t>(nameMap.size()) - 1;
+                    DBG(2, "h_name:" , ctr.h_event_name , "h_id: ", ctr.h_id);
+                    break;
+                case PCM::V_EVENT_NAME:
+                    {
+                        v_name = dos2unix(value);
+                        ctr.v_event_name = v_name;
+                        //XXX: If h_name comes after v_name, we'll have a problem.
+                        //XXX: It's very weird, I forgot to assign nameMap[h_name] = nameMap_value earlier (:298), but this part still works?
+                        auto& v_nameMap = nameMap[h_name].second;
+                        if (v_nameMap.find(v_name) == v_nameMap.end())
+                        {
+                            v_nameMap[v_name] = static_cast<uint32_t>(v_nameMap.size()) - 1;
+                            DBG(2, "v_name(" , v_name , ")=", v_nameMap[v_name]);
+                        }
+                        else
+                        {
+                            in.close();
+                            const auto err_msg = std::string("Detect duplicated v_name:") + v_name + "\n";
+                            throw std::invalid_argument(err_msg);
+                        }
+                        ctr.v_id = static_cast<uint32_t>(v_nameMap.size()) - 1;
+                        DBG(2, "h_name:" , ctr.h_event_name , ",hid=" , ctr.h_id , ",v_name:" , ctr.v_event_name , ",v_id: ", ctr.v_id);
+                        break;
+                    }
+                //TODO: double type for multiplier. drop divider variable
+                case PCM::MULTIPLIER:
+                    ctr.multiplier = static_cast<int>(numValue);
+                    break;
+                case PCM::DIVIDER:
+                    ctr.divider = static_cast<int>(numValue);
+                    break;
+                case PCM::COUNTER_INDEX:
+                    ctr.idx = static_cast<int>(numValue);
+                    break;
+                case PCM::UNIT_TYPE:
+                    {
+                        auto typeString = dos2unix(value);
+                        if (typeString == std::string("iio"))
+                        {
+                            ctr.type = CounterType::iio;
+                        }
+                        else
+                        {
+                            in.close();
+                            const auto err_msg = std::string("event line processing(end) fault.\n");
+                            throw std::invalid_argument(err_msg);
+                        }
+                    }
+                    break;
+                default:
+                    if (pfn_evtcb(EVT_LINE_FIELD, evtcb_ctx, ctr, ofm, key, numValue))
+                    {
+                        in.close();
+                        const auto err_msg = std::string("event line processing(field) fault.\n");
+                        throw std::invalid_argument(err_msg);
+                    }
+                    break;
+            }
+        }
+
+        DBG(2, "Finished parsing: " , line);
+        if (pfn_evtcb(EVT_LINE_COMPLETE, evtcb_ctx, ctr, ofm, "", 0))
+        {
+            in.close();
+            const auto err_msg = std::string("event line processing(end) fault.\n");
+            throw std::invalid_argument(err_msg);
+        }
+    }
+
+    //print_nameMap(nameMap); //DEBUG purpose
+    in.close();
+    return 0;
+}
+
+int load_events(const std::string &fn, std::map<std::string, uint32_t> &ofm,
+                int (*pfn_evtcb)(evt_cb_type, void *, counter &, std::map<std::string, uint32_t> &, std::string, uint64),
+                void *evtcb_ctx)
+{
+    PCIeEventNameMap nm;
+    return load_events(fn, ofm, pfn_evtcb, evtcb_ctx, nm);
+}
+
+bool get_cpu_bus(uint32 msmDomain, uint32 msmBus, uint32 msmDev, uint32 msmFunc, uint32 &cpuBusValid, std::vector<uint32> &cpuBusNo, int &cpuPackageId)
+{
+    DBG(2, "get_cpu_bus: d=" , std::hex , msmDomain , ",b=" , msmBus , ",d=" , msmDev , ",f=" , msmFunc , std::dec );
+    try
+    {
+        PciHandleType h(msmDomain, msmBus, msmDev, msmFunc);
+
+        h.read32(SPR_MSM_REG_CPUBUSNO_VALID_OFFSET, &cpuBusValid);
+        if (cpuBusValid == (std::numeric_limits<uint32>::max)()) {
+            std::cerr << "Failed to read CPUBUSNO_VALID" << std::endl;
+            return false;
+        }
+
+        if (!cpuBusValid)
+        {
+            /**
+             * Return true because an unexpected device might appear in the OS due to specific configurations.
+             * This ensures the function does not fail in such cases and allows further processing.
+             */
+            std::cerr << "CPUBUSNO_VALID is 0" << std::endl;
+            return true;
+        }
+
+        cpuBusNo.resize(8);
+        for (int i = 0; i < 4; ++i) {
+            h.read32(SPR_MSM_REG_CPUBUSNO0_OFFSET + i * 4, &cpuBusNo[i]);
+
+            h.read32(SPR_MSM_REG_CPUBUSNO4_OFFSET + i * 4, &cpuBusNo[i + 4]);
+
+            if (cpuBusNo[i] == (std::numeric_limits<uint32>::max)() ||
+                cpuBusNo[i + 4] == (std::numeric_limits<uint32>::max)()) {
+                std::cerr << "Failed to read CPUBUSNO registers" << std::endl;
+                return false;
+            }
+        }
+
+        /*
+        * It's possible to have not enabled first stack that's why
+        * need to find the first valid bus to read CSR
+        */
+        int firstValidBusId = 0;
+        while (!((cpuBusValid >> firstValidBusId) & 0x1)) firstValidBusId++;
+        int cpuBusNo0 = (cpuBusNo[(int)(firstValidBusId / 4)] >> ((firstValidBusId % 4) * 8)) & 0xff;
+
+        uint32 sadControlCfg = 0x0;
+        PciHandleType sad_cfg_handler(msmDomain, cpuBusNo0, 0, 0);
+        sad_cfg_handler.read32(SPR_SAD_REG_CTL_CFG_OFFSET, &sadControlCfg);
+        if (sadControlCfg == (std::numeric_limits<uint32>::max)()) {
+            std::cerr << "Failed to read SAD_CONTROL_CFG" << std::endl;
+            return false;
+        }
+        cpuPackageId = sadControlCfg & 0xf;
+
+        return true;
+    }
+    catch (...)
+    {
+        std::cerr << "Warning: unable to enumerate CPU Buses" << std::endl;
+        return false;
+    }
+}
+
+std::pair<int64,int64> parseBitsParameter(const char * param)
+{
+    std::pair<int64,int64> bits{-1, -1};
+    const auto bitsArray = pcm::split(std::string(param),':');
+    switch ( bitsArray.size() ) {
+    case 1:
+        bits.first  = (int64)read_number(bitsArray[0].c_str());
+        bits.second = bits.first;
+        break;
+    case 2:
+        bits.first = (int64)read_number(bitsArray[0].c_str());
+        bits.second = (int64)read_number(bitsArray[1].c_str());
+        break;
+    default:
+        assert(bitsArray.size() == 1 || bitsArray.size() == 2);
+    }
+    assert(bits.first >= 0);
+    assert(bits.second >= 0);
+    assert(bits.first < 64);
+    assert(bits.second < 64);
+    if (bits.first > bits.second)
+    {
+        std::swap(bits.first, bits.second);
+    }
+    return bits;
+}
+
+#ifdef __linux__
+FILE * tryOpen(const char * path, const char * mode)
+{
+    // SDL330: O_NOFOLLOW rejects symlinks atomically (no TOCTOU)
+    int flags = O_NOFOLLOW;
+    if (strchr(mode, 'w')) {
+        flags |= O_WRONLY | O_CREAT | O_TRUNC;
+    } else {
+        flags |= O_RDONLY;
+    }
+
+    int fd = open(path, flags, 0644);
+    if (fd < 0)
+    {
+        const std::string alt_path = std::string("/pcm") + path;
+        fd = open(alt_path.c_str(), flags, 0644);
+    }
+
+    if (fd < 0) {
+        return nullptr;
+    }
+
+    FILE * f = fdopen(fd, mode);
+    if (!f) {
+        close(fd);
+    }
+    return f;
+}
+
+std::string readSysFS(const char * path, bool silent)
+{
+    FILE * f = tryOpen(path, "r");
+    if (!f)
+    {
+        if (silent == false) std::cerr << "ERROR: Can not open " << path << " file.\n";
+        return std::string();
+    }
+    char buffer[1024];
+    if(NULL == fgets(buffer, 1024, f))
+    {
+        if (silent == false) std::cerr << "ERROR: Can not read from " << path << ".\n";
+        fclose(f);
+        return std::string();
+    }
+    fclose(f);
+    
+    return std::string(buffer);
+}
+
+bool writeSysFS(const char * path, const std::string & value, bool silent)
+{
+    FILE * f = tryOpen(path, "w");
+    if (!f)
+    {
+        if (silent == false) std::cerr << "ERROR: Can not open " << path << " file.\n";
+        return false;
+    }
+    if (fputs(value.c_str(), f) < 0)
+    {
+        if (silent == false) std::cerr << "ERROR: Can not write to " << path << ".\n";
+        fclose(f);
+        return false;
+    }
+    fclose(f);
+    return true;
+}
+
+int readMaxFromSysFS(const char * path)
+{
+    std::string content = readSysFS(path);
+    const char * buffer = content.c_str();
+    int result = -1;
+    pcm_sscanf(buffer) >> s_expect("0-") >> result;
+    if(result == -1)
+    {
+       pcm_sscanf(buffer) >> result;
+    }
+    return result;
+}
+
+bool readMapFromSysFS(const char * path, std::unordered_map<std::string, uint32> &result, bool silent)
+{
+    FILE * f = tryOpen(path, "r");
+    if (!f)
+    {
+        if (silent == false) std::cerr << "ERROR: Can not open " << path << " file.\n";
+        return false;
+    }
+    char buffer[1024];
+    while(fgets(buffer, 1024, f) != NULL)
+    {
+        std::string key, value, item;
+        uint32 numValue = 0;
+
+        item = std::string(buffer);
+        key = item.substr(0,item.find(" "));
+        value = item.substr(item.find(" ")+1);
+        if (key.empty() || value.empty())
+            continue; //skip the item if the token invalid
+        std::istringstream iss2(value);
+        iss2 >> std::setbase(0) >> numValue;
+        result.insert(std::pair<std::string, uint32>(key, numValue));
+        DBG(3, "readMapFromSysFS:" , key , "=" , numValue , ".");
+    }
+
+    fclose(f);
+    return true;
+}
+#endif
+
+#ifdef _MSC_VER
+
+//! restrict usage of driver to system (SY) and builtin admins (BA)
+void restrictDriverAccessNative(LPCTSTR path)
+{
+    PSECURITY_DESCRIPTOR pSD = nullptr;
+
+    if (!ConvertStringSecurityDescriptorToSecurityDescriptor(
+        _T("O:BAG:SYD:(A;;FA;;;SY)(A;;FA;;;BA)"),
+        SDDL_REVISION_1,
+        &pSD,
+        nullptr))
+    {
+        _tprintf(TEXT("Error in ConvertStringSecurityDescriptorToSecurityDescriptor: %d\n"), GetLastError());
+        return;
+    }
+
+    if (SetFileSecurity(path, DACL_SECURITY_INFORMATION, pSD))
+    {
+        // _tprintf(TEXT("Successfully restricted access for %s\n"), path);
+    }
+    else
+    {
+        _tprintf(TEXT("Error in SetFileSecurity for %s. Error %d\n"), path, GetLastError());
+    }
+
+    LocalFree(pSD);
+}
+#endif
 
 } // namespace pcm

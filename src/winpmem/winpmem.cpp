@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-// Copyright (c) 2009-2013, Intel Corporation
+// Copyright (c) 2009-2022, Intel Corporation
 
 /*
   Copyright 2012 Michael Cohen <scudette@gmail.com>
@@ -64,8 +64,8 @@ int WinPmem::toggle_write_mode() {
 WinPmem::WinPmem():
   suppress_output(FALSE),
   fd_(INVALID_HANDLE_VALUE),
-  out_fd_(INVALID_HANDLE_VALUE),
-  service_name(PMEM_SERVICE_NAME) {
+  out_fd_(INVALID_HANDLE_VALUE) {
+  _tcscpy_s(service_name, PMEM_SERVICE_NAME);
   _tcscpy_s(last_error, TEXT(""));
   max_physical_memory_ = 0;
   }
@@ -124,10 +124,12 @@ int WinPmem::install_driver(bool delete_driver) {
                           NULL);
 
   if (GetLastError() == ERROR_SERVICE_EXISTS) {
+    CloseServiceHandle(service);
     service = OpenService(scm, service_name, SERVICE_ALL_ACCESS);
   }
 
   if (!service) {
+    CloseServiceHandle(scm);
     goto error;
   };
   if (!StartService(service, 0, NULL)) {
@@ -183,6 +185,8 @@ int WinPmem::uninstall_driver() {
   DeleteService(service);
   CloseServiceHandle(service);
   Log(TEXT("Driver Unloaded.\n"));
+
+  CloseServiceHandle(scm);
 
   return 1;
 }

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-// Copyright (c) 2009-2012, Intel Corporation
+// Copyright (c) 2009-2022, Intel Corporation
 // written by Roman Dementiev
 //
 
@@ -79,7 +79,7 @@ int main(int argc, char * argv[])
     assert((argc > 1) && "Need operation type as parameter: 0 - read, 1 - write, 2 - streaming write ");
     int op = atoi(argv[1]);
     T * vector;
-    int nelements = 13000000;
+    int nelements = 1024 * 1024 * 1024 / sizeof(T);
     vector = new T[nelements];
 
     int i = 0;
@@ -132,7 +132,7 @@ int main(int argc, char * argv[])
         cout << "Bandwidth: " << (sizeof(T) * nelements * niter) / ((after_ts - before_ts) * 1024 * 1024) << " MByte/sec\n" << std::flush;
     }
 
-    delete[] vector;
+    pcm::deleteAndNullifyArray(vector);
 
     return 0;
 }

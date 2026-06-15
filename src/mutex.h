@@ -12,6 +12,8 @@
 namespace pcm
 {
     class Mutex {
+        Mutex(const Mutex&) = delete;
+        Mutex& operator = (const Mutex&) = delete;
 #ifdef _MSC_VER
         HANDLE mutex_;
 #else
@@ -55,6 +57,9 @@ namespace pcm
 
         class Scope {
             Mutex & m;
+            Scope() = delete;
+            Scope(const Scope &) = delete;
+            Scope & operator = (const Scope &) = delete;
         public:
             Scope(Mutex & m_) : m(m_)
             {

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-// Copyright (c) 2009-2017, Intel Corporation
+// Copyright (c) 2009-2022, Intel Corporation
 // written by Steven Briscoe
 
 #include <cstdlib>
@@ -15,6 +15,8 @@
 #include <grp.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
+#include <fcntl.h>
 
 #include "../daemon/common.h"
 #include "client.h"
@@ -95,15 +97,24 @@ namespace PCMDaemon {
 	void Client::setupSharedMemory()
 	{
 		int sharedMemoryId;
-		FILE *fp = fopen (shmIdLocation_.c_str(), "r");
+		// SDL330: Use O_NOFOLLOW to reject symlinks
+		int fd = open(shmIdLocation_.c_str(), O_RDONLY | O_NOFOLLOW);
+		if (fd < 0 && errno == ELOOP) {
+			std::cerr << "SDL330 ERROR: Symlink detected at " << shmIdLocation_ << "\n";
+			exit(EXIT_FAILURE);
+		}
+		FILE *fp = (fd >= 0) ? fdopen(fd, "r") : NULL;
 		if (!fp)
 		{
+			if (fd >= 0) close(fd);
 			std::cerr << "Failed to open to shared memory key location: " << shmIdLocation_ << "\n";
 			exit(EXIT_FAILURE);
 		}
-		int maxCharsToRead = 11;
-		char readBuffer[maxCharsToRead];
-		if (fread(&readBuffer, maxCharsToRead, 1, fp) == 0 && feof(fp) == 0)
+		const int maxCharsToRead = 11;
+		char readBuffer[maxCharsToRead + 1];
+		std::fill((char*)readBuffer, ((char*)readBuffer) + sizeof(readBuffer), 0);
+		const auto nread = fread(&readBuffer, maxCharsToRead, 1, fp);
+		if (nread == 0 && feof(fp) == 0)
 		{
 			fclose (fp);
 			std::stringstream ss;
@@ -111,6 +122,7 @@ namespace PCMDaemon {
 			throw std::runtime_error(ss.str());
 		}
 		fclose (fp);
+		assert(nread <= maxCharsToRead);
 
 		sharedMemoryId = atoi(readBuffer);
 
@@ -118,7 +130,7 @@ namespace PCMDaemon {
 		if (sharedPCMState_ == (void *)-1)
 		{
 			std::stringstream ss;
-			ss << "Failed to attach shared memory segment (errno=" << errno << ")";
+			ss << "Failed to attach shared memory segment (errno=" << errno << ") " << strerror(errno);
 
 			throw std::runtime_error(ss.str());
 		}

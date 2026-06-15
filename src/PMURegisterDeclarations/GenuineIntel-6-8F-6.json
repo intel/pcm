@@ -1,0 +1,152 @@
+{
+    "core" : {
+        "programmable" : {
+            "EventCode":   {"Config": 0, "Position": 0, "Width": 8},
+            "UMask":       {"Config": 0, "Position": 8, "Width": 8},
+            "User":        {"Config": 0, "Position": 16, "Width": 1, "DefaultValue": 1},
+            "OS":          {"Config": 0, "Position": 17, "Width": 1, "DefaultValue": 1},
+            "EdgeDetect":  {"Config": 0, "Position": 18, "Width": 1},
+            "PinControl":  {"Config": 0, "Position": 19, "Width": 1, "DefaultValue": 0},
+            "APICInt":     {"Config": 0, "Position": 20, "Width": 1, "DefaultValue": 0},
+            "Enable":      {"Config": 0, "Position": 22, "Width": 1, "DefaultValue": 1},
+            "Invert":      {"Config": 0, "Position": 23, "Width": 1},
+            "CounterMask": {"Config": 0, "Position": 24, "Width": 8},
+            "InTX":        {"Config": 0, "Position": 32, "Width": 1, "DefaultValue": 0},
+            "InTXCheckpointed": {"Config": 0, "Position": 33, "Width": 1, "DefaultValue": 0},
+            "MSRIndex": {
+                "0x1a6" : {"Config": 1, "Position": 0, "Width": 64},
+                "0x1a7" : {"Config": 2, "Position": 0, "Width": 64},
+                "0x3f6" : {"Config": 3, "Position": 0, "Width": 64},
+                "0x3f7" : {"Config": 4, "Position": 0, "Width": 64}
+            }
+        },
+        "fixed0" : {
+            "OS":          {"Config": 0, "Position": 0, "Width": 1, "DefaultValue": 1},
+            "User":        {"Config": 0, "Position": 1, "Width": 1, "DefaultValue": 1},
+            "EnablePMI":   {"Config": 0, "Position": 3, "Width": 1, "DefaultValue": 0},
+            "EventCode":   {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
+            "UMask":       {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
+            "EdgeDetect":  {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
+            "Invert":      {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
+            "CounterMask": {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"}
+        },
+        "fixed1" : {
+            "OS":          {"Config": 0, "Position": 4, "Width": 1, "DefaultValue": 1},
+            "User":        {"Config": 0, "Position": 5, "Width": 1, "DefaultValue": 1},
+            "EnablePMI":   {"Config": 0, "Position": 7, "Width": 1, "DefaultValue": 0},
+            "EventCode":   {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
+            "UMask":       {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
+            "EdgeDetect":  {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
+            "Invert":      {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
+            "CounterMask": {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"}
+        },
+        "fixed2" : {
+            "OS":          {"Config": 0, "Position": 8, "Width": 1, "DefaultValue": 1},
+            "User":        {"Config": 0, "Position": 9, "Width": 1, "DefaultValue": 1},
+            "EnablePMI":   {"Config": 0, "Position": 11, "Width": 1, "DefaultValue": 0},
+            "EventCode":   {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
+            "UMask":       {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
+            "EdgeDetect":  {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
+            "Invert":      {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
+            "CounterMask": {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"}
+        },
+        "fixed3" : {
+            "OS":          {"Config": 0, "Position": 12, "Width": 1, "DefaultValue": 1},
+            "User":        {"Config": 0, "Position": 13, "Width": 1, "DefaultValue": 1},
+            "EnablePMI":   {"Config": 0, "Position": 15, "Width": 1, "DefaultValue": 0},
+            "EventCode":   {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
+            "UMask":       {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
+            "EdgeDetect":  {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
+            "Invert":      {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
+            "CounterMask": {"Config": 0, "Position": -1, "__comment": "position=-1 means field ignored"},
+            "PerfMetrics": {"Config": 2, "Position": 0, "Width": 1, "DefaultValue": 0, "__comment": "fake field to tell the collector to also print the L1 top-down metrics, not just raw slots count"}
+        }
+    },
+    "cha" : {
+        "programmable" : {
+            "EventCode":   {"Config": 0, "Position": 0, "Width": 8},
+            "UMask":       {"Config": 0, "Position": 8, "Width": 8},
+            "TIDEnable":   {"Config": 0, "Position": 16, "Width": 1, "DefaultValue": 0},
+            "EdgeDetect":  {"Config": 0, "Position": 18, "Width": 1, "DefaultValue": 0},
+            "Threshold":   {"Config": 0, "Position": 24, "Width": 8, "DefaultValue": 0},
+            "UMaskExt":    {"Config": 0, "Position": 32, "Width": 26},
+            "TID":         {"Config": 1, "Position": 0,  "Width": 10, "DefaultValue": 0}
+        }
+    },
+    "imc" : {
+        "programmable" : {
+            "EventCode":   {"Config": 0, "Position": 0, "Width": 8},
+            "UMask":       {"Config": 0, "Position": 8, "Width": 8},
+            "EdgeDetect":  {"Config": 0, "Position": 18, "Width": 1, "DefaultValue": 0},
+            "Threshold":   {"Config": 0, "Position": 24, "Width": 8, "DefaultValue": 0}
+        }
+    },
+    "xpi" : {
+        "__comment" :  "this is for UPI LL and QPI LL uncore PMUs",
+        "programmable" : {
+            "EventCode":   {"Config": 0, "Position": 0, "Width": 8},
+            "UMask":       {"Config": 0, "Position": 8, "Width": 8},
+            "EdgeDetect":  {"Config": 0, "Position": 18, "Width": 1, "DefaultValue": 0},
+            "Threshold":   {"Config": 0, "Position": 24, "Width": 8, "DefaultValue": 0},
+            "UMaskExt":    {"Config": 0, "Position": 32, "Width": 24}
+        }
+    },
+    "m2m" : {
+        "programmable" : {
+            "EventCode":   {"Config": 0, "Position": 0, "Width": 8},
+            "UMask":       {"Config": 0, "Position": 8, "Width": 8},
+            "EdgeDetect":  {"Config": 0, "Position": 18, "Width": 1, "DefaultValue": 0},
+            "Threshold":   {"Config": 0, "Position": 24, "Width": 8, "DefaultValue": 0},
+            "UMaskExt":    {"Config": 0, "Position": 32, "Width": 8}
+        }
+    },
+    "m3upi" : {
+        "programmable" : {
+            "EventCode":   {"Config": 0, "Position": 0, "Width": 8},
+            "UMask":       {"Config": 0, "Position": 8, "Width": 8},
+            "EdgeDetect":  {"Config": 0, "Position": 18, "Width": 1, "DefaultValue": 0},
+            "Threshold":   {"Config": 0, "Position": 24, "Width": 8, "DefaultValue": 0}
+        }
+    },
+    "mdf" : {
+        "programmable" : {
+            "EventCode":   {"Config": 0, "Position": 0, "Width": 8},
+            "UMask":       {"Config": 0, "Position": 8, "Width": 8},
+            "EdgeDetect":  {"Config": 0, "Position": 18, "Width": 1, "DefaultValue": 0},
+            "Threshold":   {"Config": 0, "Position": 24, "Width": 8, "DefaultValue": 0}
+        }
+    },
+    "irp" : {
+        "programmable" : {
+            "EventCode":   {"Config": 0, "Position": 0, "Width": 8},
+            "UMask":       {"Config": 0, "Position": 8, "Width": 8},
+            "EdgeDetect":  {"Config": 0, "Position": 18, "Width": 1, "DefaultValue": 0},
+            "Threshold":   {"Config": 0, "Position": 24, "Width": 8, "DefaultValue": 0}
+        }
+    },
+    "ubox" : {
+        "programmable" : {
+            "EventCode":   {"Config": 0, "Position": 0, "Width": 8},
+            "UMask":       {"Config": 0, "Position": 8, "Width": 8},
+            "EdgeDetect":  {"Config": 0, "Position": 18, "Width": 1, "DefaultValue": 0},
+            "Threshold":   {"Config": 0, "Position": 24, "Width": 8, "DefaultValue": 0}
+        }
+    },
+    "pcu" : {
+        "programmable" : {
+            "EventCode":   {"Config": 0, "Position": 0, "Width": 8},
+            "UMask":       {"Config": 0, "Position": 8, "Width": 8},
+            "EdgeDetect":  {"Config": 0, "Position": 18, "Width": 1, "DefaultValue": 0}
+        }
+    },
+    "iio" : {
+        "programmable" : {
+            "EventCode":   {"Config": 0, "Position": 0, "Width": 8},
+            "UMask":       {"Config": 0, "Position": 8, "Width": 8},
+            "EdgeDetect":  {"Config": 0, "Position": 18, "Width": 1, "DefaultValue": 0},
+            "Threshold":   {"Config": 0, "Position": 24, "Width": 12, "DefaultValue": 0},
+            "PortMask":    {"Config": 0, "Position": 36, "Width": 12},
+            "FCMask":      {"Config": 0, "Position": 48, "Width": 3}
+        }
+    }
+}

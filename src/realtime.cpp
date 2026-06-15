@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-// Copyright (c) 2009-2012, Intel Corporation
+// Copyright (c) 2009-2022, Intel Corporation
 // written by Roman Dementiev
 //
 
@@ -164,7 +164,7 @@ int main(int argc, char * argv[])
 
     if (m->program() != PCM::Success) {
         cout << "Program was not successful...\n";
-        delete m;
+        deleteAndNullify(m);
         return -1;
     }
 

@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: BSD-3-Clause
-// Copyright (c) 2020, Intel Corporation
+// Copyright (c) 2020-2022, Intel Corporation
 
 #pragma once
 
 #include <sstream>
 #include <iomanip>
 #include <iostream>
+#include <utility>
+#include <ctime>
+#include "types.h"
 
 #ifdef _MSC_VER
 #include <BaseTsd.h>
@@ -14,6 +17,9 @@
 #endif
 
 namespace pcm {
+
+// Forward declaration
+std::pair<tm, uint64> pcm_localtime();
 
 namespace debug {
     extern int currentDebugLevel;
@@ -32,9 +38,10 @@ namespace debug {
     template<typename LVL, typename PF, typename F, typename L, typename... Args>
     void dyn_debug_output( std::ostream& out, LVL level, PF pretty_function, F file, L line, Args... args ) {
         std::stringstream ss;
+        auto tt = pcm_localtime();
         ss << "DBG(" << std::dec << level << "): File '" << file << "', line '" << std::dec << line << "' :\n";
         ss << "DBG(" << std::dec << level << "): " << pretty_function << ":\n";
-        ss << "DBG(" << std::dec << level << "): "; // Next code line will continue printing on this output line
+        ss << "DBG(" << std::dec << level << ") " << std::put_time( &tt.first, "%F_%T: " ); // Next code line will continue printing on this output line
         dyn_debug_output_helper( ss, args... );
         out << ss.str() << std::flush;
     }
@@ -57,6 +64,6 @@ namespace debug {
 
 #define DBG( level, ... ) \
     if ( debug::currentDebugLevel >= level ) \
-        debug::dyn_debug_output( std::cout, level, __PRETTY_FUNCTION__, __FILE__, __LINE__, __VA_ARGS__)
+        debug::dyn_debug_output( std::cerr, level, __PRETTY_FUNCTION__, __FILE__, __LINE__, __VA_ARGS__)
 
 } // namespace pcm

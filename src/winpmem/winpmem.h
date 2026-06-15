@@ -12,6 +12,8 @@ static TCHAR version[] = TEXT("1.3. Built ") TEXT(__DATE__);
 #define PAGE_SIZE 0x1000
 
 class WinPmem {
+  WinPmem(const WinPmem&) = delete;
+  WinPmem& operator = (const WinPmem&) = delete;
  public:
   WinPmem();
   virtual ~WinPmem();
@@ -79,7 +81,9 @@ class WinPmem {
 
   // The file handle to the image file.
   HANDLE out_fd_;
-  TCHAR *service_name;
+  
+  // 256: The maximum length of Windows service name string.
+  TCHAR service_name[256];
   TCHAR driver_filename[MAX_PATH];
 
   // This is the maximum size of memory calculated.

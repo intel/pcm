@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-// Copyright (c) 2009-2012, Intel Corporation
+// Copyright (c) 2009-2022, Intel Corporation
 /*
 ** Written by Otto Bruggeman
 */
@@ -21,7 +21,7 @@ using namespace System::Security::Permissions;
 [assembly:AssemblyConfigurationAttribute("")];
 [assembly:AssemblyCompanyAttribute("Intel Corp")];
 [assembly:AssemblyProductAttribute("PCMService")];
-[assembly:AssemblyCopyrightAttribute("Copyright (c) Intel Corp 2010-2021")];
+[assembly:AssemblyCopyrightAttribute("Copyright (c) Intel Corp 2010-2022")];
 [assembly:AssemblyTrademarkAttribute("")];
 [assembly:AssemblyCultureAttribute("")];
 

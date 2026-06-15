@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-// Copyright (c) 2009-2019, Intel Corporation
+// Copyright (c) 2009-2022, Intel Corporation
 //
 // monitor CPU conters for ksysguard
 //
@@ -21,7 +21,9 @@
 using namespace std;
 using namespace pcm;
 
-int main()
+PCM_MAIN_NOTHROW;
+
+int mainThrows(int /* argc */, char * /*argv*/ [])
 {
     set_signal_handlers();
 
