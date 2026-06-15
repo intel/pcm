@@ -5,6 +5,41 @@
 
 int pcm_getcpu()
 {
+	*.o
+*.x
+*.d
+*.a
+*.so
+*.xml
+/.project
+*.XML
+*.htm
+*.html
+*.dll
+*.patch
+*.orig
+*.out
+*.log
+*.sys
+*.vxd
+*.exe
+*.tgz
+.metadata/
+*.sdf
+*.suo
+Debug
+Release
+Debug64
+Release64
+.metadata/
+html/
+latex/
+*.swp
+*.vcxproj.user
+.vs/
+.idea/
+
+	
 	int id = -1;
 	asm volatile (
 		"rdtscp\n\t"
