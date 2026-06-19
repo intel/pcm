@@ -7,6 +7,11 @@ usage() {
   echo "Usage: $0 http(s)://target_address:port"
   echo
   echo "target_address is the hostname or IP address of the system that runs pcm-sensor-server"
+  echo
+  echo "Alternative usage: $0 filename"
+  echo
+  echo "Specify filename containing http(s)://target_address:port in each line"
+  echo
   exit 1
 }
 
@@ -31,8 +36,6 @@ if [ "$#" -ne 1 ]; then
   usage
 fi
 
-validate_url "$1"
-
 mkdir -p grafana_volume/dashboards || { echo "Error creating grafana_volume/dashboards directory"; exit 1; }
 mkdir -p influxdb_volume || { echo "Error creating influxdb_volume directory"; exit 1; }
 
@@ -48,6 +51,7 @@ if [ -f "$1" ]; then
   echo "creating telegraf.conf for hosts in targets file";
   head -n -7 "telegraf.conf.template" > telegraf.conf || { echo "Error creating telegraf.conf"; exit 1; }
   while IFS='' read -r line || [[ -n "$line" ]]; do
+    validate_url "$line"
     # Split the line at the : character to get the IP and port
     ip=$(echo "$line" | cut -d ':' -f 1)
     port=$(echo "$line" | cut -d ':' -f 2)
@@ -59,6 +63,7 @@ if [ -f "$1" ]; then
   echo Downloading PCM dashboard
   curl -o grafana_volume/dashboards/pcm-dashboard.json $(head -1 "$1")/dashboard || { echo "Error downloading PCM dashboard"; exit 1; }
 else
+  validate_url "$1"
   echo "creating telegraf.conf for $1 ";
   sed "s#PCMSENSORSERVER#$1#g" telegraf.conf.template > telegraf.conf || { echo "Error creating telegraf.conf"; exit 1; }
   echo Downloading PCM dashboard
