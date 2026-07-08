@@ -1,4 +1,4 @@
-FROM fedora:44@sha256:498c452f32a739b61f0ef215bce9924ebc4866cbe44710f58157d77723b7a6d2 AS builder
+FROM fedora:44@sha256:6c75d5bf57cb0fa5aa4b92c6a83c86c791644496d9ac230de7711f5b8ec3b898 AS builder
 # Dockerfile for Intel PCM sensor server
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright (c) 2020-2024 Intel Corporation
@@ -9,7 +9,7 @@ COPY . /tmp/pcm
 WORKDIR /tmp/pcm/build
 RUN cmake -DPCM_NO_STATIC_LIBASAN=OFF .. && make -j
 
-FROM fedora:44@sha256:498c452f32a739b61f0ef215bce9924ebc4866cbe44710f58157d77723b7a6d2
+FROM fedora:44@sha256:6c75d5bf57cb0fa5aa4b92c6a83c86c791644496d9ac230de7711f5b8ec3b898
 
 COPY --from=builder /tmp/pcm/build/bin/* /usr/local/bin/
 COPY --from=builder /tmp/pcm/build/bin/opCode*.txt /usr/local/share/pcm/
