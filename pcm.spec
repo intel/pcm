@@ -70,6 +70,7 @@ rm -rf $RPM_BUILD_ROOT
 /usr/share/licenses/pcm/LICENSE
 %{_sbindir}/pcm-core
 %{_sbindir}/pcm-iio
+%{_sbindir}/pcm-io
 %{_sbindir}/pcm-latency
 %{_sbindir}/pcm-memory
 %{_sbindir}/pcm-msr
