@@ -2611,6 +2611,10 @@ public:
     }
 
 protected:
+    // Upper bound on a single chunk's declared size to prevent attacker
+    // controlled chunk headers from forcing unbounded allocations.
+    static constexpr unsigned long long MAX_CHUNK_BYTES = 64ULL * 1024ULL * 1024ULL;
+
     std::string readData( socketstream& in, size_t length ) {
         std::string data( length, '\0' );
         in.read( &data[0], length );
@@ -2620,13 +2624,34 @@ protected:
     std::string readChunkedData( socketstream& in ) {
         std::string chunkHeader;
         std::string data;
-        std::getline( in, chunkHeader, '\n' );
-        // Final header starts with 0, rest of the line is not important
-        while ( '0' != chunkHeader[0] ) {
-            // chunkheader: hexadecimal numbers followed by an optional semi-colon with a comment and a \r
-            // stoll should filter all that crap out for us and return just the hexadecimal digits
-            DBG( 3, "chunkHeader (ater check for 0): '", chunkHeader, "'" );
-            size_t length = std::stoll( chunkHeader, nullptr, 16 );
+        while ( true ) {
+            std::getline( in, chunkHeader, '\n' );
+            DBG( 3, "chunkHeader (after check for 0): '", chunkHeader, "'" );
+            // chunkHeader: hexadecimal numbers followed by an optional semi-colon
+            // with a chunk extension and a trailing \r
+            const auto chunkSizeEnd = chunkHeader.find_first_not_of( "0123456789abcdefABCDEF" );
+            if ( chunkHeader.empty() || chunkSizeEnd == 0 || chunkSizeEnd == std::string::npos )
+                throw std::runtime_error( "Invalid chunk size line in chunked request body" );
+            const std::string chunkSuffix = chunkHeader.substr( chunkSizeEnd );
+            if ( ( chunkSuffix[0] == ';' && chunkSuffix.back() != '\r' ) ||
+                 ( chunkSuffix[0] != ';' && chunkSuffix != "\r" ) ) {
+                throw std::runtime_error( "Invalid chunk size line in chunked request body" );
+            }
+            // Validate the parsed chunk length before using it as an allocation
+            // size. An unbounded positive value could be used to force a large
+            // allocation (memory-growth denial of service) via
+            // Transfer-Encoding: chunked.
+            unsigned long long parsedLength = 0;
+            try {
+                parsedLength = std::stoull( chunkHeader.substr( 0, chunkSizeEnd ), nullptr, 16 );
+            } catch ( std::exception const & e ) {
+                throw std::runtime_error( std::string( "Invalid chunk size in chunked request body: " ) + e.what() );
+            }
+            if ( parsedLength > MAX_CHUNK_BYTES )
+                throw std::runtime_error( "Chunk size in chunked request body exceeds the maximum allowed size" );
+            size_t length = static_cast<size_t>( parsedLength );
+            if ( length == 0 )
+                break;
             DBG( 3, "length: '", length, "'" );
             // Initialize chunk to all zeros
             std::string chunk( length, '\0' );

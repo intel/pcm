@@ -8506,7 +8506,12 @@ void ServerUncorePMUs::initDirect(uint32 socket_, const PCM * pcm)
         {
             case PCM::SPR:
             case PCM::EMR:
+            case PCM::GNR:
                 {
+                    if (safe_getenv("PCM_NO_IMC_DISCOVERY") == std::string("1"))
+                    {
+                        break;
+                    }
                     auto & uncorePMUDiscovery = pcm->uncorePMUDiscovery;
                     const auto BoxType = SPR_IMC_BOX_TYPE;
                     if (uncorePMUDiscovery.get())
@@ -8560,21 +8565,43 @@ void ServerUncorePMUs::initDirect(uint32 socket_, const PCM * pcm)
                             }
                         }
                     }
-                    if (imcPMUs.empty() == false)
-                    {
-                        numChannels = 2;
-                        for (size_t c = 0; c < imcPMUs.size(); c += numChannels)
-                        {
-                            num_imc_channels.push_back(numChannels);
-                        }
-                    }
                 }
                 break;
+        }
+        switch (cpu_family_model)
+        {
+        case PCM::SPR:
+        case PCM::EMR:
+            {
+                if (imcPMUs.empty() == false)
+                {
+                    numChannels = 2;
+                    for (size_t c = 0; c < imcPMUs.size(); c += numChannels)
+                    {
+                        num_imc_channels.push_back(numChannels);
+                    }
+                }
+            }
+            break;
+        case PCM::GNR:
+            {
+                numChannels = static_cast<int>(imcPMUs.size());
+                for (int channel = 0; channel < numChannels; ++channel)
+                {
+                    num_imc_channels.push_back(1);
+                }
+            }
+            break;
         }
     }
 
     auto initBHSiMCPMUsBase = [&](const size_t base, const size_t numChannelsParam)
     {
+        if (numChannels > 0)
+        {
+            // PMUs already created
+            return;
+        }
         numChannels = (std::min)(numChannelsParam, m2mPMUs.size());
         if (initAndCheckSocket2Ubox0Bus())
         {
