@@ -1950,6 +1950,10 @@ bool PCM::initRAPLTPMI()
     {
         if (systemDomain[0].energyStatus.get() != nullptr)
         {
+            // the system RAPL domain has its own POWER_UNIT register
+            systemJoulesPerEnergyUnit = 1. / double(1ULL << extract_bits_64(systemDomain[0].powerUnit, 10, 6));
+            DBG(2, "RAPL TPMI system domain POWER_UNIT: 0x", std::hex, systemDomain[0].powerUnit, std::dec,
+                   "; Joules/unit ", systemJoulesPerEnergyUnit);
             if (system_energy_status.get() == nullptr)
             {
                 system_energy_status = makeEnergyCounter(systemDomain[0]);
