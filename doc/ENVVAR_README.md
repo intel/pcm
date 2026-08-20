@@ -14,7 +14,7 @@
 
 `PCM_ENFORCE_MBM=1` :  force-enable Memory Bandwidth Monitoring (MBM) metrics (LocalMemoryBW = LMB) and (RemoteMemoryBW = RMB) on processors with RDT/MBM errata
 
-`PCM_USE_TPMI_RAPL=1` :  read the package (CPU socket), DRAM and system (platform) energy/power through the architectural RAPL TPMI interface instead of MSRs (default is to use MSRs). Requires a processor and BIOS supporting the RAPL TPMI feature (TPMI ID 0) and either the Linux TPMI driver (debugfs) or direct MMIO access. PCM falls back to MSRs if the package RAPL TPMI domain can not be found on every socket. The DRAM and system energy metrics fall back to MSRs independently of each other if their RAPL TPMI domains (memory and system) are not found. The RAPL TPMI interface is described in https://github.com/intel/tpmi_power_management/blob/main/RAPL_TPMI_public_disclosure_FINAL-rev3.pdf
+`PCM_NO_TPMI_RAPL=1` :  don't use the architectural RAPL TPMI interface for the package (CPU socket), DRAM and system (platform) energy/power metrics, use the legacy RAPL MSRs instead. By default PCM uses the RAPL TPMI interface whenever it is available, i.e. on server processors exposing the RAPL TPMI feature (TPMI ID 0) either through the Linux TPMI driver (debugfs) or through direct MMIO access, and falls back to the legacy RAPL MSRs otherwise. The package, DRAM and system energy metrics fall back to the MSRs independently of each other if their RAPL TPMI domains (package, memory and system) are not found. The RAPL TPMI interface is described in https://github.com/intel/tpmi_power_management/blob/main/RAPL_TPMI_public_disclosure_FINAL-rev3.pdf
 
 `PCM_NO_TPMI_DRIVER=1` :  don't use the Linux TPMI driver (debugfs) to access TPMI registers, access them through MMIO instead
 
