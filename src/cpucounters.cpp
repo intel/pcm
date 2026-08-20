@@ -1725,13 +1725,19 @@ bool PCM::detectNominalFrequency()
     return true;
 }
 
-constexpr auto PCM_USE_TPMI_RAPL_STR = "PCM_USE_TPMI_RAPL";
+constexpr auto PCM_NO_TPMI_RAPL_STR = "PCM_NO_TPMI_RAPL";
 
 bool PCM::initRAPLTPMI()
 {
-    if (safe_getenv(PCM_USE_TPMI_RAPL_STR) != std::string("1"))
+    if (safe_getenv(PCM_NO_TPMI_RAPL_STR) == std::string("1"))
     {
-        return false; // MSR-based package energy monitoring (default)
+        DBG(1, "RAPL TPMI: disabled by ", PCM_NO_TPMI_RAPL_STR, ": using the MSR-based energy metrics");
+        return false;
+    }
+
+    if (isServerCPU() == false)
+    {
+        return false; // the RAPL TPMI interface is available on server processors only
     }
 
     if (energy_status.empty() == false && packageEnergyTPMI == false)
@@ -1745,13 +1751,13 @@ bool PCM::initRAPLTPMI()
     }
     catch (std::exception & e)
     {
-        std::cerr << "ERROR: Could not detect TPMI instances. Exception details: " << e.what() << "\n";
+        DBG(1, "RAPL TPMI: could not detect TPMI instances. Exception details: ", e.what());
         nInstances = 0;
     }
     DBG(1, "RAPL TPMI: TPMI instances detected: ", nInstances);
     if (nInstances == 0)
     {
-        std::cerr << "ERROR: No TPMI instances detected: can not use the RAPL TPMI interface. Falling back to MSRs.\n";
+        DBG(1, "RAPL TPMI: no TPMI instances detected: using the MSR-based energy metrics");
         return false;
     }
 
@@ -1792,8 +1798,9 @@ bool PCM::initRAPLTPMI()
             {
                 socket = (uint32)socketTmp;
             }
-            else
+            else if (num_sockets > 1)
             {
+                // on a single socket system socket 0 is the only possible answer
                 std::cerr << "WARNING: Could not map RAPL TPMI instance " << instance << " (NUMA node " << numaNode << ") to a socket. Assuming socket 0.\n";
             }
 
@@ -1839,8 +1846,8 @@ bool PCM::initRAPLTPMI()
                     }
                     if ((flags & (1ULL << RAPL_TPMI_ENERGY_STATUS)) == 0 || (flags & (1ULL << RAPL_TPMI_POWER_UNIT)) == 0)
                     {
-                        std::cerr << "WARNING: RAPL TPMI " << domainName << " domain " << domain << " of TPMI instance " << instance <<
-                            " does not support the ENERGY_STATUS and/or POWER_UNIT register (flags 0x" << std::hex << flags << std::dec << ").\n";
+                        DBG(1, "RAPL TPMI: ", domainName, " domain ", domain, " of TPMI instance ", instance,
+                               " does not support the ENERGY_STATUS and/or POWER_UNIT register (flags 0x", std::hex, flags, std::dec, ")");
                         continue;
                     }
                     if (target->energyStatus.get() != nullptr)
@@ -1876,8 +1883,7 @@ bool PCM::initRAPLTPMI()
     {
         if (packageDomain[socket].energyStatus.get() == nullptr)
         {
-            std::cerr << "ERROR: Could not find the package RAPL TPMI domain of socket " << socket <<
-                ". Falling back to MSR-based package energy metrics.\n";
+            DBG(1, "RAPL TPMI: no package RAPL domain found for socket ", socket, ": using the MSR-based energy metrics");
             return false;
         }
     }
@@ -1924,8 +1930,7 @@ bool PCM::initRAPLTPMI()
     {
         if (memoryDomain[socket].energyStatus.get() == nullptr)
         {
-            std::cerr << "WARNING: Could not find the memory (DRAM) RAPL TPMI domain of socket " << socket <<
-                ". Falling back to MSR-based DRAM energy metrics.\n";
+            DBG(1, "RAPL TPMI: no memory (DRAM) RAPL domain found for socket ", socket, ": using the MSR-based DRAM energy metrics");
             memoryDomainsFound = false;
         }
     }
@@ -1958,8 +1963,7 @@ bool PCM::initRAPLTPMI()
         }
         else
         {
-            std::cerr << "WARNING: Could not find the system (platform) RAPL TPMI domain of socket 0."
-                " Falling back to MSR-based system energy metrics.\n";
+            DBG(1, "RAPL TPMI: no system (platform) RAPL domain found for socket 0: using the MSR-based system energy metrics");
         }
     }
 
@@ -1969,7 +1973,7 @@ bool PCM::initRAPLTPMI()
         std::cerr << "Reading the package";
         if (dramEnergyTPMI) std::cerr << ", DRAM";
         if (systemEnergyTPMI) std::cerr << ", system";
-        std::cerr << " energy through the RAPL TPMI interface (" << PCM_USE_TPMI_RAPL_STR << "=1).\n";
+        std::cerr << " energy through the RAPL TPMI interface (disable with " << PCM_NO_TPMI_RAPL_STR << "=1)\n";
     }
 #endif
     return true;
