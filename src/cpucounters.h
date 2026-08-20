@@ -849,6 +849,7 @@ private:
     double dramJoulesPerEnergyUnit{0.}; // energy unit of the DRAM domain (usually the same as joulesPerEnergyUnit)
     bool packageEnergyTPMI{false}; // package energy is read through the RAPL TPMI interface (instead of MSRs)
     bool dramEnergyTPMI{false};    // DRAM energy is read through the RAPL TPMI interface (instead of MSRs)
+    bool systemEnergyTPMI{false};  // system (platform) energy is read through the RAPL TPMI interface (instead of MSRs)
     std::vector<std::shared_ptr<CounterWidthExtender> > energy_status;
     std::vector<std::shared_ptr<CounterWidthExtender> > dram_energy_status;
     std::vector<std::shared_ptr<CounterWidthExtender> > pp_energy_status;
@@ -1221,7 +1222,7 @@ private:
     bool detectNominalFrequency();
     void showSpecControlMSRs();
     void initEnergyMonitoring();
-    //! \brief initializes the package and DRAM energy counters using the architectural RAPL TPMI interface (instead of MSRs)
+    //! \brief initializes the package, DRAM and system energy counters using the architectural RAPL TPMI interface (instead of MSRs)
     //! \return true if the package energy counters of all sockets have been initialized successfully
     bool initRAPLTPMI();
     void initUncoreObjects();
