@@ -16,6 +16,9 @@
 #include "bw.h"
 #include "mutex.h"
 #include "tpmi.h"
+#include <atomic>
+#include <exception>
+#include <iostream>
 #include <memory>
 #ifndef _MSC_VER
 // the header can not be included into code using CLR
@@ -148,6 +151,7 @@ private:
     uint64 last_raw_value;
     uint64 counter_width;
     uint32 watchdog_delay_ms;
+    std::atomic<bool> read_failed;
 
     CounterWidthExtender();                                           // forbidden
     CounterWidthExtender(CounterWidthExtender &);                     // forbidden
@@ -159,7 +163,19 @@ private:
         uint64 result = 0, new_raw_value = 0;
         CounterMutex.lock();
 
-        new_raw_value = (*raw_counter)();
+        try {
+            new_raw_value = (*raw_counter)();
+        }
+        catch (const std::exception & e)
+        {
+            // keep the extended value intact and report the failure to the callers
+            read_failed.store(true, std::memory_order_relaxed);
+            result = extended_value;
+            CounterMutex.unlock();
+            std::cerr << "PCM Error: caught exception " << e.what() << " while reading a raw counter in CounterWidthExtender\n";
+            return result;
+        }
+        read_failed.store(false, std::memory_order_relaxed);
         if (new_raw_value < last_raw_value)
         {
             extended_value += ((1ULL << counter_width) - last_raw_value) + new_raw_value;
@@ -186,10 +202,26 @@ public:
     {
         return internal_read();
     }
+    //! \brief returns true if the last attempt to read the raw counter failed
+    bool readFailed() const
+    {
+        return read_failed.load(std::memory_order_relaxed);
+    }
     void reset()
     {
         CounterMutex.lock();
-        extended_value = last_raw_value = (*raw_counter)();
+        try {
+            extended_value = last_raw_value = (*raw_counter)();
+            read_failed.store(false, std::memory_order_relaxed);
+        }
+        catch (const std::exception & e)
+        {
+            // keep the extended value intact and report the failure to the callers
+            read_failed.store(true, std::memory_order_relaxed);
+            CounterMutex.unlock();
+            std::cerr << "PCM Error: caught exception " << e.what() << " while resetting a raw counter in CounterWidthExtender\n";
+            return;
+        }
         CounterMutex.unlock();
     }
 };
