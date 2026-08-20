@@ -1962,15 +1962,8 @@ bool PCM::initRAPLTPMI()
         }
     }
 
-#ifndef PCM_SILENT
-    if (!quietMode)
-    {
-        std::cerr << "Reading the package";
-        if (dramEnergyTPMI) std::cerr << ", DRAM";
-        if (systemEnergyTPMI) std::cerr << ", system";
-        std::cerr << " energy through the RAPL TPMI interface (disable with " << PCM_NO_TPMI_RAPL_STR << "=1)\n";
-    }
-#endif
+    DBG(1, "Reading the package", (dramEnergyTPMI ? ", DRAM" : ""), (systemEnergyTPMI ? ", system" : ""),
+           " energy through the RAPL TPMI interface (disable with ", PCM_NO_TPMI_RAPL_STR, "=1)");
     return true;
 }
 
