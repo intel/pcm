@@ -1740,9 +1740,15 @@ bool PCM::initRAPLTPMI()
         return false; // the RAPL TPMI interface is available on server processors only
     }
 
-    if (energy_status.empty() == false && packageEnergyTPMI == false)
+    // every energy domain is searched only if it is supported and its counters have not been
+    // initialized through the MSRs already
+    const bool findPackageDomains = packageEnergyMetricsAvailable() && (energy_status.empty() || packageEnergyTPMI);
+    const bool findMemoryDomains = dramEnergyMetricsAvailable() && (dram_energy_status.empty() || dramEnergyTPMI);
+    const bool findSystemDomains = systemEnergyMetricAvailable() && (system_energy_status.get() == nullptr || systemEnergyTPMI);
+
+    if (findPackageDomains == false && findMemoryDomains == false && findSystemDomains == false)
     {
-        return false; // MSR-based package energy counters have been initialized already
+        return false; // nothing to initialize through the RAPL TPMI interface
     }
 
     size_t nInstances = 0;
@@ -1772,8 +1778,6 @@ bool PCM::initRAPLTPMI()
     };
     // the package, memory (DRAM) and system (platform) RAPL domain of every socket
     std::vector<RAPLDomain> packageDomain(num_sockets), memoryDomain(num_sockets), systemDomain(num_sockets);
-    const bool findMemoryDomains = dramEnergyMetricsAvailable();
-    const bool findSystemDomains = systemEnergyMetricAvailable();
 
     for (uint32 instance = 0; instance < (uint32)nInstances; ++instance)
     {
@@ -1825,7 +1829,7 @@ bool PCM::initRAPLTPMI()
                         " flags 0x", std::hex, flags, std::dec);
                     RAPLDomain * target = nullptr;
                     const char * domainName = nullptr;
-                    if (type == RAPL_TPMI_DOMAIN_TYPE_PACKAGE)
+                    if (type == RAPL_TPMI_DOMAIN_TYPE_PACKAGE && findPackageDomains)
                     {
                         target = &(packageDomain[socket]);
                         domainName = "package";
@@ -1879,30 +1883,6 @@ bool PCM::initRAPLTPMI()
         }
     }
 
-    for (uint32 socket = 0; socket < (uint32)num_sockets; ++socket)
-    {
-        if (packageDomain[socket].energyStatus.get() == nullptr)
-        {
-            DBG(1, "RAPL TPMI: no package RAPL domain found for socket ", socket, ": using the MSR-based energy metrics");
-            return false;
-        }
-    }
-
-    // POWER_UNIT.ENERGY_UNIT: energy unit is 1/(2^ENERGY_UNIT) Joules
-    const double tpmiJoulesPerEnergyUnit = 1. / double(1ULL << extract_bits_64(packageDomain[0].powerUnit, 10, 6));
-    // POWER_UNIT.PWR_UNIT: power unit is 1/(2^PWR_UNIT) Watts
-    const double wattsPerPowerUnit = 1. / double(1ULL << extract_bits_64(packageDomain[0].powerUnit, 3, 0));
-    DBG(2, "RAPL TPMI POWER_UNIT: 0x", std::hex, packageDomain[0].powerUnit, std::dec, "; Joules/unit ", tpmiJoulesPerEnergyUnit);
-    joulesPerEnergyUnit = tpmiJoulesPerEnergyUnit;
-
-    if (packageDomain[0].plInfoValid)
-    {
-        // PL_INFO: MAX_PL1 (TDP) in bits 17:0, MIN_PL in bits 35:18, MAX_PL2 in bits 53:36
-        pkgThermalSpecPower = (int32)(double(extract_bits_64(packageDomain[0].plInfo, 17, 0)) * wattsPerPowerUnit);
-        pkgMinimumPower = (int32)(double(extract_bits_64(packageDomain[0].plInfo, 35, 18)) * wattsPerPowerUnit);
-        pkgMaximumPower = (int32)(double(extract_bits_64(packageDomain[0].plInfo, 53, 36)) * wattsPerPowerUnit);
-    }
-
     // ENERGY_STATUS.ENERGY is a 32-bit wrapping counter in bits 31:0 (bits 63:32 hold a timestamp)
     auto makeEnergyCounter = [](const RAPLDomain & d)
     {
@@ -1910,17 +1890,44 @@ bool PCM::initRAPLTPMI()
             new CounterWidthExtender::TPMICounter(d.energyStatus, d.entry, 0x00000000FFFFFFFFULL), 32, 10000);
     };
 
-    if (energy_status.empty())
+    // every energy domain falls back to the MSRs independently of the other domains
+    bool packageDomainsFound = findPackageDomains;
+    for (uint32 socket = 0; packageDomainsFound && socket < (uint32)num_sockets; ++socket)
     {
-        for (const auto & d : packageDomain)
+        if (packageDomain[socket].energyStatus.get() == nullptr)
         {
-            energy_status.push_back(makeEnergyCounter(d));
+            DBG(1, "RAPL TPMI: no package RAPL domain found for socket ", socket, ": using the MSR-based energy metrics");
+            packageDomainsFound = false;
         }
     }
-    packageEnergyTPMI = true;
+    if (packageDomainsFound)
+    {
+        // POWER_UNIT.ENERGY_UNIT: energy unit is 1/(2^ENERGY_UNIT) Joules
+        const double tpmiJoulesPerEnergyUnit = 1. / double(1ULL << extract_bits_64(packageDomain[0].powerUnit, 10, 6));
+        // POWER_UNIT.PWR_UNIT: power unit is 1/(2^PWR_UNIT) Watts
+        const double wattsPerPowerUnit = 1. / double(1ULL << extract_bits_64(packageDomain[0].powerUnit, 3, 0));
+        DBG(2, "RAPL TPMI POWER_UNIT: 0x", std::hex, packageDomain[0].powerUnit, std::dec, "; Joules/unit ", tpmiJoulesPerEnergyUnit);
+        joulesPerEnergyUnit = tpmiJoulesPerEnergyUnit;
 
-    // don't use the TPMI energy unit of the memory domain if the MSR-based DRAM counters are in use already
-    bool memoryDomainsFound = findMemoryDomains && (dram_energy_status.empty() || dramEnergyTPMI);
+        if (packageDomain[0].plInfoValid)
+        {
+            // PL_INFO: MAX_PL1 (TDP) in bits 17:0, MIN_PL in bits 35:18, MAX_PL2 in bits 53:36
+            pkgThermalSpecPower = (int32)(double(extract_bits_64(packageDomain[0].plInfo, 17, 0)) * wattsPerPowerUnit);
+            pkgMinimumPower = (int32)(double(extract_bits_64(packageDomain[0].plInfo, 35, 18)) * wattsPerPowerUnit);
+            pkgMaximumPower = (int32)(double(extract_bits_64(packageDomain[0].plInfo, 53, 36)) * wattsPerPowerUnit);
+        }
+
+        if (energy_status.empty())
+        {
+            for (const auto & d : packageDomain)
+            {
+                energy_status.push_back(makeEnergyCounter(d));
+            }
+        }
+        packageEnergyTPMI = true;
+    }
+
+    bool memoryDomainsFound = findMemoryDomains;
     for (uint32 socket = 0; memoryDomainsFound && socket < (uint32)num_sockets; ++socket)
     {
         if (memoryDomain[socket].energyStatus.get() == nullptr)
@@ -1946,7 +1953,7 @@ bool PCM::initRAPLTPMI()
     }
 
     // the system (platform) energy counter is a single counter read from socket 0, like the MSR-based one
-    if (findSystemDomains && (system_energy_status.get() == nullptr || systemEnergyTPMI))
+    if (findSystemDomains)
     {
         if (systemDomain[0].energyStatus.get() != nullptr)
         {
@@ -1966,38 +1973,49 @@ bool PCM::initRAPLTPMI()
         }
     }
 
-    DBG(1, "Reading the package", (dramEnergyTPMI ? ", DRAM" : ""), (systemEnergyTPMI ? ", system" : ""),
-           " energy through the RAPL TPMI interface (disable with ", PCM_NO_TPMI_RAPL_STR, "=1)");
+    if (packageEnergyTPMI == false && dramEnergyTPMI == false && systemEnergyTPMI == false)
+    {
+        return false;
+    }
+
+    DBG(1, "Reading the ", (packageEnergyTPMI ? "package " : ""), (dramEnergyTPMI ? "DRAM " : ""), (systemEnergyTPMI ? "system " : ""),
+           "energy through the RAPL TPMI interface (disable with ", PCM_NO_TPMI_RAPL_STR, "=1)");
     return true;
 }
 
 void PCM::initEnergyMonitoring()
 {
+    // optional alternative transport: read the package, DRAM and system (platform) energy through the
+    // architectural RAPL TPMI interface instead of MSRs (it also provides the energy units and the
+    // package power info). It is attempted before the MSR-based initialization because it does not
+    // require MSR access. Every energy domain falls back to the MSRs independently of the other domains.
+    initRAPLTPMI();
+
     if(packageEnergyMetricsAvailable() && MSR.size())
     {
         uint64 rapl_power_unit = 0;
         MSR[socketRefCore[0]]->read(MSR_RAPL_POWER_UNIT,&rapl_power_unit);
         uint64 energy_status_unit = extract_bits(rapl_power_unit,8,12);
+        double msrJoulesPerEnergyUnit = 0.;
         if (cpu_family_model == PCM::CHERRYTRAIL || cpu_family_model == PCM::BAYTRAIL)
-            joulesPerEnergyUnit = double(1ULL << energy_status_unit)/1000000.; // (2)^energy_status_unit microJoules
+            msrJoulesPerEnergyUnit = double(1ULL << energy_status_unit)/1000000.; // (2)^energy_status_unit microJoules
         else
-            joulesPerEnergyUnit = 1./double(1ULL<<energy_status_unit); // (1/2)^energy_status_unit
-        dramJoulesPerEnergyUnit = joulesPerEnergyUnit; // the DRAM domain uses the same energy unit as the package domain
-        DBG(2, "MSR_RAPL_POWER_UNIT: " , energy_status_unit , "; Joules/unit " , joulesPerEnergyUnit);
+            msrJoulesPerEnergyUnit = 1./double(1ULL<<energy_status_unit); // (1/2)^energy_status_unit
+        if (packageEnergyTPMI == false)
+            joulesPerEnergyUnit = msrJoulesPerEnergyUnit;
+        if (dramEnergyTPMI == false)
+            dramJoulesPerEnergyUnit = msrJoulesPerEnergyUnit; // the DRAM domain uses the same energy unit as the package domain
+        DBG(2, "MSR_RAPL_POWER_UNIT: " , energy_status_unit , "; Joules/unit " , msrJoulesPerEnergyUnit);
         uint64 power_unit = extract_bits(rapl_power_unit,0,3);
         double wattsPerPowerUnit = 1./double(1ULL<<power_unit);
 
-        uint64 package_power_info = 0;
-        MSR[socketRefCore[0]]->read(MSR_PKG_POWER_INFO,&package_power_info);
-        pkgThermalSpecPower = (int32) (double(extract_bits(package_power_info, 0, 14))*wattsPerPowerUnit);
-        pkgMinimumPower = (int32) (double(extract_bits(package_power_info, 16, 30))*wattsPerPowerUnit);
-        pkgMaximumPower = (int32) (double(extract_bits(package_power_info, 32, 46))*wattsPerPowerUnit);
-
-        // optional alternative path: read the package and DRAM energy through the architectural RAPL
-        // TPMI interface instead of MSRs (it also updates the energy units and the package power info above)
-        if (initRAPLTPMI())
+        if (pkgThermalSpecPower < 0) // the package power info has not been read through the RAPL TPMI interface
         {
-            DBG(1, "Using the RAPL TPMI interface for package energy metrics");
+            uint64 package_power_info = 0;
+            MSR[socketRefCore[0]]->read(MSR_PKG_POWER_INFO,&package_power_info);
+            pkgThermalSpecPower = (int32) (double(extract_bits(package_power_info, 0, 14))*wattsPerPowerUnit);
+            pkgMinimumPower = (int32) (double(extract_bits(package_power_info, 16, 30))*wattsPerPowerUnit);
+            pkgMaximumPower = (int32) (double(extract_bits(package_power_info, 32, 46))*wattsPerPowerUnit);
         }
 
 #ifndef PCM_SILENT
