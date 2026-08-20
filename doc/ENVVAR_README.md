@@ -14,6 +14,10 @@
 
 `PCM_ENFORCE_MBM=1` :  force-enable Memory Bandwidth Monitoring (MBM) metrics (LocalMemoryBW = LMB) and (RemoteMemoryBW = RMB) on processors with RDT/MBM errata
 
+`PCM_USE_TPMI_RAPL=1` :  read the package (CPU socket) energy/power through the architectural RAPL TPMI interface instead of MSRs (default is to use MSRs). Requires a processor and BIOS supporting the RAPL TPMI feature (TPMI ID 0) and either the Linux TPMI driver (debugfs) or direct MMIO access. PCM falls back to MSRs if the package RAPL TPMI domain can not be found on every socket. The RAPL TPMI interface is described in https://github.com/intel/tpmi_power_management/blob/main/RAPL_TPMI_public_disclosure_FINAL-rev3.pdf
+
+`PCM_NO_TPMI_DRIVER=1` :  don't use the Linux TPMI driver (debugfs) to access TPMI registers, access them through MMIO instead
+
 `PCM_QUIET=1` :  enable quiet mode for PCM initialization. In quiet mode, only error messages are output during PCM initialization, suppressing informational output such as processor information and topology details
 
 `PCM_DEBUG_LEVEL=x` :  x is an integer defining debug output level. level = 0 (default): minimal or no debug info, > 0 increases verbosity

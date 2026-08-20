@@ -662,6 +662,23 @@ class PCM_API PCM
     };
     std::vector<std::vector<UFSStatusEntry> > UFSStatus;
 
+    // architectural RAPL TPMI interface, see
+    // https://github.com/intel/tpmi_power_management/blob/main/RAPL_TPMI_public_disclosure_FINAL-rev3.pdf
+    enum RAPL_TPMI
+    {
+        RAPL_TPMI_ID = 0,
+        RAPL_TPMI_DOMAIN_SIZE = 128,     // size of the register block of a single RAPL domain in bytes
+        // indices of the registers inside of a RAPL domain register block:
+        RAPL_TPMI_DOMAIN_HEADER = 0,
+        RAPL_TPMI_POWER_UNIT = 1,
+        RAPL_TPMI_ENERGY_STATUS = 7,
+        RAPL_TPMI_PL_INFO = 9,
+        // RAPL domain types (DOMAIN_HEADER.TYPE):
+        RAPL_TPMI_DOMAIN_TYPE_SYSTEM = 1,
+        RAPL_TPMI_DOMAIN_TYPE_PACKAGE = 2,
+        RAPL_TPMI_DOMAIN_TYPE_MEMORY = 4
+    };
+
     std::vector<TopologyEntry> topology;
     mutable std::unordered_map<uint32, int32> numaNodeToSocketCache; // Cache for mapNUMANodeToSocket
     mutable pcm::Mutex numaNodeToSocketCacheMutex; // Mutex to protect cache access
@@ -829,6 +846,7 @@ private:
     std::vector<std::vector<IDX_PMU> > idxPMUs;
 
     double joulesPerEnergyUnit;
+    bool packageEnergyTPMI{false}; // package energy is read through the RAPL TPMI interface (instead of MSRs)
     std::vector<std::shared_ptr<CounterWidthExtender> > energy_status;
     std::vector<std::shared_ptr<CounterWidthExtender> > dram_energy_status;
     std::vector<std::shared_ptr<CounterWidthExtender> > pp_energy_status;
@@ -1201,6 +1219,9 @@ private:
     bool detectNominalFrequency();
     void showSpecControlMSRs();
     void initEnergyMonitoring();
+    //! \brief initializes the package energy counters using the architectural RAPL TPMI interface (instead of MSRs)
+    //! \return true if the package energy counters of all sockets have been initialized successfully
+    bool initPackageEnergyTPMI();
     void initUncoreObjects();
     /*!
     *       \brief initializes each core with an RMID

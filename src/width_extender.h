@@ -15,6 +15,7 @@
 #include "utils.h"
 #include "bw.h"
 #include "mutex.h"
+#include "tpmi.h"
 #include <memory>
 #ifndef _MSC_VER
 // the header can not be included into code using CLR
@@ -54,6 +55,26 @@ public:
             uint64 value = 0;
             msr->read(msr_addr, &value);
             return value & msr_mask;
+        }
+    };
+
+    //! \brief Raw counter reading a 64-bit TPMI register (see tpmi.h)
+    struct TPMICounter : public AbstractRawCounter
+    {
+        std::shared_ptr<TPMIHandle> tpmiHandle;
+        size_t entryPos;
+        uint64 mask;
+        TPMICounter(const std::shared_ptr<TPMIHandle> & tpmiHandle_,
+                    const size_t entryPos_,
+                    const uint64 mask_ = ~uint64(0ULL)) :
+            tpmiHandle(tpmiHandle_),
+            entryPos(entryPos_),
+            mask(mask_)
+        {
+        }
+        uint64 operator () ()
+        {
+            return tpmiHandle->read64(entryPos) & mask;
         }
     };
 
