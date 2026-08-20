@@ -1764,9 +1764,10 @@ bool PCM::initRAPLTPMI()
         uint64 plInfo{0ULL};
         bool plInfoValid{false};
     };
-    // the package and memory (DRAM) RAPL domain of every socket
-    std::vector<RAPLDomain> packageDomain(num_sockets), memoryDomain(num_sockets);
+    // the package, memory (DRAM) and system (platform) RAPL domain of every socket
+    std::vector<RAPLDomain> packageDomain(num_sockets), memoryDomain(num_sockets), systemDomain(num_sockets);
     const bool findMemoryDomains = dramEnergyMetricsAvailable();
+    const bool findSystemDomains = systemEnergyMetricAvailable();
 
     for (uint32 instance = 0; instance < (uint32)nInstances; ++instance)
     {
@@ -1826,6 +1827,11 @@ bool PCM::initRAPLTPMI()
                     {
                         target = &(memoryDomain[socket]);
                         domainName = "memory";
+                    }
+                    else if (type == RAPL_TPMI_DOMAIN_TYPE_SYSTEM && findSystemDomains)
+                    {
+                        target = &(systemDomain[socket]);
+                        domainName = "system";
                     }
                     if (target == nullptr)
                     {
@@ -1939,11 +1945,31 @@ bool PCM::initRAPLTPMI()
         dramEnergyTPMI = true;
     }
 
+    // the system (platform) energy counter is a single counter read from socket 0, like the MSR-based one
+    if (findSystemDomains && (system_energy_status.get() == nullptr || systemEnergyTPMI))
+    {
+        if (systemDomain[0].energyStatus.get() != nullptr)
+        {
+            if (system_energy_status.get() == nullptr)
+            {
+                system_energy_status = makeEnergyCounter(systemDomain[0]);
+            }
+            systemEnergyTPMI = true;
+        }
+        else
+        {
+            std::cerr << "WARNING: Could not find the system (platform) RAPL TPMI domain of socket 0."
+                " Falling back to MSR-based system energy metrics.\n";
+        }
+    }
+
 #ifndef PCM_SILENT
     if (!quietMode)
     {
-        std::cerr << "Reading the package " << (memoryDomainsFound ? "and DRAM " : "") <<
-            "energy through the RAPL TPMI interface (" << PCM_USE_TPMI_RAPL_STR << "=1).\n";
+        std::cerr << "Reading the package";
+        if (dramEnergyTPMI) std::cerr << ", DRAM";
+        if (systemEnergyTPMI) std::cerr << ", system";
+        std::cerr << " energy through the RAPL TPMI interface (" << PCM_USE_TPMI_RAPL_STR << "=1).\n";
     }
 #endif
     return true;
