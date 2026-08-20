@@ -1893,11 +1893,6 @@ bool PCM::initRAPLTPMI()
     // POWER_UNIT.PWR_UNIT: power unit is 1/(2^PWR_UNIT) Watts
     const double wattsPerPowerUnit = 1. / double(1ULL << extract_bits_64(packageDomain[0].powerUnit, 3, 0));
     DBG(2, "RAPL TPMI POWER_UNIT: 0x", std::hex, packageDomain[0].powerUnit, std::dec, "; Joules/unit ", tpmiJoulesPerEnergyUnit);
-    if (tpmiJoulesPerEnergyUnit != joulesPerEnergyUnit)
-    {
-        std::cerr << "WARNING: the RAPL TPMI energy unit (" << tpmiJoulesPerEnergyUnit <<
-            " Joules) differs from the MSR-based energy unit (" << joulesPerEnergyUnit << " Joules).\n";
-    }
     joulesPerEnergyUnit = tpmiJoulesPerEnergyUnit;
 
     if (packageDomain[0].plInfoValid)
