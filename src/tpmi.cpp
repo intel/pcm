@@ -28,6 +28,7 @@ public:
     struct PFSInstance
     {
         PFSMapType pfsMap{}; // [TPMI ID][entry] -> base address
+        std::unordered_map<size_t, size_t> entrySizeMap{}; // [TPMI ID] -> entry size in bytes
         int32 NUMANode{-1};
     };
     typedef std::vector<PFSInstance> PFSInstancesType;
@@ -84,6 +85,7 @@ public:
                     "\t Attribute: " << pfs.Attribute <<
                     "\n";
                 }
+                PFSInstancesSingletonInit->back().entrySizeMap[pfs.TPMI_ID] = pfs.EntrySize * sizeof(uint32);
                 DBG(1, " PFS TPMI_ID: ", pfs.TPMI_ID,
                     " NumEntries: ", pfs.NumEntries,
                     " EntrySize: ", pfs.EntrySize,
@@ -158,6 +160,7 @@ class TPMIHandleMMIO : public TPMIHandleInterface
     };
     std::vector<Entry> entries;
     int32 numaNode{-1};
+    size_t entrySize{0};
 public:
     static size_t getNumInstances();
     static void setVerbose(const bool);
@@ -165,6 +168,10 @@ public:
     size_t getNumEntries() const override
     {
         return entries.size();
+    }
+    size_t getEntrySize() const override
+    {
+        return entrySize;
     }
     uint64 read64(size_t entryPos) override;
     void write64(size_t entryPos, uint64 val) override;
@@ -189,6 +196,12 @@ TPMIHandleMMIO::TPMIHandleMMIO(const size_t instance_, const size_t ID_, const s
     auto & pfsInstances = PFSInstances::get();
     assert(instance_ < pfsInstances.size());
     numaNode = pfsInstances[instance_].NUMANode;
+    const auto & entrySizeMap = pfsInstances[instance_].entrySizeMap;
+    const auto entrySizeIter = entrySizeMap.find(ID_);
+    if (entrySizeIter != entrySizeMap.end())
+    {
+        entrySize = entrySizeIter->second;
+    }
     for (const auto & addr: pfsInstances[instance_].pfsMap[ID_])
     {
         const auto requestedAddr = addr + requestedRelativeOffset;
@@ -232,6 +245,7 @@ class TPMIHandleDriver : public TPMIHandleInterface
     int32 numaNode{ -1 };
     // const bool readonly; // not used
     size_t nentries;
+    size_t entrySize{0};
     struct TPMIEntry {
         unsigned int offset{0};
         std::vector<uint32> data;
@@ -313,6 +327,10 @@ public:
     {
         assert(available > 0);
         assert(instance < getNumInstances());
+        if (AllIDPaths[instance].find(ID) == AllIDPaths[instance].end())
+        {
+            throw std::runtime_error("TPMI ID " + std::to_string(ID) + " is not available in TPMI instance " + std::to_string(instance));
+        }
         const auto path = AllIDPaths[instance][ID];
         const auto entries = readTPMIFile(path);
         for (auto & e: entries)
@@ -321,6 +339,7 @@ public:
             {
                 // count valid entries
                 ++nentries;
+                entrySize = (std::max)(entrySize, e.data.size() * sizeof(uint32));
             }
         }
         // path is like /sys/kernel/debug/tpmi-0000:80:03.1/tpmi-id-0a
@@ -353,6 +372,11 @@ public:
         assert(available > 0);
         return nentries;
     }
+    size_t getEntrySize() const override
+    {
+        assert(available > 0);
+        return entrySize;
+    }
     uint64 read64(size_t entryPos) override
     {
         assert(available > 0);
@@ -361,7 +385,11 @@ public:
         size_t i = findValidIndex(entries, entryPos);
         cvt_ds result;
         const auto i4 = offset / 4;
-        assert(i4 + 1 < entries[i].data.size());
+        if (i4 + 1 >= entries[i].data.size())
+        {
+            throw std::runtime_error("TPMI offset " + std::to_string(offset) + " is out of range of TPMI ID "
+                    + std::to_string(ID) + " entry " + std::to_string(i));
+        }
         result.ui32.low = entries[i].data[i4];
         result.ui32.high = entries[i].data[i4 + 1];
         return result.ui64;
@@ -467,6 +495,12 @@ size_t TPMIHandle::getNumEntries() const
 {
     assert(impl.get());;
     return impl->getNumEntries();
+}
+
+size_t TPMIHandle::getEntrySize() const
+{
+    assert(impl.get());
+    return impl->getEntrySize();
 }
 
 uint64 TPMIHandle::read64(size_t entryPos)
