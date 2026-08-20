@@ -11562,7 +11562,7 @@ void PCM::initCHARequestEvents(uint64 * config)
     }
 }
 
-CounterWidthExtender::CounterWidthExtender(AbstractRawCounter * raw_counter_, uint64 counter_width_, uint32 watchdog_delay_ms_) : raw_counter(raw_counter_), counter_width(counter_width_), watchdog_delay_ms(watchdog_delay_ms_)
+CounterWidthExtender::CounterWidthExtender(AbstractRawCounter * raw_counter_, uint64 counter_width_, uint32 watchdog_delay_ms_) : raw_counter(raw_counter_), counter_width(counter_width_), watchdog_delay_ms(watchdog_delay_ms_), read_failed(false)
 {
     last_raw_value = (*raw_counter)();
     extended_value = last_raw_value;
@@ -11573,7 +11573,14 @@ CounterWidthExtender::CounterWidthExtender(AbstractRawCounter * raw_counter_, ui
             while (1)
             {
                 MySleepMs(static_cast<int>(this->watchdog_delay_ms));
-                /* uint64 dummy = */ this->read();
+                try {
+                    /* uint64 dummy = */ this->read();
+                }
+                catch (const std::exception & e)
+                {
+                    // never let an exception escape the watchdog thread
+                    std::cerr << "PCM Error: caught exception " << e.what() << " in the CounterWidthExtender watchdog thread\n";
+                }
             }
         }
         );
