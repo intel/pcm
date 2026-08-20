@@ -846,7 +846,9 @@ private:
     std::vector<std::vector<IDX_PMU> > idxPMUs;
 
     double joulesPerEnergyUnit;
+    double dramJoulesPerEnergyUnit{0.}; // energy unit of the DRAM domain (usually the same as joulesPerEnergyUnit)
     bool packageEnergyTPMI{false}; // package energy is read through the RAPL TPMI interface (instead of MSRs)
+    bool dramEnergyTPMI{false};    // DRAM energy is read through the RAPL TPMI interface (instead of MSRs)
     std::vector<std::shared_ptr<CounterWidthExtender> > energy_status;
     std::vector<std::shared_ptr<CounterWidthExtender> > dram_energy_status;
     std::vector<std::shared_ptr<CounterWidthExtender> > pp_energy_status;
@@ -1219,9 +1221,9 @@ private:
     bool detectNominalFrequency();
     void showSpecControlMSRs();
     void initEnergyMonitoring();
-    //! \brief initializes the package energy counters using the architectural RAPL TPMI interface (instead of MSRs)
+    //! \brief initializes the package and DRAM energy counters using the architectural RAPL TPMI interface (instead of MSRs)
     //! \return true if the package energy counters of all sockets have been initialized successfully
-    bool initPackageEnergyTPMI();
+    bool initRAPLTPMI();
     void initUncoreObjects();
     /*!
     *       \brief initializes each core with an RMID
@@ -2412,6 +2414,9 @@ public:
 
     //! \brief Returns how many joules are in an internal processor energy unit
     double getJoulesPerEnergyUnit() const { return joulesPerEnergyUnit; }
+
+    //! \brief Returns how many joules are in an internal energy unit of the DRAM domain
+    double getDRAMJoulesPerEnergyUnit() const { return (dramJoulesPerEnergyUnit != 0.) ? dramJoulesPerEnergyUnit : joulesPerEnergyUnit; }
 
     //! \brief Returns thermal specification power of the package domain in Watt
     int32 getPackageThermalSpecPower() const { return pkgThermalSpecPower; }
@@ -3720,9 +3725,10 @@ double getDRAMConsumedJoules(const CounterStateType & before, const CounterState
         dram_joules_per_energy_unit = 0.0000153;
     } else {
 /* for all other processors (including Haswell client/mobile SKUs) the ENERGY_UNIT for DRAM domain
- * should be read from PACKAGE_POWER_SKU register (usually value around ~61uJ)
+ * should be read from PACKAGE_POWER_SKU register (usually value around ~61uJ) or, if the RAPL TPMI
+ * interface is used, from the POWER_UNIT register of the memory RAPL domain
  */
-        dram_joules_per_energy_unit = m->getJoulesPerEnergyUnit();
+        dram_joules_per_energy_unit = m->getDRAMJoulesPerEnergyUnit();
     }
     return double(getDRAMConsumedEnergy(before, after)) * dram_joules_per_energy_unit;
 }

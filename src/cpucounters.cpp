@@ -1727,7 +1727,7 @@ bool PCM::detectNominalFrequency()
 
 constexpr auto PCM_USE_TPMI_RAPL_STR = "PCM_USE_TPMI_RAPL";
 
-bool PCM::initPackageEnergyTPMI()
+bool PCM::initRAPLTPMI()
 {
     if (safe_getenv(PCM_USE_TPMI_RAPL_STR) != std::string("1"))
     {
@@ -1755,8 +1755,8 @@ bool PCM::initPackageEnergyTPMI()
         return false;
     }
 
-    // ENERGY_STATUS register handle, POWER_UNIT and PL_INFO register values of the package RAPL domain of every socket
-    struct PackageRAPLDomain
+    // ENERGY_STATUS register handle, POWER_UNIT and PL_INFO register values of a RAPL domain
+    struct RAPLDomain
     {
         std::shared_ptr<TPMIHandle> energyStatus{};
         size_t entry{0};
@@ -1764,7 +1764,9 @@ bool PCM::initPackageEnergyTPMI()
         uint64 plInfo{0ULL};
         bool plInfoValid{false};
     };
-    std::vector<PackageRAPLDomain> packageDomain(num_sockets);
+    // the package and memory (DRAM) RAPL domain of every socket
+    std::vector<RAPLDomain> packageDomain(num_sockets), memoryDomain(num_sockets);
+    const bool findMemoryDomains = dramEnergyMetricsAvailable();
 
     for (uint32 instance = 0; instance < (uint32)nInstances; ++instance)
     {
@@ -1813,24 +1815,36 @@ bool PCM::initPackageEnergyTPMI()
                         " type ", type,
                         " size ", extract_bits_64(header, 23, 16),
                         " flags 0x", std::hex, flags, std::dec);
-                    if (type != RAPL_TPMI_DOMAIN_TYPE_PACKAGE)
+                    RAPLDomain * target = nullptr;
+                    const char * domainName = nullptr;
+                    if (type == RAPL_TPMI_DOMAIN_TYPE_PACKAGE)
                     {
-                        continue; // not a package (socket) RAPL domain
+                        target = &(packageDomain[socket]);
+                        domainName = "package";
+                    }
+                    else if (type == RAPL_TPMI_DOMAIN_TYPE_MEMORY && findMemoryDomains)
+                    {
+                        target = &(memoryDomain[socket]);
+                        domainName = "memory";
+                    }
+                    if (target == nullptr)
+                    {
+                        continue; // not a RAPL domain we are interested in
                     }
                     if ((flags & (1ULL << RAPL_TPMI_ENERGY_STATUS)) == 0 || (flags & (1ULL << RAPL_TPMI_POWER_UNIT)) == 0)
                     {
-                        std::cerr << "WARNING: RAPL TPMI package domain " << domain << " of TPMI instance " << instance <<
+                        std::cerr << "WARNING: RAPL TPMI " << domainName << " domain " << domain << " of TPMI instance " << instance <<
                             " does not support the ENERGY_STATUS and/or POWER_UNIT register (flags 0x" << std::hex << flags << std::dec << ").\n";
                         continue;
                     }
-                    if (packageDomain[socket].energyStatus.get() != nullptr)
+                    if (target->energyStatus.get() != nullptr)
                     {
-                        // the package RAPL registers are package-scoped and therefore replicated in every punit of the package
-                        DBG(1, "RAPL TPMI: ignoring the redundant package domain ", domain, " of entry ", entry,
+                        // the RAPL registers are package-scoped and therefore replicated in every punit of the package
+                        DBG(1, "RAPL TPMI: ignoring the redundant ", domainName, " domain ", domain, " of entry ", entry,
                                " in TPMI instance ", instance, ": socket ", socket, " has been initialized already");
                         continue;
                     }
-                    PackageRAPLDomain d;
+                    RAPLDomain d;
                     d.entry = entry;
                     TPMIHandle powerUnitHandle(instance, RAPL_TPMI_ID, domainOffset + RAPL_TPMI_POWER_UNIT * sizeof(uint64));
                     d.powerUnit = powerUnitHandle.read64(entry);
@@ -1841,8 +1855,8 @@ bool PCM::initPackageEnergyTPMI()
                         d.plInfoValid = true;
                     }
                     d.energyStatus = std::make_shared<TPMIHandle>(instance, RAPL_TPMI_ID, domainOffset + RAPL_TPMI_ENERGY_STATUS * sizeof(uint64));
-                    packageDomain[socket] = d;
-                    DBG(1, "RAPL TPMI: socket ", socket, " package energy counter: instance ", instance, " entry ", entry, " domain ", domain);
+                    *target = d;
+                    DBG(1, "RAPL TPMI: socket ", socket, " ", domainName, " energy counter: instance ", instance, " entry ", entry, " domain ", domain);
                 }
             }
         }
@@ -1882,21 +1896,54 @@ bool PCM::initPackageEnergyTPMI()
         pkgMaximumPower = (int32)(double(extract_bits_64(packageDomain[0].plInfo, 53, 36)) * wattsPerPowerUnit);
     }
 
+    // ENERGY_STATUS.ENERGY is a 32-bit wrapping counter in bits 31:0 (bits 63:32 hold a timestamp)
+    auto makeEnergyCounter = [](const RAPLDomain & d)
+    {
+        return std::make_shared<CounterWidthExtender>(
+            new CounterWidthExtender::TPMICounter(d.energyStatus, d.entry, 0x00000000FFFFFFFFULL), 32, 10000);
+    };
+
     if (energy_status.empty())
     {
         for (const auto & d : packageDomain)
         {
-            // ENERGY_STATUS.ENERGY is a 32-bit wrapping counter in bits 31:0 (bits 63:32 hold a timestamp)
-            energy_status.push_back(std::make_shared<CounterWidthExtender>(
-                new CounterWidthExtender::TPMICounter(d.energyStatus, d.entry, 0x00000000FFFFFFFFULL), 32, 10000));
+            energy_status.push_back(makeEnergyCounter(d));
         }
     }
     packageEnergyTPMI = true;
 
+    // don't use the TPMI energy unit of the memory domain if the MSR-based DRAM counters are in use already
+    bool memoryDomainsFound = findMemoryDomains && (dram_energy_status.empty() || dramEnergyTPMI);
+    for (uint32 socket = 0; memoryDomainsFound && socket < (uint32)num_sockets; ++socket)
+    {
+        if (memoryDomain[socket].energyStatus.get() == nullptr)
+        {
+            std::cerr << "WARNING: Could not find the memory (DRAM) RAPL TPMI domain of socket " << socket <<
+                ". Falling back to MSR-based DRAM energy metrics.\n";
+            memoryDomainsFound = false;
+        }
+    }
+    if (memoryDomainsFound)
+    {
+        // the memory RAPL domain has its own POWER_UNIT register
+        dramJoulesPerEnergyUnit = 1. / double(1ULL << extract_bits_64(memoryDomain[0].powerUnit, 10, 6));
+        DBG(2, "RAPL TPMI memory domain POWER_UNIT: 0x", std::hex, memoryDomain[0].powerUnit, std::dec,
+               "; Joules/unit ", dramJoulesPerEnergyUnit);
+        if (dram_energy_status.empty())
+        {
+            for (const auto & d : memoryDomain)
+            {
+                dram_energy_status.push_back(makeEnergyCounter(d));
+            }
+        }
+        dramEnergyTPMI = true;
+    }
+
 #ifndef PCM_SILENT
     if (!quietMode)
     {
-        std::cerr << "Reading the package energy through the RAPL TPMI interface (" << PCM_USE_TPMI_RAPL_STR << "=1).\n";
+        std::cerr << "Reading the package " << (memoryDomainsFound ? "and DRAM " : "") <<
+            "energy through the RAPL TPMI interface (" << PCM_USE_TPMI_RAPL_STR << "=1).\n";
     }
 #endif
     return true;
@@ -1913,6 +1960,7 @@ void PCM::initEnergyMonitoring()
             joulesPerEnergyUnit = double(1ULL << energy_status_unit)/1000000.; // (2)^energy_status_unit microJoules
         else
             joulesPerEnergyUnit = 1./double(1ULL<<energy_status_unit); // (1/2)^energy_status_unit
+        dramJoulesPerEnergyUnit = joulesPerEnergyUnit; // the DRAM domain uses the same energy unit as the package domain
         DBG(2, "MSR_RAPL_POWER_UNIT: " , energy_status_unit , "; Joules/unit " , joulesPerEnergyUnit);
         uint64 power_unit = extract_bits(rapl_power_unit,0,3);
         double wattsPerPowerUnit = 1./double(1ULL<<power_unit);
@@ -1923,9 +1971,9 @@ void PCM::initEnergyMonitoring()
         pkgMinimumPower = (int32) (double(extract_bits(package_power_info, 16, 30))*wattsPerPowerUnit);
         pkgMaximumPower = (int32) (double(extract_bits(package_power_info, 32, 46))*wattsPerPowerUnit);
 
-        // optional alternative path: read the package energy through the architectural RAPL TPMI
-        // interface instead of MSRs (it also updates the energy unit and the package power info above)
-        if (initPackageEnergyTPMI())
+        // optional alternative path: read the package and DRAM energy through the architectural RAPL
+        // TPMI interface instead of MSRs (it also updates the energy units and the package power info above)
+        if (initRAPLTPMI())
         {
             DBG(1, "Using the RAPL TPMI interface for package energy metrics");
         }
