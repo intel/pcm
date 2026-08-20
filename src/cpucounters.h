@@ -847,6 +847,7 @@ private:
 
     double joulesPerEnergyUnit;
     double dramJoulesPerEnergyUnit{0.}; // energy unit of the DRAM domain (usually the same as joulesPerEnergyUnit)
+    double systemJoulesPerEnergyUnit{0.}; // energy unit of the system (platform) domain, 0 if unknown
     bool packageEnergyTPMI{false}; // package energy is read through the RAPL TPMI interface (instead of MSRs)
     bool dramEnergyTPMI{false};    // DRAM energy is read through the RAPL TPMI interface (instead of MSRs)
     bool systemEnergyTPMI{false};  // system (platform) energy is read through the RAPL TPMI interface (instead of MSRs)
@@ -2419,6 +2420,28 @@ public:
     //! \brief Returns how many joules are in an internal energy unit of the DRAM domain
     double getDRAMJoulesPerEnergyUnit() const { return (dramJoulesPerEnergyUnit != 0.) ? dramJoulesPerEnergyUnit : joulesPerEnergyUnit; }
 
+    //! \brief Returns how many joules are in an internal energy unit of the system (platform) domain
+    double getSystemJoulesPerEnergyUnit() const
+    {
+        switch (cpu_family_model)
+        {
+            case SPR:
+            case EMR:
+            case GNR:
+            case SRF:
+                // the system (platform) energy counter of these processors has a fixed 1 Joule granularity.
+                // The POWER_UNIT register of the system RAPL TPMI domain does not describe it: it reports the
+                // architectural default energy unit while the counter (the same one as MSR_SYS_ENERGY_STATUS)
+                // counts Joules.
+                return 1.0;
+        }
+        if (systemJoulesPerEnergyUnit != 0.)
+        {
+            return systemJoulesPerEnergyUnit; // POWER_UNIT of the system RAPL TPMI domain
+        }
+        return joulesPerEnergyUnit;
+    }
+
     //! \brief Returns thermal specification power of the package domain in Watt
     int32 getPackageThermalSpecPower() const { return pkgThermalSpecPower; }
 
@@ -3684,19 +3707,7 @@ double getSystemConsumedJoules(const CounterStateType& before, const CounterStat
     PCM* m = PCM::getInstance();
     if (!m) return -1.;
 
-    auto unit = m->getJoulesPerEnergyUnit();
-
-    switch (m->getCPUFamilyModel())
-    {
-           case PCM::SPR:
-           case PCM::EMR:
-           case PCM::GNR:
-           case PCM::SRF:
-                   unit = 1.0;
-                   break;
-    }
-
-    return double(getSystemConsumedEnergy(before, after)) * unit;
+    return double(getSystemConsumedEnergy(before, after)) * m->getSystemJoulesPerEnergyUnit();
 }
 
 /*!  \brief Returns Joules consumed by DRAM
