@@ -19,6 +19,8 @@ class TPMIHandleInterface
 {
 public:
     virtual size_t getNumEntries() const = 0;
+    //! \brief Returns the size of a single TPMI entry (instance) in bytes, 0 if unknown
+    virtual size_t getEntrySize() const = 0;
     virtual uint64 read64(size_t entryPos) = 0;
     virtual void write64(size_t entryPos, uint64 val) = 0;
     virtual int32 getNUMANode() = 0;
@@ -35,6 +37,7 @@ public:
     static void setVerbose(const bool);
     TPMIHandle(const size_t instance_, const size_t ID_, const size_t offset_, const bool readonly_ = true);
     size_t getNumEntries() const override;
+    size_t getEntrySize() const override;
     uint64 read64(size_t entryPos) override;
     void write64(size_t entryPos, uint64 val) override;
     int32 getNUMANode() override;
