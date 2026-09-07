@@ -8156,7 +8156,7 @@ void PCM::getPCICFGPMUsFromDiscovery(const unsigned int BoxType, const size_t s,
                 {
                     std::vector<std::shared_ptr<HWRegister> > CounterControlRegs, CounterValueRegs;
                     const auto n_regs = uncorePMUDiscovery->getBoxNumRegs(BoxType, s, die, pos);
-                    auto makeRegister = [&pos, &numBoxes, &BoxType, &s](const uint64 rawAddr)
+                    auto makeRegister = [](const uint64 rawAddr)
                     {
                         UncorePMUDiscovery::PCICFGAddress Addr;
                         Addr.raw = rawAddr;
