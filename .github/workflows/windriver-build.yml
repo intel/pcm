@@ -30,7 +30,7 @@ jobs:
         uses: microsoft/setup-msbuild@v2
 
       - name: Setup NuGet
-        uses: NuGet/setup-nuget@v2
+        uses: NuGet/setup-nuget@v4
 
       - name: Restore packages
         run: nuget restore src\WinMSRDriver\MSR.vcxproj
