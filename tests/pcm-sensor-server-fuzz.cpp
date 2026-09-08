@@ -57,8 +57,13 @@ std::thread * serverThread;
 
 void cleanup()
 {
-    DBG( 0, "Client: Stopping HTTPServer" );
-    httpServer->stop();
+    if (auto* pcieCollector = PCIeCollector::getInstance()) {
+        pcieCollector->stop();
+    }
+    if (httpServer) {
+        DBG( 0, "Client: Stopping HTTPServer" );
+        httpServer->stop();
+    }
     DBG( 0, "Client: Cleaning up PMU:" );
     PCM::getInstance()->cleanup();
 }
@@ -76,6 +81,7 @@ bool init()
             DBG( 0, "Client: Error in program() function" );
             exit(1);
         }
+        (void)PCIeCollector::getInstance();
         debug::dyn_debug_level(1);
         #ifdef FUZZ_USE_SSL
         DBG( 0, "Client: Starting SSL enabled server on https://localhost:", port );
