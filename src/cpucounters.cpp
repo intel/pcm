@@ -589,6 +589,8 @@ unsigned PCM::getMaxRMID() const
 
 void PCM::initRDT()
 {
+    if (RDTInitialized)
+        return;
     if (!(QOSMetricAvailable() && L3QOSMetricAvailable()))
         return;
 #ifdef __linux__
@@ -599,8 +601,11 @@ void PCM::initRDT()
         {
             std::cerr << "INFO: using Linux resctrl driver for RDT metrics (L3OCC, LMB, RMB) because environment variable PCM_USE_RESCTRL=1\n";
         }
-        resctrl.init();
-        useResctrl = true;
+        if (resctrl.init())
+        {
+            useResctrl = true;
+            RDTInitialized = true;
+        }
         return;
     }
     if (resctrl.isMounted())
@@ -609,8 +614,11 @@ void PCM::initRDT()
         {
             std::cerr << "INFO: using Linux resctrl driver for RDT metrics (L3OCC, LMB, RMB) because resctrl driver is mounted.\n";
         }
-        resctrl.init();
-        useResctrl = true;
+        if (resctrl.init())
+        {
+            useResctrl = true;
+            RDTInitialized = true;
+        }
         return;
     }
     if (isSecureBoot())
@@ -619,11 +627,19 @@ void PCM::initRDT()
         {
             std::cerr << "INFO: using Linux resctrl driver for RDT metrics (L3OCC, LMB, RMB) because Secure Boot mode is enabled.\n";
         }
-        resctrl.init();
-        useResctrl = true;
+        if (resctrl.init())
+        {
+            useResctrl = true;
+            RDTInitialized = true;
+        }
         return;
     }
 #endif
+    if (MSR.empty() || noMSRMode())
+    {
+        std::cerr << "ERROR: cannot initialize RDT metrics via MSR programming because MSR access is not available.\n";
+        return;
+    }
     if (!quietMode)
     {
         std::cerr << "Initializing RMIDs" << std::endl;
@@ -637,7 +653,9 @@ void PCM::initRDT()
             rmid[i] = maxRMID - 1;
 
     /* Associate each core with 1 RMID */
-    for(int32 core = 0; core < num_cores; core ++ )
+    bool success = true;
+    int32 lastProgrammedCore = -1;
+    for(int32 core = 0; core < num_cores && success; core ++ )
     {
         if(!isCoreOnline(core)) continue;
 
@@ -645,7 +663,10 @@ void PCM::initRDT()
         uint64 msr_qm_evtsel = 0 ;
                 MSR[core]->lock();
         //Read 0xC8F MSR for each core
-        MSR[core]->read(IA32_PQR_ASSOC, &msr_pqr_assoc);
+        if (MSR[core]->read(IA32_PQR_ASSOC, &msr_pqr_assoc) != (int32)sizeof(uint64))
+        {
+            success = false;
+        }
         DBG(3, "initRMID reading IA32_PQR_ASSOC 0x" , std::hex , msr_pqr_assoc , std::dec);
 
         DBG(3, "Socket Id : " , topology[core].socket_id);
@@ -653,14 +674,29 @@ void PCM::initRDT()
         msr_pqr_assoc |= (uint64)(rmid[topology[core].socket_id] & ((1ULL<<10)-1ULL));
         DBG(3, "initRMID writing IA32_PQR_ASSOC 0x" , std::hex , msr_pqr_assoc , std::dec);
         //Write 0xC8F MSR with new RMID for each core
-        MSR[core]->write(IA32_PQR_ASSOC,msr_pqr_assoc);
+        if (success && MSR[core]->write(IA32_PQR_ASSOC,msr_pqr_assoc) != (int32)sizeof(uint64))
+        {
+            success = false;
+        }
+        if (success)
+        {
+            lastProgrammedCore = core;
+        }
 
         msr_qm_evtsel = static_cast<uint64>(rmid[topology[core].socket_id] & ((1ULL<<10)-1ULL));
         msr_qm_evtsel <<= 32;
         //Write 0xC8D MSR with new RMID for each core
         DBG(3, "initRMID writing IA32_QM_EVTSEL 0x" , std::hex , msr_qm_evtsel , std::dec);
-        MSR[core]->write(IA32_QM_EVTSEL,msr_qm_evtsel);
+        if (success && MSR[core]->write(IA32_QM_EVTSEL,msr_qm_evtsel) != (int32)sizeof(uint64))
+        {
+            success = false;
+        }
                 MSR[core]->unlock();
+
+        if (!success)
+        {
+            break;
+        }
 
         /* Initializing the memory bandwidth counters */
         if (CoreLocalMemoryBWMetricAvailable())
@@ -673,8 +709,28 @@ void PCM::initRDT()
         }
         rmid[topology[core].socket_id] --;
     }
+    if (!success)
+    {
+        std::cerr << "ERROR: failed to program RMIDs via MSR access. RDT metrics will not be available.\n";
+        /* Undo any completed RMID programming (reset to RMID 0 and event 0 as in cleanupRDT) */
+        for(int32 core = 0; core <= lastProgrammedCore; core ++ )
+        {
+            if(!isCoreOnline(core)) continue;
+            uint64 msr_pqr_assoc = 0;
+            MSR[core]->lock();
+            MSR[core]->read(IA32_PQR_ASSOC, &msr_pqr_assoc);
+            msr_pqr_assoc &= 0xffffffff00000000ULL;
+            MSR[core]->write(IA32_PQR_ASSOC, msr_pqr_assoc);
+            MSR[core]->write(IA32_QM_EVTSEL, 0ULL);
+            MSR[core]->unlock();
+        }
+        memory_bw_local.clear();
+        memory_bw_total.clear();
+        return;
+    }
     /* Get The scaling factor by running CPUID.0xF.0x1 instruction */
     L3ScalingFactor = getL3ScalingFactor();
+    RDTInitialized = true;
 }
 
 void PCM::initQOSevent(const uint64 event, const int32 core)
@@ -3223,8 +3279,6 @@ PCM::PCM() :
 
     initUncoreObjects();
 
-    initRDT();
-
     readCPUMicrocodeLevel();
 
 #ifdef PCM_USE_PERF
@@ -5268,6 +5322,9 @@ void PCM::resetPMU()
 }
 void PCM::cleanupRDT(const bool silent)
 {
+    if (!RDTInitialized) {
+        return;
+    }
     if(!(QOSMetricAvailable() && L3QOSMetricAvailable())) {
         return;
     }
@@ -5275,9 +5332,15 @@ void PCM::cleanupRDT(const bool silent)
     if (useResctrl)
     {
         resctrl.cleanup();
+        useResctrl = false;
+        RDTInitialized = false;
         return;
     }
 #endif
+    if (MSR.empty() || noMSRMode())
+    {
+        return;
+    }
 
     for(int32 core = 0; core < num_cores; core ++ )
     {
@@ -5303,6 +5366,9 @@ void PCM::cleanupRDT(const bool silent)
 
     }
 
+    memory_bw_local.clear();
+    memory_bw_total.clear();
+    RDTInitialized = false;
 
     if (!silent) std::cerr << " Freeing up all RMIDs\n";
 }
@@ -5346,6 +5412,8 @@ void PCM::restoreOutput()
 
 void PCM::cleanup(const bool silent)
 {
+    cleanupRDT(silent);
+
     if (MSR.empty()) return;
 
     if (!silent) std::cerr << "Cleaning up\n";
@@ -5355,7 +5423,6 @@ void PCM::cleanup(const bool silent)
     disableForceRTMAbortMode(silent);
 
     cleanupUncorePMUs(silent);
-    cleanupRDT(silent);
 #ifdef __linux__
     if (needToRestoreNMIWatchdog)
     {
@@ -5692,7 +5759,7 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
     }
 
     DBG(3, msr->getCoreId() , " " , cInstRetiredAny);
-    if (m->L3CacheOccupancyMetricAvailable() && m->useResctrl == false)
+    if (m->isRDTInitialized() && m->L3CacheOccupancyMetricAvailable() && m->useResctrl == false)
     {
         msr->lock();
         uint64 event = 1;
@@ -11231,9 +11298,21 @@ CounterWidthExtender::CounterWidthExtender(AbstractRawCounter * raw_counter_, ui
     try {
         UpdateThread = new std::thread(
             [&]() {
-            while (1)
+            // sleep in short slices so that the destructor can join this thread promptly
+            constexpr int sleepSliceMs = 50;
+            while (this->stopUpdateThread.load(std::memory_order_relaxed) == false)
             {
-                MySleepMs(static_cast<int>(this->watchdog_delay_ms));
+                for (int slept = 0; slept < static_cast<int>(this->watchdog_delay_ms)
+                                    && this->stopUpdateThread.load(std::memory_order_relaxed) == false;
+                     slept += sleepSliceMs)
+                {
+                    const int remaining = static_cast<int>(this->watchdog_delay_ms) - slept;
+                    MySleepMs(remaining < sleepSliceMs ? remaining : sleepSliceMs);
+                }
+                if (this->stopUpdateThread.load(std::memory_order_relaxed))
+                {
+                    break;
+                }
                 try {
                     /* uint64 dummy = */ this->read();
                 }
@@ -11255,6 +11334,20 @@ CounterWidthExtender::CounterWidthExtender(AbstractRawCounter * raw_counter_, ui
 }
 CounterWidthExtender::~CounterWidthExtender()
 {
+    // the watchdog thread accesses raw_counter, therefore it must be stopped and
+    // joined before the counter is destroyed. Destroying a still joinable
+    // std::thread would also call std::terminate().
+    stopUpdateThread.store(true, std::memory_order_relaxed);
+    if (UpdateThread != nullptr && UpdateThread->joinable())
+    {
+        try {
+            UpdateThread->join();
+        }
+        catch (const std::exception & e)
+        {
+            std::cerr << "PCM Error: caught exception " << e.what() << " while joining the CounterWidthExtender watchdog thread\n";
+        }
+    }
     deleteAndNullify(UpdateThread);
     deleteAndNullify(raw_counter);
 }

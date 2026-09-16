@@ -4772,8 +4772,9 @@ int mainThrows(int argc, char * argv[]) {
         // A HTTP interface to change the programming is planned
         PCM::ErrorCode status;
         PCM * pcmInstance = PCM::getInstance();
-        pcmInstance->setAccel(accel);
         assert(pcmInstance);
+        pcmInstance->initRDT(); // pcm-sensor-server exposes RDT-based metrics (L3OCC, LMB, RMB): initialize RDT on demand
+        pcmInstance->setAccel(accel);
         if (forceRTMAbortMode)
         {
             pcmInstance->enableForceRTMAbortMode();

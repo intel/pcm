@@ -863,6 +863,7 @@ private:
     Resctrl resctrl;
 #endif
     bool useResctrl;
+    bool RDTInitialized{false};
 
     std::shared_ptr<FreeRunningBWCounters> clientBW;
     std::shared_ptr<CounterWidthExtender> clientImcReads;
@@ -1227,19 +1228,6 @@ private:
     //! \return true if the package energy counters of all sockets have been initialized successfully
     bool initRAPLTPMI();
     void initUncoreObjects();
-    /*!
-    *       \brief initializes each core with an RMID
-    *
-    *       \returns nothing
-    */
-    void initRDT();
-    /*!
-     *      \brief Initializes RDT
-     *
-     *      Initializes RDT infrastructure through resctrl Linux driver or direct MSR programming.
-     *      For the latter: initializes each core event MSR with an RMID for QOS event (L3 cache monitoring or memory bandwidth monitoring)
-     *      \returns nothing
-    */
     void initQOSevent(const uint64 event, const int32 core);
     void programBecktonUncore(int core);
     void programNehalemEPUncore(int core);
@@ -1354,6 +1342,20 @@ private:
 
 public:
     static bool isInitialized() { return instance != nullptr; }
+
+    /*!
+     *      \brief Initializes RDT (on demand)
+     *
+     *      Initializes RDT infrastructure through resctrl Linux driver or direct MSR programming.
+     *      For the latter: initializes each core event MSR with an RMID for QOS event (L3 cache monitoring or memory bandwidth monitoring).
+     *      RDT is not initialized by default: tools that need RDT-based metrics (L3OCC, LMB, RMB)
+     *      must call this method explicitly after getInstance(). Calls after successful initialization are ignored; failed attempts may be retried.
+     *      \returns nothing
+    */
+    void initRDT();
+
+    //! \brief Returns true if RDT has been initialized via initRDT()
+    bool isRDTInitialized() const { return RDTInitialized; }
 
     /*!
         \brief Set quiet mode for PCM initialization

@@ -143,6 +143,8 @@ public:
 
 private:
     std::thread * UpdateThread;
+    //! \brief set by the destructor to request the watchdog thread to finish
+    std::atomic<bool> stopUpdateThread{false};
 
     Mutex CounterMutex;
 

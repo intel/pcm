@@ -1506,6 +1506,8 @@ int mainThrows(int argc, char * argv[])
 
     PCM * m = PCM::getInstance();
 
+    m->initRDT(); // pcm uses RDT-based metrics (L3OCC, LMB, RMB): initialize RDT on demand
+
     if (argc > 1) do
     {
         argv++;
