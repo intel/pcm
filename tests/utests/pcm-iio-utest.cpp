@@ -13,6 +13,20 @@
 
 using namespace pcm;
 
+TEST(PcmIioCsvTest, PreservesMultiCharacterDelimiterAfterTimestamp)
+{
+    for (const std::string delimiter : {",", "||", ":::", ""})
+    {
+        pcm_iio_config config;
+        config.display.csv = true;
+        config.display.csv_delimiter = delimiter;
+        const auto rows = getDisplayBuilder(config)->buildDisplayBuffer();
+        ASSERT_EQ(rows.size(), 1U);
+        EXPECT_EQ(rows.front(), "Date" + delimiter + "Time" + delimiter +
+                               "Socket" + delimiter + "Name" + delimiter + "Part");
+    }
+}
+
 class LoadEventsTest : public ::testing::Test {
 protected:
     void SetUp() override
