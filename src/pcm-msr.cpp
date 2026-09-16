@@ -3,6 +3,7 @@
 
 // written by Roman Dementiev
 #include "cpucounters.h"
+#include "cputopology.h"
 #ifdef _MSC_VER
 #include <windows.h>
 #include "windows/windriver.h"
@@ -157,6 +158,7 @@ int mainThrows(int argc, char * argv[])
         outflag = false;
       }
     }
+    std::shared_ptr<CPUTopology> cpuTopology; // initialized on first use (for the "all cores" mode)
     while(1){
        for (std::list<int>::iterator it=corelist.begin(); it != corelist.end(); ++it){
             int core = *it;
@@ -222,11 +224,20 @@ int mainThrows(int argc, char * argv[])
             }
             else
             {
-                set_signal_handlers();
-                auto m = PCM::getInstance();
-                for (uint32 i = 0; i < m->getNumCores(); ++i)
+                if (!cpuTopology)
                 {
-                    if (m->isCoreOnline(i))
+                    try {
+                        cpuTopology = std::make_shared<CPUTopology>();
+                    }
+                    catch (std::exception & e)
+                    {
+                        std::cerr << "ERROR: " << e.what() << "\n";
+                        return -1;
+                    }
+                }
+                for (int32 i = 0; i < cpuTopology->getNumCores(); ++i)
+                {
+                    if (cpuTopology->isCoreOnline(i))
                     {
                         doOne(i, value);
                     }
