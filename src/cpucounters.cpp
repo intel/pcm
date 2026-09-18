@@ -587,6 +587,31 @@ unsigned PCM::getMaxRMID() const
     return maxRMID;
 }
 
+//! \brief asks the watchdog threads of all CounterWidthExtender instances in a container to finish
+//! \details Only call it for containers holding the last reference to the instances.
+template <class Container>
+inline void requestStopCounterWidthExtenders(Container & c)
+{
+    for (auto & counter : c)
+    {
+        if (counter.get())
+        {
+            counter->requestStopUpdateThread();
+        }
+    }
+}
+
+//! \brief destroys a container of CounterWidthExtender instances
+//! \details Asks all watchdog threads to finish first, so that they wake up and exit
+//! concurrently. Destroying the instances one by one would otherwise serialize the
+//! wake-up latency of every single watchdog thread.
+template <class Container>
+inline void clearCounterWidthExtenders(Container & c)
+{
+    requestStopCounterWidthExtenders(c);
+    c.clear();
+}
+
 void PCM::initRDT()
 {
     if (RDTInitialized)
@@ -725,6 +750,9 @@ void PCM::initRDT()
     if (!success)
     {
         std::cerr << "ERROR: failed to program RMIDs via MSR access. RDT metrics will not be available.\n";
+        /* stop the watchdog threads first, they exit while the loop below is undoing the programming */
+        requestStopCounterWidthExtenders(memory_bw_local);
+        requestStopCounterWidthExtenders(memory_bw_total);
         /* Undo any completed RMID programming (reset to RMID 0 and event 0 as in cleanupRDT) */
         for(int32 core = 0; core <= lastProgrammedCore; core ++ )
         {
@@ -737,8 +765,8 @@ void PCM::initRDT()
             MSR[core]->write(IA32_QM_EVTSEL, 0ULL);
             MSR[core]->unlock();
         }
-        memory_bw_local.clear();
-        memory_bw_total.clear();
+        clearCounterWidthExtenders(memory_bw_local);
+        clearCounterWidthExtenders(memory_bw_total);
         coreRMIDs.clear();
         return;
     }
@@ -5356,6 +5384,12 @@ void PCM::cleanupRDT(const bool silent)
         return;
     }
 
+    // stop the watchdog threads of the memory bandwidth counters before touching the RMID MSRs:
+    // they exit while the loop below is running, therefore the destructors called by
+    // clearCounterWidthExtenders(..) at the end do not have to wait for them
+    requestStopCounterWidthExtenders(memory_bw_local);
+    requestStopCounterWidthExtenders(memory_bw_total);
+
     for(int32 core = 0; core < num_cores; core ++ )
     {
                 if(!isCoreOnline(core)) continue;
@@ -5380,8 +5414,8 @@ void PCM::cleanupRDT(const bool silent)
 
     }
 
-    memory_bw_local.clear();
-    memory_bw_total.clear();
+    clearCounterWidthExtenders(memory_bw_local);
+    clearCounterWidthExtenders(memory_bw_total);
     coreRMIDs.clear();
     RDTInitialized = false;
 
@@ -11352,7 +11386,7 @@ CounterWidthExtender::~CounterWidthExtender()
     // the watchdog thread accesses raw_counter, therefore it must be stopped and
     // joined before the counter is destroyed. Destroying a still joinable
     // std::thread would also call std::terminate().
-    stopUpdateThread.store(true, std::memory_order_relaxed);
+    requestStopUpdateThread();
     if (UpdateThread != nullptr && UpdateThread->joinable())
     {
         try {

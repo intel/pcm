@@ -204,6 +204,14 @@ public:
     {
         return internal_read();
     }
+    //! \brief asks the watchdog thread to finish without waiting for it
+    //! \details The destructor still joins the thread. Calling this method on many
+    //! CounterWidthExtender instances before destroying them lets their watchdog threads
+    //! wake up and exit concurrently instead of paying the wake-up latency for every instance.
+    void requestStopUpdateThread()
+    {
+        stopUpdateThread.store(true, std::memory_order_relaxed);
+    }
     //! \brief returns true if the last attempt to read the raw counter failed
     bool readFailed() const
     {
