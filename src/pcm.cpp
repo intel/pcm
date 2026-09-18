@@ -115,6 +115,9 @@ AETRow get_aet_row_sum(const PCM * m, const CoreFilter & filter, const SystemCou
     {
         return result;
     }
+    bool anyCore = false;
+    bool allEnergyValid = true;
+    bool allCdynValid = true;
     for (uint32 core = 0; core < m->getNumCores(); ++core)
     {
         if (m->isCoreOnline(core) == false || filter(core) == false)
@@ -122,17 +125,27 @@ AETRow get_aet_row_sum(const PCM * m, const CoreFilter & filter, const SystemCou
             continue;
         }
         const auto row = get_aet_row(m, core, before, after);
+        anyCore = true;
         if (row.energy.valid)
         {
             result.energy.value += row.energy.value;
-            result.energy.valid = true;
+        }
+        else
+        {
+            allEnergyValid = false;
         }
         if (row.cdyn.valid)
         {
             result.cdyn.value += row.cdyn.value;
-            result.cdyn.valid = true;
+        }
+        else
+        {
+            allCdynValid = false;
         }
     }
+    // report the aggregate only if every selected core contributed a valid sample (no partial sums)
+    result.energy.valid = anyCore && allEnergyValid;
+    result.cdyn.valid = anyCore && allCdynValid;
     return result;
 }
 
