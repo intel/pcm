@@ -212,6 +212,10 @@ public:
     {
         stopUpdateThread.store(true, std::memory_order_relaxed);
     }
+    //! \brief asks the watchdog thread to finish and waits until it has exited
+    //! \details After this method returns the watchdog thread does not access the
+    //! raw counter (e.g. the RMID MSRs of MBL/MBT counters) anymore.
+    void stopAndJoinUpdateThread();
     //! \brief returns true if the last attempt to read the raw counter failed
     bool readFailed() const
     {

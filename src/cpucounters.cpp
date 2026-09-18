@@ -601,15 +601,21 @@ inline void requestStopCounterWidthExtenders(Container & c)
     }
 }
 
-//! \brief destroys a container of CounterWidthExtender instances
-//! \details Asks all watchdog threads to finish first, so that they wake up and exit
-//! concurrently. Destroying the instances one by one would otherwise serialize the
-//! wake-up latency of every single watchdog thread.
+//! \brief waits until the watchdog threads of all CounterWidthExtender instances in a container have exited
+//! \details Call requestStopCounterWidthExtenders(..) on all involved containers first, so that the
+//! watchdog threads wake up and exit concurrently instead of paying the wake-up latency for every
+//! single thread. After this function returns none of the watchdog threads accesses its raw counter
+//! (e.g. the RMID MSRs of MBL/MBT counters) anymore.
 template <class Container>
-inline void clearCounterWidthExtenders(Container & c)
+inline void joinCounterWidthExtenders(Container & c)
 {
-    requestStopCounterWidthExtenders(c);
-    c.clear();
+    for (auto & counter : c)
+    {
+        if (counter.get())
+        {
+            counter->stopAndJoinUpdateThread();
+        }
+    }
 }
 
 void PCM::initRDT()
@@ -750,9 +756,13 @@ void PCM::initRDT()
     if (!success)
     {
         std::cerr << "ERROR: failed to program RMIDs via MSR access. RDT metrics will not be available.\n";
-        /* stop the watchdog threads first, they exit while the loop below is undoing the programming */
+        /* stop the watchdog threads and wait for them to exit before undoing the programming:
+           a watchdog thread that already passed its stop check could otherwise reprogram
+           IA32_QM_EVTSEL after the rollback writes below */
         requestStopCounterWidthExtenders(memory_bw_local);
         requestStopCounterWidthExtenders(memory_bw_total);
+        joinCounterWidthExtenders(memory_bw_local);
+        joinCounterWidthExtenders(memory_bw_total);
         /* Undo any completed RMID programming (reset to RMID 0 and event 0 as in cleanupRDT) */
         for(int32 core = 0; core <= lastProgrammedCore; core ++ )
         {
@@ -765,8 +775,8 @@ void PCM::initRDT()
             MSR[core]->write(IA32_QM_EVTSEL, 0ULL);
             MSR[core]->unlock();
         }
-        clearCounterWidthExtenders(memory_bw_local);
-        clearCounterWidthExtenders(memory_bw_total);
+        memory_bw_local.clear();
+        memory_bw_total.clear();
         coreRMIDs.clear();
         return;
     }
@@ -5384,11 +5394,14 @@ void PCM::cleanupRDT(const bool silent)
         return;
     }
 
-    // stop the watchdog threads of the memory bandwidth counters before touching the RMID MSRs:
-    // they exit while the loop below is running, therefore the destructors called by
-    // clearCounterWidthExtenders(..) at the end do not have to wait for them
+    // stop the watchdog threads of the memory bandwidth counters and wait for them to exit
+    // before touching the RMID MSRs: a watchdog thread that already passed its stop check
+    // could otherwise reprogram IA32_QM_EVTSEL after the cleanup writes below.
+    // Requesting the stop of all threads first lets them wake up and exit concurrently.
     requestStopCounterWidthExtenders(memory_bw_local);
     requestStopCounterWidthExtenders(memory_bw_total);
+    joinCounterWidthExtenders(memory_bw_local);
+    joinCounterWidthExtenders(memory_bw_total);
 
     for(int32 core = 0; core < num_cores; core ++ )
     {
@@ -5414,8 +5427,8 @@ void PCM::cleanupRDT(const bool silent)
 
     }
 
-    clearCounterWidthExtenders(memory_bw_local);
-    clearCounterWidthExtenders(memory_bw_total);
+    memory_bw_local.clear();
+    memory_bw_total.clear();
     coreRMIDs.clear();
     RDTInitialized = false;
 
@@ -11381,11 +11394,8 @@ CounterWidthExtender::CounterWidthExtender(AbstractRawCounter * raw_counter_, ui
         throw; // re-throw
     }
 }
-CounterWidthExtender::~CounterWidthExtender()
+void CounterWidthExtender::stopAndJoinUpdateThread()
 {
-    // the watchdog thread accesses raw_counter, therefore it must be stopped and
-    // joined before the counter is destroyed. Destroying a still joinable
-    // std::thread would also call std::terminate().
     requestStopUpdateThread();
     if (UpdateThread != nullptr && UpdateThread->joinable())
     {
@@ -11397,6 +11407,14 @@ CounterWidthExtender::~CounterWidthExtender()
             std::cerr << "PCM Error: caught exception " << e.what() << " while joining the CounterWidthExtender watchdog thread\n";
         }
     }
+}
+
+CounterWidthExtender::~CounterWidthExtender()
+{
+    // the watchdog thread accesses raw_counter, therefore it must be stopped and
+    // joined before the counter is destroyed. Destroying a still joinable
+    // std::thread would also call std::terminate().
+    stopAndJoinUpdateThread();
     deleteAndNullify(UpdateThread);
     deleteAndNullify(raw_counter);
 }
