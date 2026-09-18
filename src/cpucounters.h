@@ -5598,6 +5598,330 @@ inline std::vector<uint64> getPMTEvent(const PCM::RawEventEncoding& eventEnc, co
     return getRegisterEvent(eventEnc, before.PMTValues, after.PMTValues);
 }
 
+/*! \brief description of the per-RMID Application Energy Telemetry (AET) PMT counters
+
+    The AET telemetry aggregator is processor-specific (currently only CWF is
+    supported) and exposes two qwords per RMID:
+
+    qword 2 * rmid       : RMID_<rmid>_CORE_ENERGY, core energy in Joule
+    qword 2 * rmid + 1   : RMID_<rmid>_ACTIVITY, dynamic capacitance (Cdyn) of the cores in nanofarad
+
+    In both qwords bits 0..62 hold the (monotonically increasing) counter value in
+    the "U63.45.18" fixed point format (45 integer and 18 fractional bits) and bit
+    63 indicates that the counter value is valid.
+
+    Note that the per-RMID core energy metric is not comparable to the package/CPU
+    energy of MSR_PKG_ENERGY_STATUS.
+*/
+struct AET
+{
+    //! \brief returns the UID (GUID) of the PMT telemetry aggregator holding the AET counters of this processor (0 if the processor does not support AET)
+    static uint64 UID()
+    {
+        switch (PCM::getCPUFamilyModelFromCPUID())
+        {
+        case PCM::CWF:
+            return 0x26696143ULL;
+        }
+        return 0;
+    }
+    //! \brief returns the name of the AET telemetry aggregator of this processor as used in the PMT telemetry database ("" if the processor does not support AET)
+    static const char * aggregatorName()
+    {
+        switch (PCM::getCPUFamilyModelFromCPUID())
+        {
+        case PCM::CWF:
+            return "cwf";
+        }
+        return "";
+    }
+    //! \brief returns true if this processor supports AET
+    static bool supported()
+    {
+        return UID() != 0;
+    }
+    enum Counter
+    {
+        CoreEnergy = 0,
+        Activity = 1,
+        NumCounters // number of AET counters (= qwords) per RMID
+    };
+    /*! \brief sample semantics of an AET counter
+
+        The AET counters are accumulators: Total is the value accumulated since the
+        counter was reset, Interval the value accumulated during the sample interval.
+    */
+    enum Sample
+    {
+        Total = PCM::MSRType::Static,
+        Interval = PCM::MSRType::Freerun
+    };
+    enum
+    {
+        valueLSB = 0,
+        valueMSB = 62,
+        validBit = 63,
+        fractionalBits = 18 // number of fractional bits of the "U63.45.18" fixed point format
+    };
+    static const char * counterName(const Counter counter)
+    {
+        return (counter == CoreEnergy) ? "CORE_ENERGY" : "ACTIVITY";
+    }
+    //! \brief returns the unit symbol of an AET counter: Joule for the core energy, nanofarad for the Cdyn activity
+    static const char * counterUnit(const Counter counter)
+    {
+        return (counter == CoreEnergy) ? "J" : "nF";
+    }
+    /*! \brief converts a raw AET counter value in the "U63.45.18" fixed point format to a metric value
+
+        \return core energy in Joule for AET::CoreEnergy, dynamic capacitance (Cdyn) in nanofarad for AET::Activity
+    */
+    static double toMetric(const uint64 rawValue)
+    {
+        return double(rawValue) / double(1ULL << fractionalBits);
+    }
+};
+
+//! \brief returns the PMT event encoding of an AET counter (or of its valid bit) of the given RMID
+inline PCM::RawEventEncoding AETEventEncoding(const size_t rmid, const AET::Counter counter, const bool validBit = false,
+                                             const AET::Sample sample = AET::Total)
+{
+    PCM::RawEventEncoding enc{};
+    enc[PCM::PMTEventPosition::UID] = AET::UID();
+    enc[PCM::PMTEventPosition::offset] = rmid * AET::NumCounters + counter;
+    enc[PCM::PMTEventPosition::type] = validBit ? AET::Total : sample; // the valid bit is always a snapshot
+    enc[PCM::PMTEventPosition::lsb] = validBit ? AET::validBit : AET::valueLSB;
+    enc[PCM::PMTEventPosition::msb] = validBit ? AET::validBit : AET::valueMSB;
+    return enc;
+}
+
+//! \brief returns the name of an AET counter as used in the PMT telemetry database, e.g. "cwf.RMID_0_CORE_ENERGY.RMID_0_CORE_ENERGY_VALID"
+inline std::string AETEventName(const size_t rmid, const AET::Counter counter, const bool validBit = false)
+{
+    const std::string sample = "RMID_" + std::to_string(rmid) + "_" + AET::counterName(counter);
+    return std::string(AET::aggregatorName()) + "." + sample + "." + sample + (validBit ? "_VALID" : "");
+}
+
+/*! \brief returns the number of AET telemetry instances in the system
+
+    There is one AET telemetry instance per compute die (3 per socket on CWF). The
+    instance is the index into the vectors returned by getAETCounter()/getAETMetric().
+
+    \return 0 if AET telemetry is not available
+*/
+inline size_t getAETNumInstances()
+{
+    const auto uid = AET::UID();
+    return (uid == 0) ? 0 : TelemetryArray::numInstances(uid);
+}
+
+//! \brief returns the socket of every AET telemetry instance (-1 for instances with unknown socket)
+inline const std::vector<int32> & getAETInstanceSockets()
+{
+    static const std::vector<int32> sockets = []()
+    {
+        std::vector<int32> result;
+        const auto numInstances = getAETNumInstances();
+        for (size_t instance = 0; instance < numInstances; ++instance)
+        {
+            const auto node = TelemetryArray(AET::UID(), instance).numaNode();
+            result.push_back((node < 0) ? -1 : PCM::getInstance()->mapNUMANodeToSocket((uint32)node));
+        }
+        return result;
+    }();
+    return sockets;
+}
+
+//! \brief returns the socket of an AET telemetry instance (-1 if unknown)
+inline int32 getAETInstanceSocket(const size_t instance)
+{
+    const auto & sockets = getAETInstanceSockets();
+    return (instance < sockets.size()) ? sockets[instance] : -1;
+}
+
+/*! \brief returns the number of RMIDs whose AET counters can be collected on this system
+
+    This is the minimum of the number of RMIDs in the AET telemetry array and the number
+    of RMIDs supported by RDT: the trailing qwords of the telemetry array may hold samples
+    which do not belong to any RMID.
+
+    \return 0 if AET telemetry is not available
+*/
+inline size_t getAETNumRMIDs()
+{
+    if (getAETNumInstances() == 0)
+    {
+        return 0;
+    }
+    const auto inTelemetryArray = TelemetryArray(AET::UID(), 0).numQWords() / AET::NumCounters;
+    return (std::min)((size_t)PCM::getInstance()->getMaxRMID(), inTelemetryArray);
+}
+
+/*! \brief adds the AET events of the given RMIDs to a raw PMU configuration
+
+    Both the accumulated (AET::Total) and the interval (AET::Interval) samples of the
+    counters are added together with their valid bits.
+*/
+inline void addAETEvents(PCM::RawPMUConfigs & configs, const std::vector<size_t> & rmids)
+{
+    auto & pmtConfig = configs["pmt"];
+    for (const auto & rmid : rmids)
+    {
+        for (const auto counter : { AET::CoreEnergy, AET::Activity })
+        {
+            for (const auto sample : { AET::Total, AET::Interval })
+            {
+                pmtConfig.fixed.push_back(PCM::RawEventConfig{ AETEventEncoding(rmid, counter, false, sample),
+                                                               AETEventName(rmid, counter, false) });
+            }
+            pmtConfig.fixed.push_back(PCM::RawEventConfig{ AETEventEncoding(rmid, counter, true),
+                                                           AETEventName(rmid, counter, true) });
+        }
+    }
+}
+
+/*! \brief programs the AET counters of the given RMIDs
+
+    Discards the programming of all other raw (register) events. To collect AET
+    counters together with other raw events call addAETEvents(..) and pass the
+    resulting configuration to PCM::program(..) instead.
+
+    \param rmids RMIDs to collect the AET counters for
+    \param silent suppress informational output
+*/
+inline PCM::ErrorCode programAET(const std::vector<size_t> & rmids, const bool silent = false)
+{
+    if (AET::supported() == false)
+    {
+        std::cerr << "ERROR: AET telemetry is not supported on this processor\n";
+        return PCM::UnknownError;
+    }
+    const auto numRMIDs = getAETNumRMIDs();
+    if (numRMIDs == 0)
+    {
+        std::cerr << "ERROR: AET telemetry (PMT UID 0x" << std::hex << AET::UID() << std::dec << ") is not available on this system\n";
+        return PCM::UnknownError;
+    }
+    for (const auto & rmid : rmids)
+    {
+        if (rmid >= numRMIDs)
+        {
+            std::cerr << "ERROR: RMID " << rmid << " is out of range, AET telemetry supports RMIDs 0.." << (numRMIDs - 1) << "\n";
+            return PCM::UnknownError;
+        }
+    }
+    PCM::RawPMUConfigs configs;
+    addAETEvents(configs, rmids);
+    return PCM::getInstance()->program(configs, silent);
+}
+
+//! \brief value of an AET counter of a single telemetry instance
+struct AETCounterValue
+{
+    uint64 value = 0;
+    bool valid = false;
+};
+
+/*! \brief reads a programmed AET counter of the given RMID
+
+    \return the counter value of every AET telemetry instance in the system
+*/
+inline std::vector<AETCounterValue> getAETCounter(const size_t rmid, const AET::Counter counter,
+                                                  const SystemCounterState & before, const SystemCounterState & after,
+                                                  const AET::Sample sample = AET::Total)
+{
+    const auto values = getPMTEvent(AETEventEncoding(rmid, counter, false, sample), before, after);
+    const auto validBits = getPMTEvent(AETEventEncoding(rmid, counter, true), before, after);
+    std::vector<AETCounterValue> result;
+    for (size_t i = 0; i < values.size(); ++i)
+    {
+        result.push_back(AETCounterValue{ values[i], i < validBits.size() && validBits[i] != 0 });
+    }
+    return result;
+}
+
+//! \brief metric value of an AET counter of a single telemetry instance
+struct AETMetricValue
+{
+    double value = 0.; //!< core energy in Joule or dynamic capacitance (Cdyn) in nanofarad, see AET::counterUnit()
+    bool valid = false;
+};
+
+/*! \brief reads a programmed AET counter of the given RMID and converts it to its metric
+
+    \return core energy in Joule (AET::CoreEnergy) or dynamic capacitance (Cdyn) in
+    nanofarad (AET::Activity) of every AET telemetry instance (compute die) in the system,
+    indexed as in getAETInstanceSocket()
+*/
+inline std::vector<AETMetricValue> getAETMetric(const size_t rmid, const AET::Counter counter,
+                                                const SystemCounterState & before, const SystemCounterState & after,
+                                                const AET::Sample sample = AET::Total)
+{
+    std::vector<AETMetricValue> result;
+    for (const auto & counterValue : getAETCounter(rmid, counter, before, after, sample))
+    {
+        result.push_back(AETMetricValue{ AET::toMetric(counterValue.value), counterValue.valid });
+    }
+    return result;
+}
+
+/*! \brief reads a programmed AET counter of the given RMID on the given socket and converts it to its metric
+
+    RDT associates the cores of a socket with different RMIDs while the AET telemetry is
+    reported per compute die (3 per socket on CWF): the metric of an RMID on a socket is
+    therefore the sum of the valid values of the compute dies of that socket.
+
+    Note that the per-RMID core energy metric is not comparable to the package/CPU
+    energy of MSR_PKG_ENERGY_STATUS, also not when summed up over the RMIDs.
+
+    \return core energy in Joule (AET::CoreEnergy) or dynamic capacitance (Cdyn) in
+    nanofarad (AET::Activity), invalid if no compute die of the socket reports the RMID
+*/
+inline AETMetricValue getAETMetric(const size_t rmid, const AET::Counter counter, const int32 socket,
+                                   const SystemCounterState & before, const SystemCounterState & after,
+                                   const AET::Sample sample = AET::Total)
+{
+    AETMetricValue result{};
+    const auto perInstance = getAETMetric(rmid, counter, before, after, sample);
+    for (size_t instance = 0; instance < perInstance.size(); ++instance)
+    {
+        if (perInstance[instance].valid && getAETInstanceSocket(instance) == socket)
+        {
+            result.value += perInstance[instance].value;
+            result.valid = true;
+        }
+    }
+    return result;
+}
+
+//! \brief reads the core energy in Joule of the given RMID (one value per AET telemetry instance)
+inline std::vector<AETMetricValue> getAETCoreEnergyJoule(const size_t rmid, const SystemCounterState & before, const SystemCounterState & after,
+                                                         const AET::Sample sample = AET::Total)
+{
+    return getAETMetric(rmid, AET::CoreEnergy, before, after, sample);
+}
+
+//! \brief reads the core energy in Joule of the given RMID on the given socket
+inline AETMetricValue getAETCoreEnergyJoule(const size_t rmid, const int32 socket, const SystemCounterState & before, const SystemCounterState & after,
+                                            const AET::Sample sample = AET::Total)
+{
+    return getAETMetric(rmid, AET::CoreEnergy, socket, before, after, sample);
+}
+
+//! \brief reads the dynamic capacitance (Cdyn) in nanofarad of the given RMID (one value per AET telemetry instance)
+inline std::vector<AETMetricValue> getAETActivityNanoFarad(const size_t rmid, const SystemCounterState & before, const SystemCounterState & after,
+                                                           const AET::Sample sample = AET::Total)
+{
+    return getAETMetric(rmid, AET::Activity, before, after, sample);
+}
+
+//! \brief reads the dynamic capacitance (Cdyn) in nanofarad of the given RMID on the given socket
+inline AETMetricValue getAETActivityNanoFarad(const size_t rmid, const int32 socket, const SystemCounterState & before, const SystemCounterState & after,
+                                              const AET::Sample sample = AET::Total)
+{
+    return getAETMetric(rmid, AET::Activity, socket, before, after, sample);
+}
+
 template <class CounterStateType>
 uint64 getMSREvent(const uint64& index, const PCM::MSRType& type, const CounterStateType& before, const CounterStateType& after)
 {
