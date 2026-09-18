@@ -36,6 +36,7 @@
 
 #include <vector>
 #include <array>
+#include <algorithm>
 #include <limits>
 #include <string>
 #include <memory>
@@ -864,6 +865,7 @@ private:
 #endif
     bool useResctrl;
     bool RDTInitialized{false};
+    std::vector<uint32> coreRMIDs{}; // RMID associated with each core by initRDT() via direct MSR programming (invalidRMID if none)
 
     std::shared_ptr<FreeRunningBWCounters> clientBW;
     std::shared_ptr<CounterWidthExtender> clientImcReads;
@@ -1348,6 +1350,7 @@ public:
      *
      *      Initializes RDT infrastructure through resctrl Linux driver or direct MSR programming.
      *      For the latter: initializes each core event MSR with an RMID for QOS event (L3 cache monitoring or memory bandwidth monitoring).
+     *      RMIDs are allocated per socket in increasing order starting from firstUsableRMID.
      *      RDT is not initialized by default: tools that need RDT-based metrics (L3OCC, LMB, RMB)
      *      must call this method explicitly after getInstance(). Calls after successful initialization are ignored; failed attempts may be retried.
      *      \returns nothing
@@ -1356,6 +1359,51 @@ public:
 
     //! \brief Returns true if RDT has been initialized via initRDT()
     bool isRDTInitialized() const { return RDTInitialized; }
+
+    //! \brief Value returned by getCoreRMID() for cores without an RMID association
+    enum : uint32 { invalidRMID = ~0U };
+
+    /*! \brief First RMID used by initRDT() for direct MSR programming
+
+        RMID 0 is skipped because it is the default RMID (resctrl root group) which
+        other software may use at the same time.
+    */
+    enum : uint32 { firstUsableRMID = 1 };
+
+    /*!
+     *      \brief Returns the RMID associated with the core by initRDT() via direct MSR programming
+     *
+     *      \returns invalidRMID if the core has no RMID association, e.g. it is offline, RDT is not
+     *      initialized or RDT uses the resctrl driver instead of direct MSR programming
+    */
+    uint32 getCoreRMID(const int32 core) const
+    {
+        if (core < 0 || (size_t)core >= coreRMIDs.size())
+        {
+            return invalidRMID;
+        }
+        return coreRMIDs[core];
+    }
+
+    /*!
+     *      \brief Returns the RMIDs programmed by initRDT() via direct MSR programming
+     *
+     *      \returns sorted list of used RMIDs, empty if RDT is not initialized or RDT uses the resctrl driver
+    */
+    std::vector<size_t> getUsedRMIDs() const
+    {
+        std::vector<size_t> result;
+        for (const auto & rmid : coreRMIDs)
+        {
+            if (rmid != invalidRMID)
+            {
+                result.push_back(rmid);
+            }
+        }
+        std::sort(result.begin(), result.end());
+        result.erase(std::unique(result.begin(), result.end()), result.end());
+        return result;
+    }
 
     /*!
         \brief Set quiet mode for PCM initialization

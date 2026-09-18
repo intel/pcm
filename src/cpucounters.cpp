@@ -648,9 +648,13 @@ void PCM::initRDT()
     /* Calculate maximum number of RMID supported by socket */
     maxRMID = getMaxRMID();
     DBG(2, "Maximum RMIDs per socket in the system : " , maxRMID );
-    std::vector<uint32> rmid(num_sockets);
-    for(int32 i = 0; i < num_sockets; i ++)
-            rmid[i] = maxRMID - 1;
+    /* Next RMID to be assigned on each socket: allocate RMIDs starting from 1.
+       RMID 0 is skipped because it is the default RMID (resctrl root group) and
+       therefore may be used by other software at the same time. */
+    std::vector<uint32> rmid(num_sockets, firstUsableRMID);
+
+    coreRMIDs.clear();
+    coreRMIDs.resize(num_cores, invalidRMID);
 
     /* Associate each core with 1 RMID */
     bool success = true;
@@ -658,6 +662,14 @@ void PCM::initRDT()
     for(int32 core = 0; core < num_cores && success; core ++ )
     {
         if(!isCoreOnline(core)) continue;
+
+        if (rmid[topology[core].socket_id] >= maxRMID)
+        {
+            std::cerr << "ERROR: number of cores on socket " << topology[core].socket_id <<
+                " exceeds the number of usable RMIDs of the socket (" << (maxRMID - firstUsableRMID) << ").\n";
+            success = false;
+            break;
+        }
 
         uint64 msr_pqr_assoc = 0 ;
         uint64 msr_qm_evtsel = 0 ;
@@ -681,6 +693,7 @@ void PCM::initRDT()
         if (success)
         {
             lastProgrammedCore = core;
+            coreRMIDs[core] = rmid[topology[core].socket_id];
         }
 
         msr_qm_evtsel = static_cast<uint64>(rmid[topology[core].socket_id] & ((1ULL<<10)-1ULL));
@@ -707,7 +720,7 @@ void PCM::initRDT()
                 memory_bw_total.push_back(std::make_shared<CounterWidthExtender>(new CounterWidthExtender::MBTCounter(MSR[core]), 24, 1000));
             }
         }
-        rmid[topology[core].socket_id] --;
+        rmid[topology[core].socket_id] ++;
     }
     if (!success)
     {
@@ -726,6 +739,7 @@ void PCM::initRDT()
         }
         memory_bw_local.clear();
         memory_bw_total.clear();
+        coreRMIDs.clear();
         return;
     }
     /* Get The scaling factor by running CPUID.0xF.0x1 instruction */
@@ -5368,6 +5382,7 @@ void PCM::cleanupRDT(const bool silent)
 
     memory_bw_local.clear();
     memory_bw_total.clear();
+    coreRMIDs.clear();
     RDTInitialized = false;
 
     if (!silent) std::cerr << " Freeing up all RMIDs\n";
