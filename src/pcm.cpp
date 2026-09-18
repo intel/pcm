@@ -70,6 +70,82 @@ double getAverageUncoreFrequencyGhz(const UncoreStateType& before, const UncoreS
     return getAverageUncoreFrequency(before, after) / 1e9;
 }
 
+//! \brief AET (Application Energy Telemetry) metrics of the sample interval, see program_aet()
+struct AETRow
+{
+    bool available = false;   // AET metrics are collected on this system
+    AETMetricValue energy{};  // CENRG: core energy in Joule
+    AETMetricValue cdyn{};    // CDYN: dynamic capacitance in nanofarad
+};
+
+bool aet_metrics = false; // request the AET metrics (CENRG, CDYN), see the --aet command line option
+
+//! \brief returns true if the AET metrics are collected on this system
+bool aet_available(const PCM * m)
+{
+    // AET is programmed once (see program_aet()) before any output is printed
+    static const bool available = aet_metrics && AET::supported() && getAETNumRMIDs() > 0
+                                  && m->getUsedRMIDs().empty() == false;
+    return available;
+}
+
+//! \brief returns the AET metrics of the interval for a single core
+AETRow get_aet_row(const PCM * m, const uint32 core, const SystemCounterState & before, const SystemCounterState & after)
+{
+    AETRow row;
+    row.available = aet_available(m);
+    const auto rmid = m->getCoreRMID(core);
+    if (row.available == false || rmid == PCM::invalidRMID)
+    {
+        return row; // metrics stay invalid and are printed as "N/A"
+    }
+    const auto socket = m->getSocketId(core);
+    row.energy = getAETCoreEnergyJoule(rmid, socket, before, after, AET::Interval);
+    row.cdyn = getAETActivityNanoFarad(rmid, socket, before, after, AET::Interval);
+    return row;
+}
+
+//! \brief returns the sum of the AET metrics of the interval over all online cores selected by the filter
+template <class CoreFilter>
+AETRow get_aet_row_sum(const PCM * m, const CoreFilter & filter, const SystemCounterState & before, const SystemCounterState & after)
+{
+    AETRow result;
+    result.available = aet_available(m);
+    if (result.available == false)
+    {
+        return result;
+    }
+    for (uint32 core = 0; core < m->getNumCores(); ++core)
+    {
+        if (m->isCoreOnline(core) == false || filter(core) == false)
+        {
+            continue;
+        }
+        const auto row = get_aet_row(m, core, before, after);
+        if (row.energy.valid)
+        {
+            result.energy.value += row.energy.value;
+            result.energy.valid = true;
+        }
+        if (row.cdyn.valid)
+        {
+            result.cdyn.value += row.cdyn.value;
+            result.cdyn.valid = true;
+        }
+    }
+    return result;
+}
+
+std::string aet_format(const AETMetricValue & metric)
+{
+    if (metric.valid == false)
+        return "N/A";
+
+    char buffer[1024];
+    snprintf(buffer, 1024, "%6.2f", metric.value);
+    return buffer;
+}
+
 void print_help(const string & prog_name)
 {
     cout << "\n Usage: \n " << prog_name
@@ -91,6 +167,11 @@ void print_help(const string & prog_name)
     cout << "  -ns   | --nosockets | /ns          => hide socket related output\n";
     cout << "  -nsys | --nosystem  | /nsys        => hide system related output\n";
     cout << "  --die                              => show aggregated core metrics per die\n";
+    cout << "  -aet  | --aet       | /aet         => show per-RMID AET metrics (CENRG: core energy in Joules,\n"
+         << "                                        CDYN: dynamic capacitance in nanofarad). Requires a processor\n"
+         << "                                        with AET support and RDT monitoring via direct MSR programming.\n"
+         << "                                        The per-RMID core energy metric is not comparable to the\n"
+         << "                                        package/CPU energy of MSR_PKG_ENERGY_STATUS\n";
     cout << "  --color                            => use ASCII colors\n";
     cout << "  --no-color                         => don't use ASCII colors\n";
     cout << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or\n"
@@ -149,7 +230,7 @@ void print_basic_metrics(const PCM * m, const State & state1, const State & stat
 }
 
 template <class State>
-void print_other_metrics(const PCM * m, const State & state1, const State & state2)
+void print_other_metrics(const PCM * m, const State & state1, const State & state2, const AETRow & aet = AETRow{})
 {
     if (m->L3CacheOccupancyMetricAvailable())
         cout << setNextColor() << "   " << setw(6) << l3cache_occ_format(getL3CacheOccupancy(state2));
@@ -157,6 +238,11 @@ void print_other_metrics(const PCM * m, const State & state1, const State & stat
         cout << setNextColor() << "   " << setw(6) << getLocalMemoryBW(state1, state2);
     if (m->CoreRemoteMemoryBWMetricAvailable())
         cout << setNextColor() << "   " << setw(6) << getRemoteMemoryBW(state1, state2);
+    if (aet.available)
+    {
+        cout << setNextColor() << "   " << setw(6) << aet_format(aet.energy);
+        cout << setNextColor() << "   " << setw(6) << aet_format(aet.cdyn);
+    }
     cout << setNextColor() <<  "     " << temp_format(state2.getThermalHeadroom()) << "\n";
 }
 
@@ -232,6 +318,11 @@ void print_output(PCM * m,
     if (m->L3CacheOccupancyMetricAvailable()) cout << " L3OCC : L3 occupancy (in KBytes)\n";
     if (m->CoreLocalMemoryBWMetricAvailable()) cout << " LMB   : L3 cache external bandwidth satisfied by local memory (in MBytes)\n";
     if (m->CoreRemoteMemoryBWMetricAvailable()) cout << " RMB   : L3 cache external bandwidth satisfied by remote memory (in MBytes)\n";
+    if (aet_available(m))
+    {
+        cout << " CENRG : core energy consumed in the sample interval (in Joules). Note that this per-RMID metric is not comparable to the package/CPU energy of MSR_PKG_ENERGY_STATUS\n";
+        cout << " CDYN  : dynamic capacitance (Cdyn) of the cores in the sample interval (in nanofarad)\n";
+    }
     cout << " TEMP  : Temperature reading in 1 degree Celsius relative to the TjMax temperature (thermal headroom): 0 corresponds to the max temperature\n";
     cout << " energy: Energy in Joules\n";
     cout << "\n";
@@ -280,6 +371,8 @@ void print_output(PCM * m,
         cout << setNextColor() << "   LMB  |";
     if (m->CoreRemoteMemoryBWMetricAvailable())
         cout << setNextColor() << "   RMB  |";
+    if (aet_available(m))
+        cout << setNextColor() << "  CENRG |" << setNextColor() << "   CDYN |";
 
     cout << setNextColor() << " TEMP\n\n";
 
@@ -300,7 +393,7 @@ void print_output(PCM * m,
                 cout << " " << setw(3) << i << "   " << setw(2) << m->getSocketId(i);
 
             print_basic_metrics(m, cstates1[i], cstates2[i], metricVersion);
-            print_other_metrics(m, cstates1[i], cstates2[i]);
+            print_other_metrics(m, cstates1[i], cstates2[i], get_aet_row(m, i, sstate1, sstate2));
             cout << resetColor();
         }
     }
@@ -322,7 +415,9 @@ void print_output(PCM * m,
             const auto & key = entry.first;
             cout << " SKT " << setw(4) << (std::to_string(key.first) + "." + std::to_string(key.second));
             print_basic_metrics(m, die_cstates1[key], die_cstates2[key], metricVersion);
-            print_other_metrics(m, die_cstates1[key], die_cstates2[key]);
+            print_other_metrics(m, die_cstates1[key], die_cstates2[key],
+                get_aet_row_sum(m, [&m, &key](const uint32 core) { return m->getSocketId(core) == key.first && m->getDieId(core) == key.second; },
+                    sstate1, sstate2));
             cout << resetColor();
         }
     }
@@ -335,7 +430,8 @@ void print_output(PCM * m,
             {
                 cout << " SKT   " << setw(2) << i;
                 print_basic_metrics(m, sktstate1[i], sktstate2[i], metricVersion);
-                print_other_metrics(m, sktstate1[i], sktstate2[i]);
+                print_other_metrics(m, sktstate1[i], sktstate2[i],
+                    get_aet_row_sum(m, [&m, &i](const uint32 core) { return m->getSocketId(core) == (int32)i; }, sstate1, sstate2));
                 cout << resetColor();
             }
         }
@@ -357,6 +453,12 @@ void print_output(PCM * m,
             cout << setNextColor() <<"    N/A ";
         if (m->CoreRemoteMemoryBWMetricAvailable())
             cout << setNextColor() <<"    N/A ";
+        if (aet_available(m))
+        {
+            const auto aet = get_aet_row_sum(m, [](const uint32) { return true; }, sstate1, sstate2);
+            cout << setNextColor() << "   " << setw(6) << aet_format(aet.energy);
+            cout << setNextColor() << "   " << setw(6) << aet_format(aet.cdyn);
+        }
 
         cout << setNextColor() << "     N/A\n";
         cout << resetColor();
@@ -774,6 +876,9 @@ void print_csv_header(PCM * m,
         if (m->HBMmemoryTrafficMetricsAvailable())
             print_csv_header_helper(header,2);
 
+        if (aet_available(m))
+            print_csv_header_helper(header, 2); // CENRG,CDYN
+
         print_csv_header_helper(header,7);
         if (m->getNumSockets() > 1) { // QPI info only for multi socket systems
             if (m->incomingQPITrafficMetricsAvailable())
@@ -814,6 +919,8 @@ void print_csv_header(PCM * m,
                 print_csv_header_helper(header);
             if (m->CoreRemoteMemoryBWMetricAvailable())
                 print_csv_header_helper(header);
+            if (aet_available(m))
+                print_csv_header_helper(header, 2); // CENRG,CDYN
             if (m->memoryTrafficMetricsAvailable())
                 print_csv_header_helper(header,2);
             if (m->localMemoryRequestRatioMetricAvailable())
@@ -925,6 +1032,8 @@ void print_csv_header(PCM * m,
                 print_csv_header_helper(header);
             if (m->CoreRemoteMemoryBWMetricAvailable())
                 print_csv_header_helper(header);
+            if (aet_available(m))
+                print_csv_header_helper(header, 2); // CENRG,CDYN
             print_csv_header_helper(header); // TEMP
             print_csv_header_helper(header, 7); // INST,ACYC,TIME(ticks),PhysIPC,PhysIPC%,INSTnom,INSTnom%
         }
@@ -947,6 +1056,8 @@ void print_csv_header(PCM * m,
                 print_csv_header_helper(header);
             if (m->CoreRemoteMemoryBWMetricAvailable())
                 print_csv_header_helper(header);
+            if (aet_available(m))
+                print_csv_header_helper(header, 2); // CENRG,CDYN
 
             for (int s = 0; s <= PCM::MAX_C_STATE; ++s)
                 if (m->isCoreCStateResidencySupported(s))
@@ -974,6 +1085,9 @@ void print_csv_header(PCM * m,
 
         if (m->HBMmemoryTrafficMetricsAvailable())
                 cout << "HBM_READ,HBM_WRITE,";
+
+        if (aet_available(m))
+            cout << "CENRG,CDYN,";
 
         cout << "INST,ACYC,TIME(ticks),PhysIPC,PhysIPC%,INSTnom,INSTnom%,";
         if (m->getNumSockets() > 1) { // QPI info only for multi socket systems
@@ -1020,6 +1134,8 @@ void print_csv_header(PCM * m,
                  cout << "LMB,";
              if (m->CoreRemoteMemoryBWMetricAvailable())
                  cout << "RMB,";
+             if (aet_available(m))
+                 cout << "CENRG,CDYN,";
              if (m->memoryTrafficMetricsAvailable())
                  cout << "READ,WRITE,";
              if (m->localMemoryRequestRatioMetricAvailable())
@@ -1127,6 +1243,8 @@ void print_csv_header(PCM * m,
                 cout << "LMB,";
             if (m->CoreRemoteMemoryBWMetricAvailable())
                 cout << "RMB,";
+            if (aet_available(m))
+                cout << "CENRG,CDYN,";
             cout << "TEMP,";
             cout << "INST,ACYC,TIME(ticks),PhysIPC,PhysIPC%,INSTnom,INSTnom%,";
         }
@@ -1146,6 +1264,8 @@ void print_csv_header(PCM * m,
                 cout << "LMB,";
             if (m->CoreRemoteMemoryBWMetricAvailable())
                 cout << "RMB,";
+            if (aet_available(m))
+                cout << "CENRG,CDYN,";
 
             for (int s = 0; s <= PCM::MAX_C_STATE; ++s)
                 if (m->isCoreCStateResidencySupported(s))
@@ -1203,7 +1323,7 @@ void print_basic_metrics_csv(const PCM * m, const State & state1, const State & 
 }
 
 template <class State>
-void print_other_metrics_csv(const PCM * m, const State & state1, const State & state2)
+void print_other_metrics_csv(const PCM * m, const State & state1, const State & state2, const AETRow & aet = AETRow{})
 {
     if (m->L3CacheOccupancyMetricAvailable())
         cout << ',' << l3cache_occ_format(getL3CacheOccupancy(state2));
@@ -1211,6 +1331,8 @@ void print_other_metrics_csv(const PCM * m, const State & state1, const State & 
         cout << ',' << getLocalMemoryBW(state1, state2);
     if (m->CoreRemoteMemoryBWMetricAvailable())
         cout << ',' << getRemoteMemoryBW(state1, state2);
+    if (aet.available)
+        cout << ',' << aet_format(aet.energy) << ',' << aet_format(aet.cdyn);
 }
 
 void print_csv(PCM * m,
@@ -1249,6 +1371,12 @@ void print_csv(PCM * m,
         if (m->HBMmemoryTrafficMetricsAvailable())
                 cout << getBytesReadFromEDC(sstate1, sstate2) / double(1e9) <<
                 ',' << getBytesWrittenToEDC(sstate1, sstate2) / double(1e9) << ',';
+
+        if (aet_available(m))
+        {
+            const auto aet = get_aet_row_sum(m, [](const uint32) { return true; }, sstate1, sstate2);
+            cout << aet_format(aet.energy) << ',' << aet_format(aet.cdyn) << ',';
+        }
 
         cout << float_format(getInstructionsRetired(sstate1, sstate2)) << ","
             << float_format(getCycles(sstate1, sstate2)) << ","
@@ -1293,7 +1421,8 @@ void print_csv(PCM * m,
         for (uint32 i = 0; i < m->getNumSockets(); ++i)
         {
             print_basic_metrics_csv(m, sktstate1[i], sktstate2[i], false);
-            print_other_metrics_csv(m, sktstate1[i], sktstate2[i]);
+            print_other_metrics_csv(m, sktstate1[i], sktstate2[i],
+                get_aet_row_sum(m, [&m, &i](const uint32 core) { return m->getSocketId(core) == (int32)i; }, sstate1, sstate2));
             if (m->memoryTrafficMetricsAvailable())
                 cout << ',' << getBytesReadFromMC(sktstate1[i], sktstate2[i]) / double(1e9) <<
                     ',' << getBytesWrittenToMC(sktstate1[i], sktstate2[i]) / double(1e9);
@@ -1414,7 +1543,9 @@ void print_csv(PCM * m,
         {
             const auto & key = entry.first;
             print_basic_metrics_csv(m, die_cstates1[key], die_cstates2[key], false);
-            print_other_metrics_csv(m, die_cstates1[key], die_cstates2[key]);
+            print_other_metrics_csv(m, die_cstates1[key], die_cstates2[key],
+                get_aet_row_sum(m, [&m, &key](const uint32 core) { return m->getSocketId(core) == key.first && m->getDieId(core) == key.second; },
+                    sstate1, sstate2));
             cout << ',' << temp_format(die_cstates2[key].getThermalHeadroom()) << ',';
 
             cout << float_format(getInstructionsRetired(die_cstates1[key], die_cstates2[key])) << ","
@@ -1435,7 +1566,7 @@ void print_csv(PCM * m,
                 continue;
 
             print_basic_metrics_csv(m, cstates1[i], cstates2[i], false);
-            print_other_metrics_csv(m, cstates1[i], cstates2[i]);
+            print_other_metrics_csv(m, cstates1[i], cstates2[i], get_aet_row(m, i, sstate1, sstate2));
             cout << ',';
 
             for (int s = 0; s <= PCM::MAX_C_STATE; ++s)
@@ -1452,6 +1583,55 @@ void print_csv(PCM * m,
                 << getTotalExecUsage(cstates1[i], cstates2[i]) << ","
                 << 100. * (getTotalExecUsage(cstates1[i], cstates2[i]) / double(m->getMaxIPC())) << ",";
         }
+    }
+}
+
+/*! \brief programs the per-RMID AET (Application Energy Telemetry) counters
+
+    Does nothing unless the AET metrics are requested with the --aet command line
+    option. Only processors supporting AET (CWF) are affected and only the RMIDs that
+    RDT associated with the cores via direct MSR programming are collected: in resctrl
+    mode the RMIDs used by the driver are unknown to PCM.
+*/
+void program_aet(PCM * m)
+{
+    if (aet_metrics == false)
+    {
+        return;
+    }
+    if (AET::supported() == false)
+    {
+        cerr << "ERROR: AET metrics (CENRG, CDYN) are not supported on this processor.\n";
+        return;
+    }
+    const auto numRMIDs = getAETNumRMIDs(); // 0 if the AET telemetry is not exposed by the OS
+    if (numRMIDs == 0)
+    {
+        cerr << "ERROR: AET metrics (CENRG, CDYN) are not available: the AET telemetry is not exposed by the OS.\n";
+        return;
+    }
+    const auto usedRMIDs = m->getUsedRMIDs();
+    std::vector<size_t> rmids;
+    for (const auto & rmid : usedRMIDs)
+    {
+        if (rmid < numRMIDs)
+        {
+            rmids.push_back(rmid);
+        }
+    }
+    if (rmids.empty())
+    {
+        cerr << "ERROR: AET metrics (CENRG, CDYN) are not available: no RMID in the AET range 0.." << (numRMIDs - 1)
+             << " is associated with a core. RDT must use direct MSR programming (not the resctrl driver).\n";
+        return;
+    }
+    if (programAET(rmids, PCM::getQuietMode()) != PCM::Success)
+    {
+        cerr << "WARNING: could not program AET counters for the RMIDs used by RDT.\n";
+    }
+    else if (PCM::getQuietMode() == false)
+    {
+        cerr << "INFO: programmed AET counters for " << rmids.size() << " of " << usedRMIDs.size() << " RMID(s) used by RDT (AET supports RMIDs 0.." << (numRMIDs - 1) << ").\n";
     }
 }
 
@@ -1583,6 +1763,11 @@ int mainThrows(int argc, char * argv[])
             show_die_output = true;
             continue;
         }
+        else if (check_argument_equals(*argv, {"--aet", "-aet", "/aet"}))
+        {
+            aet_metrics = true;
+            continue;
+        }
         else if (check_argument_equals(*argv, {"--color"}))
         {
             setColorEnabled();
@@ -1701,6 +1886,8 @@ int mainThrows(int argc, char * argv[])
         cerr << "Access to Intel(r) Performance Counter Monitor has denied (Unknown error).\n";
         exit(EXIT_FAILURE);
     }
+
+    program_aet(m);
 
     print_cpu_details();
 
