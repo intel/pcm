@@ -5831,11 +5831,15 @@ inline std::vector<AETCounterValue> getAETCounter(const size_t rmid, const AET::
                                                   const AET::Sample sample = AET::Total)
 {
     const auto values = getPMTEvent(AETEventEncoding(rmid, counter, false, sample), before, after);
-    const auto validBits = getPMTEvent(AETEventEncoding(rmid, counter, true), before, after);
+    const auto validEncoding = AETEventEncoding(rmid, counter, true);
+    const auto afterValidBits = getPMTEvent(validEncoding, before, after);
+    const auto beforeValidBits = (sample == AET::Interval) ? getPMTEvent(validEncoding, before, before) : afterValidBits;
     std::vector<AETCounterValue> result;
     for (size_t i = 0; i < values.size(); ++i)
     {
-        result.push_back(AETCounterValue{ values[i], i < validBits.size() && validBits[i] != 0 });
+        const bool valid = i < beforeValidBits.size() && beforeValidBits[i] != 0 &&
+                           i < afterValidBits.size() && afterValidBits[i] != 0;
+        result.push_back(AETCounterValue{ values[i], valid });
     }
     return result;
 }
