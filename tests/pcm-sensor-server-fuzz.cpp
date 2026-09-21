@@ -19,17 +19,9 @@
 int port = 0;
 
 bool waitForPort(int port, int timeoutSeconds) {
-    int sockfd;
     struct sockaddr_in address;
     bool isBound = false;
     time_t startTime = time(nullptr);
-
-    // Create a socket
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0) {
-        DBG( 0, "Client: Error creating socket" );
-        return false;
-    }
 
     // Set up the address structure
     memset(&address, 0, sizeof(address));
@@ -39,18 +31,28 @@ bool waitForPort(int port, int timeoutSeconds) {
 
     // Loop until the port is bound or the timeout is reached
     while (!isBound && (time(nullptr) - startTime) < timeoutSeconds) {
+        // A fresh socket for every attempt: a socket whose connect() failed must
+        // not be reused. In particular an interrupted connect() keeps completing
+        // in the background (libFuzzer's SIGALRM timer makes that possible even
+        // on loopback) and every further connect() on the same socket would then
+        // fail with EALREADY / EISCONN, so the port would never be seen as bound.
+        int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+        if (sockfd < 0) {
+            DBG( 0, "Client: Error creating socket" );
+            return false;
+        }
         // Attempt to connect to the port
         if (connect(sockfd, (struct sockaddr *)&address, sizeof(address)) < 0) {
             // Connection failed, wait a bit before retrying
+            close(sockfd);
             sleep(1);
         } else {
             // Connection succeeded, the port is bound
             isBound = true;
+            close(sockfd);
         }
     }
 
-    // Clean up the socket
-    close(sockfd);
     return isBound;
 }
 
