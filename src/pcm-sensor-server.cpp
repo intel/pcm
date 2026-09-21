@@ -32,6 +32,7 @@ typedef SOCKET socket_t;
 // PCM errno values mapped to Windows socket errors
 #define PCM_EAGAIN WSAEWOULDBLOCK
 #define PCM_EWOULDBLOCK WSAEWOULDBLOCK
+#define PCM_EINTR WSAEINTR
 inline int close(SOCKET s) { return closesocket(s); }
 #else
 #include <unistd.h>
@@ -46,8 +47,39 @@ typedef int socket_t;
 // PCM errno values mapped to POSIX errors
 #define PCM_EAGAIN EAGAIN
 #define PCM_EWOULDBLOCK EWOULDBLOCK
+#define PCM_EINTR EINTR
 #define SOCKET_ERROR (-1)
 #endif
+
+#include <cerrno>
+
+// Error code of the last socket operation. Windows keeps it in WSAGetLastError(),
+// POSIX in errno. Needed to recognize an operation that was merely interrupted by
+// a signal (PCM_EINTR) and therefore has to be retried: none of the signal
+// handlers we install use SA_RESTART and, when running under a fuzzer or a
+// profiler, the process receives periodic signals (libFuzzer arms a repeating
+// SIGALRM timer). Without the retries a signal arriving at the wrong moment
+// tears down a perfectly healthy client connection.
+inline int lastSocketError() {
+#ifdef _WIN32
+    return WSAGetLastError();
+#else
+    return errno;
+#endif
+}
+
+// Clears the error code before an OpenSSL call so that the code read afterwards
+// cannot be a stale value from an unrelated earlier operation. OpenSSL only
+// promises a meaningful error code for SSL_ERROR_SYSCALL, it does not clear it
+// itself, and acting on a stale PCM_EINTR would retry a call that can never
+// succeed.
+inline void clearLastSocketError() {
+#ifdef _WIN32
+    WSASetLastError( 0 );
+#else
+    errno = 0;
+#endif
+}
 
 #include <cstring>
 #include <fstream>
@@ -1093,6 +1125,28 @@ public:
         }
     }
 
+    // The receive timeout currently in effect for the socket. Queried from the
+    // socket instead of returning timeout_ because ScopedRecvTimeout tightens
+    // SO_RCVTIMEO directly, on purpose without touching timeout_, to enforce the
+    // per-request deadline. A zero duration means "block indefinitely".
+    std::chrono::microseconds currentReceiveTimeout() const {
+        if ( INVALID_SOCKET == socketFD_ )
+            return std::chrono::microseconds::zero();
+#ifdef _WIN32
+        DWORD current = 0;
+        int len = sizeof( current );
+        if ( getsockopt( socketFD_, SOL_SOCKET, SO_RCVTIMEO, (char*)&current, &len ) != 0 )
+            current = timeout_;
+        return std::chrono::milliseconds( current );
+#else
+        struct timeval current;
+        socklen_t len = sizeof( current );
+        if ( getsockopt( socketFD_, SOL_SOCKET, SO_RCVTIMEO, (char*)&current, &len ) != 0 )
+            current = timeout_;
+        return std::chrono::seconds( current.tv_sec ) + std::chrono::microseconds( current.tv_usec );
+#endif
+    }
+
 #ifdef _WIN32
     void setTimeout( DWORD t ) {
         timeout_ = t;
@@ -1150,14 +1204,26 @@ protected:
         bytesToSend = (char*)Base::pptr() - (char*)Base::pbase();
         DBG( 3, dbg, "wts: Bytes to send: ", bytesToSend );
 
+        // sync() is called with an empty put area on every flush() that has
+        // nothing left to write and on close(). There is nothing to send then,
+        // and OpenSSL explicitly documents SSL_write() with num == 0 as
+        // undefined behavior (it returns 0, which SSL_get_error() reports as
+        // SSL_ERROR_SYSCALL without any error queued, i.e. indistinguishable
+        // from a real transport failure). Handle it here instead.
+        if ( 0 == bytesToSend )
+            return 0;
+
 #if defined (USE_SSL)
         if ( nullptr == ssl_ ) {
 #endif
+            // Retry when only interrupted by a signal, see lastSocketError()
+            do {
 #ifdef _WIN32
-            bytesSent= ::send( socketFD_, (const char*)outputBuffer_, static_cast<int>(bytesToSend), MSG_NOSIGNAL );
+                bytesSent= ::send( socketFD_, (const char*)outputBuffer_, static_cast<int>(bytesToSend), MSG_NOSIGNAL );
 #else
-            bytesSent= ::send( socketFD_, (void*)outputBuffer_, bytesToSend, MSG_NOSIGNAL );
+                bytesSent= ::send( socketFD_, (void*)outputBuffer_, bytesToSend, MSG_NOSIGNAL );
 #endif
+            } while ( SOCKET_ERROR == bytesSent && PCM_EINTR == lastSocketError() );
             if ( SOCKET_ERROR == bytesSent ) {
 #ifdef _WIN32
                 DBG( 3, "bytesSent == SOCKET_ERROR: WSAGetLastError: ", WSAGetLastError(), ", returning eof..." );
@@ -1172,7 +1238,11 @@ protected:
             while( 1 ) {
                 // openSSL has no support for setting the MSG_NOSIGNAL during send
                 // but we ignore sigpipe so we should be fine
+                clearLastSocketError();
                 bytesSent = SSL_write( ssl_, (void*)outputBuffer_, bytesToSend );
+                // Snapshot the error code right away: SSL_get_error(), the ERR_*
+                // calls and DBG() below are all allowed to overwrite it.
+                const int socketErrno = lastSocketError();
                 DBG( 3, dbg, "wts: SSL_write returned for bytesSent: ", bytesSent );
                 if ( 0 >= bytesSent ) {
                     int sslError = SSL_get_error( ssl_, bytesSent );
@@ -1190,9 +1260,15 @@ protected:
                                 continue; // Should continue in the while loop and attempt to write again
 //                                break;
                             case SSL_ERROR_SYSCALL:
-                                DBG( 3, dbg, "wts: errno is: ", errno, " strerror(errno): ", strerror(errno) );
-                                if ( errno == 0 )
-                                    return 0;
+                                DBG( 3, dbg, "wts: socket error is: ", socketErrno, " strerror: ", strerror(socketErrno) );
+                                if ( socketErrno == PCM_EINTR ) {
+                                    DBG( 3, dbg, "wts: Interrupted by a signal. Trying SSL_write again..." );
+                                    continue; // retry the very same SSL_write
+                                }
+                                // We never call SSL_write() with a length of 0, so
+                                // there is no error code only when the transport
+                                // reported an EOF, which OpenSSL documents as
+                                // non-recoverable for a write.
                                 /* fall-through */
                             case SSL_ERROR_SSL:
                             default:
@@ -1245,15 +1321,33 @@ protected:
         std::fill(inputBuffer_, inputBuffer_ + SIZE, 0);
         int bytesReceived;
 
+        // A receive on a socket with SO_RCVTIMEO set is never restarted after a
+        // signal, not even for an SA_RESTART handler (see signal(7)), and every
+        // new receive starts the timeout over. Retrying an interrupted receive
+        // must therefore not be unbounded: with signals arriving more often than
+        // the timeout, a client that sends nothing would keep this worker thread
+        // for as long as the signals keep coming, which is exactly the resource
+        // exhaustion that the receive timeout and the request deadline in
+        // readLineBounded() exist to prevent.
+        const auto recvTimeout  = currentReceiveTimeout();
+        const auto recvDeadline = std::chrono::steady_clock::now() + recvTimeout;
+        const bool recvBounded  = recvTimeout > std::chrono::microseconds::zero();
+        auto mayRetryReceive = [&]() {
+            return !recvBounded || std::chrono::steady_clock::now() < recvDeadline;
+        };
+
 #if defined (USE_SSL)
         if ( nullptr == ssl_ ) {
 #endif
             DBG( 3, dbg, "Socketbuf: Read from socket:" );
+            // Retry when only interrupted by a signal, see lastSocketError()
+            do {
 #ifdef _WIN32
-            bytesReceived = ::recv( socketFD_, static_cast<char*>(inputBuffer_), SIZE * sizeof( char_type ), 0 );
+                bytesReceived = ::recv( socketFD_, static_cast<char*>(inputBuffer_), SIZE * sizeof( char_type ), 0 );
 #else
-            bytesReceived = ::read( socketFD_, static_cast<char*>(inputBuffer_), SIZE * sizeof( char_type ) );
+                bytesReceived = ::read( socketFD_, static_cast<char*>(inputBuffer_), SIZE * sizeof( char_type ) );
 #endif
+            } while ( SOCKET_ERROR == bytesReceived && PCM_EINTR == lastSocketError() && mayRetryReceive() );
             if ( 0 == bytesReceived ) {
                 // Client closed the socket normally, we will do the same
                 close();
@@ -1280,7 +1374,11 @@ protected:
         else {
             bool loopAgain = true;
             while (loopAgain) {
+                clearLastSocketError();
                 bytesReceived = SSL_read( ssl_, static_cast<void*>(inputBuffer_), SIZE * sizeof( char_type ) );
+                // Snapshot the error code right away: SSL_get_error(), the ERR_*
+                // calls and DBG() below are all allowed to overwrite it.
+                const int socketErrno = lastSocketError();
                 DBG( 3, dbg, "SSL_read: bytesReceived: ", bytesReceived );
                 if ( 0 >= bytesReceived ) {
                     int sslError = SSL_get_error( ssl_, bytesReceived );
@@ -1299,8 +1397,8 @@ protected:
                         //ERR_print_errors_fp(stderr);
                         switch ( sslError ) {
                             case SSL_ERROR_WANT_READ:
-                                DBG( 3, "SSL_ERROR_WANT_READ: Errno = ", errno, ", strerror(errno): ", strerror(errno) );
-                                if ( errno == PCM_EAGAIN || errno == PCM_EWOULDBLOCK ) {
+                                DBG( 3, "SSL_ERROR_WANT_READ: socket error = ", socketErrno, ", strerror: ", strerror(socketErrno) );
+                                if ( socketErrno == PCM_EAGAIN || socketErrno == PCM_EWOULDBLOCK ) {
                                     DBG( 3, dbg, "Most likely the set timeout, so aborting..." );
                                     close();
                                     Base::setg( nullptr, nullptr, nullptr );
@@ -1309,17 +1407,23 @@ protected:
                                 }
                             /* fall-through */
                             case SSL_ERROR_WANT_WRITE:
-                                // retry
+                                // retry, an interrupted handshake or read is
+                                // reported as want read / want write here
                                 loopAgain = true; // Should continue in the while loop and attempt to read again
                                 break;
                             case SSL_ERROR_SYSCALL:
-                                DBG( 3, "SSL_ERROR_SYSCALL: Errno = ", errno );
-                                if ( errno == PCM_EAGAIN || errno == PCM_EWOULDBLOCK ) {
+                                DBG( 3, "SSL_ERROR_SYSCALL: socket error = ", socketErrno );
+                                if ( socketErrno == PCM_EAGAIN || socketErrno == PCM_EWOULDBLOCK ) {
                                     DBG( 3, dbg, "Most likely the set timeout, so aborting..." );
                                     close();
                                     Base::setg( nullptr, nullptr, nullptr );
                                     DBG( 3, dbg, "return eof" );
                                     return traits_type::eof();
+                                }
+                                if ( socketErrno == PCM_EINTR ) {
+                                    DBG( 3, dbg, "Interrupted by a signal. Trying SSL_read again..." );
+                                    loopAgain = true; // retry the very same SSL_read
+                                    break;
                                 }
                                 /* fall-through */
                             case SSL_ERROR_SSL:
@@ -1328,6 +1432,15 @@ protected:
                                  Base::setg( nullptr, nullptr, nullptr );
                                  DBG( 3, dbg, "return eof" );
                                  return traits_type::eof();
+                        }
+                        // Every retry above starts the receive timeout over, so
+                        // honour the deadline computed for this call instead of
+                        // looping for as long as signals keep arriving.
+                        if ( loopAgain && !mayRetryReceive() ) {
+                            DBG( 3, dbg, "Receive deadline expired while retrying, aborting" );
+                            close();
+                            Base::setg( nullptr, nullptr, nullptr );
+                            return traits_type::eof();
                         }
                     }
                 } else {
@@ -3784,10 +3897,16 @@ public:
         // though 0xff is a perfectly valid start of an SSLv2 record header.
         unsigned char ch = ' ';
 #ifdef _WIN32
-        int bytes = ::recv( fd, reinterpret_cast<char*>( &ch ), 1, MSG_PEEK );
+        int bytes;
 #else
-        ssize_t bytes = ::recv( fd, reinterpret_cast<char*>( &ch ), 1, MSG_PEEK );
+        ssize_t bytes;
 #endif
+        // Waiting for the first byte can be interrupted by a signal. That is not a
+        // connection error, so peek again instead of dropping the client. See the
+        // comment on lastSocketError().
+        do {
+            bytes = ::recv( fd, reinterpret_cast<char*>( &ch ), 1, MSG_PEEK );
+        } while ( SOCKET_ERROR == bytes && PCM_EINTR == lastSocketError() );
         if ( SOCKET_ERROR == bytes ) {
 #ifdef _WIN32
             DBG( 1, "recv call to peek for the first incoming character failed, WSAGetLastError = ", WSAGetLastError() );
@@ -4080,7 +4199,11 @@ void HTTPSServer::run() {
         while (1) {
             bool leaveLoop = true;
             // Check if the SSL handshake worked
+            clearLastSocketError();
             int accept = SSL_accept( ssl );
+            // Snapshot the error code right away: SSL_get_error(), the ERR_*
+            // calls and DBG() below are all allowed to overwrite it.
+            const int socketErrno = lastSocketError();
             DBG( 3, "SSL_accept: ", accept );
             if ( 0 >= accept ) {
                 int errorCode = SSL_get_error( ssl, accept );
@@ -4098,8 +4221,15 @@ void HTTPSServer::run() {
                     // All good, just try again
                     leaveLoop = false;
                     break;
-                case SSL_ERROR_SSL:
                 case SSL_ERROR_SYSCALL:
+                    if ( socketErrno == PCM_EINTR ) {
+                        // Only interrupted by a signal, the handshake can continue
+                        DBG( 3, "SSL_accept was interrupted by a signal, trying again" );
+                        leaveLoop = false;
+                        break;
+                    }
+                    /* fall-through */
+                case SSL_ERROR_SSL:
                     err = ERR_get_error();
                     DBG( 3, "ERR_get_error(): ", err  );
                     ERR_error_string( err, buf );

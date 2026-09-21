@@ -7,6 +7,8 @@
 #include <cstring>
 #include <netdb.h>
 #include <netinet/tcp.h>
+#include <poll.h>
+#include <cerrno>
 
 #define UNIT_TEST 1
 
@@ -148,7 +150,33 @@ std::string make_request(const std::string& request) {
     std::memcpy(&server_addr.sin_addr, host->h_addr, host->h_length);
 
     // Connect to server
-    if (connect(sock, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
+    int connect_ret = connect(sock, (struct sockaddr*)&server_addr, sizeof(server_addr));
+    if (connect_ret < 0 && errno == EINTR) {
+        // A signal was delivered while connect() was waiting (libFuzzer arms a
+        // repeating SIGALRM timer and installs its handlers without SA_RESTART).
+        // The connect continues asynchronously, so wait for it to finish instead
+        // of reporting a failure. Calling connect() again is not allowed here.
+        DBG( 1, "Client: connect was interrupted by a signal, waiting for it to complete" );
+        struct pollfd pfd;
+        pfd.fd = sock;
+        pfd.events = POLLOUT;
+        pfd.revents = 0;
+        int poll_ret;
+        do {
+            poll_ret = poll(&pfd, 1, 60000);
+        } while (poll_ret < 0 && errno == EINTR);
+        int socketError = ETIMEDOUT;
+        if (poll_ret > 0) {
+            socklen_t len = sizeof(socketError);
+            if (getsockopt(sock, SOL_SOCKET, SO_ERROR, &socketError, &len) < 0)
+                socketError = errno;
+        }
+        if (socketError == 0)
+            connect_ret = 0;
+        else
+            errno = socketError;
+    }
+    if (connect_ret < 0) {
         DBG( 0, "Failed to connect to server. Error: ", strerror(errno) );
         close(sock);
 #ifdef FUZZ_USE_SSL
@@ -161,7 +189,30 @@ std::string make_request(const std::string& request) {
     // Create SSL structure
     SSL* ssl = SSL_new(ctx);
     SSL_set_fd(ssl, sock);
-    int con_ret = SSL_connect(ssl);
+    // The handshake runs on a blocking socket, but a signal can still interrupt it:
+    // libFuzzer arms a repeating SIGALRM timer and installs its signal handlers
+    // without SA_RESTART. OpenSSL then reports the interrupted read/write as
+    // retryable (SSL_ERROR_WANT_READ/WANT_WRITE, or SSL_ERROR_SYSCALL with EINTR)
+    // and SSL_connect returns -1 without the connection being broken at all.
+    // Retry in that case, otherwise a healthy connection is reported as a
+    // failure of the server, aborting the whole fuzzing run.
+    int con_ret = 0;
+    while ( true ) {
+        ERR_clear_error();
+        errno = 0;
+        con_ret = SSL_connect(ssl);
+        if ( con_ret > 0 )
+            break;
+        const int sslError = SSL_get_error(ssl, con_ret);
+        if ( sslError == SSL_ERROR_WANT_READ || sslError == SSL_ERROR_WANT_WRITE ||
+             ( sslError == SSL_ERROR_SYSCALL && errno == EINTR ) ) {
+            DBG( 1, "Client: SSL_connect was interrupted (SSL error ", sslError, "), trying again" );
+            continue;
+        }
+        DBG( 0, "Client: SSL_connect failed, SSL error: ", sslError, ", errno: ", errno,
+                " (", strerror(errno), "), OpenSSL error: ", ERR_error_string( ERR_get_error(), nullptr ) );
+        break;
+    }
     DBG( 1, "Client: SSL_connect returned ", con_ret );
     if ( con_ret <= 0) {
         SSL_free(ssl);
