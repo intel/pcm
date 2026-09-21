@@ -9,6 +9,7 @@
 #include <netinet/tcp.h>
 #include <poll.h>
 #include <cerrno>
+#include <chrono>
 
 #define UNIT_TEST 1
 
@@ -163,9 +164,21 @@ std::string make_request(const std::string& request) {
         pfd.fd = sock;
         pfd.events = POLLOUT;
         pfd.revents = 0;
+        // poll() is interrupted by a signal as well, and its timeout is relative,
+        // so retrying with the full timeout would start a new minute of waiting on
+        // every SIGALRM and could never expire. Wait until an absolute deadline
+        // instead: a poll_ret of 0 then means the deadline passed and is handled as
+        // the timeout it is.
+        const auto pollDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(60);
         int poll_ret;
         do {
-            poll_ret = poll(&pfd, 1, 60000);
+            const auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                       pollDeadline - std::chrono::steady_clock::now() ).count();
+            if (remaining <= 0) {
+                poll_ret = 0;
+                break;
+            }
+            poll_ret = poll(&pfd, 1, static_cast<int>(remaining));
         } while (poll_ret < 0 && errno == EINTR);
         int socketError = ETIMEDOUT;
         if (poll_ret > 0) {
