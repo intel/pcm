@@ -3779,11 +3779,14 @@ public:
     }
 
     bool checkForIncomingSSLConnection( socket_t fd ) {
-        char ch = ' ';
+        // Unsigned on purpose: the byte is only inspected bit wise below and a
+        // signed char would sign extend a first byte of 0xff into EOF (-1), even
+        // though 0xff is a perfectly valid start of an SSLv2 record header.
+        unsigned char ch = ' ';
 #ifdef _WIN32
-        int bytes = ::recv( fd, &ch, 1, MSG_PEEK );
+        int bytes = ::recv( fd, reinterpret_cast<char*>( &ch ), 1, MSG_PEEK );
 #else
-        ssize_t bytes = ::recv( fd, &ch, 1, MSG_PEEK );
+        ssize_t bytes = ::recv( fd, reinterpret_cast<char*>( &ch ), 1, MSG_PEEK );
 #endif
         if ( SOCKET_ERROR == bytes ) {
 #ifdef _WIN32
@@ -3796,9 +3799,9 @@ public:
             DBG( 0, "Connection was properly closed by the client, no bytes to read" );
             throw std::runtime_error( "No error but the connecton is closed so we should just wait for a new connection again" );
         }
-        DBG( 1, "SSL: Peeked Char: ", (EOF == ch) ? std::string("EOF") : std::string(1, ch) );
-        if ( ch == EOF )
-            throw std::runtime_error( "Peeking for SSL resulted in EOF" );
+        // Exactly one byte was peeked, so it is data, never EOF. Print it as hex
+        // because the bytes we are looking for here are not printable anyway.
+        DBG( 1, "SSL: Peeked Char: 0x", std::hex, static_cast<unsigned int>( ch ), std::dec );
         // for SSLv2 bit 7 is set and for SSLv3 and up the first ClientHello Message is 0x16
         if ( ( ch & 0x80 ) || ( ch == 0x16 ) ) {
             DBG( 3, "SSL detected" );
