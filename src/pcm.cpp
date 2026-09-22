@@ -54,6 +54,32 @@ std::string temp_format(int32 t)
     return buffer;
 }
 
+bool perf_status_metrics = false; // request the IA32_PERF_STATUS metrics (RATIO, VOLT), see the --perf-status command line option
+
+//! \brief formats the current performance state value (RATIO field of IA32_PERF_STATUS)
+template <class State>
+std::string ratio_format(const State & state)
+{
+    if (state.isPerfStatusRatioAvailable() == false)
+        return "N/A";
+
+    char buffer[1024];
+    snprintf(buffer, 1024, "%5.1f", state.getPerfStatusRatio());
+    return buffer;
+}
+
+//! \brief formats the current operating voltage in Volt (VOLTAGE field of IA32_PERF_STATUS)
+template <class State>
+std::string voltage_format(const State & state)
+{
+    if (state.isPerfStatusVoltageAvailable() == false)
+        return "N/A";
+
+    char buffer[1024];
+    snprintf(buffer, 1024, "%5.3f", state.getPerfStatusVoltage());
+    return buffer;
+}
+
 std::string l3cache_occ_format(uint64 o)
 {
     char buffer[1024];
@@ -185,6 +211,11 @@ void print_help(const string & prog_name)
          << "                                        with AET support and RDT monitoring via direct MSR programming.\n"
          << "                                        The per-RMID core energy metric is not comparable to the\n"
          << "                                        package/CPU energy of MSR_PKG_ENERGY_STATUS\n";
+    cout << "  -ps   | --perf-status | /ps        => show the IA32_PERF_STATUS metrics (RATIO: current\n"
+         << "                                        performance state value, VOLT: current operating voltage\n"
+         << "                                        in Volt). Both are instantaneous samples and not averages\n"
+         << "                                        over the sample interval. Rows aggregating several logical\n"
+         << "                                        cores show the average over those cores\n";
     cout << "  --color                            => use ASCII colors\n";
     cout << "  --no-color                         => don't use ASCII colors\n";
     cout << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or\n"
@@ -256,7 +287,13 @@ void print_other_metrics(const PCM * m, const State & state1, const State & stat
         cout << setNextColor() << "   " << setw(6) << aet_format(aet.energy);
         cout << setNextColor() << "   " << setw(6) << aet_format(aet.cdyn);
     }
-    cout << setNextColor() <<  "     " << temp_format(state2.getThermalHeadroom()) << "\n";
+    cout << setNextColor() <<  "     " << temp_format(state2.getThermalHeadroom());
+    if (perf_status_metrics)
+    {
+        cout << setNextColor() << "   " << setw(5) << ratio_format(state2);
+        cout << setNextColor() << "   " << setw(5) << voltage_format(state2);
+    }
+    cout << "\n";
 }
 
 void print_output(PCM * m,
@@ -337,6 +374,13 @@ void print_output(PCM * m,
         cout << " CDYN  : dynamic capacitance (Cdyn) of the cores in the sample interval (in nanofarad)\n";
     }
     cout << " TEMP  : Temperature reading in 1 degree Celsius relative to the TjMax temperature (thermal headroom): 0 corresponds to the max temperature\n";
+    if (perf_status_metrics)
+    {
+        cout << " RATIO : current performance state value (RATIO field of IA32_PERF_STATUS): multiplier of the bus clock (usually 100 MHz), e.g. 30 corresponds to 3 GHz\n";
+        cout << " VOLT  : current operating voltage in Volt (VOLTAGE field of IA32_PERF_STATUS)\n";
+        cout << "         RATIO and VOLT are instantaneous samples taken while the counters are read and not averages over the sample interval (unlike all other metrics above): use CFREQ to compare the core frequency over the interval.\n";
+        cout << "         Rows aggregating several logical cores show the average over those cores, each of them sampled at a slightly different point in time.\n";
+    }
     cout << " energy: Energy in Joules\n";
     cout << "\n";
     cout << "\n";
@@ -387,7 +431,10 @@ void print_output(PCM * m,
     if (aet_available(m))
         cout << setNextColor() << "  CENRG |" << setNextColor() << "   CDYN |";
 
-    cout << setNextColor() << " TEMP\n\n";
+    cout << setNextColor() << " TEMP";
+    if (perf_status_metrics)
+        cout << " |" << setNextColor() << " RATIO |" << setNextColor() << "  VOLT";
+    cout << "\n\n";
 
     cout << resetColor();
 
@@ -473,7 +520,13 @@ void print_output(PCM * m,
             cout << setNextColor() << "   " << setw(6) << aet_format(aet.cdyn);
         }
 
-        cout << setNextColor() << "     N/A\n";
+        cout << setNextColor() << "     N/A"; // TEMP
+        if (perf_status_metrics)
+        {
+            cout << setNextColor() << "   " << setw(5) << ratio_format(sstate2);
+            cout << setNextColor() << "   " << setw(5) << voltage_format(sstate2);
+        }
+        cout << "\n";
         cout << resetColor();
         cout << setNextColor() << "\n Instructions retired: " << unit_format(getInstructionsRetired(sstate1, sstate2)) << " ;"
             << setNextColor() << " Active cycles: " << unit_format(getCycles(sstate1, sstate2)) << " ;"
@@ -892,6 +945,9 @@ void print_csv_header(PCM * m,
         if (aet_available(m))
             print_csv_header_helper(header, 2); // CENRG,CDYN
 
+        if (perf_status_metrics)
+            print_csv_header_helper(header, 2); // RATIO,VOLT
+
         print_csv_header_helper(header,7);
         if (m->getNumSockets() > 1) { // QPI info only for multi socket systems
             if (m->incomingQPITrafficMetricsAvailable())
@@ -944,6 +1000,8 @@ void print_csv_header(PCM * m,
                 print_csv_header_helper(header,2);
             if (m->memoryIOTrafficMetricAvailable())
                 print_csv_header_helper(header,3);
+            if (perf_status_metrics)
+                print_csv_header_helper(header, 2); // RATIO,VOLT
             print_csv_header_helper(header, 8); //TEMP,INST,ACYC,TIME(ticks),PhysIPC,PhysIPC%,INSTnom,INSTnom%,
         }
 
@@ -1051,6 +1109,8 @@ void print_csv_header(PCM * m,
             if (aet_available(m))
                 print_csv_header_helper(header, 2); // CENRG,CDYN
             print_csv_header_helper(header); // TEMP
+            if (perf_status_metrics)
+                print_csv_header_helper(header, 2); // RATIO,VOLT
             print_csv_header_helper(header, 7); // INST,ACYC,TIME(ticks),PhysIPC,PhysIPC%,INSTnom,INSTnom%
         }
     }
@@ -1079,6 +1139,8 @@ void print_csv_header(PCM * m,
                 if (m->isCoreCStateResidencySupported(s))
                     print_csv_header_helper(header);
             print_csv_header_helper(header);// TEMP
+            if (perf_status_metrics)
+                print_csv_header_helper(header, 2); // RATIO,VOLT
             print_csv_header_helper(header,7); //ACYC,TIME(ticks),PhysIPC,PhysIPC%,INSTnom,INSTnom%,
         }
     }
@@ -1104,6 +1166,9 @@ void print_csv_header(PCM * m,
 
         if (aet_available(m))
             cout << "CENRG,CDYN,";
+
+        if (perf_status_metrics)
+            cout << "RATIO,VOLT,";
 
         cout << "INST,ACYC,TIME(ticks),PhysIPC,PhysIPC%,INSTnom,INSTnom%,";
         if (m->getNumSockets() > 1) { // QPI info only for multi socket systems
@@ -1162,7 +1227,10 @@ void print_csv_header(PCM * m,
                  cout << "HBM_READ,HBM_WRITE,";
              if (m->memoryIOTrafficMetricAvailable())
                  cout << "IO,IA,GT,";
-             cout << "TEMP,INST,ACYC,TIME(ticks),PhysIPC,PhysIPC%,INSTnom,INSTnom%,";
+             cout << "TEMP,";
+             if (perf_status_metrics)
+                 cout << "RATIO,VOLT,";
+             cout << "INST,ACYC,TIME(ticks),PhysIPC,PhysIPC%,INSTnom,INSTnom%,";
         }
 
         if (m->getNumSockets() > 1 && (m->incomingQPITrafficMetricsAvailable())) // QPI info only for multi socket systems
@@ -1264,6 +1332,8 @@ void print_csv_header(PCM * m,
             if (aet_available(m))
                 cout << "CENRG,CDYN,";
             cout << "TEMP,";
+            if (perf_status_metrics)
+                cout << "RATIO,VOLT,";
             cout << "INST,ACYC,TIME(ticks),PhysIPC,PhysIPC%,INSTnom,INSTnom%,";
         }
     }
@@ -1290,6 +1360,8 @@ void print_csv_header(PCM * m,
                     cout << "C" << s << "res%,";
 
             cout << "TEMP,";
+            if (perf_status_metrics)
+                cout << "RATIO,VOLT,";
             cout << "INST,ACYC,TIME(ticks),PhysIPC,PhysIPC%,INSTnom,INSTnom%,";
         }
     }
@@ -1396,6 +1468,9 @@ void print_csv(PCM * m,
             cout << aet_format(aet.energy) << ',' << aet_format(aet.cdyn) << ',';
         }
 
+        if (perf_status_metrics)
+            cout << ratio_format(sstate2) << ',' << voltage_format(sstate2) << ',';
+
         cout << float_format(getInstructionsRetired(sstate1, sstate2)) << ","
             << float_format(getCycles(sstate1, sstate2)) << ","
             << float_format(getInvariantTSC(cstates1[0], cstates2[0])) << ","
@@ -1458,6 +1533,8 @@ void print_csv(PCM * m,
                      << ',' << getGTRequestBytesFromMC(sktstate1[i], sktstate2[i]) / double(1e9);
             }
             cout << ',' << temp_format(sktstate2[i].getThermalHeadroom()) << ',';
+            if (perf_status_metrics)
+                cout << ratio_format(sktstate2[i]) << ',' << voltage_format(sktstate2[i]) << ',';
 
             cout << float_format(getInstructionsRetired(sktstate1[i], sktstate2[i])) << ","
                 << float_format(getCycles(sktstate1[i], sktstate2[i])) << ","
@@ -1568,6 +1645,8 @@ void print_csv(PCM * m,
                 get_aet_row_sum(m, [&m, &key](const uint32 core) { return m->getSocketId(core) == key.first && m->getDieId(core) == key.second; },
                     sstate1, sstate2));
             cout << ',' << temp_format(die_cstates2[key].getThermalHeadroom()) << ',';
+            if (perf_status_metrics)
+                cout << ratio_format(die_cstates2[key]) << ',' << voltage_format(die_cstates2[key]) << ',';
 
             cout << float_format(getInstructionsRetired(die_cstates1[key], die_cstates2[key])) << ","
                 << float_format(getCycles(die_cstates1[key], die_cstates2[key])) << ","
@@ -1595,6 +1674,8 @@ void print_csv(PCM * m,
                     cout << getCoreCStateResidency(s, cstates1[i], cstates2[i]) * 100 << ",";
 
             cout << temp_format(cstates2[i].getThermalHeadroom()) << ',';
+            if (perf_status_metrics)
+                cout << ratio_format(cstates2[i]) << ',' << voltage_format(cstates2[i]) << ',';
 
             cout << float_format(getInstructionsRetired(cstates1[i], cstates2[i])) << ","
                 << float_format(getCycles(cstates1[i], cstates2[i])) << ","
@@ -1789,6 +1870,11 @@ int mainThrows(int argc, char * argv[])
             aet_metrics = true;
             continue;
         }
+        else if (check_argument_equals(*argv, {"--perf-status", "-ps", "/ps"}))
+        {
+            perf_status_metrics = true;
+            continue;
+        }
         else if (check_argument_equals(*argv, {"--color"}))
         {
             setColorEnabled();
@@ -1910,6 +1996,11 @@ int mainThrows(int argc, char * argv[])
 
     program_aet(m);
 
+    if (perf_status_metrics)
+    {
+        m->enablePerfStatusCollection(); // pcm reads IA32_PERF_STATUS (RATIO, VOLT) only on demand
+    }
+
     print_cpu_details();
 
     std::vector<CoreCounterState> cstates1, cstates2;
@@ -1936,6 +2027,24 @@ int mainThrows(int argc, char * argv[])
     }
 
     m->getAllCounterStates(sstate1, sktstate1, cstates1);
+
+    if (perf_status_metrics)
+    {   // report the fields of IA32_PERF_STATUS that this system does not populate
+        const bool ratioAvailable = sstate1.isPerfStatusRatioAvailable();
+        const bool voltageAvailable = sstate1.isPerfStatusVoltageAvailable();
+        if (ratioAvailable == false && voltageAvailable == false)
+        {
+            cerr << "ERROR: the RATIO and VOLT metrics are not available: IA32_PERF_STATUS (0x198) could not be read on this system.\n";
+        }
+        else if (ratioAvailable == false)
+        {
+            cerr << "ERROR: the RATIO metric is not available: the RATIO field of IA32_PERF_STATUS (0x198) is not populated on this system.\n";
+        }
+        else if (voltageAvailable == false)
+        {
+            cerr << "ERROR: the VOLT metric is not available: the VOLTAGE field of IA32_PERF_STATUS (0x198) is not populated on this system.\n";
+        }
+    }
 
     if (sysCmd != NULL) {
         MySystem(sysCmd, sysArgv);
