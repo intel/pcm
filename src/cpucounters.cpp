@@ -5850,6 +5850,31 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
     msr->read(MSR_IA32_THERM_STATUS, &thermStatus);
     MSRValues[MSR_IA32_THERM_STATUS] = thermStatus;
 
+    // reading the current performance state value (RATIO) and the operating voltage (VOLTAGE)
+    if (m->isPerfStatusCollectionEnabled())
+    {
+        uint64 cPerfStatus = 0;
+        if (msr->read(MSR_IA32_PERF_STATUS, &cPerfStatus) == sizeof(uint64))
+        {
+            MSRValues[MSR_IA32_PERF_STATUS] = cPerfStatus;
+            // IA32_PERF_STATUS is not architectural: a platform may leave one of the fields reserved
+            // (reading as 0). Neither the ratio nor the voltage of a running core can be 0, therefore
+            // each field is accounted for only if it is populated.
+            const auto cRatio = extract_bits(cPerfStatus, MSR_IA32_PERF_STATUS_RATIO_FIRST_BIT, MSR_IA32_PERF_STATUS_RATIO_LAST_BIT);
+            if (cRatio != 0)
+            {
+                PerfStatusRatioSum += cRatio;
+                ++PerfStatusRatioCores;
+            }
+            const auto cVoltage = extract_bits(cPerfStatus, MSR_IA32_PERF_STATUS_VOLTAGE_FIRST_BIT, MSR_IA32_PERF_STATUS_VOLTAGE_LAST_BIT);
+            if (cVoltage != 0)
+            {
+                PerfStatusVoltageSum += cVoltage;
+                ++PerfStatusVoltageCores;
+            }
+        }
+    }
+
     msr->read(MSR_SMI_COUNT, &cSMICount);
     MSRValues[MSR_SMI_COUNT] = cSMICount;
 

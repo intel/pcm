@@ -866,6 +866,7 @@ private:
     bool useResctrl;
     bool RDTInitialized{false};
     std::vector<uint32> coreRMIDs{}; // RMID associated with each core by initRDT() via direct MSR programming (invalidRMID if none)
+    bool perfStatusCollection{false}; // read IA32_PERF_STATUS in the core counter states, see enablePerfStatusCollection()
 
     std::shared_ptr<FreeRunningBWCounters> clientBW;
     std::shared_ptr<CounterWidthExtender> clientImcReads;
@@ -1404,6 +1405,20 @@ public:
         result.erase(std::unique(result.begin(), result.end()), result.end());
         return result;
     }
+
+    /*!
+        \brief Enables the collection of IA32_PERF_STATUS (RATIO, VOLTAGE) in the core counter states
+
+        IA32_PERF_STATUS is not collected by default: tools that need the RATIO and VOLTAGE metrics
+        (see BasicCounterState::getPerfStatusRatio() and BasicCounterState::getPerfStatusVoltage())
+        must call this method explicitly before reading the counter states.
+
+        \param enable true to read IA32_PERF_STATUS on every core, false to stop reading it
+    */
+    void enablePerfStatusCollection(const bool enable = true) { perfStatusCollection = enable; }
+
+    //! \brief Returns true if the collection of IA32_PERF_STATUS is enabled, see enablePerfStatusCollection()
+    bool isPerfStatusCollectionEnabled() const { return perfStatusCollection; }
 
     /*!
         \brief Set quiet mode for PCM initialization
@@ -3303,6 +3318,14 @@ protected:
     uint64 MemoryBWLocal;
     uint64 MemoryBWTotal;
     uint64 SMICount;
+    // IA32_PERF_STATUS data: sums over the logical cores aggregated in this state and the number of
+    // those cores. The RATIO and VOLTAGE fields are instantaneous values, therefore they are averaged
+    // (and not added up) by the getters below. The two fields are counted separately because
+    // IA32_PERF_STATUS is not architectural: a platform may populate only one of them.
+    uint64 PerfStatusRatioSum;
+    uint64 PerfStatusRatioCores;
+    uint64 PerfStatusVoltageSum; // in 3.13 fixed point format
+    uint64 PerfStatusVoltageCores;
     uint64 FrontendBoundSlots, BadSpeculationSlots, BackendBoundSlots, RetiringSlots, AllSlotsRaw;
     uint64 MemBoundSlots, FetchLatSlots, BrMispredSlots, HeavyOpsSlots;
     std::unordered_map<uint64, uint64> MSRValues;
@@ -3315,6 +3338,10 @@ public:
         MemoryBWLocal(0),
         MemoryBWTotal(0),
         SMICount(0),
+        PerfStatusRatioSum(0),
+        PerfStatusRatioCores(0),
+        PerfStatusVoltageSum(0),
+        PerfStatusVoltageCores(0),
     FrontendBoundSlots(0),
     BadSpeculationSlots(0),
     BackendBoundSlots(0),
@@ -3350,6 +3377,10 @@ public:
         MemoryBWLocal += o.MemoryBWLocal;
         MemoryBWTotal += o.MemoryBWTotal;
         SMICount += o.SMICount;
+        PerfStatusRatioSum += o.PerfStatusRatioSum;
+        PerfStatusRatioCores += o.PerfStatusRatioCores;
+        PerfStatusVoltageSum += o.PerfStatusVoltageSum;
+        PerfStatusVoltageCores += o.PerfStatusVoltageCores;
         DBG(4, "before PCM debug aggregate ", FrontendBoundSlots , " " , BadSpeculationSlots , " " , BackendBoundSlots , " " , RetiringSlots );
         BasicCounterState old = *this;
         FrontendBoundSlots += o.FrontendBoundSlots;
@@ -3378,6 +3409,49 @@ public:
 
     //! Returns current thermal headroom below TjMax
     int32 getThermalHeadroom() const { return ThermalHeadroom; }
+
+    //! Returns true if the RATIO field of IA32_PERF_STATUS was populated on at least one logical core of this state
+    bool isPerfStatusRatioAvailable() const { return PerfStatusRatioCores != 0; }
+
+    //! Returns true if the VOLTAGE field of IA32_PERF_STATUS was populated on at least one logical core of this state
+    bool isPerfStatusVoltageAvailable() const { return PerfStatusVoltageCores != 0; }
+
+    /*! \brief Returns the current performance state value (RATIO field of IA32_PERF_STATUS)
+
+        The ratio is the multiplier of the bus clock (usually 100 MHz), e.g. the ratio 30 corresponds
+        to the core frequency of 3 GHz.
+
+        The value is an instantaneous sample taken while the counter state was read and not an average
+        over the measurement interval (use getActiveAverageFrequency() for the latter). For states
+        aggregating several logical cores the average over those cores is returned: every logical core
+        counts once, therefore both SMT threads of a physical core (which read the same core scoped
+        MSR at different points in time) contribute to the average.
+
+        \return PCM_INVALID_PERF_STATUS_METRIC if the metric is not available, see isPerfStatusRatioAvailable()
+    */
+    double getPerfStatusRatio() const
+    {
+        if (isPerfStatusRatioAvailable() == false)
+            return PCM_INVALID_PERF_STATUS_METRIC;
+
+        return double(PerfStatusRatioSum) / double(PerfStatusRatioCores);
+    }
+
+    /*! \brief Returns the current operating voltage in Volt (VOLTAGE field of IA32_PERF_STATUS)
+
+        The value is an instantaneous sample taken while the counter state was read and not an average
+        over the measurement interval. For states aggregating several logical cores the average over
+        those cores is returned, see getPerfStatusRatio() for the details of the averaging.
+
+        \return PCM_INVALID_PERF_STATUS_METRIC if the metric is not available, see isPerfStatusVoltageAvailable()
+    */
+    double getPerfStatusVoltage() const
+    {
+        if (isPerfStatusVoltageAvailable() == false)
+            return PCM_INVALID_PERF_STATUS_METRIC;
+
+        return double(PerfStatusVoltageSum) / double(PerfStatusVoltageCores) / double(1ULL << MSR_IA32_PERF_STATUS_VOLTAGE_FRACTION_BITS);
+    }
 };
 
 inline uint64 RDTSC()
@@ -3424,6 +3498,24 @@ template <class CounterStateType>
 int32 getThermalHeadroom(const CounterStateType & /* before */, const CounterStateType & after)
 {
     return after.getThermalHeadroom();
+}
+
+/*! \brief Returns the current performance state value (RATIO field of IA32_PERF_STATUS) of the state
+           after the measurement interval, see BasicCounterState::getPerfStatusRatio()
+*/
+template <class CounterStateType>
+double getPerfStatusRatio(const CounterStateType & /* before */, const CounterStateType & after)
+{
+    return after.getPerfStatusRatio();
+}
+
+/*! \brief Returns the current operating voltage in Volt (VOLTAGE field of IA32_PERF_STATUS) of the
+           state after the measurement interval, see BasicCounterState::getPerfStatusVoltage()
+*/
+template <class CounterStateType>
+double getPerfStatusVoltage(const CounterStateType & /* before */, const CounterStateType & after)
+{
+    return after.getPerfStatusVoltage();
 }
 
 /*! \brief Returns the ratio of QPI cycles in power saving half-lane mode
