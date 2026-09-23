@@ -55,6 +55,7 @@ std::string temp_format(int32 t)
 }
 
 bool perf_status_metrics = false; // request the IA32_PERF_STATUS metrics (RATIO, VOLT), see the --perf-status command line option
+bool ufs_status_metrics = false;  // request the additional UFS_STATUS metrics (uncore voltage and throttling), see the --ufs-status command line option
 
 //! \brief formats the current performance state value (RATIO field of IA32_PERF_STATUS)
 template <class State>
@@ -69,6 +70,14 @@ std::string ratio_format(const State & state)
     return buffer;
 }
 
+//! \brief formats a voltage in Volt, independently of the stream precision
+std::string volt_format(const double volts)
+{
+    char buffer[1024];
+    snprintf(buffer, 1024, "%5.3f", volts);
+    return buffer;
+}
+
 //! \brief formats the current operating voltage in Volt (VOLTAGE field of IA32_PERF_STATUS)
 template <class State>
 std::string voltage_format(const State & state)
@@ -76,9 +85,7 @@ std::string voltage_format(const State & state)
     if (state.isPerfStatusVoltageAvailable() == false)
         return "N/A";
 
-    char buffer[1024];
-    snprintf(buffer, 1024, "%5.3f", state.getPerfStatusVoltage());
-    return buffer;
+    return volt_format(state.getPerfStatusVoltage());
 }
 
 std::string l3cache_occ_format(uint64 o)
@@ -217,6 +224,10 @@ void print_help(const string & prog_name)
          << "                                        in Volt). Both are instantaneous samples and not averages\n"
          << "                                        over the sample interval. Rows aggregating several logical\n"
          << "                                        cores show the average over the cores reporting the metric\n";
+    cout << "  -us   | --ufs-status | /us         => add the uncore voltage in Volt and the uncore throttling\n"
+         << "                                        (number of milliseconds of the sample interval in which the\n"
+         << "                                        uncore frequency was clipped) to the per die uncore\n"
+         << "                                        frequency columns. Requires the UFS TPMI interface\n";
     cout << "  --color                            => use ASCII colors\n";
     cout << "  --no-color                         => don't use ASCII colors\n";
     cout << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or\n"
@@ -381,6 +392,11 @@ void print_output(PCM * m,
         cout << " VOLT  : current operating voltage in Volt (VOLTAGE field of IA32_PERF_STATUS)\n";
         cout << "         RATIO and VOLT are instantaneous samples taken while the counters are read and not averages over the sample interval (unlike all other metrics above): use CFREQ to compare the core frequency over the interval.\n";
         cout << "         Rows aggregating several logical cores show the average over the cores that report the metric, each of them sampled at a slightly different point in time.\n";
+    }
+    if (ufs_status_metrics)
+    {
+        cout << " Unc(Ghz|V|THR): per uncore die frequency in GHz, operating voltage in Volt and throttling, i.e. the number of milliseconds of the sample interval\n";
+        cout << "         in which the uncore frequency was clipped below the configured bound. Frequency and voltage are instantaneous samples, the throttling is a count over the interval.\n";
     }
     cout << " energy: Energy in Joules\n";
     cout << "\n";
@@ -751,11 +767,12 @@ void print_output(PCM * m,
         DBG(2, " Uncore die types count: ", uncoreDieTypes.size());
         if (uncoreDieTypes.empty() == false)
         {
-            cout << setNextColor() << " Unc(Ghz) ";
+            // with --ufs-status every die cell holds the frequency, the voltage and the throttling
+            cout << setNextColor() << (ufs_status_metrics ? " Unc(Ghz|V|THR) " : " Unc(Ghz) ");
             for (auto & d: uncoreDieTypes)
             {
                 cout << setNextColor();
-                printCentered(UncoreCounterState::getDieTypeStr(d), 7);
+                printCentered(UncoreCounterState::getDieTypeStr(d), ufs_status_metrics ? 18 : 7);
                 cout << " ";
             }
             std::cout << "|" ;
@@ -809,10 +826,27 @@ void print_output(PCM * m,
 
                 if (uncoreFrequencies.empty() == false)
                 {
-                    cout << setNextColor() << "                ";
-                    for (auto & d: uncoreFrequencies)
+                    // the wider header prefix of --ufs-status is padded here as well to keep the
+                    // values of a die under its column header
+                    cout << setNextColor() << (ufs_status_metrics ? "                      " : "                ");
+                    if (ufs_status_metrics)
                     {
-                        cout << setNextColor() << "  " << std::setw(4) << d/1e9 << "  ";
+                        const std::vector<double> uncoreVoltages{getUncoreVoltage(sktstate2[i])};
+                        const std::vector<uint64> uncoreThrottling{getUncoreThrottleCount(sktstate1[i], sktstate2[i])};
+                        for (size_t die = 0; die < uncoreFrequencies.size(); ++die)
+                        {
+                            // the throttling field is wide enough for a sample interval of ~16 minutes
+                            cout << setNextColor() << "  " << std::setw(4) << uncoreFrequencies[die]/1e9
+                                 << " " << std::setw(5) << volt_format(uncoreVoltages[die])
+                                 << " " << std::setw(6) << uncoreThrottling[die];
+                        }
+                    }
+                    else
+                    {
+                        for (auto & d: uncoreFrequencies)
+                        {
+                            cout << setNextColor() << "  " << std::setw(4) << d/1e9 << "  ";
+                        }
                     }
                 }
                 cout << resetColor() << "\n";
@@ -1084,6 +1118,13 @@ void print_csv_header(PCM * m,
             {
                 header = "UncFREQ Die " + std::to_string(die) + " (Ghz)";
                 print_csv_header_helper(header);
+                if (ufs_status_metrics)
+                {
+                    header = "UncVOLT Die " + std::to_string(die) + " (V)";
+                    print_csv_header_helper(header);
+                    header = "UncTHROTTLE Die " + std::to_string(die) + " (ms)";
+                    print_csv_header_helper(header);
+                }
             }
         }
     }
@@ -1307,8 +1348,8 @@ void print_csv_header(PCM * m,
                 printSKT(i);
         }
         for (uint32 i = 0; i < m->getNumSockets(); ++i)
-        {
-            printSKT(i, m->getNumUFSDies());
+        {   // UncFREQ and, with --ufs-status, UncVOLT and UncTHROTTLE of every uncore die
+            printSKT(i, m->getNumUFSDies() * (ufs_status_metrics ? 3 : 1));
         }
     }
 
@@ -1619,9 +1660,21 @@ void print_csv(PCM * m,
         {
             const auto freqs = getUncoreFrequency(sktstate2[i]);
             assert(freqs.size() == (size_t)m->getNumUFSDies());
-            for (auto & f : freqs)
+            if (ufs_status_metrics)
             {
-                cout << f/1e9 << ",";
+                const auto volts = getUncoreVoltage(sktstate2[i]);
+                const auto throttling = getUncoreThrottleCount(sktstate1[i], sktstate2[i]);
+                for (size_t die = 0; die < freqs.size(); ++die)
+                {
+                    cout << freqs[die]/1e9 << "," << volt_format(volts[die]) << "," << throttling[die] << ",";
+                }
+            }
+            else
+            {
+                for (auto & f : freqs)
+                {
+                    cout << f/1e9 << ",";
+                }
             }
         }
     }
@@ -1876,6 +1929,11 @@ int mainThrows(int argc, char * argv[])
             perf_status_metrics = true;
             continue;
         }
+        else if (check_argument_equals(*argv, {"--ufs-status", "-us", "/us"}))
+        {
+            ufs_status_metrics = true;
+            continue;
+        }
         else if (check_argument_equals(*argv, {"--color"}))
         {
             setColorEnabled();
@@ -2045,6 +2103,11 @@ int mainThrows(int argc, char * argv[])
         {
             cerr << "ERROR: the VOLT metric is not available: the VOLTAGE field of IA32_PERF_STATUS (0x198) is not populated on this system.\n";
         }
+    }
+
+    if (ufs_status_metrics && m->getNumUFSDies() == 0)
+    {
+        cerr << "ERROR: the uncore voltage and throttling metrics are not available: no UFS TPMI instance was found on this system.\n";
     }
 
     if (sysCmd != NULL) {
