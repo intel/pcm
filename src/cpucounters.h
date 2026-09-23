@@ -3944,6 +3944,10 @@ class UncoreCounterState
     template <class CounterStateType>
     friend std::vector<double> getUncoreFrequency(const CounterStateType& state);
     template <class CounterStateType>
+    friend std::vector<double> getUncoreVoltage(const CounterStateType& state);
+    template <class CounterStateType>
+    friend std::vector<uint64> getUncoreThrottleCount(const CounterStateType& before, const CounterStateType& after);
+    template <class CounterStateType>
     friend std::vector<uint64> getUncoreDieTypes(const CounterStateType& state);
     template <class CounterStateType>
     friend double getAverageFrequencyFromClocks(const int64 clocks, const CounterStateType& before, const CounterStateType& after);
@@ -4407,7 +4411,48 @@ std::vector<double> getUncoreFrequency(const CounterStateType& state)
     std::vector<double> result;
     for (auto & e : state.UFSStatus)
     {
-        result.push_back(extract_bits(e, 0, 6) * 100000000.);
+        // the ratio unit of 100MHz is the only one defined by UFS_HEADER.RATIO_UNIT
+        result.push_back(extract_bits(e, UFS_STATUS_CURRENT_RATIO_FIRST_BIT, UFS_STATUS_CURRENT_RATIO_LAST_BIT) * 100000000.);
+    }
+    return result;
+}
+
+/*! \brief Returns the current uncore (fabric) voltage vector in Volt
+
+    One entry per uncore die, in the same order as getUncoreFrequency(). Like the uncore frequency
+    the voltage is an instantaneous sample and not an average over the measurement interval.
+*/
+template <class CounterStateType>
+std::vector<double> getUncoreVoltage(const CounterStateType& state)
+{
+    std::vector<double> result;
+    for (auto & e : state.UFSStatus)
+    {
+        result.push_back(double(extract_bits(e, UFS_STATUS_CURRENT_VOLTAGE_FIRST_BIT, UFS_STATUS_CURRENT_VOLTAGE_LAST_BIT))
+                         / double(1ULL << UFS_STATUS_CURRENT_VOLTAGE_FRACTION_BITS));
+    }
+    return result;
+}
+
+/*! \brief Returns the number of 1ms intervals in which the uncore frequency was throttled below the
+           bound programmed in UFS_CONTROL during the measurement interval
+
+    One entry per uncore die, in the same order as getUncoreFrequency(). The hardware increments the
+    counter at most once per 1ms interval, therefore the value is also the number of milliseconds of
+    the interval in which the fabric frequency was clipped.
+*/
+template <class CounterStateType>
+std::vector<uint64> getUncoreThrottleCount(const CounterStateType& before, const CounterStateType& after)
+{
+    std::vector<uint64> result;
+    for (size_t die = 0; die < after.UFSStatus.size(); ++die)
+    {
+        const auto afterCount = extract_bits(after.UFSStatus[die], UFS_STATUS_THROTTLE_COUNTER_FIRST_BIT, UFS_STATUS_THROTTLE_COUNTER_LAST_BIT);
+        // a die missing from the "before" state (e.g. discovered later) reports no throttling
+        const auto beforeCount = (die < before.UFSStatus.size()) ?
+            extract_bits(before.UFSStatus[die], UFS_STATUS_THROTTLE_COUNTER_FIRST_BIT, UFS_STATUS_THROTTLE_COUNTER_LAST_BIT) : afterCount;
+        // the counter is 32 bit wide and wraps around after ~50 days of uninterrupted throttling
+        result.push_back((afterCount - beforeCount) & 0xffffffffULL);
     }
     return result;
 }
