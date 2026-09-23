@@ -3423,9 +3423,10 @@ public:
 
         The value is an instantaneous sample taken while the counter state was read and not an average
         over the measurement interval (use getActiveAverageFrequency() for the latter). For states
-        aggregating several logical cores the average over those cores is returned: every logical core
-        counts once, therefore both SMT threads of a physical core (which read the same core scoped
-        MSR at different points in time) contribute to the average.
+        aggregating several logical cores the average over the cores that report the field is returned:
+        every reporting logical core counts once, therefore both SMT threads of a physical core (which
+        read the same core scoped MSR at different points in time) contribute to the average, while a
+        core that leaves the field unpopulated is left out of it.
 
         \return PCM_INVALID_PERF_STATUS_METRIC if the metric is not available, see isPerfStatusRatioAvailable()
     */

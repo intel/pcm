@@ -64,7 +64,8 @@ std::string ratio_format(const State & state)
         return "N/A";
 
     char buffer[1024];
-    snprintf(buffer, 1024, "%5.1f", state.getPerfStatusRatio());
+    // no field width: the text output pads with setw(), the CSV output must not be padded
+    snprintf(buffer, 1024, "%.1f", state.getPerfStatusRatio());
     return buffer;
 }
 
@@ -215,7 +216,7 @@ void print_help(const string & prog_name)
          << "                                        performance state value, VOLT: current operating voltage\n"
          << "                                        in Volt). Both are instantaneous samples and not averages\n"
          << "                                        over the sample interval. Rows aggregating several logical\n"
-         << "                                        cores show the average over those cores\n";
+         << "                                        cores show the average over the cores reporting the metric\n";
     cout << "  --color                            => use ASCII colors\n";
     cout << "  --no-color                         => don't use ASCII colors\n";
     cout << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or\n"
@@ -379,7 +380,7 @@ void print_output(PCM * m,
         cout << " RATIO : current performance state value (RATIO field of IA32_PERF_STATUS): multiplier of the bus clock (usually 100 MHz), e.g. 30 corresponds to 3 GHz\n";
         cout << " VOLT  : current operating voltage in Volt (VOLTAGE field of IA32_PERF_STATUS)\n";
         cout << "         RATIO and VOLT are instantaneous samples taken while the counters are read and not averages over the sample interval (unlike all other metrics above): use CFREQ to compare the core frequency over the interval.\n";
-        cout << "         Rows aggregating several logical cores show the average over those cores, each of them sampled at a slightly different point in time.\n";
+        cout << "         Rows aggregating several logical cores show the average over the cores that report the metric, each of them sampled at a slightly different point in time.\n";
     }
     cout << " energy: Energy in Joules\n";
     cout << "\n";
