@@ -2058,6 +2058,10 @@ int mainThrows(int argc, char * argv[])
     if (perf_status_metrics)
     {
         m->enablePerfStatusCollection(); // pcm reads IA32_PERF_STATUS (RATIO, VOLT) only on demand
+        if (m->isPerfStatusCollectionEnabled() == false)
+        {
+            cerr << "ERROR: the RATIO and VOLT metrics are not supported on this processor: IA32_PERF_STATUS (0x198) is read only on the processors on which its fields have been validated.\n";
+        }
     }
 
     print_cpu_details();
@@ -2087,7 +2091,7 @@ int mainThrows(int argc, char * argv[])
 
     m->getAllCounterStates(sstate1, sktstate1, cstates1);
 
-    if (perf_status_metrics)
+    if (perf_status_metrics && m->isPerfStatusCollectionEnabled())
     {   // report the fields of IA32_PERF_STATUS that this system does not populate
         const bool ratioAvailable = sstate1.isPerfStatusRatioAvailable();
         const bool voltageAvailable = sstate1.isPerfStatusVoltageAvailable();

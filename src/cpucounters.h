@@ -1407,15 +1407,37 @@ public:
     }
 
     /*!
+        \brief Returns true if the IA32_PERF_STATUS metrics (RATIO, VOLTAGE) are supported
+
+        IA32_PERF_STATUS is not an architectural register, therefore it is read only on the
+        processors on which its RATIO and VOLTAGE fields have been validated. Reading an MSR that
+        the processor does not implement is not failure-safe on every platform: the Windows MSR
+        driver reports the resulting exception as an error and MsrHandle::read asserts on it.
+    */
+    bool perfStatusMetricAvailable() const
+    {
+        return (
+               cpu_family_model == PCM::SKX // covers CLX and CPX as well: they are steppings of this model
+            || cpu_family_model == PCM::ICX
+            || cpu_family_model == PCM::ICX_D
+            || cpu_family_model == PCM::SPR
+            || cpu_family_model == PCM::EMR
+            || cpu_family_model == PCM::GNR
+            || cpu_family_model == PCM::GNR_D
+            );
+    }
+
+    /*!
         \brief Enables the collection of IA32_PERF_STATUS (RATIO, VOLTAGE) in the core counter states
 
         IA32_PERF_STATUS is not collected by default: tools that need the RATIO and VOLTAGE metrics
         (see BasicCounterState::getPerfStatusRatio() and BasicCounterState::getPerfStatusVoltage())
-        must call this method explicitly before reading the counter states.
+        must call this method explicitly before reading the counter states. The request is ignored
+        on processors without perfStatusMetricAvailable(), where the register is never read.
 
         \param enable true to read IA32_PERF_STATUS on every core, false to stop reading it
     */
-    void enablePerfStatusCollection(const bool enable = true) { perfStatusCollection = enable; }
+    void enablePerfStatusCollection(const bool enable = true) { perfStatusCollection = enable && perfStatusMetricAvailable(); }
 
     //! \brief Returns true if the collection of IA32_PERF_STATUS is enabled, see enablePerfStatusCollection()
     bool isPerfStatusCollectionEnabled() const { return perfStatusCollection; }
