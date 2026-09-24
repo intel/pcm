@@ -971,8 +971,11 @@ void print_csv_header(PCM * m,
             {
                 header = "SKT" + std::to_string(s) + "trafficOut";
                 print_csv_header_helper(header,qpiLinks);
-                header = "SKT" + std::to_string(s) + "trafficOut (percent)";
-                print_csv_header_helper(header,qpiLinks);
+                if (m->qpiUtilizationMetricsAvailable())
+                {
+                    header = "SKT" + std::to_string(s) + "trafficOut (percent)";
+                    print_csv_header_helper(header,qpiLinks);
+                }
             }
         }
 
