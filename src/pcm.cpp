@@ -1187,6 +1187,8 @@ void print_csv_header(PCM * m,
             {
                 for (uint32 i = 0; i < qpiLinks; ++i)
                     cout << m->xPI() << i << ",";
+
+                if (m->qpiUtilizationMetricsAvailable())
                 for (uint32 i = 0; i < qpiLinks; ++i)
                     cout << m->xPI() << i << ",";
             }
@@ -1491,8 +1493,11 @@ void print_csv(PCM * m,
                 for (uint32 l = 0; l < qpiLinks; ++l)
                     cout << float_format(getOutgoingQPILinkBytes(i, l, sstate1, sstate2)) << ",";
 
-                for (uint32 l = 0; l < qpiLinks; ++l)
-                    cout << setw(3) << std::dec << int(100. * getOutgoingQPILinkUtilization(i, l, sstate1, sstate2)) << "%,";
+                if (m->qpiUtilizationMetricsAvailable())
+                {
+                    for (uint32 l = 0; l < qpiLinks; ++l)
+                        cout << setw(3) << std::dec << int(100. * getOutgoingQPILinkUtilization(i, l, sstate1, sstate2)) << "%,";
+                }
             }
         }
 
