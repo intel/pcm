@@ -21,7 +21,7 @@ UncorePMUDiscovery::UncorePMUDiscovery(PCM & m)
     auto processTables = [this, &debug, &m](const uint64 bar, const VSEC & vsec, const int32 NUMANode)
     {
         try {
-            DBG(1, "Uncore discovery detection. Reading from bar 0x", std::hex, bar, " Address 0x", vsec.fields.Address,  std::dec,
+            DBG(1, "Uncore discovery detection. Reading from bar 0x", std::hex, bar, std::dec,
                    " NUMANode: ", NUMANode);
             constexpr size_t UncoreDiscoverySize = 3UL;
             union UncoreGlobalDiscovery {
@@ -29,8 +29,7 @@ UncorePMUDiscovery::UncorePMUDiscovery(PCM & m)
                 uint64 table[UncoreDiscoverySize];
             };
             UncoreGlobalDiscovery global;
-            const auto fullAddress = bar + 8ULL * vsec.fields.Address;
-            mmio_memcpy(global.table, fullAddress, UncoreDiscoverySize * sizeof(uint64), true);
+            mmio_memcpy(global.table, bar, UncoreDiscoverySize * sizeof(uint64), true);
             size_t socket = 0; // default socket if NUMA node -> socket mapping fails
             if (NUMANode >= 0)
             {
@@ -46,7 +45,7 @@ UncorePMUDiscovery::UncorePMUDiscovery(PCM & m)
             globalPMUs[socket].push_back(global.pmu);
             if (debug)
             {
-                std::cerr << "Read global.pmu from 0x" << std::hex << fullAddress << std::dec << "\n";
+                std::cerr << "Read global.pmu from 0x" << std::hex << bar << std::dec << "\n";
                 global.pmu.print();
                 std::cout.flush();
             }
@@ -59,10 +58,10 @@ UncorePMUDiscovery::UncorePMUDiscovery(PCM & m)
             BoxPMUMap boxPMUMap;
             for (size_t u = 0; u < global.pmu.maxUnits; ++u)
             {
-                mmio_memcpy(unit.table, fullAddress + (u + 1) * step, UncoreDiscoverySize * sizeof(uint64), true);
+                mmio_memcpy(unit.table, bar + (u + 1) * step, UncoreDiscoverySize * sizeof(uint64), true);
                 if (debug)
                 {
-                    std::cerr << "Read unit.pmu " << u << " from 0x" << std::hex << (fullAddress + (u + 1) * step) << std::dec << "\n";
+                    std::cerr << "Read unit.pmu " << u << " from 0x" << std::hex << (bar + (u + 1) * step) << std::dec << "\n";
                     unit.pmu.print();
                     std::cout.flush();
                 }
