@@ -36,7 +36,9 @@ if [ "$#" -ne 1 ]; then
   usage
 fi
 
-
+if [ ! -f "$1" ]; then
+  validate_url "$1"
+fi
 
 mkdir -p grafana_volume/dashboards || { echo "Error creating grafana_volume/dashboards directory"; exit 1; }
 mkdir -p influxdb_volume || { echo "Error creating influxdb_volume directory"; exit 1; }
@@ -64,7 +66,6 @@ if [ -f "$1" ]; then
   echo Downloading PCM dashboard
   curl -o grafana_volume/dashboards/pcm-dashboard.json $(head -1 "$1")/dashboard || { echo "Error downloading PCM dashboard"; exit 1; }
 else
-  validate_url "$1"
   echo "creating telegraf.conf for $1 ";
   sed "s#PCMSENSORSERVER#$1#g" telegraf.conf.template > telegraf.conf || { echo "Error creating telegraf.conf"; exit 1; }
   echo Downloading PCM dashboard
