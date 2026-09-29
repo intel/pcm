@@ -480,9 +480,9 @@ public:
     void program_power_metrics(int mc_profile);
 
     //! \brief Program memory counters (disables programming performance counters)
+    //! \param metrics metric set (see the ServerUncoreMemoryMetrics enum)
     //! \param rankA count DIMM rank1 statistics (disables memory channel monitoring)
     //! \param rankB count DIMM rank2 statistics (disables memory channel monitoring)
-    //! \param metrics metric set (see the ServerUncoreMemoryMetrics enum)
     void programServerUncoreMemoryMetrics(const ServerUncoreMemoryMetrics & metrics, const int rankA = -1, const int rankB = -1);
 
     //! \brief Get number of QPI LL clocks on a QPI port
