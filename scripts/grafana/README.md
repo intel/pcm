@@ -29,6 +29,7 @@ Installation of the grafana front-end (can be on any *host* system with connecti
        hostn_ipaddress:pcmport
        ```
        - Don't use `localhost` to specify the `target_system_address` if the *host* and the target are the same machine because `localhost` resolves to the own private IP address of the docker container when accessed inside the container. The external IP address or hostname should be used instead.
+       - Note: The `pcm-dashboard.json` file is generated at runtime and downloaded dynamically from the running `pcm-sensor-server` during startup to match its exact version. Its absence from this repository is expected.
 4.  Start your browser at http://*host*:3000/ and then login with admin user, password admin . Change the password and then click on "**Home**" (left top corner) -> "**Dashboards**" -> "Intel&reg; Performance Counter Monitor (Intel&reg; PCM) Dashboard"
 5.  You can also stop and delete the containers when needed: `sudo bash stop.sh`
 
