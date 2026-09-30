@@ -3669,6 +3669,7 @@ public:
     void stop( void ) {
         DBG( 4, "PeriodicCounterFetcher::stop() called" );
         exit_ = true;
+        cv_.notify_all();
     }
 
     virtual void execute() override;
@@ -3678,6 +3679,8 @@ private:
     std::atomic<bool> run_;
     std::atomic<bool> exit_;
     double interval_;
+    std::mutex mtx_;
+    std::condition_variable cv_;
 };
 
 class HTTPServer : public Server {
@@ -3863,7 +3866,10 @@ void PeriodicCounterFetcher::execute() {
     using namespace std::chrono;
     auto delay = duration_cast<system_clock::duration>(duration<double>(interval_));
     system_clock::time_point now = system_clock::now() + delay;
-    std::this_thread::sleep_until( now );
+    {
+        std::unique_lock<std::mutex> lock(mtx_);
+        cv_.wait_until(lock, now, [this]() { return exit_.load(); });
+    }
     while( 1 ) {
         if ( exit_ )
             break;
@@ -3885,7 +3891,10 @@ void PeriodicCounterFetcher::execute() {
         if (now < system_clock::now()) {
             now = system_clock::now(); // prevent busy loops if collection falls behind
         }
-        std::this_thread::sleep_until( now );
+        {
+            std::unique_lock<std::mutex> lock(mtx_);
+            cv_.wait_until(lock, now, [this]() { return exit_.load(); });
+        }
     }
 }
 
