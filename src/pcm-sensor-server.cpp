@@ -3651,7 +3651,7 @@ private:
 class PeriodicCounterFetcher : public Work
 {
 public:
-    PeriodicCounterFetcher( HTTPServer* hs ) : hs_(hs), run_(false), exit_(false) {}
+    PeriodicCounterFetcher( HTTPServer* hs, double interval = 1.0 ) : hs_(hs), run_(false), exit_(false), interval_(interval) {}
     virtual ~PeriodicCounterFetcher() override {
         hs_ = nullptr;
     }
@@ -3677,6 +3677,7 @@ private:
     HTTPServer*       hs_;
     std::atomic<bool> run_;
     std::atomic<bool> exit_;
+    double interval_;
 };
 
 class HTTPServer : public Server {
@@ -3692,18 +3693,18 @@ public:
     static constexpr size_t maxAggregators_ = 30;
     static constexpr size_t maxPerSecondSeconds_ = maxAggregators_ - 1;
 
-    HTTPServer() : Server( "", 80 ), stopped_( false ){
+    HTTPServer( double interval = 1.0 ) : Server( "", 80 ), stopped_( false ){
         DBG( 3, "HTTPServer::HTTPServer()" );
         callbackList_.resize( 256 );
-        createPeriodicCounterFetcher();
+        createPeriodicCounterFetcher( interval );
         pcf_->start();
         SignalHandler::getInstance()->setHTTPServer( this );
     }
 
-    HTTPServer( std::string const & ip, uint16_t port, bool useIPv4 = false ) : Server( ip, port, useIPv4 ), stopped_( false ) {
+    HTTPServer( std::string const & ip, uint16_t port, bool useIPv4 = false, double interval = 1.0 ) : Server( ip, port, useIPv4 ), stopped_( false ) {
         DBG( 3, "HTTPServer::HTTPServer( ip=", ip, ", port=", port, " )" );
         callbackList_.resize( 256 );
-        createPeriodicCounterFetcher();
+        createPeriodicCounterFetcher( interval );
         pcf_->start();
         SignalHandler::getInstance()->setHTTPServer( this );
     }
@@ -3808,10 +3809,10 @@ public:
     }
 
 private:
-    void createPeriodicCounterFetcher() {
+    void createPeriodicCounterFetcher( double interval = 1.0 ) {
         // We keep a pointer to pcf to start and stop execution
         // not to delete it when done with it, that is up to threadpool/workqueue
-        pcf_ = new PeriodicCounterFetcher( this );
+        pcf_ = new PeriodicCounterFetcher( this, interval );
         wq_->addWork( pcf_ );
         pcf_->start();
     }
@@ -3861,7 +3862,7 @@ void SignalHandler::handleSignal( int signum )
 void PeriodicCounterFetcher::execute() {
     using namespace std::chrono;
     system_clock::time_point now = system_clock::now();
-    now = now + std::chrono::seconds(1);
+    now = now + std::chrono::milliseconds(static_cast<int>(interval_ * 1000));
     std::this_thread::sleep_until( now );
     while( 1 ) {
         if ( exit_ )
@@ -3880,7 +3881,7 @@ void PeriodicCounterFetcher::execute() {
             auto elapsed = duration_cast<std::chrono::milliseconds>(after - before);
             DBG( 4, "Aggregation Duration: ", elapsed.count(), "ms." );
         }
-        now = now + std::chrono::seconds(1);
+        now = now + std::chrono::milliseconds(static_cast<int>(interval_ * 1000));
         std::this_thread::sleep_until( now );
     }
 }
@@ -3962,8 +3963,8 @@ void HTTPServer::run() {
 #if defined (USE_SSL)
 class HTTPSServer : public HTTPServer {
 public:
-    HTTPSServer() : HTTPServer( "", 443 ) {}
-    HTTPSServer( std::string const & ip, uint16_t port, bool useIPv4 = false ) : HTTPServer( ip, port, useIPv4 ), sslCTX_( nullptr ) {}
+    HTTPSServer( double interval = 1.0 ) : HTTPServer( "", 443, false, interval ) {}
+    HTTPSServer( std::string const & ip, uint16_t port, bool useIPv4 = false, double interval = 1.0 ) : HTTPServer( ip, port, useIPv4, interval ), sslCTX_( nullptr ) {}
     HTTPSServer( HTTPSServer const & ) = delete;
     HTTPSServer & operator = ( HTTPSServer const & ) = delete;
     virtual ~HTTPSServer() {
@@ -4397,8 +4398,8 @@ void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & re
     }
 }
 
-int startHTTPServer( const std::string& listenAddr, unsigned short port, bool useIPv4 = false ) {
-    HTTPServer server( listenAddr, port, useIPv4 );
+int startHTTPServer( const std::string& listenAddr, unsigned short port, bool useIPv4 = false, double interval = 1.0 ) {
+    HTTPServer server( listenAddr, port, useIPv4, interval );
     try {
         // HEAD is GET without body, we will remove the body in execute()
         server.registerCallback( HTTPRequestMethod::GET,  my_get_callback );
@@ -4412,8 +4413,8 @@ int startHTTPServer( const std::string& listenAddr, unsigned short port, bool us
 }
 
 #if defined (USE_SSL)
-int startHTTPSServer( const std::string& listenAddr, unsigned short port, std::string const & cFile, std::string const & pkFile, bool useIPv4 = false ) {
-    HTTPSServer server( listenAddr, port, useIPv4 );
+int startHTTPSServer( const std::string& listenAddr, unsigned short port, std::string const & cFile, std::string const & pkFile, bool useIPv4 = false, double interval = 1.0 ) {
+    HTTPSServer server( listenAddr, port, useIPv4, interval );
     try {
         server.setPrivateKeyFile ( pkFile );
         server.setCertificateFile( cFile );
@@ -4461,6 +4462,7 @@ void printHelpText( std::string const & programName ) {
     std::cout << "    -s                   : Use https protocol (default port " << DEFAULT_HTTPS_PORT << ")\n";
 #endif
     std::cout << "    -p portnumber        : Run on port <portnumber> (default port is " << DEFAULT_HTTP_PORT << ")\n";
+    std::cout << "    -i|--interval seconds: Set collection interval in seconds (default: 1.0)\n";
     std::cout << "    -l|--listen address  : Listen on IP address <address> (default: all interfaces)\n";
 #ifndef _WIN32
     std::cout << "    -4|--ipv4            : Use IPv4 instead of IPv6 (non-Windows only)\n";
@@ -4504,6 +4506,7 @@ int mainThrows(int argc, char * argv[]) {
     bool useIPv4 = false;
     unsigned short port = 0;
     unsigned short debug_level = 0;
+    double interval = 1.0;
     std::string listenAddress = "";  // Empty string means listen on all interfaces
     std::string certificateFile;
     std::string privateKeyFile;
@@ -4550,6 +4553,25 @@ int mainThrows(int argc, char * argv[]) {
                     }
                 } else {
                     throw std::runtime_error( "main: Error no port argument given" );
+                }
+            }
+            else if ( check_argument_equals( argv[i], {"-i", "--interval"} ) )
+            {
+                if ( (++i) < argc ) {
+                    try {
+                        std::size_t pos = 0;
+                        double val = std::stod( argv[i], &pos );
+                        if ( pos != std::strlen( argv[i] ) )
+                            throw std::invalid_argument( "invalid interval" );
+                        if ( val <= 0.0 )
+                            throw std::out_of_range( "interval must be greater than zero" );
+                        interval = val;
+                    } catch ( const std::exception& e ) {
+                        std::cerr << "main: invalid interval argument '" << argv[i] << "': " << e.what() << "\n";
+                        ::exit( 2 );
+                    }
+                } else {
+                    throw std::runtime_error( "main: Error no interval argument given" );
                 }
             }
             else if ( check_argument_equals( argv[i], {"-l", "--listen"} ) )
@@ -4872,7 +4894,7 @@ int mainThrows(int argc, char * argv[]) {
                 port = DEFAULT_HTTPS_PORT;
             std::string displayAddr = listenAddress.empty() ? "localhost" : listenAddress;
             std::cerr << "Starting SSL enabled server on https://" << displayAddr << ":" << port << "/\n";
-            startHTTPSServer( listenAddress, port, certificateFile, privateKeyFile, useIPv4 );
+            startHTTPSServer( listenAddress, port, certificateFile, privateKeyFile, useIPv4, interval );
         } else
 #endif
         {
@@ -4880,7 +4902,7 @@ int mainThrows(int argc, char * argv[]) {
                 port = DEFAULT_HTTP_PORT;
             std::string displayAddr = listenAddress.empty() ? "localhost" : listenAddress;
             std::cerr << "Starting plain HTTP server on http://" << displayAddr << ":" << port << "/\n";
-            startHTTPServer( listenAddress, port, useIPv4 );
+            startHTTPServer( listenAddress, port, useIPv4, interval );
         }
 
         if (pcieCol) pcieCol->stop();
