@@ -3861,8 +3861,8 @@ void SignalHandler::handleSignal( int signum )
 
 void PeriodicCounterFetcher::execute() {
     using namespace std::chrono;
-    system_clock::time_point now = system_clock::now();
-    now = now + std::chrono::milliseconds(static_cast<int>(interval_ * 1000));
+    auto delay = duration_cast<system_clock::duration>(duration<double>(interval_));
+    system_clock::time_point now = system_clock::now() + delay;
     std::this_thread::sleep_until( now );
     while( 1 ) {
         if ( exit_ )
@@ -3881,7 +3881,10 @@ void PeriodicCounterFetcher::execute() {
             auto elapsed = duration_cast<std::chrono::milliseconds>(after - before);
             DBG( 4, "Aggregation Duration: ", elapsed.count(), "ms." );
         }
-        now = now + std::chrono::milliseconds(static_cast<int>(interval_ * 1000));
+        now = now + delay;
+        if (now < system_clock::now()) {
+            now = system_clock::now(); // prevent busy loops if collection falls behind
+        }
         std::this_thread::sleep_until( now );
     }
 }
@@ -4563,8 +4566,8 @@ int mainThrows(int argc, char * argv[]) {
                         double val = std::stod( argv[i], &pos );
                         if ( pos != std::strlen( argv[i] ) )
                             throw std::invalid_argument( "invalid interval" );
-                        if ( val <= 0.0 )
-                            throw std::out_of_range( "interval must be greater than zero" );
+                        if ( !(val >= 0.001 && val <= 31536000.0) )
+                            throw std::out_of_range( "interval must be between 0.001 and 31536000.0 seconds" );
                         interval = val;
                     } catch ( const std::exception& e ) {
                         std::cerr << "main: invalid interval argument '" << argv[i] << "': " << e.what() << "\n";
