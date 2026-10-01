@@ -3691,11 +3691,10 @@ class HTTPServer : public Server {
 public:
     static constexpr size_t maxPerSecondSeconds_ = 29;
     static constexpr size_t minHistorySamples_ = 30;
-    static constexpr size_t maxHistorySamples_ = 3600;
 
     HTTPServer( double interval = 1.0 ) : Server( "", 80 ), stopped_( false ), interval_( interval ) {
         DBG( 3, "HTTPServer::HTTPServer()" );
-        maxAggregators_ = (std::min)( maxHistorySamples_, (std::max)( minHistorySamples_, static_cast<size_t>(std::ceil(static_cast<double>(maxPerSecondSeconds_) / interval_)) + 1 ) );
+        maxAggregators_ = (std::max)( minHistorySamples_, static_cast<size_t>(std::ceil(static_cast<double>(maxPerSecondSeconds_) / interval_)) + 1 );
         callbackList_.resize( 256 );
         createPeriodicCounterFetcher( interval_ );
         pcf_->start();
@@ -3704,7 +3703,7 @@ public:
 
     HTTPServer( std::string const & ip, uint16_t port, bool useIPv4 = false, double interval = 1.0 ) : Server( ip, port, useIPv4 ), stopped_( false ), interval_( interval ) {
         DBG( 3, "HTTPServer::HTTPServer( ip=", ip, ", port=", port, " )" );
-        maxAggregators_ = (std::min)( maxHistorySamples_, (std::max)( minHistorySamples_, static_cast<size_t>(std::ceil(static_cast<double>(maxPerSecondSeconds_) / interval_)) + 1 ) );
+        maxAggregators_ = (std::max)( minHistorySamples_, static_cast<size_t>(std::ceil(static_cast<double>(maxPerSecondSeconds_) / interval_)) + 1 );
         callbackList_.resize( 256 );
         createPeriodicCounterFetcher( interval_ );
         pcf_->start();
@@ -3772,6 +3771,9 @@ public:
         if ( seconds > maxPerSecondSeconds_ )
             throw std::runtime_error("BUG: getAggregator: requested seconds can never be satisfied. Fix the code!" );
 
+        if ( index2 >= maxAggregators_ )
+            throw std::runtime_error("BUG: getAggregator: requested index2 can never be satisfied. Fix the code!" );
+
         // Wait under the mutex until we have enough samples to return, using the
         // condition variable so we don't race against addAggregator().
         std::unique_lock<std::mutex> lock( agVectorMutex_ );
@@ -3779,24 +3781,21 @@ public:
             if ( stopped_ ) {
                 return true;
             }
-            if ( agVector_.size() < 2 ) {
+            if ( agVector_.size() <= index2 + 1 ) {
                 return false;
             }
-            const auto span = std::chrono::duration<double>( agVector_.front().timestamp - agVector_.back().timestamp ).count();
+            const auto span = std::chrono::duration<double>( agVector_[ index2 ].timestamp - agVector_.back().timestamp ).count();
             return span >= ( static_cast<double>(seconds) - interval_ * 0.5 ) || agVector_.size() >= maxAggregators_;
         } );
 
-        if ( stopped_ && agVector_.size() < 2 ) {
+        if ( stopped_ && agVector_.size() <= index2 + 1 ) {
             throw std::runtime_error( "Server stopped before enough samples were collected." );
         }
 
         const auto targetTime = agVector_[ index2 ].timestamp - std::chrono::duration<double>( static_cast<double>(seconds) );
-        size_t bestIndex = ( index2 == 0 ) ? 1 : 0;
+        size_t bestIndex = index2 + 1;
         double bestDiff = std::abs( std::chrono::duration<double>( agVector_[ bestIndex ].timestamp - targetTime ).count() );
-        for ( size_t i = bestIndex + 1; i < agVector_.size(); ++i ) {
-            if ( i == index2 ) {
-                continue;
-            }
+        for ( size_t i = index2 + 2; i < agVector_.size(); ++i ) {
             double diff = std::abs( std::chrono::duration<double>( agVector_[ i ].timestamp - targetTime ).count() );
             if ( diff < bestDiff ) {
                 bestDiff = diff;
