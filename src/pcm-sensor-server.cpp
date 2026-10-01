@@ -55,6 +55,7 @@ typedef int socket_t;
 #include <limits>
 #include <vector>
 #include <unordered_map>
+#include <cmath>
 
 #include "cpucounters.h"
 #include "debug.h"
@@ -3668,7 +3669,10 @@ public:
 
     void stop( void ) {
         DBG( 4, "PeriodicCounterFetcher::stop() called" );
-        exit_ = true;
+        {
+            std::lock_guard<std::mutex> lock(mtx_);
+            exit_ = true;
+        }
         cv_.notify_all();
     }
 
@@ -3685,29 +3689,24 @@ private:
 
 class HTTPServer : public Server {
 public:
-    // The internal history of aggregators is permanently capped at
-    // maxAggregators_ entries (see addAggregator()), so the only valid indices
-    // are 0 .. maxAggregators_ - 1. Answering /persecond/X compares the newest
-    // sample (index 0) with the sample X seconds earlier (index X), which needs
-    // X + 1 retained entries. The largest X that can ever be satisfied is
-    // therefore maxAggregators_ - 1. Deriving the accepted bound from the cap
-    // keeps the route validation and the retention policy in sync and prevents
-    // the off-by-one that caused /persecond/30 to block a worker forever.
-    static constexpr size_t maxAggregators_ = 30;
-    static constexpr size_t maxPerSecondSeconds_ = maxAggregators_ - 1;
+    static constexpr size_t maxPerSecondSeconds_ = 29;
+    static constexpr size_t minHistorySamples_ = 30;
+    static constexpr size_t maxHistorySamples_ = 3600;
 
-    HTTPServer( double interval = 1.0 ) : Server( "", 80 ), stopped_( false ){
+    HTTPServer( double interval = 1.0 ) : Server( "", 80 ), stopped_( false ), interval_( interval ) {
         DBG( 3, "HTTPServer::HTTPServer()" );
+        maxAggregators_ = (std::min)( maxHistorySamples_, (std::max)( minHistorySamples_, static_cast<size_t>(std::ceil(static_cast<double>(maxPerSecondSeconds_) / interval_)) + 1 ) );
         callbackList_.resize( 256 );
-        createPeriodicCounterFetcher( interval );
+        createPeriodicCounterFetcher( interval_ );
         pcf_->start();
         SignalHandler::getInstance()->setHTTPServer( this );
     }
 
-    HTTPServer( std::string const & ip, uint16_t port, bool useIPv4 = false, double interval = 1.0 ) : Server( ip, port, useIPv4 ), stopped_( false ) {
+    HTTPServer( std::string const & ip, uint16_t port, bool useIPv4 = false, double interval = 1.0 ) : Server( ip, port, useIPv4 ), stopped_( false ), interval_( interval ) {
         DBG( 3, "HTTPServer::HTTPServer( ip=", ip, ", port=", port, " )" );
+        maxAggregators_ = (std::min)( maxHistorySamples_, (std::max)( minHistorySamples_, static_cast<size_t>(std::ceil(static_cast<double>(maxPerSecondSeconds_) / interval_)) + 1 ) );
         callbackList_.resize( 256 );
-        createPeriodicCounterFetcher( interval );
+        createPeriodicCounterFetcher( interval_ );
         pcf_->start();
         SignalHandler::getInstance()->setHTTPServer( this );
     }
@@ -3727,12 +3726,15 @@ public:
     virtual void run() override;
 
     void stop() {
-        stopped_ = true;
-        pcf_->stop();
-        // pcf is a Work object in the threadpool, calling stop makes
-        // it leave the loop and then automatically gets deleted,
-        // we just set it to nullptr here
-        pcf_ = nullptr;
+        {
+            std::lock_guard<std::mutex> lock( agVectorMutex_ );
+            stopped_ = true;
+        }
+        agVectorCV_.notify_all();
+        if ( pcf_ ) {
+            pcf_->stop();
+            pcf_ = nullptr;
+        }
         // It takes up to one second for a pcf to leave the loop
         std::this_thread::sleep_for( std::chrono::seconds(1) );
         ThreadPool::getInstance().emptyThreadPool();
@@ -3754,7 +3756,7 @@ public:
 
         {
             std::lock_guard<std::mutex> lock( agVectorMutex_ );
-            agVector_.insert( agVector_.begin(), agp );
+            agVector_.insert( agVector_.begin(), AggregatorRecord{ agp, std::chrono::steady_clock::now() } );
             if ( agVector_.size() > maxAggregators_ ) {
                 DBG( 4, "HTTPServer::addAggregator(): Removing last Aggegator" );
                 agVector_.pop_back();
@@ -3763,22 +3765,48 @@ public:
         agVectorCV_.notify_all();
     }
 
-    std::pair<std::shared_ptr<Aggregator>,std::shared_ptr<Aggregator>> getAggregators( size_t index, size_t index2 ) {
-        if ( index == index2 )
-            throw std::runtime_error("BUG: getAggregator: both indices are equal. Fix the code!" );
+    std::pair<std::shared_ptr<Aggregator>,std::shared_ptr<Aggregator>> getAggregators( size_t seconds, size_t index2 = 0 ) {
+        if ( seconds == 0 )
+            throw std::runtime_error("BUG: getAggregator: seconds == 0. Fix the code!" );
 
-        // The history is permanently capped at maxAggregators_ entries, so any
-        // request for an index that can never be retained would otherwise wait
-        // forever. Fail fast instead of blocking a worker thread indefinitely.
-        if ( (std::max)( index, index2 ) >= maxAggregators_ )
-            throw std::runtime_error("BUG: getAggregator: requested index can never be satisfied. Fix the code!" );
+        if ( seconds > maxPerSecondSeconds_ )
+            throw std::runtime_error("BUG: getAggregator: requested seconds can never be satisfied. Fix the code!" );
 
         // Wait under the mutex until we have enough samples to return, using the
         // condition variable so we don't race against addAggregator().
-        auto needSize = (std::max)( index, index2 ) + 1;
         std::unique_lock<std::mutex> lock( agVectorMutex_ );
-        agVectorCV_.wait( lock, [&]{ return agVector_.size() >= needSize; } );
-        auto ret = std::make_pair( agVector_[ index ], agVector_[ index2 ] );
+        agVectorCV_.wait( lock, [&]{
+            if ( stopped_ ) {
+                return true;
+            }
+            if ( agVector_.size() < 2 ) {
+                return false;
+            }
+            const auto span = std::chrono::duration<double>( agVector_.front().timestamp - agVector_.back().timestamp ).count();
+            return span >= ( static_cast<double>(seconds) - interval_ * 0.5 ) || agVector_.size() >= maxAggregators_;
+        } );
+
+        if ( stopped_ && agVector_.size() < 2 ) {
+            throw std::runtime_error( "Server stopped before enough samples were collected." );
+        }
+
+        const auto targetTime = agVector_[ index2 ].timestamp - std::chrono::duration<double>( static_cast<double>(seconds) );
+        size_t bestIndex = ( index2 == 0 ) ? 1 : 0;
+        double bestDiff = std::abs( std::chrono::duration<double>( agVector_[ bestIndex ].timestamp - targetTime ).count() );
+        for ( size_t i = bestIndex + 1; i < agVector_.size(); ++i ) {
+            if ( i == index2 ) {
+                continue;
+            }
+            double diff = std::abs( std::chrono::duration<double>( agVector_[ i ].timestamp - targetTime ).count() );
+            if ( diff < bestDiff ) {
+                bestDiff = diff;
+                bestIndex = i;
+            } else if ( diff > bestDiff ) {
+                break;
+            }
+        }
+
+        auto ret = std::make_pair( agVector_[ bestIndex ].agp, agVector_[ index2 ].agp );
         return ret;
     }
 
@@ -3821,12 +3849,18 @@ private:
     }
 
 protected:
+    struct AggregatorRecord {
+        std::shared_ptr<Aggregator> agp;
+        std::chrono::steady_clock::time_point timestamp;
+    };
     std::vector<http_callback>               callbackList_;
-    std::vector<std::shared_ptr<Aggregator>> agVector_;
+    std::vector<AggregatorRecord>            agVector_;
     std::mutex agVectorMutex_;
     std::condition_variable agVectorCV_;
     PeriodicCounterFetcher* pcf_;
     bool stopped_;
+    double interval_;
+    size_t maxAggregators_;
 };
 
 // Here to break dependency on HTTPServer
@@ -3887,9 +3921,10 @@ void PeriodicCounterFetcher::execute() {
             auto elapsed = duration_cast<std::chrono::milliseconds>(after - before);
             DBG( 4, "Aggregation Duration: ", elapsed.count(), "ms." );
         }
-        now = now + delay;
-        if (now < system_clock::now()) {
-            now = system_clock::now(); // prevent busy loops if collection falls behind
+        now += delay;
+        const auto currentTime = system_clock::now();
+        if (now <= currentTime) {
+            now = currentTime + delay; // skip missed deadlines and schedule next collection in the future
         }
         {
             std::unique_lock<std::mutex> lock(mtx_);
