@@ -54,6 +54,7 @@ typedef int socket_t;
 #include <ctime>
 #include <limits>
 #include <vector>
+#include <deque>
 #include <unordered_map>
 #include <cmath>
 
@@ -3690,23 +3691,28 @@ private:
 class HTTPServer : public Server {
 public:
     static constexpr size_t maxPerSecondSeconds_ = 29;
-    static constexpr size_t minHistorySamples_ = 30;
+    static constexpr size_t maxRecentSamples_ = 30;
+    static constexpr size_t maxCoarseSamples_ = 30;
 
-    HTTPServer( double interval = 1.0 ) : Server( "", 80 ), stopped_( false ), interval_( interval ) {
+    HTTPServer( double interval = 1.0, bool startFetcher = true ) : Server( "", 80 ), stopped_( false ), interval_( interval ), pcf_( nullptr ) {
         DBG( 3, "HTTPServer::HTTPServer()" );
-        maxAggregators_ = (std::max)( minHistorySamples_, static_cast<size_t>(std::ceil(static_cast<double>(maxPerSecondSeconds_) / interval_)) + 1 );
+        coarseResolution_ = (std::max)( 0.5, 1.0 - interval_ * 0.5 );
         callbackList_.resize( 256 );
-        createPeriodicCounterFetcher( interval_ );
-        pcf_->start();
+        if ( startFetcher ) {
+            createPeriodicCounterFetcher( interval_ );
+            pcf_->start();
+        }
         SignalHandler::getInstance()->setHTTPServer( this );
     }
 
-    HTTPServer( std::string const & ip, uint16_t port, bool useIPv4 = false, double interval = 1.0 ) : Server( ip, port, useIPv4 ), stopped_( false ), interval_( interval ) {
+    HTTPServer( std::string const & ip, uint16_t port, bool useIPv4 = false, double interval = 1.0, bool startFetcher = true ) : Server( ip, port, useIPv4 ), stopped_( false ), interval_( interval ), pcf_( nullptr ) {
         DBG( 3, "HTTPServer::HTTPServer( ip=", ip, ", port=", port, " )" );
-        maxAggregators_ = (std::max)( minHistorySamples_, static_cast<size_t>(std::ceil(static_cast<double>(maxPerSecondSeconds_) / interval_)) + 1 );
+        coarseResolution_ = (std::max)( 0.5, 1.0 - interval_ * 0.5 );
         callbackList_.resize( 256 );
-        createPeriodicCounterFetcher( interval_ );
-        pcf_->start();
+        if ( startFetcher ) {
+            createPeriodicCounterFetcher( interval_ );
+            pcf_->start();
+        }
         SignalHandler::getInstance()->setHTTPServer( this );
     }
 
@@ -3733,10 +3739,10 @@ public:
         if ( pcf_ ) {
             pcf_->stop();
             pcf_ = nullptr;
+            // It takes up to one second for a pcf to leave the loop
+            std::this_thread::sleep_for( std::chrono::seconds(1) );
+            ThreadPool::getInstance().emptyThreadPool();
         }
-        // It takes up to one second for a pcf to leave the loop
-        std::this_thread::sleep_for( std::chrono::seconds(1) );
-        ThreadPool::getInstance().emptyThreadPool();
     }
 
     // Register Callbacks
@@ -3750,18 +3756,31 @@ public:
         callbackList_[rm] = nullptr;
     }
 
-    void addAggregator( std::shared_ptr<Aggregator> agp ) {
+    void addAggregator( std::shared_ptr<Aggregator> agp, std::chrono::steady_clock::time_point timestamp ) {
         DBG( 4, "HTTPServer::addAggregator( agp=", std::hex, agp.get(), " ) called" );
 
         {
             std::lock_guard<std::mutex> lock( agVectorMutex_ );
-            agVector_.insert( agVector_.begin(), AggregatorRecord{ agp, std::chrono::steady_clock::now() } );
-            if ( agVector_.size() > maxAggregators_ ) {
-                DBG( 4, "HTTPServer::addAggregator(): Removing last Aggegator" );
-                agVector_.pop_back();
+            recentQueue_.push_front( AggregatorRecord{ agp, timestamp } );
+            if ( recentQueue_.size() > maxRecentSamples_ ) {
+                recentQueue_.pop_back();
+            }
+
+            if ( interval_ < 1.0 ) {
+                if ( coarseQueue_.empty() ||
+                     std::chrono::duration<double>( timestamp - coarseQueue_.front().timestamp ).count() >= coarseResolution_ ) {
+                    coarseQueue_.push_front( AggregatorRecord{ agp, timestamp } );
+                    if ( coarseQueue_.size() > maxCoarseSamples_ ) {
+                        coarseQueue_.pop_back();
+                    }
+                }
             }
         }
         agVectorCV_.notify_all();
+    }
+
+    void addAggregator( std::shared_ptr<Aggregator> agp ) {
+        addAggregator( agp, std::chrono::steady_clock::now() );
     }
 
     std::pair<std::shared_ptr<Aggregator>,std::shared_ptr<Aggregator>> getAggregators( size_t seconds, size_t index2 = 0 ) {
@@ -3771,8 +3790,10 @@ public:
         if ( seconds > maxPerSecondSeconds_ )
             throw std::runtime_error("BUG: getAggregator: requested seconds can never be satisfied. Fix the code!" );
 
-        if ( index2 >= maxAggregators_ )
+        if ( index2 >= maxRecentSamples_ )
             throw std::runtime_error("BUG: getAggregator: requested index2 can never be satisfied. Fix the code!" );
+
+        const double targetSeconds = static_cast<double>(seconds);
 
         // Wait under the mutex until we have enough samples to return, using the
         // condition variable so we don't race against addAggregator().
@@ -3781,32 +3802,77 @@ public:
             if ( stopped_ ) {
                 return true;
             }
-            if ( agVector_.size() <= index2 + 1 ) {
+            if ( recentQueue_.size() <= index2 ) {
                 return false;
             }
-            const auto span = std::chrono::duration<double>( agVector_[ index2 ].timestamp - agVector_.back().timestamp ).count();
-            return span >= ( static_cast<double>(seconds) - interval_ * 0.5 ) || agVector_.size() >= maxAggregators_;
+            if ( coarseQueue_.empty() && recentQueue_.size() <= index2 + 1 ) {
+                return false;
+            }
+            const auto refTime = recentQueue_[ index2 ].timestamp;
+            const auto oldestTime = coarseQueue_.empty() ? recentQueue_.back().timestamp : coarseQueue_.back().timestamp;
+            const auto span = std::chrono::duration<double>( refTime - oldestTime ).count();
+            const bool historyFull = ( !coarseQueue_.empty() && coarseQueue_.size() >= maxCoarseSamples_ ) ||
+                                     ( coarseQueue_.empty() && recentQueue_.size() >= maxRecentSamples_ );
+            return span >= ( targetSeconds - interval_ * 0.5 ) || historyFull;
         } );
 
-        if ( stopped_ && agVector_.size() <= index2 + 1 ) {
-            throw std::runtime_error( "Server stopped before enough samples were collected." );
-        }
-
-        const auto targetTime = agVector_[ index2 ].timestamp - std::chrono::duration<double>( static_cast<double>(seconds) );
-        size_t bestIndex = index2 + 1;
-        double bestDiff = std::abs( std::chrono::duration<double>( agVector_[ bestIndex ].timestamp - targetTime ).count() );
-        for ( size_t i = index2 + 2; i < agVector_.size(); ++i ) {
-            double diff = std::abs( std::chrono::duration<double>( agVector_[ i ].timestamp - targetTime ).count() );
-            if ( diff < bestDiff ) {
-                bestDiff = diff;
-                bestIndex = i;
-            } else if ( diff > bestDiff ) {
-                break;
+        if ( stopped_ ) {
+            if ( recentQueue_.size() <= index2 ) {
+                throw std::runtime_error( "Server stopped before enough samples were collected." );
+            }
+            if ( coarseQueue_.empty() && recentQueue_.size() <= index2 + 1 ) {
+                throw std::runtime_error( "Server stopped before enough samples were collected." );
             }
         }
 
-        auto ret = std::make_pair( agVector_[ bestIndex ].agp, agVector_[ index2 ].agp );
+        const auto refTime = recentQueue_[ index2 ].timestamp;
+        const auto targetTime = refTime - std::chrono::duration<double>( targetSeconds );
+
+        std::shared_ptr<Aggregator> bestAgp = nullptr;
+        double bestDiff = (std::numeric_limits<double>::max)();
+
+        // 1. Search recent high-resolution history
+        for ( size_t i = 0; i < recentQueue_.size(); ++i ) {
+            if ( i == index2 ) {
+                continue;
+            }
+            double diff = std::abs( std::chrono::duration<double>( recentQueue_[ i ].timestamp - targetTime ).count() );
+            if ( diff < bestDiff ) {
+                bestDiff = diff;
+                bestAgp = recentQueue_[ i ].agp;
+            }
+        }
+
+        // 2. Search coarse downsampled history
+        for ( size_t i = 0; i < coarseQueue_.size(); ++i ) {
+            if ( coarseQueue_[ i ].agp == recentQueue_[ index2 ].agp ) {
+                continue;
+            }
+            double diff = std::abs( std::chrono::duration<double>( coarseQueue_[ i ].timestamp - targetTime ).count() );
+            if ( diff < bestDiff ) {
+                bestDiff = diff;
+                bestAgp = coarseQueue_[ i ].agp;
+            }
+        }
+
+        if ( !bestAgp ) {
+            throw std::runtime_error( "Failed to find matching aggregator for history selection." );
+        }
+
+        auto ret = std::make_pair( bestAgp, recentQueue_[ index2 ].agp );
         return ret;
+    }
+
+    size_t recentHistorySize() const {
+        return recentQueue_.size();
+    }
+
+    size_t coarseHistorySize() const {
+        return coarseQueue_.size();
+    }
+
+    size_t totalHistorySize() const {
+        return recentQueue_.size() + coarseQueue_.size();
     }
 
     bool checkForIncomingSSLConnection( socket_t fd ) {
@@ -3853,13 +3919,14 @@ protected:
         std::chrono::steady_clock::time_point timestamp;
     };
     std::vector<http_callback>               callbackList_;
-    std::vector<AggregatorRecord>            agVector_;
+    std::deque<AggregatorRecord>             recentQueue_;
+    std::deque<AggregatorRecord>             coarseQueue_;
     std::mutex agVectorMutex_;
     std::condition_variable agVectorCV_;
     PeriodicCounterFetcher* pcf_;
     bool stopped_;
     double interval_;
-    size_t maxAggregators_;
+    double coarseResolution_;
 };
 
 // Here to break dependency on HTTPServer
