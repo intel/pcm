@@ -6,6 +6,8 @@
 // 2. High-frequency retention bounds memory footprint
 // 3. Shutdown synchronization properly wakes waiting requests and fetcher threads
 // 4. Default 1.0 second behavior remains backwards-compatible
+// 5. Coarse queue retention spans the 29-second history window for subsecond intervals
+// 6. Socket-free construction isolates tests and avoids binding privileged/fixed ports
 
 #include <chrono>
 #include <thread>
@@ -14,6 +16,7 @@
 #include <atomic>
 #include <string>
 #include <stdexcept>
+#include <cmath>
 
 #define UNIT_TEST 1
 #include "../../src/pcm-sensor-server.cpp"
@@ -30,12 +33,12 @@ std::shared_ptr<Aggregator> makeDummyAggregator() {
 
 } // namespace
 
-// TEST 1 — HISTORY / TIMESTAMP SEMANTICS
+// TEST 1 - HISTORY / TIMESTAMP SEMANTICS
 // Verify that changing the collection interval to a fractional value (e.g. 0.1s)
 // selects historical samples based on elapsed timestamp, NOT raw sample index == seconds.
 TEST(PcmSensorServerHistoryTest, FractionalIntervalPreservesElapsedSecondsSemantics) {
     const double interval = 0.1;
-    HTTPServer server( interval, false );
+    HTTPServer server( interval, false, false );
 
     const auto t0 = std::chrono::steady_clock::now();
     std::vector<std::shared_ptr<Aggregator>> samples;
@@ -61,12 +64,12 @@ TEST(PcmSensorServerHistoryTest, FractionalIntervalPreservesElapsedSecondsSemant
     EXPECT_EQ( pair2.first, samples[0] );
 }
 
-// TEST 2 — HIGH-FREQUENCY RETENTION BOUND
+// TEST 2 - HIGH-FREQUENCY RETENTION BOUND
 // Verify that at very small collection intervals (e.g. 0.001s / 1 ms),
 // the retained history is strictly bounded and does NOT grow to ~29/interval (29,001) objects.
 TEST(PcmSensorServerHistoryTest, HighFrequencyRetentionIsBounded) {
     const double interval = 0.001; // 1 ms
-    HTTPServer server( interval, false );
+    HTTPServer server( interval, false, false );
 
     const auto t0 = std::chrono::steady_clock::now();
     // Simulate 5,000 high-frequency samples spanning 5.0 seconds
@@ -86,10 +89,10 @@ TEST(PcmSensorServerHistoryTest, HighFrequencyRetentionIsBounded) {
     EXPECT_NE( pair.first, pair.second );
 }
 
-// TEST 3 — SHUTDOWN WAKE-UP
+// TEST 3 - SHUTDOWN WAKE-UP
 // Part A: Verify that stopping the server immediately unblocks an outstanding getAggregators() call.
 TEST(PcmSensorServerHistoryTest, StoppingServerWakesBlockedGetAggregatorsWait) {
-    HTTPServer server( 1.0, false );
+    HTTPServer server( 1.0, false, false );
 
     std::atomic<bool> workerStarted( false );
     std::atomic<bool> threwExpectedException( false );
@@ -120,9 +123,9 @@ TEST(PcmSensorServerHistoryTest, StoppingServerWakesBlockedGetAggregatorsWait) {
     EXPECT_TRUE( threwExpectedException.load() );
 }
 
-// TEST 3 Part B: Verify that stopping PeriodicCounterFetcher wakes up a long wait_until
+// TEST 3 Part B: Verify that stopping PeriodicCounterFetcher coordinates lifecycle safely
 TEST(PcmSensorServerHistoryTest, StoppingFetcherWakesLongWaitUntil) {
-    HTTPServer server( 3600.0, false ); // 1-hour interval
+    HTTPServer server( 3600.0, false, false ); // 1-hour interval
     PeriodicCounterFetcher pcf( &server, 3600.0 );
 
     const auto startTime = std::chrono::steady_clock::now();
@@ -145,11 +148,11 @@ TEST(PcmSensorServerHistoryTest, StoppingFetcherWakesLongWaitUntil) {
     EXPECT_LT( elapsed, 2000 );
 }
 
-// TEST 4 — DEFAULT REGRESSION
+// TEST 4 - DEFAULT REGRESSION
 // Verify that the default 1.0 second interval retains the expected 30-sample history
 // and correctly resolves 1..29 elapsed seconds.
 TEST(PcmSensorServerHistoryTest, DefaultIntervalPreservesExistingContract) {
-    HTTPServer server( 1.0, false );
+    HTTPServer server( 1.0, false, false );
 
     const auto t0 = std::chrono::steady_clock::now();
     std::vector<std::shared_ptr<Aggregator>> samples;
@@ -187,4 +190,67 @@ TEST(PcmSensorServerHistoryTest, DefaultIntervalPreservesExistingContract) {
     auto extraAgp = makeDummyAggregator();
     server.addAggregator( extraAgp, t0 + std::chrono::seconds( 30 ) );
     EXPECT_EQ( server.recentHistorySize(), 30 );
+}
+
+// TEST 5 - COARSE QUEUE 29-SECOND COVERAGE FOR SUBSECOND INTERVALS
+// Verify that coarseQueue_ with capacity 60 retains enough history to satisfy
+// the 29-second window for intervals such as 0.75s and 0.4s.
+TEST(PcmSensorServerHistoryTest, SubsecondIntervalsCover29SecondWindow) {
+    // Case A: interval = 0.75s
+    {
+        const double interval = 0.75;
+        HTTPServer server( interval, false, false );
+        const auto t0 = std::chrono::steady_clock::now();
+        // 45 samples at 0.75s = 33.0 seconds of history
+        for ( size_t i = 0; i < 45; ++i ) {
+            server.addAggregator( makeDummyAggregator(), t0 + std::chrono::milliseconds( static_cast<long long>( i * 750 ) ) );
+        }
+        EXPECT_LE( server.coarseHistorySize(), HTTPServer::maxCoarseSamples_ );
+        EXPECT_LE( server.recentHistorySize(), HTTPServer::maxRecentSamples_ );
+
+        auto pair = server.getAggregators( 29, 0 );
+        EXPECT_NE( pair.first, nullptr );
+        EXPECT_NE( pair.second, nullptr );
+    }
+
+    // Case B: interval = 0.4s
+    {
+        const double interval = 0.4;
+        HTTPServer server( interval, false, false );
+        const auto t0 = std::chrono::steady_clock::now();
+        // 85 samples at 0.4s = 33.6 seconds of history
+        for ( size_t i = 0; i < 85; ++i ) {
+            server.addAggregator( makeDummyAggregator(), t0 + std::chrono::milliseconds( static_cast<long long>( i * 400 ) ) );
+        }
+        EXPECT_LE( server.coarseHistorySize(), HTTPServer::maxCoarseSamples_ );
+        EXPECT_LE( server.recentHistorySize(), HTTPServer::maxRecentSamples_ );
+
+        auto pair = server.getAggregators( 29, 0 );
+        EXPECT_NE( pair.first, nullptr );
+        EXPECT_NE( pair.second, nullptr );
+    }
+}
+
+// TEST 6 - NEAREST SAMPLE SELECTION ACCURACY
+// Verify that getAggregators selects the historical sample closest in time to the target timestamp.
+TEST(PcmSensorServerHistoryTest, NearestSampleSelectionAccuracy) {
+    const double interval = 0.1;
+    HTTPServer server( interval, false, false );
+    const auto t0 = std::chrono::steady_clock::now();
+
+    auto agpA = makeDummyAggregator();
+    auto agpB = makeDummyAggregator();
+    auto agpC = makeDummyAggregator();
+
+    // Sample A at t0 (0.0s)
+    server.addAggregator( agpA, t0 );
+    // Sample B at t0 + 0.95s (closer to 1.0s target from t0 + 2.0s)
+    server.addAggregator( agpB, t0 + std::chrono::milliseconds( 950 ) );
+    // Sample C at t0 + 2.0s (reference sample, index2 = 0)
+    server.addAggregator( agpC, t0 + std::chrono::milliseconds( 2000 ) );
+
+    // Target is 1 second before C (t0 + 1.0s). B (0.95s) is closer (diff 0.05s) than A (0.0s, diff 1.0s).
+    auto pair = server.getAggregators( 1, 0 );
+    EXPECT_EQ( pair.second, agpC );
+    EXPECT_EQ( pair.first, agpB );
 }

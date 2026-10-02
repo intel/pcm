@@ -272,7 +272,24 @@ public:
     static BOOL WINAPI handleSignal( DWORD signum );
 #else
     static void handleSignal( int signum );
+    static volatile sig_atomic_t signalCaught_;
 #endif
+
+    static bool wasSignaled() {
+#ifdef _WIN32
+        return false;
+#else
+        return signalCaught_ != 0;
+#endif
+    }
+
+    static int getSignal() {
+#ifdef _WIN32
+        return 0;
+#else
+        return signalCaught_;
+#endif
+    }
 
     void setSocket( socket_t s ) {
         networkSocket_ = s;
@@ -324,6 +341,9 @@ private:
 
 socket_t SignalHandler::networkSocket_ = INVALID_SOCKET;
 HTTPServer* SignalHandler::httpServer_ = nullptr;
+#ifndef _WIN32
+volatile sig_atomic_t SignalHandler::signalCaught_ = 0;
+#endif
 
 namespace pcm {
 
@@ -1479,7 +1499,7 @@ typedef basic_socketstream<wchar_t> wsocketstream;
 class Server {
 public:
     Server() = delete;
-    Server( const std::string & listenIP, uint16_t port, bool useIPv4 = false ) noexcept( false ) : listenIP_(listenIP), wq_( WorkQueue::getInstance() ), port_( port ), useIPv4_( useIPv4 ) {
+    Server( const std::string & listenIP, uint16_t port, bool useIPv4 = false, bool createSocket = true ) noexcept( false ) : listenIP_(listenIP), wq_( WorkQueue::getInstance() ), serverSocket_( INVALID_SOCKET ), port_( port ), useIPv4_( useIPv4 ) {
         DBG( 3, "Initializing Server" );
 #ifdef _WIN32
         // Initialize Winsock on Windows
@@ -1495,24 +1515,34 @@ public:
                                    std::to_string(LOBYTE(wsaData.wVersion)) + "." + std::to_string(HIBYTE(wsaData.wVersion)));
         }
 #endif
-        serverSocket_ = initializeServerSocket();
-        SignalHandler* shi = SignalHandler::getInstance();
-        shi->setSocket( serverSocket_ );
+        if ( createSocket ) {
+            serverSocket_ = initializeServerSocket();
+            SignalHandler* shi = SignalHandler::getInstance();
+            shi->setSocket( serverSocket_ );
 #ifndef _WIN32
-        shi->ignoreSignal( SIGPIPE ); // Sorry Dennis Ritchie, we do not care about this, we always check return codes
+            shi->ignoreSignal( SIGPIPE ); // Sorry Dennis Ritchie, we do not care about this, we always check return codes
 #endif
 #ifndef UNIT_TEST // libFuzzer installs own signal handlers
 #ifndef _WIN32
-        shi->installHandler( SignalHandler::handleSignal, SIGTERM );
-        shi->installHandler( SignalHandler::handleSignal, SIGINT );
+            shi->installHandler( SignalHandler::handleSignal, SIGTERM );
+            shi->installHandler( SignalHandler::handleSignal, SIGINT );
 #else
-        shi->installHandler( nullptr, 0 ); // Windows uses SetConsoleCtrlHandler
+            shi->installHandler( nullptr, 0 ); // Windows uses SetConsoleCtrlHandler
 #endif
 #endif
+        }
     }
     Server( Server const & ) = delete;
     Server & operator = ( Server const & ) = delete;
     virtual ~Server() {
+        if ( serverSocket_ != INVALID_SOCKET ) {
+#ifdef _WIN32
+            closesocket( serverSocket_ );
+#else
+            ::close( serverSocket_ );
+#endif
+            serverSocket_ = INVALID_SOCKET;
+        }
         wq_ = nullptr;
 #ifdef _WIN32
         WSACleanup();
@@ -3653,48 +3683,61 @@ private:
 class PeriodicCounterFetcher : public Work
 {
 public:
-    PeriodicCounterFetcher( HTTPServer* hs, double interval = 1.0 ) : hs_(hs), run_(false), exit_(false), interval_(interval) {}
+    struct SharedState {
+        std::mutex mtx;
+        std::condition_variable cv;
+        std::condition_variable doneCv;
+        std::atomic<bool> run{false};
+        std::atomic<bool> exit{false};
+        std::atomic<bool> done{false};
+    };
+
+    PeriodicCounterFetcher( HTTPServer* hs, double interval = 1.0 )
+        : hs_(hs), interval_(interval), state_(std::make_shared<SharedState>()) {}
     virtual ~PeriodicCounterFetcher() override {
         hs_ = nullptr;
     }
 
+    std::shared_ptr<SharedState> state() const {
+        return state_;
+    }
+
     void start( void ) {
         DBG( 4, "PeriodicCounterFetcher::start() called" );
-        run_ = true;
+        if ( state_ ) state_->run = true;
     }
 
     void pause( void ) {
         DBG( 4, "PeriodicCounterFetcher::pause() called" );
-        run_ = false;
+        if ( state_ ) state_->run = false;
     }
 
     void stop( void ) {
         DBG( 4, "PeriodicCounterFetcher::stop() called" );
+        auto s = state_;
+        if ( !s ) return;
         {
-            std::lock_guard<std::mutex> lock(mtx_);
-            exit_ = true;
+            std::lock_guard<std::mutex> lock(s->mtx);
+            s->exit = true;
+            s->cv.notify_all();
         }
-        cv_.notify_all();
     }
 
     virtual void execute() override;
 
 private:
     HTTPServer*       hs_;
-    std::atomic<bool> run_;
-    std::atomic<bool> exit_;
     double interval_;
-    std::mutex mtx_;
-    std::condition_variable cv_;
+    std::shared_ptr<SharedState> state_;
 };
 
 class HTTPServer : public Server {
 public:
     static constexpr size_t maxPerSecondSeconds_ = 29;
     static constexpr size_t maxRecentSamples_ = 30;
-    static constexpr size_t maxCoarseSamples_ = 30;
+    static constexpr size_t maxCoarseSamples_ = 60;
 
-    HTTPServer( double interval = 1.0, bool startFetcher = true ) : Server( "", 80 ), stopped_( false ), interval_( interval ), pcf_( nullptr ) {
+    HTTPServer( double interval = 1.0, bool startFetcher = true, bool createSocket = true ) : Server( "", DEFAULT_HTTP_PORT, false, createSocket ), stopped_( false ), interval_( interval ), pcf_( nullptr ) {
         DBG( 3, "HTTPServer::HTTPServer()" );
         coarseResolution_ = (std::max)( 0.5, 1.0 - interval_ * 0.5 );
         callbackList_.resize( 256 );
@@ -3702,10 +3745,12 @@ public:
             createPeriodicCounterFetcher( interval_ );
             pcf_->start();
         }
-        SignalHandler::getInstance()->setHTTPServer( this );
+        if ( createSocket ) {
+            SignalHandler::getInstance()->setHTTPServer( this );
+        }
     }
 
-    HTTPServer( std::string const & ip, uint16_t port, bool useIPv4 = false, double interval = 1.0, bool startFetcher = true ) : Server( ip, port, useIPv4 ), stopped_( false ), interval_( interval ), pcf_( nullptr ) {
+    HTTPServer( std::string const & ip, uint16_t port, bool useIPv4 = false, double interval = 1.0, bool startFetcher = true, bool createSocket = true ) : Server( ip, port, useIPv4, createSocket ), stopped_( false ), interval_( interval ), pcf_( nullptr ) {
         DBG( 3, "HTTPServer::HTTPServer( ip=", ip, ", port=", port, " )" );
         coarseResolution_ = (std::max)( 0.5, 1.0 - interval_ * 0.5 );
         callbackList_.resize( 256 );
@@ -3713,7 +3758,9 @@ public:
             createPeriodicCounterFetcher( interval_ );
             pcf_->start();
         }
-        SignalHandler::getInstance()->setHTTPServer( this );
+        if ( createSocket ) {
+            SignalHandler::getInstance()->setHTTPServer( this );
+        }
     }
 
     HTTPServer( HTTPServer const & ) = delete;
@@ -3736,13 +3783,24 @@ public:
             stopped_ = true;
         }
         agVectorCV_.notify_all();
+        if ( serverSocket_ != INVALID_SOCKET ) {
+#ifdef _WIN32
+            closesocket( serverSocket_ );
+#else
+            ::close( serverSocket_ );
+#endif
+            serverSocket_ = INVALID_SOCKET;
+        }
         if ( pcf_ ) {
             pcf_->stop();
             pcf_ = nullptr;
-            // It takes up to one second for a pcf to leave the loop
-            std::this_thread::sleep_for( std::chrono::seconds(1) );
-            ThreadPool::getInstance().emptyThreadPool();
         }
+        if ( pcfState_ ) {
+            std::unique_lock<std::mutex> lock( pcfState_->mtx );
+            pcfState_->doneCv.wait( lock, [this]() { return pcfState_->done.load(); } );
+            pcfState_ = nullptr;
+        }
+        ThreadPool::getInstance().emptyThreadPool();
     }
 
     // Register Callbacks
@@ -3909,6 +3967,7 @@ private:
         // We keep a pointer to pcf to start and stop execution
         // not to delete it when done with it, that is up to threadpool/workqueue
         pcf_ = new PeriodicCounterFetcher( this, interval );
+        pcfState_ = pcf_->state();
         wq_->addWork( pcf_ );
         pcf_->start();
     }
@@ -3924,6 +3983,7 @@ protected:
     std::mutex agVectorMutex_;
     std::condition_variable agVectorCV_;
     PeriodicCounterFetcher* pcf_;
+    std::shared_ptr<PeriodicCounterFetcher::SharedState> pcfState_;
     bool stopped_;
     double interval_;
     double coarseResolution_;
@@ -3936,12 +3996,15 @@ BOOL WINAPI SignalHandler::handleSignal( DWORD signum )
     // Clean up, close socket and such
     std::cerr << "handleSignal: signal " << signum << " caught.\n";
     std::cerr << "handleSignal: closing socket " << networkSocket_ << "\n";
-    ::close( networkSocket_ );
-    std::cerr << "Cleaning up PMU:\n";
-    PCM::getInstance()->cleanup();
+    if ( networkSocket_ != INVALID_SOCKET ) {
+        ::close( networkSocket_ );
+        networkSocket_ = INVALID_SOCKET;
+    }
     std::cerr << "Stopping HTTPServer\n";
     if (httpServer_)
         httpServer_->stop();
+    std::cerr << "Cleaning up PMU:\n";
+    PCM::getInstance()->cleanup();
     std::cerr << "handleSignal: exiting with exit code 1...\n";
     exit(1);
     return TRUE;
@@ -3949,31 +4012,29 @@ BOOL WINAPI SignalHandler::handleSignal( DWORD signum )
 #else
 void SignalHandler::handleSignal( int signum )
 {
-    // Clean up, close socket and such
-    std::cerr << "handleSignal: signal " << signum << " caught.\n";
-    std::cerr << "handleSignal: closing socket " << networkSocket_ << "\n";
-    ::close( networkSocket_ );
-    std::cerr << "Stopping HTTPServer\n";
-    httpServer_->stop();
-    std::cerr << "Cleaning up PMU:\n";
-    PCM::getInstance()->cleanup();
-    std::cerr << "handleSignal: exiting with exit code 1...\n";
-    exit(1);
+    signalCaught_ = signum;
+    // Async-signal-safe notification: close socket to unblock accept() in normal execution context
+    if ( networkSocket_ != INVALID_SOCKET ) {
+        ::close( networkSocket_ );
+        networkSocket_ = INVALID_SOCKET;
+    }
 }
 #endif
 
 void PeriodicCounterFetcher::execute() {
+    auto s = state_;
+    if (!s) return;
     using namespace std::chrono;
     auto delay = duration_cast<system_clock::duration>(duration<double>(interval_));
     system_clock::time_point now = system_clock::now() + delay;
     {
-        std::unique_lock<std::mutex> lock(mtx_);
-        cv_.wait_until(lock, now, [this]() { return exit_.load(); });
+        std::unique_lock<std::mutex> lock(s->mtx);
+        s->cv.wait_until(lock, now, [&s]() { return s->exit.load(); });
     }
     while( 1 ) {
-        if ( exit_ )
+        if ( s->exit.load() )
             break;
-        if ( run_ ) {
+        if ( s->run.load() ) {
             auto before = steady_clock::now();
             // create an aggregator
             std::shared_ptr<Aggregator> sagp = std::make_shared<Aggregator>();
@@ -3993,10 +4054,15 @@ void PeriodicCounterFetcher::execute() {
             now = currentTime + delay; // skip missed deadlines and schedule next collection in the future
         }
         {
-            std::unique_lock<std::mutex> lock(mtx_);
-            cv_.wait_until(lock, now, [this]() { return exit_.load(); });
+            std::unique_lock<std::mutex> lock(s->mtx);
+            s->cv.wait_until(lock, now, [&s]() { return s->exit.load(); });
         }
     }
+    {
+        std::lock_guard<std::mutex> lock(s->mtx);
+        s->done = true;
+    }
+    s->doneCv.notify_all();
 }
 
 void HTTPServer::run() {
@@ -4004,9 +4070,22 @@ void HTTPServer::run() {
     clientAddress.sin_family = AF_INET;
     socket_t clientSocketFD = INVALID_SOCKET;
     while ( ! stopped_ ) {
+#ifndef _WIN32
+        if ( SignalHandler::wasSignaled() ) {
+            break;
+        }
+#endif
         // Listen on socket for incoming requests
         socklen_t sa_len = sizeof( struct sockaddr_in );
         socket_t retval = ::accept( serverSocket_, (struct sockaddr*)&clientAddress, &sa_len );
+#ifndef _WIN32
+        if ( SignalHandler::wasSignaled() ) {
+            if ( INVALID_SOCKET != retval ) {
+                ::close( retval );
+            }
+            break;
+        }
+#endif
         if ( INVALID_SOCKET == retval ) {
 #ifdef _WIN32
             DBG( 3, "Accept returned INVALID_SOCKET, WSAGetLastError: ", WSAGetLastError() );
@@ -4071,6 +4150,17 @@ void HTTPServer::run() {
         }
         wq_->addWork( connection );
     }
+#ifndef _WIN32
+    if ( SignalHandler::wasSignaled() ) {
+        std::cerr << "handleSignal: signal " << SignalHandler::getSignal() << " caught.\n";
+        std::cerr << "Stopping HTTPServer\n";
+        stop();
+        std::cerr << "Cleaning up PMU:\n";
+        PCM::getInstance()->cleanup();
+        std::cerr << "handleSignal: exiting with exit code 1...\n";
+        ::exit( 1 );
+    }
+#endif
 }
 
 #if defined (USE_SSL)
@@ -4142,9 +4232,22 @@ void HTTPSServer::run() {
         throw std::runtime_error( "No SSL_CTX created" );
 
     while ( ! stopped_ ) {
+#ifndef _WIN32
+        if ( SignalHandler::wasSignaled() ) {
+            break;
+        }
+#endif
         // Listen on socket for incoming requests, same as for regular connection
         socklen_t sa_len = sizeof( struct sockaddr_in );
         socket_t retval = ::accept( serverSocket_, (struct sockaddr*)&clientAddress, &sa_len );
+#ifndef _WIN32
+        if ( SignalHandler::wasSignaled() ) {
+            if ( INVALID_SOCKET != retval ) {
+                ::close( retval );
+            }
+            break;
+        }
+#endif
         DBG( 3, "RegularAccept: (if not INVALID_SOCKET it is client socket descriptor) ", retval );
         if ( INVALID_SOCKET == retval ) {
 #ifdef _WIN32
@@ -4269,6 +4372,17 @@ void HTTPSServer::run() {
         }
         wq_->addWork( connection );
     }
+#ifndef _WIN32
+    if ( SignalHandler::wasSignaled() ) {
+        std::cerr << "handleSignal: signal " << SignalHandler::getSignal() << " caught.\n";
+        std::cerr << "Stopping HTTPServer\n";
+        stop();
+        std::cerr << "Cleaning up PMU:\n";
+        PCM::getInstance()->cleanup();
+        std::cerr << "handleSignal: exiting with exit code 1...\n";
+        ::exit( 1 );
+    }
+#endif
 }
 #endif // USE_SSL
 
