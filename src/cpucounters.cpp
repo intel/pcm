@@ -822,12 +822,6 @@ void PCM::initCStateSupportTables()
         case APOLLO_LAKE:
         case GEMINI_LAKE:
         case DENVERTON:
-        case ADL:
-        case RPL:
-        case MTL:
-        case LNL:
-        case ARL:
-        case PTL:
         case SNOWRIDGE:
         case ELKHART_LAKE:
         case JASPER_LAKE:
@@ -865,6 +859,12 @@ void PCM::initCStateSupportTables()
         case BROADWELL:
         PCM_SKL_PATH_CASES
         case BROADWELL_XEON_E3:
+        case ADL:
+        case RPL:
+        case MTL:
+        case LNL:
+        case ARL:
+        case PTL:
             PCM_CSTATE_ARRAY(pkgCStateMsr, PCM_PARAM_PROTECT({0, 0, 0x60D, 0x3F8, 0, 0, 0x3F9, 0x3FA, 0x630, 0x631, 0x632}) );
 
         default:
