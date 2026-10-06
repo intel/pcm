@@ -47,7 +47,7 @@ void probe_capability_pci_express(struct pci *p, uint32_t cap_ptr)
         };
     } cap;
     uint32 value;
-    PciHandleType h(0, p->bdf.busno, p->bdf.devno, p->bdf.funcno);
+    PciHandleType h(p->bdf.domainno, p->bdf.busno, p->bdf.devno, p->bdf.funcno);
     h.read32(cap_ptr, &value); //Capability pointer
     cap.dw0 = value;
     if (cap.id != 0x10 && cap.next != 0x00) {
