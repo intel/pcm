@@ -481,9 +481,9 @@ public:
     void program_power_metrics(int mc_profile);
 
     //! \brief Program memory counters (disables programming performance counters)
+    //! \param metrics metric set (see the ServerUncoreMemoryMetrics enum)
     //! \param rankA count DIMM rank1 statistics (disables memory channel monitoring)
     //! \param rankB count DIMM rank2 statistics (disables memory channel monitoring)
-    //! \brief metrics metric set (see the ServerUncoreMemoryMetrics enum)
     void programServerUncoreMemoryMetrics(const ServerUncoreMemoryMetrics & metrics, const int rankA = -1, const int rankB = -1);
 
     //! \brief Get number of QPI LL clocks on a QPI port
@@ -1614,7 +1614,7 @@ public:
 
     /*! \brief checks the error without side effects.
         \throw std::system_error generic_category exception with PCM error code.
-        \param code error code from the 'program' call
+        \param status error code from the 'program' call
     */
     void checkStatus(const ErrorCode status);
 
@@ -1996,17 +1996,17 @@ public:
     uint32 getAccel() const;
 
     /*! \brief Sets  the accel type in the system
-        \return acceltype
+        \param input accel type
     */
     void setAccel(uint32 input);
 
     /*! \brief Reads the Number of AccelCounters in the system
-        \return None
+        \return number of counters
     */
     uint32 getNumberofAccelCounters() const;
 
     /*! \brief Sets the Number of AccelCounters in the system
-        \return number of counters
+        \param input number of counters
     */
     void setNumberofAccelCounters(uint32 input);
 
@@ -2671,7 +2671,7 @@ public:
 
     //! \brief Convert CPU Family/Model/Stepping to microarchitecture codename
     //! \param cpu_family_model_ cpu family model
-    //! \param cpu_stepping necessary for some CPU models to distinguish between different microarchitectures
+    //! \param cpu_stepping_ necessary for some CPU models to distinguish between different microarchitectures
     static const char * cpuFamilyModelToUArchCodename(const int32 cpu_family_model_, const int32 cpu_stepping_ = -1);
 
     //! \brief Get Brand string of processor
@@ -3849,7 +3849,7 @@ double getConsumedJoules(const CounterStateType & before, const CounterStateType
 }
 
 /*!  \brief Returns Joules consumed by processor (excluding DRAM)
-    \param powePlane power plane
+    \param powerPlane power plane
     \param before CPU counter state before the experiment
     \param after CPU counter state after the experiment
 */
@@ -5475,8 +5475,8 @@ inline uint64 getIncomingQPILinkBytes(uint32 socketNr, uint32 linkNr, const Syst
 
     Returns an estimation of number of bytes transferred to this sockets over all Intel(r) Quick Path Interconnect links on this socket
 
-    \param before System CPU counter state before the experiment
-    \param after System CPU counter state after the experiment
+    \param socketNr socket identifier
+    \param now Current System CPU counter state
     \return Number of bytes
 */
 inline uint64 getSocketIncomingQPILinkBytes(uint32 socketNr, const SystemCounterState & now)
