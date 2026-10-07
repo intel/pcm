@@ -7,6 +7,11 @@ usage() {
   echo "Usage: $0 http(s)://target_address:port"
   echo
   echo "target_address is the hostname or IP address of the system that runs pcm-sensor-server"
+  echo
+  echo "Alternative usage: $0 filename"
+  echo
+  echo "Specify filename containing target_address:port in each line"
+  echo
   exit 1
 }
 
@@ -31,7 +36,14 @@ if [ "$#" -ne 1 ]; then
   usage
 fi
 
-validate_url "$1"
+if [ -f "$1" ]; then
+  [ -s "$1" ] || { echo "Error: targets file is empty."; exit 1; }
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    validate_url "http://$line"
+  done < "$1"
+else
+  validate_url "$1"
+fi
 
 mkdir -p grafana_volume/dashboards || { echo "Error creating grafana_volume/dashboards directory"; exit 1; }
 mkdir -p influxdb_volume || { echo "Error creating influxdb_volume directory"; exit 1; }

@@ -120,7 +120,7 @@ void PcmIioCsvBuilder::insertTimeStamp(vector<string> & out, CsvOutputType type)
     std::string dateTime;
     printDateForCSV(type, m_config.display.csv_delimiter, &dateTime);
     // remove last delimiter
-    dateTime.pop_back();
+    dateTime.resize(dateTime.size() - m_config.display.csv_delimiter.size());
     out.insert(out.begin(), dateTime);
 }
 
