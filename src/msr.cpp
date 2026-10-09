@@ -86,7 +86,13 @@ int32 MsrHandle::read(uint64 msr_number, uint64 * value)
         req.core_id = cpu_id;
         req.msr_address = msr_number;
         BOOL status = DeviceIoControl(hDriver, IO_CTL_MSR_READ, &req, sizeof(MSR_Request), value, sizeof(uint64), &reslength, NULL);
-        assert(status && "Error in DeviceIoControl");
+        if (status == FALSE)
+        {
+            // the driver reports the exception of an unimplemented register as an error: report the
+            // failed read to the caller like the winring0 path below and the other platforms do
+            DBG(2, "core_id = ", cpu_id, " reading MSR 0x", std::hex, msr_number, std::dec, " failed");
+            return 0;
+        }
         return (int32)reslength;
     }
 

@@ -36,6 +36,7 @@
 
 #include <vector>
 #include <array>
+#include <algorithm>
 #include <limits>
 #include <string>
 #include <memory>
@@ -863,6 +864,9 @@ private:
     Resctrl resctrl;
 #endif
     bool useResctrl;
+    bool RDTInitialized{false};
+    std::vector<uint32> coreRMIDs{}; // RMID associated with each core by initRDT() via direct MSR programming (invalidRMID if none)
+    bool perfStatusCollection{false}; // read IA32_PERF_STATUS in the core counter states, see enablePerfStatusCollection()
 
     std::shared_ptr<FreeRunningBWCounters> clientBW;
     std::shared_ptr<CounterWidthExtender> clientImcReads;
@@ -1227,16 +1231,6 @@ private:
     //! \return true if the package energy counters of all sockets have been initialized successfully
     bool initRAPLTPMI();
     void initUncoreObjects();
-    /*!
-    *       \brief initializes each core with an RMID
-    */
-    void initRDT();
-    /*!
-     *      \brief Initializes RDT
-     *
-     *      Initializes RDT infrastructure through resctrl Linux driver or direct MSR programming.
-     *      For the latter: initializes each core event MSR with an RMID for QOS event (L3 cache monitoring or memory bandwidth monitoring)
-    */
     void initQOSevent(const uint64 event, const int32 core);
     void programBecktonUncore(int core);
     void programNehalemEPUncore(int core);
@@ -1351,6 +1345,102 @@ private:
 
 public:
     static bool isInitialized() { return instance != nullptr; }
+
+    /*!
+     *      \brief Initializes RDT (on demand)
+     *
+     *      Initializes RDT infrastructure through resctrl Linux driver or direct MSR programming.
+     *      For the latter: initializes each core event MSR with an RMID for QOS event (L3 cache monitoring or memory bandwidth monitoring).
+     *      RMIDs are allocated per socket in increasing order starting from firstUsableRMID.
+     *      RDT is not initialized by default: tools that need RDT-based metrics (L3OCC, LMB, RMB)
+     *      must call this method explicitly after getInstance(). Calls after successful initialization are ignored; failed attempts may be retried.
+     *      \returns nothing
+    */
+    void initRDT();
+
+    //! \brief Returns true if RDT has been initialized via initRDT()
+    bool isRDTInitialized() const { return RDTInitialized; }
+
+    //! \brief Value returned by getCoreRMID() for cores without an RMID association
+    enum : uint32 { invalidRMID = ~0U };
+
+    /*! \brief First RMID used by initRDT() for direct MSR programming
+
+        RMID 0 is skipped because it is the default RMID (resctrl root group) which
+        other software may use at the same time.
+    */
+    enum : uint32 { firstUsableRMID = 1 };
+
+    /*!
+     *      \brief Returns the RMID associated with the core by initRDT() via direct MSR programming
+     *
+     *      \returns invalidRMID if the core has no RMID association, e.g. it is offline, RDT is not
+     *      initialized or RDT uses the resctrl driver instead of direct MSR programming
+    */
+    uint32 getCoreRMID(const int32 core) const
+    {
+        if (core < 0 || (size_t)core >= coreRMIDs.size())
+        {
+            return invalidRMID;
+        }
+        return coreRMIDs[core];
+    }
+
+    /*!
+     *      \brief Returns the RMIDs programmed by initRDT() via direct MSR programming
+     *
+     *      \returns sorted list of used RMIDs, empty if RDT is not initialized or RDT uses the resctrl driver
+    */
+    std::vector<size_t> getUsedRMIDs() const
+    {
+        std::vector<size_t> result;
+        for (const auto & rmid : coreRMIDs)
+        {
+            if (rmid != invalidRMID)
+            {
+                result.push_back(rmid);
+            }
+        }
+        std::sort(result.begin(), result.end());
+        result.erase(std::unique(result.begin(), result.end()), result.end());
+        return result;
+    }
+
+    /*!
+        \brief Returns true if the IA32_PERF_STATUS metrics (RATIO, VOLTAGE) are supported
+
+        IA32_PERF_STATUS is not an architectural register, therefore it is read only on the
+        processors on which its RATIO and VOLTAGE fields have been validated. Reading an MSR that
+        the processor does not implement is not failure-safe on every platform: the Windows MSR
+        driver reports the resulting exception as an error and MsrHandle::read asserts on it.
+    */
+    bool perfStatusMetricAvailable() const
+    {
+        return (
+               cpu_family_model == PCM::SKX // covers CLX and CPX as well: they are steppings of this model
+            || cpu_family_model == PCM::ICX
+            || cpu_family_model == PCM::ICX_D
+            || cpu_family_model == PCM::SPR
+            || cpu_family_model == PCM::EMR
+            || cpu_family_model == PCM::GNR
+            || cpu_family_model == PCM::GNR_D
+            );
+    }
+
+    /*!
+        \brief Enables the collection of IA32_PERF_STATUS (RATIO, VOLTAGE) in the core counter states
+
+        IA32_PERF_STATUS is not collected by default: tools that need the RATIO and VOLTAGE metrics
+        (see BasicCounterState::getPerfStatusRatio() and BasicCounterState::getPerfStatusVoltage())
+        must call this method explicitly before reading the counter states. The request is ignored
+        on processors without perfStatusMetricAvailable(), where the register is never read.
+
+        \param enable true to read IA32_PERF_STATUS on every core, false to stop reading it
+    */
+    void enablePerfStatusCollection(const bool enable = true) { perfStatusCollection = enable && perfStatusMetricAvailable(); }
+
+    //! \brief Returns true if the collection of IA32_PERF_STATUS is enabled, see enablePerfStatusCollection()
+    bool isPerfStatusCollectionEnabled() const { return perfStatusCollection; }
 
     /*!
         \brief Set quiet mode for PCM initialization
@@ -3250,6 +3340,14 @@ protected:
     uint64 MemoryBWLocal;
     uint64 MemoryBWTotal;
     uint64 SMICount;
+    // IA32_PERF_STATUS data: sums over the logical cores aggregated in this state and the number of
+    // those cores. The RATIO and VOLTAGE fields are instantaneous values, therefore they are averaged
+    // (and not added up) by the getters below. The two fields are counted separately because
+    // IA32_PERF_STATUS is not architectural: a platform may populate only one of them.
+    uint64 PerfStatusRatioSum;
+    uint64 PerfStatusRatioCores;
+    uint64 PerfStatusVoltageSum; // in 3.13 fixed point format
+    uint64 PerfStatusVoltageCores;
     uint64 FrontendBoundSlots, BadSpeculationSlots, BackendBoundSlots, RetiringSlots, AllSlotsRaw;
     uint64 MemBoundSlots, FetchLatSlots, BrMispredSlots, HeavyOpsSlots;
     std::unordered_map<uint64, uint64> MSRValues;
@@ -3262,6 +3360,10 @@ public:
         MemoryBWLocal(0),
         MemoryBWTotal(0),
         SMICount(0),
+        PerfStatusRatioSum(0),
+        PerfStatusRatioCores(0),
+        PerfStatusVoltageSum(0),
+        PerfStatusVoltageCores(0),
     FrontendBoundSlots(0),
     BadSpeculationSlots(0),
     BackendBoundSlots(0),
@@ -3297,6 +3399,10 @@ public:
         MemoryBWLocal += o.MemoryBWLocal;
         MemoryBWTotal += o.MemoryBWTotal;
         SMICount += o.SMICount;
+        PerfStatusRatioSum += o.PerfStatusRatioSum;
+        PerfStatusRatioCores += o.PerfStatusRatioCores;
+        PerfStatusVoltageSum += o.PerfStatusVoltageSum;
+        PerfStatusVoltageCores += o.PerfStatusVoltageCores;
         DBG(4, "before PCM debug aggregate ", FrontendBoundSlots , " " , BadSpeculationSlots , " " , BackendBoundSlots , " " , RetiringSlots );
         BasicCounterState old = *this;
         FrontendBoundSlots += o.FrontendBoundSlots;
@@ -3325,6 +3431,50 @@ public:
 
     //! Returns current thermal headroom below TjMax
     int32 getThermalHeadroom() const { return ThermalHeadroom; }
+
+    //! Returns true if the RATIO field of IA32_PERF_STATUS was populated on at least one logical core of this state
+    bool isPerfStatusRatioAvailable() const { return PerfStatusRatioCores != 0; }
+
+    //! Returns true if the VOLTAGE field of IA32_PERF_STATUS was populated on at least one logical core of this state
+    bool isPerfStatusVoltageAvailable() const { return PerfStatusVoltageCores != 0; }
+
+    /*! \brief Returns the current performance state value (RATIO field of IA32_PERF_STATUS)
+
+        The ratio is the multiplier of the bus clock (usually 100 MHz), e.g. the ratio 30 corresponds
+        to the core frequency of 3 GHz.
+
+        The value is an instantaneous sample taken while the counter state was read and not an average
+        over the measurement interval (use getActiveAverageFrequency() for the latter). For states
+        aggregating several logical cores the average over the cores that report the field is returned:
+        every reporting logical core counts once, therefore both SMT threads of a physical core (which
+        read the same core scoped MSR at different points in time) contribute to the average, while a
+        core that leaves the field unpopulated is left out of it.
+
+        \return PCM_INVALID_PERF_STATUS_METRIC if the metric is not available, see isPerfStatusRatioAvailable()
+    */
+    double getPerfStatusRatio() const
+    {
+        if (isPerfStatusRatioAvailable() == false)
+            return PCM_INVALID_PERF_STATUS_METRIC;
+
+        return double(PerfStatusRatioSum) / double(PerfStatusRatioCores);
+    }
+
+    /*! \brief Returns the current operating voltage in Volt (VOLTAGE field of IA32_PERF_STATUS)
+
+        The value is an instantaneous sample taken while the counter state was read and not an average
+        over the measurement interval. For states aggregating several logical cores the average over
+        those cores is returned, see getPerfStatusRatio() for the details of the averaging.
+
+        \return PCM_INVALID_PERF_STATUS_METRIC if the metric is not available, see isPerfStatusVoltageAvailable()
+    */
+    double getPerfStatusVoltage() const
+    {
+        if (isPerfStatusVoltageAvailable() == false)
+            return PCM_INVALID_PERF_STATUS_METRIC;
+
+        return double(PerfStatusVoltageSum) / double(PerfStatusVoltageCores) / double(1ULL << MSR_IA32_PERF_STATUS_VOLTAGE_FRACTION_BITS);
+    }
 };
 
 inline uint64 RDTSC()
@@ -3371,6 +3521,24 @@ template <class CounterStateType>
 int32 getThermalHeadroom(const CounterStateType & /* before */, const CounterStateType & after)
 {
     return after.getThermalHeadroom();
+}
+
+/*! \brief Returns the current performance state value (RATIO field of IA32_PERF_STATUS) of the state
+           after the measurement interval, see BasicCounterState::getPerfStatusRatio()
+*/
+template <class CounterStateType>
+double getPerfStatusRatio(const CounterStateType & /* before */, const CounterStateType & after)
+{
+    return after.getPerfStatusRatio();
+}
+
+/*! \brief Returns the current operating voltage in Volt (VOLTAGE field of IA32_PERF_STATUS) of the
+           state after the measurement interval, see BasicCounterState::getPerfStatusVoltage()
+*/
+template <class CounterStateType>
+double getPerfStatusVoltage(const CounterStateType & /* before */, const CounterStateType & after)
+{
+    return after.getPerfStatusVoltage();
 }
 
 /*! \brief Returns the ratio of QPI cycles in power saving half-lane mode
@@ -3797,6 +3965,10 @@ class UncoreCounterState
     friend double getAverageUncoreFrequency(const CounterStateType& before, const CounterStateType& after);
     template <class CounterStateType>
     friend std::vector<double> getUncoreFrequency(const CounterStateType& state);
+    template <class CounterStateType>
+    friend std::vector<double> getUncoreVoltage(const CounterStateType& state);
+    template <class CounterStateType>
+    friend std::vector<uint64> getUncoreThrottleCount(const CounterStateType& before, const CounterStateType& after);
     template <class CounterStateType>
     friend std::vector<uint64> getUncoreDieTypes(const CounterStateType& state);
     template <class CounterStateType>
@@ -4261,7 +4433,48 @@ std::vector<double> getUncoreFrequency(const CounterStateType& state)
     std::vector<double> result;
     for (auto & e : state.UFSStatus)
     {
-        result.push_back(extract_bits(e, 0, 6) * 100000000.);
+        // the ratio unit of 100MHz is the only one defined by UFS_HEADER.RATIO_UNIT
+        result.push_back(extract_bits(e, UFS_STATUS_CURRENT_RATIO_FIRST_BIT, UFS_STATUS_CURRENT_RATIO_LAST_BIT) * 100000000.);
+    }
+    return result;
+}
+
+/*! \brief Returns the current uncore (fabric) voltage vector in Volt
+
+    One entry per uncore die, in the same order as getUncoreFrequency(). Like the uncore frequency
+    the voltage is an instantaneous sample and not an average over the measurement interval.
+*/
+template <class CounterStateType>
+std::vector<double> getUncoreVoltage(const CounterStateType& state)
+{
+    std::vector<double> result;
+    for (auto & e : state.UFSStatus)
+    {
+        result.push_back(double(extract_bits(e, UFS_STATUS_CURRENT_VOLTAGE_FIRST_BIT, UFS_STATUS_CURRENT_VOLTAGE_LAST_BIT))
+                         / double(1ULL << UFS_STATUS_CURRENT_VOLTAGE_FRACTION_BITS));
+    }
+    return result;
+}
+
+/*! \brief Returns the number of 1ms intervals in which the uncore frequency was throttled below the
+           bound programmed in UFS_CONTROL during the measurement interval
+
+    One entry per uncore die, in the same order as getUncoreFrequency(). The hardware increments the
+    counter at most once per 1ms interval, therefore the value is also the number of milliseconds of
+    the interval in which the fabric frequency was clipped.
+*/
+template <class CounterStateType>
+std::vector<uint64> getUncoreThrottleCount(const CounterStateType& before, const CounterStateType& after)
+{
+    std::vector<uint64> result;
+    for (size_t die = 0; die < after.UFSStatus.size(); ++die)
+    {
+        const auto afterCount = extract_bits(after.UFSStatus[die], UFS_STATUS_THROTTLE_COUNTER_FIRST_BIT, UFS_STATUS_THROTTLE_COUNTER_LAST_BIT);
+        // a die missing from the "before" state (e.g. discovered later) reports no throttling
+        const auto beforeCount = (die < before.UFSStatus.size()) ?
+            extract_bits(before.UFSStatus[die], UFS_STATUS_THROTTLE_COUNTER_FIRST_BIT, UFS_STATUS_THROTTLE_COUNTER_LAST_BIT) : afterCount;
+        // the counter is 32 bit wide and wraps around after ~50 days of uninterrupted throttling
+        result.push_back((afterCount - beforeCount) & 0xffffffffULL);
     }
     return result;
 }
@@ -5543,6 +5756,334 @@ inline std::vector<uint64> getMMIOEvent(const PCM::RawEventEncoding& eventEnc, c
 inline std::vector<uint64> getPMTEvent(const PCM::RawEventEncoding& eventEnc, const SystemCounterState& before, const SystemCounterState& after)
 {
     return getRegisterEvent(eventEnc, before.PMTValues, after.PMTValues);
+}
+
+/*! \brief description of the per-RMID Application Energy Telemetry (AET) PMT counters
+
+    The AET telemetry aggregator is processor-specific (currently only CWF is
+    supported) and exposes two qwords per RMID:
+
+    qword 2 * rmid       : RMID_<rmid>_CORE_ENERGY, core energy in Joule
+    qword 2 * rmid + 1   : RMID_<rmid>_ACTIVITY, dynamic capacitance (Cdyn) of the cores in nanofarad
+
+    In both qwords bits 0..62 hold the (monotonically increasing) counter value in
+    the "U63.45.18" fixed point format (45 integer and 18 fractional bits) and bit
+    63 indicates that the counter value is valid.
+
+    Note that the per-RMID core energy metric is not comparable to the package/CPU
+    energy of MSR_PKG_ENERGY_STATUS.
+*/
+struct AET
+{
+    //! \brief returns the UID (GUID) of the PMT telemetry aggregator holding the AET counters of this processor (0 if the processor does not support AET)
+    static uint64 UID()
+    {
+        switch (PCM::getCPUFamilyModelFromCPUID())
+        {
+        case PCM::CWF:
+            return 0x26696143ULL;
+        }
+        return 0;
+    }
+    //! \brief returns the name of the AET telemetry aggregator of this processor as used in the PMT telemetry database ("" if the processor does not support AET)
+    static const char * aggregatorName()
+    {
+        switch (PCM::getCPUFamilyModelFromCPUID())
+        {
+        case PCM::CWF:
+            return "cwf";
+        }
+        return "";
+    }
+    //! \brief returns true if this processor supports AET
+    static bool supported()
+    {
+        return UID() != 0;
+    }
+    enum Counter
+    {
+        CoreEnergy = 0,
+        Activity = 1,
+        NumCounters // number of AET counters (= qwords) per RMID
+    };
+    /*! \brief sample semantics of an AET counter
+
+        The AET counters are accumulators: Total is the value accumulated since the
+        counter was reset, Interval the value accumulated during the sample interval.
+    */
+    enum Sample
+    {
+        Total = PCM::MSRType::Static,
+        Interval = PCM::MSRType::Freerun
+    };
+    enum
+    {
+        valueLSB = 0,
+        valueMSB = 62,
+        validBit = 63,
+        fractionalBits = 18 // number of fractional bits of the "U63.45.18" fixed point format
+    };
+    static const char * counterName(const Counter counter)
+    {
+        return (counter == CoreEnergy) ? "CORE_ENERGY" : "ACTIVITY";
+    }
+    //! \brief returns the unit symbol of an AET counter: Joule for the core energy, nanofarad for the Cdyn activity
+    static const char * counterUnit(const Counter counter)
+    {
+        return (counter == CoreEnergy) ? "J" : "nF";
+    }
+    /*! \brief converts a raw AET counter value in the "U63.45.18" fixed point format to a metric value
+
+        \return core energy in Joule for AET::CoreEnergy, dynamic capacitance (Cdyn) in nanofarad for AET::Activity
+    */
+    static double toMetric(const uint64 rawValue)
+    {
+        return double(rawValue) / double(1ULL << fractionalBits);
+    }
+};
+
+//! \brief returns the PMT event encoding of an AET counter (or of its valid bit) of the given RMID
+inline PCM::RawEventEncoding AETEventEncoding(const size_t rmid, const AET::Counter counter, const bool validBit = false,
+                                             const AET::Sample sample = AET::Total)
+{
+    PCM::RawEventEncoding enc{};
+    enc[PCM::PMTEventPosition::UID] = AET::UID();
+    enc[PCM::PMTEventPosition::offset] = rmid * AET::NumCounters + counter;
+    enc[PCM::PMTEventPosition::type] = validBit ? AET::Total : sample; // the valid bit is always a snapshot
+    enc[PCM::PMTEventPosition::lsb] = validBit ? AET::validBit : AET::valueLSB;
+    enc[PCM::PMTEventPosition::msb] = validBit ? AET::validBit : AET::valueMSB;
+    return enc;
+}
+
+//! \brief returns the name of an AET counter as used in the PMT telemetry database, e.g. "cwf.RMID_0_CORE_ENERGY.RMID_0_CORE_ENERGY_VALID"
+inline std::string AETEventName(const size_t rmid, const AET::Counter counter, const bool validBit = false)
+{
+    const std::string sample = "RMID_" + std::to_string(rmid) + "_" + AET::counterName(counter);
+    return std::string(AET::aggregatorName()) + "." + sample + "." + sample + (validBit ? "_VALID" : "");
+}
+
+/*! \brief returns the number of AET telemetry instances in the system
+
+    There is one AET telemetry instance per compute die (3 per socket on CWF). The
+    instance is the index into the vectors returned by getAETCounter()/getAETMetric().
+
+    \return 0 if AET telemetry is not available
+*/
+inline size_t getAETNumInstances()
+{
+    const auto uid = AET::UID();
+    return (uid == 0) ? 0 : TelemetryArray::numInstances(uid);
+}
+
+//! \brief returns the socket of every AET telemetry instance (-1 for instances with unknown socket)
+inline const std::vector<int32> & getAETInstanceSockets()
+{
+    static const std::vector<int32> sockets = []()
+    {
+        std::vector<int32> result;
+        const auto numInstances = getAETNumInstances();
+        for (size_t instance = 0; instance < numInstances; ++instance)
+        {
+            const auto node = TelemetryArray(AET::UID(), instance).numaNode();
+            result.push_back((node < 0) ? -1 : PCM::getInstance()->mapNUMANodeToSocket((uint32)node));
+        }
+        return result;
+    }();
+    return sockets;
+}
+
+//! \brief returns the socket of an AET telemetry instance (-1 if unknown)
+inline int32 getAETInstanceSocket(const size_t instance)
+{
+    const auto & sockets = getAETInstanceSockets();
+    return (instance < sockets.size()) ? sockets[instance] : -1;
+}
+
+/*! \brief returns the number of RMIDs whose AET counters can be collected on this system
+
+    This is the minimum of the number of RMIDs in the AET telemetry array and the number
+    of RMIDs supported by RDT: the trailing qwords of the telemetry array may hold samples
+    which do not belong to any RMID.
+
+    \return 0 if AET telemetry is not available
+*/
+inline size_t getAETNumRMIDs()
+{
+    if (getAETNumInstances() == 0)
+    {
+        return 0;
+    }
+    const auto inTelemetryArray = TelemetryArray(AET::UID(), 0).numQWords() / AET::NumCounters;
+    return (std::min)((size_t)PCM::getInstance()->getMaxRMID(), inTelemetryArray);
+}
+
+/*! \brief adds the AET events of the given RMIDs to a raw PMU configuration
+
+    Both the accumulated (AET::Total) and the interval (AET::Interval) samples of the
+    counters are added together with their valid bits.
+*/
+inline void addAETEvents(PCM::RawPMUConfigs & configs, const std::vector<size_t> & rmids)
+{
+    auto & pmtConfig = configs["pmt"];
+    for (const auto & rmid : rmids)
+    {
+        for (const auto counter : { AET::CoreEnergy, AET::Activity })
+        {
+            for (const auto sample : { AET::Total, AET::Interval })
+            {
+                pmtConfig.fixed.push_back(PCM::RawEventConfig{ AETEventEncoding(rmid, counter, false, sample),
+                                                               AETEventName(rmid, counter, false) });
+            }
+            pmtConfig.fixed.push_back(PCM::RawEventConfig{ AETEventEncoding(rmid, counter, true),
+                                                           AETEventName(rmid, counter, true) });
+        }
+    }
+}
+
+/*! \brief programs the AET counters of the given RMIDs
+
+    Discards the programming of all other raw (register) events. To collect AET
+    counters together with other raw events call addAETEvents(..) and pass the
+    resulting configuration to PCM::program(..) instead.
+
+    \param rmids RMIDs to collect the AET counters for
+    \param silent suppress informational output
+*/
+inline PCM::ErrorCode programAET(const std::vector<size_t> & rmids, const bool silent = false)
+{
+    if (AET::supported() == false)
+    {
+        std::cerr << "ERROR: AET telemetry is not supported on this processor\n";
+        return PCM::UnknownError;
+    }
+    const auto numRMIDs = getAETNumRMIDs();
+    if (numRMIDs == 0)
+    {
+        std::cerr << "ERROR: AET telemetry (PMT UID 0x" << std::hex << AET::UID() << std::dec << ") is not available on this system\n";
+        return PCM::UnknownError;
+    }
+    for (const auto & rmid : rmids)
+    {
+        if (rmid >= numRMIDs)
+        {
+            std::cerr << "ERROR: RMID " << rmid << " is out of range, AET telemetry supports RMIDs 0.." << (numRMIDs - 1) << "\n";
+            return PCM::UnknownError;
+        }
+    }
+    PCM::RawPMUConfigs configs;
+    addAETEvents(configs, rmids);
+    return PCM::getInstance()->program(configs, silent);
+}
+
+//! \brief value of an AET counter of a single telemetry instance
+struct AETCounterValue
+{
+    uint64 value = 0;
+    bool valid = false;
+};
+
+/*! \brief reads a programmed AET counter of the given RMID
+
+    \return the counter value of every AET telemetry instance in the system
+*/
+inline std::vector<AETCounterValue> getAETCounter(const size_t rmid, const AET::Counter counter,
+                                                  const SystemCounterState & before, const SystemCounterState & after,
+                                                  const AET::Sample sample = AET::Total)
+{
+    const auto values = getPMTEvent(AETEventEncoding(rmid, counter, false, sample), before, after);
+    const auto validEncoding = AETEventEncoding(rmid, counter, true);
+    const auto afterValidBits = getPMTEvent(validEncoding, before, after);
+    const auto beforeValidBits = (sample == AET::Interval) ? getPMTEvent(validEncoding, before, before) : afterValidBits;
+    std::vector<AETCounterValue> result;
+    for (size_t i = 0; i < values.size(); ++i)
+    {
+        const bool valid = i < beforeValidBits.size() && beforeValidBits[i] != 0 &&
+                           i < afterValidBits.size() && afterValidBits[i] != 0;
+        result.push_back(AETCounterValue{ values[i], valid });
+    }
+    return result;
+}
+
+//! \brief metric value of an AET counter of a single telemetry instance
+struct AETMetricValue
+{
+    double value = 0.; //!< core energy in Joule or dynamic capacitance (Cdyn) in nanofarad, see AET::counterUnit()
+    bool valid = false;
+};
+
+/*! \brief reads a programmed AET counter of the given RMID and converts it to its metric
+
+    \return core energy in Joule (AET::CoreEnergy) or dynamic capacitance (Cdyn) in
+    nanofarad (AET::Activity) of every AET telemetry instance (compute die) in the system,
+    indexed as in getAETInstanceSocket()
+*/
+inline std::vector<AETMetricValue> getAETMetric(const size_t rmid, const AET::Counter counter,
+                                                const SystemCounterState & before, const SystemCounterState & after,
+                                                const AET::Sample sample = AET::Total)
+{
+    std::vector<AETMetricValue> result;
+    for (const auto & counterValue : getAETCounter(rmid, counter, before, after, sample))
+    {
+        result.push_back(AETMetricValue{ AET::toMetric(counterValue.value), counterValue.valid });
+    }
+    return result;
+}
+
+/*! \brief reads a programmed AET counter of the given RMID on the given socket and converts it to its metric
+
+    RDT associates the cores of a socket with different RMIDs while the AET telemetry is
+    reported per compute die (3 per socket on CWF): the metric of an RMID on a socket is
+    therefore the sum of the valid values of the compute dies of that socket.
+
+    Note that the per-RMID core energy metric is not comparable to the package/CPU
+    energy of MSR_PKG_ENERGY_STATUS, also not when summed up over the RMIDs.
+
+    \return core energy in Joule (AET::CoreEnergy) or dynamic capacitance (Cdyn) in
+    nanofarad (AET::Activity), invalid if no compute die of the socket reports the RMID
+*/
+inline AETMetricValue getAETMetric(const size_t rmid, const AET::Counter counter, const int32 socket,
+                                   const SystemCounterState & before, const SystemCounterState & after,
+                                   const AET::Sample sample = AET::Total)
+{
+    AETMetricValue result{};
+    const auto perInstance = getAETMetric(rmid, counter, before, after, sample);
+    for (size_t instance = 0; instance < perInstance.size(); ++instance)
+    {
+        if (perInstance[instance].valid && getAETInstanceSocket(instance) == socket)
+        {
+            result.value += perInstance[instance].value;
+            result.valid = true;
+        }
+    }
+    return result;
+}
+
+//! \brief reads the core energy in Joule of the given RMID (one value per AET telemetry instance)
+inline std::vector<AETMetricValue> getAETCoreEnergyJoule(const size_t rmid, const SystemCounterState & before, const SystemCounterState & after,
+                                                         const AET::Sample sample = AET::Total)
+{
+    return getAETMetric(rmid, AET::CoreEnergy, before, after, sample);
+}
+
+//! \brief reads the core energy in Joule of the given RMID on the given socket
+inline AETMetricValue getAETCoreEnergyJoule(const size_t rmid, const int32 socket, const SystemCounterState & before, const SystemCounterState & after,
+                                            const AET::Sample sample = AET::Total)
+{
+    return getAETMetric(rmid, AET::CoreEnergy, socket, before, after, sample);
+}
+
+//! \brief reads the dynamic capacitance (Cdyn) in nanofarad of the given RMID (one value per AET telemetry instance)
+inline std::vector<AETMetricValue> getAETActivityNanoFarad(const size_t rmid, const SystemCounterState & before, const SystemCounterState & after,
+                                                           const AET::Sample sample = AET::Total)
+{
+    return getAETMetric(rmid, AET::Activity, before, after, sample);
+}
+
+//! \brief reads the dynamic capacitance (Cdyn) in nanofarad of the given RMID on the given socket
+inline AETMetricValue getAETActivityNanoFarad(const size_t rmid, const int32 socket, const SystemCounterState & before, const SystemCounterState & after,
+                                              const AET::Sample sample = AET::Total)
+{
+    return getAETMetric(rmid, AET::Activity, socket, before, after, sample);
 }
 
 template <class CounterStateType>

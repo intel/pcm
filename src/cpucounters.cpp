@@ -27,6 +27,7 @@
 #include "types.h"
 #include "utils.h"
 #include "topology.h"
+#include "cputopology.h"
 
 #if defined (__FreeBSD__) || defined(__DragonFly__)
 #include <sys/param.h>
@@ -208,28 +209,6 @@ int32 extractThermalHeadroom(uint64 val)
 
 
 uint64 get_frequency_from_cpuid();
-
-
-
-#if defined(__FreeBSD__) || defined(__DragonFly__)
-void pcm_cpuid_bsd(int leaf, PCM_CPUID_INFO& info, int core)
-{
-    cpuctl_cpuid_args_t cpuid_args_freebsd;
-    char cpuctl_name[64];
-
-    snprintf(cpuctl_name, 64, "/dev/cpuctl%d", core);
-    auto fd = ::open(cpuctl_name, O_RDWR);
-
-    cpuid_args_freebsd.level = leaf;
-
-    ::ioctl(fd, CPUCTL_CPUID, &cpuid_args_freebsd);
-    for (int i = 0; i < 4; ++i)
-    {
-        info.array[i] = cpuid_args_freebsd.data[i];
-    }
-    ::close(fd);
-}
-#endif
 
 #ifdef __linux__
 bool isNMIWatchdogEnabled(const bool silent);
@@ -608,8 +587,41 @@ unsigned PCM::getMaxRMID() const
     return maxRMID;
 }
 
+//! \brief asks the watchdog threads of all CounterWidthExtender instances in a container to finish
+//! \details Only call it for containers holding the last reference to the instances.
+template <class Container>
+inline void requestStopCounterWidthExtenders(Container & c)
+{
+    for (auto & counter : c)
+    {
+        if (counter.get())
+        {
+            counter->requestStopUpdateThread();
+        }
+    }
+}
+
+//! \brief waits until the watchdog threads of all CounterWidthExtender instances in a container have exited
+//! \details Call requestStopCounterWidthExtenders(..) on all involved containers first, so that the
+//! watchdog threads wake up and exit concurrently instead of paying the wake-up latency for every
+//! single thread. After this function returns none of the watchdog threads accesses its raw counter
+//! (e.g. the RMID MSRs of MBL/MBT counters) anymore.
+template <class Container>
+inline void joinCounterWidthExtenders(Container & c)
+{
+    for (auto & counter : c)
+    {
+        if (counter.get())
+        {
+            counter->stopAndJoinUpdateThread();
+        }
+    }
+}
+
 void PCM::initRDT()
 {
+    if (RDTInitialized)
+        return;
     if (!(QOSMetricAvailable() && L3QOSMetricAvailable()))
         return;
 #ifdef __linux__
@@ -620,8 +632,11 @@ void PCM::initRDT()
         {
             std::cerr << "INFO: using Linux resctrl driver for RDT metrics (L3OCC, LMB, RMB) because environment variable PCM_USE_RESCTRL=1\n";
         }
-        resctrl.init();
-        useResctrl = true;
+        if (resctrl.init())
+        {
+            useResctrl = true;
+            RDTInitialized = true;
+        }
         return;
     }
     if (resctrl.isMounted())
@@ -630,8 +645,11 @@ void PCM::initRDT()
         {
             std::cerr << "INFO: using Linux resctrl driver for RDT metrics (L3OCC, LMB, RMB) because resctrl driver is mounted.\n";
         }
-        resctrl.init();
-        useResctrl = true;
+        if (resctrl.init())
+        {
+            useResctrl = true;
+            RDTInitialized = true;
+        }
         return;
     }
     if (isSecureBoot())
@@ -640,11 +658,19 @@ void PCM::initRDT()
         {
             std::cerr << "INFO: using Linux resctrl driver for RDT metrics (L3OCC, LMB, RMB) because Secure Boot mode is enabled.\n";
         }
-        resctrl.init();
-        useResctrl = true;
+        if (resctrl.init())
+        {
+            useResctrl = true;
+            RDTInitialized = true;
+        }
         return;
     }
 #endif
+    if (MSR.empty() || noMSRMode())
+    {
+        std::cerr << "ERROR: cannot initialize RDT metrics via MSR programming because MSR access is not available.\n";
+        return;
+    }
     if (!quietMode)
     {
         std::cerr << "Initializing RMIDs" << std::endl;
@@ -653,20 +679,37 @@ void PCM::initRDT()
     /* Calculate maximum number of RMID supported by socket */
     maxRMID = getMaxRMID();
     DBG(2, "Maximum RMIDs per socket in the system : " , maxRMID );
-    std::vector<uint32> rmid(num_sockets);
-    for(int32 i = 0; i < num_sockets; i ++)
-            rmid[i] = maxRMID - 1;
+    /* Next RMID to be assigned on each socket: allocate RMIDs starting from 1.
+       RMID 0 is skipped because it is the default RMID (resctrl root group) and
+       therefore may be used by other software at the same time. */
+    std::vector<uint32> rmid(num_sockets, firstUsableRMID);
+
+    coreRMIDs.clear();
+    coreRMIDs.resize(num_cores, invalidRMID);
 
     /* Associate each core with 1 RMID */
-    for(int32 core = 0; core < num_cores; core ++ )
+    bool success = true;
+    int32 lastProgrammedCore = -1;
+    for(int32 core = 0; core < num_cores && success; core ++ )
     {
         if(!isCoreOnline(core)) continue;
+
+        if (rmid[topology[core].socket_id] >= maxRMID)
+        {
+            std::cerr << "ERROR: number of cores on socket " << topology[core].socket_id <<
+                " exceeds the number of usable RMIDs of the socket (" << (maxRMID - firstUsableRMID) << ").\n";
+            success = false;
+            break;
+        }
 
         uint64 msr_pqr_assoc = 0 ;
         uint64 msr_qm_evtsel = 0 ;
                 MSR[core]->lock();
         //Read 0xC8F MSR for each core
-        MSR[core]->read(IA32_PQR_ASSOC, &msr_pqr_assoc);
+        if (MSR[core]->read(IA32_PQR_ASSOC, &msr_pqr_assoc) != (int32)sizeof(uint64))
+        {
+            success = false;
+        }
         DBG(3, "initRMID reading IA32_PQR_ASSOC 0x" , std::hex , msr_pqr_assoc , std::dec);
 
         DBG(3, "Socket Id : " , topology[core].socket_id);
@@ -674,14 +717,30 @@ void PCM::initRDT()
         msr_pqr_assoc |= (uint64)(rmid[topology[core].socket_id] & ((1ULL<<10)-1ULL));
         DBG(3, "initRMID writing IA32_PQR_ASSOC 0x" , std::hex , msr_pqr_assoc , std::dec);
         //Write 0xC8F MSR with new RMID for each core
-        MSR[core]->write(IA32_PQR_ASSOC,msr_pqr_assoc);
+        if (success && MSR[core]->write(IA32_PQR_ASSOC,msr_pqr_assoc) != (int32)sizeof(uint64))
+        {
+            success = false;
+        }
+        if (success)
+        {
+            lastProgrammedCore = core;
+            coreRMIDs[core] = rmid[topology[core].socket_id];
+        }
 
         msr_qm_evtsel = static_cast<uint64>(rmid[topology[core].socket_id] & ((1ULL<<10)-1ULL));
         msr_qm_evtsel <<= 32;
         //Write 0xC8D MSR with new RMID for each core
         DBG(3, "initRMID writing IA32_QM_EVTSEL 0x" , std::hex , msr_qm_evtsel , std::dec);
-        MSR[core]->write(IA32_QM_EVTSEL,msr_qm_evtsel);
+        if (success && MSR[core]->write(IA32_QM_EVTSEL,msr_qm_evtsel) != (int32)sizeof(uint64))
+        {
+            success = false;
+        }
                 MSR[core]->unlock();
+
+        if (!success)
+        {
+            break;
+        }
 
         /* Initializing the memory bandwidth counters */
         if (CoreLocalMemoryBWMetricAvailable())
@@ -692,10 +751,38 @@ void PCM::initRDT()
                 memory_bw_total.push_back(std::make_shared<CounterWidthExtender>(new CounterWidthExtender::MBTCounter(MSR[core]), 24, 1000));
             }
         }
-        rmid[topology[core].socket_id] --;
+        rmid[topology[core].socket_id] ++;
+    }
+    if (!success)
+    {
+        std::cerr << "ERROR: failed to program RMIDs via MSR access. RDT metrics will not be available.\n";
+        /* stop the watchdog threads and wait for them to exit before undoing the programming:
+           a watchdog thread that already passed its stop check could otherwise reprogram
+           IA32_QM_EVTSEL after the rollback writes below */
+        requestStopCounterWidthExtenders(memory_bw_local);
+        requestStopCounterWidthExtenders(memory_bw_total);
+        joinCounterWidthExtenders(memory_bw_local);
+        joinCounterWidthExtenders(memory_bw_total);
+        /* Undo any completed RMID programming (reset to RMID 0 and event 0 as in cleanupRDT) */
+        for(int32 core = 0; core <= lastProgrammedCore; core ++ )
+        {
+            if(!isCoreOnline(core)) continue;
+            uint64 msr_pqr_assoc = 0;
+            MSR[core]->lock();
+            MSR[core]->read(IA32_PQR_ASSOC, &msr_pqr_assoc);
+            msr_pqr_assoc &= 0xffffffff00000000ULL;
+            MSR[core]->write(IA32_PQR_ASSOC, msr_pqr_assoc);
+            MSR[core]->write(IA32_QM_EVTSEL, 0ULL);
+            MSR[core]->unlock();
+        }
+        memory_bw_local.clear();
+        memory_bw_total.clear();
+        coreRMIDs.clear();
+        return;
     }
     /* Get The scaling factor by running CPUID.0xF.0x1 instruction */
     L3ScalingFactor = getL3ScalingFactor();
+    RDTInitialized = true;
 }
 
 void PCM::initQOSevent(const uint64 event, const int32 core)
@@ -735,12 +822,6 @@ void PCM::initCStateSupportTables()
         case APOLLO_LAKE:
         case GEMINI_LAKE:
         case DENVERTON:
-        case ADL:
-        case RPL:
-        case MTL:
-        case LNL:
-        case ARL:
-        case PTL:
         case SNOWRIDGE:
         case ELKHART_LAKE:
         case JASPER_LAKE:
@@ -778,6 +859,12 @@ void PCM::initCStateSupportTables()
         case BROADWELL:
         PCM_SKL_PATH_CASES
         case BROADWELL_XEON_E3:
+        case ADL:
+        case RPL:
+        case MTL:
+        case LNL:
+        case ARL:
+        case PTL:
             PCM_CSTATE_ARRAY(pkgCStateMsr, PCM_PARAM_PROTECT({0, 0, 0x60D, 0x3F8, 0, 0, 0x3F9, 0x3FA, 0x630, 0x631, 0x632}) );
 
         default:
@@ -1118,324 +1205,19 @@ bool PCM::discoverSystemTopology()
     typedef std::map<uint32, uint32> socketIdMap_type;
     socketIdMap_type socketIdMap;
 
-    PCM_CPUID_INFO cpuid_args;
-    uint32 smtMaskWidth = 0;
-    uint32 coreMaskWidth = 0;
-    uint32 l2CacheMaskShift = 0;
-    uint32 l3CacheMaskShift = 0;
-
-    struct domain
-    {
-        TopologyEntry::DomainTypeID type = TopologyEntry::DomainTypeID::InvalidDomainTypeID;
-        unsigned levelShift = 0, nextLevelShift = 0, width = 0;
-    };
-    std::unordered_map<int, domain> topologyDomainMap;
-    {
-        const int32 maxTopoDomainAff = 1<<16;
-        int32 topoDomainAff = -1;
-
-        for (int32 core = 0; core < maxTopoDomainAff; ++core)
-        {
-            try {
-                TemporalThreadAffinity _(core);
-                topoDomainAff = core;
-            }
-            catch (...)
-            {
-            }
-            if (topoDomainAff != -1) break;
-        }
-
-        TemporalThreadAffinity _(topoDomainAff);
-
-        if (initCoreMasks(smtMaskWidth, coreMaskWidth, l2CacheMaskShift, l3CacheMaskShift) == false)
-        {
-            std::cerr << "ERROR: Major problem? No leaf 0 under cpuid function 11.\n";
-            return false;
-        }
-
-        int subleaf = 0;
-
-        std::vector<domain> topologyDomains;
-        if (max_cpuid >= 0x1F)
-        {
-            subleaf = 0;
-            do
-            {
-                pcm_cpuid(0x1F, subleaf, cpuid_args);
-                domain d;
-                d.type = (TopologyEntry::DomainTypeID)extract_bits_32(cpuid_args.reg.ecx, 8, 15);
-               DBG(1 , "pcm_cpuid 0x1F cpuid_args.reg.ecx = " , cpuid_args.reg.ecx , " d.type = ", d.type);
-                if (d.type == TopologyEntry::DomainTypeID::InvalidDomainTypeID)
-                {
-                    break;
-                }
-                d.nextLevelShift = extract_bits_32(cpuid_args.reg.eax, 0, 4);
-                d.levelShift = topologyDomains.empty() ? 0 : topologyDomains.back().nextLevelShift;
-                d.width = d.nextLevelShift - d.levelShift;
-                topologyDomains.push_back(d);
-                ++subleaf;
-            } while (true);
-
-            if (topologyDomains.size())
-            {
-                domain d;
-                d.type = TopologyEntry::DomainTypeID::SocketPackageDomain;
-                d.levelShift = topologyDomains.back().nextLevelShift;
-                d.nextLevelShift = 32;
-                d.width = d.nextLevelShift - d.levelShift;
-                topologyDomains.push_back(d);
-            }
-            for (size_t l = 0; l < topologyDomains.size(); ++l)
-            {
-                topologyDomainMap[topologyDomains[l].type] = topologyDomains[l];
-                DBG(1 , "Topology level: " , l ,
-                                      " type: " , topologyDomains[l].type ,
-                                      " (" , TopologyEntry::getDomainTypeStr(topologyDomains[l].type) , ")" ,
-                                      " width: " , topologyDomains[l].width ,
-                                      " levelShift: " , topologyDomains[l].levelShift ,
-                                      " nextLevelShift: " , topologyDomains[l].nextLevelShift);
-            }
-        }
+    try {
+        CPUTopology cpuTopology(max_cpuid, hybrid);
+        topology = std::move(cpuTopology.topology);
+        num_cores = cpuTopology.num_cores;
+        num_online_cores = cpuTopology.num_online_cores;
+        socketIdMap = std::move(cpuTopology.socketIdMap);
     }
-
-    auto populateEntry = [&topologyDomainMap,&smtMaskWidth, &coreMaskWidth, &l2CacheMaskShift, &l3CacheMaskShift](TopologyEntry& entry)
+    catch (std::exception & e)
     {
-        auto getAPICID = [&](const uint32 leaf)
-        {
-            PCM_CPUID_INFO cpuid_args;
-#if defined(__FreeBSD__) || defined(__DragonFly__)
-            pcm_cpuid_bsd(leaf, cpuid_args, entry.os_id);
-#else
-            pcm_cpuid(leaf, 0x0, cpuid_args);
-#endif
-            return cpuid_args.array[3];
-        };
-        if (topologyDomainMap.size())
-        {
-            auto getID = [&topologyDomainMap](const int apic_id, const TopologyEntry::DomainTypeID t)
-            {
-                const auto di = topologyDomainMap.find(t);
-                if (di != topologyDomainMap.end())
-                {
-                    const auto & d = di->second;
-                    return extract_bits_32(apic_id, d.levelShift, d.nextLevelShift - 1);
-                }
-                return 0U;
-            };
-            entry.tile_id = extract_bits_32(getAPICID(0xb), l2CacheMaskShift, 31);
-            const int apic_id = getAPICID(0x1F);
-            entry.thread_id = getID(apic_id, TopologyEntry::DomainTypeID::LogicalProcessorDomain);
-            entry.core_id = getID(apic_id, TopologyEntry::DomainTypeID::CoreDomain);
-            entry.module_id = getID(apic_id, TopologyEntry::DomainTypeID::ModuleDomain);
-            if (entry.tile_id == 0)
-            {
-                entry.tile_id = getID(apic_id, TopologyEntry::DomainTypeID::TileDomain);
-            }
-            entry.die_id = getID(apic_id, TopologyEntry::DomainTypeID::DieDomain);
-            entry.die_grp_id = getID(apic_id, TopologyEntry::DomainTypeID::DieGrpDomain);
-            entry.socket_id = getID(apic_id, TopologyEntry::DomainTypeID::SocketPackageDomain);
-
-            auto getDomain = [&topologyDomainMap](const TopologyEntry::DomainTypeID t)
-            {
-                auto di = topologyDomainMap.find(t);
-                if (di != topologyDomainMap.end())
-                {
-                    return di->second;
-                }
-                throw std::runtime_error("DomainType not found");
-            };
-            domain d1 = getDomain( TopologyEntry::DomainTypeID::CoreDomain );
-            domain d2 = getDomain( TopologyEntry::DomainTypeID::SocketPackageDomain );
-            entry.socket_unique_core_id = extract_bits_32( apic_id, d1.levelShift, d2.levelShift - 1 );
-        }
-        else
-        {
-            fillEntry(entry, smtMaskWidth, coreMaskWidth, l2CacheMaskShift, getAPICID(0xb));
-        }
-        entry.l3_cache_id = extract_bits_32(getAPICID(0xb), l3CacheMaskShift, 31);
-    };
-
-    auto populateHybridEntry = [this](TopologyEntry& entry, int core) -> bool
-    {
-        if (hybrid == false) return true;
-        PCM_CPUID_INFO cpuid_args;
-#if defined(__FreeBSD__) || defined(__DragonFly__)
-        pcm_cpuid_bsd(0x1a, cpuid_args, core);
-#elif defined (_MSC_VER) || defined(__linux__)
-        pcm_cpuid(0x1a, 0x0, cpuid_args);
-        (void)core;
-#else
-        std::cerr << "PCM Error: Hybrid processors are not supported for your OS\n";
-        (void)core;
-        return false;
-#endif
-        entry.native_cpu_model = extract_bits_32(cpuid_args.reg.eax, 0, 23);
-        entry.core_type = (TopologyEntry::CoreType) extract_bits_32(cpuid_args.reg.eax, 24, 31);
-        return true;
-    };
-
-#ifdef _MSC_VER
-// version for Windows 7 and later version
-
-    char * slpi = new char[sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)];
-    DWORD len = (DWORD)sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX);
-    BOOL res = GetLogicalProcessorInformationEx(RelationAll, (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)slpi, &len);
-
-    while (res == FALSE)
-    {
-        deleteAndNullifyArray(slpi);
-
-        if (GetLastError() == ERROR_INSUFFICIENT_BUFFER)
-        {
-            slpi = new char[len];
-            res = GetLogicalProcessorInformationEx(RelationAll, (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)slpi, &len);
-        }
-        else
-        {
-            tcerr << "Error in Windows function 'GetLogicalProcessorInformationEx': " <<
-                GetLastError() << " ";
-            const TCHAR * strError = _com_error(GetLastError()).ErrorMessage();
-            if (strError) tcerr << strError;
-            tcerr << "\n";
-            return false;
-        }
-    }
-
-    char * base_slpi = slpi;
-    PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX pi = NULL;
-
-    for ( ; slpi < base_slpi + len; slpi += (DWORD)pi->Size)
-    {
-        pi = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)slpi;
-        if (pi->Relationship == RelationProcessorCore)
-        {
-            const auto current_threads_per_core = (pi->Processor.Flags == LTP_PC_SMT) ? 2 : 1;
-            DBG(3, "thr per core: " , current_threads_per_core );
-            num_cores += current_threads_per_core;
-        }
-    }
-
-    num_online_cores = num_cores;
-
-    if (num_cores != GetActiveProcessorCount(ALL_PROCESSOR_GROUPS))
-    {
-        std::cerr << "Error in processor group size counting: " << num_cores << "!=" << GetActiveProcessorCount(ALL_PROCESSOR_GROUPS) << "\n";
-        std::cerr << "Make sure your binary is compiled for 64-bit: using 'x64' platform configuration.\n";
+        std::cerr << "ERROR: " << e.what() << "\n";
         return false;
     }
 
-    for (int i = 0; i < (int)num_cores; i++)
-    {
-        ThreadGroupTempAffinity affinity(i);
-
-        TopologyEntry entry;
-        entry.os_id = i;
-
-        populateEntry(entry);
-        if (populateHybridEntry(entry, i) == false)
-        {
-            return false;
-        }
-
-        topology.push_back(entry);
-        socketIdMap[entry.socket_id] = 0;
-    }
-
-    deleteAndNullifyArray(base_slpi);
-
-#else
-    // for Linux, FreeBSD and DragonFlyBSD
-
-    TopologyEntry entry;
-
-#ifdef __linux__
-    num_cores = readMaxFromSysFS("/sys/devices/system/cpu/present");
-    if(num_cores == -1)
-    {
-      std::cerr << "Cannot read number of present cores\n";
-      return false;
-    }
-    ++num_cores;
-
-    // open /proc/cpuinfo
-    FILE * f_cpuinfo = fopen("/proc/cpuinfo", "r");
-    if (!f_cpuinfo)
-    {
-        std::cerr << "Cannot open /proc/cpuinfo file.\n";
-        return false;
-    }
-
-    // map with key=pkg_apic_id (not necessarily zero based or sequential) and
-    // associated value=socket_id that should be 0 based and sequential
-    std::map<int, int> found_pkg_ids;
-    topology.resize(num_cores);
-    char buffer[1024];
-    while (0 != fgets(buffer, 1024, f_cpuinfo))
-    {
-        if (strncmp(buffer, "processor", sizeof("processor") - 1) == 0)
-        {
-            pcm_sscanf(buffer) >> s_expect("processor\t: ") >> entry.os_id;
-            DBG(3, "os_core_id: " , entry.os_id );
-            try {
-                TemporalThreadAffinity _(entry.os_id);
-
-                populateEntry(entry);
-                if (populateHybridEntry(entry, entry.os_id) == false)
-                {
-                    return false;
-                }
-
-                topology[entry.os_id] = entry;
-                socketIdMap[entry.socket_id] = 0;
-                ++num_online_cores;
-            }
-            catch (std::exception &)
-            {
-                std::cerr << "Marking core " << entry.os_id << " offline\n";
-            }
-        }
-    }
-    fclose(f_cpuinfo);
-
-#elif defined(__FreeBSD__) || defined(__DragonFly__)
-
-    size_t size = sizeof(num_cores);
-
-    if(0 != sysctlbyname("hw.ncpu", &num_cores, &size, NULL, 0))
-    {
-        std::cerr << "Unable to get hw.ncpu from sysctl.\n";
-        return false;
-    }
-    num_online_cores = num_cores;
-
-    if (modfind("cpuctl") == -1)
-    {
-        std::cerr << "cpuctl(4) not loaded.\n";
-        return false;
-    }
-
-    for (int i = 0; i < num_cores; i++)
-    {
-        entry.os_id = i;
-
-        populateEntry(entry);
-        if (populateHybridEntry(entry, i) == false)
-        {
-            return false;
-        }
-
-        topology.push_back(entry);
-        socketIdMap[entry.socket_id] = 0;
-    }
-
-#endif
-
-#endif //end of ifdef _MSC_VER
-
-    if(num_cores == 0) {
-        num_cores = (int32)topology.size();
-    }
     if(num_sockets == 0) {
         num_sockets = (int32)(std::max)(socketIdMap.size(), (size_t)1);
         DBG(1, " num_sockets = ", num_sockets);
@@ -3549,8 +3331,6 @@ PCM::PCM() :
 
     initUncoreObjects();
 
-    initRDT();
-
     readCPUMicrocodeLevel();
 
 #ifdef PCM_USE_PERF
@@ -5594,6 +5374,9 @@ void PCM::resetPMU()
 }
 void PCM::cleanupRDT(const bool silent)
 {
+    if (!RDTInitialized) {
+        return;
+    }
     if(!(QOSMetricAvailable() && L3QOSMetricAvailable())) {
         return;
     }
@@ -5601,9 +5384,24 @@ void PCM::cleanupRDT(const bool silent)
     if (useResctrl)
     {
         resctrl.cleanup();
+        useResctrl = false;
+        RDTInitialized = false;
         return;
     }
 #endif
+    if (MSR.empty() || noMSRMode())
+    {
+        return;
+    }
+
+    // stop the watchdog threads of the memory bandwidth counters and wait for them to exit
+    // before touching the RMID MSRs: a watchdog thread that already passed its stop check
+    // could otherwise reprogram IA32_QM_EVTSEL after the cleanup writes below.
+    // Requesting the stop of all threads first lets them wake up and exit concurrently.
+    requestStopCounterWidthExtenders(memory_bw_local);
+    requestStopCounterWidthExtenders(memory_bw_total);
+    joinCounterWidthExtenders(memory_bw_local);
+    joinCounterWidthExtenders(memory_bw_total);
 
     for(int32 core = 0; core < num_cores; core ++ )
     {
@@ -5629,6 +5427,10 @@ void PCM::cleanupRDT(const bool silent)
 
     }
 
+    memory_bw_local.clear();
+    memory_bw_total.clear();
+    coreRMIDs.clear();
+    RDTInitialized = false;
 
     if (!silent) std::cerr << " Freeing up all RMIDs\n";
 }
@@ -5672,6 +5474,8 @@ void PCM::restoreOutput()
 
 void PCM::cleanup(const bool silent)
 {
+    cleanupRDT(silent);
+
     if (MSR.empty()) return;
 
     if (!silent) std::cerr << "Cleaning up\n";
@@ -5681,7 +5485,6 @@ void PCM::cleanup(const bool silent)
     disableForceRTMAbortMode(silent);
 
     cleanupUncorePMUs(silent);
-    cleanupRDT(silent);
 #ifdef __linux__
     if (needToRestoreNMIWatchdog)
     {
@@ -6018,7 +5821,7 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
     }
 
     DBG(3, msr->getCoreId() , " " , cInstRetiredAny);
-    if (m->L3CacheOccupancyMetricAvailable() && m->useResctrl == false)
+    if (m->isRDTInitialized() && m->L3CacheOccupancyMetricAvailable() && m->useResctrl == false)
     {
         msr->lock();
         uint64 event = 1;
@@ -6046,6 +5849,31 @@ void BasicCounterState::readAndAggregate(std::shared_ptr<SafeMsrHandle> msr)
     // reading temperature
     msr->read(MSR_IA32_THERM_STATUS, &thermStatus);
     MSRValues[MSR_IA32_THERM_STATUS] = thermStatus;
+
+    // reading the current performance state value (RATIO) and the operating voltage (VOLTAGE)
+    if (m->isPerfStatusCollectionEnabled())
+    {
+        uint64 cPerfStatus = 0;
+        if (msr->read(MSR_IA32_PERF_STATUS, &cPerfStatus) == sizeof(uint64))
+        {
+            MSRValues[MSR_IA32_PERF_STATUS] = cPerfStatus;
+            // IA32_PERF_STATUS is not architectural: a platform may leave one of the fields reserved
+            // (reading as 0). Neither the ratio nor the voltage of a running core can be 0, therefore
+            // each field is accounted for only if it is populated.
+            const auto cRatio = extract_bits(cPerfStatus, MSR_IA32_PERF_STATUS_RATIO_FIRST_BIT, MSR_IA32_PERF_STATUS_RATIO_LAST_BIT);
+            if (cRatio != 0)
+            {
+                PerfStatusRatioSum += cRatio;
+                ++PerfStatusRatioCores;
+            }
+            const auto cVoltage = extract_bits(cPerfStatus, MSR_IA32_PERF_STATUS_VOLTAGE_FIRST_BIT, MSR_IA32_PERF_STATUS_VOLTAGE_LAST_BIT);
+            if (cVoltage != 0)
+            {
+                PerfStatusVoltageSum += cVoltage;
+                ++PerfStatusVoltageCores;
+            }
+        }
+    }
 
     msr->read(MSR_SMI_COUNT, &cSMICount);
     MSRValues[MSR_SMI_COUNT] = cSMICount;
@@ -8156,7 +7984,7 @@ void PCM::getPCICFGPMUsFromDiscovery(const unsigned int BoxType, const size_t s,
                 {
                     std::vector<std::shared_ptr<HWRegister> > CounterControlRegs, CounterValueRegs;
                     const auto n_regs = uncorePMUDiscovery->getBoxNumRegs(BoxType, s, die, pos);
-                    auto makeRegister = [&pos, &numBoxes, &BoxType, &s](const uint64 rawAddr)
+                    auto makeRegister = [](const uint64 rawAddr)
                     {
                         UncorePMUDiscovery::PCICFGAddress Addr;
                         Addr.raw = rawAddr;
@@ -11557,9 +11385,21 @@ CounterWidthExtender::CounterWidthExtender(AbstractRawCounter * raw_counter_, ui
     try {
         UpdateThread = new std::thread(
             [&]() {
-            while (1)
+            // sleep in short slices so that the destructor can join this thread promptly
+            constexpr int sleepSliceMs = 50;
+            while (this->stopUpdateThread.load(std::memory_order_relaxed) == false)
             {
-                MySleepMs(static_cast<int>(this->watchdog_delay_ms));
+                for (int slept = 0; slept < static_cast<int>(this->watchdog_delay_ms)
+                                    && this->stopUpdateThread.load(std::memory_order_relaxed) == false;
+                     slept += sleepSliceMs)
+                {
+                    const int remaining = static_cast<int>(this->watchdog_delay_ms) - slept;
+                    MySleepMs(remaining < sleepSliceMs ? remaining : sleepSliceMs);
+                }
+                if (this->stopUpdateThread.load(std::memory_order_relaxed))
+                {
+                    break;
+                }
                 try {
                     /* uint64 dummy = */ this->read();
                 }
@@ -11579,8 +11419,27 @@ CounterWidthExtender::CounterWidthExtender(AbstractRawCounter * raw_counter_, ui
         throw; // re-throw
     }
 }
+void CounterWidthExtender::stopAndJoinUpdateThread()
+{
+    requestStopUpdateThread();
+    if (UpdateThread != nullptr && UpdateThread->joinable())
+    {
+        try {
+            UpdateThread->join();
+        }
+        catch (const std::exception & e)
+        {
+            std::cerr << "PCM Error: caught exception " << e.what() << " while joining the CounterWidthExtender watchdog thread\n";
+        }
+    }
+}
+
 CounterWidthExtender::~CounterWidthExtender()
 {
+    // the watchdog thread accesses raw_counter, therefore it must be stopped and
+    // joined before the counter is destroyed. Destroying a still joinable
+    // std::thread would also call std::terminate().
+    stopAndJoinUpdateThread();
     deleteAndNullify(UpdateThread);
     deleteAndNullify(raw_counter);
 }

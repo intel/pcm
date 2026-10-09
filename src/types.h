@@ -1476,6 +1476,32 @@ constexpr auto MSR_IA32_THERM_STATUS = 0x019C;
 constexpr auto PCM_INVALID_THERMAL_HEADROOM = (std::numeric_limits<int32_t>::min)();
 #endif
 
+constexpr auto MSR_IA32_PERF_STATUS = 0x0198;
+// RATIO: current performance state value (bus clock multiplier)
+constexpr auto MSR_IA32_PERF_STATUS_RATIO_FIRST_BIT = 8;
+constexpr auto MSR_IA32_PERF_STATUS_RATIO_LAST_BIT = 15;
+// VOLTAGE: current operating voltage in 3.13 fixed point format, i.e. voltage in Volt = VOLTAGE / 2^13
+constexpr auto MSR_IA32_PERF_STATUS_VOLTAGE_FIRST_BIT = 32;
+constexpr auto MSR_IA32_PERF_STATUS_VOLTAGE_LAST_BIT = 47;
+constexpr auto MSR_IA32_PERF_STATUS_VOLTAGE_FRACTION_BITS = 13;
+#ifndef KERNEL
+// returned by the IA32_PERF_STATUS getters if the metric is not available: both metrics are positive
+// on a running core, therefore a negative value can not be mistaken for a measurement
+constexpr auto PCM_INVALID_PERF_STATUS_METRIC = -1.;
+#endif
+
+// UFS_STATUS register of the Uncore Frequency Scaling (UFS) TPMI interface, see PCM::UFS_TPMI
+constexpr auto UFS_STATUS_CURRENT_RATIO_FIRST_BIT = 0;
+constexpr auto UFS_STATUS_CURRENT_RATIO_LAST_BIT = 6;
+// CURRENT_VOLTAGE: current fabric voltage in U3.13 format, i.e. voltage in Volt = CURRENT_VOLTAGE / 2^13
+constexpr auto UFS_STATUS_CURRENT_VOLTAGE_FIRST_BIT = 7;
+constexpr auto UFS_STATUS_CURRENT_VOLTAGE_LAST_BIT = 22;
+constexpr auto UFS_STATUS_CURRENT_VOLTAGE_FRACTION_BITS = 13;
+// THROTTLE_COUNTER: number of 1ms intervals in which the fabric frequency violated the bound
+// programmed in UFS_CONTROL. Incremented at most once per 1ms interval.
+constexpr auto UFS_STATUS_THROTTLE_COUNTER_FIRST_BIT = 32;
+constexpr auto UFS_STATUS_THROTTLE_COUNTER_LAST_BIT = 63;
+
 constexpr auto MSR_IA32_BIOS_SIGN_ID = 0x8B;
 
 constexpr auto MSR_DRAM_ENERGY_STATUS = 0x0619;

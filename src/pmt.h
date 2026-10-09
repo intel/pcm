@@ -19,6 +19,11 @@ public:
     }
     virtual void load() = 0;
     virtual uint64 get(size_t qWordOffset, size_t lsb, size_t msb) = 0;
+    //! \brief NUMA node of the device exposing the telemetry instance (-1 if unknown)
+    virtual int32 numaNode()
+    {
+        return -1;
+    }
     virtual ~TelemetryArrayInterface() {};
 };
 
@@ -34,6 +39,7 @@ public:
     size_t size() override; // in bytes
     void load() override;
     uint64 get(size_t qWordOffset, size_t lsb, size_t msb) override;
+    int32 numaNode() override;
 };
 
 class TelemetryDB

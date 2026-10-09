@@ -97,6 +97,7 @@ namespace PCMDaemon {
     void Daemon::setupPCM()
     {
         pcmInstance_ = PCM::getInstance();
+        pcmInstance_->initRDT(); // the daemon exposes RDT-based metrics (L3OCC, LMB, RMB): initialize RDT on demand
         pcmInstance_->setBlocked(false);
         set_signal_handlers();
         set_post_cleanup_callback(&Daemon::cleanup);

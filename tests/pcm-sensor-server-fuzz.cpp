@@ -7,6 +7,9 @@
 #include <cstring>
 #include <netdb.h>
 #include <netinet/tcp.h>
+#include <poll.h>
+#include <cerrno>
+#include <chrono>
 
 #define UNIT_TEST 1
 
@@ -17,17 +20,9 @@
 int port = 0;
 
 bool waitForPort(int port, int timeoutSeconds) {
-    int sockfd;
     struct sockaddr_in address;
     bool isBound = false;
     time_t startTime = time(nullptr);
-
-    // Create a socket
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0) {
-        DBG( 0, "Client: Error creating socket" );
-        return false;
-    }
 
     // Set up the address structure
     memset(&address, 0, sizeof(address));
@@ -37,18 +32,28 @@ bool waitForPort(int port, int timeoutSeconds) {
 
     // Loop until the port is bound or the timeout is reached
     while (!isBound && (time(nullptr) - startTime) < timeoutSeconds) {
+        // A fresh socket for every attempt: a socket whose connect() failed must
+        // not be reused. In particular an interrupted connect() keeps completing
+        // in the background (libFuzzer's SIGALRM timer makes that possible even
+        // on loopback) and every further connect() on the same socket would then
+        // fail with EALREADY / EISCONN, so the port would never be seen as bound.
+        int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+        if (sockfd < 0) {
+            DBG( 0, "Client: Error creating socket" );
+            return false;
+        }
         // Attempt to connect to the port
         if (connect(sockfd, (struct sockaddr *)&address, sizeof(address)) < 0) {
             // Connection failed, wait a bit before retrying
+            close(sockfd);
             sleep(1);
         } else {
             // Connection succeeded, the port is bound
             isBound = true;
+            close(sockfd);
         }
     }
 
-    // Clean up the socket
-    close(sockfd);
     return isBound;
 }
 
@@ -57,8 +62,13 @@ std::thread * serverThread;
 
 void cleanup()
 {
-    DBG( 0, "Client: Stopping HTTPServer" );
-    httpServer->stop();
+    if (auto* pcieCollector = PCIeCollector::getInstance()) {
+        pcieCollector->stop();
+    }
+    if (httpServer) {
+        DBG( 0, "Client: Stopping HTTPServer" );
+        httpServer->stop();
+    }
     DBG( 0, "Client: Cleaning up PMU:" );
     PCM::getInstance()->cleanup();
 }
@@ -76,6 +86,7 @@ bool init()
             DBG( 0, "Client: Error in program() function" );
             exit(1);
         }
+        (void)PCIeCollector::getInstance();
         debug::dyn_debug_level(1);
         #ifdef FUZZ_USE_SSL
         DBG( 0, "Client: Starting SSL enabled server on https://localhost:", port );
@@ -142,7 +153,45 @@ std::string make_request(const std::string& request) {
     std::memcpy(&server_addr.sin_addr, host->h_addr, host->h_length);
 
     // Connect to server
-    if (connect(sock, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
+    int connect_ret = connect(sock, (struct sockaddr*)&server_addr, sizeof(server_addr));
+    if (connect_ret < 0 && errno == EINTR) {
+        // A signal was delivered while connect() was waiting (libFuzzer arms a
+        // repeating SIGALRM timer and installs its handlers without SA_RESTART).
+        // The connect continues asynchronously, so wait for it to finish instead
+        // of reporting a failure. Calling connect() again is not allowed here.
+        DBG( 1, "Client: connect was interrupted by a signal, waiting for it to complete" );
+        struct pollfd pfd;
+        pfd.fd = sock;
+        pfd.events = POLLOUT;
+        pfd.revents = 0;
+        // poll() is interrupted by a signal as well, and its timeout is relative,
+        // so retrying with the full timeout would start a new minute of waiting on
+        // every SIGALRM and could never expire. Wait until an absolute deadline
+        // instead: a poll_ret of 0 then means the deadline passed and is handled as
+        // the timeout it is.
+        const auto pollDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(60);
+        int poll_ret;
+        do {
+            const auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                       pollDeadline - std::chrono::steady_clock::now() ).count();
+            if (remaining <= 0) {
+                poll_ret = 0;
+                break;
+            }
+            poll_ret = poll(&pfd, 1, static_cast<int>(remaining));
+        } while (poll_ret < 0 && errno == EINTR);
+        int socketError = ETIMEDOUT;
+        if (poll_ret > 0) {
+            socklen_t len = sizeof(socketError);
+            if (getsockopt(sock, SOL_SOCKET, SO_ERROR, &socketError, &len) < 0)
+                socketError = errno;
+        }
+        if (socketError == 0)
+            connect_ret = 0;
+        else
+            errno = socketError;
+    }
+    if (connect_ret < 0) {
         DBG( 0, "Failed to connect to server. Error: ", strerror(errno) );
         close(sock);
 #ifdef FUZZ_USE_SSL
@@ -155,7 +204,30 @@ std::string make_request(const std::string& request) {
     // Create SSL structure
     SSL* ssl = SSL_new(ctx);
     SSL_set_fd(ssl, sock);
-    int con_ret = SSL_connect(ssl);
+    // The handshake runs on a blocking socket, but a signal can still interrupt it:
+    // libFuzzer arms a repeating SIGALRM timer and installs its signal handlers
+    // without SA_RESTART. OpenSSL then reports the interrupted read/write as
+    // retryable (SSL_ERROR_WANT_READ/WANT_WRITE, or SSL_ERROR_SYSCALL with EINTR)
+    // and SSL_connect returns -1 without the connection being broken at all.
+    // Retry in that case, otherwise a healthy connection is reported as a
+    // failure of the server, aborting the whole fuzzing run.
+    int con_ret = 0;
+    while ( true ) {
+        ERR_clear_error();
+        errno = 0;
+        con_ret = SSL_connect(ssl);
+        if ( con_ret > 0 )
+            break;
+        const int sslError = SSL_get_error(ssl, con_ret);
+        if ( sslError == SSL_ERROR_WANT_READ || sslError == SSL_ERROR_WANT_WRITE ||
+             ( sslError == SSL_ERROR_SYSCALL && errno == EINTR ) ) {
+            DBG( 1, "Client: SSL_connect was interrupted (SSL error ", sslError, "), trying again" );
+            continue;
+        }
+        DBG( 0, "Client: SSL_connect failed, SSL error: ", sslError, ", errno: ", errno,
+                " (", strerror(errno), "), OpenSSL error: ", ERR_error_string( ERR_get_error(), nullptr ) );
+        break;
+    }
     DBG( 1, "Client: SSL_connect returned ", con_ret );
     if ( con_ret <= 0) {
         SSL_free(ssl);

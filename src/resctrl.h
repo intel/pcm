@@ -32,7 +32,7 @@ namespace pcm
     public:
         Resctrl(PCM & m) : pcm(m) {}
         bool isMounted();
-        void init();
+        bool init();
         size_t getL3OCC(int core);
         size_t getMBL(int core);
         size_t getMBT(int core);

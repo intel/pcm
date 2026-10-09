@@ -23,15 +23,24 @@ namespace pcm
         }
         return true;
     }
-    void Resctrl::init()
+    bool Resctrl::init()
     {
         if (isMounted() == false)
         {
             std::cerr << "ERROR: /sys/fs/resctrl is not mounted\n";
             std::cerr << "ERROR: RDT metrics (L3OCC,LMB,RMB) will not be available\n";
             std::cerr << "Mount it to make it work: mount -t resctrl resctrl /sys/fs/resctrl\n";
-            return;
+            return false;
         }
+        FileMapType newL3OCC, newMBL, newMBT;
+        std::vector<std::string> createdDirs;
+        const auto rollback = [&createdDirs]()
+        {
+            for (auto it = createdDirs.rbegin(); it != createdDirs.rend(); ++it)
+            {
+                rmdir(it->c_str());
+            }
+        };
         const auto numCores = pcm.getNumCores();
         for (unsigned int c = 0; c < numCores; ++c)
         {
@@ -39,20 +48,56 @@ namespace pcm
             {
                 const auto C = std::to_string(c);
                 const auto dir = std::string(PCMPath) + C;
+                auto groupDir = dir; // path used to write cpus_list (may switch to the container fallback path)
                 struct stat st;
-                if (stat(dir.c_str(), &st) < 0 && mkdir(dir.c_str(), 0700) < 0)
+                if (stat(dir.c_str(), &st) < 0)
                 {
-                    std::cerr << "INFO: can't create directory " << dir << " error: " << strerror(errno) << "\n";
-                    const auto containerDir = std::string("/pcm") + dir;
-                    if (stat(containerDir.c_str(), &st) < 0 && mkdir(containerDir.c_str(), 0700) < 0)
+                    if (mkdir(dir.c_str(), 0700) < 0)
                     {
-                        std::cerr << "INFO: can't create directory " << containerDir << " error: " << strerror(errno) << "\n";
-                        std::cerr << "ERROR: RDT metrics (L3OCC,LMB,RMB) will not be available\n";
-                        break;
+                        const auto mkdirErrno = errno;
+                        if (stat(dir.c_str(), &st) < 0)
+                        {
+                            std::cerr << "INFO: can't create directory " << dir << " error: " << strerror(mkdirErrno) << "\n";
+const auto containerDir = std::string("/pcm") + dir;
+bool createdContainerDir = false;
+if (stat(containerDir.c_str(), &st) < 0)
+{
+    if (mkdir(containerDir.c_str(), 0700) < 0)
+    {
+        const auto containerMkdirErrno = errno;
+        if (stat(containerDir.c_str(), &st) < 0)
+        {
+            std::cerr << "INFO: can't create directory " << containerDir << " error: " << strerror(containerMkdirErrno) << "\n";
+            std::cerr << "ERROR: RDT metrics (L3OCC,LMB,RMB) will not be available\n";
+            rollback();
+            return false;
+        }
+    }
+    else
+    {
+        createdContainerDir = true;
+    }
+}
+if (createdContainerDir)
+{
+    createdDirs.push_back(containerDir);
+}
+groupDir = containerDir;
+                        }
+                    }
+                    else
+                    {
+                        createdDirs.push_back(dir);
                     }
                 }
-                const auto cpus_listFilename = dir + "/cpus_list";
-                writeSysFS(cpus_listFilename.c_str(), C, false);
+                const auto cpus_listFilename = groupDir + "/cpus_list";
+                if (writeSysFS(cpus_listFilename.c_str(), C, false) == false)
+                {
+                    std::cerr << "ERROR: can't assign core " << C << " to monitoring group " << groupDir << "\n";
+                    std::cerr << "ERROR: RDT metrics (L3OCC,LMB,RMB) will not be available\n";
+                    rollback();
+                    return false;
+                }
                 auto generateMetricFiles = [&dir, c] (PCM & pcm, const std::string & metric, FileMapType & fileMap)
                 {
                     auto getMetricFilename = [] (const std::string & dir, const uint64 s, const std::string & metric)
@@ -68,18 +113,22 @@ namespace pcm
                 };
                 if (pcm.L3CacheOccupancyMetricAvailable())
                 {
-                    generateMetricFiles(pcm, "llc_occupancy", L3OCC);
+                    generateMetricFiles(pcm, "llc_occupancy", newL3OCC);
                 }
                 if (pcm.CoreLocalMemoryBWMetricAvailable())
                 {
-                    generateMetricFiles(pcm, "mbm_local_bytes", MBL);
+                    generateMetricFiles(pcm, "mbm_local_bytes", newMBL);
                 }
                 if (pcm.CoreRemoteMemoryBWMetricAvailable())
                 {
-                    generateMetricFiles(pcm, "mbm_total_bytes", MBT);
+                    generateMetricFiles(pcm, "mbm_total_bytes", newMBT);
                 }
             }
         }
+        L3OCC.swap(newL3OCC);
+        MBL.swap(newMBL);
+        MBT.swap(newMBT);
+        return true;
     }
     void Resctrl::cleanup()
     {

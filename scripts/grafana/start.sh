@@ -36,7 +36,12 @@ if [ "$#" -ne 1 ]; then
   usage
 fi
 
-if [ ! -f "$1" ]; then
+if [ -f "$1" ]; then
+  [ -s "$1" ] || { echo "Error: targets file is empty."; exit 1; }
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    validate_url "http://$line"
+  done < "$1"
+else
   validate_url "$1"
 fi
 

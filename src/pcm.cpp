@@ -54,6 +54,40 @@ std::string temp_format(int32 t)
     return buffer;
 }
 
+bool perf_status_metrics = false; // request the IA32_PERF_STATUS metrics (RATIO, VOLT), see the --perf-status command line option
+bool ufs_status_metrics = false;  // request the additional UFS_STATUS metrics (uncore voltage and throttling), see the --ufs-status command line option
+
+//! \brief formats the current performance state value (RATIO field of IA32_PERF_STATUS)
+template <class State>
+std::string ratio_format(const State & state)
+{
+    if (state.isPerfStatusRatioAvailable() == false)
+        return "N/A";
+
+    char buffer[1024];
+    // no field width: the text output pads with setw(), the CSV output must not be padded
+    snprintf(buffer, 1024, "%.1f", state.getPerfStatusRatio());
+    return buffer;
+}
+
+//! \brief formats a voltage in Volt, independently of the stream precision
+std::string volt_format(const double volts)
+{
+    char buffer[1024];
+    snprintf(buffer, 1024, "%5.3f", volts);
+    return buffer;
+}
+
+//! \brief formats the current operating voltage in Volt (VOLTAGE field of IA32_PERF_STATUS)
+template <class State>
+std::string voltage_format(const State & state)
+{
+    if (state.isPerfStatusVoltageAvailable() == false)
+        return "N/A";
+
+    return volt_format(state.getPerfStatusVoltage());
+}
+
 std::string l3cache_occ_format(uint64 o)
 {
     char buffer[1024];
@@ -68,6 +102,95 @@ template <class UncoreStateType>
 double getAverageUncoreFrequencyGhz(const UncoreStateType& before, const UncoreStateType& after) // in GHz
 {
     return getAverageUncoreFrequency(before, after) / 1e9;
+}
+
+//! \brief AET (Application Energy Telemetry) metrics of the sample interval, see program_aet()
+struct AETRow
+{
+    bool available = false;   // AET metrics are collected on this system
+    AETMetricValue energy{};  // CENRG: core energy in Joule
+    AETMetricValue cdyn{};    // CDYN: dynamic capacitance in nanofarad
+};
+
+bool aet_metrics = false; // request the AET metrics (CENRG, CDYN), see the --aet command line option
+
+//! \brief returns true if the AET metrics are collected on this system
+bool aet_available(const PCM * m)
+{
+    // AET is programmed once (see program_aet()) before any output is printed
+    static const bool available = aet_metrics && AET::supported() && getAETNumRMIDs() > 0
+                                  && m->getUsedRMIDs().empty() == false;
+    return available;
+}
+
+//! \brief returns the AET metrics of the interval for a single core
+AETRow get_aet_row(const PCM * m, const uint32 core, const SystemCounterState & before, const SystemCounterState & after)
+{
+    AETRow row;
+    row.available = aet_available(m);
+    const auto rmid = m->getCoreRMID(core);
+    if (row.available == false || rmid == PCM::invalidRMID)
+    {
+        return row; // metrics stay invalid and are printed as "N/A"
+    }
+    const auto socket = m->getSocketId(core);
+    row.energy = getAETCoreEnergyJoule(rmid, socket, before, after, AET::Interval);
+    row.cdyn = getAETActivityNanoFarad(rmid, socket, before, after, AET::Interval);
+    return row;
+}
+
+//! \brief returns the sum of the AET metrics of the interval over all online cores selected by the filter
+template <class CoreFilter>
+AETRow get_aet_row_sum(const PCM * m, const CoreFilter & filter, const SystemCounterState & before, const SystemCounterState & after)
+{
+    AETRow result;
+    result.available = aet_available(m);
+    if (result.available == false)
+    {
+        return result;
+    }
+    bool anyCore = false;
+    bool allEnergyValid = true;
+    bool allCdynValid = true;
+    for (uint32 core = 0; core < m->getNumCores(); ++core)
+    {
+        if (m->isCoreOnline(core) == false || filter(core) == false)
+        {
+            continue;
+        }
+        const auto row = get_aet_row(m, core, before, after);
+        anyCore = true;
+        if (row.energy.valid)
+        {
+            result.energy.value += row.energy.value;
+        }
+        else
+        {
+            allEnergyValid = false;
+        }
+        if (row.cdyn.valid)
+        {
+            result.cdyn.value += row.cdyn.value;
+        }
+        else
+        {
+            allCdynValid = false;
+        }
+    }
+    // report the aggregate only if every selected core contributed a valid sample (no partial sums)
+    result.energy.valid = anyCore && allEnergyValid;
+    result.cdyn.valid = anyCore && allCdynValid;
+    return result;
+}
+
+std::string aet_format(const AETMetricValue & metric)
+{
+    if (metric.valid == false)
+        return "N/A";
+
+    char buffer[1024];
+    snprintf(buffer, 1024, "%6.2f", metric.value);
+    return buffer;
 }
 
 void print_help(const string & prog_name)
@@ -91,6 +214,20 @@ void print_help(const string & prog_name)
     cout << "  -ns   | --nosockets | /ns          => hide socket related output\n";
     cout << "  -nsys | --nosystem  | /nsys        => hide system related output\n";
     cout << "  --die                              => show aggregated core metrics per die\n";
+    cout << "  -aet  | --aet       | /aet         => show per-RMID AET metrics (CENRG: core energy in Joules,\n"
+         << "                                        CDYN: dynamic capacitance in nanofarad). Requires a processor\n"
+         << "                                        with AET support and RDT monitoring via direct MSR programming.\n"
+         << "                                        The per-RMID core energy metric is not comparable to the\n"
+         << "                                        package/CPU energy of MSR_PKG_ENERGY_STATUS\n";
+    cout << "  -ps   | --perf-status | /ps        => show the IA32_PERF_STATUS metrics (RATIO: current\n"
+         << "                                        performance state value, VOLT: current operating voltage\n"
+         << "                                        in Volt). Both are instantaneous samples and not averages\n"
+         << "                                        over the sample interval. Rows aggregating several logical\n"
+         << "                                        cores show the average over the cores reporting the metric\n";
+    cout << "  -us   | --ufs-status | /us         => add the uncore voltage in Volt and the uncore throttling\n"
+         << "                                        (number of milliseconds of the sample interval in which the\n"
+         << "                                        uncore frequency was clipped) to the per die uncore\n"
+         << "                                        frequency columns. Requires the UFS TPMI interface\n";
     cout << "  --color                            => use ASCII colors\n";
     cout << "  --no-color                         => don't use ASCII colors\n";
     cout << "  -csv[=file.csv] | /csv[=file.csv]  => output compact CSV format to screen or\n"
@@ -149,7 +286,7 @@ void print_basic_metrics(const PCM * m, const State & state1, const State & stat
 }
 
 template <class State>
-void print_other_metrics(const PCM * m, const State & state1, const State & state2)
+void print_other_metrics(const PCM * m, const State & state1, const State & state2, const AETRow & aet = AETRow{})
 {
     if (m->L3CacheOccupancyMetricAvailable())
         cout << setNextColor() << "   " << setw(6) << l3cache_occ_format(getL3CacheOccupancy(state2));
@@ -157,7 +294,18 @@ void print_other_metrics(const PCM * m, const State & state1, const State & stat
         cout << setNextColor() << "   " << setw(6) << getLocalMemoryBW(state1, state2);
     if (m->CoreRemoteMemoryBWMetricAvailable())
         cout << setNextColor() << "   " << setw(6) << getRemoteMemoryBW(state1, state2);
-    cout << setNextColor() <<  "     " << temp_format(state2.getThermalHeadroom()) << "\n";
+    if (aet.available)
+    {
+        cout << setNextColor() << "   " << setw(6) << aet_format(aet.energy);
+        cout << setNextColor() << "   " << setw(6) << aet_format(aet.cdyn);
+    }
+    cout << setNextColor() <<  "     " << temp_format(state2.getThermalHeadroom());
+    if (perf_status_metrics)
+    {
+        cout << setNextColor() << "   " << setw(5) << ratio_format(state2);
+        cout << setNextColor() << "   " << setw(5) << voltage_format(state2);
+    }
+    cout << "\n";
 }
 
 void print_output(PCM * m,
@@ -232,7 +380,24 @@ void print_output(PCM * m,
     if (m->L3CacheOccupancyMetricAvailable()) cout << " L3OCC : L3 occupancy (in KBytes)\n";
     if (m->CoreLocalMemoryBWMetricAvailable()) cout << " LMB   : L3 cache external bandwidth satisfied by local memory (in MBytes)\n";
     if (m->CoreRemoteMemoryBWMetricAvailable()) cout << " RMB   : L3 cache external bandwidth satisfied by remote memory (in MBytes)\n";
+    if (aet_available(m))
+    {
+        cout << " CENRG : core energy consumed in the sample interval (in Joules). Note that this per-RMID metric is not comparable to the package/CPU energy of MSR_PKG_ENERGY_STATUS\n";
+        cout << " CDYN  : dynamic capacitance (Cdyn) of the cores in the sample interval (in nanofarad)\n";
+    }
     cout << " TEMP  : Temperature reading in 1 degree Celsius relative to the TjMax temperature (thermal headroom): 0 corresponds to the max temperature\n";
+    if (perf_status_metrics)
+    {
+        cout << " RATIO : current performance state value (RATIO field of IA32_PERF_STATUS): multiplier of the bus clock (usually 100 MHz), e.g. 30 corresponds to 3 GHz\n";
+        cout << " VOLT  : current operating voltage in Volt (VOLTAGE field of IA32_PERF_STATUS)\n";
+        cout << "         RATIO and VOLT are instantaneous samples taken while the counters are read and not averages over the sample interval (unlike all other metrics above): use CFREQ to compare the core frequency over the interval.\n";
+        cout << "         Rows aggregating several logical cores show the average over the cores that report the metric, each of them sampled at a slightly different point in time.\n";
+    }
+    if (ufs_status_metrics)
+    {
+        cout << " Unc(Ghz|V|THR): per uncore die frequency in GHz, operating voltage in Volt and throttling, i.e. the number of milliseconds of the sample interval\n";
+        cout << "         in which the uncore frequency was clipped below the configured bound. Frequency and voltage are instantaneous samples, the throttling is a count over the interval.\n";
+    }
     cout << " energy: Energy in Joules\n";
     cout << "\n";
     cout << "\n";
@@ -280,8 +445,13 @@ void print_output(PCM * m,
         cout << setNextColor() << "   LMB  |";
     if (m->CoreRemoteMemoryBWMetricAvailable())
         cout << setNextColor() << "   RMB  |";
+    if (aet_available(m))
+        cout << setNextColor() << "  CENRG |" << setNextColor() << "   CDYN |";
 
-    cout << setNextColor() << " TEMP\n\n";
+    cout << setNextColor() << " TEMP";
+    if (perf_status_metrics)
+        cout << " |" << setNextColor() << " RATIO |" << setNextColor() << "  VOLT";
+    cout << "\n\n";
 
     cout << resetColor();
 
@@ -300,7 +470,7 @@ void print_output(PCM * m,
                 cout << " " << setw(3) << i << "   " << setw(2) << m->getSocketId(i);
 
             print_basic_metrics(m, cstates1[i], cstates2[i], metricVersion);
-            print_other_metrics(m, cstates1[i], cstates2[i]);
+            print_other_metrics(m, cstates1[i], cstates2[i], get_aet_row(m, i, sstate1, sstate2));
             cout << resetColor();
         }
     }
@@ -322,7 +492,9 @@ void print_output(PCM * m,
             const auto & key = entry.first;
             cout << " SKT " << setw(4) << (std::to_string(key.first) + "." + std::to_string(key.second));
             print_basic_metrics(m, die_cstates1[key], die_cstates2[key], metricVersion);
-            print_other_metrics(m, die_cstates1[key], die_cstates2[key]);
+            print_other_metrics(m, die_cstates1[key], die_cstates2[key],
+                get_aet_row_sum(m, [&m, &key](const uint32 core) { return m->getSocketId(core) == key.first && m->getDieId(core) == key.second; },
+                    sstate1, sstate2));
             cout << resetColor();
         }
     }
@@ -335,7 +507,8 @@ void print_output(PCM * m,
             {
                 cout << " SKT   " << setw(2) << i;
                 print_basic_metrics(m, sktstate1[i], sktstate2[i], metricVersion);
-                print_other_metrics(m, sktstate1[i], sktstate2[i]);
+                print_other_metrics(m, sktstate1[i], sktstate2[i],
+                    get_aet_row_sum(m, [&m, &i](const uint32 core) { return m->getSocketId(core) == (int32)i; }, sstate1, sstate2));
                 cout << resetColor();
             }
         }
@@ -357,8 +530,20 @@ void print_output(PCM * m,
             cout << setNextColor() <<"    N/A ";
         if (m->CoreRemoteMemoryBWMetricAvailable())
             cout << setNextColor() <<"    N/A ";
+        if (aet_available(m))
+        {
+            const auto aet = get_aet_row_sum(m, [](const uint32) { return true; }, sstate1, sstate2);
+            cout << setNextColor() << "   " << setw(6) << aet_format(aet.energy);
+            cout << setNextColor() << "   " << setw(6) << aet_format(aet.cdyn);
+        }
 
-        cout << setNextColor() << "     N/A\n";
+        cout << setNextColor() << "     N/A"; // TEMP
+        if (perf_status_metrics)
+        {
+            cout << setNextColor() << "   " << setw(5) << ratio_format(sstate2);
+            cout << setNextColor() << "   " << setw(5) << voltage_format(sstate2);
+        }
+        cout << "\n";
         cout << resetColor();
         cout << setNextColor() << "\n Instructions retired: " << unit_format(getInstructionsRetired(sstate1, sstate2)) << " ;"
             << setNextColor() << " Active cycles: " << unit_format(getCycles(sstate1, sstate2)) << " ;"
@@ -582,11 +767,12 @@ void print_output(PCM * m,
         DBG(2, " Uncore die types count: ", uncoreDieTypes.size());
         if (uncoreDieTypes.empty() == false)
         {
-            cout << setNextColor() << " Unc(Ghz) ";
+            // with --ufs-status every die cell holds the frequency, the voltage and the throttling
+            cout << setNextColor() << (ufs_status_metrics ? " Unc(Ghz|V|THR) " : " Unc(Ghz) ");
             for (auto & d: uncoreDieTypes)
             {
                 cout << setNextColor();
-                printCentered(UncoreCounterState::getDieTypeStr(d), 7);
+                printCentered(UncoreCounterState::getDieTypeStr(d), ufs_status_metrics ? 18 : 7);
                 cout << " ";
             }
             std::cout << "|" ;
@@ -640,10 +826,27 @@ void print_output(PCM * m,
 
                 if (uncoreFrequencies.empty() == false)
                 {
-                    cout << setNextColor() << "                ";
-                    for (auto & d: uncoreFrequencies)
+                    // the wider header prefix of --ufs-status is padded here as well to keep the
+                    // values of a die under its column header
+                    cout << setNextColor() << (ufs_status_metrics ? "                      " : "                ");
+                    if (ufs_status_metrics)
                     {
-                        cout << setNextColor() << "  " << std::setw(4) << d/1e9 << "  ";
+                        const std::vector<double> uncoreVoltages{getUncoreVoltage(sktstate2[i])};
+                        const std::vector<uint64> uncoreThrottling{getUncoreThrottleCount(sktstate1[i], sktstate2[i])};
+                        for (size_t die = 0; die < uncoreFrequencies.size(); ++die)
+                        {
+                            // the throttling field is wide enough for a sample interval of ~16 minutes
+                            cout << setNextColor() << "  " << std::setw(4) << uncoreFrequencies[die]/1e9
+                                 << " " << std::setw(5) << volt_format(uncoreVoltages[die])
+                                 << " " << std::setw(6) << uncoreThrottling[die];
+                        }
+                    }
+                    else
+                    {
+                        for (auto & d: uncoreFrequencies)
+                        {
+                            cout << setNextColor() << "  " << std::setw(4) << d/1e9 << "  ";
+                        }
                     }
                 }
                 cout << resetColor() << "\n";
@@ -774,6 +977,12 @@ void print_csv_header(PCM * m,
         if (m->HBMmemoryTrafficMetricsAvailable())
             print_csv_header_helper(header,2);
 
+        if (aet_available(m))
+            print_csv_header_helper(header, 2); // CENRG,CDYN
+
+        if (perf_status_metrics)
+            print_csv_header_helper(header, 2); // RATIO,VOLT
+
         print_csv_header_helper(header,7);
         if (m->getNumSockets() > 1) { // QPI info only for multi socket systems
             if (m->incomingQPITrafficMetricsAvailable())
@@ -814,6 +1023,8 @@ void print_csv_header(PCM * m,
                 print_csv_header_helper(header);
             if (m->CoreRemoteMemoryBWMetricAvailable())
                 print_csv_header_helper(header);
+            if (aet_available(m))
+                print_csv_header_helper(header, 2); // CENRG,CDYN
             if (m->memoryTrafficMetricsAvailable())
                 print_csv_header_helper(header,2);
             if (m->localMemoryRequestRatioMetricAvailable())
@@ -824,6 +1035,8 @@ void print_csv_header(PCM * m,
                 print_csv_header_helper(header,2);
             if (m->memoryIOTrafficMetricAvailable())
                 print_csv_header_helper(header,3);
+            if (perf_status_metrics)
+                print_csv_header_helper(header, 2); // RATIO,VOLT
             print_csv_header_helper(header, 8); //TEMP,INST,ACYC,TIME(ticks),PhysIPC,PhysIPC%,INSTnom,INSTnom%,
         }
 
@@ -851,8 +1064,11 @@ void print_csv_header(PCM * m,
             {
                 header = "SKT" + std::to_string(s) + "trafficOut";
                 print_csv_header_helper(header,qpiLinks);
-                header = "SKT" + std::to_string(s) + "trafficOut (percent)";
-                print_csv_header_helper(header,qpiLinks);
+                if (m->qpiUtilizationMetricsAvailable())
+                {
+                    header = "SKT" + std::to_string(s) + "trafficOut (percent)";
+                    print_csv_header_helper(header,qpiLinks);
+                }
             }
         }
 
@@ -902,6 +1118,13 @@ void print_csv_header(PCM * m,
             {
                 header = "UncFREQ Die " + std::to_string(die) + " (Ghz)";
                 print_csv_header_helper(header);
+                if (ufs_status_metrics)
+                {
+                    header = "UncVOLT Die " + std::to_string(die) + " (V)";
+                    print_csv_header_helper(header);
+                    header = "UncTHROTTLE Die " + std::to_string(die) + " (ms)";
+                    print_csv_header_helper(header);
+                }
             }
         }
     }
@@ -925,7 +1148,11 @@ void print_csv_header(PCM * m,
                 print_csv_header_helper(header);
             if (m->CoreRemoteMemoryBWMetricAvailable())
                 print_csv_header_helper(header);
+            if (aet_available(m))
+                print_csv_header_helper(header, 2); // CENRG,CDYN
             print_csv_header_helper(header); // TEMP
+            if (perf_status_metrics)
+                print_csv_header_helper(header, 2); // RATIO,VOLT
             print_csv_header_helper(header, 7); // INST,ACYC,TIME(ticks),PhysIPC,PhysIPC%,INSTnom,INSTnom%
         }
     }
@@ -947,11 +1174,15 @@ void print_csv_header(PCM * m,
                 print_csv_header_helper(header);
             if (m->CoreRemoteMemoryBWMetricAvailable())
                 print_csv_header_helper(header);
+            if (aet_available(m))
+                print_csv_header_helper(header, 2); // CENRG,CDYN
 
             for (int s = 0; s <= PCM::MAX_C_STATE; ++s)
                 if (m->isCoreCStateResidencySupported(s))
                     print_csv_header_helper(header);
             print_csv_header_helper(header);// TEMP
+            if (perf_status_metrics)
+                print_csv_header_helper(header, 2); // RATIO,VOLT
             print_csv_header_helper(header,7); //ACYC,TIME(ticks),PhysIPC,PhysIPC%,INSTnom,INSTnom%,
         }
     }
@@ -974,6 +1205,12 @@ void print_csv_header(PCM * m,
 
         if (m->HBMmemoryTrafficMetricsAvailable())
                 cout << "HBM_READ,HBM_WRITE,";
+
+        if (aet_available(m))
+            cout << "CENRG,CDYN,";
+
+        if (perf_status_metrics)
+            cout << "RATIO,VOLT,";
 
         cout << "INST,ACYC,TIME(ticks),PhysIPC,PhysIPC%,INSTnom,INSTnom%,";
         if (m->getNumSockets() > 1) { // QPI info only for multi socket systems
@@ -1020,6 +1257,8 @@ void print_csv_header(PCM * m,
                  cout << "LMB,";
              if (m->CoreRemoteMemoryBWMetricAvailable())
                  cout << "RMB,";
+             if (aet_available(m))
+                 cout << "CENRG,CDYN,";
              if (m->memoryTrafficMetricsAvailable())
                  cout << "READ,WRITE,";
              if (m->localMemoryRequestRatioMetricAvailable())
@@ -1030,7 +1269,10 @@ void print_csv_header(PCM * m,
                  cout << "HBM_READ,HBM_WRITE,";
              if (m->memoryIOTrafficMetricAvailable())
                  cout << "IO,IA,GT,";
-             cout << "TEMP,INST,ACYC,TIME(ticks),PhysIPC,PhysIPC%,INSTnom,INSTnom%,";
+             cout << "TEMP,";
+             if (perf_status_metrics)
+                 cout << "RATIO,VOLT,";
+             cout << "INST,ACYC,TIME(ticks),PhysIPC,PhysIPC%,INSTnom,INSTnom%,";
         }
 
         if (m->getNumSockets() > 1 && (m->incomingQPITrafficMetricsAvailable())) // QPI info only for multi socket systems
@@ -1055,6 +1297,8 @@ void print_csv_header(PCM * m,
             {
                 for (uint32 i = 0; i < qpiLinks; ++i)
                     cout << m->xPI() << i << ",";
+
+                if (m->qpiUtilizationMetricsAvailable())
                 for (uint32 i = 0; i < qpiLinks; ++i)
                     cout << m->xPI() << i << ",";
             }
@@ -1104,8 +1348,8 @@ void print_csv_header(PCM * m,
                 printSKT(i);
         }
         for (uint32 i = 0; i < m->getNumSockets(); ++i)
-        {
-            printSKT(i, m->getNumUFSDies());
+        {   // UncFREQ and, with --ufs-status, UncVOLT and UncTHROTTLE of every uncore die
+            printSKT(i, m->getNumUFSDies() * (ufs_status_metrics ? 3 : 1));
         }
     }
 
@@ -1127,7 +1371,11 @@ void print_csv_header(PCM * m,
                 cout << "LMB,";
             if (m->CoreRemoteMemoryBWMetricAvailable())
                 cout << "RMB,";
+            if (aet_available(m))
+                cout << "CENRG,CDYN,";
             cout << "TEMP,";
+            if (perf_status_metrics)
+                cout << "RATIO,VOLT,";
             cout << "INST,ACYC,TIME(ticks),PhysIPC,PhysIPC%,INSTnom,INSTnom%,";
         }
     }
@@ -1146,12 +1394,16 @@ void print_csv_header(PCM * m,
                 cout << "LMB,";
             if (m->CoreRemoteMemoryBWMetricAvailable())
                 cout << "RMB,";
+            if (aet_available(m))
+                cout << "CENRG,CDYN,";
 
             for (int s = 0; s <= PCM::MAX_C_STATE; ++s)
                 if (m->isCoreCStateResidencySupported(s))
                     cout << "C" << s << "res%,";
 
             cout << "TEMP,";
+            if (perf_status_metrics)
+                cout << "RATIO,VOLT,";
             cout << "INST,ACYC,TIME(ticks),PhysIPC,PhysIPC%,INSTnom,INSTnom%,";
         }
     }
@@ -1203,7 +1455,7 @@ void print_basic_metrics_csv(const PCM * m, const State & state1, const State & 
 }
 
 template <class State>
-void print_other_metrics_csv(const PCM * m, const State & state1, const State & state2)
+void print_other_metrics_csv(const PCM * m, const State & state1, const State & state2, const AETRow & aet = AETRow{})
 {
     if (m->L3CacheOccupancyMetricAvailable())
         cout << ',' << l3cache_occ_format(getL3CacheOccupancy(state2));
@@ -1211,6 +1463,8 @@ void print_other_metrics_csv(const PCM * m, const State & state1, const State & 
         cout << ',' << getLocalMemoryBW(state1, state2);
     if (m->CoreRemoteMemoryBWMetricAvailable())
         cout << ',' << getRemoteMemoryBW(state1, state2);
+    if (aet.available)
+        cout << ',' << aet_format(aet.energy) << ',' << aet_format(aet.cdyn);
 }
 
 void print_csv(PCM * m,
@@ -1249,6 +1503,15 @@ void print_csv(PCM * m,
         if (m->HBMmemoryTrafficMetricsAvailable())
                 cout << getBytesReadFromEDC(sstate1, sstate2) / double(1e9) <<
                 ',' << getBytesWrittenToEDC(sstate1, sstate2) / double(1e9) << ',';
+
+        if (aet_available(m))
+        {
+            const auto aet = get_aet_row_sum(m, [](const uint32) { return true; }, sstate1, sstate2);
+            cout << aet_format(aet.energy) << ',' << aet_format(aet.cdyn) << ',';
+        }
+
+        if (perf_status_metrics)
+            cout << ratio_format(sstate2) << ',' << voltage_format(sstate2) << ',';
 
         cout << float_format(getInstructionsRetired(sstate1, sstate2)) << ","
             << float_format(getCycles(sstate1, sstate2)) << ","
@@ -1293,7 +1556,8 @@ void print_csv(PCM * m,
         for (uint32 i = 0; i < m->getNumSockets(); ++i)
         {
             print_basic_metrics_csv(m, sktstate1[i], sktstate2[i], false);
-            print_other_metrics_csv(m, sktstate1[i], sktstate2[i]);
+            print_other_metrics_csv(m, sktstate1[i], sktstate2[i],
+                get_aet_row_sum(m, [&m, &i](const uint32 core) { return m->getSocketId(core) == (int32)i; }, sstate1, sstate2));
             if (m->memoryTrafficMetricsAvailable())
                 cout << ',' << getBytesReadFromMC(sktstate1[i], sktstate2[i]) / double(1e9) <<
                     ',' << getBytesWrittenToMC(sktstate1[i], sktstate2[i]) / double(1e9);
@@ -1311,6 +1575,8 @@ void print_csv(PCM * m,
                      << ',' << getGTRequestBytesFromMC(sktstate1[i], sktstate2[i]) / double(1e9);
             }
             cout << ',' << temp_format(sktstate2[i].getThermalHeadroom()) << ',';
+            if (perf_status_metrics)
+                cout << ratio_format(sktstate2[i]) << ',' << voltage_format(sktstate2[i]) << ',';
 
             cout << float_format(getInstructionsRetired(sktstate1[i], sktstate2[i])) << ","
                 << float_format(getCycles(sktstate1[i], sktstate2[i])) << ","
@@ -1346,8 +1612,11 @@ void print_csv(PCM * m,
                 for (uint32 l = 0; l < qpiLinks; ++l)
                     cout << float_format(getOutgoingQPILinkBytes(i, l, sstate1, sstate2)) << ",";
 
-                for (uint32 l = 0; l < qpiLinks; ++l)
-                    cout << setw(3) << std::dec << int(100. * getOutgoingQPILinkUtilization(i, l, sstate1, sstate2)) << "%,";
+                if (m->qpiUtilizationMetricsAvailable())
+                {
+                    for (uint32 l = 0; l < qpiLinks; ++l)
+                        cout << setw(3) << std::dec << int(100. * getOutgoingQPILinkUtilization(i, l, sstate1, sstate2)) << "%,";
+                }
             }
         }
 
@@ -1391,9 +1660,21 @@ void print_csv(PCM * m,
         {
             const auto freqs = getUncoreFrequency(sktstate2[i]);
             assert(freqs.size() == (size_t)m->getNumUFSDies());
-            for (auto & f : freqs)
+            if (ufs_status_metrics)
             {
-                cout << f/1e9 << ",";
+                const auto volts = getUncoreVoltage(sktstate2[i]);
+                const auto throttling = getUncoreThrottleCount(sktstate1[i], sktstate2[i]);
+                for (size_t die = 0; die < freqs.size(); ++die)
+                {
+                    cout << freqs[die]/1e9 << "," << volt_format(volts[die]) << "," << throttling[die] << ",";
+                }
+            }
+            else
+            {
+                for (auto & f : freqs)
+                {
+                    cout << f/1e9 << ",";
+                }
             }
         }
     }
@@ -1414,8 +1695,12 @@ void print_csv(PCM * m,
         {
             const auto & key = entry.first;
             print_basic_metrics_csv(m, die_cstates1[key], die_cstates2[key], false);
-            print_other_metrics_csv(m, die_cstates1[key], die_cstates2[key]);
+            print_other_metrics_csv(m, die_cstates1[key], die_cstates2[key],
+                get_aet_row_sum(m, [&m, &key](const uint32 core) { return m->getSocketId(core) == key.first && m->getDieId(core) == key.second; },
+                    sstate1, sstate2));
             cout << ',' << temp_format(die_cstates2[key].getThermalHeadroom()) << ',';
+            if (perf_status_metrics)
+                cout << ratio_format(die_cstates2[key]) << ',' << voltage_format(die_cstates2[key]) << ',';
 
             cout << float_format(getInstructionsRetired(die_cstates1[key], die_cstates2[key])) << ","
                 << float_format(getCycles(die_cstates1[key], die_cstates2[key])) << ","
@@ -1435,7 +1720,7 @@ void print_csv(PCM * m,
                 continue;
 
             print_basic_metrics_csv(m, cstates1[i], cstates2[i], false);
-            print_other_metrics_csv(m, cstates1[i], cstates2[i]);
+            print_other_metrics_csv(m, cstates1[i], cstates2[i], get_aet_row(m, i, sstate1, sstate2));
             cout << ',';
 
             for (int s = 0; s <= PCM::MAX_C_STATE; ++s)
@@ -1443,6 +1728,8 @@ void print_csv(PCM * m,
                     cout << getCoreCStateResidency(s, cstates1[i], cstates2[i]) * 100 << ",";
 
             cout << temp_format(cstates2[i].getThermalHeadroom()) << ',';
+            if (perf_status_metrics)
+                cout << ratio_format(cstates2[i]) << ',' << voltage_format(cstates2[i]) << ',';
 
             cout << float_format(getInstructionsRetired(cstates1[i], cstates2[i])) << ","
                 << float_format(getCycles(cstates1[i], cstates2[i])) << ","
@@ -1452,6 +1739,55 @@ void print_csv(PCM * m,
                 << getTotalExecUsage(cstates1[i], cstates2[i]) << ","
                 << 100. * (getTotalExecUsage(cstates1[i], cstates2[i]) / double(m->getMaxIPC())) << ",";
         }
+    }
+}
+
+/*! \brief programs the per-RMID AET (Application Energy Telemetry) counters
+
+    Does nothing unless the AET metrics are requested with the --aet command line
+    option. Only processors supporting AET (CWF) are affected and only the RMIDs that
+    RDT associated with the cores via direct MSR programming are collected: in resctrl
+    mode the RMIDs used by the driver are unknown to PCM.
+*/
+void program_aet(PCM * m)
+{
+    if (aet_metrics == false)
+    {
+        return;
+    }
+    if (AET::supported() == false)
+    {
+        cerr << "ERROR: AET metrics (CENRG, CDYN) are not supported on this processor.\n";
+        return;
+    }
+    const auto numRMIDs = getAETNumRMIDs(); // 0 if the AET telemetry is not exposed by the OS
+    if (numRMIDs == 0)
+    {
+        cerr << "ERROR: AET metrics (CENRG, CDYN) are not available: the AET telemetry is not exposed by the OS.\n";
+        return;
+    }
+    const auto usedRMIDs = m->getUsedRMIDs();
+    std::vector<size_t> rmids;
+    for (const auto & rmid : usedRMIDs)
+    {
+        if (rmid < numRMIDs)
+        {
+            rmids.push_back(rmid);
+        }
+    }
+    if (rmids.empty())
+    {
+        cerr << "ERROR: AET metrics (CENRG, CDYN) are not available: no RMID in the AET range 0.." << (numRMIDs - 1)
+             << " is associated with a core. RDT must use direct MSR programming (not the resctrl driver).\n";
+        return;
+    }
+    if (programAET(rmids, PCM::getQuietMode()) != PCM::Success)
+    {
+        cerr << "WARNING: could not program AET counters for the RMIDs used by RDT.\n";
+    }
+    else if (PCM::getQuietMode() == false)
+    {
+        cerr << "INFO: programmed AET counters for " << rmids.size() << " of " << usedRMIDs.size() << " RMID(s) used by RDT (AET supports RMIDs 0.." << (numRMIDs - 1) << ").\n";
     }
 }
 
@@ -1505,6 +1841,8 @@ int mainThrows(int argc, char * argv[])
     string program = string(argv[0]);
 
     PCM * m = PCM::getInstance();
+
+    m->initRDT(); // pcm uses RDT-based metrics (L3OCC, LMB, RMB): initialize RDT on demand
 
     if (argc > 1) do
     {
@@ -1579,6 +1917,21 @@ int mainThrows(int argc, char * argv[])
         else if (check_argument_equals(*argv, {"--die"}))
         {
             show_die_output = true;
+            continue;
+        }
+        else if (check_argument_equals(*argv, {"--aet", "-aet", "/aet"}))
+        {
+            aet_metrics = true;
+            continue;
+        }
+        else if (check_argument_equals(*argv, {"--perf-status", "-ps", "/ps"}))
+        {
+            perf_status_metrics = true;
+            continue;
+        }
+        else if (check_argument_equals(*argv, {"--ufs-status", "-us", "/us"}))
+        {
+            ufs_status_metrics = true;
             continue;
         }
         else if (check_argument_equals(*argv, {"--color"}))
@@ -1700,6 +2053,17 @@ int mainThrows(int argc, char * argv[])
         exit(EXIT_FAILURE);
     }
 
+    program_aet(m);
+
+    if (perf_status_metrics)
+    {
+        m->enablePerfStatusCollection(); // pcm reads IA32_PERF_STATUS (RATIO, VOLT) only on demand
+        if (m->isPerfStatusCollectionEnabled() == false)
+        {
+            cerr << "ERROR: the RATIO and VOLT metrics are not supported on this processor: IA32_PERF_STATUS (0x198) is read only on the processors on which its fields have been validated.\n";
+        }
+    }
+
     print_cpu_details();
 
     std::vector<CoreCounterState> cstates1, cstates2;
@@ -1726,6 +2090,29 @@ int mainThrows(int argc, char * argv[])
     }
 
     m->getAllCounterStates(sstate1, sktstate1, cstates1);
+
+    if (perf_status_metrics && m->isPerfStatusCollectionEnabled())
+    {   // report the fields of IA32_PERF_STATUS that this system does not populate
+        const bool ratioAvailable = sstate1.isPerfStatusRatioAvailable();
+        const bool voltageAvailable = sstate1.isPerfStatusVoltageAvailable();
+        if (ratioAvailable == false && voltageAvailable == false)
+        {
+            cerr << "ERROR: the RATIO and VOLT metrics are not available: IA32_PERF_STATUS (0x198) could not be read on this system.\n";
+        }
+        else if (ratioAvailable == false)
+        {
+            cerr << "ERROR: the RATIO metric is not available: the RATIO field of IA32_PERF_STATUS (0x198) is not populated on this system.\n";
+        }
+        else if (voltageAvailable == false)
+        {
+            cerr << "ERROR: the VOLT metric is not available: the VOLTAGE field of IA32_PERF_STATUS (0x198) is not populated on this system.\n";
+        }
+    }
+
+    if (ufs_status_metrics && m->getNumUFSDies() == 0)
+    {
+        cerr << "ERROR: the uncore voltage and throttling metrics are not available: no UFS TPMI instance was found on this system.\n";
+    }
 
     if (sysCmd != NULL) {
         MySystem(sysCmd, sysArgv);

@@ -404,12 +404,17 @@ std::vector<std::string> PerfmonEventResolver::getEventNames() const
 {
     std::vector<std::string> names;
     names.reserve(m_eventMapJSON.size());
-    for (const auto& [event, _] : m_eventMapJSON) names.push_back(event);
+    for (const auto& [event, _] : m_eventMapJSON)
+    {
+        PCM_UNUSED(_);
+        names.push_back(event);
+    }
 
     for (const auto& tsvMap : m_eventMapsTSV)
     {
         for (const auto& [event, _] : tsvMap)
         {
+            PCM_UNUSED(_);
             if (event != "COL_NAMES") names.push_back(event);
         }
     }

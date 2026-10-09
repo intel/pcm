@@ -24,7 +24,12 @@ namespace pcm {
 class TelemetryArrayLinux : public TelemetryArrayInterface
 {
     TelemetryArrayLinux() = delete;
-    typedef std::vector<std::FILE *> FileVector;
+    struct TelemetryFile
+    {
+        std::FILE * file = nullptr;
+        int32 numaNode = -1; // NUMA node of the device exposing the telemetry instance
+    };
+    typedef std::vector<TelemetryFile> FileVector;
     typedef std::unordered_map<uint64, FileVector> FileMap;
     static std::shared_ptr<FileMap> TelemetryFiles;
     static FileMap & getTelemetryFiles()
@@ -46,21 +51,29 @@ class TelemetryArrayLinux : public TelemetryArrayInterface
                     std::cerr << "Error: failed to open " << path << "/telem" << std::endl;
                     continue;
                 }
-                TelemetryFilesTemp->operator[](guid).push_back(file);
+                TelemetryFile telemetryFile;
+                telemetryFile.file = file;
+                // the NUMA node of the PCI device the telemetry instance belongs to ("device" is the child of the PCI device)
+                const auto numaNodeStr = readSysFS((path + "/device/../numa_node").c_str(), true);
+                if (numaNodeStr.empty() == false)
+                {
+                    telemetryFile.numaNode = (int32)std::atoi(numaNodeStr.c_str());
+                }
+                TelemetryFilesTemp->operator[](guid).push_back(telemetryFile);
             }
-            
+
             // print the telemetry files
             for (auto & guid : *TelemetryFilesTemp)
             {
                 auto & files = guid.second;
                 for (auto & file : files)
                 {
-                    if (!file)
+                    if (!file.file)
                     {
                         std::cerr << "Error: file is null" << std::endl;
                         continue;
                     }
-                    // std::cout << "guid: 0x" << std::hex << guid.first << " file: " << file << std::endl;
+                    // std::cout << "guid: 0x" << std::hex << guid.first << " file: " << file.file << " numa node: " << file.numaNode << std::endl;
                 }
             }
 
@@ -102,9 +115,13 @@ public:
     {
         return data.size();
     }
+    int32 numaNode() override
+    {
+        return getTelemetryFiles().at(uid).at(instance).numaNode;
+    }
     void load() override
     {
-        FILE * file = getTelemetryFiles().at(uid).at(instance);
+        FILE * file = getTelemetryFiles().at(uid).at(instance).file;
         assert(file);
         // get the file size
         fseek(file, 0, SEEK_END);
@@ -194,6 +211,12 @@ uint64 TelemetryArray::get(size_t qWordOffset, size_t lsb, size_t msb)
 {
     assert(impl.get());
     return impl->get(qWordOffset, lsb, msb);
+}
+
+int32 TelemetryArray::numaNode()
+{
+    assert(impl.get());
+    return impl->numaNode();
 }
 
 
