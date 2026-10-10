@@ -86,7 +86,9 @@ inline void clearLastSocketError() {
 #include <ctime>
 #include <limits>
 #include <vector>
+#include <deque>
 #include <unordered_map>
+#include <cmath>
 
 #include "cpucounters.h"
 #include "debug.h"
@@ -302,7 +304,24 @@ public:
     static BOOL WINAPI handleSignal( DWORD signum );
 #else
     static void handleSignal( int signum );
+    static volatile sig_atomic_t signalCaught_;
 #endif
+
+    static bool wasSignaled() {
+#ifdef _WIN32
+        return false;
+#else
+        return signalCaught_ != 0;
+#endif
+    }
+
+    static int getSignal() {
+#ifdef _WIN32
+        return 0;
+#else
+        return signalCaught_;
+#endif
+    }
 
     void setSocket( socket_t s ) {
         networkSocket_ = s;
@@ -354,6 +373,9 @@ private:
 
 socket_t SignalHandler::networkSocket_ = INVALID_SOCKET;
 HTTPServer* SignalHandler::httpServer_ = nullptr;
+#ifndef _WIN32
+volatile sig_atomic_t SignalHandler::signalCaught_ = 0;
+#endif
 
 namespace pcm {
 
@@ -1590,7 +1612,7 @@ typedef basic_socketstream<wchar_t> wsocketstream;
 class Server {
 public:
     Server() = delete;
-    Server( const std::string & listenIP, uint16_t port, bool useIPv4 = false ) noexcept( false ) : listenIP_(listenIP), wq_( WorkQueue::getInstance() ), port_( port ), useIPv4_( useIPv4 ) {
+    Server( const std::string & listenIP, uint16_t port, bool useIPv4 = false, bool createSocket = true ) noexcept( false ) : listenIP_(listenIP), wq_( WorkQueue::getInstance() ), serverSocket_( INVALID_SOCKET ), port_( port ), useIPv4_( useIPv4 ) {
         DBG( 3, "Initializing Server" );
 #ifdef _WIN32
         // Initialize Winsock on Windows
@@ -1606,24 +1628,34 @@ public:
                                    std::to_string(LOBYTE(wsaData.wVersion)) + "." + std::to_string(HIBYTE(wsaData.wVersion)));
         }
 #endif
-        serverSocket_ = initializeServerSocket();
-        SignalHandler* shi = SignalHandler::getInstance();
-        shi->setSocket( serverSocket_ );
+        if ( createSocket ) {
+            serverSocket_ = initializeServerSocket();
+            SignalHandler* shi = SignalHandler::getInstance();
+            shi->setSocket( serverSocket_ );
 #ifndef _WIN32
-        shi->ignoreSignal( SIGPIPE ); // Sorry Dennis Ritchie, we do not care about this, we always check return codes
+            shi->ignoreSignal( SIGPIPE ); // Sorry Dennis Ritchie, we do not care about this, we always check return codes
 #endif
 #ifndef UNIT_TEST // libFuzzer installs own signal handlers
 #ifndef _WIN32
-        shi->installHandler( SignalHandler::handleSignal, SIGTERM );
-        shi->installHandler( SignalHandler::handleSignal, SIGINT );
+            shi->installHandler( SignalHandler::handleSignal, SIGTERM );
+            shi->installHandler( SignalHandler::handleSignal, SIGINT );
 #else
-        shi->installHandler( nullptr, 0 ); // Windows uses SetConsoleCtrlHandler
+            shi->installHandler( nullptr, 0 ); // Windows uses SetConsoleCtrlHandler
 #endif
 #endif
+        }
     }
     Server( Server const & ) = delete;
     Server & operator = ( Server const & ) = delete;
     virtual ~Server() {
+        if ( serverSocket_ != INVALID_SOCKET ) {
+#ifdef _WIN32
+            closesocket( serverSocket_ );
+#else
+            ::close( serverSocket_ );
+#endif
+            serverSocket_ = INVALID_SOCKET;
+        }
         wq_ = nullptr;
 #ifdef _WIN32
         WSACleanup();
@@ -3764,61 +3796,84 @@ private:
 class PeriodicCounterFetcher : public Work
 {
 public:
-    PeriodicCounterFetcher( HTTPServer* hs ) : hs_(hs), run_(false), exit_(false) {}
+    struct SharedState {
+        std::mutex mtx;
+        std::condition_variable cv;
+        std::condition_variable doneCv;
+        std::atomic<bool> run{false};
+        std::atomic<bool> exit{false};
+        std::atomic<bool> done{false};
+    };
+
+    PeriodicCounterFetcher( HTTPServer* hs, double interval = 1.0 )
+        : hs_(hs), interval_(interval), state_(std::make_shared<SharedState>()) {}
     virtual ~PeriodicCounterFetcher() override {
         hs_ = nullptr;
     }
 
+    std::shared_ptr<SharedState> state() const {
+        return state_;
+    }
+
     void start( void ) {
         DBG( 4, "PeriodicCounterFetcher::start() called" );
-        run_ = true;
+        if ( state_ ) state_->run = true;
     }
 
     void pause( void ) {
         DBG( 4, "PeriodicCounterFetcher::pause() called" );
-        run_ = false;
+        if ( state_ ) state_->run = false;
     }
 
     void stop( void ) {
         DBG( 4, "PeriodicCounterFetcher::stop() called" );
-        exit_ = true;
+        auto s = state_;
+        if ( !s ) return;
+        {
+            std::lock_guard<std::mutex> lock(s->mtx);
+            s->exit = true;
+            s->cv.notify_all();
+        }
     }
 
     virtual void execute() override;
 
 private:
     HTTPServer*       hs_;
-    std::atomic<bool> run_;
-    std::atomic<bool> exit_;
+    double interval_;
+    std::shared_ptr<SharedState> state_;
 };
 
 class HTTPServer : public Server {
 public:
-    // The internal history of aggregators is permanently capped at
-    // maxAggregators_ entries (see addAggregator()), so the only valid indices
-    // are 0 .. maxAggregators_ - 1. Answering /persecond/X compares the newest
-    // sample (index 0) with the sample X seconds earlier (index X), which needs
-    // X + 1 retained entries. The largest X that can ever be satisfied is
-    // therefore maxAggregators_ - 1. Deriving the accepted bound from the cap
-    // keeps the route validation and the retention policy in sync and prevents
-    // the off-by-one that caused /persecond/30 to block a worker forever.
-    static constexpr size_t maxAggregators_ = 30;
-    static constexpr size_t maxPerSecondSeconds_ = maxAggregators_ - 1;
+    static constexpr size_t maxPerSecondSeconds_ = 29;
+    static constexpr size_t maxRecentSamples_ = 30;
+    static constexpr size_t maxCoarseSamples_ = 60;
 
-    HTTPServer() : Server( "", 80 ), stopped_( false ){
+    HTTPServer( double interval = 1.0, bool startFetcher = true, bool createSocket = true ) : Server( "", DEFAULT_HTTP_PORT, false, createSocket ), stopped_( false ), interval_( interval ), pcf_( nullptr ) {
         DBG( 3, "HTTPServer::HTTPServer()" );
+        coarseResolution_ = (std::max)( 0.5, 1.0 - interval_ * 0.5 );
         callbackList_.resize( 256 );
-        createPeriodicCounterFetcher();
-        pcf_->start();
-        SignalHandler::getInstance()->setHTTPServer( this );
+        if ( startFetcher ) {
+            createPeriodicCounterFetcher( interval_ );
+            pcf_->start();
+        }
+        if ( createSocket ) {
+            SignalHandler::getInstance()->setHTTPServer( this );
+        }
     }
 
-    HTTPServer( std::string const & ip, uint16_t port, bool useIPv4 = false ) : Server( ip, port, useIPv4 ), stopped_( false ) {
+    HTTPServer( std::string const & ip, uint16_t port, bool useIPv4 = false, double interval = 1.0, bool startFetcher = true, bool createSocket = true ) : Server( ip, port, useIPv4, createSocket ), stopped_( false ), interval_( interval ), pcf_( nullptr ) {
         DBG( 3, "HTTPServer::HTTPServer( ip=", ip, ", port=", port, " )" );
+        coarseResolution_ = (std::max)( 0.5, 1.0 - interval_ * 0.5 );
         callbackList_.resize( 256 );
-        createPeriodicCounterFetcher();
-        pcf_->start();
-        SignalHandler::getInstance()->setHTTPServer( this );
+        if ( startFetcher ) {
+            createPeriodicCounterFetcher( interval_ );
+            pcf_->start();
+        }
+        if ( createSocket ) {
+            SignalHandler::getInstance()->setHTTPServer( this );
+        }
     }
 
     HTTPServer( HTTPServer const & ) = delete;
@@ -3836,14 +3891,28 @@ public:
     virtual void run() override;
 
     void stop() {
-        stopped_ = true;
-        pcf_->stop();
-        // pcf is a Work object in the threadpool, calling stop makes
-        // it leave the loop and then automatically gets deleted,
-        // we just set it to nullptr here
-        pcf_ = nullptr;
-        // It takes up to one second for a pcf to leave the loop
-        std::this_thread::sleep_for( std::chrono::seconds(1) );
+        {
+            std::lock_guard<std::mutex> lock( agVectorMutex_ );
+            stopped_ = true;
+        }
+        agVectorCV_.notify_all();
+        if ( serverSocket_ != INVALID_SOCKET ) {
+#ifdef _WIN32
+            closesocket( serverSocket_ );
+#else
+            ::close( serverSocket_ );
+#endif
+            serverSocket_ = INVALID_SOCKET;
+        }
+        if ( pcf_ ) {
+            pcf_->stop();
+            pcf_ = nullptr;
+        }
+        if ( pcfState_ ) {
+            std::unique_lock<std::mutex> lock( pcfState_->mtx );
+            pcfState_->doneCv.wait( lock, [this]() { return pcfState_->done.load(); } );
+            pcfState_ = nullptr;
+        }
         ThreadPool::getInstance().emptyThreadPool();
     }
 
@@ -3858,37 +3927,123 @@ public:
         callbackList_[rm] = nullptr;
     }
 
-    void addAggregator( std::shared_ptr<Aggregator> agp ) {
+    void addAggregator( std::shared_ptr<Aggregator> agp, std::chrono::steady_clock::time_point timestamp ) {
         DBG( 4, "HTTPServer::addAggregator( agp=", std::hex, agp.get(), " ) called" );
 
         {
             std::lock_guard<std::mutex> lock( agVectorMutex_ );
-            agVector_.insert( agVector_.begin(), agp );
-            if ( agVector_.size() > maxAggregators_ ) {
-                DBG( 4, "HTTPServer::addAggregator(): Removing last Aggegator" );
-                agVector_.pop_back();
+            recentQueue_.push_front( AggregatorRecord{ agp, timestamp } );
+            if ( recentQueue_.size() > maxRecentSamples_ ) {
+                recentQueue_.pop_back();
+            }
+
+            if ( interval_ < 1.0 ) {
+                if ( coarseQueue_.empty() ||
+                     std::chrono::duration<double>( timestamp - coarseQueue_.front().timestamp ).count() >= coarseResolution_ ) {
+                    coarseQueue_.push_front( AggregatorRecord{ agp, timestamp } );
+                    if ( coarseQueue_.size() > maxCoarseSamples_ ) {
+                        coarseQueue_.pop_back();
+                    }
+                }
             }
         }
         agVectorCV_.notify_all();
     }
 
-    std::pair<std::shared_ptr<Aggregator>,std::shared_ptr<Aggregator>> getAggregators( size_t index, size_t index2 ) {
-        if ( index == index2 )
-            throw std::runtime_error("BUG: getAggregator: both indices are equal. Fix the code!" );
+    void addAggregator( std::shared_ptr<Aggregator> agp ) {
+        addAggregator( agp, std::chrono::steady_clock::now() );
+    }
 
-        // The history is permanently capped at maxAggregators_ entries, so any
-        // request for an index that can never be retained would otherwise wait
-        // forever. Fail fast instead of blocking a worker thread indefinitely.
-        if ( (std::max)( index, index2 ) >= maxAggregators_ )
-            throw std::runtime_error("BUG: getAggregator: requested index can never be satisfied. Fix the code!" );
+    std::pair<std::shared_ptr<Aggregator>,std::shared_ptr<Aggregator>> getAggregators( size_t seconds, size_t index2 = 0 ) {
+        if ( seconds == 0 )
+            throw std::runtime_error("BUG: getAggregator: seconds == 0. Fix the code!" );
+
+        if ( seconds > maxPerSecondSeconds_ )
+            throw std::runtime_error("BUG: getAggregator: requested seconds can never be satisfied. Fix the code!" );
+
+        if ( index2 >= maxRecentSamples_ )
+            throw std::runtime_error("BUG: getAggregator: requested index2 can never be satisfied. Fix the code!" );
+
+        const double targetSeconds = static_cast<double>(seconds);
 
         // Wait under the mutex until we have enough samples to return, using the
         // condition variable so we don't race against addAggregator().
-        auto needSize = (std::max)( index, index2 ) + 1;
         std::unique_lock<std::mutex> lock( agVectorMutex_ );
-        agVectorCV_.wait( lock, [&]{ return agVector_.size() >= needSize; } );
-        auto ret = std::make_pair( agVector_[ index ], agVector_[ index2 ] );
+        agVectorCV_.wait( lock, [&]{
+            if ( stopped_ ) {
+                return true;
+            }
+            if ( recentQueue_.size() <= index2 ) {
+                return false;
+            }
+            if ( coarseQueue_.empty() && recentQueue_.size() <= index2 + 1 ) {
+                return false;
+            }
+            const auto refTime = recentQueue_[ index2 ].timestamp;
+            const auto oldestTime = coarseQueue_.empty() ? recentQueue_.back().timestamp : coarseQueue_.back().timestamp;
+            const auto span = std::chrono::duration<double>( refTime - oldestTime ).count();
+            const bool historyFull = ( !coarseQueue_.empty() && coarseQueue_.size() >= maxCoarseSamples_ ) ||
+                                     ( coarseQueue_.empty() && recentQueue_.size() >= maxRecentSamples_ );
+            return span >= ( targetSeconds - interval_ * 0.5 ) || historyFull;
+        } );
+
+        if ( stopped_ ) {
+            if ( recentQueue_.size() <= index2 ) {
+                throw std::runtime_error( "Server stopped before enough samples were collected." );
+            }
+            if ( coarseQueue_.empty() && recentQueue_.size() <= index2 + 1 ) {
+                throw std::runtime_error( "Server stopped before enough samples were collected." );
+            }
+        }
+
+        const auto refTime = recentQueue_[ index2 ].timestamp;
+        const auto targetTime = refTime - std::chrono::duration<double>( targetSeconds );
+
+        std::shared_ptr<Aggregator> bestAgp = nullptr;
+        double bestDiff = (std::numeric_limits<double>::max)();
+
+        // 1. Search recent high-resolution history
+        for ( size_t i = 0; i < recentQueue_.size(); ++i ) {
+            if ( i == index2 ) {
+                continue;
+            }
+            double diff = std::abs( std::chrono::duration<double>( recentQueue_[ i ].timestamp - targetTime ).count() );
+            if ( diff < bestDiff ) {
+                bestDiff = diff;
+                bestAgp = recentQueue_[ i ].agp;
+            }
+        }
+
+        // 2. Search coarse downsampled history
+        for ( size_t i = 0; i < coarseQueue_.size(); ++i ) {
+            if ( coarseQueue_[ i ].agp == recentQueue_[ index2 ].agp ) {
+                continue;
+            }
+            double diff = std::abs( std::chrono::duration<double>( coarseQueue_[ i ].timestamp - targetTime ).count() );
+            if ( diff < bestDiff ) {
+                bestDiff = diff;
+                bestAgp = coarseQueue_[ i ].agp;
+            }
+        }
+
+        if ( !bestAgp ) {
+            throw std::runtime_error( "Failed to find matching aggregator for history selection." );
+        }
+
+        auto ret = std::make_pair( bestAgp, recentQueue_[ index2 ].agp );
         return ret;
+    }
+
+    size_t recentHistorySize() const {
+        return recentQueue_.size();
+    }
+
+    size_t coarseHistorySize() const {
+        return coarseQueue_.size();
+    }
+
+    size_t totalHistorySize() const {
+        return recentQueue_.size() + coarseQueue_.size();
     }
 
     bool checkForIncomingSSLConnection( socket_t fd ) {
@@ -3930,21 +4085,30 @@ public:
     }
 
 private:
-    void createPeriodicCounterFetcher() {
+    void createPeriodicCounterFetcher( double interval = 1.0 ) {
         // We keep a pointer to pcf to start and stop execution
         // not to delete it when done with it, that is up to threadpool/workqueue
-        pcf_ = new PeriodicCounterFetcher( this );
+        pcf_ = new PeriodicCounterFetcher( this, interval );
+        pcfState_ = pcf_->state();
         wq_->addWork( pcf_ );
         pcf_->start();
     }
 
 protected:
+    struct AggregatorRecord {
+        std::shared_ptr<Aggregator> agp;
+        std::chrono::steady_clock::time_point timestamp;
+    };
     std::vector<http_callback>               callbackList_;
-    std::vector<std::shared_ptr<Aggregator>> agVector_;
+    std::deque<AggregatorRecord>             recentQueue_;
+    std::deque<AggregatorRecord>             coarseQueue_;
     std::mutex agVectorMutex_;
     std::condition_variable agVectorCV_;
     PeriodicCounterFetcher* pcf_;
+    std::shared_ptr<PeriodicCounterFetcher::SharedState> pcfState_;
     bool stopped_;
+    double interval_;
+    double coarseResolution_;
 };
 
 // Here to break dependency on HTTPServer
@@ -3954,12 +4118,15 @@ BOOL WINAPI SignalHandler::handleSignal( DWORD signum )
     // Clean up, close socket and such
     std::cerr << "handleSignal: signal " << signum << " caught.\n";
     std::cerr << "handleSignal: closing socket " << networkSocket_ << "\n";
-    ::close( networkSocket_ );
-    std::cerr << "Cleaning up PMU:\n";
-    PCM::getInstance()->cleanup();
+    if ( networkSocket_ != INVALID_SOCKET ) {
+        ::close( networkSocket_ );
+        networkSocket_ = INVALID_SOCKET;
+    }
     std::cerr << "Stopping HTTPServer\n";
     if (httpServer_)
         httpServer_->stop();
+    std::cerr << "Cleaning up PMU:\n";
+    PCM::getInstance()->cleanup();
     std::cerr << "handleSignal: exiting with exit code 1...\n";
     exit(1);
     return TRUE;
@@ -3967,28 +4134,29 @@ BOOL WINAPI SignalHandler::handleSignal( DWORD signum )
 #else
 void SignalHandler::handleSignal( int signum )
 {
-    // Clean up, close socket and such
-    std::cerr << "handleSignal: signal " << signum << " caught.\n";
-    std::cerr << "handleSignal: closing socket " << networkSocket_ << "\n";
-    ::close( networkSocket_ );
-    std::cerr << "Stopping HTTPServer\n";
-    httpServer_->stop();
-    std::cerr << "Cleaning up PMU:\n";
-    PCM::getInstance()->cleanup();
-    std::cerr << "handleSignal: exiting with exit code 1...\n";
-    exit(1);
+    signalCaught_ = signum;
+    // Async-signal-safe notification: close socket to unblock accept() in normal execution context
+    if ( networkSocket_ != INVALID_SOCKET ) {
+        ::close( networkSocket_ );
+        networkSocket_ = INVALID_SOCKET;
+    }
 }
 #endif
 
 void PeriodicCounterFetcher::execute() {
+    auto s = state_;
+    if (!s) return;
     using namespace std::chrono;
-    system_clock::time_point now = system_clock::now();
-    now = now + std::chrono::seconds(1);
-    std::this_thread::sleep_until( now );
+    auto delay = duration_cast<system_clock::duration>(duration<double>(interval_));
+    system_clock::time_point now = system_clock::now() + delay;
+    {
+        std::unique_lock<std::mutex> lock(s->mtx);
+        s->cv.wait_until(lock, now, [&s]() { return s->exit.load(); });
+    }
     while( 1 ) {
-        if ( exit_ )
+        if ( s->exit.load() )
             break;
-        if ( run_ ) {
+        if ( s->run.load() ) {
             auto before = steady_clock::now();
             // create an aggregator
             std::shared_ptr<Aggregator> sagp = std::make_shared<Aggregator>();
@@ -4002,9 +4170,21 @@ void PeriodicCounterFetcher::execute() {
             auto elapsed = duration_cast<std::chrono::milliseconds>(after - before);
             DBG( 4, "Aggregation Duration: ", elapsed.count(), "ms." );
         }
-        now = now + std::chrono::seconds(1);
-        std::this_thread::sleep_until( now );
+        now += delay;
+        const auto currentTime = system_clock::now();
+        if (now <= currentTime) {
+            now = currentTime + delay; // skip missed deadlines and schedule next collection in the future
+        }
+        {
+            std::unique_lock<std::mutex> lock(s->mtx);
+            s->cv.wait_until(lock, now, [&s]() { return s->exit.load(); });
+        }
     }
+    {
+        std::lock_guard<std::mutex> lock(s->mtx);
+        s->done = true;
+    }
+    s->doneCv.notify_all();
 }
 
 void HTTPServer::run() {
@@ -4012,9 +4192,22 @@ void HTTPServer::run() {
     clientAddress.sin_family = AF_INET;
     socket_t clientSocketFD = INVALID_SOCKET;
     while ( ! stopped_ ) {
+#ifndef _WIN32
+        if ( SignalHandler::wasSignaled() ) {
+            break;
+        }
+#endif
         // Listen on socket for incoming requests
         socklen_t sa_len = sizeof( struct sockaddr_in );
         socket_t retval = ::accept( serverSocket_, (struct sockaddr*)&clientAddress, &sa_len );
+#ifndef _WIN32
+        if ( SignalHandler::wasSignaled() ) {
+            if ( INVALID_SOCKET != retval ) {
+                ::close( retval );
+            }
+            break;
+        }
+#endif
         if ( INVALID_SOCKET == retval ) {
 #ifdef _WIN32
             DBG( 3, "Accept returned INVALID_SOCKET, WSAGetLastError: ", WSAGetLastError() );
@@ -4079,13 +4272,24 @@ void HTTPServer::run() {
         }
         wq_->addWork( connection );
     }
+#ifndef _WIN32
+    if ( SignalHandler::wasSignaled() ) {
+        std::cerr << "handleSignal: signal " << SignalHandler::getSignal() << " caught.\n";
+        std::cerr << "Stopping HTTPServer\n";
+        stop();
+        std::cerr << "Cleaning up PMU:\n";
+        PCM::getInstance()->cleanup();
+        std::cerr << "handleSignal: exiting with exit code 1...\n";
+        ::exit( 1 );
+    }
+#endif
 }
 
 #if defined (USE_SSL)
 class HTTPSServer : public HTTPServer {
 public:
-    HTTPSServer() : HTTPServer( "", 443 ) {}
-    HTTPSServer( std::string const & ip, uint16_t port, bool useIPv4 = false ) : HTTPServer( ip, port, useIPv4 ), sslCTX_( nullptr ) {}
+    HTTPSServer( double interval = 1.0 ) : HTTPServer( "", 443, false, interval ) {}
+    HTTPSServer( std::string const & ip, uint16_t port, bool useIPv4 = false, double interval = 1.0 ) : HTTPServer( ip, port, useIPv4, interval ), sslCTX_( nullptr ) {}
     HTTPSServer( HTTPSServer const & ) = delete;
     HTTPSServer & operator = ( HTTPSServer const & ) = delete;
     virtual ~HTTPSServer() {
@@ -4150,9 +4354,22 @@ void HTTPSServer::run() {
         throw std::runtime_error( "No SSL_CTX created" );
 
     while ( ! stopped_ ) {
+#ifndef _WIN32
+        if ( SignalHandler::wasSignaled() ) {
+            break;
+        }
+#endif
         // Listen on socket for incoming requests, same as for regular connection
         socklen_t sa_len = sizeof( struct sockaddr_in );
         socket_t retval = ::accept( serverSocket_, (struct sockaddr*)&clientAddress, &sa_len );
+#ifndef _WIN32
+        if ( SignalHandler::wasSignaled() ) {
+            if ( INVALID_SOCKET != retval ) {
+                ::close( retval );
+            }
+            break;
+        }
+#endif
         DBG( 3, "RegularAccept: (if not INVALID_SOCKET it is client socket descriptor) ", retval );
         if ( INVALID_SOCKET == retval ) {
 #ifdef _WIN32
@@ -4288,6 +4505,17 @@ void HTTPSServer::run() {
         }
         wq_->addWork( connection );
     }
+#ifndef _WIN32
+    if ( SignalHandler::wasSignaled() ) {
+        std::cerr << "handleSignal: signal " << SignalHandler::getSignal() << " caught.\n";
+        std::cerr << "Stopping HTTPServer\n";
+        stop();
+        std::cerr << "Cleaning up PMU:\n";
+        PCM::getInstance()->cleanup();
+        std::cerr << "handleSignal: exiting with exit code 1...\n";
+        ::exit( 1 );
+    }
+#endif
 }
 #endif // USE_SSL
 
@@ -4530,8 +4758,8 @@ void my_get_callback( HTTPServer* hs, HTTPRequest const & req, HTTPResponse & re
     }
 }
 
-int startHTTPServer( const std::string& listenAddr, unsigned short port, bool useIPv4 = false ) {
-    HTTPServer server( listenAddr, port, useIPv4 );
+int startHTTPServer( const std::string& listenAddr, unsigned short port, bool useIPv4 = false, double interval = 1.0 ) {
+    HTTPServer server( listenAddr, port, useIPv4, interval );
     try {
         // HEAD is GET without body, we will remove the body in execute()
         server.registerCallback( HTTPRequestMethod::GET,  my_get_callback );
@@ -4545,8 +4773,8 @@ int startHTTPServer( const std::string& listenAddr, unsigned short port, bool us
 }
 
 #if defined (USE_SSL)
-int startHTTPSServer( const std::string& listenAddr, unsigned short port, std::string const & cFile, std::string const & pkFile, bool useIPv4 = false ) {
-    HTTPSServer server( listenAddr, port, useIPv4 );
+int startHTTPSServer( const std::string& listenAddr, unsigned short port, std::string const & cFile, std::string const & pkFile, bool useIPv4 = false, double interval = 1.0 ) {
+    HTTPSServer server( listenAddr, port, useIPv4, interval );
     try {
         server.setPrivateKeyFile ( pkFile );
         server.setCertificateFile( cFile );
@@ -4594,6 +4822,7 @@ void printHelpText( std::string const & programName ) {
     std::cout << "    -s                   : Use https protocol (default port " << DEFAULT_HTTPS_PORT << ")\n";
 #endif
     std::cout << "    -p portnumber        : Run on port <portnumber> (default port is " << DEFAULT_HTTP_PORT << ")\n";
+    std::cout << "    -i|--interval seconds: Set collection interval in seconds (default: 1.0)\n";
     std::cout << "    -l|--listen address  : Listen on IP address <address> (default: all interfaces)\n";
 #ifndef _WIN32
     std::cout << "    -4|--ipv4            : Use IPv4 instead of IPv6 (non-Windows only)\n";
@@ -4637,6 +4866,7 @@ int mainThrows(int argc, char * argv[]) {
     bool useIPv4 = false;
     unsigned short port = 0;
     unsigned short debug_level = 0;
+    double interval = 1.0;
     std::string listenAddress = "";  // Empty string means listen on all interfaces
     std::string certificateFile;
     std::string privateKeyFile;
@@ -4683,6 +4913,25 @@ int mainThrows(int argc, char * argv[]) {
                     }
                 } else {
                     throw std::runtime_error( "main: Error no port argument given" );
+                }
+            }
+            else if ( check_argument_equals( argv[i], {"-i", "--interval"} ) )
+            {
+                if ( (++i) < argc ) {
+                    try {
+                        std::size_t pos = 0;
+                        double val = std::stod( argv[i], &pos );
+                        if ( pos != std::strlen( argv[i] ) )
+                            throw std::invalid_argument( "invalid interval" );
+                        if ( !(val >= 0.001 && val <= 31536000.0) )
+                            throw std::out_of_range( "interval must be between 0.001 and 31536000.0 seconds" );
+                        interval = val;
+                    } catch ( const std::exception& e ) {
+                        std::cerr << "main: invalid interval argument '" << argv[i] << "': " << e.what() << "\n";
+                        ::exit( 2 );
+                    }
+                } else {
+                    throw std::runtime_error( "main: Error no interval argument given" );
                 }
             }
             else if ( check_argument_equals( argv[i], {"-l", "--listen"} ) )
@@ -5006,7 +5255,7 @@ int mainThrows(int argc, char * argv[]) {
                 port = DEFAULT_HTTPS_PORT;
             std::string displayAddr = listenAddress.empty() ? "localhost" : listenAddress;
             std::cerr << "Starting SSL enabled server on https://" << displayAddr << ":" << port << "/\n";
-            startHTTPSServer( listenAddress, port, certificateFile, privateKeyFile, useIPv4 );
+            startHTTPSServer( listenAddress, port, certificateFile, privateKeyFile, useIPv4, interval );
         } else
 #endif
         {
@@ -5014,7 +5263,7 @@ int mainThrows(int argc, char * argv[]) {
                 port = DEFAULT_HTTP_PORT;
             std::string displayAddr = listenAddress.empty() ? "localhost" : listenAddress;
             std::cerr << "Starting plain HTTP server on http://" << displayAddr << ":" << port << "/\n";
-            startHTTPServer( listenAddress, port, useIPv4 );
+            startHTTPServer( listenAddress, port, useIPv4, interval );
         }
 
         if (pcieCol) pcieCol->stop();
