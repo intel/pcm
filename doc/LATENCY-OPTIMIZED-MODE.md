@@ -23,8 +23,8 @@ Should this BIOS option be unavailable or if there is a preference to change the
 
 |Platform	         |Script Type|	URL                                                                |
 |------------------|-----------|---------------------------------------------------------------------|
-|Linux/FreeBSD/UNIX|bash       | https://github.com/intel/pcm/blob/master/scripts/bhs-power-mode.sh  |
-|Windows	         |powershell | https://github.com/intel/pcm/blob/master/scripts/bhs-power-mode.ps1 |
+|Linux/FreeBSD/UNIX|bash       | https://github.com/intel/pcm/blob/master/scripts/ufs-power-mode.sh  |
+|Windows	         |powershell | https://github.com/intel/pcm/blob/master/scripts/ufs-power-mode.ps1 |
 
 The scripts require the pcm-tpmi utility. There are several methods to obtain this utility:
 - **Download or install precompiled PCM binaries:** Please refer to the following link: [Downloading Pre-Compiled PCM Tools](https://github.com/intel/pcm?tab=readme-ov-file#downloading-pre-compiled-pcm-tools)
@@ -39,23 +39,23 @@ Once the pcm-tpmi binary is correctly placed, you can set the Latency Optimized 
 
 Linux/FreeBSD/UNIX:
 ```
-bash bhs-power-mode.sh --latency-optimized-mode
+bash ufs-power-mode.sh --latency-optimized-mode
 ```
 Windows:
 ```
-.\bhs-power-mode.ps1 --latency-optimized-mode
+.\ufs-power-mode.ps1 --latency-optimized-mode
 ```
 
 ### Setting Optimized Power Mode
 
 Linux/FreeBSD/UNIX:
 ```
-bash bhs-power-mode.sh --optimized-power-mode
+bash ufs-power-mode.sh --optimized-power-mode
 ```
 
 Windows:
 ```
-.\bhs-power-mode.ps1 --optimized-power-mode
+.\ufs-power-mode.ps1 --optimized-power-mode
 ```
 
 
