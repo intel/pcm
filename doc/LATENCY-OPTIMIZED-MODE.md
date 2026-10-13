@@ -59,3 +59,17 @@ Windows:
 ```
 
 
+
+### Showing the Current Mode
+
+When run without options, the scripts read the TPMI registers and report the current mode (Optimized Power Mode, Latency Optimized Mode or Unknown if the register values on the dies do not match either mode):
+
+Linux/FreeBSD/UNIX:
+```
+bash ufs-power-mode.sh
+```
+
+Windows:
+```
+.\ufs-power-mode.ps1
+```
