@@ -1,5 +1,5 @@
 Write-Output "Intel(r) Performance Counter Monitor"
-Write-Output "Birch Stream Power Mode Utility"
+Write-Output "UFS (Uncore Frequency Scaling) Power Mode Utility"
 Write-Output ""
 
 Write-Output " Options:"

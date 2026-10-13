@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo "Intel(r) Performance Counter Monitor"
-echo "Birch Stream Power Mode Utility"
+echo "UFS (Uncore Frequency Scaling) Power Mode Utility"
 echo ""
 
 echo " Options:"
