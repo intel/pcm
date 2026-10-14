@@ -865,6 +865,7 @@ void PCM::initCStateSupportTables()
         case LNL:
         case ARL:
         case PTL:
+        case WCL:
             PCM_CSTATE_ARRAY(pkgCStateMsr, PCM_PARAM_PROTECT({0, 0, 0x60D, 0x3F8, 0, 0, 0x3F9, 0x3FA, 0x630, 0x631, 0x632}) );
 
         default:
@@ -911,6 +912,7 @@ void PCM::initCStateSupportTables()
         case LNL:
         case ARL:
         case PTL:
+        case WCL:
         case CWF:
         case SNOWRIDGE:
         case ELKHART_LAKE:
@@ -1468,6 +1470,7 @@ bool PCM::detectNominalFrequency()
                || cpu_family_model == LNL
                || cpu_family_model == ARL
                || cpu_family_model == PTL
+               || cpu_family_model == WCL
                || cpu_family_model == SKX
                || cpu_family_model == ICX
                || cpu_family_model == SPR
@@ -2026,6 +2029,7 @@ void PCM::initUncoreObjects()
            case LNL: // TGLClientBW works fine for LNL
            case ARL: // TGLClientBW works fine for ARL
            case PTL: // TGLClientBW works fine for PTL
+           case WCL: // TGLClientBW works fine for WCL
                clientBW = std::make_shared<TGLClientBW>();
                break;
 /*         Disabled since ADLClientBW requires 2x multiplier for BW on top
@@ -3527,6 +3531,7 @@ bool PCM::isCPUModelSupported(const int model_)
             || model_ == LNL
             || model_ == ARL
             || model_ == PTL
+            || model_ == WCL
             || model_ == SKX
             || model_ == ICX
             || model_ == SPR
@@ -3710,6 +3715,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
                        || cpu_family_model == LNL
                        || cpu_family_model == ARL
                        || cpu_family_model == PTL
+                       || cpu_family_model == WCL
                          ))
     {
         canUsePerf = false;
@@ -3800,6 +3806,7 @@ PCM::ErrorCode PCM::program(const PCM::ProgramMode mode_, const void * parameter
             case LNL:
             case ARL:
             case PTL:
+            case WCL:
                 LLCArchEventInit(hybridAtomEventDesc);
                 hybridAtomEventDesc[2].event_number = SKL_MEM_LOAD_RETIRED_L2_MISS_EVTNR;
                 hybridAtomEventDesc[2].umask_value = SKL_MEM_LOAD_RETIRED_L2_MISS_UMASK;
@@ -5181,6 +5188,8 @@ const char * PCM::cpuFamilyModelToUArchCodename(const int32 cpu_family_model_, c
             return "Arrow Lake";
         case PTL:
             return "Panther Lake";
+        case WCL:
+            return "Wildcat Lake";
         case SKX:
             if (cpu_stepping_ < 0)
             {
