@@ -1,12 +1,13 @@
 #!/bin/bash
 
 echo "Intel(r) Performance Counter Monitor"
-echo "Birch Stream Power Mode Utility"
+echo "UFS (Uncore Frequency Scaling) Power Mode Utility"
 echo ""
 
 echo " Options:"
 echo " --optimized-power-mode   : set optimized power mode"
 echo " --latency-optimized-mode : set latency optimized mode"
+echo " (no option)              : show the current mode"
 echo
 
 # Run the pcm-tpmi command to determine I/O and compute dies
@@ -92,6 +93,10 @@ fi
 echo "Dumping TPMI Power control register states..."
 echo ""
 
+# Cleared when any die does not match the respective mode settings
+all_dies_optimized_power=1
+all_dies_latency_optimized=1
+
 # Function to extract and calculate metrics from the value
 extract_and_print_metrics() {
     local value=$1
@@ -112,6 +117,18 @@ extract_and_print_metrics() {
     local eff_latency_ctrl_low_threshold=$(( (value >> 32) & 0x7F ))
     local eff_latency_ctrl_high_threshold=$(( (value >> 40) & 0x7F ))
     local eff_latency_ctrl_high_threshold_enable=$(( (value >> 39) & 0x1 ))
+
+    # Compare raw register fields with the values written by the mode options above
+    local regs="$eff_latency_ctrl_ratio"
+    local optimized_power_regs="12"
+    local latency_optimized_regs="0"
+    if [ "$die_type" == "IO" ] ; then
+        regs="$eff_latency_ctrl_ratio:$eff_latency_ctrl_low_threshold:$eff_latency_ctrl_high_threshold:$eff_latency_ctrl_high_threshold_enable"
+        optimized_power_regs="8:13:120:1"
+        latency_optimized_regs="0:0:0:1"
+    fi
+    [ "$regs" != "$optimized_power_regs" ] && all_dies_optimized_power=0
+    [ "$regs" != "$latency_optimized_regs" ] && all_dies_latency_optimized=0
 
     # Convert to MHz or percentage
     min_ratio=$(( min_ratio * 100 ))
@@ -169,3 +186,15 @@ for die_key in "${!die_types[@]}"; do
     done <<< "$output"
 done
 
+if [ -z "$1" ]; then
+    if [ ${#die_types[@]} -eq 0 ]; then
+        current_mode="Unknown"
+    elif [ $all_dies_optimized_power -eq 1 ]; then
+        current_mode="Optimized Power Mode"
+    elif [ $all_dies_latency_optimized -eq 1 ]; then
+        current_mode="Latency Optimized Mode"
+    else
+        current_mode="Unknown"
+    fi
+    echo "Current mode: $current_mode"
+fi

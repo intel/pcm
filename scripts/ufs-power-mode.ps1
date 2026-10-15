@@ -1,10 +1,11 @@
 Write-Output "Intel(r) Performance Counter Monitor"
-Write-Output "Birch Stream Power Mode Utility"
+Write-Output "UFS (Uncore Frequency Scaling) Power Mode Utility"
 Write-Output ""
 
 Write-Output " Options:"
 Write-Output " --optimized-power-mode   : set optimized power mode"
 Write-Output " --latency-optimized-mode : set latency optimized mode"
+Write-Output " (no option)              : show the current mode"
 Write-Output ""
 
 # Run the pcm-tpmi command to determine I/O and compute dies
@@ -19,8 +20,8 @@ $die_types = @{}
 $output -split "`n" | ForEach-Object {
     $line = $_
     if ($line -match "entry" -and $line -match "instance") {
-        $entry = $line -match 'entry (\d+)' | Out-Null; $matches[1]
-        $instance = $line -match 'instance (\d+)' | Out-Null; $matches[1]
+        $entry = if ($line -match 'entry (\d+)') { $matches[1] }
+        $instance = if ($line -match 'instance (\d+)') { $matches[1] }
         $die_key = "${instance}:${entry}"
         if ($line -match "value 1") {
             $die_types[$die_key] = "IO"
@@ -89,10 +90,14 @@ if ($args[0] -eq "--latency-optimized-mode") {
 Write-Output "Dumping TPMI Power control register states..."
 Write-Output ""
 
+# Cleared when any die does not match the respective mode settings
+$script:all_dies_optimized_power = $true
+$script:all_dies_latency_optimized = $true
+
 # Function to extract and calculate metrics from the value
 function ExtractAndPrintMetrics {
     param (
-        [int]$value,
+        [uint64]$value,
         [int]$socket_id,
         [string]$die_key,
         [string]$numa_node,
@@ -112,6 +117,18 @@ function ExtractAndPrintMetrics {
     $eff_latency_ctrl_low_threshold = ($value -shr 32) -band 0x7F
     $eff_latency_ctrl_high_threshold = ($value -shr 40) -band 0x7F
     $eff_latency_ctrl_high_threshold_enable = ($value -shr 39) -band 0x1
+
+    # Compare raw register fields with the values written by the mode options above
+    $regs = "$eff_latency_ctrl_ratio"
+    $optimized_power_regs = "12"
+    $latency_optimized_regs = "0"
+    if ($die_type -eq "IO") {
+        $regs = "${eff_latency_ctrl_ratio}:${eff_latency_ctrl_low_threshold}:${eff_latency_ctrl_high_threshold}:${eff_latency_ctrl_high_threshold_enable}"
+        $optimized_power_regs = "8:13:120:1"
+        $latency_optimized_regs = "0:0:0:1"
+    }
+    if ($regs -ne $optimized_power_regs) { $script:all_dies_optimized_power = $false }
+    if ($regs -ne $latency_optimized_regs) { $script:all_dies_latency_optimized = $false }
 
     # Convert to MHz or percentage
     $min_ratio = $min_ratio * 100
@@ -148,9 +165,9 @@ foreach ($die_key in $die_types.Keys) {
     $output -split "`n" | ForEach-Object {
         $line = $_
         if ($line -match "Read value") {
-            $value = $line -match 'value (\d+)' | Out-Null; $matches[1]
-            $inst = $line -match 'instance (\d+)' | Out-Null; $matches[1]
-            $ent = $line -match 'entry (\d+)' | Out-Null; $matches[1]
+            $value = if ($line -match 'value (\d+)') { $matches[1] }
+            $inst = if ($line -match 'instance (\d+)') { $matches[1] }
+            $ent = if ($line -match 'entry (\d+)') { $matches[1] }
             $parsed_die_key = "${inst}:${ent}"
             # Extract socket ID if present, otherwise fallback to instance ID
             if ($line -match '\(socket (\d+)\)') {
@@ -166,4 +183,17 @@ foreach ($die_key in $die_types.Keys) {
             ExtractAndPrintMetrics -value $value -socket_id $socket_id -die_key $parsed_die_key -numa_node $numa_node -instance $inst
         }
     }
+}
+
+if ($args.Count -eq 0) {
+    if ($die_types.Count -eq 0) {
+        $current_mode = "Unknown"
+    } elseif ($script:all_dies_optimized_power) {
+        $current_mode = "Optimized Power Mode"
+    } elseif ($script:all_dies_latency_optimized) {
+        $current_mode = "Latency Optimized Mode"
+    } else {
+        $current_mode = "Unknown"
+    }
+    Write-Output "Current mode: $current_mode"
 }
