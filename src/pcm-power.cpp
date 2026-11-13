@@ -640,6 +640,8 @@ int mainThrows(int argc, char * argv[])
     if (!(m->hasPCICFGUncore()))
     {
         cerr << "Unsupported processor model (0x" << std::hex << cpu_family_model << std::dec << ").\n";
+        cerr << "pcm-power requires server uncore PMU hardware which is not available on client or unsupported processors (see doc/FAQ.md#q5).\n";
+        cerr << "For basic power and C-state metrics on this processor, please use the main 'pcm' utility.\n";
         exit(EXIT_FAILURE);
     }
 

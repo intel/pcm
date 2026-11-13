@@ -27,13 +27,13 @@ Answer: yes, it does. An example of how to run PCM inside a docker container is 
 
 pcm-power reports "Unsupported processor model". Can you add support for pcm-power for my CPU?
 
-Answer: most likely you have a client CPU which does not have required hardware performance monitoring units. PCM-power can not work without them.
+Answer: most likely you have a client CPU which does not have required hardware performance monitoring units. PCM-power can not work without them. For basic power and C-state metrics on client processors, please use the main `pcm` utility.
 
 ## Q6
 
 pcm-memory reports that the CPU is not supported. Can you add support for pcm-memory for my CPU?
 
-Answer: most likely you have a client CPU which does not have required hardware performance monitoring units. PCM-memory can not work without them.
+Answer: most likely you have a client CPU which does not have required hardware performance monitoring units. PCM-memory can not work without them. For processor-level memory bandwidth statistics on client processors, please use the main `pcm` utility.
 
 ## Q7
 

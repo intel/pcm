@@ -61,6 +61,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
         if (!m->hasPCICFGUncore())
         {
                 cerr << "Unsupported processor model (0x" << std::hex << cpu_family_model << std::dec << ").\n";
+                cerr << "pcm-memory requires server uncore PMU hardware which is not available on client or unsupported processors (see doc/FAQ.md#q6).\n";
                 if (m->memoryTrafficMetricsAvailable())
                         cerr << "For processor-level memory bandwidth statistics please use 'pcm' utility\n";
                 return 0;
