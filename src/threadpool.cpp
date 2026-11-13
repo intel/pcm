@@ -6,7 +6,14 @@
 
 namespace pcm {
 
+static thread_local bool isWorker_ = false;
+
+bool ThreadPool::isCurrentThreadWorker() {
+    return isWorker_;
+}
+
 void ThreadPool::execute( ThreadPool* tp ) {
+    isWorker_ = true;
     while( 1 ) {
         Work* w = tp->retrieveWork();
         if ( w == nullptr ) break;

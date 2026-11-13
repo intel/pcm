@@ -52,7 +52,7 @@ class WorkQueue;
 
 class ThreadPool {
 private:
-    ThreadPool( const int n ) {
+    ThreadPool( const int n ) : numThreads_( n ) {
         for ( int i = 0; i < n; ++i )
             addThread();
     }
@@ -61,12 +61,21 @@ private:
     ThreadPool & operator = ( ThreadPool const& ) = delete;
 
 public:
+    static bool isCurrentThreadWorker();
+
     void emptyThreadPool( void ) {
+        if ( isCurrentThreadWorker() ) {
+            return;
+        }
+        std::lock_guard<std::mutex> elg( emptyMutex_ );
         try {
             for (size_t i = 0; i < threads_.size(); ++i)
                 addWork(nullptr);
-            for (size_t i = 0; i < threads_.size(); ++i)
-                threads_[i].join();
+            for (size_t i = 0; i < threads_.size(); ++i) {
+                if (threads_[i].joinable()) {
+                    threads_[i].join();
+                }
+            }
             threads_.clear();
         }
         catch (const std::exception& e)
@@ -134,6 +143,11 @@ public:
     void addWork( Work* w ) {
         DBG( 5, "WQ: Adding work" );
         std::lock_guard<std::mutex> lg( qMutex_ );
+        if ( threads_.empty() && w != nullptr ) {
+            for ( int i = 0; i < numThreads_; ++i ) {
+                addThread();
+            }
+        }
         workQ_.push( w );
         queueCV_.notify_one();
         DBG( 5, "WQ: Work available" );
@@ -170,7 +184,9 @@ private:
     std::vector<std::thread> threads_;
     std::queue<Work*> workQ_;
     std::mutex qMutex_;
+    std::mutex emptyMutex_;
     std::condition_variable queueCV_;
+    int numThreads_{ 0 };
 };
 
 class WorkQueue {
