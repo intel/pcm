@@ -803,7 +803,11 @@ public:
             printComment( "Accelerator Counters" );
             printAccelCounterState(before,after);
         }
-        if ( pcm->isServerCPU() && pcm->getNumSockets() >= 2 ) {
+        bool hasCXLPorts = false;
+        for ( uint32 s = 0; s < pcm->getNumSockets(); ++s ) {
+            if ( pcm->getNumCXLPorts( s ) > 0 ) hasCXLPorts = true;
+        }
+        if ( pcm->isServerCPU() && ( pcm->getNumSockets() >= 2 || hasCXLPorts ) ) {
             printComment( "UPI/QPI Counters" );
             printSystemCounterState( before, after );
         }
